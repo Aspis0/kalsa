@@ -1,0 +1,51 @@
+=== iso 2026-08-21T16:03:56.5607300-04:00 ===
+=== dumpsys battery header ===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 2891250
+  status: 3
+  level: 77
+  temperature: 269
+
+=== wakefulness ===
+  mWakefulness=Dozing
+
+=== meminfo ===
+MemTotal:        7243748 kB
+MemFree:         3559624 kB
+MemAvailable:    4839620 kB
+
+=== df data ===
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-60 104G  83G   20G  81% /data/user/0
+
+=== s3oracle listing ===
+total 148185
+drwxrwxrwx 3 shell shell     3452 2026-08-21 15:13 .
+drwxrwx--x 9 shell shell     3452 2026-08-21 15:13 ..
+-rw-rw-rw- 1 shell shell  1794776 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell  6103496 2026-08-21 15:11 libggml-base.so
+-rw-rw-rw- 1 shell shell  5165056 2026-08-21 15:11 libggml-cpu.so
+-rw-rw-rw- 1 shell shell  8378584 2026-08-21 15:11 libggml-opencl.so
+-rw-rw-rw- 1 shell shell   536880 2026-08-21 15:11 libggml.so
+-rw-rw-rw- 1 shell shell 78377240 2026-08-21 15:11 libllama-common.so
+-rw-rw-rw- 1 shell shell 39807624 2026-08-21 15:11 libllama.so
+-rw-rw-rw- 1 shell shell  1229304 2026-04-29 08:39 libomp.so
+drwxrwxrwx 2 shell shell     3452 2026-08-21 15:20 logs
+-rwxr-xr-x 1 shell shell 10173424 2026-08-21 15:11 test-backend-ops
+
+=== sha256sum ===
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+b9d99fa8d8be3e40661fb2edbde27229d8666fcc58c481cbb0944dd0cfd36773  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+e51ed14311cec90136ed76cd9755696b0e81c6897b9e0b173d525da9cc3ee8e5  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+646bd2d83576e8b6f2755e5ae7d7bee6064cf920bef4a89718a1b9bc115c543d  libllama-common.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+
+=== models elsewhere ===
+-rw-rw-rw- 1 shell shell 3326160384 2026-08-19 12:21 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+
+

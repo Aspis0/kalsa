@@ -1,0 +1,8 @@
+iso 2026-08-21T18:23:30.7190586-04:00
+STOP Mellum2 GPU-experts cell: 75min, Dozing mid-cell, KEXP priority / battery floor.
+  level: 44
+  temperature: 305
+shell        16270 16268   11507320 1172504 pagecache_get_page 0 D llama-bench
+NO_LLAMA_BENCH
+
+

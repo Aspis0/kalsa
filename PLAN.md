@@ -37,6 +37,10 @@ minimali — e va il doppio. **E il 21/08 sera il passo oltre la riparazione:
 kernel MoE q2_K/q3_K scritti DA ZERO (non esistono upstream per NESSUNA GPU) —
 gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
 (tag kalsakernel-v4, 401/401, smoke LFM2.5 con entrambi i tipi in dispatch).**
+**E il 21/08 sera i numeri: SHIP pre-registrato 1.553× OLMoE (N≥5 v1.2,
+audit BANK) e 1.81× esplorativo sugli esperti KEXP (LFM2.5, kernel nostri),
+in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
+#3 (cherry-pick #26476: dense 925/925).**
 
 ## Il capitolo del fix Adreno (nome interno: "trans4"), chiuso 19–20/08
 
@@ -143,6 +147,40 @@ gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
   `results/q6k_cherry_s23/MANIFEST.md`; bundle
   `backups/kalsakernel-v4-plus-26476.bundle`.
 
+## Sessione device 21/08 sera: OLMoE N≥5 SHIP + KEXP 1.81× (voci #10 e #14)
+
+- **OLMoE confermativa (PREREG v1.2, emendata pre-analisi N≥10→N≥5): SHIP.**
+  5/5 blocchi ABBA completi, tutti cool-start, zero esclusioni, zero wall.
+  Mediana tg512 **A (esperti GPU) 16.36 vs B (esperti CPU) 10.53 = 1.553×**,
+  picco termico mediano A 38.4 ≤ B 38.95 °C (più veloce E più fresco). Tutti
+  e 7 i criteri ship verificati dal grezzo. Pin congelati rispettati
+  (`d2030f23`/`2ed2e48a`, ngl=16, -t 4, -fa off). Claim scopato: S23+OLMoE,
+  modello in RAM, N≥5 v1.2.
+- **KEXP #14 (esplorativa, NON ship)**: LFM2.5-8B-A1B-KEXP (`b07c8087…`),
+  build v4+#26476 (`b9d99fa8`), 2 blocchi ABBA: mediana tg512
+  **A 13.74 vs B 7.58 = 1.81×**, A più fresco (37.25 vs 38.2 picco mediano).
+  Gli esperti Q2/Q3 sui NOSTRI kernel a -ngl 99, sustained. NOTA: B =
+  tronco-GPU/esperti-CPU, NON baseline CPU-pura — l'arm C (-ngl 0, "quello
+  che upstream dà oggi") non è mai stato misurato: serve per la frase da
+  dossier. Decadimento intra-blocco arm A ~24% (prima-A fredda vs seconda-A
+  calda; B piatto) — fisiologico ma da discutere nella prereg KEXP.
+- **Mellum2 (esplorativa)**: load sanity ngl=2/ncmoe99 VIVE, tg 0.2227 (primo
+  numero GPU Mellum2); cella esperti-GPU ngl=2 UCCISA dall'harness a ~75 min
+  mentre calcolava (rc=143, no jsonl, no wall/cliff — errore ammesso +
+  Dozing mid-cell): NESSUN datapoint strumentale, classe ~0.15 t/s solo come
+  inferenza wall-clock. Verdetto: esperti-GPU non viable in streaming — la
+  valvola GPU rende quando il modello sta in RAM, coerente con l'oomwall.
+- **Audit ostile (Free coder): BANK.** 28/28 tg512 csv=jsonl (sha-unici,
+  test_time nelle finestre iso), mediane esatte, gate tutti verdi, ABBA e
+  timestamp monotoni, zero celle nascoste, v1.2 provata pre-dati dal
+  session.log. Igiene applicata: 39.0→38.95, pausa KEXP ricollocata in
+  `results/kexp_speed_s23/pauses/`, nota F10 (kill+Dozing) a verbale;
+  prossima sessione: archiviare il raw delle probe, cap wall-clock
+  pre-dichiarato per celle esplorative.
+- Evidenza: `results/olmoe_gpu_moe_s23/n10/` (runs.csv, jsonl, MANIFEST),
+  `results/kexp_speed_s23/`, report `scratchpad/agents/n10-kexp-session/`,
+  audit `scratchpad/agents/n10-kexp-audit/REPORT.md`.
+
 ## Fatti operativi correnti
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
@@ -172,14 +210,16 @@ gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
 | 7 | Gap ~70% kernel_kf vs lineup binary | da investigare |
 | 8 | **Pubblicazione del fix Adreno** (dossier: 3 miscompile trans4 caratterizzati al bit + 4° sito K2 maschere-letterali device-verified + **5° latente, review-not-device**: early-return prima della barrier di work-group + GEMM OOB su `ne01%32&&!%64` nei clone q4_K/q5_K/q6_K; gate A6X/A7X ancora attivo upstream a master) | decisione owner |
 | ~~9~~ | ~~Muro GPU-MoE su S23~~ → **RISOLTO 21/08 (oomwall)**: era il **REPACK ARM di default di llama-bench** (~6.5GB posix_memalign anonimi su Mellum2 Q4_K_M; CPU-only, GPU innocente — coppia W4/W4c a una variabile; produzione strutturalmente immune, use_extra_bufts=false). `results/oomwall_s23/` | fatto |
-| 10 | **GPU-esperti = default candidato su A740 quando il modello sta in RAM**: cella OLMoE 21/08 (esplorativa): **2.17× burst / ~1.5× sustained vs esperti CPU, più fresco**, full offload ngl16 stabile. Serve cella pre-registrata N≥10 per claim di ship + replica su secondo modello q4_K | prossima sessione device |
+| ~~10~~ | ~~Cella pre-registrata GPU-esperti OLMoE~~ → **CHIUSO 21/08 sera: SHIP 1.553×** (N≥5 v1.2, audit BANK — vedi sezione sessione device) | fatto |
 | 11 | Flag `--no-extra-bufts` per llama-bench (specchia llama-cli; upstream-worthy: il default spegne fisicamente i device 8GB coi Q4_K_M grossi) + bug `map::at` FLASH_ATTN d_head=64 senza guardia (severità media) | coder |
 | 12 | Opzionali bassa priorità: dummy-arg attribution test (isola il trigger C1); triage SIGSEGV harness full-suite | quando capita |
 | 13 | **barrier-safe pattern port to q4_K/q5_K/q6_K GEMV+GEMM** (latent, `ne01%32 && !%64`) — sessione di verifica **separata**. q2/q3 già fixati come eccezione documentata al clone-q6 (kalsakernel-v3 391/391 non va toccato mid-chapter). Trovato da review S3, non da device. File:line: GEMV q6 `:41` / q4_K `:68` prima della WG barrier; GEMM q4 `:304` q5 `:312` q6 `:280` return prima di `out_idx` barrier + load `row_idx` non clampato. | capitolo futuro |
-| 14 | **Cella velocità KEXP-su-GPU** (LFM2.5/Marco: esperti GPU vs CPU, stesso protocollo della cella OLMoE; lo smoke dice tg64 15.09 ma serve l'A/B vero) — combinabile con la N≥10 di #10 in un'unica sessione device | prossima sessione device |
+| ~~14~~ | ~~Cella velocità KEXP-su-GPU~~ → **CHIUSO 21/08 sera (esplorativa): 1.81×** A/B su LFM2.5-KEXP (vedi sezione sessione device); per la ship serve #18 | fatto |
 | 15 | Cella satellite **Vulkan vs OpenCL su S23** (stesso modello/ngl: misura il gap reale del backend "del futuro" su Adreno; risponde anche al Claude della lane CPU) | dopo #10/#14 |
 | 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler build più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier) | sessione economica post-kernel |
 | 17 | Guardia `gpu_family == ADRENO` sul gate `q6_k_flat_old_compiler` (`ggml-opencl.cpp:6019` — F1 audit #26476: su Intel il flag scatta a vuoto, perf-only 13–20%, ereditato upstream; upstream-worthy) + ramo E17 mancante nel parser versione (F3, latente) | coder qualunque, bassa priorità |
+| 18 | **Prereg + cella ship KEXP-su-GPU** (N≥5 ABBA su LFM2.5-KEXP, stessa disciplina v1.2) **con arm C `-ngl 0` CPU-pura** — la baseline "quello che upstream dà oggi", che manca ed è la frase da dossier; discutere il decadimento intra-blocco arm A ~24%; cap wall-clock pre-dichiarato + archivio raw probe (igiene audit) | prossima sessione device |
+| 19 | Opzionale: perché Mellum2 esperti-GPU a ngl=2 è <0.11 t/s (peggio di metà dell'arm CPU — upload esperti per-token?): strumentazione dedicata, solo se vale un capitolo | quando capita |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
 

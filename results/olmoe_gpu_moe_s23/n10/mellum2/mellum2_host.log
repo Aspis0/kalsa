@@ -1,0 +1,48 @@
+START 2026-08-21T16:58:08.8601352-04:00
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+=== frozen pins (on-device) ===
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  /data/local/tmp/s3oracle/libllama-bench-impl.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  /data/local/tmp/s3oracle/libggml-opencl.so
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  /data/local/tmp/s3oracle/llama-bench
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  /data/local/tmp/s3oracle/libllama.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  /data/local/tmp/s3oracle/libggml.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  /data/local/tmp/s3oracle/libggml-cpu.so
+sha256sum: /data/local/tmp/s3oracle/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf: No such file or directory
+2026-08-21T16:58:35.3078676-04:00 push Mellum2 7.5 GiB
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf: 1 file pushed, 0 skipped. 19.3 MB/s (8071293600 bytes in 398.436s)
+b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  /data/local/tmp/s3oracle/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\n10\one_cell_mellum2.sh: 1 file pushed, 0 skipped. 0.4 MB/s (550 bytes in 0.001s)
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+COOLDOWN temp_c=36.3 elapsed_s=0 level=60
+COOLDOWN temp_c=36.5 elapsed_s=15 level=60
+COOLDOWN temp_c=36.5 elapsed_s=31 level=60
+COOLDOWN temp_c=36.1 elapsed_s=46 level=60
+COOLDOWN temp_c=36.1 elapsed_s=61 level=60
+COOLDOWN temp_c=35.5 elapsed_s=76 level=60
+COOLDOWN temp_c=35.5 elapsed_s=92 level=60
+COOLDOWN temp_c=35 elapsed_s=107 level=60
+2026-08-21T17:07:11.7740731-04:00 mellum2 cooldown warm_start=False temp=35
+2026-08-21T17:07:11.8037441-04:00 === MELLUM2 m2_ngl2_ncmoe99 -ngl 2 -ncmoe 99 -p 0 -n 16  (load sanity experts=CPU) ===
+m2_ngl2_ncmoe99_PRE level=60 temp_c=35 wake=mWakefulness=Awake MemAvailable=5085496kB MemFree=123692kB
+2026-08-21T17:07:12.9102124-04:00 RUN sh /data/local/tmp/s3oracle/one_cell_mellum2.sh -ngl 2 -ncmoe 99 -p 0 -n 16 -r 1 2>/data/local/tmp/s3oracle/logs/m2_ngl2_ncmoe99.err
+2026-08-21T17:08:49.0912060-04:00 RC m2_ngl2_ncmoe99 rc=0
+m2_ngl2_ncmoe99_POST level=59 temp_c=38.4 wake=mWakefulness=Awake MemAvailable=5466684kB MemFree=817336kB
+2026-08-21T17:08:49.8222734-04:00 sanity lived tg=0.222682
+2026-08-21T17:08:49.8376226-04:00 === MELLUM2 m2_ngl2_gpu_experts -ngl 2 -p 0 -n 512  (EXPLORATORY experts=GPU tg512) ===
+m2_ngl2_gpu_experts_PRE level=59 temp_c=38.4 wake=mWakefulness=Awake MemAvailable=5406160kB MemFree=604512kB
+2026-08-21T17:08:50.6911098-04:00 RUN sh /data/local/tmp/s3oracle/one_cell_mellum2.sh -ngl 2 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/m2_ngl2_gpu_experts.err
+2026-08-21T18:23:31.4632353-04:00 RC m2_ngl2_gpu_experts rc=143
+m2_ngl2_gpu_experts_POST level=44 temp_c=30.5 wake=mWakefulness=Dozing MemAvailable=5463264kB MemFree=1313008kB
+2026-08-21T18:23:31.9458996-04:00 MELLUM2 STOP: llama-bench rc=143 on m2_ngl2_gpu_experts
+Exception: C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\n10\run_mellum2.ps1:25
+Line |
+  25 |      throw "MELLUM2 STOP: $Reason"
+     |      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+     | MELLUM2 STOP: llama-bench rc=143 on m2_ngl2_gpu_experts

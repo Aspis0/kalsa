@@ -1,0 +1,10 @@
+iso 2026-08-21T18:13:11.6788945-04:00
+  AC powered: false
+  USB powered: false
+  level: 45
+  temperature: 310
+  mWakefulness=Dozing
+MemAvailable:    4264748 kB
+shell        16270 16268   11507320 1125108 0                  0 R llama-bench
+
+

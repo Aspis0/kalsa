@@ -1,0 +1,10 @@
+{
+  "block": 1,
+  "iso": "2026-08-21T16:19:13.5961056-04:00",
+  "temp_c_block_start": 28.6,
+  "warm_start": false,
+  "cooldown_s": 0,
+  "level_pre": 76,
+  "governor": "cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt",
+  "unplug": "AC powered: false\r\n  USB powered: false\r\n  Wireless powered: false\r\n  Charge counter: 2865000\r\n  status: 3\r\n  level: 76\r\n  temperature: 286"
+}

@@ -1,0 +1,10 @@
+2026-08-21T16:58:35.3078676-04:00 push Mellum2 7.5 GiB
+2026-08-21T17:07:11.7740731-04:00 mellum2 cooldown warm_start=False temp=35
+2026-08-21T17:07:11.8037441-04:00 === MELLUM2 m2_ngl2_ncmoe99 -ngl 2 -ncmoe 99 -p 0 -n 16  (load sanity experts=CPU) ===
+2026-08-21T17:07:12.9102124-04:00 RUN sh /data/local/tmp/s3oracle/one_cell_mellum2.sh -ngl 2 -ncmoe 99 -p 0 -n 16 -r 1 2>/data/local/tmp/s3oracle/logs/m2_ngl2_ncmoe99.err
+2026-08-21T17:08:49.0912060-04:00 RC m2_ngl2_ncmoe99 rc=0
+2026-08-21T17:08:49.8222734-04:00 sanity lived tg=0.222682
+2026-08-21T17:08:49.8376226-04:00 === MELLUM2 m2_ngl2_gpu_experts -ngl 2 -p 0 -n 512  (EXPLORATORY experts=GPU tg512) ===
+2026-08-21T17:08:50.6911098-04:00 RUN sh /data/local/tmp/s3oracle/one_cell_mellum2.sh -ngl 2 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/m2_ngl2_gpu_experts.err
+2026-08-21T18:23:31.4632353-04:00 RC m2_ngl2_gpu_experts rc=143
+2026-08-21T18:23:31.9458996-04:00 MELLUM2 STOP: llama-bench rc=143 on m2_ngl2_gpu_experts

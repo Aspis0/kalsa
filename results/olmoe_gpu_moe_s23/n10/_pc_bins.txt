@@ -1,0 +1,67 @@
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\build-android-opencl-s3oracle\bin exists=False ===
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\BigMoeOnEdge\third_party\llama.cpp\build-android-opencl\bin exists=False ===
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\oomwall_s23 exists=True ===
+        6438 _dump_gguf_meta.py
+        2587 _LFM2.5-8B-A1B-KEXP_tensors.txt
+        2574 _Mellum2-12B-A2.5B-Instruct-Q4_K_M_tensors.txt
+        1106 _w1_adb_log.txt
+         840 _w1_mem_poll.txt
+         317 _w1_pre.txt
+       23112 _w2_adb_log.txt
+         420 _w2_mem_poll.txt
+         314 _w2_pre.txt
+         252 _w4_mem_poll.txt
+         585 _w4_pre.txt
+         672 _w4c_mem_poll.txt
+     8044464 libggml-opencl.2ed2e48a.so
+         492 llama-bench-noextra.diff
+        5780 MANIFEST.md
+        2763 olmoe_q4km_tensors.txt
+        3754 run_w4.ps1
+        4538 run_w4c.ps1
+        1106 w1.adb.log
+         924 w1.mem_poll
+         317 w1.pre
+         974 w1.sh
+       23112 w2.adb.log
+         420 w2.mem_poll
+         314 w2.pre
+         958 w2.sh
+         223 w4.adb.log
+        1356 w4.health.txt
+    48656384 w4.logcat
+         616 w4.mem_poll
+         585 w4.pre
+        1266 w4.sh
+        4950 w4c.adb.log
+        1164 w4c.health.txt
+         672 w4c.mem_poll
+         586 w4c.pre
+        1353 w4c.sh
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\oomwall_s23\staging\noextra exists=True ===
+     4240160 libllama-bench-impl.so
+    39807624 libllama.so
+        7600 llama-bench
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\oomwall_s23\staging\stock exists=True ===
+     4240544 libllama-bench-impl.so
+    39807624 libllama.so
+        7600 llama-bench
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\q6k_cherry_s23 exists=True ===
+        5212 MANIFEST.md
+        3722 q6k_dense.err
+      163776 q6k_dense.out
+        3380 q6k_mmid.err
+       78344 q6k_mmid.out
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\gdn_gpu_k2\bin exists=True ===
+     1794776 libc++_shared.so
+   126081792 llama-bench
+   188020280 llama-cli
+         467 SHA256SUMS.txt
+    24986176 test-backend-ops
+=== DIR C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\gdn_gpu_k22\bin exists=True ===
+     1794776 libc++_shared.so
+   126084160 llama-bench
+   188022720 llama-cli
+         402 SHA256SUMS.txt
+    24993672 test-backend-ops
+

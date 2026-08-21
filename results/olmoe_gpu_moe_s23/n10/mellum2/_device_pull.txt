@@ -1,0 +1,22 @@
+iso 2026-08-21T18:42:15.7527409-04:00
+=== devices ===
+List of devices attached
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp	device
+
+
+=== batt ===
+  AC powered: false
+  USB powered: false
+  level: 37
+  temperature: 329
+
+=== llama-bench ps ===
+NO_LLAMA_BENCH
+
+=== device logs dir ===
+-rw-rw-rw- 1 shell shell 221 2026-08-21 18:23 /data/local/tmp/s3oracle/logs/m2_ngl2_gpu_experts.err
+-rw-rw-rw- 1 shell shell 209 2026-08-21 17:07 /data/local/tmp/s3oracle/logs/m2_ngl2_ncmoe99.err
+
+pull err exit=0
+err bytes=221
+

@@ -1,0 +1,114 @@
+2026-08-21T16:13:46.0754894-04:00 S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp  protocol=v1.2 TargetComplete=5
+2026-08-21T16:19:10.2213057-04:00 SHA_BLOCK
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  libllama-bench-impl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+e51ed14311cec90136ed76cd9755696b0e81c6897b9e0b173d525da9cc3ee8e5  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+646bd2d83576e8b6f2755e5ae7d7bee6064cf920bef4a89718a1b9bc115c543d  libllama-common.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+2026-08-21T16:19:12.0668533-04:00 === BLOCK 1 start (complete=0/5) ===
+2026-08-21T16:19:12.3767269-04:00 COOLDOWN done warm_start=False temp_c_block_start=28.6 cooldown_s=0
+2026-08-21T16:19:13.5789631-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:19:13.6145514-04:00 === CELL b01_c1_A experts=GPU -ngl 16 ===
+2026-08-21T16:19:15.9234283-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c1_A.err
+2026-08-21T16:20:06.7820646-04:00 RC b01_c1_A rc=0
+2026-08-21T16:20:07.4774072-04:00 MemAvailable drop_kb=-601692 (cliff=2097152)
+2026-08-21T16:20:09.8230958-04:00 === CELL b01_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:20:10.7676827-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c2_B.err
+2026-08-21T16:21:12.7031268-04:00 RC b01_c2_B rc=0
+2026-08-21T16:21:13.4508619-04:00 MemAvailable drop_kb=1020 (cliff=2097152)
+2026-08-21T16:21:15.5121722-04:00 === CELL b01_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:21:16.4102372-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c3_B.err
+2026-08-21T16:22:15.7049962-04:00 RC b01_c3_B rc=0
+2026-08-21T16:22:16.3356225-04:00 MemAvailable drop_kb=-52300 (cliff=2097152)
+2026-08-21T16:22:18.3910231-04:00 === CELL b01_c4_A experts=GPU -ngl 16 ===
+2026-08-21T16:22:19.3038142-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c4_A.err
+2026-08-21T16:23:21.7814141-04:00 RC b01_c4_A rc=0
+2026-08-21T16:23:22.5643204-04:00 MemAvailable drop_kb=-41120 (cliff=2097152)
+2026-08-21T16:23:24.7566658-04:00 BLOCK 1 complete=True cellOk=4
+2026-08-21T16:23:24.7910803-04:00 === BLOCK 2 start (complete=1/5) ===
+2026-08-21T16:24:56.1119982-04:00 COOLDOWN done warm_start=False temp_c_block_start=34.5 cooldown_s=91
+2026-08-21T16:24:57.4347950-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:24:57.4576508-04:00 === CELL b02_c1_A experts=GPU -ngl 16 ===
+2026-08-21T16:24:58.6022423-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c1_A.err
+2026-08-21T16:25:53.9203052-04:00 RC b02_c1_A rc=0
+2026-08-21T16:25:54.6880726-04:00 MemAvailable drop_kb=-85256 (cliff=2097152)
+2026-08-21T16:25:56.7488709-04:00 === CELL b02_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:25:57.8524693-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c2_B.err
+2026-08-21T16:27:01.6887159-04:00 RC b02_c2_B rc=0
+2026-08-21T16:27:02.2853295-04:00 MemAvailable drop_kb=87608 (cliff=2097152)
+2026-08-21T16:27:04.3531684-04:00 === CELL b02_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:27:05.3469681-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c3_B.err
+2026-08-21T16:28:11.8823880-04:00 RC b02_c3_B rc=0
+2026-08-21T16:28:12.6028546-04:00 MemAvailable drop_kb=-40144 (cliff=2097152)
+2026-08-21T16:28:14.6876371-04:00 === CELL b02_c4_A experts=GPU -ngl 16 ===
+2026-08-21T16:28:15.5791853-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c4_A.err
+2026-08-21T16:29:30.9823209-04:00 RC b02_c4_A rc=0
+2026-08-21T16:29:31.7176780-04:00 MemAvailable drop_kb=-50932 (cliff=2097152)
+2026-08-21T16:29:33.7746640-04:00 BLOCK 2 complete=True cellOk=4
+2026-08-21T16:29:33.8133775-04:00 === BLOCK 3 start (complete=2/5) ===
+2026-08-21T16:34:22.9002917-04:00 COOLDOWN done warm_start=False temp_c_block_start=34.8 cooldown_s=289
+2026-08-21T16:34:24.1889386-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:34:24.2211098-04:00 === CELL b03_c1_A experts=GPU -ngl 16 ===
+2026-08-21T16:34:25.3434977-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c1_A.err
+2026-08-21T16:35:21.1646019-04:00 RC b03_c1_A rc=0
+2026-08-21T16:35:21.8353097-04:00 MemAvailable drop_kb=-139336 (cliff=2097152)
+2026-08-21T16:35:23.9025662-04:00 === CELL b03_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:35:24.9547972-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c2_B.err
+2026-08-21T16:36:29.9345377-04:00 RC b03_c2_B rc=0
+2026-08-21T16:36:30.5982082-04:00 MemAvailable drop_kb=13684 (cliff=2097152)
+2026-08-21T16:36:32.6639589-04:00 === CELL b03_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:36:33.6812768-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c3_B.err
+2026-08-21T16:37:37.9883698-04:00 RC b03_c3_B rc=0
+2026-08-21T16:37:38.6544130-04:00 MemAvailable drop_kb=4800 (cliff=2097152)
+2026-08-21T16:37:40.7166642-04:00 === CELL b03_c4_A experts=GPU -ngl 16 ===
+2026-08-21T16:37:41.7104019-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c4_A.err
+2026-08-21T16:38:54.8914229-04:00 RC b03_c4_A rc=0
+2026-08-21T16:38:55.7044065-04:00 MemAvailable drop_kb=-33752 (cliff=2097152)
+2026-08-21T16:38:57.7727293-04:00 BLOCK 3 complete=True cellOk=4
+2026-08-21T16:38:57.8100987-04:00 === BLOCK 4 start (complete=3/5) ===
+2026-08-21T16:42:31.1285313-04:00 COOLDOWN done warm_start=False temp_c_block_start=34.8 cooldown_s=213
+2026-08-21T16:42:32.3200666-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:42:32.3390119-04:00 === CELL b04_c1_A experts=GPU -ngl 16 ===
+2026-08-21T16:42:33.6175806-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c1_A.err
+2026-08-21T16:43:29.6459609-04:00 RC b04_c1_A rc=0
+2026-08-21T16:43:30.2035145-04:00 MemAvailable drop_kb=-216052 (cliff=2097152)
+2026-08-21T16:43:32.2763158-04:00 === CELL b04_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:43:33.2840780-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c2_B.err
+2026-08-21T16:44:40.4596081-04:00 RC b04_c2_B rc=0
+2026-08-21T16:44:41.1176060-04:00 MemAvailable drop_kb=-128176 (cliff=2097152)
+2026-08-21T16:44:43.1812371-04:00 === CELL b04_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:44:44.2319517-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c3_B.err
+2026-08-21T16:45:49.9022729-04:00 RC b04_c3_B rc=0
+2026-08-21T16:45:50.5894200-04:00 MemAvailable drop_kb=40720 (cliff=2097152)
+2026-08-21T16:45:52.6548074-04:00 === CELL b04_c4_A experts=GPU -ngl 16 ===
+2026-08-21T16:45:53.7285279-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c4_A.err
+2026-08-21T16:47:07.0315519-04:00 RC b04_c4_A rc=0
+2026-08-21T16:47:07.8801179-04:00 MemAvailable drop_kb=-126944 (cliff=2097152)
+2026-08-21T16:47:09.9715661-04:00 BLOCK 4 complete=True cellOk=4
+2026-08-21T16:47:10.0307953-04:00 === BLOCK 5 start (complete=4/5) ===
+2026-08-21T16:52:45.8679305-04:00 COOLDOWN done warm_start=False temp_c_block_start=35 cooldown_s=336
+2026-08-21T16:52:51.5601993-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:52:51.5793614-04:00 === CELL b05_c1_A experts=GPU -ngl 16 ===
+2026-08-21T16:52:53.7841331-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c1_A.err
+2026-08-21T16:53:53.1230955-04:00 RC b05_c1_A rc=0
+2026-08-21T16:53:53.7522211-04:00 MemAvailable drop_kb=-766732 (cliff=2097152)
+2026-08-21T16:53:55.8332660-04:00 === CELL b05_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:53:56.9676396-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c2_B.err
+2026-08-21T16:55:04.4857897-04:00 RC b05_c2_B rc=0
+2026-08-21T16:55:05.1859199-04:00 MemAvailable drop_kb=67560 (cliff=2097152)
+2026-08-21T16:55:07.2591213-04:00 === CELL b05_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+2026-08-21T16:55:08.2398981-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c3_B.err
+2026-08-21T16:56:15.0510185-04:00 RC b05_c3_B rc=0
+2026-08-21T16:56:15.7465127-04:00 MemAvailable drop_kb=-157932 (cliff=2097152)
+2026-08-21T16:56:17.8192421-04:00 === CELL b05_c4_A experts=GPU -ngl 16 ===
+2026-08-21T16:56:18.8339571-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c4_A.err
+2026-08-21T16:57:33.7682623-04:00 RC b05_c4_A rc=0
+2026-08-21T16:57:34.5888126-04:00 MemAvailable drop_kb=-60960 (cliff=2097152)
+2026-08-21T16:57:36.6471502-04:00 BLOCK 5 complete=True cellOk=4
+2026-08-21T16:57:36.6857570-04:00 OLMoE arm done. complete=5 target=5

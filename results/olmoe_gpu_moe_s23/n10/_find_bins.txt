@@ -1,0 +1,120 @@
+=== tmp roots ===
+total 3295799
+drwxrwx--x 9 shell shell       3452 2026-08-21 15:13 .
+drwxr-x--x 6 root  root        3452 2022-12-17 23:53 ..
+-rw-rw-rw- 1 shell shell 3326160384 2026-08-19 12:21 LFM2.5-8B-A1B-KEXP.gguf
+drwxrwxrwx 3 shell shell       3452 2026-08-11 23:15 dalvik-cache
+-rw-rw-rw- 1 shell shell      40376 2026-08-20 10:09 decode-partition-ui.xml
+drwxrwxrwx 2 shell shell       3452 2026-08-18 18:24 k22
+drwxrwxrwx 2 shell shell       3452 2026-08-18 19:55 k2ref
+-rw-rw-rw- 1 shell shell      25814 2026-08-15 22:34 kalsa-preflight-ui.xml
+-rw-rw-rw- 1 shell shell      10439 2026-08-03 23:48 preflight_llama_isa.sh
+-rw-rw-rw- 1 shell shell      35738 2026-08-16 10:44 probe1.xml
+-rw-rw-rw- 1 shell shell      35738 2026-08-16 10:44 probe2.xml
+-rw-rw-rw- 1 shell shell      35738 2026-08-16 10:44 probe3.xml
+-rw-rw-rw- 1 shell shell      32701 2026-08-16 01:46 r1.xml
+-rw-rw-rw- 1 shell shell      32694 2026-08-16 01:47 r2.xml
+-rw-rw-rw- 1 shell shell      32757 2026-08-16 01:49 r3.xml
+-rw-rw-rw- 1 shell shell      32838 2026-08-16 01:52 r4.xml
+-rw-rw-rw- 1 shell shell      32980 2026-08-16 02:03 r5.xml
+-rw-rw-rw- 1 shell shell      32980 2026-08-16 02:04 r6.xml
+drwxrwxrwx 2 shell shell       3452 2026-08-18 20:02 s3base
+drwxrwxrwx 2 shell shell       3452 2026-08-18 19:48 s3fix
+drwxrwxrwx 3 shell shell       3452 2026-08-21 15:13 s3oracle
+drwxrwxrwx 2 shell shell       3452 2026-08-19 08:43 s3printf
+-rw-rw-rw- 1 shell shell    8854381 2026-08-03 21:02 termux-api.apk
+-rw-rw-rw- 1 shell shell   35106607 2026-08-03 21:02 termux-app.apk
+-rw-rw-rw- 1 shell shell     743812 2026-08-03 21:02 termux-boot.apk
+-rw-rw-rw- 1 shell shell      24373 2026-08-15 21:13 u6.xml
+-rw-rw-rw- 1 shell shell      25814 2026-08-15 22:13 u7.xml
+-rw-rw-rw- 1 shell shell      25807 2026-08-15 22:14 u8.xml
+-rw-rw-rw- 1 shell shell      33087 2026-08-15 23:47 u9.xml
+-rw-rw-rw- 1 shell shell      25904 2026-08-20 20:36 ui.xml
+-rw-rw-rw- 1 shell shell       6874 2026-08-15 20:54 ui2.xml
+-rw-rw-rw- 1 shell shell       5449 2026-08-15 20:55 ui3.xml
+-rw-rw-rw- 1 shell shell      36919 2026-08-15 20:55 ui4.xml
+-rw-rw-rw- 1 shell shell      36220 2026-08-15 21:09 ui5.xml
+-rw-rw-rw- 1 shell shell      44131 2026-08-16 12:40 z1.xml
+
+=== s3* dirs ===
+--- /data/local/tmp/s3base ---
+total 147246
+drwxrwxrwx 2 shell shell     3452 2026-08-18 20:02 .
+drwxrwx--x 9 shell shell     3452 2026-08-21 15:13 ..
+-rw-rw-rw- 1 shell shell  1794776 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell  6103504 2026-08-18 19:58 libggml-base.so
+-rw-rw-rw- 1 shell shell  5165056 2026-08-18 19:59 libggml-cpu.so
+-rw-rw-rw- 1 shell shell  7430256 2026-08-18 19:59 libggml-opencl.so
+-rw-rw-rw- 1 shell shell   536872 2026-08-18 19:59 libggml.so
+-rw-rw-rw- 1 shell shell 78377232 2026-08-18 20:00 libllama-common.so
+-rw-rw-rw- 1 shell shell 39807624 2026-08-18 19:59 libllama.so
+-rw-rw-rw- 1 shell shell  1229304 2026-04-29 08:39 libomp.so
+-rwxrwxrwx 1 shell shell 10165800 2026-08-18 20:00 test-backend-ops
+
+--- /data/local/tmp/s3fix ---
+total 147242
+drwxrwxrwx 2 shell shell     3452 2026-08-18 19:48 .
+drwxrwx--x 9 shell shell     3452 2026-08-21 15:13 ..
+-rw-rw-rw- 1 shell shell  1794776 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell  6103504 2026-08-18 19:44 libggml-base.so
+-rw-rw-rw- 1 shell shell  5165056 2026-08-18 19:45 libggml-cpu.so
+-rw-rw-rw- 1 shell shell  7429104 2026-08-18 19:44 libggml-opencl.so
+-rw-rw-rw- 1 shell shell   536872 2026-08-18 19:45 libggml.so
+-rw-rw-rw- 1 shell shell 78377232 2026-08-18 19:46 libllama-common.so
+-rw-rw-rw- 1 shell shell 39807616 2026-08-18 19:45 libllama.so
+-rw-rw-rw- 1 shell shell  1229304 2026-04-29 08:39 libomp.so
+-rwxrwxrwx 1 shell shell 10165792 2026-08-18 19:46 test-backend-ops
+
+--- /data/local/tmp/s3printf ---
+total 147314
+drwxrwxrwx 2 shell shell     3452 2026-08-19 08:43 .
+drwxrwx--x 9 shell shell     3452 2026-08-21 15:13 ..
+-rw-rw-rw- 1 shell shell  1794776 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell  6103512 2026-08-18 20:41 libggml-base.so
+-rw-rw-rw- 1 shell shell  5165056 2026-08-18 20:42 libggml-cpu.so
+-rw-rw-rw- 1 shell shell  7503528 2026-08-19 08:43 libggml-opencl.so
+-rw-rw-rw- 1 shell shell   536880 2026-08-19 08:43 libggml.so
+-rw-rw-rw- 1 shell shell 78377240 2026-08-19 08:43 libllama-common.so
+-rw-rw-rw- 1 shell shell 39807624 2026-08-19 08:43 libllama.so
+-rw-rw-rw- 1 shell shell  1229304 2026-04-29 08:39 libomp.so
+-rwxrwxrwx 1 shell shell 10165800 2026-08-19 08:43 test-backend-ops
+
+--- /data/local/tmp/s3oracle ---
+total 148185
+drwxrwxrwx 3 shell shell     3452 2026-08-21 15:13 .
+drwxrwx--x 9 shell shell     3452 2026-08-21 15:13 ..
+-rw-rw-rw- 1 shell shell  1794776 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell  6103496 2026-08-21 15:11 libggml-base.so
+-rw-rw-rw- 1 shell shell  5165056 2026-08-21 15:11 libggml-cpu.so
+-rw-rw-rw- 1 shell shell  8378584 2026-08-21 15:11 libggml-opencl.so
+-rw-rw-rw- 1 shell shell   536880 2026-08-21 15:11 libggml.so
+-rw-rw-rw- 1 shell shell 78377240 2026-08-21 15:11 libllama-common.so
+-rw-rw-rw- 1 shell shell 39807624 2026-08-21 15:11 libllama.so
+-rw-rw-rw- 1 shell shell  1229304 2026-04-29 08:39 libomp.so
+drwxrwxrwx 2 shell shell     3452 2026-08-21 15:20 logs
+-rwxr-xr-x 1 shell shell 10173424 2026-08-21 15:11 test-backend-ops
+
+--- /data/local/tmp/bmoe ---
+
+--- /data/local/tmp/llama ---
+
+--- /data/local/tmp/ggml ---
+
+=== find llama-bench / opencl so ===
+-rw-rw-rw- 1 shell shell  6103504 2026-08-18 19:58 /data/local/tmp/s3base/libggml-base.so
+-rw-rw-rw- 1 shell shell  7430256 2026-08-18 19:59 /data/local/tmp/s3base/libggml-opencl.so
+-rw-rw-rw- 1 shell shell 78377232 2026-08-18 20:00 /data/local/tmp/s3base/libllama-common.so
+-rw-rw-rw- 1 shell shell  6103504 2026-08-18 19:44 /data/local/tmp/s3fix/libggml-base.so
+-rw-rw-rw- 1 shell shell  7429104 2026-08-18 19:44 /data/local/tmp/s3fix/libggml-opencl.so
+-rw-rw-rw- 1 shell shell 78377232 2026-08-18 19:46 /data/local/tmp/s3fix/libllama-common.so
+-rw-rw-rw- 1 shell shell  6103496 2026-08-21 15:11 /data/local/tmp/s3oracle/libggml-base.so
+-rw-rw-rw- 1 shell shell  8378584 2026-08-21 15:11 /data/local/tmp/s3oracle/libggml-opencl.so
+-rw-rw-rw- 1 shell shell 78377240 2026-08-21 15:11 /data/local/tmp/s3oracle/libllama-common.so
+-rw-rw-rw- 1 shell shell  6103512 2026-08-18 20:41 /data/local/tmp/s3printf/libggml-base.so
+-rw-rw-rw- 1 shell shell  7503528 2026-08-19 08:43 /data/local/tmp/s3printf/libggml-opencl.so
+-rw-rw-rw- 1 shell shell 78377240 2026-08-19 08:43 /data/local/tmp/s3printf/libllama-common.so
+
+=== gguf ===
+/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+
+

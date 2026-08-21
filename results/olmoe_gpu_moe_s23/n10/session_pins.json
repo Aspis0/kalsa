@@ -1,0 +1,8 @@
+{
+  "iso": "2026-08-21T16:19:11.9723015-04:00",
+  "screen_off_timeout": "1800000",
+  "screen_brightness": "128",
+  "screen_brightness_mode": "0",
+  "wifi_on": "1",
+  "governor_at_session_start": "cpu0:walt\ncpu1:walt\ncpu2:walt\ncpu3:walt\ncpu4:walt\ncpu5:walt\ncpu6:walt\ncpu7:walt"
+}

@@ -1,0 +1,303 @@
+START 2026-08-21T16:13:43.8301716-04:00
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+2026-08-21T16:13:46.0754894-04:00 S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp  protocol=v1.2 TargetComplete=5
+=== restore frozen N>=10 stack (do not touch s3base/s3fix/s3printf) ===
+push libggml-opencl.so frozen 2ed2e48a
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\oomwall_s23\libggml-opencl.2ed2e48a.so: 1 file pushed, 0 skipped. 69.2 MB/s (8044464 bytes in 0.111s)
+push noextra libllama-bench-impl.so d2030f23
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\oomwall_s23\staging\noextra\libllama-bench-impl.so: 1 file pushed, 0 skipped. 72.6 MB/s (4240160 bytes in 0.056s)
+push llama-bench stub b2ae0fa6
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\oomwall_s23\staging\noextra\llama-bench: 1 file pushed, 0 skipped. 2.6 MB/s (7600 bytes in 0.003s)
+push one_cell.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\one_cell.sh: 1 file pushed, 0 skipped. 1.2 MB/s (586 bytes in 0.000s)
+sha256sum: /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf: No such file or directory
+push OLMoE GGUF (4.2 GiB, may take several minutes over TLS)
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf: 1 file pushed, 0 skipped. 18.4 MB/s (4213513024 bytes in 218.149s)
+=== frozen pins (on-device) ===
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  /data/local/tmp/s3oracle/libllama-bench-impl.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  /data/local/tmp/s3oracle/libggml-opencl.so
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  /data/local/tmp/s3oracle/llama-bench
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  /data/local/tmp/s3oracle/libllama.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  /data/local/tmp/s3oracle/libggml.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  /data/local/tmp/s3oracle/libggml-cpu.so
+=== full sha block after restore ===
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  libllama-bench-impl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+e51ed14311cec90136ed76cd9755696b0e81c6897b9e0b173d525da9cc3ee8e5  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+646bd2d83576e8b6f2755e5ae7d7bee6064cf920bef4a89718a1b9bc115c543d  libllama-common.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+2026-08-21T16:19:10.2213057-04:00 SHA_BLOCK
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346  libllama-bench-impl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+2ed2e48a98e50f324c2aaed0c8fa7ed5b1c0fb09bff8f9a153f79420a7d69a87  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+e51ed14311cec90136ed76cd9755696b0e81c6897b9e0b173d525da9cc3ee8e5  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+646bd2d83576e8b6f2755e5ae7d7bee6064cf920bef4a89718a1b9bc115c543d  libllama-common.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+=== session pins (v1.1) ===
+PIN screen_off_timeout=1800000 brightness=128 mode=0 wifi_on=1
+PIN governor_start: cpu0:walt
+cpu1:walt
+cpu2:walt
+cpu3:walt
+cpu4:walt
+cpu5:walt
+cpu6:walt
+cpu7:walt
+2026-08-21T16:19:12.0668533-04:00 === BLOCK 1 start (complete=0/5) ===
+COOLDOWN temp_c=28.6 elapsed_s=0 level=76
+2026-08-21T16:19:12.3767269-04:00 COOLDOWN done warm_start=False temp_c_block_start=28.6 cooldown_s=0
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+2026-08-21T16:19:13.5789631-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:19:13.6145514-04:00 === CELL b01_c1_A experts=GPU -ngl 16 ===
+WAKE: not Awake (mWakefulness=Dozing) - KEYCODE_WAKEUP
+b01_c1_A_PRE level=76 temp_c=28.6 wake=mWakefulness=Awake MemAvailable=4722344kB MemFree=87184kB
+2026-08-21T16:19:15.9234283-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c1_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:19:46Z", "avg_ns": 20110584107, "stddev_ns": 0, "avg_ts": 25.459231, "stddev_ts": 0.000000, "samples_ns": [ 20110584107 ],"samples_ts": [ 25.4592 ]}
+2026-08-21T16:20:06.7820646-04:00 RC b01_c1_A rc=0
+b01_c1_A_POST level=75 temp_c=30.1 wake=mWakefulness=Awake MemAvailable=5324036kB MemFree=4685340kB
+2026-08-21T16:20:07.4774072-04:00 MemAvailable drop_kb=-601692 (cliff=2097152)
+2026-08-21T16:20:09.8230958-04:00 === CELL b01_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+b01_c2_B_PRE level=75 temp_c=30.1 wake=mWakefulness=Awake MemAvailable=5306756kB MemFree=4654640kB
+2026-08-21T16:20:10.7676827-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c2_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:20:23Z", "avg_ns": 48048047378, "stddev_ns": 0, "avg_ts": 10.656000, "stddev_ts": 0.000000, "samples_ns": [ 48048047378 ],"samples_ts": [ 10.656 ]}
+2026-08-21T16:21:12.7031268-04:00 RC b01_c2_B rc=0
+b01_c2_B_POST level=74 temp_c=33.7 wake=mWakefulness=Awake MemAvailable=5305736kB MemFree=955196kB
+2026-08-21T16:21:13.4508619-04:00 MemAvailable drop_kb=1020 (cliff=2097152)
+2026-08-21T16:21:15.5121722-04:00 === CELL b01_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+b01_c3_B_PRE level=74 temp_c=35.1 wake=mWakefulness=Awake MemAvailable=5302336kB MemFree=835036kB
+2026-08-21T16:21:16.4102372-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c3_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:21:26Z", "avg_ns": 48470798888, "stddev_ns": 0, "avg_ts": 10.563061, "stddev_ts": 0.000000, "samples_ns": [ 48470798888 ],"samples_ts": [ 10.5631 ]}
+2026-08-21T16:22:15.7049962-04:00 RC b01_c3_B rc=0
+b01_c3_B_POST level=73 temp_c=36.8 wake=mWakefulness=Awake MemAvailable=5354636kB MemFree=990992kB
+2026-08-21T16:22:16.3356225-04:00 MemAvailable drop_kb=-52300 (cliff=2097152)
+2026-08-21T16:22:18.3910231-04:00 === CELL b01_c4_A experts=GPU -ngl 16 ===
+b01_c4_A_PRE level=73 temp_c=36.8 wake=mWakefulness=Awake MemAvailable=5343056kB MemFree=970756kB
+2026-08-21T16:22:19.3038142-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b01_c4_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:22:47Z", "avg_ns": 33415798789, "stddev_ns": 0, "avg_ts": 15.322094, "stddev_ts": 0.000000, "samples_ns": [ 33415798789 ],"samples_ts": [ 15.3221 ]}
+2026-08-21T16:23:21.7814141-04:00 RC b01_c4_A rc=0
+b01_c4_A_POST level=73 temp_c=37.8 wake=mWakefulness=Awake MemAvailable=5384176kB MemFree=4516532kB
+2026-08-21T16:23:22.5643204-04:00 MemAvailable drop_kb=-41120 (cliff=2097152)
+2026-08-21T16:23:24.7566658-04:00 BLOCK 1 complete=True cellOk=4
+2026-08-21T16:23:24.7910803-04:00 === BLOCK 2 start (complete=1/5) ===
+COOLDOWN temp_c=37.8 elapsed_s=0 level=73
+COOLDOWN temp_c=37.8 elapsed_s=15 level=73
+COOLDOWN temp_c=36.8 elapsed_s=31 level=72
+COOLDOWN temp_c=36.8 elapsed_s=46 level=72
+COOLDOWN temp_c=35.4 elapsed_s=61 level=72
+COOLDOWN temp_c=35.4 elapsed_s=76 level=72
+COOLDOWN temp_c=34.5 elapsed_s=91 level=72
+2026-08-21T16:24:56.1119982-04:00 COOLDOWN done warm_start=False temp_c_block_start=34.5 cooldown_s=91
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+2026-08-21T16:24:57.4347950-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:24:57.4576508-04:00 === CELL b02_c1_A experts=GPU -ngl 16 ===
+b02_c1_A_PRE level=72 temp_c=34.5 wake=mWakefulness=Awake MemAvailable=5332156kB MemFree=4280724kB
+2026-08-21T16:24:58.6022423-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c1_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:25:27Z", "avg_ns": 25647622803, "stddev_ns": 0, "avg_ts": 19.962864, "stddev_ts": 0.000000, "samples_ns": [ 25647622803 ],"samples_ts": [ 19.9629 ]}
+2026-08-21T16:25:53.9203052-04:00 RC b02_c1_A rc=0
+b02_c1_A_POST level=72 temp_c=36.6 wake=mWakefulness=Awake MemAvailable=5417412kB MemFree=4558688kB
+2026-08-21T16:25:54.6880726-04:00 MemAvailable drop_kb=-85256 (cliff=2097152)
+2026-08-21T16:25:56.7488709-04:00 === CELL b02_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+b02_c2_B_PRE level=72 temp_c=36.6 wake=mWakefulness=Awake MemAvailable=5406764kB MemFree=4536920kB
+2026-08-21T16:25:57.8524693-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c2_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:26:12Z", "avg_ns": 48338822221, "stddev_ns": 0, "avg_ts": 10.591901, "stddev_ts": 0.000000, "samples_ns": [ 48338822221 ],"samples_ts": [ 10.5919 ]}
+2026-08-21T16:27:01.6887159-04:00 RC b02_c2_B rc=0
+b02_c2_B_POST level=71 temp_c=38.1 wake=mWakefulness=Awake MemAvailable=5319156kB MemFree=1008028kB
+2026-08-21T16:27:02.2853295-04:00 MemAvailable drop_kb=87608 (cliff=2097152)
+2026-08-21T16:27:04.3531684-04:00 === CELL b02_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+b02_c3_B_PRE level=71 temp_c=38.1 wake=mWakefulness=Awake MemAvailable=5312868kB MemFree=993976kB
+2026-08-21T16:27:05.3469681-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c3_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:27:20Z", "avg_ns": 51423825188, "stddev_ns": 0, "avg_ts": 9.956474, "stddev_ts": 0.000000, "samples_ns": [ 51423825188 ],"samples_ts": [ 9.95647 ]}
+2026-08-21T16:28:11.8823880-04:00 RC b02_c3_B rc=0
+b02_c3_B_POST level=71 temp_c=38.4 wake=mWakefulness=Awake MemAvailable=5353012kB MemFree=1002348kB
+2026-08-21T16:28:12.6028546-04:00 MemAvailable drop_kb=-40144 (cliff=2097152)
+2026-08-21T16:28:14.6876371-04:00 === CELL b02_c4_A experts=GPU -ngl 16 ===
+b02_c4_A_PRE level=71 temp_c=38.4 wake=mWakefulness=Awake MemAvailable=5346932kB MemFree=992704kB
+2026-08-21T16:28:15.5791853-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b02_c4_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:28:53Z", "avg_ns": 36580005194, "stddev_ns": 0, "avg_ts": 13.996718, "stddev_ts": 0.000000, "samples_ns": [ 36580005194 ],"samples_ts": [ 13.9967 ]}
+2026-08-21T16:29:30.9823209-04:00 RC b02_c4_A rc=0
+b02_c4_A_POST level=70 temp_c=39 wake=mWakefulness=Awake MemAvailable=5397864kB MemFree=4545000kB
+2026-08-21T16:29:31.7176780-04:00 MemAvailable drop_kb=-50932 (cliff=2097152)
+2026-08-21T16:29:33.7746640-04:00 BLOCK 2 complete=True cellOk=4
+2026-08-21T16:29:33.8133775-04:00 === BLOCK 3 start (complete=2/5) ===
+COOLDOWN temp_c=39 elapsed_s=0 level=70
+COOLDOWN temp_c=39.1 elapsed_s=15 level=70
+COOLDOWN temp_c=39.1 elapsed_s=31 level=70
+COOLDOWN temp_c=37.9 elapsed_s=46 level=70
+COOLDOWN temp_c=37.9 elapsed_s=61 level=70
+COOLDOWN temp_c=37.2 elapsed_s=76 level=70
+COOLDOWN temp_c=37.2 elapsed_s=91 level=70
+COOLDOWN temp_c=36.7 elapsed_s=107 level=70
+COOLDOWN temp_c=36.7 elapsed_s=122 level=70
+COOLDOWN temp_c=36.3 elapsed_s=137 level=70
+COOLDOWN temp_c=36.3 elapsed_s=152 level=70
+COOLDOWN temp_c=35.9 elapsed_s=167 level=70
+COOLDOWN temp_c=35.9 elapsed_s=183 level=70
+COOLDOWN temp_c=35.6 elapsed_s=198 level=70
+COOLDOWN temp_c=35.6 elapsed_s=213 level=70
+COOLDOWN temp_c=35.3 elapsed_s=228 level=70
+COOLDOWN temp_c=35.3 elapsed_s=243 level=70
+COOLDOWN temp_c=35.1 elapsed_s=259 level=70
+COOLDOWN temp_c=35.1 elapsed_s=274 level=70
+COOLDOWN temp_c=34.8 elapsed_s=289 level=70
+2026-08-21T16:34:22.9002917-04:00 COOLDOWN done warm_start=False temp_c_block_start=34.8 cooldown_s=289
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+2026-08-21T16:34:24.1889386-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:34:24.2211098-04:00 === CELL b03_c1_A experts=GPU -ngl 16 ===
+b03_c1_A_PRE level=70 temp_c=34.8 wake=mWakefulness=Awake MemAvailable=5245604kB MemFree=4159632kB
+2026-08-21T16:34:25.3434977-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c1_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:34:54Z", "avg_ns": 25988923427, "stddev_ns": 0, "avg_ts": 19.700701, "stddev_ts": 0.000000, "samples_ns": [ 25988923427 ],"samples_ts": [ 19.7007 ]}
+2026-08-21T16:35:21.1646019-04:00 RC b03_c1_A rc=0
+b03_c1_A_POST level=69 temp_c=38.1 wake=mWakefulness=Awake MemAvailable=5384940kB MemFree=4683744kB
+2026-08-21T16:35:21.8353097-04:00 MemAvailable drop_kb=-139336 (cliff=2097152)
+2026-08-21T16:35:23.9025662-04:00 === CELL b03_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+b03_c2_B_PRE level=69 temp_c=38.1 wake=mWakefulness=Awake MemAvailable=5372228kB MemFree=4658348kB
+2026-08-21T16:35:24.9547972-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c2_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:35:42Z", "avg_ns": 47121384305, "stddev_ns": 0, "avg_ts": 10.865555, "stddev_ts": 0.000000, "samples_ns": [ 47121384305 ],"samples_ts": [ 10.8656 ]}
+2026-08-21T16:36:29.9345377-04:00 RC b03_c2_B rc=0
+b03_c2_B_POST level=68 temp_c=39 wake=mWakefulness=Awake MemAvailable=5358544kB MemFree=1000448kB
+2026-08-21T16:36:30.5982082-04:00 MemAvailable drop_kb=13684 (cliff=2097152)
+2026-08-21T16:36:32.6639589-04:00 === CELL b03_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+b03_c3_B_PRE level=68 temp_c=39 wake=mWakefulness=Awake MemAvailable=5352112kB MemFree=981440kB
+2026-08-21T16:36:33.6812768-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c3_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:36:48Z", "avg_ns": 49044821543, "stddev_ns": 0, "avg_ts": 10.439430, "stddev_ts": 0.000000, "samples_ns": [ 49044821543 ],"samples_ts": [ 10.4394 ]}
+2026-08-21T16:37:37.9883698-04:00 RC b03_c3_B rc=0
+b03_c3_B_POST level=68 temp_c=39.3 wake=mWakefulness=Awake MemAvailable=5347312kB MemFree=990024kB
+2026-08-21T16:37:38.6544130-04:00 MemAvailable drop_kb=4800 (cliff=2097152)
+2026-08-21T16:37:40.7166642-04:00 === CELL b03_c4_A experts=GPU -ngl 16 ===
+b03_c4_A_PRE level=68 temp_c=39.3 wake=mWakefulness=Awake MemAvailable=5337696kB MemFree=980020kB
+2026-08-21T16:37:41.7104019-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b03_c4_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:38:17Z", "avg_ns": 36889902486, "stddev_ns": 0, "avg_ts": 13.879137, "stddev_ts": 0.000000, "samples_ns": [ 36889902486 ],"samples_ts": [ 13.8791 ]}
+2026-08-21T16:38:54.8914229-04:00 RC b03_c4_A rc=0
+b03_c4_A_POST level=67 temp_c=39.7 wake=mWakefulness=Awake MemAvailable=5371448kB MemFree=4533416kB
+2026-08-21T16:38:55.7044065-04:00 MemAvailable drop_kb=-33752 (cliff=2097152)
+2026-08-21T16:38:57.7727293-04:00 BLOCK 3 complete=True cellOk=4
+2026-08-21T16:38:57.8100987-04:00 === BLOCK 4 start (complete=3/5) ===
+COOLDOWN temp_c=39.7 elapsed_s=0 level=67
+COOLDOWN temp_c=39.7 elapsed_s=15 level=67
+COOLDOWN temp_c=38.9 elapsed_s=31 level=67
+COOLDOWN temp_c=38.9 elapsed_s=46 level=67
+COOLDOWN temp_c=37.7 elapsed_s=61 level=67
+COOLDOWN temp_c=37.7 elapsed_s=76 level=67
+COOLDOWN temp_c=36.9 elapsed_s=92 level=67
+COOLDOWN temp_c=36.9 elapsed_s=107 level=67
+COOLDOWN temp_c=36.3 elapsed_s=122 level=67
+COOLDOWN temp_c=36.3 elapsed_s=137 level=67
+COOLDOWN temp_c=35.8 elapsed_s=152 level=67
+COOLDOWN temp_c=35.8 elapsed_s=168 level=67
+COOLDOWN temp_c=35.3 elapsed_s=183 level=67
+COOLDOWN temp_c=35.3 elapsed_s=198 level=67
+COOLDOWN temp_c=34.8 elapsed_s=213 level=67
+2026-08-21T16:42:31.1285313-04:00 COOLDOWN done warm_start=False temp_c_block_start=34.8 cooldown_s=213
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+2026-08-21T16:42:32.3200666-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:42:32.3390119-04:00 === CELL b04_c1_A experts=GPU -ngl 16 ===
+b04_c1_A_PRE level=67 temp_c=34.8 wake=mWakefulness=Awake MemAvailable=5137000kB MemFree=3889660kB
+2026-08-21T16:42:33.6175806-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c1_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:43:01Z", "avg_ns": 27010418271, "stddev_ns": 0, "avg_ts": 18.955649, "stddev_ts": 0.000000, "samples_ns": [ 27010418271 ],"samples_ts": [ 18.9556 ]}
+2026-08-21T16:43:29.6459609-04:00 RC b04_c1_A rc=0
+b04_c1_A_POST level=66 temp_c=37.7 wake=mWakefulness=Awake MemAvailable=5353052kB MemFree=4600760kB
+2026-08-21T16:43:30.2035145-04:00 MemAvailable drop_kb=-216052 (cliff=2097152)
+2026-08-21T16:43:32.2763158-04:00 === CELL b04_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+b04_c2_B_PRE level=66 temp_c=37.7 wake=mWakefulness=Awake MemAvailable=5233248kB MemFree=4375980kB
+2026-08-21T16:43:33.2840780-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c2_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:43:51Z", "avg_ns": 48032242169, "stddev_ns": 0, "avg_ts": 10.659507, "stddev_ts": 0.000000, "samples_ns": [ 48032242169 ],"samples_ts": [ 10.6595 ]}
+2026-08-21T16:44:40.4596081-04:00 RC b04_c2_B rc=0
+b04_c2_B_POST level=65 temp_c=39 wake=mWakefulness=Awake MemAvailable=5361424kB MemFree=995340kB
+2026-08-21T16:44:41.1176060-04:00 MemAvailable drop_kb=-128176 (cliff=2097152)
+2026-08-21T16:44:43.1812371-04:00 === CELL b04_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+b04_c3_B_PRE level=65 temp_c=39 wake=mWakefulness=Awake MemAvailable=5353148kB MemFree=975836kB
+2026-08-21T16:44:44.2319517-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c3_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:44:59Z", "avg_ns": 49771350137, "stddev_ns": 0, "avg_ts": 10.287043, "stddev_ts": 0.000000, "samples_ns": [ 49771350137 ],"samples_ts": [ 10.287 ]}
+2026-08-21T16:45:49.9022729-04:00 RC b04_c3_B rc=0
+b04_c3_B_POST level=65 temp_c=39.3 wake=mWakefulness=Awake MemAvailable=5312428kB MemFree=969096kB
+2026-08-21T16:45:50.5894200-04:00 MemAvailable drop_kb=40720 (cliff=2097152)
+2026-08-21T16:45:52.6548074-04:00 === CELL b04_c4_A experts=GPU -ngl 16 ===
+b04_c4_A_PRE level=65 temp_c=40.1 wake=mWakefulness=Awake MemAvailable=5241620kB MemFree=784504kB
+2026-08-21T16:45:53.7285279-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b04_c4_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:46:28Z", "avg_ns": 38065832590, "stddev_ns": 0, "avg_ts": 13.450382, "stddev_ts": 0.000000, "samples_ns": [ 38065832590 ],"samples_ts": [ 13.4504 ]}
+2026-08-21T16:47:07.0315519-04:00 RC b04_c4_A rc=0
+b04_c4_A_POST level=64 temp_c=40.5 wake=mWakefulness=Awake MemAvailable=5368564kB MemFree=4534004kB
+2026-08-21T16:47:07.8801179-04:00 MemAvailable drop_kb=-126944 (cliff=2097152)
+2026-08-21T16:47:09.9715661-04:00 BLOCK 4 complete=True cellOk=4
+2026-08-21T16:47:10.0307953-04:00 === BLOCK 5 start (complete=4/5) ===
+COOLDOWN temp_c=40.5 elapsed_s=0 level=64
+COOLDOWN temp_c=40.3 elapsed_s=15 level=64
+COOLDOWN temp_c=40.3 elapsed_s=31 level=64
+COOLDOWN temp_c=39.2 elapsed_s=46 level=64
+COOLDOWN temp_c=39.2 elapsed_s=61 level=64
+COOLDOWN temp_c=38.5 elapsed_s=76 level=64
+COOLDOWN temp_c=38.5 elapsed_s=91 level=64
+COOLDOWN temp_c=38.1 elapsed_s=107 level=64
+COOLDOWN temp_c=38.1 elapsed_s=122 level=64
+COOLDOWN temp_c=37.7 elapsed_s=137 level=64
+COOLDOWN temp_c=37.4 elapsed_s=152 level=64
+COOLDOWN temp_c=37.2 elapsed_s=168 level=64
+COOLDOWN temp_c=37.1 elapsed_s=183 level=64
+COOLDOWN temp_c=36.8 elapsed_s=198 level=64
+COOLDOWN temp_c=36.6 elapsed_s=214 level=64
+COOLDOWN temp_c=36.4 elapsed_s=229 level=64
+COOLDOWN temp_c=36.2 elapsed_s=244 level=64
+COOLDOWN temp_c=36.1 elapsed_s=259 level=64
+COOLDOWN temp_c=35.9 elapsed_s=275 level=64
+COOLDOWN temp_c=35.7 elapsed_s=290 level=64
+COOLDOWN temp_c=35.4 elapsed_s=305 level=64
+COOLDOWN temp_c=35.2 elapsed_s=320 level=64
+COOLDOWN temp_c=35 elapsed_s=336 level=64
+2026-08-21T16:52:45.8679305-04:00 COOLDOWN done warm_start=False temp_c_block_start=35 cooldown_s=336
+UNPLUG_GATE: AC powered: false
+  USB powered: false
+UNPLUG_GATE: PASS (USB=false AC=false)
+2026-08-21T16:52:51.5601993-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt
+2026-08-21T16:52:51.5793614-04:00 === CELL b05_c1_A experts=GPU -ngl 16 ===
+WAKE: not Awake (mWakefulness=Dozing) - KEYCODE_WAKEUP
+b05_c1_A_PRE level=64 temp_c=35 wake=mWakefulness=Awake MemAvailable=4584568kB MemFree=2117964kB
+2026-08-21T16:52:53.7841331-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c1_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:53:23Z", "avg_ns": 29442234885, "stddev_ns": 0, "avg_ts": 17.389984, "stddev_ts": 0.000000, "samples_ns": [ 29442234885 ],"samples_ts": [ 17.39 ]}
+2026-08-21T16:53:53.1230955-04:00 RC b05_c1_A rc=0
+b05_c1_A_POST level=63 temp_c=38.7 wake=mWakefulness=Awake MemAvailable=5351300kB MemFree=4637308kB
+2026-08-21T16:53:53.7522211-04:00 MemAvailable drop_kb=-766732 (cliff=2097152)
+2026-08-21T16:53:55.8332660-04:00 === CELL b05_c2_B experts=CPU -ngl 16 -ncmoe 99 ===
+b05_c2_B_PRE level=63 temp_c=38.7 wake=mWakefulness=Awake MemAvailable=5330980kB MemFree=4605004kB
+2026-08-21T16:53:56.9676396-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c2_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:54:14Z", "avg_ns": 48774314252, "stddev_ns": 0, "avg_ts": 10.497329, "stddev_ts": 0.000000, "samples_ns": [ 48774314252 ],"samples_ts": [ 10.4973 ]}
+2026-08-21T16:55:04.4857897-04:00 RC b05_c2_B rc=0
+b05_c2_B_POST level=62 temp_c=38.9 wake=mWakefulness=Awake MemAvailable=5263420kB MemFree=947468kB
+2026-08-21T16:55:05.1859199-04:00 MemAvailable drop_kb=67560 (cliff=2097152)
+2026-08-21T16:55:07.2591213-04:00 === CELL b05_c3_B experts=CPU -ngl 16 -ncmoe 99 ===
+b05_c3_B_PRE level=62 temp_c=38.9 wake=mWakefulness=Awake MemAvailable=5200680kB MemFree=871924kB
+2026-08-21T16:55:08.2398981-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -ncmoe 99 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c3_B.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 99, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:55:23Z", "avg_ns": 50727431960, "stddev_ns": 0, "avg_ts": 10.093158, "stddev_ts": 0.000000, "samples_ns": [ 50727431960 ],"samples_ts": [ 10.0932 ]}
+2026-08-21T16:56:15.0510185-04:00 RC b05_c3_B rc=0
+b05_c3_B_POST level=62 temp_c=39.2 wake=mWakefulness=Awake MemAvailable=5358612kB MemFree=1010376kB
+2026-08-21T16:56:15.7465127-04:00 MemAvailable drop_kb=-157932 (cliff=2097152)
+2026-08-21T16:56:17.8192421-04:00 === CELL b05_c4_A experts=GPU -ngl 16 ===
+b05_c4_A_PRE level=62 temp_c=39.2 wake=mWakefulness=Awake MemAvailable=5335700kB MemFree=970988kB
+2026-08-21T16:56:18.8339571-04:00 RUN sh /data/local/tmp/s3oracle/one_cell.sh -ngl 16 -p 0 -n 512 -r 1 2>/data/local/tmp/s3oracle/logs/b05_c4_A.err
+{"build_commit": "532ac356c", "build_number": 10003, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 4, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 16, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": 0, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 512, "n_depth": 0, "test_time": "2026-08-21T20:56:56Z", "avg_ns": 36113270559, "stddev_ns": 0, "avg_ts": 14.177614, "stddev_ts": 0.000000, "samples_ns": [ 36113270559 ],"samples_ts": [ 14.1776 ]}
+2026-08-21T16:57:33.7682623-04:00 RC b05_c4_A rc=0
+b05_c4_A_POST level=61 temp_c=39.5 wake=mWakefulness=Awake MemAvailable=5396660kB MemFree=4599824kB
+2026-08-21T16:57:34.5888126-04:00 MemAvailable drop_kb=-60960 (cliff=2097152)
+2026-08-21T16:57:36.6471502-04:00 BLOCK 5 complete=True cellOk=4
+2026-08-21T16:57:36.6857570-04:00 OLMoE arm done. complete=5 target=5
+OLMoE N>=5 finished. See C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\n10-kexp-session\REPORT.md and C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\n10\runs.csv

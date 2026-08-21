@@ -1,0 +1,39 @@
+{
+  "tag": "m2_ngl2_gpu_experts",
+  "extra": "-ngl 2",
+  "n": 512,
+  "note": "EXPLORATORY experts=GPU tg512",
+  "harness_rc": 143,
+  "harness_rc_meaning": "SIGTERM (128+15). Device stderr ends with 'Terminated'. No llama-bench jsonl on PC or in the adb stdout pipe.",
+  "stdout_file_present": false,
+  "stderr": "ggml_opencl banner then 'Terminated '",
+  "iso_pre": "2026-08-21T17:08:50.6911098-04:00",
+  "iso_post_harness": "2026-08-21T18:23:31.4632353-04:00",
+  "level_pre": 59,
+  "level_post_harness": 44,
+  "temp_c_pre": 38.4,
+  "temp_c_post_harness": 30.5,
+  "wake_pre": "Awake",
+  "wake_post_harness": "Dozing",
+  "mem_avail_pre_kb": 5406160,
+  "mem_avail_post_kb": 5463264,
+  "mem_cliff": false,
+  "power_off": false,
+  "llama_bench_avg_ts": null,
+  "orchestrator_probe": {
+    "pid": 16270,
+    "cpu_time_accumulated": "47:08",
+    "MemAvailable_GB": 4.25,
+    "temp_c": 30.4,
+    "kgsl_gpubusy_pct": 49,
+    "inference": "not hung; genuinely computing; slower than 0.22 t/s sanity (~0.15 t/s inferred). Twenty seconds later process gone, gpubusy 0.",
+    "not_a_llama_bench_avg_ts": true
+  },
+  "harness_health_checks": {
+    "18:02:45": "pid 16270 R, level 46, temp 31.5, Dozing, MemAvailable 4237220 kB",
+    "18:13:11": "pid 16270 R, level 45, temp 31.0, Dozing, MemAvailable 4264748 kB",
+    "18:23:30": "pid 16270 D then killall; NO_LLAMA_BENCH; harness rc=143"
+  },
+  "verdict": "FAILURE MODE recorded: no llama-bench jsonl; harness rc=143 SIGTERM. Orchestrator probe contradicts 'hung' — cell was computing. Do not treat ~0.15 t/s as a llama-bench datapoint. Do not run further Mellum2 cells.",
+  "mellum2_done": true
+}

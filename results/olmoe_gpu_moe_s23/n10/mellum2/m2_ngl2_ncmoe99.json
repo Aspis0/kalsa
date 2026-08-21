@@ -1,0 +1,14 @@
+{
+  "tag": "m2_ngl2_ncmoe99",
+  "extra": "-ngl 2 -ncmoe 99",
+  "n": 16,
+  "rc": 0,
+  "tg": 0.222682,
+  "level_pre": "60",
+  "level_post": "59",
+  "temp_c_pre": 35.0,
+  "temp_c_post": 38.4,
+  "mem_avail_pre": "5085496",
+  "mem_avail_post": "5466684",
+  "note": "load sanity experts=CPU"
+}

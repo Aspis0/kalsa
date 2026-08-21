@@ -1,0 +1,14 @@
+iso 2026-08-21T18:02:45.1392935-04:00
+List of devices attached
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp	device
+
+
+  AC powered: false
+  USB powered: false
+  level: 46
+  temperature: 315
+  mWakefulness=Dozing
+MemAvailable:    4237220 kB
+shell        16270 16268   11507320 1163460 0                  0 R llama-bench
+
+

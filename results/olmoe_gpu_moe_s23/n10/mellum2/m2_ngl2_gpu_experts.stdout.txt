@@ -1,0 +1,2 @@
+# NO llama-bench jsonl. Harness rc=143 SIGTERM. See m2_ngl2_gpu_experts.json and m2_ngl2_gpu_experts.err
+# Orchestrator probe: computing, not hung, ~0.15 t/s inferred, gpubusy then 0. That is NOT this file.

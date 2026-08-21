@@ -1,0 +1,12 @@
+{
+  "block_index_where_pause": 3,
+  "pause_t_start": "2026-08-21T18:38:37.7520634-04:00",
+  "level_at_pause": 37,
+  "temp_c_at_pause": 34.8,
+  "charge_counter_at_pause": "1413750",
+  "note": "USB/AC plug allowed ONLY during this pause. Wi-Fi must stay constant. Resume gate is still 40% after unplug; recommended charge >=60%.",
+  "pause_t_end": "2026-08-21T18:43:00",
+  "ended_how": "Owner later authorized 2 ABBA as acceptable if a recharge pause would eat the session. Device still unplugged at 37% as of 18:42 (no charge). Harness stop. KEXP exploratory dataset = 2 complete blocks. Block 3 not started (would violate 40% floor).",
+  "level_at_end": 37,
+  "block3_run": false
+}
