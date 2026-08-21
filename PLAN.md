@@ -121,6 +121,28 @@ gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
   `results/qk23_s23/` (MANIFEST con sha per-run), bundle
   `backups/kalsakernel-v4.bundle`, outer `b28d5759`.
 
+## Voce #3 chiusa (21/08 pomeriggio): cherry-pick upstream #26476
+
+- **Fatto**: cherry-pick di `6503355df` (PR #26476: q6_K flat dense dequant
+  SCALARE + flag `ADRENO_OLD_COMPILER`) su `kalsa/kernel-s3-repack` →
+  commit `5c7e16fa6` (sopra v4, nessun tag). Un solo conflitto: adattata la
+  firma vecchia di `build_program_from_source`, opzioni q6k intatte.
+- **Verifica S23 (staccato, 80%)**: dense MUL_MAT **925/925** — i 10 q6_K
+  flat FAIL storici chiusi; MUL_MAT_ID **401/401 invariato**; sha256
+  on-device nei run header = build PC (`b9d99fa8…`). Zero FAIL.
+- **Audit ostile (Free coder), verdetto BANK**: diff-of-diffs byte-identico
+  fuori dall'adattamento documentato; arg 0..17 contigui, un solo sito di
+  build/dispatch; path senza flag == parent (ifdef-strip meccanico);
+  perimetro 2 file, medicina nostra intoccata; evidenza genuina (sha log
+  ricalcolati). **F1 CONFIRMED (ereditato upstream, perf-only)**: il gate a
+  `ggml-opencl.cpp:6019` non ha la guardia `gpu_family != ADRENO` che i gate
+  q4_0 hanno → su Intel `q6_k_flat_old_compiler` è true e paga il 13–20%;
+  correttezza preservata. F3 PLAUSIBLE latente: parser senza ramo E17.
+- Evidenza: `scratchpad/agents/q6k-cherry/REPORT.md`,
+  `scratchpad/agents/q6k-cherry-audit/REPORT.md`,
+  `results/q6k_cherry_s23/MANIFEST.md`; bundle
+  `backups/kalsakernel-v4-plus-26476.bundle`.
+
 ## Fatti operativi correnti
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
@@ -143,7 +165,7 @@ gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
 |---|---|---|
 | ~~1~~ | ~~**K2**: q4_K/q5_K MUL_MAT_ID compute~~ → **CHIUSO 20/08 notte** (kalsakernel-v3, vedi capitolo sopra) | fatto |
 | ~~2~~ | ~~Supporto q2_K/q3_K MoE su GPU~~ → **CHIUSO 21/08 sera** (kalsakernel-v4, vedi capitolo qk23: KEXP experts su GPU, 401/401) | fatto |
-| 3 | Cherry-pick upstream **#26476** (q6_K flat dense scalare + `ADRENO_OLD_COMPILER`): chiude i 10 dense FAIL noti | coder qualunque |
+| ~~3~~ | ~~Cherry-pick upstream **#26476**~~ → **CHIUSO 21/08 pomeriggio** (`5c7e16fa6`, dense 925/925, MoE 401/401 invariato, audit BANK — vedi sezione sopra) | fatto |
 | 4 | Cosmetici cvt.cl: 2 commenti stantii (offset q4_0, "byte-wise stores") + port uniformità sui 6 macro consumer (debito, non difetto) | coder qualunque |
 | 5 | LANE_MOD: equidistribution check prima di riusare il classifier | prima di sessione-2 classifier |
 | 6 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
@@ -157,6 +179,7 @@ gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
 | 14 | **Cella velocità KEXP-su-GPU** (LFM2.5/Marco: esperti GPU vs CPU, stesso protocollo della cella OLMoE; lo smoke dice tg64 15.09 ma serve l'A/B vero) — combinabile con la N≥10 di #10 in un'unica sessione device | prossima sessione device |
 | 15 | Cella satellite **Vulkan vs OpenCL su S23** (stesso modello/ngl: misura il gap reale del backend "del futuro" su Adreno; risponde anche al Claude della lane CPU) | dopo #10/#14 |
 | 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler build più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier) | sessione economica post-kernel |
+| 17 | Guardia `gpu_family == ADRENO` sul gate `q6_k_flat_old_compiler` (`ggml-opencl.cpp:6019` — F1 audit #26476: su Intel il flag scatta a vuoto, perf-only 13–20%, ereditato upstream; upstream-worthy) + ramo E17 mancante nel parser versione (F3, latente) | coder qualunque, bassa priorità |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
 
