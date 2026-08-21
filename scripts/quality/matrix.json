@@ -1,7 +1,9 @@
 {
   "version": 1,
   "note": "Cells for the quality bake-off. Each cell is one llama-server launch; every question runs inside it. Thinking is never off — the budget is the axis, per the standing rule.",
-  "defaults": { "nCtx": 4096, "nGpuLayers": 99, "seed": 1234, "maxTokens": 2048, "temp": 0 },
+  "defaults": { "nCtx": 4096, "nGpuLayers": 99, "seed": 1234, "maxTokens": 2048,
+                 "temp": 0.7, "topK": 40, "topP": 0.95,
+                 "samplingNote": "Kalsa's own chat sampler (LlamaService.ts:2834). Greedy temp=0 is NOT what users get, and on Qwen3.5 it drives the thinking into a literal repetition loop that never terminates, so a temp=0 race would have scored my sampler rather than the models. The fixed seed keeps runs reproducible." },
   "models": {
     "lfm25-2.6b":  { "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-Q4_K_M.gguf",    "quant": "Q4_K_M", "note": "backbone proxy for the VL-3B we ship for quality" },
     "lfm25-8b-a1b":{ "path": "/Users/marco/kalsa-models/LFM2.5-8B-A1B-Q4_K_M.gguf",  "quant": "Q4_K_M", "note": "MoE, 1B active" },

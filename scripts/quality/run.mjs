@@ -86,6 +86,8 @@ async function ask(prompt, d) {
     body: JSON.stringify({
       messages: [{ role: "user", content: prompt }],
       temperature: d.temp,
+      top_k: d.topK,
+      top_p: d.topP,
       seed: d.seed,
       max_tokens: d.maxTokens,
       stream: false,
