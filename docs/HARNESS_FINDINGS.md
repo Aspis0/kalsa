@@ -57,17 +57,21 @@ before repeating it.
 | "a `ciswire` arm needs ≥12 turns" (§9) | arithmetic against that same dead cap; 16 turns still produced an empty corpus | §7.35 |
 
 ⭐ **OPEN, in order of measured payoff — work down this list**
-1. **Tool-round replay. Untouched by anyone.** A tool round puts `assistant(tool_calls)` + `tool(result)`
-   into the KV, stored history keeps only the final answer, and on LFM2 there is no partial credit:
-   **3.9 s with the cache against 195–405 s without** (§7.12). Same shape as `preserve_thinking`,
-   which was worth 295 s → 160 s when it landed (§7.9).
+1. **One arm with `thinking: "default"`.** It is the shipping configuration, the whole `fase4` matrix
+   is hardcoded to `off`, and **two findings now hang on that difference**: §7.37's tool-round result
+   and §7.35's missing window collapse could both be "we fixed it" or "we switched the variable off".
+   Nothing else can be trusted until one arm runs with thinking on.
+   ~~Tool-round replay~~ — **demoted by §7.37**: 15 of 16 tool-preceded turns kept 90–98 % of the
+   cache, where §7.12 measured zero of ten surviving. It is now a fix for a 1-in-16 edge case, whose
+   shape is `rounds: 1` + `executed: 1` — a tool result in the KV with no assistant answer in stored
+   history to account for it.
 2. **At what conversation length does the derived window evict at all, and does `anchored` help
    there?** The original question ("does anchored beat the sliding window") is void — the sliding
    window it was built against is gone (§7.35). Campaign `32514162034` reruns it with `winbudget`
    set low enough to force eviction.
-3. **Does §7.12's tool-call cache loss still reproduce?** §7.35 measured **0.993 reuse on a
-   tool-round turn** on the shipping model, where §7.12 measured total loss 10 times out of 10.
-   Cause unestablished; those arms ran `thinking: "off"`.
+3. **Reproduce §7.37's one failure deliberately** — the `rounds: 1` + `executed: 1` path, which cost
+   **128 167 ms** of prefill in the single seed that hit it, and is the last live trace of §7.12's
+   195–405 s regime.
 4. **Trimming the prefix.** 3 203 characters of system prompt plus 3 tool schemas, ~1 300 tokens,
    re-read on every cold start. Never costed (§7.36).
 
@@ -1573,6 +1577,54 @@ the wait. Proven on the device the same day:
 Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate costs minutes, not hours.
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
+
+### 7.37 MEASURED 2026-08-21: the tool round no longer costs the whole cache — 15 of 16, and the one failure has a shape
+
+Written **before** building the tool-round replay, because §7.35 had just cost a day by shipping an
+`anchored` window built against a sliding window that no longer slides. The same question applies
+here: §7.12 called the tool round the second-biggest cache destroyer on the model we ship —
+*"of 48 turns after the first, 14 missed and 10 were the turn immediately after a tool executed —
+with zero tool-preceded turns surviving"*, priced at **3.1–3.9 s on a hit against 195–405 s on a
+miss**. The tool-round replay was going to be the next thing built. **Check first.**
+
+Campaign `32503221846`, 18 seeds across four arms, turn 12 is `probe_tool` and turn 13 is the turn
+after it. Restricting to the **16** seeds where a tool actually executed:
+
+| `rounds` recorded on the tool turn | n | mean reuse on turn 13 | values |
+|---|---:|---:|---|
+| **2** (call + synthesis) | **15** | **0.956** | 0.90 – 0.98, every one |
+| 1 | 1 | **0.000** | — |
+
+**15 of 16 tool-preceded turns kept 90–98 % of the cache.** §7.12 measured zero of ten surviving.
+The claim does not reproduce, and the replay it justified would have been built for a problem that
+is mostly gone.
+
+⭐ **The one failure is not noise — it has a mechanism worth chasing.** `baseline` seed 6 is the only
+seed whose tool turn recorded **`rounds: 1` with `executed: 1`**: the tool ran, and no synthesis
+round followed. Its next turn reused **nothing** and paid **128 167 ms** of prefill — the 195–405 s
+regime §7.12 described, alive and well, in exactly one place. The other two `rounds: 1` seeds had
+`executed: 0` (no tool call at all) and kept 0.994. So the shape is: **the cache dies when the turn
+ends with a tool result in the KV that no assistant answer in stored history accounts for.** That is
+§7.12's mechanism, surviving as an edge case instead of the rule.
+
+⚠️ **What this does NOT establish, and it matters before anyone celebrates.** These arms ran
+`thinking: "off"`. §7.9 measured that think blocks entering the KV and vanishing from re-rendered
+history are themselves a divergence worth 295 s → 160 s per turn, and §7.29 measured the same
+mechanism on Qwen costing 104–138 s. **With thinking off, one of the two divergence sources is
+switched off entirely**, so this may be measuring a configuration rather than a fix. §7.12's own
+numbers came from a smoke run whose thinking mode is not recorded either. **Neither section can be
+retracted against the other until one arm runs with thinking on.**
+
+**What changes in the plan.** The tool-round replay drops from "the next thing to build" to "a fix
+for a 1-in-16 edge case", and the cheap work in front of it is now:
+1. one arm with **`thinking: "default"`**, which is the shipping configuration and the only way to
+   tell a fix from a switched-off variable;
+2. reproduce the `rounds: 1` + `executed: 1` path deliberately and see whether it always costs the
+   whole cache.
+
+**Limits.** n=16, one campaign, one model, CI emulator, `thinking: "off"`, and the six jobs that died
+at 13–15 minutes mean these are surviving seeds. `reuseFrac` here is `reusedTokens/promptTokens` from
+the engine's own `reusing n/m` line, not an inference.
 
 ### 7.36 MEASURED 2026-08-21: prefill scales with threads on the Jelly — §7.32's "the little cores are pacing the batch" is refuted, and the reproducibility is the surprising part
 
@@ -3959,6 +4011,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.37: the tool round no longer costs the whole cache — 15 of 16 — so the replay that was next to build is demoted before it was built.** Checked BEFORE building, because §7.35 had just cost a day on an `anchored` window aimed at a sliding window that no longer slides. §7.12 priced a tool round at **3.1-3.9 s on a hit against 195-405 s on a miss** and measured **zero of ten** tool-preceded turns surviving. In campaign `32503221846`, of the 16 seeds where a tool actually executed, **15 kept 0.90-0.98 of the cache on the next turn** (mean 0.956). ⭐ The single failure has a shape: it is the only seed whose tool turn recorded **`rounds: 1` with `executed: 1`** — tool ran, no synthesis round — and its next turn reused **nothing** and paid **128 167 ms**. The two other `rounds: 1` seeds had `executed: 0` and kept 0.994. So §7.12's mechanism survives as an edge case, not a rule: the cache dies when a tool result sits in the KV with no assistant answer in stored history accounting for it. ⚠️ **Not a retraction of §7.12**: these arms ran `thinking: "off"`, which switches off the *other* divergence source entirely (§7.9, §7.29), and §7.12's own thinking mode is unrecorded. Neither can be settled against the other until an arm runs with thinking on — which is now the top open item, ahead of the replay. |
 | 2026-08-21 | **§7.36: prefill scales with threads on the Jelly — §7.32's hypothesis refuted, and the repeat error is 0.1 %.** Measured on the prewarm (same prefix, hash `730983069` on all eight arms), decode fixed at 2, run **twice in opposite orders** because the first run had arm order confounded with page-cache warm-up and temperature. Mean `promptMs` at 2/4/6/8 prefill threads: **113 867 / 92 999 / 77 419 / 72 121** — monotonic. ⭐ Reversing the order returns the 2, 4 and 6 arms within **0.03 / 0.10 / 0.12 %** of themselves, the tightest repeat this project has ever got on a phone, which settles the confound: thread scaling, not page cache, and temperature rising 29 → 34 °C moved them not at all. ⚠️ **8 is NOT distinguishable from 6**: the 8-thread arm is the only one that failed to repeat (9.0 % spread, wider than its 7.3 % gap to the 6-thread mean), so do not quote it as better. Scaling is sublinear and healthy — 4× the threads buys 1.58×, per-thread throughput 5.7 → 2.3 tok/s, the same shape as §7.20's S23 result. ✅ `deviceTuning.ts`'s `helio-g99` preset needs no change; §7.32's open question closes negatively. ⛔ Product consequence: the prewarm costs **69-114 s on this phone and no thread setting fixes it**. Tuning is not the lever — §7.30's restored session turns a 120.8 s cold start into 1.8 s. The other untouched lever is the prefix itself: 3 203 chars of system prompt plus 3 tool schemas, ~1 300 tokens, and nobody has costed trimming it. Limits: one phone, one model, n=2, all arms on the charger at `thermal=0`; scaling on a 4 000-token chat prompt is unmeasured. |
 | 2026-08-21 | **§7.35: the anchored campaign is VACUOUS — the boundary never moved, and I launched it with both knobs that control that left empty.** `32503221846`, fase4 on LFM2.5-8B-A1B, 6 seeds x 4 arms x 16 turns. The arms are indistinguishable (mean `reuseFrac` 0.951 / **0.956** / 0.965 / 0.980) and the positive control says why: **`anchored`'s `boundaryByTurn` is 0 on all sixteen turns of all six seeds**, so a boundary→end window rendered the entire history from index 0 — not a window at all. `promptTokens` confirms it independently, growing monotonically 1 546 → 4 201 in **every** arm, so nothing was evicted anywhere. The boundary advances only when the character budget is exceeded, and the bench exposes `winbudget` (*"controls how often compaction fires"*, default 16 000) and `legacywindow` for exactly that. Both were empty. **The experiment could not have produced a difference.** ⛔ **My first reading of the ciswire arm was wrong and is retracted in the section**: I called the 0/6/12/18/24 boundary an eviction and concluded ciswire was *worse* than baseline. It evicted nothing. `AppShell.tsx:4541` calls **`windowStartIndex`**, not `legacyWindowStartIndex` — the 20-message cap is no longer the live path — and at n_ctx 8192 the budget is 13 824 chars (11 059 for ciswire) against `WINDOW_MAX_MESSAGES = 40`, while a 16-turn fase4 conversation is 30 messages and ~7 653 chars. Nothing was outside the window in ANY arm, which is the single cause of the whole null result; that boundary is the compactor's rebuild cadence, which ciswire does not use for the engine window (`:4754` passes `compactionEnabled: contextMode === "anchored"`). ⭐ **The reframing is the keeper: §7.12's sliding-window collapse is GONE from production.** It measured reuse falling 0.82 → 0.15 at turn 12 against `LEGACY_MAX_HISTORY = 20`; that cap is not what runs. So the question is no longer *does anchored beat the sliding window* but **at what conversation length does the derived window start evicting, and does anchored help there**. §9's "a ciswire arm needs ≥12 turns" is arithmetic against the dead cap. ✅ One real result survives and it **contradicts §7.12 on the model we ship**: with thinking off and no eviction, reuse is **0.95-0.98 at every turn**, including turn 12 (`probe_tool`, `rounds: 2`) at **0.993** — where §7.12 measured a tool call as a guaranteed total loss, 10 of 10. The turn-12 `promptMs` spike (108-140 s) is the tool round's second prefill summed into one turn, not a miss. Cause unestablished; `thinking: "off"` removes §7.9's divergence entirely, so this is a reason to re-run §7.12's tool claim, not to retract it. Corrective run: set `winbudget` and `legacywindow` low, and check `boundaryByTurn` advances **before** reading any speed number. Limits: `thinking: "off"` is hardcoded in the whole fase4 matrix and is not the shipping config; 6 of 40 jobs died at 13.0-15.2 min with no `result.json`, so the surviving seeds are a survivor sample. |
 | 2026-08-21 | **§7.34: `tok/s` is tokenizer-blind, and on Italian that hides 12 points.** Measured and reproduced locally on 30 000 bytes of the multi5 Italian corpus: Qwen3.5-2B needs **7 382** tokens where LFM2.5-2.6B needs **8 233** — **10.3 % fewer** — while English is a dead heat (1105 vs 1101). Combined with §7.31's bytes-per-token, **LFM2.5-2.6B reads 46 % more memory per character of Italian** (463.4 MB vs 316.7). In delivered Italian on the Jelly: LFM2.5-2.6B **19.7 chars/s**, Qwen3.5-2B **24.1**, KEXP **25.3** — so **Qwen is 22 % faster than the 2.6B** where the tok/s column shows 10 %, and **KEXP's lead over Qwen shrinks from +17.5 % to +5.4 %**. Qwen's 248 320-token vocab costs it 417 MB/token in output-head reads and earns it back on this language; 10.3 % fewer tokens is also 10.3 % more conversation inside the same 8192 context. **Quality:** the one independent Italian number is EuroEval's generative leaderboard (lower is better) — Qwen3.5-2B **2.69 ± 0.23** against LFM2.5-8B-A1B **3.53 ± 0.25**, with LFM2.5-2.6B absent from the table. ⚠️ **Not quotable yet:** `LFM2.5-8B-A1B-Base` scores **2.89**, i.e. the instruct model loses to its own base, and one task pair collapses to `14.35/7.53` where Qwen scores `69.42/48.73` — the signature of a harness mishandling `<think>` blocks and Pythonic tool calls, not of a capability gap. Resolve it: if real we have a problem, if it is the harness then EuroEval understates every LFM2.5 model. Still absent: any graded campaign on LFM2.5-2.6B, and any graded bpb/instruction score on Qwen3.5-2B in our tree. Vendor numbers are different harnesses and are not a bake-off. **Limit closed the same day:** re-measured on Kalsa's own Italian UI strings the gap is **6.9 %**, not 10.3 (and 2.5 % on the bench's deliberately accent-stripped prompts), so Qwen is **+17.8 %** over the 2.6B in delivered Italian and KEXP **+9.5 %** over Qwen — direction holds, magnitudes are a ceiling. Remaining limit: no sample of real user chat Italian, and that is the register the product runs in. |
