@@ -62,6 +62,13 @@ import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import { COMPACTION_ENABLED_KEY } from "../context/compactor";
 import {
+  DEFAULT_SESSION_POOL_CONVERSATIONS,
+  parseSessionPoolConversations,
+  SESSION_POOL_CONVERSATION_OPTIONS,
+  SESSION_POOL_STORAGE_KEY,
+  type SessionPoolConversationOption,
+} from "../engine/sessionBudget";
+import {
   CALENDAR_TOOLS_KEY,
   DEVICE_TOOLS_KEY,
   parseToolToggle,
@@ -182,6 +189,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   // ── Context compaction (ConversationCompactor — default OFF) ─────────────
   const [compactionEnabled, setCompactionEnabled] = useState(false);
+
+  // ── KV session pool size (conversation count, not megabytes) ─────────────
+  const [sessionPoolChats, setSessionPoolChats] = useState<SessionPoolConversationOption>(
+    DEFAULT_SESSION_POOL_CONVERSATIONS,
+  );
 
   // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
@@ -405,6 +417,30 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       })();
     },
     [compactionEnabled],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(SESSION_POOL_STORAGE_KEY)
+      .then((raw) => {
+        if (!mounted) return;
+        setSessionPoolChats(parseSessionPoolConversations(raw));
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSelectSessionPoolChats = useCallback(
+    (next: SessionPoolConversationOption) => {
+      const previous = sessionPoolChats;
+      setSessionPoolChats(next);
+      void AsyncStorage.setItem(SESSION_POOL_STORAGE_KEY, String(next)).catch(() => {
+        if (mountedRef.current) setSessionPoolChats(previous);
+      });
+    },
+    [sessionPoolChats],
   );
 
   useEffect(() => {
@@ -1053,6 +1089,53 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               thumbColor={compactionEnabled ? colors.accent : colors.muted}
               accessibilityLabel={t("settings.contextCompaction")}
             />
+          </View>
+        </GlassPanel2>
+
+        {/* ── Instant chat reopen (UFS KV pool) ────────────────────────── */}
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("settings.sessionPool")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+            {t("settings.sessionPoolHint")}
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {SESSION_POOL_CONVERSATION_OPTIONS.map((count) => {
+              const selected = sessionPoolChats === count;
+              return (
+                <Pressable
+                  key={count}
+                  onPress={() => handleSelectSessionPoolChats(count)}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={t("settings.sessionPoolChats", { count })}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    alignItems: "center",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.bodySm,
+                      {
+                        color: selected ? colors.accent : colors.ink,
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
+                      },
+                    ]}
+                  >
+                    {String(count)}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </GlassPanel2>
 

@@ -104,8 +104,9 @@ import {
   getActiveEngineNCtx,
   getActiveModelId,
   initEngine,
-  invalidateEngineSession,
+  invalidateConversationSessions,
   isEngineReady,
+  restoreEngineSession,
   saveEngineSession,
   streamAssistantTurn,
   summarizeConversation,
@@ -126,9 +127,11 @@ import {
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import {
+  computeHistoryHashFromMessages,
   computePromptEnvHash,
   getBootHistoryHash,
   historyHash,
+  readBootMessages,
   resetBootHistoryHash,
   setBootMessagesKey,
   setSessionConversationId,
@@ -179,6 +182,7 @@ import {
   getBenchRanking,
   getBenchDigestCadence,
   getBenchNoRepack,
+  getBlockFormat,
   getEngineOverride,
   getSpeculativeOverride,
 } from "../bench/benchConfig";
@@ -199,6 +203,7 @@ import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperServic
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import { RetrieverIndex } from "../context/retriever";
 import {
+  advanceAnchoredBoundary,
   advanceCompactionBoundary,
   assembleEngineHistory,
   buildSummaryTranscript,
@@ -214,6 +219,7 @@ import {
   refreshQueryDigest,
   resolveBoundaryIndex,
   serializeCompactorState,
+  shouldRebuildAnchored,
   shouldRebuild,
   splitAtBoundary,
   summaryStorageKey,
@@ -2061,11 +2067,33 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       persistFlushRef.current?.();
       abortBackgroundSummary();
-      const modelId = getActiveModelId();
-      if (modelId) void invalidateEngineSession(modelId);
-      applyConversations(setActive(conversationsRef.current, id));
-      bindActiveConversation(id);
       setDrawerOpen(false);
+      const modelId = getActiveModelId();
+      // UI first. Keep sessionConversationId on the chat we are leaving so
+      // saveEngineSession still writes that stem; bind after save.
+      applyConversations(setActive(conversationsRef.current, id));
+      void (async () => {
+        if (modelId && isEngineReady() && !sendingInFlightRef.current) {
+          try {
+            const msgs = await readBootMessages();
+            await saveEngineSession(
+              modelId,
+              computeHistoryHashFromMessages(msgs),
+              msgs.length,
+            );
+          } catch {
+            // previous good .kvs stays if save skips/fails
+          }
+        }
+        bindActiveConversation(id);
+        if (modelId) {
+          try {
+            await restoreEngineSession(modelId);
+          } catch {
+            // miss → cold prefill on next send
+          }
+        }
+      })();
     },
     [applyConversations, bindActiveConversation],
   );
@@ -2107,7 +2135,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         const meta = createEmptyConversationMeta();
         const modelId = getActiveModelId();
-        if (modelId) void invalidateEngineSession(modelId);
+        if (modelId && isEngineReady() && !sendingInFlightRef.current) {
+          try {
+            const msgs = await readBootMessages();
+            await saveEngineSession(
+              modelId,
+              computeHistoryHashFromMessages(msgs),
+              msgs.length,
+            );
+          } catch {
+            // previous good .kvs stays
+          }
+        }
         applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
         bindActiveConversation(meta.id);
         setDrawerOpen(false);
@@ -2135,12 +2174,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       } catch {
         // ignore illegal id
       }
+      void invalidateConversationSessions(id);
       if (deletingActive) {
         abortBackgroundSummary();
         bumpPersistEpochRef.current?.();
-        const modelId = getActiveModelId();
-        if (modelId) void invalidateEngineSession(modelId);
         bindActiveConversation(next.activeId);
+        const modelId = getActiveModelId();
+        if (modelId) void restoreEngineSession(modelId);
       }
       setDrawerOpen(false);
     },
@@ -3103,8 +3143,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
       // Same memoryFacts slice the system prompt uses (newest 10, or [] if off).
-      // hasTools=true: chat turns always wire tools + executeTool.
-      let sessionPromptEnvHash = computePromptEnvHash(locale, [], true);
+      // Tool names + blockFormat must match streamAssistantTurn (F6): hasTools
+      // alone is true whenever document_chat is wired, even with Web off.
+      const blockFormat = await getBlockFormat();
+      const toolNames = (agentOptions.tools ?? []).map((t) => t.function.name);
+      let sessionPromptEnvHash = computePromptEnvHash(
+        locale,
+        [],
+        true,
+        toolNames,
+        blockFormat,
+      );
       try {
         const enabled = await MemoryStore.getEnabled();
         if (enabled) {
@@ -3113,6 +3162,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             locale,
             facts.map((f) => f.text).slice(-10),
             true,
+            toolNames,
+            blockFormat,
           );
         }
       } catch {
@@ -3217,7 +3268,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorDetail(rawErrorDetail(error));
       return false;
     }
-  }, [locale, t, bumpEmbedJobGeneration]);
+  }, [agentOptions.tools, locale, t, bumpEmbedJobGeneration]);
 
   const selectModel = useCallback(
     (nextIndex: number) => {
@@ -3232,11 +3283,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
       if (nextIndex === modelIndex) return;
 
-      // Single-file policy: drop the previous model's session artifacts on switch.
-      // A successful save also runs deleteOtherModelSessions — only one model's
-      // .kvs is kept at a time, so switch-back is always a cold start.
-      const prevId = MODEL_REGISTRY[modelIndex]?.id;
-      if (prevId) void invalidateEngineSession(prevId);
+      // Pool: keep the previous model's session on disk so switch-back can restore.
 
       // Sync transition: bump generation + show checking before dispose awaits.
       modelSwitchInFlightRef.current = true;
@@ -3274,6 +3321,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           memoryExtractRef.current = null;
         }
         try {
+          if (isEngineReady() && !sendingInFlightRef.current) {
+            const modelId = getActiveModelId();
+            if (modelId) {
+              try {
+                const msgs = await readBootMessages();
+                await saveEngineSession(
+                  modelId,
+                  computeHistoryHashFromMessages(msgs),
+                  msgs.length,
+                );
+              } catch {
+                // previous good .kvs stays
+              }
+            }
+          }
           // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
           // overlap an in-flight embed op (never-overlap invariant).
           await runNativeOp(() => disposeEngine());
@@ -3588,8 +3650,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      // Same memoryFacts slice + hasTools=true as ensureEngineForModel.
-      let sessionPromptEnvHash = computePromptEnvHash(locale, [], true);
+      // Same memoryFacts slice + tool names + blockFormat as ensureEngineForModel.
+      const blockFormatDl = await getBlockFormat();
+      const toolNamesDl = (agentOptions.tools ?? []).map((t) => t.function.name);
+      let sessionPromptEnvHash = computePromptEnvHash(
+        locale,
+        [],
+        true,
+        toolNamesDl,
+        blockFormatDl,
+      );
       try {
         const enabled = await MemoryStore.getEnabled();
         if (enabled) {
@@ -3598,6 +3668,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             locale,
             facts.map((f) => f.text).slice(-10),
             true,
+            toolNamesDl,
+            blockFormatDl,
           );
         }
       } catch {
@@ -3715,6 +3787,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       await dismissDownloadProgressNotification();
     }
   }, [
+    agentOptions.tools,
     beginDownloadNotifications,
     bumpEmbedJobGeneration,
     dismissDownloadProgressNotification,
@@ -4253,8 +4326,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
 
             const contextMode = contextModeRef.current;
-            // Retrieval (digest + summary) for v42 and ciswire; window shrink only for v42.
-            const retrievalOn = contextMode !== "off";
+            // Retrieval (digest + summary) is only v42/ciswire. Anchored is a
+            // no-digest append-only window with its own pressure trigger.
+            const retrievalOn =
+              contextMode === "v42" || contextMode === "ciswire";
+            const anchoredOn = contextMode === "anchored";
+            const legacyWindowMode =
+              contextMode === "off" || contextMode === "ciswire";
             let operativeContext: { digest?: string; summary?: string } | null = null;
             let olderForSummary: HistoryRoleMessage[] = [];
             let boundaryForAssemble = 0;
@@ -4293,22 +4371,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               ? LEGACY_MAX_CHARS_IMAGES
               : LEGACY_MAX_CHARS;
             const currentTurnChars = Math.min(text.length, perMessageCap);
-            const legacyWindowStart = windowStartIndex(
-              validatedHistory.map((m) => m.text?.length ?? 0),
-              {
-                ...windowProfile,
-                charBudget: Math.max(
-                  0,
-                  windowProfile.charBudget - currentTurnChars,
-                ),
-              },
-              perMessageCap,
+            const historyLengths = validatedHistory.map(
+              (m) => m.text?.length ?? 0,
             );
-            // Bench-only: ranking mode for the digest retriever.
-            // Absent in production → null → "bm25" (existing behavior).
-            const rankingOverride = await getBenchRanking();
-
-            if (retrievalOn) {
+            const legacyWindowStart = legacyWindowMode
+              ? windowStartIndex(
+                  historyLengths,
+                  {
+                    ...windowProfile,
+                    charBudget: Math.max(
+                      0,
+                      windowProfile.charBudget - currentTurnChars,
+                    ),
+                  },
+                  perMessageCap,
+                )
+              : 0;
+            if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
               // Load per-chat compactor state (memory → AsyncStorage).
@@ -4317,19 +4396,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 try {
                   const raw = await AsyncStorage.getItem(compactorStorageKey(chatId));
                   state = parseCompactorState(raw, chatId);
-                  // Prefer dedicated summary key if present (may be newer pending).
-                  const sumRaw = await AsyncStorage.getItem(summaryStorageKey(chatId));
-                  if (typeof sumRaw === "string" && sumRaw.trim()) {
-                    state = {
-                      ...state,
-                      rollingSummary: truncateBudget(sumRaw.trim(), SUMMARY_BUDGET_CHARS),
-                    };
+                  if (!anchoredOn) {
+                    // Prefer dedicated summary key if present (may be newer pending).
+                    const sumRaw = await AsyncStorage.getItem(summaryStorageKey(chatId));
+                    if (typeof sumRaw === "string" && sumRaw.trim()) {
+                      state = {
+                        ...state,
+                        rollingSummary: truncateBudget(sumRaw.trim(), SUMMARY_BUDGET_CHARS),
+                      };
+                    }
                   }
                   compactorStateByChat.set(chatId, state);
                 } catch {
                   state = emptyCompactorState(chatId);
                   compactorStateByChat.set(chatId, state);
                 }
+              }
+              if (anchoredOn) {
+                // Do not carry an operative block from another regime into
+                // the no-digest anchored prompt.
+                state = {
+                  ...state,
+                  frozenDigest: "",
+                  rollingSummary: "",
+                };
+                compactorStateByChat.set(chatId, state);
               }
 
               // Load-time guards: stale digest/summary after clearChat + app restart
@@ -4373,9 +4464,24 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               const compactorConfig =
                 winBudget == null ? null : { windowCharBudget: winBudget };
 
-              // Boundary + rolling summary: K-turn cadence (or early size / force).
-              // Verbatim window stays append-only between these rebuilds (KV prefix).
-              if (
+              if (anchoredOn) {
+                const rebuild = shouldRebuildAnchored(state, {
+                  historyLengths,
+                  currentTurnLength: currentTurnChars,
+                  profile: windowProfile,
+                  maxCharsPerMessage: perMessageCap,
+                });
+                if (rebuild || forceRebuild) {
+                  state = advanceAnchoredBoundary(state, {
+                    chatId,
+                    userTurnCount,
+                    historyLengths,
+                    currentTurnLength: currentTurnChars,
+                    profile: windowProfile,
+                    maxCharsPerMessage: perMessageCap,
+                  });
+                }
+              } else if (
                 shouldRebuild(
                   state,
                   userTurnCount,
@@ -4411,83 +4517,100 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 validatedHistory.length,
               );
 
-              // Corpus eligible for BM25 + rolling summary:
-              // - v42: same as assembly boundary (unchanged)
-              // - ciswire: everything outside the legacy sliding window
-              const corpusBoundary =
-                contextMode === "ciswire"
-                  ? legacyWindowStart
-                  : boundaryForAssemble;
+              if (anchoredOn) {
+                compactorStateByChat.set(chatId, state);
+                try {
+                  await AsyncStorage.setItem(
+                    compactorStorageKey(chatId),
+                    serializeCompactorState(state),
+                  );
+                } catch {
+                  // best-effort persistence
+                }
+              } else {
+                // Bench-only: ranking mode for the digest retriever.
+                // Absent in production → null → "bm25" (existing behavior).
+                const rankingOverride = await getBenchRanking();
 
-              // Older corpus for summary scheduling + warm-index sync.
-              const olderClean = filterCorpusHygiene(
-                splitAtBoundary(validatedHistory, corpusBoundary).older,
-              );
-              olderForSummary =
-                olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
-                  ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
-                  : olderClean;
+                // Corpus eligible for BM25 + rolling summary:
+                // - v42: same as assembly boundary (unchanged)
+                // - ciswire: everything outside the legacy sliding window
+                const corpusBoundary =
+                  contextMode === "ciswire"
+                    ? legacyWindowStart
+                    : boundaryForAssemble;
 
-              // Warm index: append as boundary advances; query every turn.
-              const digestIndex = syncDigestIndex(
-                chatId,
-                validatedHistory,
-                corpusBoundary,
-              );
-              const olderForDigest =
-                olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
-                  ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
-                  : olderClean;
-              const oldUnits = toRetrievalUnits(olderForDigest);
-
-              // Query-time BM25 digest — current user message is the retrieval query.
-              // (Digest rides on last user message via format B; freezing it saved
-              // zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
-              state = refreshQueryDigest(state, {
-                chatId,
-                index: digestIndex,
-                oldTurns: oldUnits,
-                currentQuery: text,
-                onTelemetry: (t) => console.log(formatDigestLine(t)),
-                ranking: rankingOverride ?? "bm25",
-              });
-              compactorStateByChat.set(chatId, state);
-
-              // Persist boundary/summary meta every turn (cheap JSON); digest is
-              // recomputed from warm index + query so staleness is not critical.
-              try {
-                await AsyncStorage.setItem(
-                  compactorStorageKey(chatId),
-                  serializeCompactorState(state),
+                // Older corpus for summary scheduling + warm-index sync.
+                const olderClean = filterCorpusHygiene(
+                  splitAtBoundary(validatedHistory, corpusBoundary).older,
                 );
-                await AsyncStorage.setItem(
-                  summaryStorageKey(chatId),
-                  state.rollingSummary,
-                );
-              } catch {
-                // best-effort persistence
-              }
+                olderForSummary =
+                  olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
+                    ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
+                    : olderClean;
 
-              // Bench-only cadence: null → inject every turn (production). The
-              // block rides the last user message, so every injection costs the
-              // KV that user turn plus the reply generated after it; injecting
-              // every K turns pays that once per K instead (see §7.9).
-              const injectBlock = shouldInjectOperativeBlock(
-                userTurnCount - 1,
-                await getBenchDigestCadence(),
-              );
-              if (injectBlock && (state.frozenDigest || state.rollingSummary)) {
-                operativeContext = {
-                  digest: state.frozenDigest || undefined,
-                  summary: state.rollingSummary || undefined,
-                };
+                // Warm index: append as boundary advances; query every turn.
+                const digestIndex = syncDigestIndex(
+                  chatId,
+                  validatedHistory,
+                  corpusBoundary,
+                );
+                const olderForDigest =
+                  olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
+                    ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
+                    : olderClean;
+                const oldUnits = toRetrievalUnits(olderForDigest);
+
+                // Query-time BM25 digest — current user message is the retrieval query.
+                // (Digest rides on last user message via format B; freezing it saved
+                // zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
+                state = refreshQueryDigest(state, {
+                  chatId,
+                  index: digestIndex,
+                  oldTurns: oldUnits,
+                  currentQuery: text,
+                  onTelemetry: (t) => console.log(formatDigestLine(t)),
+                  ranking: rankingOverride ?? "bm25",
+                });
+                compactorStateByChat.set(chatId, state);
+
+                // Persist boundary/summary meta every turn (cheap JSON); digest is
+                // recomputed from warm index + query so staleness is not critical.
+                try {
+                  await AsyncStorage.setItem(
+                    compactorStorageKey(chatId),
+                    serializeCompactorState(state),
+                  );
+                  await AsyncStorage.setItem(
+                    summaryStorageKey(chatId),
+                    state.rollingSummary,
+                  );
+                } catch {
+                  // best-effort persistence
+                }
+
+                // Bench-only cadence: null → inject every turn (production). The
+                // block rides the last user message, so every injection costs the
+                // KV that user turn plus the reply generated after it; injecting
+                // every K turns pays that once per K instead (see §7.9).
+                const injectBlock = shouldInjectOperativeBlock(
+                  userTurnCount - 1,
+                  await getBenchDigestCadence(),
+                );
+                if (injectBlock && (state.frozenDigest || state.rollingSummary)) {
+                  operativeContext = {
+                    digest: state.frozenDigest || undefined,
+                    summary: state.rollingSummary || undefined,
+                  };
+                }
               }
             }
 
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
-            // (v42 only — append-only growth between rebuilds, preserves KV prefix).
+            // (v42/anchored — append-only growth between rebuilds, preserves KV prefix).
             const assembled = assembleEngineHistory(validatedHistory, {
-              compactionEnabled: contextMode === "v42",
+              compactionEnabled:
+                contextMode === "v42" || contextMode === "anchored",
               hasImages,
               boundaryIndex: boundaryForAssemble,
               legacyWindowStart,
@@ -4754,10 +4877,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 },
                 onError: (error) => {
                   turnFailed = true;
-                  // context_full + v42 window → force boundary rebuild next send.
-                  // ciswire keeps the legacy window; rebuild would not shrink it.
+                  // context_full + an anchored window → force boundary rebuild
+                  // next send. ciswire keeps the legacy window; rebuild would
+                  // not shrink it.
                   if (
-                    contextMode === "v42" &&
+                    (contextMode === "v42" || contextMode === "anchored") &&
                     error &&
                     typeof error === "object" &&
                     (error as { code?: string }).code === "context_full"

@@ -89,6 +89,10 @@ export const en = {
     contextCompaction: "Smart conversation memory",
     contextCompactionHint:
       "Off by default. When on, older turns are compacted into a short digest so long chats keep relevant facts without a huge sliding window. Experimental — enable for testing.",
+    sessionPool: "Instant chat reopen",
+    sessionPoolHint:
+      "Keeps recent chats ready so switching back skips the long wait. Uses device storage, not memory. About 7 chats by default.",
+    sessionPoolChats: "{count} chats",
     thinking: "Thinking",
     thinkingHint:
       "Thinking lets the model reason step by step before answering — usually better on hard questions, but slower and heavier on battery. The reasoning itself is never shown in the chat, only the final answer.",

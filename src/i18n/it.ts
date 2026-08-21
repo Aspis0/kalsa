@@ -88,6 +88,10 @@ export const it: typeof en = {
     contextCompaction: "Memoria conversazionale intelligente",
     contextCompactionHint:
       "Disattivata di default. Se attiva, i turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Sperimentale — abilita per i test.",
+    sessionPool: "Riapertura istantanea",
+    sessionPoolHint:
+      "Tiene le chat recenti pronte così al ritorno non aspetti il prefill. Usa lo spazio sul dispositivo, non la RAM. Circa 7 chat di default.",
+    sessionPoolChats: "{count} chat",
     thinking: "Ragionamento",
     thinkingHint:
       "Il ragionamento permette al modello di riflettere passo per passo prima di rispondere — di solito meglio sulle domande difficili, ma più lento e più pesante per la batteria. Il ragionamento non viene mai mostrato in chat, solo la risposta finale.",
