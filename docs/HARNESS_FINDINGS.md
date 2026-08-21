@@ -1503,6 +1503,72 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.35 VACUOUS 2026-08-21: the anchored campaign never moved its boundary — the arm that was supposed to be measured never ran, and both knobs that would have made it run were left empty
+
+Campaign `32503221846`, `fase4` on **LFM2.5-8B-A1B**, 6 seeds × 4 arms × 16 turns, launched to settle
+§9's open question — does the `anchored` window beat the legacy sliding window in long
+conversations. 34 of 40 jobs produced a `result.json`. The arms are **indistinguishable**, and the
+positive control says why.
+
+| arm | seeds | mean `reuseFrac` | miss rate (<0.5) | mean `promptMs` |
+|---|---:|---:|---:|---:|
+| baseline | 4 | 0.951 | 3.1 % | 20 326 |
+| **anchored** | 6 | 0.956 | 2.1 % | 19 219 |
+| ciswire | 5 | 0.965 | 1.3 % | 25 147 |
+| nogate | 3 | 0.980 | 0 % | 18 539 |
+
+⛔ **Do not read that as "anchored is no better". Read the positive control instead.**
+
+| arm | `boundaryByTurn` | `digestCharsByTurn` |
+|---|---|---|
+| **anchored**, all 6 seeds | **0 on every one of the 16 turns** | 0 |
+| ciswire, all 5 seeds | 0 → 6 → 12 → 18 → 24 | **0 on every turn** |
+| baseline, all 4 seeds | `null` (regime has no boundary) | 0 |
+
+`anchored` is defined as a **boundary→end** window that rebuilds when the character budget is
+exceeded (`compactor.ts:260`). With the boundary pinned at 0 for all sixteen turns it rendered the
+**entire history from index 0** — which is not a window at all, and is indistinguishable from
+`baseline` on a conversation that fits the context. `promptTokens` confirms it independently: it
+grows monotonically 1 546 → 4 201 across the sixteen turns in **every** arm, so nothing was ever
+evicted anywhere.
+
+**Why the boundary never moved, and it is not a bug.** It advances only when
+`anchoredWindowExceedsBudget` fires, and the bench exposes exactly the knob that controls that —
+`winbudget`, *"Bench-only verbatim-window char budget (empty = 16000). **Controls how often
+compaction fires.**"* A 16-turn fase4 conversation never approaches 16 000 characters. Its sibling
+`legacywindow` does the same job for the baseline arm. **I launched the campaign with both empty.**
+That is the whole defect: the experiment could not have produced a difference, because neither
+regime was ever asked to evict anything.
+
+⛔ **And `ciswire` reproduces §7.24 exactly.** Its boundary *did* advance — 0/6/12/18/24 — while
+`digestChars` stayed **0 on every turn of every seed**. So that arm evicted the oldest turns and put
+**nothing** in their place: it is not merely vacuous, it is strictly worse than `baseline` by
+construction, and its 0.965 mean reuse is the reuse of a shorter prompt, not of a better regime.
+§9 already warned that a `ciswire` arm needs ≥12 turns or the digest stays empty. **We ran 16 and it
+stayed empty anyway**, so the turn-count rule in §9 is wrong or insufficient and should not be
+trusted as the gate again.
+
+✅ **One real result survives, and it contradicts §7.12 on the model we ship.** With thinking off and
+no eviction, KV reuse on LFM2.5-8B-A1B is **0.95–0.98 at every turn, in every arm** — including
+turn 12, which is `probe_tool` with `rounds: 2`, where `reuseFrac` is **0.993**. §7.12 measured that
+"a tool call is a guaranteed total loss on this model" (10 of 10 tool-preceded turns lost the whole
+cache) and that reuse there was strictly bimodal, 0 or 0.98. **Neither reproduces here.** The turn-12
+`promptMs` spike (108–140 s across arms) is the tool round's second prefill summed into one turn, not
+a cache miss. What changed since §7.12 is not established — candidates are the merge's KV work and
+`preserveThinking`, and the arms ran `thinking: "off"`, which removes §7.9's think-block divergence
+entirely. **This is a reason to re-run §7.12's tool claim, not to retract it yet.**
+
+**The corrective run, stated so it is not got wrong twice:** same phase and model, with
+`winbudget` and `legacywindow` set low enough that both regimes actually evict inside sixteen turns,
+and the acceptance criterion checked **before** reading any speed number — `boundaryByTurn` must
+advance in `anchored`, and `promptTokens` must stop growing monotonically in `baseline`. If either
+fails, the run is vacuous again and no comparison may be quoted from it.
+
+**Limits.** `thinking: "off"` is hardcoded in the whole fase4 matrix and is not the shipping
+configuration (decision of 2026-08-18). Six of forty jobs died at a tight 13.0–15.2 minutes with no
+`result.json`; the cause is unread and the surviving seeds are therefore a survivor sample — 4 of 6
+baseline, 3 of 6 nogate.
+
 ### 7.34 MEASURED 2026-08-21: `tok/s` is tokenizer-blind, and on Italian that hides 12 points — Qwen3.5-2B delivers more Italian per second than LFM2.5-2.6B
 
 Owner's question: *"se il Qwen 3.5 2B è un chatbot MOLTO migliore dell'LFM, allora anche se più
@@ -3733,6 +3799,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.35: the anchored campaign is VACUOUS — the boundary never moved, and I launched it with both knobs that control that left empty.** `32503221846`, fase4 on LFM2.5-8B-A1B, 6 seeds x 4 arms x 16 turns. The arms are indistinguishable (mean `reuseFrac` 0.951 / **0.956** / 0.965 / 0.980) and the positive control says why: **`anchored`'s `boundaryByTurn` is 0 on all sixteen turns of all six seeds**, so a boundary→end window rendered the entire history from index 0 — not a window at all. `promptTokens` confirms it independently, growing monotonically 1 546 → 4 201 in **every** arm, so nothing was evicted anywhere. The boundary advances only when the character budget is exceeded, and the bench exposes `winbudget` (*"controls how often compaction fires"*, default 16 000) and `legacywindow` for exactly that. Both were empty. **The experiment could not have produced a difference.** ⛔ `ciswire` reproduces §7.24 exactly: its boundary DID advance (0/6/12/18/24) while `digestChars` stayed **0 on every turn of every seed**, so it evicted the oldest turns and put nothing in their place — strictly worse than baseline by construction. §9's rule that a ciswire arm needs ≥12 turns is insufficient: we ran 16 and the digest still stayed empty. ✅ One real result survives and it **contradicts §7.12 on the model we ship**: with thinking off and no eviction, reuse is **0.95-0.98 at every turn**, including turn 12 (`probe_tool`, `rounds: 2`) at **0.993** — where §7.12 measured a tool call as a guaranteed total loss, 10 of 10. The turn-12 `promptMs` spike (108-140 s) is the tool round's second prefill summed into one turn, not a miss. Cause unestablished; `thinking: "off"` removes §7.9's divergence entirely, so this is a reason to re-run §7.12's tool claim, not to retract it. Corrective run: set `winbudget` and `legacywindow` low, and check `boundaryByTurn` advances **before** reading any speed number. Limits: `thinking: "off"` is hardcoded in the whole fase4 matrix and is not the shipping config; 6 of 40 jobs died at 13.0-15.2 min with no `result.json`, so the surviving seeds are a survivor sample. |
 | 2026-08-21 | **§7.34: `tok/s` is tokenizer-blind, and on Italian that hides 12 points.** Measured and reproduced locally on 30 000 bytes of the multi5 Italian corpus: Qwen3.5-2B needs **7 382** tokens where LFM2.5-2.6B needs **8 233** — **10.3 % fewer** — while English is a dead heat (1105 vs 1101). Combined with §7.31's bytes-per-token, **LFM2.5-2.6B reads 46 % more memory per character of Italian** (463.4 MB vs 316.7). In delivered Italian on the Jelly: LFM2.5-2.6B **19.7 chars/s**, Qwen3.5-2B **24.1**, KEXP **25.3** — so **Qwen is 22 % faster than the 2.6B** where the tok/s column shows 10 %, and **KEXP's lead over Qwen shrinks from +17.5 % to +5.4 %**. Qwen's 248 320-token vocab costs it 417 MB/token in output-head reads and earns it back on this language; 10.3 % fewer tokens is also 10.3 % more conversation inside the same 8192 context. **Quality:** the one independent Italian number is EuroEval's generative leaderboard (lower is better) — Qwen3.5-2B **2.69 ± 0.23** against LFM2.5-8B-A1B **3.53 ± 0.25**, with LFM2.5-2.6B absent from the table. ⚠️ **Not quotable yet:** `LFM2.5-8B-A1B-Base` scores **2.89**, i.e. the instruct model loses to its own base, and one task pair collapses to `14.35/7.53` where Qwen scores `69.42/48.73` — the signature of a harness mishandling `<think>` blocks and Pythonic tool calls, not of a capability gap. Resolve it: if real we have a problem, if it is the harness then EuroEval understates every LFM2.5 model. Still absent: any graded campaign on LFM2.5-2.6B, and any graded bpb/instruction score on Qwen3.5-2B in our tree. Vendor numbers are different harnesses and are not a bake-off. **Limit closed the same day:** re-measured on Kalsa's own Italian UI strings the gap is **6.9 %**, not 10.3 (and 2.5 % on the bench's deliberately accent-stripped prompts), so Qwen is **+17.8 %** over the 2.6B in delivered Italian and KEXP **+9.5 %** over Qwen — direction holds, magnitudes are a ceiling. Remaining limit: no sample of real user chat Italian, and that is the register the product runs in. |
 | 2026-08-21 | **§7.33 RETRACTED IN PART the same day, by the parallel session — and by a warning already in this file.** I quoted §7.16's 0.41-0.44× GPU decode as settled; §7.16 says of that exact figure *"Do not average them and do not pick one — the next Adreno 750-class measurement settles it"*, and `KALSA.md:308` records that `use_adreno_moe_kernels` excludes A7X with 730/740/750 all A7X, so **K-quant MoE never reached the GPU** and every GPU-decode number we hold measured **CPU fallback with graph splits**. The parallel session repaired the OpenCL expert kernels, certified them bit-exact against the CPU reference (nfail=0), and measured on the S23 **experts on GPU at 2.17× burst / 1.5× sustained, at lower temperature** — a number no prior benchmark could contain. Three further corrections owed: **"try Vulkan not OpenCL" is probably backwards on Adreno** (Qualcomm invests in the Adreno-specific OpenCL path; kernels *existing* on Vulkan is `supports_op`-allowed, not fast — the very trap this section named and then fell into); **"the split is not a flag" is imprecise** (trunk-vs-expert placement is `--n-cpu-moe` / `--override-tensor`; my point was about a *temporal* prefill/decode split, which is moot if the GPU wins decode); and **the 0.61 % vs 0.79 % battery figure was contingent on the GPU being slower** — measured on a dense Qwen at 0.67× CPU speed, it does not transfer to a MoE-expert arm and must not be quoted against it. Still standing: the Adreno 750 prefill ratios, GPU decode being thermally flat where CPU decays 16 %, and Mali not being a target. Agreed next step, theirs: a **Vulkan-vs-OpenCL cell on the S23** after S4. |
 | 2026-08-21 | **§7.33: the GPU question answered from evidence that already existed — decode loses, prefill wins 5-6x, and the battery hypothesis is refuted.** On the **shipping** GPU class (Xiaomi 14, Adreno 750, unplugged, Qwen3.5-2B Q4_K_M, `llama-bench -t 6 -r 2`) prefill is **5.77 / 5.97 / 5.63 / 4.14x** CPU at pp 128/512/1024/2048 and **5.26x** on real median TTFT, while decode is **0.44x** (7.07 vs 16.15). ⛔ **The owner's calore/batteria prior is measured and inverted:** S23, 15 min per arm, CPU 12.2 -> 10.2 tok/s (**-16 %**, 42.3 °C still rising) against GPU 8.2 -> 8.2 (**0 %**, 38.5 °C plateau) — the GPU is 4 °C cooler and flat, and spends **0.79 % of battery per 1k tokens against the CPU's 0.61 %**, i.e. **30 % more energy per token**, because it is slower and stays on longer. Cooler is not cheaper. Same on the 4B (5.0 vs 4.0). ⭐ **And for Vulkan there is no kernel to write**: verified in the local checkout, `ggml-vulkan.cpp:17254-17255` lists Q2_K and Q3_K under `MUL_MAT_ID` and `:4330-4331` create `matmul_id_subgroup_q2_k_f16` / `q3_k_f16`, so **KEXP's 2-3-bit experts already have Vulkan kernels** and `SSM_CONV` is present. **OpenCL** is the backend that would need writing — `ggml-opencl.cpp:6688-6713` omits q2_K/q3_K from `MUL_MAT_ID` and q3_K `MUL_MAT` hits `GGML_ASSERT(false && "not implemented")` at `:19204-19221` — and OpenCL is what our S23 arms used. Mid-range **Mali is not a target** (Mali-G68: 0.20x prefill, 0.74x decode). The only shape the evidence supports is **GPU for prefill, CPU for decode**, which is not a flag — llama.cpp does not switch backends mid-context — so its cost is UNMEASURED. Limits: nothing measured on our phone, our app or our model; the prefill ratio is Qwen3.5-2B, not LFM2; thermal/energy is Adreno 740 only; and `supports_op` says allowed, not correct and not fast. |
