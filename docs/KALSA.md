@@ -9,7 +9,7 @@ Three docs, three jobs: **this one** is state, `HARNESS_FINDINGS.md` is evidence
 `KALSA_DEPENDENCIES.md` is structure — one row per knob, answering *when this number changes, what
 changed it?* Go there when the question is "is this derived or did someone type it".
 
-Last updated: **2026-08-20**
+Last updated: **2026-08-21**
 
 ---
 
@@ -466,8 +466,14 @@ twice mid-campaign and took an APK and a runner with it.
      unreachable (the parent always supplies the callback and returns early on an empty chat), so a
      cleared chat can reuse the native KV of the conversation it just emptied.
 - **What `ciswire` does on a phone.** Still zero device measurements: the 2026-08-20 arm was vacuous
-  (`corpusSize: 0`, digest never populated — §7.24). Any future arm must run **≥12 turns**, or the
-  digest stays empty and `ciswire` renders byte-identical to `off`.
+  (`corpusSize: 0`, digest never populated — §7.24). ⛔ **The "≥12 turns" rule this bullet used to
+  give is WRONG and cost us a repeat of the same blind arm on 2026-08-21** (§7.35): it was arithmetic
+  against `LEGACY_MAX_HISTORY = 20`, and `AppShell.tsx:4541` no longer calls that path — the live
+  window is `windowStartIndex`, 40 messages under a character budget of 13 824 (11 059 with a
+  digest) at `n_ctx` 8192. A 16-turn conversation is 30 messages and ~7 653 characters, so **nothing
+  falls outside the window and the corpus is empty no matter how many turns you run**. The gate is
+  the **character budget**, not the turn count: force it with the bench's `winbudget` input, and
+  check `boundaryByTurn` actually advanced before reading any number.
 - **Whether repack is costing us decode on this device.** The `.so` in production is
   `..._v8_2_dotprod_i8mm_...` (confirmed in logcat); the other tree measured REPACK + i8mm turning
   Q4_K into `q4_K_8x8_q8_K` — a GEMM win and a **GEMV loss** worth +47 % of decode when removed. The

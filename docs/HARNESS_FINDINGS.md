@@ -7,7 +7,78 @@ silently changed is worse than no conclusion.
 Goal it serves: make Kalsa's harness better than a bare sliding window on an on-device chat —
 tool calls, context that survives, memory.
 
-Last updated: 2026-08-19 · Evidence: campaigns `31739205810` (window 10), `31760516762`
+---
+
+## STATE AS OF 2026-08-21 — read this before quoting anything below
+
+This file is ~3 900 lines. Nobody reads it end to end, and **three mistakes were made in one day
+by quoting a section that a later section had already corrected**. So: what is true right now, one
+line each, with the section that owns it. If a claim is not here, check its section for a banner
+before repeating it.
+
+**The product**
+- Two tiers, both LFM2 (owner, `KALSA.md` §10): fast = **LFM2.5-8B-A1B-KEXP**, quality+vision =
+  **LFM2.5-VL-3B**. Nothing ships yet; there is no installed base.
+- KEXP decodes **~22 tok/s on the S23** in a fresh chat (§7.20) and **7.05 on the Jelly** (§7.28).
+  The Jelly is a **testbed, not a target** — nothing measured on it passes even 10 tok/s.
+
+**Where the user's time actually goes — this is the whole game**
+- A cold start costs **120.8 s** on the Jelly: 77.7 s of prewarm plus 43.1 s of first-turn prefill.
+  A **restored session costs 1.8 s** (§7.30). That ratio is the biggest lever we have and it works.
+- The prewarm now **stands aside** after a restore instead of `seq_rm`-ing over it, and the
+  per-conversation pool key is confirmed on a phone (§7.30).
+- **Tuning is not a lever on prefill.** 2/4/6/8 prefill threads give 113.9 / 93.0 / 77.4 / 72.1 s;
+  more threads is faster, the preset is already right, and the best arm is still over a minute
+  (§7.36).
+
+**Bytes and tokens**
+- Every `MB/token` is now from a tensor map (§7.31): KEXP **848**, LFM2.5-2.6B **1666**,
+  Qwen3.5-2B **1270**. On a dense model with tied embeddings it is essentially the whole file.
+- **`tok/s` is tokenizer-blind.** On product-register Italian Qwen3.5-2B needs **6.9 % fewer tokens**
+  than LFM2.5-2.6B, which moves the ranking (§7.34).
+
+**The phone**
+- The Jelly is **UFS** with **f2fs**, 137 GB free, coldest sequential read **984 MB/s** — so a cold
+  KEXP load has a ~3.4 s floor (§7.32). Cores: 6×A55 (capacity 348) + 2×A76 (1024).
+
+**GPU** — answered, then partly superseded within the hour by the parallel session (§7.33 + banner)
+- Their repaired OpenCL expert kernels measure **experts on GPU at 2.17× burst / 1.5× sustained,
+  cooler**, on the S23. Prefill on Adreno 750 is **5.3–6.0×** CPU. **Mali is not a target.**
+- **No kernel needs writing for Vulkan** (q2_K/q3_K `MUL_MAT_ID` pipelines exist); OpenCL is the one
+  that was missing them, and they have now written it.
+
+⛔ **RETRACTED — do not re-quote these, they are wrong**
+| claim | why it is dead | banner |
+|---|---|---|
+| GPU decode is 0.41–0.44× CPU | measured **CPU fallback**: `use_adreno_moe_kernels` excludes A7X, so K-quant MoE never reached the GPU | §7.33 |
+| the dense `MB/tok` estimates are **over**-estimates | they were **under** by 3–4 % | §7.31 → §7.28 |
+| `ciswire` evicted old turns and injected nothing, so it is worse than `off` | it evicted **nothing**; identical to `off` at these lengths | §7.35 |
+| the sliding window collapses reuse 0.82 → 0.15 at turn 12 | measured against `LEGACY_MAX_HISTORY = 20`, which is **no longer the live path** — `AppShell.tsx:4541` calls `windowStartIndex` (40 messages, char budget) | §7.35 |
+| "a `ciswire` arm needs ≥12 turns" (§9) | arithmetic against that same dead cap; 16 turns still produced an empty corpus | §7.35 |
+
+⭐ **OPEN, in order of measured payoff — work down this list**
+1. **Tool-round replay. Untouched by anyone.** A tool round puts `assistant(tool_calls)` + `tool(result)`
+   into the KV, stored history keeps only the final answer, and on LFM2 there is no partial credit:
+   **3.9 s with the cache against 195–405 s without** (§7.12). Same shape as `preserve_thinking`,
+   which was worth 295 s → 160 s when it landed (§7.9).
+2. **At what conversation length does the derived window evict at all, and does `anchored` help
+   there?** The original question ("does anchored beat the sliding window") is void — the sliding
+   window it was built against is gone (§7.35). Campaign `32514162034` reruns it with `winbudget`
+   set low enough to force eviction.
+3. **Does §7.12's tool-call cache loss still reproduce?** §7.35 measured **0.993 reuse on a
+   tool-round turn** on the shipping model, where §7.12 measured total loss 10 times out of 10.
+   Cause unestablished; those arms ran `thinking: "off"`.
+4. **Trimming the prefix.** 3 203 characters of system prompt plus 3 tool schemas, ~1 300 tokens,
+   re-read on every cold start. Never costed (§7.36).
+
+⚠️ **Two standing traps.** The whole `fase4` matrix is hardcoded to `thinking: "off"`, which the
+owner ruled out for production on 2026-08-18 — so no campaign number below is a product number. And
+a bench arm can silently fail to engage its own mechanism: **check the positive control before
+reading any speed number** (§7.35 is what that costs).
+
+---
+
+⚠️ The header below is history, not state — the block above is state. Last updated: 2026-08-19 · Evidence: campaigns `31739205810` (window 10), `31760516762`
 (window 16) and `31861056717` (window 16, every 2026-08-14 defect fixed), Qwen3.5-2B, 6
 seeds/arm, 16-turn conversations, Italian, CI emulator.
 
