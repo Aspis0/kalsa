@@ -73,17 +73,6 @@ BENCH_TARGET="${BENCH_TARGET:-emulator}"
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
 
-# Empty React Native TextInput: uiautomator reports the PLACEHOLDER in the
-# EditText text="…" attribute (not a real empty string). composer_text therefore
-# returns this on a truly empty field; tap_node matches it the same way.
-# Treating the placeholder as non-empty would clear-and-fail every turn.
-# Both languages on purpose (not derived from $LOCALE / seeded kalsa.locale):
-# the list stays correct if the seed changes again, and a stale entry costs nothing.
-# Ellipsis is the single char "…", not three dots (src/i18n/{en,it}.ts chat.placeholder).
-readonly COMPOSER_PLACEHOLDERS=(
-  "Ask a question…"
-  "Fai una domanda…"
-)
 # Send button label (chat.send / chat.a11ySend in src/i18n/{en,it}.ts). Both
 # languages for the same reason as COMPOSER_PLACEHOLDERS. CI run 31399547762:
 # all 12 arms dead at turn 1 — placeholder check passed (IT) but Send stayed
@@ -476,16 +465,6 @@ dump_ui_retry() {
   return 1
 }
 
-# True if $1 is blank or equals any accepted composer placeholder (empty field).
-composer_looks_empty() {
-  local t="$1" p
-  [ -z "$t" ] && return 0
-  for p in "${COMPOSER_PLACEHOLDERS[@]}"; do
-    [ "$t" = "$p" ] && return 0
-  done
-  return 1
-}
-
 # Focus via any accepted placeholder; returns 1 only if none matched.
 tap_composer_placeholder() {
   local p
@@ -607,16 +586,12 @@ _assert_input_path_ready_once() {
     return 1
   fi
 
-  # 5) clear composer (MOVE_END + 60× DEL) and require empty again
-  adb shell input keyevent KEYCODE_MOVE_END
-  for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
-  sleep 1
-  existing=$(composer_text)
-  if ! composer_looks_empty "$existing"; then
+  # 5) clear composer and require empty again
+  clear_composer || {
     _startup_ui_dump > "$OUT/startup_ui.txt"
-    _startup_assert_fail="startup: composer not empty after clear (got [$existing]; distinct text nodes in $OUT/startup_ui.txt)"
+    _startup_assert_fail="startup: composer not empty after clear (clear_composer failed; distinct text nodes in $OUT/startup_ui.txt)"
     return 1
-  fi
+  }
 
   log "startup: input path ready (focus, type, Send visible, clear — probe not sent)"
   return 0
@@ -784,11 +759,15 @@ snapshot_and_apply_last_reply() {
 send_and_wait() {
   local msg="$1"
   local timeout_s="${2:-1500}"
+  local turn_dir="${3:-}"
 
   # Device-mode only: pause if the phone is thermally throttled (SEVERE / hot
   # battery) so reply times stay comparable. Emulator path is untouched.
   # Sets THERMAL_STATUS_AT_TURN / THERMAL_BATTERY_DECI_AT_TURN for evidence.
   device_thermal_gate
+  if [ -n "$turn_dir" ]; then
+    capture_sysprobe_snapshot "$turn_dir" pre
+  fi
 
   snapshot_history "$OUT/.hist_prev.json"
   local prev_count
@@ -806,8 +785,7 @@ send_and_wait() {
       dismiss_anr
       dismiss_foreign_dialog
       wait_turn_settled 60
-      adb shell input keyevent KEYCODE_MOVE_END
-      for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+      clear_composer
       sleep 1
     fi
 
@@ -843,8 +821,7 @@ send_and_wait() {
     existing=$(composer_text)
     if ! composer_looks_empty "$existing"; then
       log "composer non-empty before type (len=${#existing}) — clearing"
-      adb shell input keyevent KEYCODE_MOVE_END
-      for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+      clear_composer
       sleep 1
       existing=$(composer_text)
       if ! composer_looks_empty "$existing"; then
@@ -872,8 +849,15 @@ send_and_wait() {
       tap_editable || true
       sleep 2
       # Wipe whatever partial text landed, so the retry cannot concatenate.
-      adb shell input keyevent KEYCODE_MOVE_END
-      for _ in $(seq 1 60); do adb shell input keyevent 67 >/dev/null 2>&1; done
+      # If the wipe cannot be CONFIRMED, do not type: the gate below is
+      # grep -qF "$msg", which still passes on <residue><msg>, so the arm would
+      # record the intended prompt while the model saw a different one. That is
+      # the fabricated-evidence case the pre-type check above refuses to allow;
+      # it must be refused here too. Abandon the attempt instead.
+      if ! clear_composer; then
+        log "clear before retype failed — abandoning attempt ${attempt}/${max_attempts}"
+        continue
+      fi
       sleep 2
       type_text "$msg"
       t=0
@@ -1353,8 +1337,9 @@ run_turn_plan() {
     msg="${PLAN_PROMPT[$i]}"
     log "=== turn $turn/${n} kind=${PLAN_KIND[$i]} id=${PLAN_ID[$i]} expect=${PLAN_EXPECT[$i]} ==="
     # 1) first persistence (latency) 2) idle 3) re-read settled 4) evidence 5) record
-    send_and_wait "$msg" 2400 || die "timeout/failure on turn $turn (${PLAN_ID[$i]})"
+    send_and_wait "$msg" 2400 "$OUT/turn${turn}" || die "timeout/failure on turn $turn (${PLAN_ID[$i]})"
     settle_turn_reply
+    capture_sysprobe_snapshot "$OUT/turn${turn}" post
     capture_turn_evidence "$turn"
     if [ "$turn" -eq 1 ]; then
       assert_engine_ran_turn1
@@ -1428,8 +1413,9 @@ if [ "$PHASE" = "fase0" ]; then
     fi
 
     global_turn=$((global_turn + 1))
-    send_and_wait "$PLANT" 1500 || die "run $run: timeout/failure on plant turn"
+    send_and_wait "$PLANT" 1500 "$OUT/turn${global_turn}" || die "run $run: timeout/failure on plant turn"
     settle_turn_reply
+    capture_sysprobe_snapshot "$OUT/turn${global_turn}" post
     capture_turn_evidence "$global_turn"
     if [ "$global_turn" -eq 1 ]; then
       assert_engine_ran_turn1
@@ -1445,8 +1431,9 @@ if [ "$PHASE" = "fase0" ]; then
     for i in "${!F0_FILLERS[@]}"; do
       f="${F0_FILLERS[$i]}"
       global_turn=$((global_turn + 1))
-      send_and_wait "$f" 1500 || die "run $run: timeout/failure on filler $((i+1))"
+      send_and_wait "$f" 1500 "$OUT/turn${global_turn}" || die "run $run: timeout/failure on filler $((i+1))"
       settle_turn_reply
+      capture_sysprobe_snapshot "$OUT/turn${global_turn}" post
       capture_turn_evidence "$global_turn"
       record_turn "$global_turn" "filler" "filler_$((i+1))" "$f" \
         "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
@@ -1458,8 +1445,9 @@ if [ "$PHASE" = "fase0" ]; then
     done
 
     global_turn=$((global_turn + 1))
-    send_and_wait "$PROBE" 1500 || die "run $run: timeout/failure on probe turn"
+    send_and_wait "$PROBE" 1500 "$OUT/turn${global_turn}" || die "run $run: timeout/failure on probe turn"
     settle_turn_reply
+    capture_sysprobe_snapshot "$OUT/turn${global_turn}" post
     capture_turn_evidence "$global_turn"
     record_turn "$global_turn" "probe" "probe" "$PROBE" \
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"

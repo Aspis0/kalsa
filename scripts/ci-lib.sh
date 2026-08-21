@@ -226,6 +226,241 @@ capture_death_evidence() {
   [ -s "$OUT/fatal_procmeminfo.txt" ] || echo "(could not read /proc/meminfo)" > "$OUT/fatal_procmeminfo.txt"
 }
 
+# _sysprobe_empty_body
+#   Fixed-key fallback for a completely failed adb shell. Individual reads
+#   inside the remote probe already emit the same keys with empty values.
+_sysprobe_empty_body() {
+  printf '%s\n' \
+    'VmHWM=' 'VmRSS=' 'RssAnon=' 'RssFile=' 'VmSwap=' \
+    'minflt=' 'majflt=' \
+    'io_rchar=' 'io_wchar=' 'io_syscr=' 'io_syscw=' \
+    'io_read_bytes=' 'io_write_bytes=' 'io_cancelled_write_bytes=' \
+    'workingset_refault_file=' 'workingset_refault_anon=' 'pgmajfault=' \
+    'pgsteal_kswapd=' 'pgsteal_direct=' 'allocstall_normal=' 'allocstall_movable=' \
+    'MemFree=' 'MemAvailable=' 'Cached=' 'SwapCached=' 'Dirty=' 'Writeback=' \
+    'diskstats_readable=0' 'diskstats_device=' 'diskstats_line=' \
+    'diskstats_sectors_read=' 'diskstats_sectors_written=' \
+    'diskstats_time_reading_ms=' 'diskstats_io_ticks=' \
+    'thermal_status=' 'battery_deci_c='
+}
+
+# capture_sysprobe_snapshot <turn_dir> <pre|post> [pid]
+#   Capture cheap, best-effort process/system evidence in one adb shell. The
+#   remote side emits a stable key=value format and keeps going after every
+#   unreadable path. A probe failure must never fail a benchmark turn.
+capture_sysprobe_snapshot() {
+  local turn_dir="${1:-}" tag="${2:-}" requested_pid="${3:-}" dest
+  local remote_cmd remote remote_pid body stamp epoch remote_pid_q pkg_q
+  [ -n "$turn_dir" ] || return 0
+  [ -n "$tag" ] || return 0
+  dest="$turn_dir/sysprobe_$tag.txt"
+  mkdir -p "$turn_dir" 2>/dev/null || return 0
+
+  case "$requested_pid" in
+    ''|*[!0-9]*) requested_pid='' ;;
+  esac
+  printf -v remote_pid_q '%q' "$requested_pid"
+  printf -v pkg_q '%q' "${PKG:-com.kalsa.app}"
+
+  # Keep this as one remote shell: adb round trips dominate the cost of the
+  # individual reads, while the snapshot itself remains outside turn timing.
+  remote_cmd=$(cat <<'REMOTE'
+pid=__KALSA_PID__
+pkg=__KALSA_PKG__
+if [ -z "$pid" ]; then
+  pid=$(pidof "$pkg" 2>/dev/null | awk '{print $1}' || true)
+fi
+
+printf 'pid=%s\n' "$pid"
+
+emit_status() {
+  values=""
+  if [ -r "/proc/$pid/status" ]; then
+    values=$(awk '
+      BEGIN { h=rss=anon=file=swap="" }
+      $1 == "VmHWM:" {h=$2}
+      $1 == "VmRSS:" {rss=$2}
+      $1 == "RssAnon:" {anon=$2}
+      $1 == "RssFile:" {file=$2}
+      $1 == "VmSwap:" {swap=$2}
+      END {
+        if (h != "") h = h " kB"
+        if (rss != "") rss = rss " kB"
+        if (anon != "") anon = anon " kB"
+        if (file != "") file = file " kB"
+        if (swap != "") swap = swap " kB"
+        printf "VmHWM=%s\n", h
+        printf "VmRSS=%s\n", rss
+        printf "RssAnon=%s\n", anon
+        printf "RssFile=%s\n", file
+        printf "VmSwap=%s\n", swap
+      }
+    ' "/proc/$pid/status" 2>/dev/null || true)
+  fi
+  [ -n "$values" ] && printf '%s\n' "$values" || printf '%s\n' \
+    'VmHWM=' 'VmRSS=' 'RssAnon=' 'RssFile=' 'VmSwap='
+}
+
+emit_faults() {
+  values=""
+  if [ -r "/proc/$pid/stat" ]; then
+    values=$(awk '{print "minflt=" $10; print "majflt=" $12; exit}' "/proc/$pid/stat" 2>/dev/null || true)
+  fi
+  [ -n "$values" ] && printf '%s\n' "$values" || printf '%s\n' 'minflt=' 'majflt='
+}
+
+emit_io() {
+  values=""
+  if [ -n "$pid" ]; then
+    values=$(run-as "$pkg" cat "/proc/$pid/io" 2>/dev/null | awk '
+      BEGIN { rchar=wchar=syscr=syscw=read_bytes=write_bytes=cancelled="" }
+      $1 == "rchar:" {rchar=$2}
+      $1 == "wchar:" {wchar=$2}
+      $1 == "syscr:" {syscr=$2}
+      $1 == "syscw:" {syscw=$2}
+      $1 == "read_bytes:" {read_bytes=$2}
+      $1 == "write_bytes:" {write_bytes=$2}
+      $1 == "cancelled_write_bytes:" {cancelled=$2}
+      END {
+        print "io_rchar=" rchar
+        print "io_wchar=" wchar
+        print "io_syscr=" syscr
+        print "io_syscw=" syscw
+        print "io_read_bytes=" read_bytes
+        print "io_write_bytes=" write_bytes
+        print "io_cancelled_write_bytes=" cancelled
+      }
+    ' 2>/dev/null || true)
+  fi
+  [ -n "$values" ] && printf '%s\n' "$values" || printf '%s\n' \
+    'io_rchar=' 'io_wchar=' 'io_syscr=' 'io_syscw=' \
+    'io_read_bytes=' 'io_write_bytes=' 'io_cancelled_write_bytes='
+}
+
+emit_vmstat() {
+  values=""
+  if [ -r /proc/vmstat ]; then
+    values=$(awk '
+      BEGIN { file=anon=maj=kswapd=direct=normal=movable="" }
+      $1 == "workingset_refault_file" {file=$2}
+      $1 == "workingset_refault_anon" {anon=$2}
+      $1 == "pgmajfault" {maj=$2}
+      $1 == "pgsteal_kswapd" {kswapd=$2}
+      $1 == "pgsteal_direct" {direct=$2}
+      $1 == "allocstall_normal" {normal=$2}
+      $1 == "allocstall_movable" {movable=$2}
+      END {
+        print "workingset_refault_file=" file
+        print "workingset_refault_anon=" anon
+        print "pgmajfault=" maj
+        print "pgsteal_kswapd=" kswapd
+        print "pgsteal_direct=" direct
+        print "allocstall_normal=" normal
+        print "allocstall_movable=" movable
+      }
+    ' /proc/vmstat 2>/dev/null || true)
+  fi
+  [ -n "$values" ] && printf '%s\n' "$values" || printf '%s\n' \
+    'workingset_refault_file=' 'workingset_refault_anon=' 'pgmajfault=' \
+    'pgsteal_kswapd=' 'pgsteal_direct=' 'allocstall_normal=' 'allocstall_movable='
+}
+
+emit_meminfo() {
+  values=""
+  if [ -r /proc/meminfo ]; then
+    values=$(awk '
+      BEGIN { free=available=cached=swapcached=dirty=writeback="" }
+      $1 == "MemFree:" {free=$2}
+      $1 == "MemAvailable:" {available=$2}
+      $1 == "Cached:" {cached=$2}
+      $1 == "SwapCached:" {swapcached=$2}
+      $1 == "Dirty:" {dirty=$2}
+      $1 == "Writeback:" {writeback=$2}
+      END {
+        if (free != "") free = free " kB"
+        if (available != "") available = available " kB"
+        if (cached != "") cached = cached " kB"
+        if (swapcached != "") swapcached = swapcached " kB"
+        if (dirty != "") dirty = dirty " kB"
+        if (writeback != "") writeback = writeback " kB"
+        printf "MemFree=%s\n", free
+        printf "MemAvailable=%s\n", available
+        printf "Cached=%s\n", cached
+        printf "SwapCached=%s\n", swapcached
+        printf "Dirty=%s\n", dirty
+        printf "Writeback=%s\n", writeback
+      }
+    ' /proc/meminfo 2>/dev/null || true)
+  fi
+  [ -n "$values" ] && printf '%s\n' "$values" || printf '%s\n' \
+    'MemFree=' 'MemAvailable=' 'Cached=' 'SwapCached=' 'Dirty=' 'Writeback='
+}
+
+emit_status
+emit_faults
+emit_io
+emit_vmstat
+emit_meminfo
+
+data_source=$(df -P /data 2>/dev/null | awk 'NR > 1 {print $1; exit}' || true)
+data_device="${data_source##*/}"
+resolved_source=$(readlink -f "$data_source" 2>/dev/null || true)
+[ -n "$resolved_source" ] && data_device="${resolved_source##*/}"
+disk_line=""
+[ -n "$data_device" ] && disk_line=$(awk -v dev="$data_device" '$3 == dev {print; exit}' /proc/diskstats 2>/dev/null || true)
+if [ -n "$disk_line" ]; then
+  printf 'diskstats_readable=1\n'
+  printf 'diskstats_device=%s\n' "$data_device"
+  printf 'diskstats_line=%s\n' "$disk_line"
+  awk '{print "diskstats_sectors_read=" $6; print "diskstats_time_reading_ms=" $7; print "diskstats_sectors_written=" $10; print "diskstats_io_ticks=" $13; exit}' <<EOF_DISK
+$disk_line
+EOF_DISK
+else
+  printf '%s\n' 'diskstats_readable=0' 'diskstats_device=' 'diskstats_line=' \
+    'diskstats_sectors_read=' 'diskstats_sectors_written=' \
+    'diskstats_time_reading_ms=' 'diskstats_io_ticks='
+fi
+
+for cpu in /sys/devices/system/cpu/cpu[0-9]*; do
+  [ -d "$cpu" ] || continue
+  cpu_name="${cpu##*/}"
+  freq=$(cat "$cpu/cpufreq/scaling_cur_freq" 2>/dev/null | tr -d '\r\n' || true)
+  printf '%s_scaling_cur_freq=%s\n' "$cpu_name" "$freq"
+done
+
+for zone in /sys/class/thermal/thermal_zone[0-9]*; do
+  [ -d "$zone" ] || continue
+  zone_name="${zone##*/}"
+  zone_type=$(cat "$zone/type" 2>/dev/null | tr -d '\r\n' || true)
+  zone_temp=$(cat "$zone/temp" 2>/dev/null | tr -d '\r\n' || true)
+  printf '%s_type=%s\n' "$zone_name" "$zone_type"
+  printf '%s_temp=%s\n' "$zone_name" "$zone_temp"
+done
+
+thermal_status=$(dumpsys thermalservice 2>/dev/null | grep -m1 -E 'Thermal Status:[[:space:]]*[0-9]+' | sed -E 's/.*Thermal Status:[[:space:]]*([0-9]+).*/\1/' || true)
+battery_deci_c=$(dumpsys battery 2>/dev/null | grep -m1 -E 'temperature:[[:space:]]*[0-9]+' | sed -E 's/.*temperature:[[:space:]]*([0-9]+).*/\1/' || true)
+printf 'thermal_status=%s\n' "$thermal_status"
+printf 'battery_deci_c=%s\n' "$battery_deci_c"
+REMOTE
+)
+  remote_cmd=${remote_cmd//__KALSA_PID__/$remote_pid_q}
+  remote_cmd=${remote_cmd//__KALSA_PKG__/$pkg_q}
+  remote=$(adb shell "$remote_cmd" 2>/dev/null | tr -d '\r' || true)
+  remote_pid=$(printf '%s\n' "$remote" | sed -n 's/^pid=//p' | head -1)
+  stamp=$(date +%Y-%m-%dT%H:%M:%S 2>/dev/null || true)
+  epoch=$(date +%s 2>/dev/null || true)
+  if [ -n "$remote" ]; then
+    body=$(printf '%s\n' "$remote" | sed '/^pid=/d')
+  else
+    body=$(_sysprobe_empty_body)
+  fi
+  {
+    printf 'ts=%s epoch=%s label=%s pid=%s\n' "$stamp" "$epoch" "$tag" "$remote_pid"
+    printf '%s\n' "$body"
+  } > "$dest" 2>/dev/null || true
+  return 0
+}
+
 # die() expects $OUT to already exist (the caller creates it before sourcing
 # or before the first call that can fail).
 die() {
@@ -1084,8 +1319,91 @@ type_text() {
   done
 }
 
+# Pull the EditText contents out of an already-captured uiautomator dump ($1).
+# Split out of composer_text so clear_composer can judge the SAME dump it parses
+# (a second dump_ui could disagree with the first, and costs a round trip).
+_composer_text_from_dump() {
+  printf '%s' "$1" | tr '>' '\n' | grep 'class="android.widget.EditText"' \
+    | grep -o 'text="[^"]*"' | head -1 | sed 's/^text="//; s/"$//'
+}
+
 # What is actually in the EditText right now (for diagnostics).
 composer_text() {
-  dump_ui | tr '>' '\n' | grep 'class="android.widget.EditText"' \
-    | grep -o 'text="[^"]*"' | head -1 | sed 's/^text="//; s/"$//'
+  _composer_text_from_dump "$(dump_ui)"
+}
+
+# Lives here, not in ci-bench.sh, because composer_looks_empty below consumes it:
+# ci-bench.sh defined it *after* sourcing this file, which left every other
+# sourcing script one `set -u` away from an unbound-variable death.
+# Empty React Native TextInput: uiautomator reports the PLACEHOLDER in the
+# EditText text="…" attribute (not a real empty string). composer_text therefore
+# returns this on a truly empty field; tap_node matches it the same way.
+# Treating the placeholder as non-empty would clear-and-fail every turn.
+# Both languages on purpose (not derived from $LOCALE / seeded kalsa.locale):
+# the list stays correct if the seed changes again, and a stale entry costs nothing.
+# Ellipsis is the single char "…", not three dots (src/i18n/{en,it}.ts chat.placeholder).
+# Deliberately NOT readonly: ci-lib.sh has no include guard, and a readonly here
+# would turn any future double-source into a hard error. Nothing reassigns it.
+COMPOSER_PLACEHOLDERS=(
+  "Ask a question…"
+  "Fai una domanda…"
+)
+
+# True if $1 is blank or equals any accepted composer placeholder (empty field).
+# Placeholder counts as empty: uiautomator puts a COMPOSER_PLACEHOLDERS entry
+# into EditText text="…" on a blank TextInput (see the array comment above).
+composer_looks_empty() {
+  local t="$1" p
+  [ -z "$t" ] && return 0
+  for p in "${COMPOSER_PLACEHOLDERS[@]}"; do
+    [ "$t" = "$p" ] && return 0
+  done
+  return 1
+}
+
+# Wipe the composer until it is empty (or return non-zero after 3 attempts).
+# WHY: a fixed 60× DEL loop (ci-bench.sh pre-Fix) truncated prompts longer than
+# 60 chars — e.g. an 89-char prompt left 21 residual chars after MOVE_END+60 DEL,
+# causing the arm to send garbage instead of the intended message. We move to
+# the cursor end, delete ${#text}+8 times, re-read, and repeat up to 3 passes.
+# A hard per-pass ceiling of 400 caps runaway loops if the UI lies about text.
+#
+# A FAILED DUMP IS NOT AN EMPTY FIELD. dump_ui (ci-lib.sh:36) swallows every
+# error and cats an absent/stale file, so composer_text returns "" both when the
+# composer is empty and when we simply could not see it. The first version of
+# this function trusted that "" and returned success without sending one DEL —
+# the same trap ci-bench.sh:448 already documents for dump_ui_retry (run
+# 31367691176 logged "no EditText on screen" on a screen that had one). So we
+# require positive evidence of an EditText node before believing any verdict.
+clear_composer() {
+  local pass i text n ui seen=false
+  for pass in 1 2 3; do
+    ui=$(dump_ui)
+    case "$ui" in
+      *'class="android.widget.EditText"'*) seen=true ;;
+      *) sleep 2; continue ;;   # could not see the field — retry, do not conclude
+    esac
+    text=$(_composer_text_from_dump "$ui")
+    composer_looks_empty "$text" && return 0
+    adb shell input keyevent KEYCODE_MOVE_END
+    n=$(( ${#text} + 8 ))
+    [ "$n" -gt 400 ] && n=400
+    for (( i = 0; i < n; i++ )); do
+      adb shell input keyevent 67 >/dev/null 2>&1
+    done
+    sleep 0.5
+  done
+  if [ "$seen" = false ]; then
+    log "clear_composer: no EditText in any of 3 dumps — field state unknown" >&2
+    return 1
+  fi
+  ui=$(dump_ui)
+  case "$ui" in
+    *'class="android.widget.EditText"'*) ;;
+    *) log "clear_composer: final dump failed — field state unknown" >&2; return 1 ;;
+  esac
+  text=$(_composer_text_from_dump "$ui")
+  composer_looks_empty "$text" && return 0
+  log "clear_composer: composer still non-empty after 3 passes: [$text]" >&2
+  return 1
 }

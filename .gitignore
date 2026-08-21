@@ -96,3 +96,4 @@ bench-out/
 # `git add -A` (2026-08-15); do not let it happen again.
 *.bak
 *.bak2
+device-share-send-out/
