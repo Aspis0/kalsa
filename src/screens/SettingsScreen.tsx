@@ -55,6 +55,10 @@ import {
   type DeviceProfile,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import {
+  deviceBandwidthForModel,
+  type DeviceBandwidthCalibration,
+} from "../engine/deviceThroughput";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { useProcessHealth } from "../hooks/useProcessHealth";
 import { useThermalMonitor } from "../hooks/useThermalMonitor";
@@ -100,6 +104,8 @@ export type SettingsModelProps = {
   streaming: boolean;
   /** Presence map from a one-shot disk scan (keys appear after scan). */
   downloadedById: Record<string, boolean>;
+  /** Per-quant device calibration; empty means speed is unknown. */
+  deviceBandwidth: DeviceBandwidthCalibration;
   onSelectModel: (modelId: string) => void;
   onDownloadModel: (modelId: string) => void;
   /** Retry engine init when the bundle is already on disk. */
@@ -1883,6 +1889,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                       }).nCtx,
                       kvBytesPerToken: entry.kvBytesPerToken,
                     }),
+                    modelWeightsBytesPerToken: entry.weightsBytesPerToken,
+                    deviceBandwidthBytesPerSecond: deviceBandwidthForModel(
+                      model.deviceBandwidth,
+                      entry,
+                    ),
                     modelSizeBytes: diskRequirementBytes(
                       entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
                     ),

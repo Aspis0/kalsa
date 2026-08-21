@@ -127,6 +127,8 @@ import {
 } from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
 import { getModelById, isHybridOrKvUnifiedModel } from "./ModelRegistry";
+import type { ModelInfo } from "./ModelRegistry";
+import type { DecodeMeasurement } from "./deviceThroughput";
 import {
   getChatGeneration,
   markChatCompleting,
@@ -812,6 +814,8 @@ function emitTurnTelemetry(
   round: number,
   result: CompletionLikeResult,
   attribution?: ToolAttributionSnapshot | null,
+  model?: ModelInfo | null,
+  onDecodeSample?: StreamTurnOptions["onDecodeSample"],
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
@@ -820,6 +824,13 @@ function emitTurnTelemetry(
     if (attribution?.tool != null) r.tool = attribution.tool;
     if (attribution?.strategy != null) r.strategy = attribution.strategy;
     console.log(formatTelemetryLine(turnId, r));
+    if (model != null) {
+      onDecodeSample?.(model, {
+        predictedPerSecond: r.predictedPerSecond,
+        tokensPredicted: r.tokensPredicted,
+        interrupted: r.interrupted,
+      });
+    }
   } catch {
     // Telemetry must never break a turn.
   }
@@ -2321,6 +2332,8 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * attachment placeholder / unsliced).
    */
   lastUserBare?: string;
+  /** Receives each settled completion's numeric decode sample for calibration. */
+  onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
 };
 
 export async function streamAssistantTurn(
@@ -2804,7 +2817,14 @@ export async function streamAssistantTurn(
         // tool/strategy = last SUCCESSFUL tool earlier in this turn (see
         // emitTurnTelemetry contract): empty on the first tool-call round;
         // set on the synthesis round after a genuine success.
-        emitTurnTelemetry(turnId, round, result, toolAttribution.snapshot());
+        emitTurnTelemetry(
+          turnId,
+          round,
+          result,
+          toolAttribution.snapshot(),
+          activeModel,
+          options.onDecodeSample,
+        );
 
         if (bailIfStopped()) return;
 
@@ -3112,7 +3132,14 @@ export async function streamAssistantTurn(
                 },
               ),
             );
-            emitTurnTelemetry(turnId, MAX_TOOL_ROUNDS, fallbackResult, toolAttribution.snapshot());
+            emitTurnTelemetry(
+              turnId,
+              MAX_TOOL_ROUNDS,
+              fallbackResult,
+              toolAttribution.snapshot(),
+              activeModel,
+              options.onDecodeSample,
+            );
             // Strip tool_call/think markup from the fallback result. If text
             // remains, emit it; otherwise fall through to the canned message.
             const fallbackEmitted = extractRawResultText(fallbackResult);

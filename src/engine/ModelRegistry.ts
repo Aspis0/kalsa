@@ -25,6 +25,13 @@ export type ModelFileSpec = {
   revision?: string;
 };
 
+export type ModelWeightBytesPerToken = {
+  /** Decimal bytes of weights read for one generated token. */
+  bytes: number;
+  /** Provenance is part of the value so estimates cannot look measured. */
+  source: "tensor-map" | "file-size-estimate";
+};
+
 export type KvCacheProfile = {
   k: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
   v: "f16" | "f32" | "q8_0" | "q4_0" | "q4_1" | "iq4_nl" | "q5_0" | "q5_1";
@@ -102,6 +109,11 @@ export type ModelInfo = {
    * fabricating a value.
    */
   kvBytesPerToken?: number;
+  /**
+   * Weight bytes read for one generated token at batch 1. Omit when the value
+   * is not known from a tensor map; a GGUF file size is not this quantity.
+   */
+  weightsBytesPerToken?: ModelWeightBytesPerToken;
   default?: boolean;
 };
 
@@ -284,6 +296,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
+    weightsBytesPerToken: {
+      bytes: 848_000_000,
+      source: "tensor-map",
+    },
     thinking: { short: 256, extended: 512 },
     preserveThinking: true,
     descriptionKey: "models.lfm258b.description",

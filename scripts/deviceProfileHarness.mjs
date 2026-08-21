@@ -26,6 +26,7 @@ function compile() {
     [
       "tsc",
       "src/engine/deviceProfile.ts",
+      "src/engine/deviceThroughput.ts",
       "src/engine/contextProfile.ts",
       "src/engine/memoryEstimate.ts",
       "src/engine/threadProfile.ts",
@@ -89,6 +90,14 @@ async function main() {
     diskRequirementBytes,
     __resetDeviceProfileCacheForTests,
   } = mod;
+  const throughputPath = path.join(projectRoot, "scripts/.build/engine/deviceThroughput.js");
+  const {
+    deviceBandwidthForModel,
+    modelSpeedAdvisory,
+    predictModelTokensPerSecond,
+    predictTokensPerSecond,
+    recordDeviceBandwidthSample,
+  } = require(throughputPath);
 
   const contextProfilePath = path.join(projectRoot, "scripts/.build/engine/contextProfile.js");
   const { getRamTier, resolveContextProfile } = require(contextProfilePath);
@@ -276,6 +285,110 @@ async function main() {
 
   // --- modelGateVerdict matrix ---
 
+  // --- device throughput calibration ---
+
+  await test("throughput keeps the maximum sample, not the average", () => {
+    const model = {
+      quant: "Q4_K_M",
+      weightsBytesPerToken: { bytes: 100, source: "tensor-map" },
+    };
+    let calibration = recordDeviceBandwidthSample({}, model, {
+      predictedPerSecond: 10,
+      tokensPredicted: 32,
+      interrupted: false,
+    });
+    calibration = recordDeviceBandwidthSample(calibration, model, {
+      predictedPerSecond: 20,
+      tokensPredicted: 32,
+      interrupted: false,
+    });
+    calibration = recordDeviceBandwidthSample(calibration, model, {
+      predictedPerSecond: 15,
+      tokensPredicted: 32,
+      interrupted: false,
+    });
+    assert(calibration.q4_k_m === 2000, JSON.stringify(calibration));
+  });
+
+  await test("registry has one tensor-map weight-read value", () => {
+    const measured = MODEL_REGISTRY.filter((entry) => entry.weightsBytesPerToken);
+    assert(measured.length === 1, `measured models=${measured.length}`);
+    assert(measured[0].id === "lfm2.5-8b-a1b-kexp", measured[0].id);
+    assert(measured[0].weightsBytesPerToken.bytes === 848_000_000, "848 MB/token");
+    assert(
+      measured[0].weightsBytesPerToken.source === "tensor-map",
+      measured[0].weightsBytesPerToken.source,
+    );
+  });
+
+  await test("throughput keeps quant families separate", () => {
+    const q4 = {
+      quant: "Q4_K_M",
+      weightsBytesPerToken: { bytes: 100, source: "tensor-map" },
+    };
+    const q2 = {
+      quant: "Q2_K",
+      weightsBytesPerToken: { bytes: 200, source: "tensor-map" },
+    };
+    let calibration = recordDeviceBandwidthSample({}, q4, {
+      predictedPerSecond: 20,
+      tokensPredicted: 32,
+      interrupted: false,
+    });
+    calibration = recordDeviceBandwidthSample(calibration, q2, {
+      predictedPerSecond: 7,
+      tokensPredicted: 32,
+      interrupted: false,
+    });
+    assert(calibration.q4_k_m === 2000, JSON.stringify(calibration));
+    assert(calibration.q2_k === 1400, JSON.stringify(calibration));
+    assert(deviceBandwidthForModel(calibration, q4) === 2000, "q4 family");
+    assert(deviceBandwidthForModel(calibration, q2) === 1400, "q2 family");
+  });
+
+  await test("throughput rejects short and interrupted samples", () => {
+    const model = {
+      quant: "KEXP",
+      weightsBytesPerToken: { bytes: 100, source: "tensor-map" },
+    };
+    assert(
+      Object.keys(recordDeviceBandwidthSample({}, model, {
+        predictedPerSecond: 20,
+        tokensPredicted: 7,
+        interrupted: false,
+      })).length === 0,
+      "short sample accepted",
+    );
+    assert(
+      Object.keys(recordDeviceBandwidthSample({}, model, {
+        predictedPerSecond: 20,
+        tokensPredicted: 32,
+        interrupted: true,
+      })).length === 0,
+      "interrupted sample accepted",
+    );
+  });
+
+  await test("throughput absence returns null, never a number", () => {
+    assert(predictTokensPerSecond({}, 2000) === null, "missing model bytes");
+    assert(
+      predictModelTokensPerSecond(
+        { quant: "KEXP", weightsBytesPerToken: { bytes: 100, source: "tensor-map" } },
+        {},
+      ) === null,
+      "missing device calibration",
+    );
+  });
+
+  await test("throughput predicts the hand-calculated value", () => {
+    const model = {
+      quant: "Q4_K_M",
+      weightsBytesPerToken: { bytes: 500, source: "tensor-map" },
+    };
+    assert(predictTokensPerSecond(model, 6000) === 12, "prediction");
+    assert(modelSpeedAdvisory(12) === "degraded", "advisory");
+  });
+
   await test("modelGateVerdict ok (high RAM, enough free)", () => {
     const v = modelGateVerdict({
       totalMemoryBytes: 8_000_000_000,
@@ -288,6 +401,26 @@ async function main() {
     });
     assert(v.allowed === true, `allowed=${v.allowed}`);
     assert(v.reason === "ok", `reason=${v.reason}`);
+  });
+
+  await test("modelGateVerdict speed advisory never blocks capacity", () => {
+    const v = modelGateVerdict({
+      totalMemoryBytes: 8_000_000_000,
+      availableMemoryBytes: 4_000 * 1024 * 1024,
+      freeDiskBytes: 10_000_000_000,
+      ramTier: "high",
+      modelMinRamTier: "mid",
+      modelNonEvictableMiB: 1000,
+      modelSizeBytes: 1_000_000_000,
+      modelWeightsBytesPerToken: {
+        bytes: 500,
+        source: "tensor-map",
+      },
+      deviceBandwidthBytesPerSecond: 4_000,
+    });
+    assert(v.allowed === true, `speed must not block: ${v.allowed}`);
+    assert(v.predictedTokensPerSecond === 8, `prediction=${v.predictedTokensPerSecond}`);
+    assert(v.speedAdvisory === "below_floor", `advisory=${v.speedAdvisory}`);
   });
 
   await test("modelGateVerdict blocked_tier (low device, high model)", () => {

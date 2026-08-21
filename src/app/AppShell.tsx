@@ -101,6 +101,17 @@ import {
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
 import {
+  deviceBandwidthForModel,
+  mergeDeviceBandwidthCalibrations,
+  recordDeviceBandwidthSample,
+  type DecodeMeasurement,
+  type DeviceBandwidthCalibration,
+} from "../engine/deviceThroughput";
+import {
+  loadDeviceBandwidthCalibration,
+  saveDeviceBandwidthCalibration,
+} from "../engine/deviceThroughputStore";
+import {
   completeOnce,
   disposeEngine,
   extractMemory,
@@ -357,6 +368,7 @@ function gateForModel(
   checkVolatileMemory = true,
   /** Load mode the engine will actually use. False only under kalsa.bench.norepack. */
   repack = true,
+  deviceBandwidth: DeviceBandwidthCalibration = {},
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
   const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
@@ -379,6 +391,8 @@ function gateForModel(
         kvBytesPerToken: model.kvBytesPerToken,
         repack,
       }),
+      modelWeightsBytesPerToken: model.weightsBytesPerToken,
+      deviceBandwidthBytesPerSecond: deviceBandwidthForModel(deviceBandwidth, model),
       // Always margined so confirm/start/Settings share one disk requirement.
       modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
     },
@@ -2409,6 +2423,38 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const [modelErrorDetail, setModelErrorDetail] = useState<string | null>(null);
   /** Discriminates download vs engine-init failures when modelState === "error". */
   const [modelErrorKind, setModelErrorKind] = useState<"download" | "engine" | null>(null);
+  const [deviceBandwidth, setDeviceBandwidth] = useState<DeviceBandwidthCalibration>({});
+  const deviceBandwidthRef = useRef<DeviceBandwidthCalibration>(deviceBandwidth);
+  deviceBandwidthRef.current = deviceBandwidth;
+  useEffect(() => {
+    let mounted = true;
+    void loadDeviceBandwidthCalibration().then((loaded) => {
+      if (!mounted) return;
+      const merged = mergeDeviceBandwidthCalibrations(
+        deviceBandwidthRef.current,
+        loaded,
+      );
+      deviceBandwidthRef.current = merged;
+      setDeviceBandwidth(merged);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  const recordDecodeSample = useCallback(
+    (model: ModelInfo, sample: DecodeMeasurement) => {
+      const next = recordDeviceBandwidthSample(
+        deviceBandwidthRef.current,
+        model,
+        sample,
+      );
+      if (next === deviceBandwidthRef.current) return;
+      deviceBandwidthRef.current = next;
+      setDeviceBandwidth(next);
+      void saveDeviceBandwidthCalibration(next);
+    },
+    [],
+  );
   const currentModel = MODEL_REGISTRY[modelIndex];
   // Pre-init estimate: catalog n_ctx (+ optional high-RAM hybrid upgrade).
   // After initEngine succeeds we overwrite both state and ref with the
@@ -3009,7 +3055,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           chatModelIs2B: isChatModel2BClass(model.id),
         });
         // Gate on the load mode initEngine will really use, not on a fixed one.
-        const gate = gateForModel(model, profile, free, true, !(await getBenchNoRepack()));
+        const gate = gateForModel(
+          model,
+          profile,
+          free,
+          true,
+          !(await getBenchNoRepack()),
+          deviceBandwidth,
+        );
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
         // Active-model exception: if getActiveModelId matches, never refuse
         // (already handled by the early ready return; keep explicit for safety).
@@ -3295,7 +3348,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorDetail(rawErrorDetail(error));
       return false;
     }
-  }, [agentOptions.tools, locale, t, bumpEmbedJobGeneration]);
+  }, [agentOptions.tools, deviceBandwidth, locale, t, bumpEmbedJobGeneration]);
   ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
@@ -3463,7 +3516,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         downloadInFlight.current = false;
         return;
       }
-      const gate = gateForModel(model, deviceProfile, free, false);
+      const gate = gateForModel(
+        model,
+        deviceProfile,
+        free,
+        false,
+        true,
+        deviceBandwidth,
+      );
       if (!gate.allowed) {
         Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
         downloadInFlight.current = false;
@@ -3642,7 +3702,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
           return;
         }
-        const gate = gateForModel(model, deviceProfile, free, true, !(await getBenchNoRepack()));
+        const gate = gateForModel(
+          model,
+          deviceProfile,
+          free,
+          true,
+          !(await getBenchNoRepack()),
+          deviceBandwidth,
+        );
         if (
           !gate.allowed &&
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
@@ -3817,6 +3884,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     agentOptions.tools,
     beginDownloadNotifications,
     bumpEmbedJobGeneration,
+    deviceBandwidth,
     dismissDownloadProgressNotification,
     locale,
     modelState,
@@ -3841,7 +3909,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             getCachedDeviceProfile(),
             getFreeDiskBytes(),
           ]);
-          const gate = gateForModel(model, deviceProfile, free, false);
+          const gate = gateForModel(
+            model,
+            deviceProfile,
+            free,
+            false,
+            true,
+            deviceBandwidth,
+          );
           if (!gate.allowed) {
             confirmDownloadLockRef.current = false;
             Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
@@ -3873,7 +3948,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         );
       })();
     },
-    [startDownload, t],
+    [deviceBandwidth, startDownload, t],
   );
 
   const startVoiceDownload = useCallback(async () => {
@@ -4811,6 +4886,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 operativeContext,
                 lastUserMessage: text,
                 lastUserBare: lastUserHistoryContent,
+                onDecodeSample: recordDecodeSample,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
@@ -4822,7 +4898,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
         })();
       }),
-    [agentOptions, currentModel, ensureEngineForModel, locale, refreshMemoryFacts, t],
+    [
+      agentOptions,
+      currentModel,
+      ensureEngineForModel,
+      locale,
+      recordDecodeSample,
+      refreshMemoryFacts,
+      t,
+    ],
   );
 
   // ── Render barra modello ─────────────────────────────────────────────────
@@ -5182,6 +5266,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             modelErrorKind,
             streaming,
             downloadedById,
+            deviceBandwidth,
             onSelectModel: selectModelById,
             onDownloadModel: confirmDownload,
             onRetryLoad: () => {

@@ -23,6 +23,12 @@ import {
 } from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
 import { shouldRecoverLost } from "./engineLiveness";
+import {
+  modelSpeedAdvisory,
+  predictTokensPerSecond,
+  type ModelSpeedAdvisory,
+} from "./deviceThroughput";
+import type { ModelWeightBytesPerToken } from "./ModelRegistry";
 
 export type DeviceFamily = "xiaomi" | "samsung" | "pixel" | "generic";
 
@@ -69,6 +75,8 @@ export type DeviceProfile = {
 export type ModelGateVerdict = {
   allowed: boolean;
   reason: "ok" | "blocked_ram" | "blocked_tier" | "blocked_disk" | "unknown";
+  predictedTokensPerSecond: number | null;
+  speedAdvisory: ModelSpeedAdvisory;
 };
 
 /**
@@ -134,6 +142,8 @@ export function modelGateVerdict(
     modelMinRamTier?: RamTier;
     modelNonEvictableMiB?: number | null;
     modelSizeBytes: number;
+    modelWeightsBytesPerToken?: ModelWeightBytesPerToken | null;
+    deviceBandwidthBytesPerSecond?: number | null;
   },
   options: { checkVolatileMemory?: boolean } = {},
 ): ModelGateVerdict {
@@ -146,9 +156,23 @@ export function modelGateVerdict(
     modelSizeBytes,
   } = input;
   const checkVolatileMemory = options.checkVolatileMemory !== false;
+  const predictedTokensPerSecond = predictTokensPerSecond(
+    { weightsBytesPerToken: input.modelWeightsBytesPerToken },
+    input.deviceBandwidthBytesPerSecond,
+  );
+  const speedAdvisory = modelSpeedAdvisory(predictedTokensPerSecond);
+  const verdict = (
+    allowed: boolean,
+    reason: ModelGateVerdict["reason"],
+  ): ModelGateVerdict => ({
+    allowed,
+    reason,
+    predictedTokensPerSecond,
+    speedAdvisory,
+  });
 
   if (modelMinRamTier !== undefined && !ramTierMeets(ramTier, modelMinRamTier)) {
-    return { allowed: false, reason: "blocked_tier" };
+    return verdict(false, "blocked_tier");
   }
 
   if (
@@ -162,7 +186,7 @@ export function modelGateVerdict(
   ) {
     const availableMiB = availableMemoryBytes / (1024 * 1024);
     if (modelNonEvictableMiB > availableMiB) {
-      return { allowed: false, reason: "blocked_ram" };
+      return verdict(false, "blocked_ram");
     }
   }
 
@@ -174,7 +198,7 @@ export function modelGateVerdict(
     Number.isFinite(modelSizeBytes) &&
     modelSizeBytes > freeDiskBytes
   ) {
-    return { allowed: false, reason: "blocked_disk" };
+    return verdict(false, "blocked_disk");
   }
 
   // Memory probes unknown → allowed but flagged (caller may still soft-warn).
@@ -186,10 +210,10 @@ export function modelGateVerdict(
       Number.isFinite(input.totalMemoryBytes) &&
       input.totalMemoryBytes > 0);
   if (!memoryKnown) {
-    return { allowed: true, reason: "unknown" };
+    return verdict(true, "unknown");
   }
 
-  return { allowed: true, reason: "ok" };
+  return verdict(true, "ok");
 }
 
 /**
