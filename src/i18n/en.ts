@@ -96,8 +96,7 @@ export const en = {
     sessionPoolChats: "{count} chats",
     thinking: "Thinking",
     thinkingHint:
-      "Thinking lets the model reason step by step before answering — usually better on hard questions, but slower and heavier on battery. The reasoning itself is never shown in the chat, only the final answer.",
-    thinkingOff: "Off",
+      "Thinking is always on. Choose Short or Extended for the reasoning budget; it is usually better on hard questions, but slower and heavier on battery. The reasoning itself is never shown in the chat, only the final answer.",
     thinkingShort: "Short",
     thinkingExtended: "Extended",
     models: "Models",

@@ -8,7 +8,7 @@ OUT="e2e-out"; mkdir -p "$OUT"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
 COMPACTION_IN="${COMPACTION:-on}"
-THINKING="${THINKING:-off}"
+THINKING="${THINKING:-default}"
 PKG=com.kalsa.app
 
 # shellcheck source=ci-lib.sh
@@ -125,17 +125,14 @@ cat "$OUT/RESULT.txt"
 
 [ -n "$REPLY" ] || { log "FAIL: no assistant reply captured"; exit 1; }
 
-# Regression: Thinking=Off must not persist raw think tags in THIS turn's reply
-# (Qwen3.5 force-closed template + stream stripper). Scope to $REPLY (current
+# Regression: a live thinking mode must not persist raw think tags in THIS
+# turn's reply (Qwen3.5 template + stream stripper). Scope to $REPLY (current
 # turn) — whole-history grep false-positives under adb install -r keep-data.
-# Skip when THINKING != off.
-if [ "$THINKING" = "off" ]; then
-  if printf '%s' "$REPLY" | grep -qE '<[/]?think>|<thi'; then
-    log "FAIL: THINKING=off but current-turn REPLY still contains think markup (<think>/</think>/<thi) — template override / stripper regression"
-    exit 1
-  fi
-  log "OK: no think markup in current-turn REPLY under THINKING=off"
+if printf '%s' "$REPLY" | grep -qE '<[/]?think>|<thi'; then
+  log "FAIL: current-turn REPLY still contains think markup (<think>/</think>/<thi) — template / stripper regression"
+  exit 1
 fi
+log "OK: current-turn REPLY contains no think markup"
 
 # ---------------------------------------------------------------------------
 # TURN 2 — same conversation; measures KV prefix-reuse via native n_past.

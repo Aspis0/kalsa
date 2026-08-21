@@ -3,13 +3,13 @@
  * Defaults preserve production behaviour.
  *
  * Configure without root / rebuild via chat command (adb input text works):
- *   /bench thinking <default|off|budget256|budget512>
+ *   /bench thinking <default|budget256|budget512>
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
  *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
- *   bench:thinking off
+ *   bench:thinking default
  *   bench:format user-note
  *   bench:speculative none
  *   bench:engine gpu=20,threads=5,threadsPrefill=8,ubatch=256
@@ -21,7 +21,7 @@
  * Engine applies at ENGINE INIT — force-stop + relaunch (same as speculative).
  *
  * Keys:
- * - kalsa.bench.thinking: "default" | "off" | "budget256" | "budget512"
+ * - kalsa.bench.thinking: "default" | "budget256" | "budget512"
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
  * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nThreadsPrefill?, nUbatch?, flashAttn? } (CI A/B only)
@@ -57,7 +57,7 @@ export const BENCH_DIGESTCADENCE_KEY = "kalsa.bench.digestcadence";
 /** "1" disables weight repacking (no_extra_bufts). Absent / other → production. */
 export const BENCH_NOREPACK_KEY = "kalsa.bench.norepack";
 
-export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
+export type ThinkingMode = "default" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
 /**
  * Bench-only measurement knob, not a product default.
@@ -162,7 +162,6 @@ function activeEngineLabel(): string {
 
 const THINKING_MODES: ReadonlySet<string> = new Set([
   "default",
-  "off",
   "budget256",
   "budget512",
 ]);
@@ -180,7 +179,11 @@ const TOOLCHOICE_MODES: ReadonlySet<string> = new Set([
   "none",
 ]);
 
-/** Read thinking mode for the next completion. Defaults to "default". */
+/**
+ * Read thinking mode for the next completion. Invalid and stale values,
+ * including the retired "off" value, fall back to "default" so old storage
+ * never disables reasoning or crashes the caller.
+ */
 export async function getThinkingMode(): Promise<ThinkingMode> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_THINKING_KEY);
@@ -580,7 +583,7 @@ export async function formatBenchStatus(): Promise<string> {
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {

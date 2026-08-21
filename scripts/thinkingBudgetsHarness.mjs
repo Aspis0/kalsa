@@ -2,7 +2,7 @@
  * Harness for src/engine/thinkingBudgets.ts (per-model thinking budgets).
  *
  * Covers:
- *  - off → thinking off + budget 0 + nPredict 1024
+ *  - every accepted mode keeps thinking on with a positive budget
  *  - default → thinking on, short budget (never 0)
  *  - budget256 / budget512 with null model → historical defaults
  *  - per-model short/extended/nPredict overrides
@@ -89,12 +89,18 @@ async function main() {
     }
   }
 
-  // ── 1. off ─────────────────────────────────────────────────────────────
-  test("off → enable_thinking false, budget 0, nPredict 1024", () => {
-    const { fields, nPredict } = resolveThinkingParams("off", null);
-    assert(fields.enable_thinking === false, `enable_thinking expected false, got ${fields.enable_thinking}`);
-    assert(fields.thinking_budget_tokens === 0, `budget expected 0, got ${fields.thinking_budget_tokens}`);
-    assert(nPredict === 1024, `nPredict expected 1024, got ${nPredict}`);
+  // ── 1. accepted modes ──────────────────────────────────────────────────
+  test("accepted modes never disable thinking or use budget 0", () => {
+    for (const mode of ["default", "budget256", "budget512"]) {
+      const { fields } = resolveThinkingParams(mode, null);
+      assert(fields.enable_thinking === true, `${mode}: enable_thinking must be true`);
+      assert(
+        typeof fields.thinking_budget_tokens === "number" && fields.thinking_budget_tokens > 0,
+        `${mode}: thinking budget must be positive, got ${fields.thinking_budget_tokens}`,
+      );
+      assert(fields.enable_thinking !== false, `${mode}: enable_thinking must not be false`);
+      assert(fields.thinking_budget_tokens !== 0, `${mode}: thinking budget must not be 0`);
+    }
   });
 
   // ── 2. default ─────────────────────────────────────────────────────────

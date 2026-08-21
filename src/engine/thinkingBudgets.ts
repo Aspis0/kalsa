@@ -13,15 +13,17 @@ export type ThinkingCompletionFields = {
 
 type ThinkingModel = Pick<ModelInfo, "thinking" | "preserveThinking">;
 
+function positiveBudget(value: number | undefined, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : fallback;
+}
+
 function templateKwargs(
   model: ThinkingModel | null,
-  enableThinking: boolean,
 ): ThinkingCompletionFields["chat_template_kwargs"] | undefined {
   if (model?.preserveThinking) {
-    return { enable_thinking: enableThinking, preserve_thinking: true };
-  }
-  if (!enableThinking) {
-    return { enable_thinking: false };
+    return { enable_thinking: true, preserve_thinking: true };
   }
   return undefined;
 }
@@ -29,18 +31,18 @@ function templateKwargs(
 function withKwargs(
   fields: ThinkingCompletionFields,
   model: ThinkingModel | null,
-  enableThinking: boolean,
 ): ThinkingCompletionFields {
-  const kw = templateKwargs(model, enableThinking);
+  const kw = templateKwargs(model);
   return kw ? { ...fields, chat_template_kwargs: kw } : fields;
 }
 
 /**
  * Map bench thinking mode → NativeCompletionParams fields.
  *
- * Production ("default") is never thinking-off and never budget 0. The budget
- * is what we tune (`model.thinking.short`), not whether thinking exists.
- * Bench "off" remains reachable for A/B (budget 0 + enable_thinking: false).
+ * Every accepted mode keeps thinking enabled with a positive budget. The
+ * budget is what we tune (`model.thinking.short`), not whether thinking exists.
+ * A stale runtime value outside the type falls through to the production
+ * default for the same reason: old storage must not disable reasoning.
  *
  * `preserve_thinking` is emitted only when the model declares
  * `preserveThinking` (template strips history `<think>` otherwise, and
@@ -52,28 +54,14 @@ export function resolveThinkingParams(
 ): { fields: ThinkingCompletionFields; nPredict: number } {
   const nPredict = Math.max(1024, model?.thinking?.nPredict ?? 1024);
   switch (mode) {
-    case "off":
-      return {
-        fields: withKwargs(
-          {
-            enable_thinking: false,
-            thinking_budget_tokens: 0,
-            reasoning_format: "none",
-          },
-          model,
-          false,
-        ),
-        nPredict: 1024,
-      };
     case "budget256":
       return {
         fields: withKwargs(
           {
             enable_thinking: true,
-            thinking_budget_tokens: model?.thinking?.short ?? 256,
+            thinking_budget_tokens: positiveBudget(model?.thinking?.short, 256),
           },
           model,
-          true,
         ),
         nPredict,
       };
@@ -82,10 +70,9 @@ export function resolveThinkingParams(
         fields: withKwargs(
           {
             enable_thinking: true,
-            thinking_budget_tokens: model?.thinking?.extended ?? 512,
+            thinking_budget_tokens: positiveBudget(model?.thinking?.extended, 512),
           },
           model,
-          true,
         ),
         nPredict,
       };
@@ -95,11 +82,10 @@ export function resolveThinkingParams(
         fields: withKwargs(
           {
             enable_thinking: true,
-            thinking_budget_tokens: model?.thinking?.short ?? 256,
+            thinking_budget_tokens: positiveBudget(model?.thinking?.short, 256),
             reasoning_format: "none",
           },
           model,
-          true,
         ),
         nPredict,
       };

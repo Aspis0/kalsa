@@ -14,14 +14,40 @@ jest.mock("@react-native-async-storage/async-storage", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
+  BENCH_THINKING_KEY,
+  formatBenchStatus,
   getEngineOverride,
+  getThinkingMode,
   getToolChoiceMode,
   getToolGateEnabled,
   parseEngineArg,
   resolveCompletionToolChoice,
+  tryHandleBenchCommand,
 } from "./benchConfig";
 
 const MAX_TOOL_ROUNDS = 3;
+
+describe("retired thinking off value", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockImplementation(
+      async (key: string) => (key === BENCH_THINKING_KEY ? "off" : null),
+    );
+  });
+
+  test("stored off falls back to default", async () => {
+    await expect(getThinkingMode()).resolves.toBe("default");
+    await expect(formatBenchStatus()).resolves.toContain("thinking=default");
+  });
+
+  test("/bench thinking off is rejected with the live-mode usage", async () => {
+    const reply = await tryHandleBenchCommand("/bench thinking off");
+    expect(reply).toContain(
+      "bench usage: /bench thinking <default|budget256|budget512>",
+    );
+    expect(AsyncStorage.setItem).not.toHaveBeenCalled();
+  });
+});
 
 function sequence(benchMode: "auto" | "required" | "none", forceTextOnlyAt = -1) {
   return Array.from({ length: MAX_TOOL_ROUNDS }, (_, round) =>

@@ -222,25 +222,25 @@ jobs:
         include:
           # ── Fase 0 — 3 block formats × 2 thinking modes (6 arms, 1 job each) ──
           - phase: fase0
-            arm: none_off
+            arm: none_budget512
             block_format: none
-            thinking: "off"
+            thinking: budget512
           - phase: fase0
             arm: none_budget256
             block_format: none
             thinking: budget256
           - phase: fase0
-            arm: user-prefix_off
+            arm: user-prefix_budget512
             block_format: user-prefix
-            thinking: "off"
+            thinking: budget512
           - phase: fase0
             arm: user-prefix_budget256
             block_format: user-prefix
             thinking: budget256
           - phase: fase0
-            arm: user-note_off
+            arm: user-note_budget512
             block_format: user-note
-            thinking: "off"
+            thinking: budget512
           - phase: fase0
             arm: user-note_budget256
             block_format: user-note
@@ -266,8 +266,7 @@ jobs:
           # Quoted mode strings keep the matrix values unambiguous in Actions.
           # Three modes: off (legacy window), anchored (boundary/no digest), ciswire
           # (legacy window + BM25 additive). Primary comparison: ciswire vs off.
-          # thinking stays "off" (budget256 made honesty/language unmeasurable
-          # in run 31367691176 — Qwen3.5 bugs #20182/#20476).
+          # thinking stays "default" so every arm uses production reasoning.
           # block_format stays none; it still auto-upgrades to user-prefix once
           # compaction produces real digest content
           # (see applyOperativeBlockFormat).
@@ -276,251 +275,251 @@ jobs:
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 2
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 3
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 4
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 5
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 6
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 7
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 8
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 9
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 10
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 1
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 2
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 3
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 4
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 5
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 6
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 7
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 8
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 9
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: anchored
             seed: 10
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 1
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 2
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 3
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 4
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 5
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 6
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 7
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 8
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 9
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: fase4
             arm: ciswire
             seed: 10
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           # Gate A/B: same off/auto base as baseline, toolgate the only knob.
           - phase: fase4
             arm: nogate
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 2
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 3
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 4
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 5
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 6
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 7
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 8
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 9
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           - phase: fase4
             arm: nogate
             seed: 10
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           # ── Mem — 2 compaction modes (off/ciswire) × 2 memory modes (0/1) × 6 seeds
           # (24 jobs). Memory is a within-matrix axis (not a workflow input) so the
@@ -534,314 +533,312 @@ jobs:
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 2
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 3
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 4
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 5
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 6
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 7
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 8
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 9
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_off
             seed: 10
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: off_on
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 2
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 3
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 4
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 5
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 6
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 7
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 8
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 9
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: off_on
             seed: 10
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_off
             seed: 1
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 2
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 3
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 4
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 5
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 6
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 7
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 8
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 9
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_off
             seed: 10
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: mem
             arm: ciswire_on
             seed: 1
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 2
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 3
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 4
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 5
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 6
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 7
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 8
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 9
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: mem
             arm: ciswire_on
             seed: 10
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           # ── Smoke — ~5-turn harness self-test on all four arms (~20 min),
           # not a measurement campaign. Use phase=smoke dispatch instead of
           # burning the full 2-hour fase0/fase4 matrix when only the harness
           # needs a live emulator check.
-          # WHY thinking "off" (not budget256): smoke must mirror the fase4
-          # configuration it de-risks. A smoke that exercises a different
-          # config de-risks nothing — evidence run 31434524869 (qwen3.5-4b,
-          # budget256): turns 633s/233s/191s/484s then stall past 2400s at
-          # turn 5, reasoning leaking into reply text.
+          # WHY thinking "default": smoke must mirror the fase4 configuration
+          # it de-risks. A smoke that exercises a different config de-risks
+          # nothing.
           - phase: smoke
             arm: baseline
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: smoke
             arm: anchored
             seed: 1
             compaction: "anchored"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: smoke
             arm: ciswire
             seed: 1
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           - phase: smoke
             arm: nogate
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
           # ── Mem smoke twins — one seed each of the four mem campaign arms.
           # The parity harness (scripts/matrixParityHarness.mjs) requires every
@@ -852,28 +849,28 @@ jobs:
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: smoke
             arm: off_on
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           - phase: smoke
             arm: ciswire_off
             seed: 1
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "0"
           - phase: smoke
             arm: ciswire_on
             seed: 1
             compaction: "ciswire"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             memory: "1"
           # ── Tools — tool-use benchmark (required/forbidden/selection).
           # Measures whether the model calls tools at the right time and picks
@@ -889,7 +886,7 @@ jobs:
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
           # Gate/nogate pair: TOOLGATE defaults to 1, so the baseline arm
           # measures the model AND the echo-of-context gate together. The
           # nogate arm sets toolgate: "0" to isolate the model. Without both,
@@ -899,7 +896,7 @@ jobs:
             seed: 1
             compaction: "off"
             block_format: none
-            thinking: "off"
+            thinking: "default"
             toolgate: "0"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step

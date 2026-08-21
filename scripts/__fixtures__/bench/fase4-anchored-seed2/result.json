@@ -3,7 +3,7 @@
   "arm": "anchored",
   "seed": 2,
   "blockFormat": "user-prefix",
-  "thinking": "off",
+  "thinking": "default",
   "compaction": "anchored",
   "turns": [
     {"index":"1","prompt":"MioGattoLeopoldo Budget4500 Scadenza14Marzo ColoreBlu","elapsed_s":101,"reply_len":90,"reply_excerpt":"Ok, capito."},

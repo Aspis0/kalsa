@@ -39,22 +39,24 @@ describe("preserve_thinking", () => {
   });
 });
 
-describe("bench off arm", () => {
-  test("off still yields budget 0 and enable_thinking false", () => {
-    const { fields, nPredict } = resolveThinkingParams("off", qwen);
-    expect(fields.enable_thinking).toBe(false);
-    expect(fields.thinking_budget_tokens).toBe(0);
-    expect(fields.chat_template_kwargs).toEqual({ enable_thinking: false });
-    expect(nPredict).toBe(1024);
+describe("all accepted thinking modes", () => {
+  test("every accepted mode keeps thinking enabled and budget positive", () => {
+    for (const mode of ["default", "budget256", "budget512"] as const) {
+      const { fields } = resolveThinkingParams(mode, qwen);
+      expect(fields.enable_thinking).toBe(true);
+      expect(fields.thinking_budget_tokens).toBeGreaterThan(0);
+      expect(fields.enable_thinking).not.toBe(false);
+      expect(fields.thinking_budget_tokens).not.toBe(0);
+    }
   });
 
-  test("off on stripping model keeps preserve_thinking and budget 0", () => {
-    const { fields } = resolveThinkingParams("off", lfm);
-    expect(fields.thinking_budget_tokens).toBe(0);
-    expect(fields.enable_thinking).toBe(false);
-    expect(fields.chat_template_kwargs).toEqual({
-      enable_thinking: false,
-      preserve_thinking: true,
-    });
+  test("preserveThinking keeps the live mode enabled", () => {
+    for (const mode of ["default", "budget256", "budget512"] as const) {
+      const { fields } = resolveThinkingParams(mode, lfm);
+      expect(fields.chat_template_kwargs).toEqual({
+        enable_thinking: true,
+        preserve_thinking: true,
+      });
+    }
   });
 });

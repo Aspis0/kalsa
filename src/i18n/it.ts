@@ -95,8 +95,7 @@ export const it: typeof en = {
     sessionPoolChats: "{count} chat",
     thinking: "Ragionamento",
     thinkingHint:
-      "Il ragionamento permette al modello di riflettere passo per passo prima di rispondere — di solito meglio sulle domande difficili, ma più lento e più pesante per la batteria. Il ragionamento non viene mai mostrato in chat, solo la risposta finale.",
-    thinkingOff: "Off",
+      "Il ragionamento è sempre attivo. Scegli Minimo o Esteso per il budget di ragionamento: di solito è meglio sulle domande difficili, ma più lento e più pesante per la batteria. Il ragionamento non viene mai mostrato in chat, solo la risposta finale.",
     thinkingShort: "Minimo",
     thinkingExtended: "Esteso",
     models: "Modelli",

@@ -42,38 +42,38 @@ const EXPECTED_SMOKE_ARMS = [...EXPECTED_FASE4_ARMS, ...EXPECTED_MEM_ARMS].sort(
 // Expected axis values for each arm
 const EXPECTED_AXES = {
   // fase4 arms
-  baseline: { compaction: "off", block_format: "none", thinking: "off" },
-  anchored: { compaction: "anchored", block_format: "none", thinking: "off" },
-  ciswire: { compaction: "ciswire", block_format: "none", thinking: "off" },
+  baseline: { compaction: "off", block_format: "none", thinking: "default" },
+  anchored: { compaction: "anchored", block_format: "none", thinking: "default" },
+  ciswire: { compaction: "ciswire", block_format: "none", thinking: "default" },
   nogate: {
     compaction: "off",
     block_format: "none",
-    thinking: "off",
+    thinking: "default",
     toolgate: "0",
   },
   // mem arms
   off_off: {
     compaction: "off",
     block_format: "none",
-    thinking: "off",
+    thinking: "default",
     memory: "0",
   },
   off_on: {
     compaction: "off",
     block_format: "none",
-    thinking: "off",
+    thinking: "default",
     memory: "1",
   },
   ciswire_off: {
     compaction: "ciswire",
     block_format: "none",
-    thinking: "off",
+    thinking: "default",
     memory: "0",
   },
   ciswire_on: {
     compaction: "ciswire",
     block_format: "none",
-    thinking: "off",
+    thinking: "default",
     memory: "1",
   },
 };
@@ -372,7 +372,7 @@ function matchedPair(arm, extra = {}) {
   return {
     compaction: "off",
     block_format: "none",
-    thinking: "off",
+    thinking: "default",
     ...extra,
     arm,
   };
@@ -406,8 +406,8 @@ function main() {
   );
 
   const thinkDiff = [
-    { phase: "fase4", seed: "1", ...matchedPair("baseline", { thinking: "off" }) },
-    { phase: "fase4", seed: "2", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "fase4", seed: "1", ...matchedPair("baseline", { thinking: "default" }) },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline", { thinking: "default" }) },
     {
       phase: "smoke",
       seed: "1",
@@ -435,8 +435,8 @@ function main() {
   );
 
   const withFase0 = [
-    { phase: "fase0", arm: "none_off", seed: "1", block_format: "none", thinking: "off" },
-    { phase: "fase0", arm: "none_off", seed: "2", block_format: "none", thinking: "off" },
+    { phase: "fase0", arm: "none_budget512", seed: "1", block_format: "none", thinking: "budget512" },
+    { phase: "fase0", arm: "none_budget512", seed: "2", block_format: "none", thinking: "budget512" },
     { phase: "fase4", seed: "1", ...matchedPair("baseline") },
     { phase: "fase4", seed: "2", ...matchedPair("baseline") },
     { phase: "smoke", seed: "1", ...matchedPair("baseline") },
@@ -460,10 +460,10 @@ function main() {
 
   // Test that seed divergence is detected and names the seed
   const seedDiverge = [
-    { phase: "fase4", seed: "1", ...matchedPair("baseline", { thinking: "off" }) },
-    { phase: "fase4", seed: "2", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "fase4", seed: "1", ...matchedPair("baseline", { thinking: "default" }) },
+    { phase: "fase4", seed: "2", ...matchedPair("baseline", { thinking: "default" }) },
     { phase: "fase4", seed: "3", ...matchedPair("baseline", { thinking: "budget256" }) },
-    { phase: "smoke", seed: "1", ...matchedPair("baseline", { thinking: "off" }) },
+    { phase: "smoke", seed: "1", ...matchedPair("baseline", { thinking: "default" }) },
   ];
   const fSeedDiverge = checkParity(parseMatrixInclude(yamlFromRows(seedDiverge)).entries);
   check(
@@ -483,7 +483,7 @@ function main() {
 
   // Duplicate-key guard: a matrix include entry must not declare the same
   // key twice. YAML forbids duplicate keys; GitHub silently takes one value,
-  // which masks injections (e.g. thinking: budget256 before thinking: "off").
+  // which masks injections (e.g. thinking: budget256 before thinking: "default").
   // The parser's last-wins semantics would otherwise erase the divergence
   // before distinctArms sees it. Fail naming entry index and key.
   check(

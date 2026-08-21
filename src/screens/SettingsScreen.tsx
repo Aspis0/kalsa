@@ -182,9 +182,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   ];
 
   // Production "default" is thinking-on with the model's short budget.
-  // The picker has no "default" row — show Short selected.
+  // The picker shows the two user-facing live budgets.
   const thinkingOptions: Array<{ id: ThinkingMode; label: string }> = [
-    { id: "off", label: t("settings.thinkingOff") },
     { id: "budget256", label: t("settings.thinkingShort") },
     { id: "budget512", label: t("settings.thinkingExtended") },
   ];

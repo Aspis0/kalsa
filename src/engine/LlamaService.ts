@@ -2656,12 +2656,7 @@ export async function streamAssistantTurn(
       return false;
     };
 
-    // Honest status label: "Thinking" only when bench thinking budgets are on;
-    // otherwise the model is just generating tokens ("Writing").
-    const statusLabel =
-      thinkingMode === "budget256" || thinkingMode === "budget512"
-        ? strings.chat.thinkingStatus
-        : strings.chat.writingStatus;
+    const statusLabel = strings.chat.thinkingStatus;
 
     try {
       callbacks.onStatus?.({ label: statusLabel });
@@ -2818,12 +2813,6 @@ export async function streamAssistantTurn(
           round,
           benchMode: toolChoiceMode,
         });
-        // Budget thinking burns tokens before synthesis; for text-only rounds
-        // with a budget mode, turn thinking off for that completion only.
-        const roundThinkingFields =
-          textOnlyRound && (thinkingMode === "budget256" || thinkingMode === "budget512")
-            ? resolveThinkingParams("off", activeModel).fields
-            : thinkingFields;
         const result = await trackCompletion(
           engine.completion(
             {
@@ -2845,10 +2834,9 @@ export async function streamAssistantTurn(
               temperature: 0.7,
               top_k: 40,
               top_p: 0.95,
-              // Bench thinking axis: "default" is production (thinking on, short budget);
-              // "off" is the A/B arm (budget 0). budget* uses short/extended.
-              // Text-only + budget mode uses off fields (see roundThinkingFields).
-              ...roundThinkingFields,
+              // Bench thinking axis: every mode keeps reasoning enabled;
+              // "default" is production (short budget), budget* tunes it.
+              ...thinkingFields,
               ...(hasImages ? { speculative: false as const } : {}),
             },
             (data: TokenData) => {

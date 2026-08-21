@@ -44,7 +44,7 @@ PHASE="${PHASE:?PHASE is required (fase0|fase4|smoke|mem|tools)}"
 ARM="${ARM:?ARM is required}"
 SEED="${SEED:-1}"
 BLOCK_FORMAT="${BLOCK_FORMAT:-none}"
-THINKING="${THINKING:-off}"
+THINKING="${THINKING:-default}"
 TOOLCHOICE="${TOOLCHOICE:-auto}"
 TOOLGATE="${TOOLGATE:-1}"
 NCTX="${NCTX:-}"
@@ -149,10 +149,11 @@ case "$MEMORY" in
 esac
 
 log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
-# LFM2.5 is always-on reasoning: the chat template has preserve_thinking only,
-# no off switch. Record THINKING as today; do not try to force it off.
+# LFM2.5 is always-on reasoning: its chat template has preserve_thinking only.
+# Record THINKING for the matrix; the model does not expose a separate switch
+# for this axis.
 if [ "$MODEL_DIR" = "lfm2.5-2.6b" ] || [ "$MODEL_DIR" = "lfm2.5-8b-a1b" ]; then
-  log "thinking axis is not applicable for $MODEL_DIR (always-on reasoning; template has no off) — THINKING=$THINKING is recorded but not enforced"
+  log "thinking axis is not applicable for $MODEL_DIR (template provides always-on reasoning) — THINKING=$THINKING is recorded only"
 fi
 
 # Fail fast on setup errors — do not burn emulator boot time on a broken input.
@@ -1346,9 +1347,9 @@ run_turn_plan() {
 }
 
 # Base filler list (alphanumeric only — adb input text mangles punctuation).
-# 8 fillers as RESEARCH_CONTEXT_LOSS Fase 4 specifies. With thinking off,
-# replies are much shorter, so the extra turns keep context pressure on the
-# baseline — the point of the experiment is whether the baseline loses the facts.
+# 8 fillers as RESEARCH_CONTEXT_LOSS Fase 4 specifies. Reasoning can make
+# replies longer, so the extra turns keep context pressure on the baseline —
+# the point of the experiment is whether the baseline loses the facts.
 FILLER_BASE=(
   MotoreElettrico
   RicettaVeloce
