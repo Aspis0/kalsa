@@ -1503,6 +1503,64 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.36 MEASURED 2026-08-21: prefill scales with threads on the Jelly — §7.32's "the little cores are pacing the batch" is refuted, and the reproducibility is the surprising part
+
+§7.32 asked whether running prefill on 8 threads is a mistake on a 6×A55 + 2×A76 phone, since
+llama.cpp finishes a batch when its slowest thread does and the A55s have a third of an A76's
+capacity. It is not a mistake. **More threads is monotonically faster.**
+
+Measured on the prewarm — `KALSA_PREWARM {"op":"done","promptMs":…}`, a prompt eval of the same
+static system+tools prefix with `n_predict: 0`, hash `730983069` identical on all eight arms, so the
+work is provably the same every time. Decode fixed at 2, `.kvs` cleared between arms, on the charger,
+thermal status 0 throughout. **Run twice, in ascending and descending order**, because the first run
+had the arm order confounded with page-cache warm-up and temperature, both of which drift the same
+way (§7.20 documents page-cache contamination producing exactly this artifact).
+
+| prefill threads | ascending | descending | Δ | **mean ms** | prefill tok/s |
+|---:|---:|---:|---:|---:|---:|
+| 2 | 113 849 | 113 886 | **0.03 %** | **113 867** | 11.4 |
+| 4 | 93 044 | 92 954 | **0.10 %** | **92 999** | 14.0 |
+| 6 | 77 467 | 77 371 | **0.12 %** | **77 419** | 16.8 |
+| 8 | 68 867 | 75 374 | 9.02 % | 72 121 | 18.0 |
+
+⭐ **The reproducibility is the headline.** Reverse the order — so the confound now points *against*
+the effect — and the 2, 4 and 6-thread arms come back within **0.1 %** of themselves. That is a
+tighter repeat than anything else this project has measured on a phone, and it settles the
+confound outright: this is thread scaling, not page cache and not temperature. Temperature rose
+29.0 → 34.0 °C across the reversed run and moved those three numbers not at all.
+
+⚠️ **6 and 8 are not distinguishable, and the table shows why.** The 8-thread arm is the only one
+that failed to repeat: 68 867 against 75 374, a **9.0 %** spread, larger than the 7.3 % gap between
+its own mean and the 6-thread mean. It was the *last* arm ascending and the *first* descending, so
+the warm-up it is sensitive to is real — plausibly because at 8 threads the run is shortest, so a
+fixed cold-start cost is a bigger fraction of it. **Do not quote 8 as better than 6.** Everything
+below 6 is separated by margins 50× the repeat error.
+
+**Scaling is sublinear and healthy**: 4× the threads buys **1.58×**, i.e. per-thread throughput falls
+from 5.7 to 2.3 tok/s. Same shape as §7.20's S23 result (2 threads 13.26 vs 5 threads 21.32). The six
+A55s are not free, but they are not dead weight either — they carry roughly a third of an A76 each,
+which is exactly what `cpu_capacity` 348 against 1024 predicts.
+
+✅ **`deviceTuning.ts`'s `helio-g99` preset needs no change.** `prefillThreads: 8` is at or above the
+plateau, and whoever calibrated it was right. §7.32's open question is closed, negatively, and that
+is worth the two runs — the alternative was shipping a hunch.
+
+⛔ **The product consequence is the uncomfortable one.** The prewarm costs **69–114 s on this phone
+and no thread setting fixes it** — the best arm is still over a minute. Prefill is not where a
+tuning knob is going to save this device; §7.30 already showed the lever that works, and it is not
+tuning: a restored session turns that 120.8 s cold start into **1.8 s**. So the prewarm only ever
+pays on a genuinely cold start with no session on disk, and the UFS session pool is what makes those
+rare. **The 3 203-character system prompt and 3 tool schemas that make up that ~1 300-token prefix
+are the other lever, and nobody has costed trimming them.**
+
+**Limits.** One phone, one model (KEXP), n=2 per arm and only because the second run was a
+deliberate control. All eight arms are on the charger, and all report `thermal=0`, so nothing here
+describes throttled behaviour. The prewarm prefix is ~1 300 tokens; scaling on a 4 000-token chat
+prompt is not measured and may differ. Harness notes, not product defects: `tap_node` missed the
+`Send` node on every arm and fell through to the Italian `Invia` label, and a "Tap to reload" banner
+appeared on three arms where the tap was reported missed — the sends succeeded anyway, but the UI
+driver is fragile enough that a future run should verify rather than assume.
+
 ### 7.35 VACUOUS 2026-08-21: the anchored campaign never moved its boundary — the arm that was supposed to be measured never ran, and both knobs that would have made it run were left empty
 
 Campaign `32503221846`, `fase4` on **LFM2.5-8B-A1B**, 6 seeds × 4 arms × 16 turns, launched to settle
@@ -1812,6 +1870,11 @@ had looked at what CPU it actually has or where our threads land.
 resolved as `n_threads: 2`, `n_threads_batch: 8`, provenance `soc-preset:helio-g99`
 (`deviceTuning.ts:400-405`). Decode on two threads is exactly the two A76s. No bench override is set
 on the device (`kalsa.bench.engine` absent).
+
+✅ **CLOSED, negatively, the same day by §7.36 — more threads is faster and the preset is right.**
+Measured twice in opposite orders: prefill `promptMs` is 113 867 / 92 999 / 77 419 / 72 121 at
+2/4/6/8 threads, and the 2/4/6 arms repeat to within **0.1 %** when the order is reversed. The A55s
+contribute rather than pace. The paragraph below is preserved as the hypothesis it was.
 
 ⭐ **The open question this raises, and it aims at the dominant cost.** Prefill runs on **8** threads,
 so six of them sit on cores with **a third** of an A76's capacity. llama.cpp splits a batch across
@@ -3825,6 +3888,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.36: prefill scales with threads on the Jelly — §7.32's hypothesis refuted, and the repeat error is 0.1 %.** Measured on the prewarm (same prefix, hash `730983069` on all eight arms), decode fixed at 2, run **twice in opposite orders** because the first run had arm order confounded with page-cache warm-up and temperature. Mean `promptMs` at 2/4/6/8 prefill threads: **113 867 / 92 999 / 77 419 / 72 121** — monotonic. ⭐ Reversing the order returns the 2, 4 and 6 arms within **0.03 / 0.10 / 0.12 %** of themselves, the tightest repeat this project has ever got on a phone, which settles the confound: thread scaling, not page cache, and temperature rising 29 → 34 °C moved them not at all. ⚠️ **8 is NOT distinguishable from 6**: the 8-thread arm is the only one that failed to repeat (9.0 % spread, wider than its 7.3 % gap to the 6-thread mean), so do not quote it as better. Scaling is sublinear and healthy — 4× the threads buys 1.58×, per-thread throughput 5.7 → 2.3 tok/s, the same shape as §7.20's S23 result. ✅ `deviceTuning.ts`'s `helio-g99` preset needs no change; §7.32's open question closes negatively. ⛔ Product consequence: the prewarm costs **69-114 s on this phone and no thread setting fixes it**. Tuning is not the lever — §7.30's restored session turns a 120.8 s cold start into 1.8 s. The other untouched lever is the prefix itself: 3 203 chars of system prompt plus 3 tool schemas, ~1 300 tokens, and nobody has costed trimming it. Limits: one phone, one model, n=2, all arms on the charger at `thermal=0`; scaling on a 4 000-token chat prompt is unmeasured. |
 | 2026-08-21 | **§7.35: the anchored campaign is VACUOUS — the boundary never moved, and I launched it with both knobs that control that left empty.** `32503221846`, fase4 on LFM2.5-8B-A1B, 6 seeds x 4 arms x 16 turns. The arms are indistinguishable (mean `reuseFrac` 0.951 / **0.956** / 0.965 / 0.980) and the positive control says why: **`anchored`'s `boundaryByTurn` is 0 on all sixteen turns of all six seeds**, so a boundary→end window rendered the entire history from index 0 — not a window at all. `promptTokens` confirms it independently, growing monotonically 1 546 → 4 201 in **every** arm, so nothing was evicted anywhere. The boundary advances only when the character budget is exceeded, and the bench exposes `winbudget` (*"controls how often compaction fires"*, default 16 000) and `legacywindow` for exactly that. Both were empty. **The experiment could not have produced a difference.** ⛔ **My first reading of the ciswire arm was wrong and is retracted in the section**: I called the 0/6/12/18/24 boundary an eviction and concluded ciswire was *worse* than baseline. It evicted nothing. `AppShell.tsx:4541` calls **`windowStartIndex`**, not `legacyWindowStartIndex` — the 20-message cap is no longer the live path — and at n_ctx 8192 the budget is 13 824 chars (11 059 for ciswire) against `WINDOW_MAX_MESSAGES = 40`, while a 16-turn fase4 conversation is 30 messages and ~7 653 chars. Nothing was outside the window in ANY arm, which is the single cause of the whole null result; that boundary is the compactor's rebuild cadence, which ciswire does not use for the engine window (`:4754` passes `compactionEnabled: contextMode === "anchored"`). ⭐ **The reframing is the keeper: §7.12's sliding-window collapse is GONE from production.** It measured reuse falling 0.82 → 0.15 at turn 12 against `LEGACY_MAX_HISTORY = 20`; that cap is not what runs. So the question is no longer *does anchored beat the sliding window* but **at what conversation length does the derived window start evicting, and does anchored help there**. §9's "a ciswire arm needs ≥12 turns" is arithmetic against the dead cap. ✅ One real result survives and it **contradicts §7.12 on the model we ship**: with thinking off and no eviction, reuse is **0.95-0.98 at every turn**, including turn 12 (`probe_tool`, `rounds: 2`) at **0.993** — where §7.12 measured a tool call as a guaranteed total loss, 10 of 10. The turn-12 `promptMs` spike (108-140 s) is the tool round's second prefill summed into one turn, not a miss. Cause unestablished; `thinking: "off"` removes §7.9's divergence entirely, so this is a reason to re-run §7.12's tool claim, not to retract it. Corrective run: set `winbudget` and `legacywindow` low, and check `boundaryByTurn` advances **before** reading any speed number. Limits: `thinking: "off"` is hardcoded in the whole fase4 matrix and is not the shipping config; 6 of 40 jobs died at 13.0-15.2 min with no `result.json`, so the surviving seeds are a survivor sample. |
 | 2026-08-21 | **§7.34: `tok/s` is tokenizer-blind, and on Italian that hides 12 points.** Measured and reproduced locally on 30 000 bytes of the multi5 Italian corpus: Qwen3.5-2B needs **7 382** tokens where LFM2.5-2.6B needs **8 233** — **10.3 % fewer** — while English is a dead heat (1105 vs 1101). Combined with §7.31's bytes-per-token, **LFM2.5-2.6B reads 46 % more memory per character of Italian** (463.4 MB vs 316.7). In delivered Italian on the Jelly: LFM2.5-2.6B **19.7 chars/s**, Qwen3.5-2B **24.1**, KEXP **25.3** — so **Qwen is 22 % faster than the 2.6B** where the tok/s column shows 10 %, and **KEXP's lead over Qwen shrinks from +17.5 % to +5.4 %**. Qwen's 248 320-token vocab costs it 417 MB/token in output-head reads and earns it back on this language; 10.3 % fewer tokens is also 10.3 % more conversation inside the same 8192 context. **Quality:** the one independent Italian number is EuroEval's generative leaderboard (lower is better) — Qwen3.5-2B **2.69 ± 0.23** against LFM2.5-8B-A1B **3.53 ± 0.25**, with LFM2.5-2.6B absent from the table. ⚠️ **Not quotable yet:** `LFM2.5-8B-A1B-Base` scores **2.89**, i.e. the instruct model loses to its own base, and one task pair collapses to `14.35/7.53` where Qwen scores `69.42/48.73` — the signature of a harness mishandling `<think>` blocks and Pythonic tool calls, not of a capability gap. Resolve it: if real we have a problem, if it is the harness then EuroEval understates every LFM2.5 model. Still absent: any graded campaign on LFM2.5-2.6B, and any graded bpb/instruction score on Qwen3.5-2B in our tree. Vendor numbers are different harnesses and are not a bake-off. **Limit closed the same day:** re-measured on Kalsa's own Italian UI strings the gap is **6.9 %**, not 10.3 (and 2.5 % on the bench's deliberately accent-stripped prompts), so Qwen is **+17.8 %** over the 2.6B in delivered Italian and KEXP **+9.5 %** over Qwen — direction holds, magnitudes are a ceiling. Remaining limit: no sample of real user chat Italian, and that is the register the product runs in. |
 | 2026-08-21 | **§7.33 RETRACTED IN PART the same day, by the parallel session — and by a warning already in this file.** I quoted §7.16's 0.41-0.44× GPU decode as settled; §7.16 says of that exact figure *"Do not average them and do not pick one — the next Adreno 750-class measurement settles it"*, and `KALSA.md:308` records that `use_adreno_moe_kernels` excludes A7X with 730/740/750 all A7X, so **K-quant MoE never reached the GPU** and every GPU-decode number we hold measured **CPU fallback with graph splits**. The parallel session repaired the OpenCL expert kernels, certified them bit-exact against the CPU reference (nfail=0), and measured on the S23 **experts on GPU at 2.17× burst / 1.5× sustained, at lower temperature** — a number no prior benchmark could contain. Three further corrections owed: **"try Vulkan not OpenCL" is probably backwards on Adreno** (Qualcomm invests in the Adreno-specific OpenCL path; kernels *existing* on Vulkan is `supports_op`-allowed, not fast — the very trap this section named and then fell into); **"the split is not a flag" is imprecise** (trunk-vs-expert placement is `--n-cpu-moe` / `--override-tensor`; my point was about a *temporal* prefill/decode split, which is moot if the GPU wins decode); and **the 0.61 % vs 0.79 % battery figure was contingent on the GPU being slower** — measured on a dense Qwen at 0.67× CPU speed, it does not transfer to a MoE-expert arm and must not be quoted against it. Still standing: the Adreno 750 prefill ratios, GPU decode being thermally flat where CPU decays 16 %, and Mali not being a target. Agreed next step, theirs: a **Vulkan-vs-OpenCL cell on the S23** after S4. |
