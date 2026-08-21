@@ -428,6 +428,26 @@ async function main() {
         markdown.includes("mean prefill ms (promptMs)") ||
           markdown.includes("Prefill"),
       );
+      // reuseFrac was computed and silently dropped from the table until
+      // 2026-08-21 — the campaign could not answer its own central question
+      // (does the anchored window keep the KV cache) without hand-deriving it
+      // from raw artifacts. Assert it renders so it cannot vanish again.
+      check(
+        "complete renders KV reuse header",
+        markdown.includes("mean KV reuse (reuseFrac)"),
+      );
+      check(
+        "complete renders the reuseFrac value, not just the header",
+        /0\.150 \(n=\d+\)/.test(markdown),
+      );
+      check(
+        "complete renders mean prompt tokens header",
+        markdown.includes("mean prompt tokens"),
+      );
+      check(
+        "reuseFrac note warns the mean is a hit rate on LFM2",
+        markdown.includes("hit RATE, not a fraction of a prompt"),
+      );
       // Honest labels: TTFT not "mean s/turn"; turn compute separate; no p.
       check(
         "complete renders mean TTFT s (UI, ±15 s) header",

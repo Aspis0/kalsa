@@ -1944,17 +1944,17 @@ function renderFase4(agg) {
     );
   } else {
     lines.push(
-      "| arm | mean prefill ms (promptMs) | mean TTFT s (UI, ±15 s) | mean turn compute ms (prefill+decode) |",
-      "|---|---|---|---|",
+      "| arm | mean KV reuse (reuseFrac) | mean prefill ms (promptMs) | mean prompt tokens | mean TTFT s (UI, ±15 s) | mean turn compute ms (prefill+decode) |",
+      "|---|---|---|---|---|---|",
     );
     for (const r of agg.prefill.rows) {
       lines.push(
-        `| ${r.arm} | ${fmtMean(r.meanPromptMs, r.nPromptMs, 1)} | ${fmtMean(r.meanTtftApproxS, r.nTtftApproxS, 1)} | ${fmtMean(r.meanTurnComputeMs, r.nTurnComputeMs, 1)} |`,
+        `| ${r.arm} | ${fmtMean(r.meanReuseFrac, r.nReuseFrac, 3)} | ${fmtMean(r.meanPromptMs, r.nPromptMs, 1)} | ${fmtMean(r.meanPromptTokens, r.nPromptTokens, 0)} | ${fmtMean(r.meanTtftApproxS, r.nTtftApproxS, 1)} | ${fmtMean(r.meanTurnComputeMs, r.nTurnComputeMs, 1)} |`,
       );
     }
     lines.push(
       "",
-      "_TTFT is polled at 15 s granularity (UI-observed time to first assistant persistence); turn compute is Σ(promptMs+predictedMs) from telemetry (lower bound on wall work, excludes UI/storage). Neither is a stopwatch on full wall time. Means are descriptive only — no p-value._",
+      "_`reuseFrac` is the KV prefix the engine reused; on LFM2 it is bimodal (0 or ~0.98, HARNESS_FINDINGS §7.12), so a MEAN of it is a hit RATE, not a fraction of a prompt — read it as \"how often the cache survived\". TTFT is polled at 15 s granularity (UI-observed time to first assistant persistence); turn compute is Σ(promptMs+predictedMs) from telemetry (lower bound on wall work, excludes UI/storage). Neither is a stopwatch on full wall time. Means are descriptive only — no p-value._",
     );
   }
 
