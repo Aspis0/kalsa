@@ -1503,6 +1503,80 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.34 MEASURED 2026-08-21: `tok/s` is tokenizer-blind, and on Italian that hides 12 points — Qwen3.5-2B delivers more Italian per second than LFM2.5-2.6B
+
+Owner's question: *"se il Qwen 3.5 2B è un chatbot MOLTO migliore dell'LFM, allora anche se più
+lento, vince il Qwen."* Checking the premise first turned up that **"più lento" is not established** —
+because every speed number in §2.1 is in tokens per second, and a token is not the same amount of
+Italian in the two models.
+
+**Measured, and reproduced in this tree before being written down.** HF tokenizers via
+`AutoTokenizer.from_pretrained`, `add_special_tokens=False`, on the first 30 000 UTF-8 bytes of
+`kalsa-moe-experiments/corpus/multi5/it.txt` (the Wikipedia IT *"Caffè"* text, 29 602 characters),
+with a 5 000-byte English control:
+
+| | vocab (loaded) | Italian tokens | **chars/token, IT** | English tokens | chars/token, EN |
+|---|---:|---:|---:|---:|---:|
+| LFM2.5-2.6B | 124 893 | **8 233** | **3.596** | 1 101 | 4.522 |
+| Qwen3.5-2B | 248 044 | **7 382** | **4.010** | 1 105 | 4.506 |
+
+**Qwen needs 10.3 % fewer tokens for the same Italian paragraph, and English is a dead heat**
+(1105 vs 1101, 0.4 %). So the larger vocabulary is not a general win — it is specifically an
+Italian win, which is the language this app is for.
+
+⭐ **Put that against §7.31's bytes-per-token and the ranking changes.**
+
+| | MB/token (§7.31) | chars/token IT | **MB per Italian character** | Jelly decode (§7.28) | **Italian chars/s** |
+|---|---:|---:|---:|---:|---:|
+| LFM2.5-2.6B | 1666.2 | 3.596 | **463.4** | 5.47 tok/s | **19.7** |
+| Qwen3.5-2B | 1269.9 | 4.010 | **316.7** | 6.00 tok/s | **24.1** |
+| LFM2.5-8B-A1B-KEXP | 848 | 3.596 (same 128k vocab) | 235.8 | 7.05 tok/s | **25.3** |
+
+**LFM2.5-2.6B reads 46 % more memory per character of Italian than Qwen3.5-2B does.** Qwen's
+248 320-token vocabulary costs it 417 MB per token in output-head reads (§7.31) and **more than earns
+it back** on this language.
+
+Two rankings move:
+1. **Qwen3.5-2B is 22 % faster than LFM2.5-2.6B in delivered Italian**, where the `tok/s` column
+   shows it only 10 % ahead. Twelve points of the gap were hidden by the unit.
+2. **KEXP's lead over Qwen3.5-2B collapses from +17.5 % to +5.4 %.** On the Jelly, in Italian, they
+   are nearly the same speed.
+
+And it is not only speed: 10.3 % fewer tokens is also **10.3 % more Italian conversation inside the
+same 8192-token context**, which is the budget §7.12's window collapse is fighting over.
+
+**On quality, which is the actual question, we have one independent Italian number and it does not
+favour us.** EuroEval's Italian generative leaderboard (extracted and re-read locally), mean rank
+score, **lower is better**: `Qwen/Qwen3.5-2B (val)` **2.69 ± 0.23** against
+`LiquidAI/LFM2.5-8B-A1B (val)` **3.53 ± 0.25**. **LFM2.5-2.6B is not in the table at all.**
+
+⚠️ **Do not quote that as "Qwen beats our model on Italian" yet, for a reason visible in the same
+row.** `LFM2.5-8B-A1B-Base` scores **2.89** — the *instruct* model is worse than its own base — and
+on one task pair the instruct model collapses to `14.35 ± 3.27 / 7.53 ± 1.51` where Qwen scores
+`69.42 ± 0.80 / 48.73 ± 0.71`. A tuned model losing to its own base, with one task at a tenth of the
+comparator, is the signature of a harness mishandling an output format — this model emits
+`<think>` blocks and Pythonic tool calls — not of a capability gap. **Unresolved, and worth
+resolving:** if it is real we have a problem, and if it is the harness then EuroEval understates
+every LFM2.5 model in the same way.
+
+**What we do NOT have, stated plainly.** No graded campaign on LFM2.5-2.6B (still true). No graded
+PPL/bpb or instruction score on Qwen3.5-2B in our tree either — only speed and a greedy-identity
+check. The vendor numbers are not a bake-off: Liquid reports BFCLv4 56.88 / IFBench 59.17 for the
+2.6B, Qwen reports BFCL-V4 43.6 / IFEval 61.2 for the 2B, on different harnesses. Our own multi5
+Italian bpb exists only for the 8B family: LFM2.5-8B-A1B Q4_K_M **1.3206**, KEXP **1.4115** at k=4.
+
+**Languages.** Both cards list Italian. LFM2.5-2.6B's card adds Vietnamese, Thai, Indonesian, Hindi,
+Russian and Polish over the 8B's ten. Qwen3.5-2B's card claims "201 languages and dialects" without
+enumerating them. Neither vendor publishes a per-language Italian score. Liquid states its
+65K→128K expansion mainly helps under-tokenized Thai/Bengali/Vietnamese/Hindi — **a bias away from
+Italian**, which is consistent with the measurement above.
+
+**Limits.** One Italian text, one register — encyclopedic prose about coffee. Chat Italian, with
+short turns, names and punctuation, may tokenize differently, and that is the register the product
+actually runs in. The decode figures are §7.28's n=1 four-turn fresh-chat arms and cannot see the
+turn-11 collapse. Nothing here measures answer quality on our prompts; the chars/s table is a
+throughput statement, not a good-chatbot statement.
+
 ### 7.33 CROSS-TREE 2026-08-21: the GPU question, answered from evidence that already existed — and the owner's battery hypothesis is measured and refuted
 
 Asked because the owner is deciding whether to commission Vulkan/OpenCL kernel work on the parallel
@@ -3602,6 +3676,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-21 | **§7.34: `tok/s` is tokenizer-blind, and on Italian that hides 12 points.** Measured and reproduced locally on 30 000 bytes of the multi5 Italian corpus: Qwen3.5-2B needs **7 382** tokens where LFM2.5-2.6B needs **8 233** — **10.3 % fewer** — while English is a dead heat (1105 vs 1101). Combined with §7.31's bytes-per-token, **LFM2.5-2.6B reads 46 % more memory per character of Italian** (463.4 MB vs 316.7). In delivered Italian on the Jelly: LFM2.5-2.6B **19.7 chars/s**, Qwen3.5-2B **24.1**, KEXP **25.3** — so **Qwen is 22 % faster than the 2.6B** where the tok/s column shows 10 %, and **KEXP's lead over Qwen shrinks from +17.5 % to +5.4 %**. Qwen's 248 320-token vocab costs it 417 MB/token in output-head reads and earns it back on this language; 10.3 % fewer tokens is also 10.3 % more conversation inside the same 8192 context. **Quality:** the one independent Italian number is EuroEval's generative leaderboard (lower is better) — Qwen3.5-2B **2.69 ± 0.23** against LFM2.5-8B-A1B **3.53 ± 0.25**, with LFM2.5-2.6B absent from the table. ⚠️ **Not quotable yet:** `LFM2.5-8B-A1B-Base` scores **2.89**, i.e. the instruct model loses to its own base, and one task pair collapses to `14.35/7.53` where Qwen scores `69.42/48.73` — the signature of a harness mishandling `<think>` blocks and Pythonic tool calls, not of a capability gap. Resolve it: if real we have a problem, if it is the harness then EuroEval understates every LFM2.5 model. Still absent: any graded campaign on LFM2.5-2.6B, and any graded bpb/instruction score on Qwen3.5-2B in our tree. Vendor numbers are different harnesses and are not a bake-off. Limits: one Italian text in one register (encyclopedic prose); chat Italian may tokenize differently, and that is the register the product runs in. |
 | 2026-08-21 | **§7.33: the GPU question answered from evidence that already existed — decode loses, prefill wins 5-6x, and the battery hypothesis is refuted.** On the **shipping** GPU class (Xiaomi 14, Adreno 750, unplugged, Qwen3.5-2B Q4_K_M, `llama-bench -t 6 -r 2`) prefill is **5.77 / 5.97 / 5.63 / 4.14x** CPU at pp 128/512/1024/2048 and **5.26x** on real median TTFT, while decode is **0.44x** (7.07 vs 16.15). ⛔ **The owner's calore/batteria prior is measured and inverted:** S23, 15 min per arm, CPU 12.2 -> 10.2 tok/s (**-16 %**, 42.3 °C still rising) against GPU 8.2 -> 8.2 (**0 %**, 38.5 °C plateau) — the GPU is 4 °C cooler and flat, and spends **0.79 % of battery per 1k tokens against the CPU's 0.61 %**, i.e. **30 % more energy per token**, because it is slower and stays on longer. Cooler is not cheaper. Same on the 4B (5.0 vs 4.0). ⭐ **And for Vulkan there is no kernel to write**: verified in the local checkout, `ggml-vulkan.cpp:17254-17255` lists Q2_K and Q3_K under `MUL_MAT_ID` and `:4330-4331` create `matmul_id_subgroup_q2_k_f16` / `q3_k_f16`, so **KEXP's 2-3-bit experts already have Vulkan kernels** and `SSM_CONV` is present. **OpenCL** is the backend that would need writing — `ggml-opencl.cpp:6688-6713` omits q2_K/q3_K from `MUL_MAT_ID` and q3_K `MUL_MAT` hits `GGML_ASSERT(false && "not implemented")` at `:19204-19221` — and OpenCL is what our S23 arms used. Mid-range **Mali is not a target** (Mali-G68: 0.20x prefill, 0.74x decode). The only shape the evidence supports is **GPU for prefill, CPU for decode**, which is not a flag — llama.cpp does not switch backends mid-context — so its cost is UNMEASURED. Limits: nothing measured on our phone, our app or our model; the prefill ratio is Qwen3.5-2B, not LFM2; thermal/energy is Adreno 740 only; and `supports_op` says allowed, not correct and not fast. |
 | 2026-08-21 | **§7.32: the Jelly's CPU and storage, read rather than assumed — and prefill runs on eight threads where six of them are third-speed cores.** Topology measured: cpu0-5 are **A55** (`0xd05`, capacity **348**), cpu6-7 **A76** (`0xd0b`, **1024**). Our split is already hand-tuned — `deviceTuning.ts:180-188` carries a `helio-g99` preset resolving to `n_threads: 2` / `n_threads_batch: 8`, provenance `soc-preset:helio-g99` — so decode already sits on exactly the two big cores. **Open and cheap:** llama.cpp finishes a batch when its slowest thread does, so on a 6+2 machine with a 3:1 capacity split, prefill on 8 threads may be paced by the A55s. Prefill is most of the user's wait (§7.30: 77.7 s of the 120.8 s cold start is a prewarm). Prefill at 2/4/6/8 threads has never been measured on this phone. **Storage is UFS, checked not assumed** (`/sys/class/block/sda` under `11270000.ufshci`, `ro.boot.boot_devices` names it, no `mmcblk*`; `ro.vendor.mtk_emmc_support=1` is a vendor flag, not the block layer). `/data` is **f2fs**, `fsync_mode=nobarrier`, 137 GB free of 228 — disk is not a constraint here. Sequential read **984 MB/s coldest**, 2.9-3.2 GB/s from page cache, so a cold KEXP load has a **~3.4 s floor** no tuning removes. Session pool 37 MB: the live 10 041 119 B file plus a **28 674 134 B legacy `qwen3.5-2b.kvs`**. **Suspicion refuted in the same pass:** the legacy file is NOT stranded — `listPoolFiles` keys on the bare filename stem, so it is counted in the budget and evicted LRU, even though `deleteLegacyModelSession` only ever runs for the active model. Limits: one phone, on the charger, **idle — nothing here was sampled during inference**, so the thread-affinity histogram is inconclusive and is not quoted as a result. |
 | 2026-08-21 | **§7.31: every dense `MB/token` we carried was too LOW, and §7.28's caveat pointed the wrong way — retracted there.** Tensor maps read off the pinned HF revisions with a range request (25 MB of header, no weights): **LFM2.5-2.6B = 1666.2 MB/token** (blocks 1451.2 + tied `token_embd` 215.0) against the ~1600 estimate, **Qwen3.5-2B = 1269.9** (852.7 + **417.2**) against ~1230. Neither GGUF has an `output.weight`, so on both the embedding is tied and the same matrix is read in full as the output head every token — which is why file size is a good proxy for a dense model and a terrible one for a sparse one (KEXP: 848 against a 3330 MB file). **Vocabulary size is a decode cost**: Qwen3.5-2B's 248 320-token vocab is **33 % of everything it reads per token**, against 13 % for LFM2.5-2.6B's 128 000. §7.28's throughput spread corrects to **52 %** (9.11 / 7.61 / 5.98 GB/s) and none of it is estimation error. S23 predictions move slightly worse: LFM2.5-2.6B **13.1** tok/s, Qwen3.5-2B **17.2**, both still unmeasured. Also corrected: §2.1's LFM2.5-VL-3B cell said "1674 (from the GGUF)" when 1674.45 MB is the **file size** of LFM2.5-2.6B — within 0.5 % of right, but not computed the way the column header promises. Limits: arithmetic, not a measurement; assumes one read per block tensor and one of the tied head at batch 1; models no KV, no activations, and not the VL model's 583 MB `mmproj`. |
