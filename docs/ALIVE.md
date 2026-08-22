@@ -328,6 +328,20 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 
 ---
 
+## 5b. REPO CONSOLIDATION (22/08 evening — owner decision "option A")
+
+Three repos, three roles — the vendored engine copies are gone. **`Aspis0/kalsa`**
+= the app. **`Aspis0/kalsa-engine`** = BigMoeOnEdge (wrapper). **`Aspis0/kalsallama`**
+(new, private) = the llama.cpp fork: all branches + tags pushed; two legitimate
+lineages, `kalsa/kernel-s3-repack` (Adreno GPU kernels, head `1882bf8cd`) and
+`kalsa/mmap-prefetch-opt` (CPU expert-ready hook `5236140e5` — the lineage the
+app's llama.rn patch mirrors; the branch name "bmoe/expert-ready-hook" cited in
+app comments does not exist and must be corrected). `moe-experiments/kalsa-engine/`
+(vendored) was deleted after proving zero unique content; its bundles moved to
+`backups/engine-bundles/`. BigMoeOnEdge `.gitmodules` now points at kalsallama
+(no more Helldez third-party URL), and the fork's pre-push hook is an allow-list
+for `github.com/Aspis0/*` only. Full map: `docs/ENGINE.md`.
+
 ## 6. OPEN QUEUE — what is left to finish
 
 | # | item | state / blocked on |
@@ -341,7 +355,7 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 | ~~2d-iii~~ | ~~KEXP N≥5 ship cell A/B/C~~ | **CLOSED 22/08 mixed (audit BANK): A/B 1.803 PASS, A/C 0.812 REFUTED** — pure CPU beats full GPU on LFM2.5-KEXP; package does not ship |
 | ~~2d-v~~ | ~~OLMoE arm C~~ | **CLOSED 22/08: yes, C wins every cell (A/C 0.724)** — "GPU default candidate" retired; near-thermal-parity on OLMoE, cool mode only on KEXP |
 | 5b | S23 cache sweep + binary-side cpuset-gate enforcement (detect-only today) | remaining half of the old #5; dedicated unplugged session |
-| 2d-iv | Xiaomi/750 validation | needs the device |
+| 2d-iv | Xiaomi/750 validation | **session IN FLIGHT 22/08 evening** (device unplugged @98%; test-backend-ops + quick A/B/C + dense-prefill re-check) |
 | ~~3~~ | ~~cvt.cl cosmetics~~ | **CLOSED 22/08 mixed**: comments fixed; uniformity port audit-REJECTED and dropped (spec on file) |
 | ~~4~~ | ~~LANE_MOD~~ | **CLOSED 22/08: BIASED by construction**; hint-only + raw dumps mandatory for session-2 |
 | 5 | S23 cache cells + absolute lineup | dedicated unplugged device session |

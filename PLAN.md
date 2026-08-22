@@ -276,14 +276,25 @@ Tre configurazioni sul KEXP (S23, misurate):
 
 ## Fatti operativi correnti
 
-- **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
-  tag kalsakernel-v4; tag v1–v4 tutti locali, bundle in `backups/`), fork
-  `BigMoeOnEdge/third_party/llama.cpp`. **21/08 sera: remote di terzi RIMOSSI
-  del tutto** (llama.cpp: zero remote; BigMoeOnEdge: solo origin Aspis0) +
-  pre-push hook che blocca ogni destinazione non-Aspis0 (testato). Fetch
-  upstream quando serve: ad-hoc per URL esplicito, senza ricreare remote.
-  Attenzione residua: `git submodule sync` può ricreare i remote da
-  .gitmodules — gli hook restano comunque. Banner "kalsallama" da introdurre.
+- **Lignaggio engine — CONSOLIDATO 22/08 sera (decisione gualt: "opzione A")**:
+  il fork llama.cpp ha ora una casa GitHub propria, **`Aspis0/kalsallama`**
+  (privato): tutti i branch pushati (`kalsa/kernel-s3-repack` head `1882bf8cd`,
+  più s1/s2, `mmap-prefetch-opt`, mld-gemv-m1, q6k-dispatch-fix, split-trunk-gpu,
+  master) + tag v1–v4. Checkout locale: `BigMoeOnEdge/third_party/llama.cpp`,
+  origin = kalsallama, pre-push hook riscritto **allow-list solo
+  `github.com/Aspis0/*`** (testato: terzi exit 1, Aspis0 exit 0; in più le
+  credenziali Aspis0 prendono 403 sui repo terzi). `.gitmodules` di BigMoeOnEdge
+  ora punta a kalsallama (commit `9f2584f`, pushato): **il rischio
+  "`submodule sync` resuscita Helldez" è morto**. DUE lignaggi legittimi,
+  entrambi in kalsallama: `kernel-s3-repack` (GPU/Adreno) e
+  `mmap-prefetch-opt` (hook CPU expert-ready `5236140e5`, quello che la patch
+  llama.rn dell'app rispecchia con prefisso `lm_` — il nome
+  "bmoe/expert-ready-hook" citato nei commenti dell'app NON esiste, va
+  corretto). La copia vendored `kalsa-engine/` è stata ELIMINATA dopo verifica
+  di zero contenuto unico (llama.cpp byte-identico a `e5605f3bd`, 18 Kotlin
+  hash-identici a drop-policy-s2); i suoi bundle sono in
+  `backups/engine-bundles/`. Mappa ruoli in `docs/ENGINE.md`. Banner
+  "kalsallama" nel version string: ancora da introdurre.
 - **.so correnti**: kalsakernel-v2 pulito = `2032b7c7…`; build smoke con shim
   dormiente (head) = post-`55f43a574`. Sempre sha256 on-device prima di ogni run.
 - **S23**: 21G liberi su /data, `LFM2.5-8B-A1B-KEXP.gguf` a bordo, wireless adb
