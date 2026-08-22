@@ -1,0 +1,24 @@
+git=C:\Program Files\Git\cmd\git.exe
+dest_exists=False
+opencl_build=True
+opencl: app
+opencl: bin
+opencl: CMakeFiles
+opencl: common
+opencl: ggml
+opencl: src
+opencl: Testing
+opencl: tests
+opencl: tools
+opencl: vendor
+opencl: .ninja_deps
+opencl: .ninja_log
+opencl: build.ninja
+opencl: cmake_install.cmake
+opencl: CMakeCache.txt
+opencl: compile_commands.json
+opencl: CTestTestfile.cmake
+opencl: DartConfiguration.tcl
+opencl: license.cpp
+opencl: llama-config.cmake
+clone_exit=0

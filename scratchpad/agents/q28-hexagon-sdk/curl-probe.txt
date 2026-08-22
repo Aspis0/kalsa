@@ -1,0 +1,365 @@
+
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/qsc/linux/latest.deb =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:16 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/linux/latest.deb
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:16 GMT
+x-request-id: bd5a9661-f47b-4788-b5fd-8e49b87fe435
+X-Cache: Error from cloudfront
+Via: 1.1 7e915a939f247f09de4523929f10bb0a.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: ASPwH8iVNAyC6usuVZoWGrdkrEtW-GzkUejItOvMDgIvabau65F-ew==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/qsc/linux/latest.deb =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:18 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/linux/latest.deb
+
+HTTP/1.1 206 Partial Content
+Content-Type: binary/octet-stream
+Content-Length: 64
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:18 GMT
+Last-Modified: Wed, 12 Mar 2025 09:16:37 GMT
+ETag: "9b619d7fe4a800ed5aa2cca0730f9962"
+x-amz-server-side-encryption: AES256
+x-amz-version-id: 40eTjsSn3R7VoCiYkP2Arado7u6HxM4L
+x-request-id: 500b117e-b788-431e-a255-ffddfbc40e82
+X-Cache: Miss from cloudfront
+Via: 1.1 d252968c504ffe8fc53a565195348068.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: PSLozcUjTwR6qIYgAQRk2HafCrTy_DptlJu9PhkuaQTcKVmheXcw8Q==
+Strict-Transport-Security: max-age=31536000
+Content-Range: bytes 0-63/205704744
+
+
+range_bytes=64 hex=21 3C 61 72 63 68 3E 0A 64 65 62 69 61 6E 2D 62 69 6E 61 72 79 20 20 20 31 37 33 39 35 34 38 34 33 36 20 20 30 20 20 20 20 20 30 20 20 20 20 20 31 30 30 36 34 34 20 20 34 20 20 20 20 20 20 20 ascii=!<arch>.debian-binary   1739548436  0     0     100644  4        size=64
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/qsc/windows/latest.exe =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:21 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/windows/latest.exe
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:21 GMT
+x-request-id: 01967987-ea49-442d-bef4-e9a461805188
+X-Cache: Error from cloudfront
+Via: 1.1 397dd692cad53f0026fab5b236c0a518.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: e0bSu48_4RvT2rMUV0dvAGnU61KARsDxh81OMkKSm6AFonjymrYYzg==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/qsc/windows/latest.exe =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:23 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/windows/latest.exe
+
+HTTP/1.1 206 Partial Content
+Content-Type: application/x-msdownload
+Content-Length: 64
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:23 GMT
+Last-Modified: Wed, 05 Feb 2025 09:07:13 GMT
+ETag: "b6e2c6efbc789916e14034593cefe996"
+x-amz-server-side-encryption: AES256
+x-amz-version-id: .APFFFoo1gZxuM0DIegUmW_a0Y.jytFB
+x-request-id: a28fb84e-9746-4e95-b11d-8afdc6733a3d
+X-Cache: Miss from cloudfront
+Via: 1.1 65cdd88e2e6e21b095c2caf59292000c.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: Son-rMPjRM-9EDe7EpHMSpnHd-Hs0TNqZ4QaSUSN8OhSR854Jas33g==
+Strict-Transport-Security: max-age=31536000
+Content-Range: bytes 0-63/256917080
+
+
+range_bytes=64 hex=4D 5A 90 00 03 00 00 00 04 00 00 00 FF FF 00 00 B8 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 80 00 00 00 ascii=MZ......................@....................................... size=64
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/qsc/win/latest.exe =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:26 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/win/latest.exe
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:26 GMT
+x-request-id: 76df5641-1531-4f83-beba-3dbef503c48e
+X-Cache: Error from cloudfront
+Via: 1.1 0c482288431692a08571c47359ca2c80.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: TmCqHd3WoiJcVMYExqIYN8b3dIiri8AaaxdEQyoqaCC_uTQY9j3I8A==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/qsc/win/latest.exe =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:28 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/win/latest.exe
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:28 GMT
+x-request-id: 04343855-920e-4bec-87e8-96f0ab6bc4ae
+X-Cache: Error from cloudfront
+Via: 1.1 0ed062928320c9569a09db8a928795e4.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: EmF4QLPJUr_Xvob_s9jWupuWZSxcNx72dARQnkPqalb1CHa3vOfqXg==
+Strict-Transport-Security: max-age=31536000
+
+
+range_bytes=64 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</C size=318
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/qsc/windows/latest.msi =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:30 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/windows/latest.msi
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:31 GMT
+x-request-id: 71dda64c-5b71-43ce-9d91-462ae0aca614
+X-Cache: Error from cloudfront
+Via: 1.1 d4564d6809e10e731bfdfae814a717f8.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: N3ayeMugErPdHPN5GTb4DISzG-vPFqX2OIjv8SrVdIqtggmscxq6rg==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/qsc/windows/latest.msi =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:33 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/qsc/windows/latest.msi
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:33 GMT
+x-request-id: 9b5606ff-d62d-4107-b0e2-dbdbc72d5ead
+X-Cache: Error from cloudfront
+Via: 1.1 50d543ccd342bc50b5f1439e7bdddcc8.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: n2m1AUCPWSoLarrkljOGPMBnfDoJiz9z-8M2uddiDBivJnNA5baK0A==
+Strict-Transport-Security: max-age=31536000
+
+
+range_bytes=64 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</C size=302
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/6.6 =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:35 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/6.6
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:35 GMT
+x-request-id: 13276e72-cdfd-4c5f-9c14-e248bcb71cd4
+X-Cache: Error from cloudfront
+Via: 1.1 d6b2e9bf1f40c8fcec509faeb60f8c54.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: 81TvzTOr21H5Pmr0sQE3VhQxeh2RFA_-DSdhLjtQ7ULZiK6co1tvyA==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/6.6 =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:37 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/6.6
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:38 GMT
+x-request-id: b599898a-6f75-4763-be61-9705d8e3b254
+X-Cache: Error from cloudfront
+Via: 1.1 65cdd88e2e6e21b095c2caf59292000c.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: ZXIxtcWwYGHDABOmDewbzffYBcJpYKtzycaDFDrgD_0q4vrwQN8mnA==
+Strict-Transport-Security: max-age=31536000
+
+
+range_bytes=64 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</C size=335
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/latest =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:40 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/latest
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:40 GMT
+x-request-id: d7e876cf-0230-4bb0-8168-1895c1e3e69c
+X-Cache: Error from cloudfront
+Via: 1.1 4e2b60a8131e436f5ac38dc8a953edf4.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: Mu3-pDcxvUiwnzDQUFjv0KN56KGDJvoem37cT99IbGZ_TeOZX4-VGQ==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/latest =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:42 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/latest
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:42 GMT
+x-request-id: cb8676a3-21a6-4bbb-bd8b-e2af7c40a530
+X-Cache: Error from cloudfront
+Via: 1.1 3b2c32f90b8e4193dda6d9be63628ab2.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: FUb_Gu3pMTbOwUPKsOVLMx1SkeRREulKvPNzfegAoBKF14Z6jmHbUA==
+Strict-Transport-Security: max-age=31536000
+
+
+range_bytes=64 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</C size=306
+
+===== HEAD https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/6.6.0.0/windows =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:45 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/6.6.0.0/windows
+
+HTTP/1.1 403 Forbidden
+Content-Type: application/xml
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:45 GMT
+x-request-id: 31e3ea3e-208f-49c4-8a79-4b0e1b8dd038
+X-Cache: Error from cloudfront
+Via: 1.1 d4564d6809e10e731bfdfae814a717f8.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: IAD55-P3
+X-Amz-Cf-Id: W5fSGqPiplNj0MXEub-qkQ9PzoKVWPwSDAGwjEJOtBhYJslBgqOanQ==
+Strict-Transport-Security: max-age=31536000
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/6.6.0.0/windows =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:29:47 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/6.6.0.0/windows
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:29:47 GMT
+x-request-id: 89339dda-4d4f-411c-b8f5-037836ae9dff
+X-Cache: Error from cloudfront
+Via: 1.1 9f575b6f0217c33f22e6da5419974422.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: y6JTXc-0npMonru9tiJ0DWEA2eNMNfUvTSFEeopFoRDnBULY7SlVag==
+Strict-Transport-Security: max-age=31536000
+
+
+range_bytes=64 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</C size=307
+
+===== HEAD https://softwarecenter.qualcomm.com/catalog/item/Hexagon_SDK =====
+HTTP/1.1 200 OK
+Date: Sat, 22 Aug 2026 20:29:50 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 71384
+Connection: keep-alive
+X-Powered-By: Express
+Vary: Accept-Encoding
+Cache-Control: no-cache, no-store, must-revalidate
+ETag: W/"116d8-8eC72mLUF7d+CbJi64d8EOW7TX0"
+
+
+
+===== RANGE0-63 GET https://softwarecenter.qualcomm.com/catalog/item/Hexagon_SDK =====
+HTTP/1.1 200 OK
+Date: Sat, 22 Aug 2026 20:29:52 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 71384
+Connection: keep-alive
+X-Powered-By: Express
+Vary: Accept-Encoding
+Cache-Control: no-cache, no-store, must-revalidate
+ETag: W/"116d8-8eC72mLUF7d+CbJi64d8EOW7TX0"
+
+
+range_bytes=64 hex=3C 21 44 4F 43 54 59 50 45 20 68 74 6D 6C 3E 3C 68 74 6D 6C 20 6C 61 6E 67 3D 22 65 6E 22 20 63 6C 61 73 73 3D 22 68 2D 66 75 6C 6C 20 77 2D 66 75 6C 6C 22 20 64 61 74 61 2D 62 65 61 73 74 69 ascii=<!DOCTYPE html><html lang="en" class="h-full w-full" data-beasti size=71384
+
+===== EXISTING LINUX BODY MAGIC =====
+hex=33 33 0D 0A 36 30 0D 0A 39 37 0D 0A 31 31 34 0D
+ascii=33..60..97..114.
+size=145891328

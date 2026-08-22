@@ -1,0 +1,8 @@
+ERROR: HEXAGON_SDK_ROOT not found: C:\Qualcomm\Hexagon_SDK\6.6.0.0
+
+Owner unblock:
+  1. qsc-cli login -u <qualcomm-username>
+  2. QIK.exe INSTALL Hexagon_SDK -version 6.6.0.0 -Silent
+  3. Expected tree: C:\Qualcomm\Hexagon_SDK\6.6.0.0
+  4. HEXAGON_TOOLS_ROOT usually: C:\Qualcomm\Hexagon_SDK\6.6.0.0\tools\HEXAGON_Tools\19.0.07
+  Catalog: https://softwarecenter.qualcomm.com/catalog/item/Hexagon_SDK?version=6.6.0.0

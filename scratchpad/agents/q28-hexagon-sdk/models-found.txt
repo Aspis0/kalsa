@@ -1,0 +1,17 @@
+===== C:\Users\gualt\Desktop\Kalsa\moe-experiments\models =====
+        3,172.1 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\LFM2.5-8B-A1B-KEXP.gguf
+        6,089.4 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf
+Q4_K    7,697.4 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+Q4_K    4,018.3 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+       12,794.9 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Qwen3.6-35B-A3B-KEXP.gguf
+Q4_K    1,221.5 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.5-2B-Q4_K_M.gguf
+Q4_0    2,463.6 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.5-4B-Q4_0.gguf
+Q4_K    2,614.0 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.5-4B-Q4_K_M.gguf
+Q4_K      278.2 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.6-35B-A3B-DFlash-Q4_K_M.gguf
+       12,953.2 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\ornith-dl\Ornith-1.5-35B-A3B-Q2_K_L.gguf
+       10,108.9 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\reap_community\Qwen3.6-28B-REAP20-A3B-Q2_K.gguf
+===== C:\Users\gualt\Desktop\Kalsa\moe-experiments\models_staging =====
+        8,767.4 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models_staging\reap50\gguf\LFM2.5-8B-A1B-REAP50-BF16.gguf
+Q4_K    2,690.6 MiB  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models_staging\reap50\gguf\LFM2.5-8B-A1B-REAP50-Q4_K_M.gguf
+===== C:\Users\gualt\.cache\huggingface =====
+(no *.gguf)

@@ -1,0 +1,18 @@
+Usage: qsc-cli [options] [command]
+
+Options:
+  --version       Get Version
+  -h,--help       Show help menu
+
+Commands:
+  compile         Compile software product or software image
+  device          Show list of devices connected to host machine
+  download        Download a software product
+  flash           Flash software product build on connected device
+  info            List products, distributions and releases
+  login           Login using Qualcomm credentials
+  logout          Logout user
+  open-build-env  Opens a terminal with the build environment
+  pat             List personal access token (PAT)
+  user-profile    List details for logged in user.
+  workspace       List, delete workspace

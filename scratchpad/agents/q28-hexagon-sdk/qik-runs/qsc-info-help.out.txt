@@ -1,0 +1,17 @@
+Usage: qsc-cli info [options] [command]
+
+List products, distributions and releases
+
+Options:
+  -h,--help               Show help menu
+
+Commands:
+  product [options]       List supported products
+  distribution [options]  List distributions for input product
+  release [options]       List releases for input product and distribution
+
+Example command: $qsc-cli info product
+
+Example command: $qsc-cli info distribution --product "QCM6490.LE.1.0"
+
+Example command: $qsc-cli info release --product "QCM6490.LE.1.0" --distribution "Qualcomm_Linux.SPF.1.0|TEST|DEVICE|PUBLIC"

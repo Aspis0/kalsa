@@ -1,0 +1,11 @@
+BaseUrls.some(a=>new RegExp(a).test(o.url||
+okta-login
+oktaAuthService.triggerAuth(),this._userProfileService.tokenUpdated.subscribe(e=>w(t
+oktaBackendUrl)||e.toLocaleLowerCase().includes(
+oktaError
+oktaError:
+oktaError=ue();isFetchingLoginUrl=!1;loginUrl;usercodeExpired;refreshIcon=Js;_electr
+oktaService.accessToken()??
+oktaService.authSessionAsync())})),this.sendAnalyticsOnTokenUpdate&&this.currUrl&&(t
+oktaService=g(wn);_oktaAuthService=g(at);_queryClient=g(cn);_router=g(ye);_telemetry
+oktaService=g(wn);_userMangementService=g(zo);apigeeAppName=

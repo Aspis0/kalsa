@@ -1,0 +1,7 @@
+http://www.w3.org/2000/svg
+https://www.qualcomm.com/site/privacy
+https://www.qualcomm.com/site/privacy/cookies
+https://www.qualcomm.com/site/privacy/terms-of-use
+https://www.qualcomm.com/site/terms-of-use
+https://www.qualcomm.com/support
+https://www.qualcomm.com/support/contact

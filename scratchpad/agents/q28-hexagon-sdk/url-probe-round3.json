@@ -1,0 +1,134 @@
+[
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/qsc/linux/latest.deb",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/qsc/windows/latest.exe",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/qsc/win/latest.exe",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/qsc/windows/latest.msi",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/qsc/win64/latest.exe",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/latest.exe",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/6.6",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/hexagon-sdk/windows/latest",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/6.6",
+    "status": 403,
+    "ctype": "application/xml",
+    "len": "",
+    "location": "",
+    "error": "Response status code does not indicate success: 403 (Forbidden).",
+    "preview": null,
+    "www_auth": null,
+    "cd": null
+  },
+  {
+    "url": "https://qpm.qualcomm.com/main.js",
+    "status": 200,
+    "ctype": "application/javascript; charset=UTF-8",
+    "len": "5601500",
+    "location": "",
+    "error": null,
+    "preview": null,
+    "www_auth": "",
+    "cd": ""
+  },
+  {
+    "url": "https://www.qualcomm.com/developer/software/hexagon-npu-sdk",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": "",
+    "location": "",
+    "error": null,
+    "preview": null,
+    "www_auth": "",
+    "cd": ""
+  },
+  {
+    "url": "https://docs.qualcomm.com/bundle/publicresource/topics/80-70020-254/build_addn_info.html",
+    "status": 200,
+    "ctype": "text/html",
+    "len": "",
+    "location": "",
+    "error": null,
+    "preview": null,
+    "www_auth": "",
+    "cd": ""
+  }
+]

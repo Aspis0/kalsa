@@ -1,0 +1,216 @@
+
+
+===== RANGE https://softwarecenter.qualcomm.com/catalog/item/Hexagon_SDK?version=6.6.0.0 =====
+HTTP/1.1 200 OK
+Date: Sat, 22 Aug 2026 20:32:52 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 71384
+Connection: keep-alive
+X-Powered-By: Express
+Vary: Accept-Encoding
+Cache-Control: no-cache, no-store, must-revalidate
+ETag: W/"116d8-8eC72mLUF7d+CbJi64d8EOW7TX0"
+
+
+body_len=71384 hex=3C 21 44 4F 43 54 59 50 45 20 68 74 6D 6C 3E 3C 68 74 6D 6C 20 6C 61 6E 67 3D 22 65 6E 22 20 63 6C 61 73 73 3D 22 68 2D 66 75 6C 6C 20 77 2D 66 75 6C 6C 22 20 64 61 74 61 2D 62 65 61 73 74 69 65 73 2D 63 6F 6E 74 61 69 6E 65 72 3E 3C 68 65 ascii=<!DOCTYPE html><html lang="en" class="h-full w-full" data-beasties-container><he
+
+===== RANGE https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/6.6.0.0 =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:32:54 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/6.6.0.0
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:32:54 GMT
+x-request-id: fe12e763-2146-4d0b-9b80-e7ea0e5585e4
+X-Cache: Error from cloudfront
+Via: 1.1 a14a267d508606220614716764dbbd3e.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: hGk2eNOw-igHdg8T5ZpD0A6bI23ybSij5DE02qrBFEYuOUCtQbFZ9Q==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=307 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/6.6.0.0.zip =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:32:57 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/6.6.0.0.zip
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:32:57 GMT
+x-request-id: 65ecae17-4cc8-474f-b592-83fd27ee8dd2
+X-Cache: Error from cloudfront
+Via: 1.1 663d1f2ecede39322c8a8836b25e1bcc.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: zEZpynzW4ygkjcqVjRwLExZSYZLzvEMHrNjYQzDMZcTotZ5R6sDP3A==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=311 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/windows/6.6.0.0.exe =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:32:59 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/windows/6.6.0.0.exe
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:32:59 GMT
+x-request-id: 67ac8124-2139-4720-9b82-fa361d57e518
+X-Cache: Error from cloudfront
+Via: 1.1 645b3b9307ff6780fc1a76b712bc5728.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: I7x2ZrJlg9xOv7rnOCD_H-hFzoG4dgCHpf0O1FXZCqzkdAnrfQpeCw==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=331 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://softwarecenter.qualcomm.com/api/download/software/Hexagon_SDK/6.6.0.0/windows.zip =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:33:01 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/Hexagon_SDK/6.6.0.0/windows.zip
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:33:01 GMT
+x-request-id: e6617cc3-a955-4068-bd31-815934792283
+X-Cache: Error from cloudfront
+Via: 1.1 0923b90a5b7ec988436ae37e0b8c6774.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: xoubxoL07woGj51Hsp-TYTinbRXsIkDrMjJ_V6ufTspP5ngsXdxQcA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=311 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://apigwx-aws.qualcomm.com/qsc/public/v1/api/download/software/Hexagon_SDK/windows/6.6.0.0 =====
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:32:54 GMT
+x-request-id: fe12e763-2146-4d0b-9b80-e7ea0e5585e4
+X-Cache: Error from cloudfront
+Via: 1.1 92a8583818732665d61a5f5d4edba97a.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: GAZfcz6i3YQxMJwIK6MxfHq3V7sMLCWnaabn9Nn9jGO-c2VMjuj4Lg==
+Age: 9
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=307 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://apigwx-aws.qualcomm.com/qsc/public/v1/api/download/software/Hexagon_SDK/6.6.0.0 =====
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:33:05 GMT
+x-request-id: 6a9d18cf-9e9b-43ef-8d6e-067e539b2d51
+X-Cache: Error from cloudfront
+Via: 1.1 a9dc097bbaf22a663c80eb85450d7cce.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: O8_wteGiv_eYYunzVzuECOwiF24hAwMLnQ5-zl2WKQuSvj8ft1mBzA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=299 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://softwarecenter.qualcomm.com/api/download/software/hexagon-sdk/windows/6.6.0.0 =====
+HTTP/1.1 301 Moved Permanently
+Server: awselb/2.0
+Date: Sat, 22 Aug 2026 20:33:07 GMT
+Content-Type: text/html
+Content-Length: 134
+Connection: keep-alive
+Location: https://apigwx-aws.qualcomm.com:443/qsc/public/v1/api/download/software/hexagon-sdk/windows/6.6.0.0
+
+HTTP/1.1 404 Not Found
+Content-Type: application/xml
+Transfer-Encoding: chunked
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:33:07 GMT
+x-request-id: eb1258c1-76e9-4ce5-b3dd-1cb0ebc5ef4d
+X-Cache: Error from cloudfront
+Via: 1.1 0f73566e099d1b7819d92fde74c3925e.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: ozqmg6W4BrLqGsHnaftlZOatoYjDH26HJfO370pIz8D6QiGyUeQ0qQ==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=307 hex=3C 3F 78 6D 6C 20 76 65 72 73 69 6F 6E 3D 22 31 2E 30 22 20 65 6E 63 6F 64 69 6E 67 3D 22 55 54 46 2D 38 22 3F 3E 0A 3C 45 72 72 6F 72 3E 3C 43 6F 64 65 3E 4E 6F 53 75 63 68 4B 65 79 3C 2F 43 6F 64 65 3E 3C 4D 65 73 73 61 67 65 3E 54 68 65 ascii=<?xml version="1.0" encoding="UTF-8"?>.<Error><Code>NoSuchKey</Code><Message>The
+
+===== RANGE https://github.com/snapdragon-toolchain/hexagon-sdk/releases/download/v6.6.0.0/hexagon-sdk-v6.6.0.0-arm64-wos.tar.xz =====
+HTTP/1.1 302 Found
+Date: Sat, 22 Aug 2026 20:33:08 GMT
+Content-Type: text/html; charset=utf-8
+Location: https://release-assets.githubusercontent.com/github-production-release-asset/1074964469/dda1119b-4014-42b7-b6af-807439b299c2?sp=r&sv=2018-11-09&sr=b&spr=https&se=2026-08-22T21%3A12%3A03Z&rscd=attachment%3B+filename%3Dhexagon-sdk-v6.6.0.0-arm64-wos.tar.xz&rsct=application%2Foctet-stream&skoid=96c2d410-5711-43a1-aedd-ab1947aa7ab0&sktid=398a6654-997b-47e9-b12b-9515b896b4de&skt=2026-08-22T20%3A11%3A41Z&ske=2026-08-22T21%3A12%3A03Z&sks=b&skv=2018-11-09&sig=CJ05u%2FwWmjy0JaN869hNZG2rjapYHlV8Lfb9bxDMRXI%3D&jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmVsZWFzZS1hc3NldHMuZ2l0aHVidXNlcmNvbnRlbnQuY29tIiwia2V5Ijoia2V5MSIsImV4cCI6MTc4NzQzNDM4OCwibmJmIjoxNzg3NDMwNzg4LCJwYXRoIjoicmVsZWFzZWFzc2V0cHJvZHVjdGlvbi5ibG9iLmNvcmUud2luZG93cy5uZXQifQ.4meGsnKlFAIYLFRMRypjnSFk9OOO4ZMWl2rFQUZzDbE&response-content-disposition=attachment%3B%20filename%3Dhexagon-sdk-v6.6.0.0-arm64-wos.tar.xz&response-content-type=application%2Foctet-stream
+Vary: X-PJAX, X-PJAX-Container, Turbo-Visit, Turbo-Frame, X-Requested-With, X-GitHub-Client-Version, Sec-Fetch-Site,Accept-Encoding, Accept, X-Requested-With
+Cache-Control: no-cache
+Strict-Transport-Security: max-age=31536000; includeSubdomains; preload
+X-Frame-Options: deny
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Referrer-Policy: no-referrer-when-downgrade
+Content-Security-Policy: default-src 'none'; base-uri 'self'; child-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/; connect-src 'self' uploads.github.com www.githubstatus.com collector.github.com raw.githubusercontent.com api.github.com github-cloud.s3.amazonaws.com github-production-repository-file-5c1aeb.s3.amazonaws.com github-production-upload-manifest-file-7fdce7.s3.amazonaws.com github-production-user-asset-6210df.s3.amazonaws.com *.rel.tunnels.api.visualstudio.com wss://*.rel.tunnels.api.visualstudio.com github.githubassets.com objects-origin.githubusercontent.com copilot-proxy.githubusercontent.com proxy.individual.githubcopilot.com proxy.business.githubcopilot.com proxy.enterprise.githubcopilot.com *.actions.githubusercontent.com wss://*.actions.githubusercontent.com productionresultssa0.blob.core.windows.net productionresultssa1.blob.core.windows.net productionresultssa2.blob.core.windows.net productionresultssa3.blob.core.windows.net productionresultssa4.blob.core.windows.net productionresultssa5.blob.core.windows.net productionresultssa6.blob.core.windows.net productionresultssa7.blob.core.windows.net productionresultssa8.blob.core.windows.net productionresultssa9.blob.core.windows.net productionresultssa10.blob.core.windows.net productionresultssa11.blob.core.windows.net productionresultssa12.blob.core.windows.net productionresultssa13.blob.core.windows.net productionresultssa14.blob.core.windows.net productionresultssa15.blob.core.windows.net productionresultssa16.blob.core.windows.net productionresultssa17.blob.core.windows.net productionresultssa18.blob.core.windows.net productionresultssa19.blob.core.windows.net github-production-repository-image-32fea6.s3.amazonaws.com github-production-release-asset-2e65be.s3.amazonaws.com insights.github.com wss://alive.github.com wss://alive-staging.github.com api.githubcopilot.com api.individual.githubcopilot.com api.business.githubcopilot.com api.enterprise.githubcopilot.com wss://production-copilot-host.webpubsub.azure.com; font-src github.githubassets.com; form-action 'self' github.com gist.github.com copilot-workspace.githubnext.com objects-origin.githubusercontent.com; frame-ancestors 'none'; frame-src viewscreen.githubusercontent.com notebooks.githubusercontent.com; img-src 'self' data: blob: github.githubassets.com media.githubusercontent.com camo.githubusercontent.com identicons.github.com avatars.githubusercontent.com private-avatars.githubusercontent.com github-cloud.s3.amazonaws.com objects.githubusercontent.com release-assets.githubusercontent.com secured-user-images.githubusercontent.com user-images.githubusercontent.com private-user-images.githubusercontent.com opengraph.githubassets.com repository-images.githubusercontent.com marketplace-screenshots.githubusercontent.com copilotprodattachments.blob.core.windows.net/github-production-copilot-attachments/ github-production-user-asset-6210df.s3.amazonaws.com customer-stories-feed.github.com spotlights-feed.github.com explore-feed.github.com objects-origin.githubusercontent.com *.githubusercontent.com; manifest-src 'self'; media-src github.com user-images.githubusercontent.com secured-user-images.githubusercontent.com private-user-images.githubusercontent.com github-production-user-asset-6210df.s3.amazonaws.com gist.github.com github.githubassets.com; script-src github.githubassets.com; style-src 'unsafe-inline' github.githubassets.com; upgrade-insecure-requests; worker-src github.githubassets.com github.com/assets-cdn/worker/ github.com/assets/ gist.github.com/assets-cdn/worker/
+Server: github.com
+Content-Length: 0
+X-GitHub-Request-Id: F64C:EAB60:20791FD:29F97A6:6A8A0784
+x-github-edge-region: iad
+
+HTTP/1.1 206 Partial Content
+Connection: keep-alive
+Content-Length: 80
+Last-Modified: Thu, 14 May 2026 00:29:56 GMT
+ETag: "0x8DEB14FECF426B4"
+Server: Windows-Azure-Blob/1.0 Microsoft-HTTPAPI/2.0
+x-ms-request-id: 207d60c7-b01e-0010-2843-30243d000000
+x-ms-version: 2018-11-09
+x-ms-creation-time: Thu, 14 May 2026 00:29:56 GMT
+x-ms-lease-status: unlocked
+x-ms-lease-state: available
+x-ms-blob-type: BlockBlob
+x-ms-server-encrypted: true
+x-ms-access-tier: Hot
+x-ms-access-tier-inferred: true
+Via: 1.1 varnish, 1.1 varnish
+Accept-Ranges: bytes
+Age: 0
+Date: Sat, 22 Aug 2026 20:33:08 GMT
+X-Served-By: cache-iad-khef600090-IAD, cache-lga21975-LGA
+X-Cache: HIT, MISS
+X-Cache-Hits: 25, 0
+X-Timer: S1787430788.385000,VS0,VE14
+Content-Disposition: attachment; filename=hexagon-sdk-v6.6.0.0-arm64-wos.tar.xz
+Content-Type: application/octet-stream
+Content-Range: bytes 0-79/857553272
+
+
+body_len=80 hex=FD 37 7A 58 5A 00 00 04 E6 D6 B4 46 04 C0 BC B9 F8 04 80 80 80 0C 21 01 16 00 00 00 57 8E 51 FC E2 B8 F6 EF FE 5D 00 1B 0B 9C 04 61 A0 31 6B A2 01 DF 48 D1 7F E7 48 04 6D D2 74 BF C4 94 3C 42 B4 BE 2F 02 4E 9B 98 09 AA 44 E1 85 CB 97 BC 6B ascii=.7zXZ......F..........!.....W.Q......].....a.1k...H...H.m.t...<B../.N....D.....k

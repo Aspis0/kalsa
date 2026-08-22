@@ -1,0 +1,15 @@
+﻿{
+    "qualcomm_exists":  false,
+    "qpm_exists":  false,
+    "found_under_qualcomm":  [
+
+                             ],
+    "qpm_commands":  [
+
+                     ],
+    "ndk_versions":  "27.1.12297006",
+    "cmake_versions":  "3.22.1",
+    "PATH_qualcomm":  [
+
+                      ]
+}

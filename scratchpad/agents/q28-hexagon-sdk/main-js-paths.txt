@@ -1,0 +1,10 @@
+/apiKeys
+/catalog
+/catalog?index
+/catalog/item
+/catalog/no-access
+/catalog/v3/product?product
+/dashboard
+/dashboard/device-quick-start
+/downloads
+/licenses

@@ -1,0 +1,17 @@
+Usage: qsc-cli download [options]
+
+Download a software product
+
+Options:
+  -w, --workspace-path <string>  Specify workspace path
+  --product <string>             Specify software product
+  --build <string>               Specify software product build
+  --distribution <string>        Specify software distribution
+  --release <string>             Specify software release
+  --silent                       Accept warning prompts shown on cli
+  --build-type <string>          Specify the buildtype of the software product.
+                                 Available options are 'compilable' and
+                                 'flashable'
+  --verbose                      To get detailed response
+  -h,--help                      Show help menu
+Example command: $qsc-cli download --workspace-path "/tmp/workspace" --product "QCM6490.LE.1.0" --distribution "Qualcomm_Linux.SPF.1.0|TEST|DEVICE|PUBLIC" --release "r00023.4" 

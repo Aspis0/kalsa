@@ -1,0 +1,2 @@
+Elevated process 32356 started, waiting for exit
+Elevated process 32356 finished, exitcode is 48

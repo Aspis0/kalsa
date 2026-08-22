@@ -1,0 +1,112 @@
+[
+  {
+    "url": "https://softwarecenter.qualcomm.com/catalog/v3/product?product=Hexagon_SDK",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": 70446,
+    "location": "",
+    "error": null,
+    "preview": "<!DOCTYPE html><html lang=\"en\" class=\"h-full w-full\" data-beasties-container><head>     <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>      <script>       window.lastPageView = \"\"       window.path = \"\"       window.analyticsData = function (type, data, visit, url) {         window.data = data         window.visit = visit         window.path = url         window.type =",
+    "final": ""
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/catalog/v3/product?product=Hexagon_SDK&version=6.6",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": 70446,
+    "location": "",
+    "error": null,
+    "preview": "<!DOCTYPE html><html lang=\"en\" class=\"h-full w-full\" data-beasties-container><head>     <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>      <script>       window.lastPageView = \"\"       window.path = \"\"       window.analyticsData = function (type, data, visit, url) {         window.data = data         window.visit = visit         window.path = url         window.type =",
+    "final": ""
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/catalog/v3/product?product=Hexagon_SDK",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": 70446,
+    "location": "",
+    "error": null,
+    "preview": "<!DOCTYPE html><html lang=\"en\" class=\"h-full w-full\" data-beasties-container><head>     <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>      <script>       window.lastPageView = \"\"       window.path = \"\"       window.analyticsData = function (type, data, visit, url) {         window.data = data         window.visit = visit         window.path = url         window.type =",
+    "final": ""
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/v1/catalog/item/Hexagon_SDK",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": 70446,
+    "location": "",
+    "error": null,
+    "preview": "<!DOCTYPE html><html lang=\"en\" class=\"h-full w-full\" data-beasties-container><head>     <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>      <script>       window.lastPageView = \"\"       window.path = \"\"       window.analyticsData = function (type, data, visit, url) {         window.data = data         window.visit = visit         window.path = url         window.type =",
+    "final": ""
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/api/catalog/item/Hexagon_SDK",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": 70446,
+    "location": "",
+    "error": null,
+    "preview": "<!DOCTYPE html><html lang=\"en\" class=\"h-full w-full\" data-beasties-container><head>     <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>      <script>       window.lastPageView = \"\"       window.path = \"\"       window.analyticsData = function (type, data, visit, url) {         window.data = data         window.visit = visit         window.path = url         window.type =",
+    "final": ""
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/downloads",
+    "status": 200,
+    "ctype": "text/html; charset=utf-8",
+    "len": 70446,
+    "location": "",
+    "error": null,
+    "preview": "<!DOCTYPE html><html lang=\"en\" class=\"h-full w-full\" data-beasties-container><head>     <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>      <script>       window.lastPageView = \"\"       window.path = \"\"       window.analyticsData = function (type, data, visit, url) {         window.data = data         window.visit = visit         window.path = url         window.type =",
+    "final": ""
+  },
+  {
+    "url": "https://softwarecenter.qualcomm.com/catalog",
+    "status": 301,
+    "ctype": "text/html; charset=UTF-8",
+    "len": null,
+    "location": "/catalog/",
+    "error": "Response status code does not indicate success: 301 (Moved Permanently).",
+    "preview": null,
+    "final": null
+  },
+  {
+    "url": "https://qpm.qualcomm.com/",
+    "status": 200,
+    "ctype": "text/html; charset=UTF-8",
+    "len": 32270,
+    "location": "",
+    "error": null,
+    "preview": "<script src=\"runtime.js\" type=\"module\"></script><script src=\"polyfills.js\" type=\"module\"></script><script src=\"scripts.js\" defer></script><script src=\"main.js\" type=\"module\"></script><!doctype html> <html lang=\"en\" data-critters-container>  <head>   <script src=\"https://cdn.cookielaw.org/scripttemplates/otSDKStub.js\" type=\"text/javascript\" charset=\"UTF-8\" data-domain-script=\"33091090-ea72-45dd-9f1c-b3a98d577c98\"></script>   <script>     !function (e, a, n, t) {       var i = e.head; if (i",
+    "final": ""
+  },
+  {
+    "url": "https://qpm.qualcomm.com/qpm",
+    "status": 404,
+    "ctype": "text/html; charset=utf-8",
+    "len": null,
+    "location": null,
+    "error": "Response status code does not indicate success: 404 (Not Found).",
+    "preview": null,
+    "final": null
+  },
+  {
+    "url": "https://developer.qualcomm.com/software/hexagon-dsp-sdk",
+    "status": 301,
+    "ctype": "text/html; charset=UTF-8",
+    "len": null,
+    "location": "https://www.qualcomm.com/developer/software/hexagon-npu-sdk?redirect=qdn",
+    "error": "Response status code does not indicate success: 301 (Moved Permanently).",
+    "preview": null,
+    "final": null
+  },
+  {
+    "url": "https://developer.qualcomm.com/software/hexagon-dsp-sdk/tools",
+    "status": 301,
+    "ctype": "text/html; charset=UTF-8",
+    "len": null,
+    "location": "https://www.qualcomm.com/developer/software/hexagon-npu-sdk?redirect=qdn",
+    "error": "Response status code does not indicate success: 301 (Moved Permanently).",
+    "preview": null,
+    "final": null
+  }
+]

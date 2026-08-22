@@ -1,0 +1,4 @@
+[Info]: Starting qsc-cli version 1.11.0 
+This operation requires users to be logged in. Please try login using the below command and try again.
+  qsc-cli login -u <username>
+      

@@ -1,0 +1,44 @@
+
+7z=
+7za=
+sevenzip=
+FIND 'Inno Setup' idx=-1
+FIND 'Nullsoft' idx=-1
+FIND 'NSIS' idx=-1
+FIND 'Squirrel' idx=-1
+FIND 'WiX' idx=-1
+FIND 'Burn' idx=-1
+FIND 'InstallShield' idx=-1
+FIND 'electron-builder' idx=-1
+FIND 'NSIS Error' idx=-1
+FIND 'This setup program' idx=-1
+FIND 'Qualcomm Software Center' idx=-1
+FIND 'QSC' idx=802673
+FIND 'Hexagon' idx=805349
+HELP_EXIT=0
+--- stdout ---
+
+USAGE: QIK COMMAND <args> [-options]
+
+COMMANDS:
+HELP                                                                                              : Print command line usage
+VERSION                                                                                           : Show version
+LOGIN [username password] [-v]                                                                    : Login using Qualcomm credentials
+LOGOUT                                                                                            : Delete cached credentials
+INFO [product]                                                                                    : Show info about product(s)
+INSTALL <package> [-version <x.x.x.x>] [-branch <branch>] [-activatelicense]                      : Install a package
+UNINSTALL <package>                                                                               : Uninstall a package
+UPGRADE <package>                                                                                 : Upgrade the package
+EXTRACT <package> [-version <x.x.x.x>] [-branch <branch>]                                         : Extract a package
+START <product>                                                                                   : Start specified product
+LICENSE LIST [product] [-v]                                                                       : Show license details
+LICENSE ACTIVATE <product/License Group ID>  [-v]                                                 : Activate new license
+LICENSE DEACTIVATE <product/License Group ID/Activation ID>                                       : Deactivate existing license
+FETCH <package> -releasenote [-version <x.x.x.x>] [-branch <branch>] [-targetarch <AnyCPU/ARM64>] : Fetch package release notes
+FETCH <package> -projectfile [-version <x.x.x.x>] [-branch <branch>] [-targetarch <AnyCPU/ARM64>] : Fetch package project file
+
+OPTIONS:
+-Silent : Silent execution (no GUI)
+-ver    : Verbose
+-v      : Version
+--- stderr ---

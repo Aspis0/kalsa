@@ -1,0 +1,16 @@
+
+FileDescription=QIK
+ProductName=QIK
+ProductVersion=1.0.161.0
+FileVersion=1.0.161.0
+CompanyName=Qualcomm Technologies, Inc.
+OriginalFilename=QIKTool.exe
+InternalName=QIKTool.exe
+
+STRING HITS IN FIRST 4MB:
+/QN
+/s
+INNO
+silent
+
+TAIL512=RR.n.Q.. .....@.....@a.*.$...>.4...je..jL.e...s}........w.q.Yf...+............;P.BF..M......Ua......_F.Z^\...T.G....%!.....t..b./B.,.z.N.......t#]._H..v...C...f.x(.2.Z.0..nb.gZ..W......S...p...P..dnv|..F...........X.......&... .....|[.....k...a........O.*.!...4..7.<.T.{.i...$yu!.,.......Z:~F..v......vZ.I.C...i#/P.S.._....*%.Y...........U...E@.......d....R..n"......9..9.y..}.7.]I.....d.....v.V.....V.............2i...Zt_./,.%.d.....H9..as|..<`woH.(.&...8.........#..eq...[......a..*/m.k.] .o$..(Z6.l_.,Z58.....

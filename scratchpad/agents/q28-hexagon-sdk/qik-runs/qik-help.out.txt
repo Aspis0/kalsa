@@ -1,0 +1,24 @@
+
+USAGE: QIK COMMAND <args> [-options]
+
+COMMANDS:
+HELP                                                                                              : Print command line usage
+VERSION                                                                                           : Show version
+LOGIN [username password] [-v]                                                                    : Login using Qualcomm credentials
+LOGOUT                                                                                            : Delete cached credentials
+INFO [product]                                                                                    : Show info about product(s)
+INSTALL <package> [-version <x.x.x.x>] [-branch <branch>] [-activatelicense]                      : Install a package
+UNINSTALL <package>                                                                               : Uninstall a package
+UPGRADE <package>                                                                                 : Upgrade the package
+EXTRACT <package> [-version <x.x.x.x>] [-branch <branch>]                                         : Extract a package
+START <product>                                                                                   : Start specified product
+LICENSE LIST [product] [-v]                                                                       : Show license details
+LICENSE ACTIVATE <product/License Group ID>  [-v]                                                 : Activate new license
+LICENSE DEACTIVATE <product/License Group ID/Activation ID>                                       : Deactivate existing license
+FETCH <package> -releasenote [-version <x.x.x.x>] [-branch <branch>] [-targetarch <AnyCPU/ARM64>] : Fetch package release notes
+FETCH <package> -projectfile [-version <x.x.x.x>] [-branch <branch>] [-targetarch <AnyCPU/ARM64>] : Fetch package project file
+
+OPTIONS:
+-Silent : Silent execution (no GUI)
+-ver    : Verbose
+-v      : Version

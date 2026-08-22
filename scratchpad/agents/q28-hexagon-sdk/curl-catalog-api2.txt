@@ -1,0 +1,275 @@
+
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/software/Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:17 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 734dd528086f4273ac466f3c1bd45b14.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: C1kiJTaDMyEF4kd1mILvmRa4TVl6CRilu6VUEtbptnJtX4L0HTUC_g==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:19 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 a97e58ffc6f61ef3eab965cbc26fc6f0.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: EuQXZqb2shTJ3V7mh6JY_GEOy5nWA_0F8HS3l77LcMXV7J1DBpkZBA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog/search?q=Hexagon =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:21 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 40185075b4d4551b3f16d587d961063c.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: Jt4lag2sMrW146maFDW8I3JLPcEbyP1uvxHtBvsFHYl-RxME8R-pMA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/search?q=Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:22 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 6ebc65a09d2c3461c4855da08264acc4.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: o_7CEKSo3CGp35q8Fb225WYrJ05IIYTOu4hYix6rIIkBM8-qkMuL2w==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/ =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:24 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 67c9dfb38affc3a08786f92219ccc792.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: JG406K77yh9292QKV2Mau0ShKfDncpUUj2dg_7EKhr-_6wjDcfj_Og==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/ =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:26 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 81d12325eefc0deca593ce76681fa256.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: Su-1Xi27rcIe8CwEe1Syp8J5gt47_vTc0yCWUUyjVnclP3uxaibcuA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/swagger.json =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:28 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 9733ed47722484c4e79e66f9a01f7260.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: 2DDlzJpEdWkRAQNDuSPZu5N9tMAtMzvRL9-rILPLEF29gU7pfvrXmw==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/openapi.json =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:30 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 dc6928d732b026211beb221384112f80.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: kzwXQJEJz51LyFNH2SE2AfPZQd-Lo5Iq2EevsfDnqgmp5gOb3REt8g==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/packages?name=Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:31 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 d0868637a3730c2afc20b3628b047a9a.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: T8y1BkaOIxFb0qd90u7bhFMuRdi68Bh3SXV0iNOuHhZrdvKSioR25A==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog/catalog-suite/Qualcomm%20Hexagon%20SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:32 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 9733ed47722484c4e79e66f9a01f7260.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: bxFR_sd2oa545XdtUCO5fNyGjth8ujtWh6YtBKNULs8zZnLod5aIOA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog-suite/Qualcomm%20Hexagon%20SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:32 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 168a3079f6c62f465885c1d82b0b1d5c.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: gkzkjhoPU-EcNjfZgOvcxh9614FpA_5FEMQBx-qgDzb6_kDpS38DvA==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/products =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:34 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 dc6928d732b026211beb221384112f80.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: dGeP_15sza9ft8pKFRjWKtZMq70kb-IJWiDN92t-YXS_-jvvgY5o_g==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/software =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:31:35 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 1600051e9ac5d9cd9f5329cf4d5a06f8.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: cmolcycuzEh0H53iAT2IZVmplfasRTn7ISkoVNTxsRFWSpAFsgJGqw==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=
+
+===== https://qpm.qualcomm.com/qpm/qpm-win64.exe =====
+HTTP/1.1 404 Not Found
+Date: Sat, 22 Aug 2026 20:31:38 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 156
+Connection: keep-alive
+Server: nginx
+X-XSS-Protection: 1; mode=block
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+Content-Security-Policy: default-src 'none'
+
+
+body_len=156 preview=<!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>Cannot GET /qpm/qpm-win64.exe</pre> </body> </html> 
+
+===== https://qpm.qualcomm.com/downloads/qpm-cli-windows.exe =====
+HTTP/1.1 404 Not Found
+Date: Sat, 22 Aug 2026 20:31:40 GMT
+Content-Type: text/html; charset=utf-8
+Content-Length: 168
+Connection: keep-alive
+Server: nginx
+X-XSS-Protection: 1; mode=block
+X-Frame-Options: SAMEORIGIN
+X-Content-Type-Options: nosniff
+Content-Security-Policy: default-src 'none'
+
+
+body_len=168 preview=<!DOCTYPE html> <html lang="en"> <head> <meta charset="utf-8"> <title>Error</title> </head> <body> <pre>Cannot GET /downloads/qpm-cli-windows.exe</pre> </body> </html> 
+
+===== https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/backend/snapdragon/README.md =====
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 13840
+Cache-Control: max-age=300
+Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox
+Content-Type: text/plain; charset=utf-8
+ETag: "84caaf1eb8e7fc68e5e21bcbdd0d968d7685efa3a1f06c05984549c9aa1187e9"
+Strict-Transport-Security: max-age=31536000
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+X-XSS-Protection: 1; mode=block
+X-GitHub-Request-Id: 1626:16978A:5F3EFE:7F04C6:6A8A072B
+x-github-edge-region: iad
+Accept-Ranges: bytes
+Date: Sat, 22 Aug 2026 20:31:40 GMT
+Via: 1.1 varnish
+X-Served-By: cache-lga21933-LGA
+X-Cache: MISS
+X-Cache-Hits: 0
+X-Timer: S1787430700.340742,VS0,VE72
+Vary: Authorization,Accept-Encoding
+Access-Control-Allow-Origin: *
+Cross-Origin-Resource-Policy: cross-origin
+X-Fastly-Request-ID: ae8902c98312cc9c58b92b932dd70e0ea91ff082
+Expires: Sat, 22 Aug 2026 20:36:40 GMT
+Source-Age: 0
+
+
+body_len=13840 preview=# Snapdragon-based devices  ## Setup  ### Android  The easiest way to build llama.cpp for a Snapdragon-based Android device is using the toolchain Docker image (see github.com/snapdragon-toolchain). This image includes Android NDK, OpenCL SDK, Hexagon SDK, CMake, etc.  This method works on Linux, macOS, and Windows. macOS and Windows users should install Docker Desktop.  ``` ~/src/llama.cpp$ docker run -it -u $(id -u):$(id -g) --volume $(pwd):/workspace --platform linux/amd64 ghcr.io/snapdragon-toolchain/arm64-android:v0.7 [d]/> cd /workspace ```  Note: The rest of the **Android** build process assumes that you're running inside the toolchain container.  ### Windows On Snapdragon  Native Windows 11 arm64 builds has the following tools dependencies: - MS Visual Studio 2026 (Community Edition or Pro)   - MSVC arm64 standard and runtime libraries   - UCRT and Driver Kit - LLVM core libraries and Clang compiler (winget) - CMake, Git, Python (winget) - Hexagon SDK Community Edition 6.6 or later (see windows.md) - OpenCL SDK 2.3 or later (see windows.md)  Note: The rest of the **Windows** build process assumes that you're running natively in Powershell. Adapt below build commands accordi
+
+===== https://raw.githubusercontent.com/ggml-org/llama.cpp/master/docs/backend/snapdragon/developer.md =====
+HTTP/1.1 200 OK
+Connection: keep-alive
+Content-Length: 6485
+Cache-Control: max-age=300
+Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; sandbox
+Content-Type: text/plain; charset=utf-8
+ETag: "26b1055fb09570858e4e1f699b0959334074a3e4a5837a002fb5df6c76ea7a8a"
+Strict-Transport-Security: max-age=31536000
+X-Content-Type-Options: nosniff
+X-Frame-Options: deny
+X-XSS-Protection: 1; mode=block
+X-GitHub-Request-Id: 8C72:118104:5F4B06:7F0E6A:6A8A072C
+x-github-edge-region: iad
+Accept-Ranges: bytes
+Date: Sat, 22 Aug 2026 20:31:40 GMT
+Via: 1.1 varnish
+X-Served-By: cache-lga21948-LGA
+X-Cache: MISS
+X-Cache-Hits: 0
+X-Timer: S1787430701.623610,VS0,VE68
+Vary: Authorization,Accept-Encoding
+Access-Control-Allow-Origin: *
+Cross-Origin-Resource-Policy: cross-origin
+X-Fastly-Request-ID: 1a17dc8f0c818afbfd3e2ffa79d59cafc0e81066
+Expires: Sat, 22 Aug 2026 20:36:40 GMT
+Source-Age: 0
+
+
+body_len=6485 preview=# Hexagon backend developer details  ## Backend libraries  The Hexagon backend consist of two parts:    - `libggml-hexagon`     This is the regular CPU-side GGML backend library, either shared or statically linked    - `libggml-htp-vNN`     This is the NPU-side (HTP stands for Hexagon Tensor Processor) shared library that contains the Op dispatcher and kernels.     The correct library is selected automatically at runtime based on the HW version.  Here is an example of the build artifacts  ``` ~/src/llama.cpp$ ls -l pkg-adb/llama.cpp/lib/libggml* pkg-adb/llama.cpp/lib/libggml-base.so pkg-adb/llama.cpp/lib/libggml-cpu.so pkg-adb/llama.cpp/lib/libggml-hexagon.so      <<< CPU library pkg-adb/llama.cpp/lib/libggml-htp-v73.so      <<< HTP op/kernels for Hexagon v73 pkg-adb/llama.cpp/lib/libggml-htp-v75.so pkg-adb/llama.cpp/lib/libggml-htp-v79.so pkg-adb/llama.cpp/lib/libggml-htp-v81.so ```  ## Memory buffers  Hexagon NPU backend takes advantage of the Snapdragon's unified memory model where all buffers are fully accessible by the CPU and GPU. The NPU does have a dedicated tightly-coupled memory called VTCM but that memory is used only for intermediate data (e.g. dynamically quantized ten

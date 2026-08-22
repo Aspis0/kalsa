@@ -1,0 +1,101 @@
+
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog/item/Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:23 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 168a3079f6c62f465885c1d82b0b1d5c.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: NA5gCsSCePTsc_uJ_7p1JP1uEkxJsvSgjrFhMQGQwla9vIaGS0IagQ==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog/item/Hexagon_SDK?os=windows =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:25 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 a97e58ffc6f61ef3eab965cbc26fc6f0.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: CWTo_wJjSr1JJ2pBEkJfioj5lCqH-fapcU2x94nJ9DC1gaIZdVtwzw==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/catalog/item/Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:27 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 bebfdaf3481b8e276dc3fc8a17fefd66.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: hTz7F7IHQZFHAho75iBNBvMW5EFhDP6XtcL1Y2jdHIuIavynOwsE9A==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/catalog/v3/product?product=Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:29 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 ded721d3aeecfb4f35d39da9e2d34066.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: hbymGkGgrupe4kEVzBDzfKgnAiA2A8HKzTtE88-qHfF2YLMsvhx2_g==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/product/Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:30 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 0f73566e099d1b7819d92fde74c3925e.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: EmkJHeQljHcdfQNZzOH4kZrEoJwTTCCkZ-yKIAJHlTCuT0wCS6rR3w==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/products/Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:32 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 fc34781ab7aa403dba42cfccdb88981a.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: sWs0MNG9O3VCUYEhkdccEIjvoz7Pl3H8NmWdiEnPWNbFBX-fIumeJw==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/software/Hexagon_SDK =====
+HTTP/1.1 404 Not Found
+Content-Length: 0
+Connection: keep-alive
+Date: Sat, 22 Aug 2026 20:30:34 GMT
+X-Cache: Error from cloudfront
+Via: 1.1 06b7f1d77ee52f2e46654588c01fafb0.cloudfront.net (CloudFront)
+X-Amz-Cf-Pop: JFK52-P8
+X-Amz-Cf-Id: T3OKdIE7NO8SaYMKUJfQh4HhdIuKn90KDsrdlNQjVg2lv-Qb9fXqZg==
+Strict-Transport-Security: max-age=31536000
+
+
+body_len=0 preview=BIN hex=00 00
+
+===== https://apigwx-aws.qualcomm.com/qsc/public/v1/api/download/software/qsc/windows/latest.exe =====

@@ -41,3 +41,5 @@ models_staging/
 # Build turds that landed in the repo root
 embed.obj
 NUL
+
+upstream-hexagon/

@@ -1,0 +1,55 @@
+EXISTS=False C:\Qualcomm
+EXISTS=True C:\Program Files\Qualcomm
+EXISTS=True C:\Program Files (x86)\Qualcomm
+  d---- 1 QIKService3
+  d---- 1 QIKTool
+  d---- 1 QIKToolV3
+  d---- 1 QPM-CLI
+  d---- 1 Qualcomm_Software_Center
+EXISTS=True C:\ProgramData\Qualcomm
+  d---- 1 bin
+  d---- 1 Catalog
+  d---- 1 LIME
+  d---- 1 QIK
+  d---- 1 Token
+EXISTS=False C:\Users\gualt\AppData\Local\Qualcomm
+EXISTS=False C:\Users\gualt\AppData\Roaming\Qualcomm
+EXISTS=False C:\Users\gualt\AppData\Local\QIK
+EXISTS=False C:\Users\gualt\AppData\Local\QSC
+EXISTS=False C:\Users\gualt\AppData\Roaming\QIK
+EXISTS=False C:\ProgramData\QIK
+EXISTS=True C:\Users\gualt\AppData\Local\Temp\Qualcomm
+  d---- 1 qik
+EXISTS=True C:\Users\gualt\AppData\Local\Temp\QIK
+  d---- 1 Logs
+EXISTS=False C:\Users\gualt\AppData\Local\Temp\QSC
+--- TEMP depth1 ---
+08/13/2026 06:44:06 1 docx-cli-quiet-create-IieqSC
+08/13/2026 06:44:14 1 docx-cli-raw-QSCOgL
+08/13/2026 06:44:23 1 docx-cli-replace-tab-align-qIKsOm
+08/22/2026 16:33:38 1 QIK
+08/22/2026 16:35:40 1 QIKCache
+08/22/2026 16:36:29 1 Qualcomm
+--- TEMP newest 20 ---
+08/22/2026 16:36:41 1 nativelib-loader_18281311928485573873
+08/22/2026 16:36:29 1 Qualcomm
+08/22/2026 16:35:40 1 hsperfdata_gualt
+08/22/2026 16:35:40 1 QIKCache
+08/22/2026 16:35:39 1 nativelib-loader_17073460861377008878
+08/22/2026 16:35:27 1 orasis-fiji
+08/22/2026 16:35:27 2284 orasis-bare-cal-1787430927614.tif
+08/22/2026 16:35:25 1 nativelib-loader_16893384782659849809
+08/22/2026 16:35:11 1 nativelib-loader_11973924194310437781
+08/22/2026 16:34:59 1 nativelib-loader_3980882582316594944
+08/22/2026 16:34:46 1 nativelib-loader_12450126315192851857
+08/22/2026 16:34:35 5698 orasis-previewz-1787430875193.tif
+08/22/2026 16:34:33 1 nativelib-loader_15499610541335725216
+08/22/2026 16:34:25 1 nativelib-loader_4286777307540362094
+08/22/2026 16:34:21 3422 orasis-stack-1787430861585.tif
+08/22/2026 16:34:19 1 nativelib-loader_16672296770853085682
+08/22/2026 16:34:13 2284 orasis-bare-cal-1787430853241.tif
+08/22/2026 16:34:11 1 nativelib-loader_8489214511767344088
+08/22/2026 16:34:07 3422 orasis-stack-1787430847732.tif
+08/22/2026 16:34:06 1 nativelib-loader_3723511638855483319
+--- LOCALAPPDATA dirs match ---
+--- APPDATA dirs match ---
