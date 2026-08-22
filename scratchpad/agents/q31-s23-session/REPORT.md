@@ -5,7 +5,7 @@
 **Do not touch:** Xiaomi (`adb-625689a2-9xEOfw…`), Jelly (`192.168.1.82:35785`). Present on `adb devices`, unused.
 **Budget:** ~60 min, three phases. Battery floor **40%**. Plugged/unplugged declared in every table.
 
-Status: **IN PROGRESS** — Phase 1 DONE (gate closed). Phase 2 DONE (PD granted + CPU=nan isolated). Phase 3 next.
+Status: **DONE** — Phase 1 gate closed. Phase 2 PD granted + CPU=nan isolated. Phase 3 pp512 HTP vs CPU measured.
 
 ---
 
@@ -178,19 +178,80 @@ First FAIL dumps (S23, ANSI stripped) — HTP0 finite, **CPU=nan**:
 
 ## Phase 3 — Qwen3.5-4B pp512 HTP vs CPU
 
-Status: **pending** (starting now). Battery 83% > 40%. Space: 6.2G free; 4B GGUF ~2.3G — fits.
+Status: **DONE.** Raw: `results/htp_smoke/s23_v73/bench_*.{out,err,rc,meta}` + `matmul_proof.txt` + `bench_summary.txt`.
+
+### Model
+
+| Item | Value |
+|------|-------|
+| PC path | `models/draft/Qwen3.5-4B-Q4_0.gguf` |
+| Device | `/data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf` |
+| Size | **2583221408** B (~2.41 GiB) |
+| SHA256 PC = device | `298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb` |
+| `df /data` before push | **6.1G free** (PLAN ~21G was stale) |
+
+### How CPU was disabled
+
+`llama-bench` **NEEDED-links** `libggml-hexagon.so` — renaming it → `CANNOT LINK EXECUTABLE` (`bench_cpu` first attempt, rc=1). CPU arm = **same binaries**, `-ngl 0`, **no** `-dev HTP0`. jsonl `n_gpu_layers=0`, `devices=auto`. HTP session still *opens* (linked backend) but **no** `execute-op` in CPU err (781 B, init only).
+
+HTP arm: `-ngl 99 -dev HTP0 --no-host 1`. `--no-host` is required so llama uses extra buft **HTP0-REPACK**. Without it (proof1/proof2) layers "assign" to HTP0 but **no** `execute-op` — silent CPU, ~78–92 tok/s, discarded.
+
+Upstream `run-bench.sh` also uses `--device HTP0 --load-mode none -ngl 99 -fa 1 --ubatch-size 1024`. Did **not** copy their `--cpu-mask 0xfc -t 6 --poll 1000` (their 8-core mask, not S23).
+
+nseq: llama-bench has **no `--n-seq`**. Default is 1 sequence. Confirmed `sched_reserve: n_seqs = 1`. Hexagon quantized MUL_MAT rejects `src1->ne[2]!=1 \|\| ne[3]!=1`.
+
+### HTP0 proof (not silent CPU)
+
+`bench_proof3.err` (VERBOSE=1, `-v`, same flags as timed HTP):
+
+```
+load_tensors:  HTP0-REPACK model buffer size =  1787.12 MiB
+sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+sched_reserve: graph splits = 51
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.attn_qkv.weight ... q4_0 ... |HTP0-REPACK x HTP0 -> HTP0|hmx-tiled
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.ffn_gate.weight ... |HTP0-REPACK x HTP0 -> HTP0|hmx-tiled
+```
+
+Qwen3.5-4B is **hybrid** (SSM/GDN + FFN): 51 splits, CPU compute buffer 490 MiB. Matmul of q4_0/q4_1 FFN/attn is on HTP; not the whole graph.
+
+### Numbers
+
+llama-bench `-p 512 -n 0 -r 3 --load-mode none -fa on --ubatch-size 1024`. Unplugged.
+
+| arm | plugged | batt | temp °C | ngl | avg tok/s | samples | median |
+|-----|---------|-----:|--------:|----:|----------:|---------|-------:|
+| **HTP** | **NO** | 82%→82% | 27.3→28.6 | 99 | **82.465** ± 5.51 | 84.03, 87.03, 76.34 | 84.03 |
+| **CPU** | **NO** | →80% | →30.1 | 0 | **24.283** ± 1.75 | 22.64, 26.13, 24.08 | 24.08 |
+
+| metric | value |
+|--------|------:|
+| HTP/CPU (avg) | **3.40×** |
+| HTP/CPU (median) | **3.49×** |
+| upstream ref 2B Q4_0 pp512 v73 | 461 tok/s |
+| this 4B HTP vs that 2B ref | 82 / 461 = **0.18×** (different size + hybrid arch; not a regression claim) |
+
+Session battery: **83% start → 80% end**, never below 40%. Always **unplugged**.
 
 ---
 
 ## Gaps
 
-- PLAN `df ~21G` is stale; 6.2G free.
-- Phase 3 not started at this write.
+- PLAN `df ~21G` stale; observed **6.1–6.3G**.
+- Device memory reported **0 MiB** (`get_memory` hardcoded 0 in this commit). Offload still works via `-ngl 99 -dev HTP0 --no-host 1`.
+- URI `error 0x14` on S23 v73 (no `_session=0`); session still opens.
+- CPU disable cannot be "unload .so"; must be `-ngl 0`.
+- 51 graph splits: HTP number is **not** a pure-NPU dense-4B figure.
+- Did not copy upstream `-t 6 --cpu-mask 0xfc --poll 1000`.
+- Xiaomi + Jelly were listed on `adb devices` the whole session; **zero** commands to those serials.
 
 ---
 
 ## Outcome
 
-Phase 1: **1.058× < 2× — packing closed.**
-Phase 2: **PD granted on OneUI retail v73. CPU=nan isolated as harness.**
+| Phase | Result |
+|-------|--------|
+| 1 packing UFS 3.1 | seq/rand **1.058× < 2×** — **packing track CLOSED** (UFS 4.0 was 1.33×; 3.1 is even closer to 1) |
+| 2 HTP v73 retail | **PD GRANTED** (OneUI). hwinfo 4 thr / 4 HVX / 1 HMX / 8 MB VTCM. Quantized MUL_MAT FAIL **CPU=nan on S23 and Xiaomi** → harness, not HTP |
+| 3 pp512 4B | **HTP 82.5 vs CPU 24.3 tok/s = 3.40×**. Matmul proven on HTP0. Unplugged 83%→80% |
+
 

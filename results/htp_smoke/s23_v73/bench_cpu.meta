@@ -1,0 +1,3 @@
+tag=bench_cpu cpu_only=1 ngl=0 no_-dev_HTP0
+env LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64
+cmd=./llama-bench -m /data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf -p 512 -n 0 -r 3 -ngl 0 --load-mode none -fa on --ubatch-size 1024 -o jsonl

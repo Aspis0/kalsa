@@ -1,0 +1,24 @@
+Proof that pp512 matmuls ran on HTP0 (not silent CPU fallback).
+Source: bench_proof3.err  (GGML_HEXAGON_VERBOSE=1, llama-bench -v, --no-host 1, -ngl 99 -dev HTP0)
+
+load_tensors:          CPU model buffer size =   497.31 MiB
+load_tensors:   CPU_REPACK model buffer size =   662.31 MiB
+load_tensors:         HTP0 model buffer size =     3.67 MiB
+load_tensors:  HTP0-REPACK model buffer size =  1787.12 MiB
+
+sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+sched_reserve:       HTP0 compute buffer size =    64.52 MiB
+sched_reserve:        CPU compute buffer size =   490.00 MiB
+sched_reserve: graph splits = 51
+
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.attn_qkv.weight x attn_norm-0 -> node_13|2560:8192 x 2560:512 -> 8192:512|q4_0 x f32 -> f32|...|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8075264|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT|blk.0.ffn_gate.weight x attn_post_norm-0 -> ffn_gate-0|2560:9216 x 2560:512 -> 9216:512|q4_0 x f32 -> f32|...|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8075264|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.0.ffn_down.weight x ffn_swiglu-0 x attn_residual-0 -> l_out-0|9216:2560 x 9216:512 x 2560:512 -> 2560:512|q4_1 x f32 x f32 -> f32|...|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+
+n_seqs=1. Quantized MUL_MAT on HTP requires src1->ne[2]==1 && ne[3]==1 (ggml-hexagon.cpp).
+Qwen3.5-4B is hybrid (SSM/GDN layers + FFN): 51 graph splits, so some work stays on CPU. That is expected, not silent-all-CPU.
+
+bench_proof (HOSTBUF=1, no --no-host): NO execute-op lines, ~78 tok/s — that WAS silent CPU. Discarded as the HTP number.
+bench_proof2 (no --no-host): same, still no REPACK path for llama-bench.
+bench_proof3 (--no-host 1): REPACK + execute-op HTP0. This is the valid HTP config.
+Timed bench_htp used the same flags as proof3 without VERBOSE.

@@ -1,0 +1,6 @@
+tag=bench_htp verbose=0
+env LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64
+env ADSP_LIBRARY_PATH=/data/local/tmp/kalsahtp
+env GGML_HEXAGON_HOSTBUF=unset
+env GGML_HEXAGON_VERBOSE=
+cmd=./llama-bench -m /data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf -p 512 -n 0 -r 3 -ngl 99 -dev HTP0 --load-mode none --no-host 1 -fa on --ubatch-size 1024 -o jsonl
