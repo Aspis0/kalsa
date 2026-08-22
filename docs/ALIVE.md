@@ -1,4 +1,4 @@
-# ALIVE — what is still standing, 2026-08-20
+# ALIVE — what is still standing, 2026-08-22
 
 > **Derivative.** `PLAN.md` is authoritative; this page is a short status view.
 > Git history preserves the long form. If this file and PLAN disagree, PLAN wins.
@@ -67,6 +67,49 @@ to disable) allocating ~6.5GB of anonymous memory — kernel death even at
 immune (`use_extra_bufts=false` is a hard rule). Bench rule on 8GB devices:
 always the no-extra-bufts variant. Separate known bug: FLASH_ATTN `map::at`
 (d_head=64, no guard) — use `-fa off` in GPU benches.
+
+**The speed claim is now PRE-REGISTERED (2026-08-21 evening): SHIP 1.553×.**
+OLMoE confirmatory cell, prereg v1.2 (N≥5 ABBA, tg512-only, cooldown gate,
+battery floor, frozen pins): median **A 16.36 vs B 10.53 t/s = 1.553×**, GPU
+arm cooler (peak 38.4 vs 38.95 °C), 5/5 cool-start blocks, zero exclusions,
+hostile audit BANK (28/28 csv=jsonl instrument-matched). Scope: S23 + OLMoE,
+model fits in RAM. **Same session, KEXP exploratory (NOT ship): A 13.74 vs
+B 7.58 = 1.81×** on LFM2.5-8B-A1B-KEXP with OUR q2/q3 kernels at ngl=99,
+GPU arm cooler again. IMPORTANT: in both cells arm B keeps the trunk on GPU —
+these numbers isolate EXPERT placement only. "GPU beats pure-CPU" (incl.
+dense/trunk) has NEVER been measured: that is arm C (`-ngl 0`) of the KEXP
+N≥5 ship prereg (locked v1.2, session running 2026-08-22). Mellum2 footnote:
+experts-GPU at ngl=2 in the streaming regime is not viable (<0.11 t/s vs
+0.22 dense-GPU/experts-CPU) — the GPU valve pays when the model fits in RAM,
+not against the flash-bandwidth wall.
+
+**21–22/08 cleanup wave, all audited (hostile review on every item):**
+upstream #26476 cherry-picked (dense q6_K 925/925 on device, the 10 historic
+fails closed); **the latent 5th defect is now FIXED and device-VERIFIED**
+(barrier-safe port to q4/q5/q6 MoE kernels: MUL_MAT_ID **407/407** incl. new
+m=96 padding discriminators dispatching the new kernels, no ILA, no CPU
+fallback); llama-bench grew the canonical `-nr/--no-repack` flag (upstream
+default physically powers off 8GB devices — no more hacked .so for benches)
+and FLASH_ATTN now cleanly rejects unsupported head sizes instead of
+crashing on `map::at`; three host nits fixed (ADRENO-only gate guard,
+explicit UNKNOWN_COMPILER, ne01==0 dispatch guard) with device regression
+bit-identical; cvt.cl stale comments fixed while the uniformity port was
+REJECTED by audit and discarded (half-porting device-proven code is worse
+than the documented debt); LANE_MOD classifier proven BIASED by construction
+(hint, never a verdict; raw residue dumps mandatory for session-2).
+
+**Vulkan on Adreno 740 (2026-08-22, first data ever in this campaign): the
+"backend of the future" runs NO K-quants at all.** It initializes, passes
+f16 (242/242), then every K-quant pipeline (q4_K dense, q2/q3/q4_K MoE) dies
+at `createComputePipeline ErrorUnknown` → uncaught vk::SystemError → SIGABRT,
+while `supports_op` reports SUPPORTED. Same device, same day: OpenCL with our
+kernels passes 407/407. On S23-class hardware our OpenCL path is not "the
+faster option" — it is the ONLY working GPU path for quantized MoE.
+
+**Anti-push hardening (owner directive, 2026-08-21):** all third-party git
+remotes REMOVED (llama.cpp submodule: zero remotes; BigMoeOnEdge: Aspis0
+only; Khronos deps: zero) + tested pre-push hooks everywhere. Engine backup
+= rolling bundle in `backups/` inside the outer repo.
 
 ---
 
@@ -227,22 +270,26 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 |---|---|---|
 | ~~1~~ | ~~K2: q4_K/q5_K `MUL_MAT_ID` compute~~ | **CLOSED 2026-08-20** (kalsakernel-v3, see headline) |
 | ~~2~~ | ~~q2_K/q3_K MoE on GPU~~ | **CLOSED 2026-08-21** (kalsakernel-v4: KEXP experts on GPU, 401/401) |
-| 2b | Cherry-pick upstream #26476 (q6_K flat dense scalar) | closes the 10 known dense fails |
-| 2c | Barrier-safe port to q4/q5/q6 siblings (latent, review-found) | separate verification chapter |
-| 2d | KEXP-on-GPU speed cell + N≥10 ship cell + Vulkan-vs-OpenCL satellite + Xiaomi/750 validation | next device sessions |
-| 3 | cvt.cl cosmetics | 2 stale comments plus uniformity on 6 macro consumers; debt, not defect |
-| 4 | LANE_MOD | equidistribution check before reusing classifier; before session-2 classifier |
+| ~~2b~~ | ~~Cherry-pick #26476~~ | **CLOSED 21/08**: dense 925/925 on device |
+| ~~2c~~ | ~~Barrier-safe port q4/q5/q6~~ | **CLOSED 22/08**: device-VERIFIED 407/407 |
+| ~~2d-i~~ | ~~N≥10 ship cell (OLMoE)~~ | **CLOSED 21/08: SHIP 1.553×** (prereg v1.2, audit BANK) |
+| ~~2d-ii~~ | ~~Vulkan-vs-OpenCL satellite~~ | **CLOSED 22/08**: Vulkan runs no K-quants on A740; ratio not estimable |
+| 2d-iii | KEXP N≥5 ship cell A/B/C (+ arm C = first GPU-vs-pure-CPU number ever) | prereg v1.2 locked (`618323c`); **session RUNNING 22/08** |
+| 2d-iv | Xiaomi/750 validation | needs the device |
+| ~~3~~ | ~~cvt.cl cosmetics~~ | **CLOSED 22/08 mixed**: comments fixed; uniformity port audit-REJECTED and dropped (spec on file) |
+| ~~4~~ | ~~LANE_MOD~~ | **CLOSED 22/08: BIASED by construction**; hint-only + raw dumps mandatory for session-2 |
 | 5 | S23 cache cells + absolute lineup | dedicated unplugged device session |
-| 6 | gap ~70 % kernel_kf vs lineup binary | investigate |
-| 7 | **Publish the Adreno MoE OpenCL fix** | dossier: 3 bit-characterized miscompiles and byte-exact reproduction; owner decision |
+| 6 | gap ~70 % kernel_kf vs lineup binary | investigate (diagnosis is plugged-OK; PC recon first) |
+| 7 | **Publish the Adreno MoE OpenCL fix** | dossier at max strength: 4 bit-characterized miscompiles + 5th fixed&verified + repack-killer + novel q2/q3 kernels + pre-registered 1.553× + Vulkan-dead-on-K-quants context; owner decision |
 
 ---
 
 ## 7. THE SCOREBOARD, WITHOUT DECORATION
 
-**1 confirmed and replicated win** (the recipe), **1 shipped app result** (TTFT),
-**1 strong candidate** (expert skipping), **1 real mechanism with no speed payoff**
-(Frozen Draft), and **~25 techniques retired with numbers**.
+**2 confirmed wins** (the recipe with p-values; GPU-experts on A740 with a
+pre-registered 1.553×), **1 shipped app result** (TTFT), **1 strong candidate**
+(expert skipping), **1 real mechanism with no speed payoff** (Frozen Draft),
+and **~25 techniques retired with numbers**.
 
 **Adreno MoE OpenCL kernels: CLOSED 19–20/08.** Three Qualcomm compiler
 miscompiles were fixed; q4_0/q4_1/q5_0/q5_1/mxfp4 pass on Adreno 740. The judge
