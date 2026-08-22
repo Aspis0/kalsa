@@ -1,0 +1,53 @@
+===VK===
+5ff2db3d669c51beb9a6a6d0dab99bdcccbbbdceaa49fd4bcc3a4a4d86aaf297  libggml-vulkan.so
+367ccf39e5d7be6193331aa82cb1401582cd993e00f97217e9df1ff86e7331bc  libggml.so
+5b4685c9b4564907df918e1bf2cd71887c8ebfa8ad18cb2012f4f2f349f7c35d  libggml-base.so
+652e311c73597ee7cd74b0dbeef446567b337c07d25a5f05c942f8e2e86d8a3c  libggml-cpu.so
+a14dba6f891864ebc20c4eebe99a9f33131f73293dc52f0c40bea01f97e4123f  libllama.so
+66e68b1bc372860d1d93db298292a6c3395efcf9afaa546669ac9818c6b13212  libllama-common.so
+c24b311132021a968ab0669a60ed60dc3604ca47166d89e778f6ad77726c6178  test-backend-ops
+b4e9476ee03f270c85d0e9eb2dd578089756075d131dd058456bb039182c7b21  llama-bench
+36b90cd131a2613d70f263f34a3721ffcdc86b6c9bbb5c9b5e103c9b0088fd35  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+===CL===
+bbd700de84e32c30c7ea68725e6ed553c5ac25d842f7d0d9b4271917f79f81ea  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+2e16b95119208c7bb70cf3be444670611259a050480e9923f2790541d3e489a8  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+7547a07298165871f415b835bc66852713ca02afcc43c0d3e3abcb2eca8be2c8  libllama-common.so
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+===MODELS===
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4  /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+===PINS===
+timeout=900000
+brightness=128
+bmode=0
+wifi=1
+===BATT===
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 2280000
+  status: 2
+  level: 60
+  temperature: 282
+===WAKE===
+  mWakefulness=Dozing
+===MEM===
+MemFree:           80080 kB
+MemAvailable:    4761140 kB
+===GOV===
+cpu0:walt
+cpu1:walt
+cpu2:walt
+cpu3:walt
+cpu4:walt
+cpu5:walt
+cpu6:walt
+cpu7:walt

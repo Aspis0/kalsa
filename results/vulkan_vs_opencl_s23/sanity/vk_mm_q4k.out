@@ -1,0 +1,25 @@
+=== VK SANITY tag=vk_mm_q4k ===
+Fri Aug 21 21:34:27 EDT 2026
+PWD=/data/local/tmp/s15vk
+LD_LIBRARY_PATH=/data/local/tmp/s15vk
+CMD=./test-backend-ops -o MUL_MAT -p type_a=q4_K
+=== sha256 before run ===
+5ff2db3d669c51beb9a6a6d0dab99bdcccbbbdceaa49fd4bcc3a4a4d86aaf297  libggml-vulkan.so
+367ccf39e5d7be6193331aa82cb1401582cd993e00f97217e9df1ff86e7331bc  libggml.so
+5b4685c9b4564907df918e1bf2cd71887c8ebfa8ad18cb2012f4f2f349f7c35d  libggml-base.so
+652e311c73597ee7cd74b0dbeef446567b337c07d25a5f05c942f8e2e86d8a3c  libggml-cpu.so
+a14dba6f891864ebc20c4eebe99a9f33131f73293dc52f0c40bea01f97e4123f  libllama.so
+66e68b1bc372860d1d93db298292a6c3395efcf9afaa546669ac9818c6b13212  libllama-common.so
+c24b311132021a968ab0669a60ed60dc3604ca47166d89e778f6ad77726c6178  test-backend-ops
+b4e9476ee03f270c85d0e9eb2dd578089756075d131dd058456bb039182c7b21  llama-bench
+36b90cd131a2613d70f263f34a3721ffcdc86b6c9bbb5c9b5e103c9b0088fd35  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+Testing 2 devices
+
+Backend 1/2: Vulkan0
+  Device description: Adreno (TM) 740
+  Device memory: 7329 MB (7329 MB free)
+
+=== rc=134 ===
+Fri Aug 21 21:34:28 EDT 2026

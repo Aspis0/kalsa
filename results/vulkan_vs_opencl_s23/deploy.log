@@ -1,0 +1,48 @@
+=== deploy s15vk 2026-08-21T21:30:30.4822608-04:00 ===
+drwxrwxrwx 3 shell shell 3452 2026-08-21 21:30 /data/local/tmp/s15vk
+drwxrwxrwx 3 shell shell 3452 2026-08-21 20:55 /data/local/tmp/s3oracle
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-vulkan.so -> /data/local/tmp/s15vk/libggml-vulkan.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-vulkan.so: 1 file pushed, 0 skipped. 81.0 MB/s (47011288 bytes in 0.554s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml.so -> /data/local/tmp/s15vk/libggml.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml.so: 1 file pushed, 0 skipped. 90.1 MB/s (537112 bytes in 0.006s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-base.so -> /data/local/tmp/s15vk/libggml-base.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-base.so: 1 file pushed, 0 skipped. 71.5 MB/s (6103488 bytes in 0.081s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-cpu.so -> /data/local/tmp/s15vk/libggml-cpu.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-cpu.so: 1 file pushed, 0 skipped. 52.6 MB/s (5165048 bytes in 0.094s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama.so -> /data/local/tmp/s15vk/libllama.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama.so: 1 file pushed, 0 skipped. 64.1 MB/s (39807616 bytes in 0.592s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-common.so -> /data/local/tmp/s15vk/libllama-common.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-common.so: 1 file pushed, 0 skipped. 86.5 MB/s (78377224 bytes in 0.864s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\test-backend-ops -> /data/local/tmp/s15vk/test-backend-ops
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\test-backend-ops: 1 file pushed, 0 skipped. 93.6 MB/s (10182432 bytes in 0.104s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\llama-bench -> /data/local/tmp/s15vk/llama-bench
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\llama-bench: 1 file pushed, 0 skipped. 3.6 MB/s (7592 bytes in 0.002s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-bench-impl.so -> /data/local/tmp/s15vk/libllama-bench-impl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-bench-impl.so: 1 file pushed, 0 skipped. 87.6 MB/s (4253152 bytes in 0.046s)
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so -> /data/local/tmp/s15vk/libc++_shared.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so: 1 file pushed, 0 skipped. 90.7 MB/s (1794776 bytes in 0.019s)
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so -> /data/local/tmp/s15vk/libomp.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so: 1 file pushed, 0 skipped. 39.9 MB/s (1229304 bytes in 0.029s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\vulkan_vs_opencl_s23\one_cell_vk.sh -> /data/local/tmp/s15vk/one_cell_vk.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\vulkan_vs_opencl_s23\one_cell_vk.sh: 1 file pushed, 0 skipped. 0.8 MB/s (477 bytes in 0.001s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\vulkan_vs_opencl_s23\run_vk_ops.sh -> /data/local/tmp/s15vk/run_vk_ops.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\vulkan_vs_opencl_s23\run_vk_ops.sh: 1 file pushed, 0 skipped. 2.1 MB/s (911 bytes in 0.000s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\vulkan_vs_opencl_s23\one_cell_cl.sh -> /data/local/tmp/s3oracle/one_cell_cl.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\vulkan_vs_opencl_s23\one_cell_cl.sh: 1 file pushed, 0 skipped. 1.1 MB/s (406 bytes in 0.000s)
+total 186K
+drwxrwxrwx  3 shell shell 3.3K 2026-08-21 21:30 .
+drwxrwx--x 11 shell shell 3.3K 2026-08-21 21:30 ..
+-rw-rw-rw-  1 shell shell 1.7M 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw-  1 shell shell 5.8M 2026-08-21 21:11 libggml-base.so
+-rw-rw-rw-  1 shell shell 4.9M 2026-08-21 21:11 libggml-cpu.so
+-rw-rw-rw-  1 shell shell  45M 2026-08-21 21:22 libggml-vulkan.so
+-rw-rw-rw-  1 shell shell 525K 2026-08-21 21:22 libggml.so
+-rw-rw-rw-  1 shell shell 4.0M 2026-08-21 21:23 libllama-bench-impl.so
+-rw-rw-rw-  1 shell shell  75M 2026-08-21 21:22 libllama-common.so
+-rw-rw-rw-  1 shell shell  38M 2026-08-21 21:22 libllama.so
+-rw-rw-rw-  1 shell shell 1.1M 2026-04-29 08:39 libomp.so
+-rwxr-xr-x  1 shell shell 7.4K 2026-08-21 21:23 llama-bench
+drwxrwxrwx  2 shell shell 3.3K 2026-08-21 21:30 logs
+-rwxr-xr-x  1 shell shell  477 2026-08-21 21:30 one_cell_vk.sh
+-rwxr-xr-x  1 shell shell  911 2026-08-21 21:30 run_vk_ops.sh
+-rwxr-xr-x  1 shell shell  10M 2026-08-21 21:22 test-backend-ops

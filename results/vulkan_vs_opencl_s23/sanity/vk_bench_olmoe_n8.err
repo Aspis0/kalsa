@@ -1,0 +1,25 @@
+ggml_vulkan: Found 1 Vulkan devices:
+ggml_vulkan: 0 = Adreno (TM) 740 (Qualcomm Technologies Inc. Adreno Vulkan Driver) | uma: 1 | fp16: 1 | bf16: 0 | warp size: 64 | shared memory: 32768 | int dot: 0 | matrix cores: none
+ggml_vulkan: Compute pipeline creation failed for mul_mat_vec_q4_k_f32_f32
+ggml_vulkan: vk::Device::createComputePipeline: ErrorUnknown
+0: 0x789ecc91b8 
+1: 0x789ecc90c4 ggml_print_backtrace
+2: 0x789ecde66c 
+3: 0x788dd2c378 
+4: 0x788dd47bcc __cxa_get_exception_ptr
+5: 0x788dd47b40 
+6: 0x78a0d87830 
+7: 0x78a0d4cbc0 
+8: 0x78a0dcb350 
+9: 0x78a0dbf3a8 
+10: 0x78a0d9fe1c 
+11: 0x789ece7eac ggml_backend_sched_graph_compute_async
+12: 0x78913d5288 _ZN13llama_context13graph_computeEP11ggml_cgraphb
+13: 0x78913d4eb8 _ZN13llama_context14process_ubatchERK12llama_ubatch14llm_graph_typeP22llama_memory_context_iR11ggml_status
+14: 0x78913d6788 _ZN13llama_context6decodeERK11llama_batch
+15: 0x78913dc4b8 llama_decode
+16: 0x7897730c8c 
+17: 0x789772aee0 _Z11llama_benchiPPc
+18: 0x789ab40664 __libc_init
+libc++abi: terminating due to uncaught exception of type vk::SystemError: vk::Device::createComputePipeline: ErrorUnknown
+Aborted 

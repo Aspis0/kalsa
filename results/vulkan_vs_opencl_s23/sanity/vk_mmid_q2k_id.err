@@ -1,0 +1,22 @@
+ggml_vulkan: Found 1 Vulkan devices:
+ggml_vulkan: 0 = Adreno (TM) 740 (Qualcomm Technologies Inc. Adreno Vulkan Driver) | uma: 1 | fp16: 1 | bf16: 0 | warp size: 64 | shared memory: 32768 | int dot: 0 | matrix cores: none
+ggml_vulkan: Compute pipeline creation failed for matmul_id_subgroup_q2_k_f32_f16acc_aligned_s
+ggml_vulkan: vk::Device::createComputePipeline: ErrorUnknown
+0: 0x7aafcaa1b8 
+1: 0x7aafcaa0c4 ggml_print_backtrace
+2: 0x7aafcbf66c 
+3: 0x7ab1ad8378 
+4: 0x7ab1af3bcc __cxa_get_exception_ptr
+5: 0x7ab1af3b40 
+6: 0x7aad16a830 
+7: 0x7aad12fbc0 
+8: 0x7aad1ae350 
+9: 0x7aad1a4388 
+10: 0x7aad183164 
+11: 0x7aafcca9f0 ggml_backend_compare_graph_backend
+12: 0x5bb5e2a50c 
+13: 0x5bb5e17df4 
+14: 0x5bb5d92fa0 
+15: 0x7aa8d5c664 __libc_init
+libc++abi: terminating due to uncaught exception of type vk::SystemError: vk::Device::createComputePipeline: ErrorUnknown
+Aborted 
