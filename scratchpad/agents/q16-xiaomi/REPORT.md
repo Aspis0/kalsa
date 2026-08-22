@@ -9,7 +9,7 @@
 **Expected HEAD:** `1882bf8cd` — DO NOT checkout/reset/modify
 **Other device (DO NOT TOUCH):** `adb-R3CW406P8CV...` (SM_S911U / S23)
 
-Status: **COMPLETE** (continuation banked). MUL_MAT_ID 407/407; f16 cluster deterministic fails / non-identical ERR; CPU `-nr` triplet; Doze control. Engine not modified. No git commit/push.
+Status: **PHASE D COMPLETE**. d1 A/C N=5 A/C tg=0.992 (bankable). d2 Marco full-GPU **FAIL-HARD** (kernel reboot); CPU-only N=3 survived. No ngl 99 retry. Engine not modified. No git commit/push.
 
 ---
 
@@ -333,6 +333,107 @@ Houji still Dozes mid-cell (~18 s). Control is **slightly slower**, not faster. 
 
 Doze control C tg128 23.68 (bag 24.28) with `wake_post` still Dozing — does not explain A≈C.
 
-Battery 98% → 94%, unplugged the whole session. Engine HEAD `1882bf8cd` verified, remotes empty, not modified, not pushed.
+**d1 LFM A/C N=5 is the bankable 750 number:** tg median A 24.155 / C 24.338, **A/C = 0.992**. pp A/C = 2.477. All 10 cells `wake_post=Awake`.
+
+**d2 Marco:** GGUF sha match `2f921958…` (6.385 GB). `-ngl 99` smoke returned jsonl then **kernel-rebooted** houji (`uptime 1 min`). Arm A/B cancelled. CPU C N=3 tg median **28.229**. Do not retry GPU offload of this GGUF on the 750.
+
+Battery 98% → 81%, unplugged. Engine HEAD `1882bf8cd` verified, remotes empty, not modified, not pushed.
 
 Raw: `results/xiaomi750_validation/`. Report: `scratchpad/agents/q16-xiaomi/REPORT.md`.
+
+---
+
+## Phase (d) — A/C confirmation + Marco decision table
+
+**Protocol corrections (audit, binding):** (1) sha256sum the GGUF **on-device** before each phase, save in probes. (2) `cells.csv` written **before** aggregation — no glob of `*.out`.
+
+Locked plan: `results/xiaomi750_validation/raw/d/cells.csv` (10 d1 + 9 d2 rows, status=`planned` until run).
+
+Harness (same as phase b): `llama-bench -nr -fa off -t 4 -o jsonl -p 128 -n 128 -r 1` + arm flags. 90s cooldown. Doze recorded, not fought. SHA binaries **per cell**. Floor 40%. Unplugged.
+
+### d1 — LFM A/C N=5 (ACACACACAC)
+
+Status: **DONE** — 10/10 rc=0, all `wake_post=Awake`. Aggregation from `d1_runs.csv` keyed by `cells.csv` d1 tags (no glob). Battery 90%→87%.
+
+Per-cell tg128 / pp128:
+
+| cell | arm | tg128 | pp128 |
+|------|-----|------:|------:|
+| d1_c01 | A | 21.902 | 87.388 |
+| d1_c02 | C | 22.804 | 32.171 |
+| d1_c03 | A | 24.589 | 88.212 |
+| d1_c04 | C | 25.094 | 35.764 |
+| d1_c05 | A | 24.999 | 88.080 |
+| d1_c06 | C | 25.075 | 35.554 |
+| d1_c07 | A | 23.632 | 87.918 |
+| d1_c08 | C | 23.674 | 35.410 |
+| d1_c09 | A | 24.155 | 88.133 |
+| d1_c10 | C | 24.338 | 35.745 |
+
+| Arm | N | tg128 median | tg range | tg pstdev | pp128 median | pp range |
+|-----|--:|-------------:|---------:|----------:|-------------:|---------:|
+| A | 5 | **24.155** (21.902, 23.632, 24.155, 24.589, 24.999) | 3.097 | 1.077 | **88.080** | 0.824 |
+| C | 5 | **24.338** (22.804, 23.674, 24.338, 25.075, 25.094) | 2.290 | 0.873 | **35.554** | 3.593 |
+
+**A/C tg = 0.992** (N=3 exploratory was 1.008). Parity holds; C slightly faster on the N=5 median. **A/C pp = 2.477**. First pair (c01/c02) is the slow tail on both arms; not dropped. All sha_gguf `b07c8087…` per cell.
+
+| Item | Value |
+|------|-------|
+| Order | A C A C A C A C A C |
+| N per arm | 5 |
+| Model | LFM2.5-8B-A1B-KEXP.gguf |
+| GGUF sha on-device (this phase) | `b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4` (probe `raw/d/probes/d1_gguf_sha_device.txt`, matches prereg) |
+| Battery pre | 90% / 32.9 °C / USB AC Wireless false |
+
+### d2 — Marco-KEXP: **fit-gate FAIL-HARD** (no more ngl=99 on this device)
+
+**DO NOT re-run `-ngl 99` Marco smoke on houji.** The crash is the verdict.
+
+| Item | Value |
+|------|-------|
+| GGUF PC | `models/Marco-Mini-Instruct-KEXP.gguf` size **6385238848** (~6.385 GB) sha `2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777` |
+| GGUF on-device | `/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf` **same sha** (no push) |
+| Preflight | smoke `-ngl 99 -nr -p 16 -n 8 -r 1` |
+| Smoke wall | 88.6 s |
+| Smoke llama-bench rc | **0** (jsonl returned) |
+| Last seen output | pp16 `avg_ts=20.401510` ; tg8 `avg_ts=23.910132` ; `no_repack=true` ; `n_gpu_layers=99` ; model `qwen3moe` 17.25B params |
+| MemAvailable after smoke (last adb line) | 6704924 kB |
+| Battery at smoke | 87%, 33.2 °C, unplugged |
+| Owner report | **device CRASHED** during/after this smoke (hypothesized GPU OOM-reboot / oomwall-class) |
+| Timestamp (smoke jsonl) | `2026-08-22T19:22:24Z` / `19:22:25Z` |
+| Verdict | **full-GPU fit-gate FAIL-HARD — allocation crashes the device** |
+
+**Post-smoke timeline (honest):**
+
+| Time (local EDT) | What |
+|------------------|------|
+| 15:22:24–25 | smoke jsonl returned rc=0 (pp16 20.40, tg8 23.91) |
+| 15:22:40 | logcat crash: `crash_dump helper failed to exec, or was killed` (twice) |
+| ~15:23 | first owner “crash”: adb still up, **`uptime 6 days`** — not a kernel reboot. Load 25 then idle. |
+| 15:24 | started safe C harness; it printed only `cooldown 90s before first safe C` — **zero C cells launched** |
+| ~15:24–15:25 | **kernel reboot** (owner: “xiaomi resetted”) |
+| 15:25:51 | reconnected, transport_id 250→**268**, **`uptime 1 min`**, load 44, batt 84% 38.1 °C unplugged |
+
+Verdict remains: **ngl=99 Marco = FAIL-HARD** (delayed watchdog reboot after GPU smoke). Do **not** retry A/B. Arm C never ran before the reboot.
+
+After reboot: `kalsa16/` intact. Marco gguf still 6385238848 B. crash logcat ring empty (wiped). Safe C N=3 ran **after** reboot (no ngl 99). Device stayed up (`uptime 10 min` at end).
+
+**Arm C only (N=3, `-ngl 0 -nr`, mmap).** A/B cancelled in `cells.csv` (`cancelled_fitgate_failhard`). Bankable numbers = on-disk jsonl for tags `d2_c03_C`, `d2_c04_C`, `d2_c09_C` (matches the completed second harness). `d2_runs.csv` also contains **2 extra rows** from a zombie first harness that raced after the kill+reboot — **excluded** (c04 22.654 tg / c09 11.610 tg). Clean copy: `d2_runs_clean.csv`.
+
+| cell | tg128 | pp128 | batt T | ngl | no_repack |
+|------|------:|------:|--------|----:|-----------|
+| d2_c03_C | 27.659 | 35.103 | 38.6 | 0 | true |
+| d2_c04_C | 28.229 | 41.784 | 38.9 | 0 | true |
+| d2_c09_C | 31.078 | 45.827 | 37.9 | 0 | true |
+| **median** | **28.229** | **41.784** | | | |
+
+Warm bag (37.9–38.9 °C post-reboot). CPU mmap of 6.4 GB **did not** reboot the phone.
+
+### Decision table LFM vs Marco (750)
+
+| | LFM KEXP (fits GPU) | Marco-Mini-Instruct-KEXP ~6.4 GB |
+|--|---------------------|----------------------------------|
+| GPU A (`-ngl 99`) | tg med **24.155** (N=5) | **FAIL-HARD** (device kernel reboot after smoke) |
+| B trunk-GPU | not in d1 | **not run** (no owner auth) |
+| C CPU `-ngl 0 -nr` | tg med **24.338** / pp **35.554** (N=5) | tg med **28.229** / pp **41.784** (N=3) |
+| A/C tg | **0.992** | n/a (no A) |

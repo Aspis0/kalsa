@@ -121,3 +121,51 @@ Status: **UNVERIFIABLE as written; several scoped subfacts CONFIRMED**.
 **BANK-WITH-CORRECTIONS** — bank the session only as exploratory/device-diagnostic evidence, with the claim-3 classification corrected, c10 excluded by an explicit set definition, current GGUF identity marked unverified, and all reference-protocol/ship interpretations blocked. 
 
 BANK-WITH-CORRECTIONS
+
+## Phase d audit
+
+Status: complete. Scope: on-disk evidence only; no device/ADB access, reruns, git operations, or writes outside this report.
+
+### Claim d1 — LFM ACACACACAC, N=5/arm
+
+Status: **CONFIRMED, with a provenance caveat**.
+
+Evidence and recomputation:
+
+- `results/xiaomi750_validation/raw/d/cells.csv:2-11` declares exactly ten d1 rows in ACACACACAC order: five A (`-ngl 99`) and five C (`-ngl 0`), all `done`. The d1 runner explicitly loads only `^d1,` rows, rejects a count other than ten, and says “No glob” (`results/xiaomi750_validation/raw/d/run_d1.ps1:33-41`). The corresponding `d1_runs.csv` has ten data rows and every rc is `0` (`results/xiaomi750_validation/raw/d/d1_runs.csv:1-11`; the ten `.rc` files independently contain `0`).
+- `wake_post` is `mWakefulness=Awake` in every d1 post-wake probe; the run CSV also records Awake for every row (`results/xiaomi750_validation/raw/d/probes/d1_c01_A_wake_post.txt:1`; same-named probes for c02–c10; `results/xiaomi750_validation/raw/d/d1_runs.csv:2-11`). All ten per-cell GGUF lines are the same full LFM hash `b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4` (`results/xiaomi750_validation/raw/d/probes/d1_c01_A_sha.txt:4`; c02–c10 likewise), and the phase-start device-side probe exists and says `match=YES` (`results/xiaomi750_validation/raw/d/probes/d1_gguf_sha_device.txt:1-7`). This closes the previous on-device-hash gap for d1.
+- Parsing all twenty JSON objects from the ten d1 `.out` files gives, at full precision: A tg `[21.902063,23.632221,24.155226,24.589192,24.999394]`, median `24.155226`; C tg `[22.803582,23.673893,24.338497,25.075062,25.093543]`, median `24.338497`; A pp median `88.079815`; C pp median `35.554156`. Therefore A/C tg = `0.992469912994216` -> `0.992`, and A/C pp = `2.47734231126173` -> `2.477`. The saved summary agrees (`results/xiaomi750_validation/raw/d/d1_summary.txt:2-7`).
+- Battery probes show unplugged/discharging status for all ten cells (for example `results/xiaomi750_validation/raw/d/probes/d1_c01_A_batt_pre.txt:2-4,10,13`; the same fields are present for c02–c10). The d1 run rows show the expected 90% to 87% decline (`d1_runs.csv:2-11`).
+
+The lock is operational rather than cryptographic: `cells.csv` was created before `d1_runs.csv`, and the runner uses the declared rows, but `cells.csv` was later modified for d2 (its LastWriteTime is later). There is no pre-aggregation hash/snapshot of the d1 plan. That does not refute the ten-row arithmetic, but it weakens the word “locked.”
+
+### Claim d2 — Marco smoke/reboot and surviving CPU arm
+
+Status: **PARTIALLY CONFIRMED; timing/cause require correction**.
+
+Confirmed from disk:
+
+- The PC and device probes record the same 6,385,238,848-byte file and full SHA-256 `2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777` (`results/xiaomi750_validation/raw/d/probes/d2_gguf_sha_pc.txt:1-3`; `d2_gguf_sha_device.txt:1-9`). The smoke is valid JSONL, rc=0 (`results/xiaomi750_validation/raw/d/d2_smoke.rc:1`; `d2_smoke.out:1-2`), with `-ngl 99`, pp16 `20.401510`, tg8 `23.910132`, commit `1882bf8cd`, and `no_repack=true` (`d2_smoke.out:1-2`).
+- No d2 A/B cell artifacts exist under `raw/d`; the only A/B mentions are cancelled plan rows in `cells.csv:12-13,16-19`, all `cancelled_fitgate_failhard`. The CPU C plan is exactly c03/c04/c09 (`cells.csv:14-15,20`), and the C runner selects only `planned_safe_cpu_only`, requires count 3, and forbids the GPU path (`results/xiaomi750_validation/raw/d/run_d2_c.ps1:31-39`).
+- The three surviving JSONL cell files each contain pp/tg pairs: c03 `35.102602/27.659435`, c04 `41.783727/28.228514`, c09 `45.827020/31.077595` (`results/xiaomi750_validation/raw/d/cells/d2_c03_C.out:1-2`; c04 and c09 likewise). All have `n_gpu_layers=0`, `no_repack=true`, `n_threads=4`, `flash_attn=0`, commit `1882bf8cd`, and rc=0 (`d2_c03_C.out:1-2`; `d2_c03_C.rc:1`; corresponding c04/c09 files). Full-precision medians are tg `28.228514` -> `28.229` and pp `41.783727` -> `41.784`.
+- Battery/thermal/wake probes exist for all three C cells. They are unplugged, status 3, level 82%, and Awake both before and after; pre temperatures are 38.6/38.9/37.9 C (`results/xiaomi750_validation/raw/d/probes/d2_c03_C_batt_pre.txt:2-4,10,13,18`; corresponding c04/c09; wake probes at each `*_wake_pre.txt:1` and `*_wake_post.txt:1`).
+
+The saved timeline proves a reset happened, but not the full causal story. The smoke timestamps are 15:22:24–25 local-equivalent UTC records (`d2_smoke.out:1-2`); crash-buffer lines at 15:22:40 and 15:22:42 say only that `crash_dump` failed or was killed (`results/xiaomi750_validation/raw/d/d2_logcat_crash.txt:3017-3018`). A later logcat capture is still alive through 15:23:30 (`d2_logcat_t500.txt:453-515`), then the first post-reset probe at 15:26:33 reports `up 1 min` (`results/xiaomi750_validation/raw/d/probes/d2_post_kernel_reboot.txt:1-4`). Thus “a reboot/reset occurred after the smoke” is supported; “~3 minutes later,” “kernel reboot” as the exact mechanism, and “delayed watchdog/GPU OOM cause” are not directly proven by the saved logs. The after-reboot crash capture is empty (zero bytes), so it cannot fill that gap (`results/xiaomi750_validation/raw/d/d2_logcat_crash_after_reboot.txt`, size 0).
+
+The report does disclose the duplicate-run problem, but it is material: `d2_runs.csv:2-6` contains c04/c09 twice, with conflicting values (22.654059 and 11.610494 in the first-harness rows versus 28.228514 and 31.077595 in the later rows). `d2_runs_clean.csv:1-4` is a hand-selected derivative. The final cell JSONL and its timestamps match the later rows, and the exclusion is stated in the session report (`scratchpad/agents/q16-xiaomi/REPORT.md:419-421`), so this is not a silent exclusion; however, a run ID/hash or immutable per-run archive is missing.
+
+### Hostile extras
+
+- **Crash versus reboot:** the session report makes the right conceptual distinction: first an owner-observed “crash” while ADB allegedly remained up, then a later reset with uptime back to one minute (`scratchpad/agents/q16-xiaomi/REPORT.md:411-415`). The raw record independently supports only part of this. `d2_logcat_t500.txt:453-515` shows the device/logging path still alive through 15:23:30, and `d2_post_kernel_reboot.txt:1-2` shows a post-reset capture at 15:26:33 with `up 1 min`. The raw archive has no `uptime 6 days`, transport-id 250→268, or “xiaomi resetted” record. Do not misread `d2_postcrash_battery.txt:7` (`+6d2h...`) as uptime: it is the age of a battery broadcast. The first event is therefore **UNVERIFIABLE from disk**; the later reset is **CONFIRMED as an occurrence**, while its exact mechanism and cause remain **UNVERIFIABLE**.
+- **Exclusions:** d1 has a declared ten-row set and ten outputs/rcs. d2 has nine declared rows: six cancelled A/B rows and three completed C rows (`results/xiaomi750_validation/raw/d/cells.csv:12-20`), and no A/B cell artifacts were found. This is not a silent cell exclusion. The duplicate c04/c09 records in `d2_runs.csv` are disclosed by the report, but the clean CSV is a post-hoc selection and lacks an immutable run identifier. The audit correction is to treat the final `.out` files as the cited evidence and preserve/identify both harness attempts; do not present `d2_runs.csv` as a one-row-per-cell ledger.
+- **Marco C spread:** tg values span `27.659435` to `31.077595`, absolute range `3.418160`, which is `12.11%` of the median (`28.228514`) and a max/min ratio of about `1.1235`. pp spans `35.102602` to `45.827020`, a `10.724418` range, `25.67%` of its median (`41.783727`), max/min about `1.3055`. N=3 is too small for a stability claim, and each cell has one sample. The median is mechanically valid as a descriptive table row, but it must carry a spread/N=3 caveat; it is not robust enough to be shown as a precise stable benchmark.
+- **Single-sample honesty:** every d1 JSON object has one `samples_ts` value and `stddev_ts=0` (for example `results/xiaomi750_validation/raw/d/cells/d1_c01_A.out:1-2`), and the same is true of all six d2 C JSON objects (for example `raw/d/cells/d2_c03_C.out:1-2`). The d1 N=5 and d2 N=3 medians are medians across cell-level point estimates, not medians-of-repeated trials within each cell. That aggregation is honest if labeled exactly that way; the zero stddev must not be read as evidence of low measurement noise.
+- **Unstated phase-d confound:** all surviving Marco observations are post-reset CPU-only C observations. There is no Marco A/B measurement, so no within-model A/C or A/B performance comparison is identifiable. The C bag is also warm (`37.9–38.9 C` post-cell temperatures; `results/xiaomi750_validation/raw/d/d2_runs.csv:3-6`), and the reboot/reset state is a session boundary. The table can support “CPU-only survived after the fit-gate event,” not a clean full-model arm comparison.
+
+### Phase d verdict
+
+Claim d1: **CONFIRMED** (with the non-cryptographic plan-lock and single-sample caveats above).
+
+Claim d2: **UNVERIFIABLE as literally phrased** for the exact “~3 minutes” timing and kernel/watchdog/GPU-OOM causal label; the hash pair, smoke JSONL, reset occurrence, cancelled A/B set, and C median are **CONFIRMED** from disk.
+
+**BANK-WITH-CORRECTIONS** — bank d1 and the explicitly scoped d2 fit-gate/CPU-survival facts; correct the reboot wording to separate observed reset from inferred cause/timing, retain the duplicate-run warning, and attach the Marco C spread caveat.

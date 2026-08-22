@@ -1,0 +1,3 @@
+pc_path=C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf
+pc_size=6385238848
+pc_sha256=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777

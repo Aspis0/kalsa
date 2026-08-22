@@ -365,9 +365,19 @@ Two more findings, both dossier-grade:
   CPU is ~4× faster → honest ratio 1.43× (CPU repack) / 2.62× (CPU -nr),
   the historical 5.77× was a weak CPU baseline.
 
+**Phase d (same evening, audit BANK-w-corrections):** the A/C parity was
+confirmed at **N=5 with clean protocol** (10/10 cells, all Awake, gguf hashed
+on-device): **decode A/C 0.992, prefill 2.477**. And the product model got its
+750 verdict the hard way: **Marco-KEXP 6.385G full-GPU = kernel reboot**
+(fit-gate FAIL-HARD — the smoke even returned valid jsonl before the device
+died; never retry full-GPU on this gguf/device). Surviving CPU row (N=3,
+~12% spread caveat): **tg 28.2 / pp 41.8** — Marco fits in the Xiaomi's RAM
+and runs ~3.4× the S23's 8.2 t/s, where it does not fit: **fit dominates
+every optimization**.
+
 Provenance gap on file: device-side gguf hash not recorded in phases b/c
-(binary pinning is per-cell and solid; model pinning is PC-side only) — future
-harnesses must hash the model on-device. Evidence
+(binary pinning is per-cell and solid; model pinning is PC-side only) — fixed
+in phase d, mandatory for future harnesses. Evidence
 `results/xiaomi750_validation/`, audit `scratchpad/agents/q16-xiaomi-audit/`.
 
 ## 6. OPEN QUEUE — what is left to finish

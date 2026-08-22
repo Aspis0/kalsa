@@ -1,0 +1,7 @@
+source=d1_runs.csv keys_from=cells.csv d1 tags only (no glob)
+nA=5 nC=5
+A_tg=21.902063,23.632221,24.155226,24.589192,24.999394
+C_tg=22.803582,23.673893,24.338497,25.075062,25.093543
+A_tg_median=24.155226 C_tg_median=24.338497 A_over_C_tg=0.992470
+A_tg_range=3.097331 C_tg_range=2.289961 A_tg_pstdev=1.077256 C_tg_pstdev=0.872933
+A_pp_median=88.079815 C_pp_median=35.554156 A_over_C_pp=2.477342

@@ -275,13 +275,27 @@ nei raw S23). Tre verdetti:
    (vs CPU repack) e **2.62×/3.18×** (vs CPU `-nr`). Il 5.77× storico era
    una baseline CPU debole, non una GPU migliore.
 
-Gap di provenance a verbale (audit): hash gguf lato device NON registrato in
-fase b/c (pinning binari sì, per-cella; modello solo hash PC in fase b) — i
-prossimi harness devono hashare il modello on-device. Evidenza
-`results/xiaomi750_validation/`, report `scratchpad/agents/q16-xiaomi/`,
-audit `scratchpad/agents/q16-xiaomi-audit/`. Follow-up naturali: cella
-confermativa prereg'd A/C sul 750 (schermo gestito via harness), #22-bis
-Marco-KEXP sul 750, segnalazione upstream del cluster f16.
+5. **Fase d (stessa sera, audit Luna BANK-w-corrections):** (a) **conferma A/C
+   su LFM-KEXP a N=5** — 10 celle ACACACACAC, 10/10 rc=0, TUTTE Awake, gguf
+   hashato on-device (correzione audit applicata): **A/C decode 0.992,
+   prefill 2.477**. La parità decode sul 750 non è più esplorativa: è un
+   numero con protocollo. (b) **Marco-KEXP 6.385G sul 750: fit-gate
+   FAIL-HARD** — lo smoke `-ngl 99` restituisce perfino jsonl valido
+   (pp16 20.4, tg8 23.9) e il device subisce un **kernel reboot** poco dopo
+   (uptime 1 min al reconnect; il nesso causale e il timing "~3 min" sono
+   inferenza, a verbale). MAI più full-GPU su questo GGUF/750. Arm A/B
+   cancellati; riga C sopravvissuta (N=3, spread ~12%, caveat): **tg 28.2 /
+   pp 41.8** — Marco in RAM sul 750 fa ~3.4× l'S23 (8.2, dove NON sta in
+   RAM: il fit domina qualunque ottimizzazione. Nota: il primo "crash"
+   osservato dall'owner era thrashing con uptime ancora 6 giorni; il reboot
+   vero è successivo — disentangled nel report).
+
+Gap di provenance a verbale (audit, fasi b/c — CORRETTO in fase d): hash gguf
+lato device non registrato in b/c; i prossimi harness lo hashano on-device
+(fase d già conforme). Evidenza `results/xiaomi750_validation/`, report
+`scratchpad/agents/q16-xiaomi/`, audit `scratchpad/agents/q16-xiaomi-audit/`.
+Follow-up naturali: #22-bis chiuso di fatto (Marco-750: C-only, fit-gate
+FAIL-hard per la GPU), segnalazione upstream del cluster f16 (dossier #8).
 
 ## LA SPIEGAZIONE SEMPLICE (per non fraintendersi mai più, 22/08)
 
@@ -306,10 +320,12 @@ Tre configurazioni sul KEXP (S23, misurate):
   invariata ma CPU head 4× più veloce di agosto → onesto **1.43×** (vs CPU
   repack) / **2.62×** (vs CPU -nr) a pp128, cresce a pp512. Su 740 il
   misurato resta 1.12× (lane K-G, non vale).
-- **⚠️ La regola "velocità → CPU pura" è del 740/S23**: sul **750** la
-  sessione #16 (esplorativa N=3) dà **A≈C in decode e A=2.21× in prefill**
+- **⚠️ La regola "velocità → CPU pura" è del 740/S23**: sul **750** la #16
+  dà **parità decode (A/C 0.992, N=5 con protocollo) e prefill A=2.48×**
   sul KEXP — sul 750-class la GPU piena coi nostri kernel è candidata
-  default, serve la cella confermativa.
+  default per i modelli che ci stanno. Limite duro: il fit — Marco 6.4G
+  full-GPU sul 750 = kernel reboot (fit-gate FAIL-hard), e in RAM su CPU fa
+  comunque 28.2 t/s (3.4× l'S23 dove non sta in RAM).
 - **NPU (HTP)**: bocciata con evidenza (carica 0.67 MiB di pesi = non
   carica il modello; PowerInfer-2 chiuso). Fisica: il decode è
   DRAM-bound, l'NPU non ha banda sua. Termometro `nspss-*` già leggibile

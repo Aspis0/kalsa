@@ -1,0 +1,9 @@
+phase=d2
+pc_path=C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf
+pc_size=6385238848
+pc_sha256=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+device_path=/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf
+device_sha256=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+match=YES
+pushed=NO (already on device, sha match)
+when=phase_d2_start
