@@ -102,10 +102,10 @@ index 080bc20..8014f35 100644
  
      bool single_turn       = false; // single turn chat conversation
 diff --git a/node_modules/llama.rn/cpp/ggml-cpu.h b/node_modules/llama.rn/cpp/ggml-cpu.h
-index 1024e5f..7fc2499 100644
+index 1024e5f..8f505fc 100644
 --- a/node_modules/llama.rn/cpp/ggml-cpu.h
 +++ b/node_modules/llama.rn/cpp/ggml-cpu.h
-@@ -140,6 +140,23 @@ extern "C" {
+@@ -140,6 +140,35 @@ extern "C" {
  
      LM_GGML_BACKEND_API lm_ggml_backend_reg_t lm_ggml_backend_cpu_reg(void);
  
@@ -118,8 +118,20 @@ index 1024e5f..7fc2499 100644
 +    //
 +    // Upstream has no equivalent; the eval-callback (the only public hook near routing) fires
 +    // before a layer's expert matmuls run and cannot pause partway through them, which is exactly
-+    // what overlapping reads with compute needs. Vendored from kalsa-engine's
-+    // `bmoe/expert-ready-hook` branch. Delete this the day upstream ships a residency callback.
++    // what overlapping reads with compute needs.
++    //
++    // PROVENANCE — this is NOT a hand-written edit. Single source of truth:
++    //   kalsa-moe-experiments/kalsa-engine/third_party/llama.cpp
++    //     ggml/include/ggml-cpu.h            (this declaration)
++    //     ggml/src/ggml-cpu/ggml-cpu.c       (the globals, the setter, the call site in mul_mat_id)
++    //   upstream lineage: Helldez/llama.cpp branch `bmoe/expert-ready-hook`, one commit on top of
++    //   ggml-org/llama.cpp master (see kalsa-engine/docs/seam.md section 3).
++    // The code here is character-identical to that fork modulo llama.rn's `lm_` symbol prefix.
++    // To re-derive after a llama.rn bump, diff against those two files rather than editing this
++    // by hand — a hand edit is how the app's copy silently drifts from the engine that is measured.
++    // NOT a GPU kernel: this is the CPU backend only, and nothing here touches the Adreno OpenCL
++    // work, which is a separate lineage and is not ported into the app.
++    // Delete all of it the day upstream ships a residency callback.
 +    typedef void (*lm_ggml_cpu_expert_ready_hook_t)(const struct lm_ggml_tensor * src0, int expert, void * user_data);
 +
 +    // Process-global registration; pass NULL to unregister. NOT thread-safe against a running
