@@ -19,11 +19,14 @@ before repeating it.
 **The product**
 - Two tiers, both LFM2 (owner, `KALSA.md` §10): fast = **LFM2.5-8B-A1B-KEXP**, quality+vision =
   **LFM2.5-VL-3B**. Nothing ships yet; there is no installed base.
-- ⭐ **The quality measurement now argues against keeping any 8B** (§7.38). LFM2.5-2.6B beats KEXP in
-  three independent configurations (p = 0.006 / 0.021 / 0.039), essentially never drifts out of the
-  question's language where the 8B tiers do ~30 % of the time, is 1.67 GB against 3.33, and shares
-  its backbone with the VL-3B we already picked as the quality tier. What KEXP still buys is speed:
-  848 MB/token against 1666, and 39 s against 56 s per median answer on the Jelly.
+- ⭐ **The quality measurement argues against keeping the 8Bs, but on language and size, NOT on
+  quality** (§7.38, corrected the same day). Best score per model: 2.6B@512 **37/44**, 8B-A1B@256 35,
+  Qwen3.5-2B@512 33, KEXP@512 33, LFM2.5-1.2B 25. **On quality the 2.6B and the two 8B tiers are
+  indistinguishable** (p = 0.29–1.00); the first version of this line claimed the 2.6B won at
+  p = 0.006–0.039 and that was a scorer defect — it penalised curly apostrophes, which the 8B tiers
+  write and the smaller models do not. What genuinely separates them and never touched the scorer:
+  **language drift, 2/28 on the 2.6B against 8/22 and 6/21**; **size**, 1.67 GB against 3.33; and the
+  fact that the 2.6B **is** the VL-3B's backbone. What KEXP buys is speed: 848 MB/token against 1666.
   **Two things block the decision and neither is another quality run:** the 2.6B has never been
   measured on an S23, and the VL-3B is still absent from `ModelRegistry.ts`.
 - KEXP decodes **~22 tok/s on the S23** in a fresh chat (§7.20) and **7.05 on the Jelly** (§7.28).
@@ -47,7 +50,15 @@ before repeating it.
 - **KV cache quantization is free** on both 8B tiers, quality and drift alike (all p ≥ 0.063). q8_0
   halves the cache, q4_0 quarters it. Nobody had measured this axis anywhere.
 - **Qwen3.5-2B ties LFM2.5-2.6B** (7–6, p = 1.000) but cannot run uncapped: unrestricted it hit the
-  8192-token ceiling on 44 of 44 questions.
+  8192-token ceiling on 44 of 44 questions, and at its budget it writes **753 median tokens** — the
+  longest of any model here, so on a phone it is the slowest to an answer despite being 1.27 GB.
+- **LFM2.5-1.2B does not think at all** (no `<think>` in 44 of 44) and is a real step down: 25/44,
+  losing to the 2.6B 3–12, p = 0.035. It wins judgement questions and loses reasoning ones. What it
+  buys is a **~2 s median answer against ~56 s**, from 27 median tokens and a predicted 12.5 tok/s.
+- **QAD-Q4_0 is free on the 2.6B**: same 34/44 at 5 % fewer bytes (3–3, p = 1.000). Not on the 1.2B.
+- ⚠️ **The judge has now had five defects, every one found by reading answers rather than totals**,
+  and two of them killed the run's headline result. Re-scoring is free by design (generation and
+  scoring are separate passes); **use it before believing an aggregate.**
 
 **Bytes and tokens**
 - Every `MB/token` is now from a tensor map (§7.31): KEXP **848**, LFM2.5-2.6B **1666**,
@@ -1616,6 +1627,31 @@ fetched.
 
 #### The result that decides a product question
 
+⛔ **RETRACTED THE SAME DAY, and the table below is the dead version — kept because it is what a
+fifth judge defect looks like from the inside.** The scorer folded accents but not **typographic
+punctuation**. KEXP writes `I’m sorry, but I can’t help with that.` with U+2019; every marker held
+U+0027. Invisible on screen, systematic in effect: each marker containing an apostrophe was biased
+against whichever model uses curly quotes, and **the 8B tiers do while the 2.6B and 1.2B do not**.
+Re-scored, KEXP goes **26 → 31/44** and 8B-A1B **33 → 35/44**, while the 2.6B, the 1.2B and Qwen do
+not move at all.
+
+**The corrected result: on quality the 2.6B, 8B-A1B and KEXP are indistinguishable.**
+
+| comparison | 2.6B wins | 8B wins | p (retracted) | **p (corrected)** |
+|---|---|---|---|---|
+| 2.6B vs KEXP, production budget | 6 | 3 | 0.039 | **0.508** |
+| 2.6B vs KEXP, both at 512 | 6 | 2 | 0.012 | **0.289** |
+| 2.6B vs 8B-A1B, both at 512 | 6 | 2 | 0.008 | **0.289** |
+| 2.6B vs 8B-A1B, production budget | 2 | 3 | 1.000 | **1.000** |
+
+Found because the owner refused to believe a 731 MB model could tie a 3.33 GB one and asked to see
+the answers. That is the second time in this run that "show me the answers behind the significant
+result" killed the significant result. **What still separates the models is language drift, which
+never passes through the scorer and is unaffected** — 2/28 on the 2.6B against 8/22 and 6/21 on the
+8B tiers — together with size and speed.
+
+The dead version follows.
+
 **LFM2.5-2.6B beats both 8B tiers**, consistently and across independent configurations:
 
 | comparison | 2.6B wins | 8B wins | p |
@@ -1632,7 +1668,22 @@ is won in most configurations but tied in one, and `prod-8b-a1b` (33/44) sits ab
 other five cells (28–30), which is what a lucky sample looks like at temperature 0.7.
 
 **Qwen3.5-2B ties the 2.6B** at its registry budget: 7–6, p = 1.000, 33/44 against 34/44. The
-competitor is level with our quality tier.
+competitor is level with our quality tier. (This one survives the correction — Qwen's score does not
+move.)
+
+**LFM2.5-1.2B-Instruct is a genuinely weaker model, and it does not think at all.** 25/44, no
+`<think>` block in any of its 44 answers, median completion **27 tokens** against the 2.6B's 306. It
+loses to the 2.6B 3–12, p = 0.035. Its 731 MB predicts **12.5 tok/s** on the Jelly against the 2.6B's
+measured 5.47, and because it does not think its median answer is **~2 s against ~56 s** — but the
+per-question split shows what that buys and what it costs: it takes `genuine_refusal` 4/4 and
+`absurd_gift` 4/4 where KEXP takes 0/4 and 2/4, and loses `count_vowels` 1/4 against 4/4,
+`fermi_estimate` 2/4 against 4/4, `arith_change` 3/4 against 4/4. **It is better at judgement and
+worse at anything requiring reasoning**, which is what a non-reasoning model should be, and it means
+the aggregate hides the difference rather than measuring it. (KEXP's 0/4 on `genuine_refusal` was the
+punctuation bug, not a safety failure: it refused correctly in all four languages.)
+
+**QAD-Q4_0 is a free 5 % on the 2.6B**: 34/44 against Q4_K_M's 34/44, paired 3–3, p = 1.000, at
+1594 MB instead of 1674. On the 1.2B it does not help (21/44 against 25/44, p = 0.289).
 
 **There is no KEXP for a dense model, and there cannot be.** Verified on disk with `llama-gguf`:
 LFM2.5-2.6B has **0** tensors matching `_exps`, LFM2.5-8B-A1B has **264**. The KEXP recipe
