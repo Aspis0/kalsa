@@ -46,6 +46,8 @@ export type ModelInfo = {
   revision: string;
   file: string;
   sizeBytes: number;
+  /** Hugging Face repo name in KALSA_HF_ORG for artifacts we publish. */
+  hfArtifactRepo?: string;
   /** Proiettore multimodale (vision) — assente = modello text-only. */
   mmproj?: ModelFileSpec;
   contextLength: number;
@@ -232,11 +234,11 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     id: "lfm2.5-2.6b",
     name: "LFM2.5 2.6B",
     vendor: "Liquid AI",
-    quant: "Q4_K_M",
+    quant: "QAD-Q4_0",
     hfRepo: "LiquidAI/LFM2.5-2.6B-GGUF",
-    revision: "b421ad1d549afeda6a0fb2ad3a697cb5a7879adc",
-    file: "LFM2.5-2.6B-Q4_K_M.gguf",
-    sizeBytes: 1_674_454_848,
+    revision: "f4a289c8a200a5ca71005ba7abc2dad33058a450",
+    file: "LFM2.5-2.6B-QAD-Q4_0.gguf",
+    sizeBytes: 1_593_894_944,
     // text-only: no mmproj in the HF repo
     contextLength: 131072,
     engineCtx: 8192,
@@ -275,9 +277,9 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     // 0.31 tok/s against 18.6 prefill, §7.14) because it cannot stay resident.
     // 3.10 GiB against ~4.3 GB of MemAvailable might.
     //
-    // SIDELOAD ONLY. hfRepo/revision name the upstream repo, which does NOT host
-    // this file: the in-app download for this id cannot succeed until we publish
-    // it. The entry exists so the bench can select it and validate it on disk.
+    // Download source is resolved from hfArtifactRepo once KALSA_HF_ORG is set;
+    // until then the resolver declines this own artifact instead of treating
+    // the upstream provenance repo as its host.
     //
     // Quality, measured on our multi5 corpus at the same k=4, against gates that
     // were frozen before the numbers existed and are not renegotiated here:
@@ -292,6 +294,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
     file: "LFM2.5-8B-A1B-KEXP.gguf",
     sizeBytes: 3_326_160_384,
+    hfArtifactRepo: "LFM2.5-8B-A1B-KEXP-GGUF",
     contextLength: 131072,
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },

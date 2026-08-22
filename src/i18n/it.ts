@@ -626,6 +626,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   },
 
   errors: {
+    artifactUnpublished:
+      "Impossibile scaricare {artifact}: questo artifact di Kalsa è nostro e non è ancora stato pubblicato.",
     connectionLost:
       "Connessione persa — controlla la rete e riprova. Il download riprenderà da dove era.",
     networkUnreachable: "Rete non raggiungibile — controlla la connessione.",

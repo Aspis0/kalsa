@@ -629,6 +629,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
   },
 
   errors: {
+    artifactUnpublished:
+      "Cannot download {artifact}: this Kalsa artifact is ours and has not been published yet.",
     connectionLost:
       "Connection lost — check your network and retry. The download will resume where it left off.",
     networkUnreachable: "Network unreachable — check your connection.",
