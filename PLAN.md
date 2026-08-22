@@ -291,6 +291,7 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 | ~~18~~ | ~~Cella ship KEXP~~ → **CHIUSO 22/08 notte, verdetto misto (audit BANK)**: **A/B 1.803 PASS** (replica prereg'd dell'1.81, A più fredda) ma **A/C 0.812 REFUTED** — la CPU pura batte la GPU piena su LFM2.5-KEXP (17.55 vs 14.25 t/s): pacchetto NON shippa, refute a verbale. Vedi capitolo sessione #18 | fatto |
 | ~~20~~ | ~~Arm C su OLMoE~~ → **CHIUSO 22/08: C batte A in ogni cella (A/C 0.724)**, decisione invariante ai pruning, audit BANK-w-corrections. Framing dossier deciso: niente "GPU default candidate"; su OLMoE "più lenta a quasi-parità termica", cool-mode solo KEXP. Vedi capitolo sessione #20 | fatto |
 | 19 | Opzionale: perché Mellum2 esperti-GPU a ngl=2 è <0.11 t/s (peggio di metà dell'arm CPU — upload esperti per-token?): strumentazione dedicata, solo se vale un capitolo | quando capita |
+| 21 | Opzionale diagnostica: config inversa di B (tronco CPU + esperti GPU via `--override-tensor 'ffn_.*_exps'→GPU, -ngl 0`) — scompone il crollo di B (7.9): se inversa≈B dominano gli attraversamenti per-layer, se inversa≫B conta chi esegue gli esperti. 2 blocchi esplorativi, nessun valore di prodotto (config dominata sulla carta: stessi crossing di B + esperti sul processore perdente) | quando capita |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)
 
