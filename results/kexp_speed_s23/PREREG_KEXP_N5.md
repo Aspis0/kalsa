@@ -10,9 +10,26 @@
 
 **Exploratory predecessor (NOT this cell):** 2026-08-21 S23, LFM2.5-8B-A1B-KEXP Q5_K/Q6_K trunk + Q2_K/Q3_K experts, ngl=99, ABBA×2, unplugged, noextra impl, opencl `b9d99fa8…`. Sustained tg512 **1.812×** (median A **13.740** vs B **7.582** t/s, N=4+4). Per-block mean(A)/mean(B) **1.862** then **1.785**. First-A **15.96 / 15.20** vs second-A **12.28 / 11.57** (~24% intra-block decay); B flat (**7.31–7.68**). ngl=99 experts-GPU **lived** (no oomwall). Arm C (`-ngl 0`) was **not run**. Mellum2 on the same session is a different model and is not this cell.
 
-**Binary / flags (frozen):** noextra `libllama-bench-impl.so` sha `d2030f23db3b4f62f6934c9de831050e71e87c7cfda6e5059d53099ec8b60346` on **all three** ship arms. `libggml-opencl.so` `b9d99fa8d8be3e40661fb2edbde27229d8666fcc58c481cbb0944dd0cfd36773` (kalsakernel-v4 + upstream #26476; q2_K/q3_K MoE + q6_K dense). `llama-bench` stub `b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c`. Same `.so` on A, B, and C. `-fa off`. `GGML_OPENCL_LOG_ALLOC` unset — **evidenced**: archive `printenv` / adb `env | grep GGML_OPENCL` (or equivalent) under `results/kexp_speed_s23/probes/` at session start; empty/absent is the pass. USB unplugged; TLS serial. Stock extra_bufts (`bad17952…`) is **forbidden on A/B/C**. Optional arm D (after the bag) is the only permitted use of that binary.
+**Binary / flags (frozen, v1.2):** the deployed head-build set (engine `7686ca6fc`, device-verified same-day: MUL_MAT_ID 407/407, MUL_MAT 925/925, on-device sha chain in `results/q17_verify_s23/`): `libllama-bench-impl.so` `8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807` with **`-nr` (`--no-repack`) MANDATORY on all three ship arms** (the productized, device-smoked equivalent of the retired noextra hack; the `no_repack` field in every cell's jsonl is the per-cell evidence). `libggml-opencl.so` `f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d` (kalsakernel-v4 + #26476 + barrier-safe port + #17 host fixes; q2_K/q3_K MoE + q6_K dense). `llama-bench` stub `b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c` (unchanged from v1.1). Same `.so` on A, B, and C. `-fa off`. `GGML_OPENCL_LOG_ALLOC` unset — **evidenced**: archive `printenv` / adb `env | grep GGML_OPENCL` (or equivalent) under `results/kexp_speed_s23/probes/` at session start; empty/absent is the pass. USB unplugged; TLS serial. Stock extra_bufts (`bad17952…`) is **forbidden on A/B/C**. Optional arm D (after the bag) is the only permitted use of that binary.
 
 ### Changelog
+
+- **v1.2 (2026-08-22, pre-run, before any block):** binary re-pin, forced by
+  artifact loss: the v1.1-pinned `libggml-opencl.so` `b9d99fa8…` no longer
+  exists anywhere (PC build tree and device dir were both rebuilt/overwritten
+  by later banked chapters; verified by disk+device sha sweep). Re-pinned to
+  the **deployed head-build set** (engine `7686ca6fc`) which has stronger
+  provenance than any reconstruction: same-day on-device verification
+  (407/407 MoE incl. the new m=96 discriminators, 925/925 dense, sha chain in
+  `results/q17_verify_s23/`). The retired noextra impl hack (`d2030f23…`,
+  still archived in `results/oomwall_s23/staging/noextra/`) is replaced by
+  the **`-nr` flag on all ship arms** — semantically identical
+  (`use_extra_bufts=false`), device-smoked, and self-documenting via the
+  per-cell `no_repack` jsonl field. Stub pin unchanged (`b2ae0fa6…`).
+  Arm D stock pin unchanged (`bad17952…`, archived in
+  `results/oomwall_s23/staging/stock/`). Nothing else changes. Note: the
+  exploratory predecessor ran on the v1.1 build — already motivation, not an
+  instance; the cross-build comparability caveat is hereby explicit.
 
 - **v1.1 (2026-08-21, owner arbitration of hostile audit F2–F9):** B-range 7.31–7.68 (F2). Palindrome cancels first-order drift only; quadratic loads on A, conservative vs both floors (F3). C renamed **product default / no-offload baseline**; repack-coverage paragraph; optional post-bag arm-D stock probe, never ship (F4). Cap: ≥2 over-cap C cells → stop+amend; rule 3 > rule 6; 15-min STOP is terminal without a written amendment; `wake_post ≠ Awake` excludes (F5). A/B floor stays 1.50 with 1.40–1.50 + cool-start≥1.50 (≥3 cool) → report, re-run cooldown (F6). Lock = Aspis0 commit before session (F7). LOG_ALLOC unset evidenced in `probes/`; medians full precision, report 3 decimals, no rounding before floor compare (F8). Criterion 5 = unplug per block + Awake per cell; brightness readback must be 128 (F9).
 - **v1.0 (2026-08-21):** initial pre-registration. Modeled on OLMoE `PREREG_N10.md` v1.2.
@@ -43,7 +60,7 @@ Primary model: **LFM2.5-8B-A1B-KEXP.gguf** sha `b07c80870f8a864549f4a419ccbfb4d4
 
 ### Repack coverage (why C is not “upstream default”)
 
-Stock upstream llama.cpp has CPU weight-repack **ON** (`use_extra_bufts=true`). This cell’s frozen impl is noextra (`d2030f23…`) — the **product** default (production is structurally `use_extra_bufts=false`; that is also the oomwall dodge). On this GGUF: **experts = Q2_K + Q3_K**, **trunk = Q5_K + Q6_K**. On ARM, Q2_K repack is AVX512/RVV-only (no NEON path) and Q3_K has **no** repack traits at all — experts are **repack-invariant**, so A vs B is untouched by the extra_bufts flag. The Q5_K/Q6_K trunk **would** be repacked by stock upstream at `-ngl 0`. Therefore noextra-C **understates** genuine upstream CPU, and measured A/C **overstates** that gap. Hence the rename. A/C ships the product/no-offload sentence, not an upstream-llama.cpp sentence.
+Stock upstream llama.cpp has CPU weight-repack **ON** (`use_extra_bufts=true`). This cell’s ship arms run with `-nr` (v1.2; `use_extra_bufts=false`, formerly the noextra impl `d2030f23…`) — the **product** default (production is structurally `use_extra_bufts=false`; that is also the oomwall dodge). On this GGUF: **experts = Q2_K + Q3_K**, **trunk = Q5_K + Q6_K**. On ARM, Q2_K repack is AVX512/RVV-only (no NEON path) and Q3_K has **no** repack traits at all — experts are **repack-invariant**, so A vs B is untouched by the extra_bufts flag. The Q5_K/Q6_K trunk **would** be repacked by stock upstream at `-ngl 0`. Therefore noextra-C **understates** genuine upstream CPU, and measured A/C **overstates** that gap. Hence the rename. A/C ships the product/no-offload sentence, not an upstream-llama.cpp sentence.
 
 ### Optional arm D (after the bag, NEVER ship)
 
