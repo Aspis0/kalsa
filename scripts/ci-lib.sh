@@ -277,12 +277,18 @@ emit_status() {
   values=""
   if [ -r "/proc/$pid/status" ]; then
     values=$(awk '
-      BEGIN { h=rss=anon=file=swap="" }
+      BEGIN { h=rss=anon=file=swap=cpus="" }
       $1 == "VmHWM:" {h=$2}
       $1 == "VmRSS:" {rss=$2}
       $1 == "RssAnon:" {anon=$2}
       $1 == "RssFile:" {file=$2}
       $1 == "VmSwap:" {swap=$2}
+      # Which CPUs this PROCESS may run on -- not which are online, and not how fast
+      # they are clocked. Two S23 runs collapsed with every core online at full
+      # frequency while the process had been confined: occupancy halved, per-token
+      # compute tripled, flash I/O did not move. Neither RSS nor scaling_cur_freq
+      # shows that. This does.
+      $1 == "Cpus_allowed_list:" {cpus=$2}
       END {
         if (h != "") h = h " kB"
         if (rss != "") rss = rss " kB"
@@ -294,11 +300,17 @@ emit_status() {
         printf "RssAnon=%s\n", anon
         printf "RssFile=%s\n", file
         printf "VmSwap=%s\n", swap
+        printf "Cpus_allowed_list=%s\n", cpus
       }
     ' "/proc/$pid/status" 2>/dev/null || true)
   fi
   [ -n "$values" ] && printf '%s\n' "$values" || printf '%s\n' \
-    'VmHWM=' 'VmRSS=' 'RssAnon=' 'RssFile=' 'VmSwap='
+    'VmHWM=' 'VmRSS=' 'RssAnon=' 'RssFile=' 'VmSwap=' 'Cpus_allowed_list='
+  # The other half of the same question. "/" is unconstrained; a "/background" or
+  # "/restricted" path is the scheduler having parked the app off the big cores.
+  cpuset=""
+  [ -r "/proc/$pid/cpuset" ] && cpuset=$(cat "/proc/$pid/cpuset" 2>/dev/null | tr -d '\r\n')
+  printf 'cpuset=%s\n' "$cpuset"
 }
 
 emit_faults() {
