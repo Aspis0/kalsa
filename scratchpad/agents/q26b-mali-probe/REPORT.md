@@ -13,7 +13,7 @@
 | Item | Path |
 |------|------|
 | This report | `scratchpad/agents/q26b-mali-probe/REPORT.md` |
-| Raw logs | `results/mali_gate_jelly/raw2/` |
+| Raw logs | `results/mali_gate_jelly/raw2/` (gate 2), `raw3/` (gate 3) |
 | First-gate drop | `results/mali_gate_jelly/raw/ocl_*.out` |
 | Worktree | `worktree-mali-probe` (`kalsa/mali-probe`) |
 | Build dir | `build-android-mali-probe` |
@@ -171,69 +171,94 @@ Next engineering (not this gate): (1) portable `#else` SIMD macros + `vload_half
 
 # Gate 3 — portability patch (quant kernels on Mali)
 
-**Status:** IN PROGRESS  
+**Status:** DONE  
 **Owner GO:** yes  
 **Timebox:** ~3h  
-**Branch:** `kalsa/mali-probe` only. **NEVER MERGE** to `kalsa/kernel-s3-repack`.  
+**Branch:** `kalsa/mali-probe` @ `435eacf36`. **NEVER MERGE** to `kalsa/kernel-s3-repack`. Engine checkout still `1882bf8cd`.  
 **Raw:** `results/mali_gate_jelly/raw3/`  
-**Device:** Jelly Star **PLUGGED**. Same rules: adb only, no sleep >60s, KEYCODE_WAKEUP, LF-only.
-
-## G3.0 Plan
-
-1. Class 1: `#else` portable `N_SIMDGROUP` / `N_DST` / `N_SIMDWIDTH` on 1d quant kernels (warp 16, Intel-like conservative). Do not touch Adreno/Intel branches.
-2. Class 2: `half*` loads → `vload_half` / `vstore_half` where ARM frontend rejected them.
-3. q2_K / q3_K claim on UNKNOWN: only if kernels actually compile; else leave out and annotate.
-4. Rebuild `build-android-mali-probe`, sha256, push, retest MUL_MAT + MUL_MAT_ID, llama-bench iff a quant type passes.
+**Device:** Jelly Star `192.168.1.82:35785` **PLUGGED**. adb only, no sleep >60s, KEYCODE_WAKEUP, LF-only.
 
 ## G3.1 Session log
 
-| UTC | Step | Result |
-|-----|------|--------|
-| (skeleton) | dirs | `results/mali_gate_jelly/raw3/` |
+| Step | Result |
+|------|--------|
+| class 1 | `#else` portable `N_DST`/`N_SIMDGROUP`/`N_SIMDWIDTH` (Intel warp-16) on 30 `mul_mv*.cl`. Adreno/Intel branches untouched. No `SRC0Q_IMG` on portable path. |
+| class 2 | `vload_half` on global `half*` loads in those kernels (`*dh`, `dh[0/1]`, `adN[ib]`, `blk_d[ib]`, `x[i].d`, `ax[row][ib].d`). `cvt.cl` left alone (already compiled on Mali in gate 2). |
+| q2_K/q3_K | no portable `mul_mv` kernel; only Adreno MoE gemm/gemv (skipped on UNKNOWN). Left unclaimed. Comment in `supports_op`. |
+| commit | `435eacf36` `opencl: portable quant kernels for UNKNOWN/Mali (probe, do not merge)` pushed to kalsallama |
+| rebuild | ninja ggml-opencl + test-backend-ops + llama-bench, exit 0. Embed regenerated `.cl.h`. |
+| device | PC sha256 == device. Env `GGML_OPENCL_ALLOW_UNKNOWN_GPU=1`. **PLUGGED**. |
 
 ## G3.2 Patch notes
 
-_TBD_
+Mali-G57 OpenCL (gate 2): `cl_khr_fp16` yes, `cl_khr_subgroups` yes (passed the 3.0 check), **subgroup shuffle false**, vector subgroup broadcast false, max WG 512, Vulkan warp 16. Portable `#else` copies Intel (`N_SIMDWIDTH 16`), not Adreno 64.
+
+Remaining compile failures after the patch (not class 1):
+- `sub_group_shuffle_xor` in `mul_mv_f16_f32_l4.cl` — needs `cl_khr_subgroup_shuffle`, which Mali does not expose. Soft-fail, kernel NULL.
+- Adreno xmem (`qcom_*`) still compiled under `#ifdef GGML_OPENCL_USE_ADRENO_KERNELS` **outside** the family skip block. Soft-fail. Not the dispatch crash.
 
 ## G3.3 Artifact hashes (PC == device)
 
 | File | sha256 | bytes |
 |------|--------|------:|
-| | | |
+| `libggml-opencl.so` | `488da4c4a91bd7dd68a1f1b8444863f0b38058272affa6b635933946c03af2eb` | 8351528 |
+| `libggml.so` | `f888a721797a97cb1d9f8072d71865433c49d6b9c1841fa9861a81d84c50eab0` | 536616 |
+| `libllama.so` | `1a8619839b6b4f98727de752f839aa5d24d1ce8002143174c564950dbc41c8a5` | 39741552 |
+| `libllama-common.so` | `0e8ddb068642a3de4734f02306b6f8aa3c608467e9e723f5704270ce9a627b00` | 78074600 |
+| `test-backend-ops` | `4680be0d0e1c9656d6f2121d4d493889964c18e23f0b6bc1e60e03981d0a575e` | 10179936 |
+| `llama-bench` | `e3ab93f14d88bf9e6509cff5ddb6cdf17cb389ffc3526c4ff19588a0d1aab0e9` | 7568 |
+| `libllama-bench-impl.so` | `b9be488495f9d4f8b1511e0617158d4eb353dccaa566d8bed2f1dc5c529e3446` | 4252928 |
 
-## G3.4 MUL_MAT (quant)
+## G3.4 MUL_MAT (quant) — PLUGGED
 
-| type | compile | run | pass/fail/ERR | notes |
-|------|---------|-----|---------------|-------|
-| q4_0 | | | | |
-| q8_0 | | | | |
-| q4_K | | | | |
-| q6_K | | | | |
-| q2_K | | | | |
-| q3_K | | | | |
+Class 1 `N_SIMD*` undeclared errors are **gone**. Quant programs compile far enough to dispatch.
 
-## G3.5 MUL_MAT_ID
+| type | compile | run | result | PLUGGED |
+|------|---------|-----|--------|---|
+| q4_0 | yes (past class 1) | first shape then **SIGILL 132** | `MUL_MAT(q4_0, m=16,n=1,k=256)` started, then `Illegal instruction`. Kernel JIT/ISA, not frontend. | PLUGGED |
+| q8_0 | yes | **SIGILL 132** | same class as q4_0 | PLUGGED |
+| q4_K | yes | **SIGABRT 134** before a test line | `clEnqueueNDRangeKernel` **err -54 `CL_INVALID_WORK_GROUP_SIZE`** (`ggml-opencl.cpp:10049`) | PLUGGED |
+| q6_K | yes | **SIGILL 132** | same as q4_0 | PLUGGED |
+| q2_K | n/a | 0/0 | unclaimed (Adreno MoE only) | PLUGGED |
+| q3_K | n/a | 0/0 | unclaimed | PLUGGED |
 
-| type | compile | run | pass/fail/ERR | notes |
-|------|---------|-----|---------------|-------|
-| q4_0 | | | | |
-| q8_0 | | | | |
-| q4_K | | | | |
-| q6_K | | | | |
+First remaining compiler error (f16 l4, not the dispatched q4_0 kernel):
 
-## G3.6 llama-bench (only if a quant type passes)
+```text
+<source>:621:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 16);
+error: Compiler frontend failed (error code 62)
+```
 
-**PLUGGED.** pp128 + pp512, 3 reps, ngl 99 vs ngl 0.
+Raw: `raw3/ocl_mm_{q4_0,q8_0,q4_K,q6_K,q2_K,q3_K}.{out,err}`.
 
-| config | ngl | pp | t/s (3 reps) | GPU temp pre/post | notes |
-|--------|-----|----|--------------|-------------------|-------|
-| | | | | | |
+## G3.5 MUL_MAT_ID — PLUGGED
+
+| type | result | PLUGGED |
+|------|--------|---|
+| q4_0 | SIGABRT 134, 0 tests. `clSetKernelArg` **-48 CL_INVALID_KERNEL** (NULL 8x_flat / router kernel) | PLUGGED |
+| **q8_0** | **75/75 OK**, rc 0 | PLUGGED |
+| q4_K | SIGABRT 134, claimed via Adreno MoE path but those kernels were skipped → NULL | PLUGGED |
+| q6_K | SIGABRT 134, same | PLUGGED |
+
+`mul_mv_id_q8_0` with the portable `#else` is **correct on Mali-G57**. That is a real quantized GEMM, MoE-shaped. Dense `MUL_MAT` q8_0 still SIGILL (different kernel: 1d / subgroup launch).
+
+## G3.6 llama-bench
+
+**SKIP.** The only passing quant is `MUL_MAT_ID` q8_0. On-device GGUFs are Q4_K_M / Q4_0 (dense `MUL_MAT`), which still SIGILL / invalid WG. No q8_0 GGUF. Prefill 3–5× **not measurable**. Hashes unchanged from gate 2 (`aaf42c8b…` Q4_K_M, `cd70221b…` Q4_0).
 
 ## G3.7 Verdict
 
-- (a) quant compiles+passes+prefill within 3–5× plausible → Mali lane REAL with portability patches only.
-- (b) compiles+passes but prefill garbage → paper confirmed; Mali-tuned kernels needed (owner decision).
-- (c) still won’t compile / garbage → remaining Adreno assumptions.
+**(c) leaning, with one green island.** Portability patches made class-1 kernels **parse**. They are **not** enough for the ship path.
 
-**VERDICT:** _TBD_
+| bucket | this cell |
+|--------|-----------|
+| (a) quant compile+pass+prefill 3–5× | **no.** No dense quant MUL_MAT pass. No prefill. |
+| (b) compile+pass but prefill junk | **no prefill.** q8_0 `MUL_MAT_ID` 75/75 is correctness, not tok/s. |
+| (c) remaining Adreno/Intel assumptions | **yes:** (1) `sub_group_shuffle_xor` / no `cl_khr_subgroup_shuffle`; (2) dense q4_0/q8_0/q6_K **SIGILL** on first dispatch; (3) q4_K **CL_INVALID_WORK_GROUP_SIZE**; (4) q4_K/q6_K `MUL_MAT_ID` still Adreno-MoE-only; (5) q2_K/q3_K no portable kernel. |
+
+**What this means for the owner:** the Mali OpenCL stack can run **correct quantized MoE q8_0** with a warp-16 `#else`. The Q4_K / Q4_0 dense kernels that a real GGUF would hit still die (SIGILL or invalid WG). That is the paper’s “generic kernels aren’t a Mali product” result, now with a compiler-front-end class closed and a runtime/ISA class opened. **Dedicated Mali kernels remain justified** for the ship quant path. Do not merge `kalsa/mali-probe`.
+
+**PLUGGED** everywhere.
+
 
