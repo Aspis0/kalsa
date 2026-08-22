@@ -241,7 +241,8 @@ _sysprobe_empty_body() {
     'diskstats_readable=0' 'diskstats_device=' 'diskstats_line=' \
     'diskstats_sectors_read=' 'diskstats_sectors_written=' \
     'diskstats_time_reading_ms=' 'diskstats_io_ticks=' \
-    'thermal_status=' 'battery_deci_c='
+    'thermal_status=' 'battery_deci_c=' \
+    'battery_charge_uah=' 'battery_level_pct=' 'battery_ac_powered='
 }
 
 # capture_sysprobe_snapshot <turn_dir> <pre|post> [pid]
@@ -450,9 +451,22 @@ for zone in /sys/class/thermal/thermal_zone[0-9]*; do
 done
 
 thermal_status=$(dumpsys thermalservice 2>/dev/null | grep -m1 -E 'Thermal Status:[[:space:]]*[0-9]+' | sed -E 's/.*Thermal Status:[[:space:]]*([0-9]+).*/\1/' || true)
-battery_deci_c=$(dumpsys battery 2>/dev/null | grep -m1 -E 'temperature:[[:space:]]*[0-9]+' | sed -E 's/.*temperature:[[:space:]]*([0-9]+).*/\1/' || true)
+# ONE dumpsys battery, three fields. Temperature alone cannot answer "what did
+# this arm cost the battery" — Charge counter is the coulomb counter (uAh,
+# falling while discharging) and is the only field here that integrates energy.
+# It sits in the same output the probe was already paying for and was thrown
+# away. grep -m1 takes the service-state block, which dumpsys prints before the
+# ACTION_BATTERY_CHANGED history lines that repeat these same key names.
+battery_dump=$(dumpsys battery 2>/dev/null || true)
+battery_deci_c=$(printf '%s\n' "$battery_dump" | grep -m1 -E 'temperature:[[:space:]]*[0-9]+' | sed -E 's/.*temperature:[[:space:]]*([0-9]+).*/\1/' || true)
+battery_charge_uah=$(printf '%s\n' "$battery_dump" | grep -m1 -E 'Charge counter:[[:space:]]*-?[0-9]+' | sed -E 's/.*Charge counter:[[:space:]]*(-?[0-9]+).*/\1/' || true)
+battery_level_pct=$(printf '%s\n' "$battery_dump" | grep -m1 -E '^[[:space:]]*level:[[:space:]]*-?[0-9]+' | sed -E 's/.*level:[[:space:]]*(-?[0-9]+).*/\1/' || true)
+battery_ac=$(printf '%s\n' "$battery_dump" | grep -m1 -E 'AC powered:' | sed -E 's/.*AC powered:[[:space:]]*//' || true)
 printf 'thermal_status=%s\n' "$thermal_status"
 printf 'battery_deci_c=%s\n' "$battery_deci_c"
+printf 'battery_charge_uah=%s\n' "$battery_charge_uah"
+printf 'battery_level_pct=%s\n' "$battery_level_pct"
+printf 'battery_ac_powered=%s\n' "$battery_ac"
 REMOTE
 )
   remote_cmd=${remote_cmd//__KALSA_PID__/$remote_pid_q}
