@@ -1,0 +1,1504 @@
+=== Q17 VERIFY tag=dense ===
+Fri Aug 21 22:26:53 EDT 2026
+PWD=/data/local/tmp/s3oracle
+LD_LIBRARY_PATH=/data/local/tmp/s3oracle
+GGML_OPENCL_LOG_KERNELS=1
+GGML_OPENCL_HOST_REPACK=<unset>
+GGML_OPENCL_DUMP_Q=<unset>
+GGML_OPENCL_ORACLE=<unset>
+GGML_OPENCL_CVT_OPTS=<unset>
+GGML_OPENCL_MOE_OPTS=<unset>
+GGML_OPENCL_CVT_VARIANT=<unset>
+CMD=./test-backend-ops -o MUL_MAT
+=== sha256 before run ===
+f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+ed6bba3bd2f539ad044e1cb3ddabae12807bbaa698fbfd41b97e3c9a7f91e85c  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+e58ece316ea0d8f829b748c8b663ac2bc2b53e66272c22f530291fd06a0a5200  libllama-common.so
+9a3fd4b07dd2edce2723ce2d17503f76d2b6bea0d254d616e3de199456b587bc  test-backend-ops
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=4,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=4,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=4,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=4,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f32,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=4,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=4,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=4,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=4,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=4,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q1_0,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=nvfp4,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xxs,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q2_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q5_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=1,k=1,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=64,n=2,k=128,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=83,n=2,k=128,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=64,n=2,k=64,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=83,n=2,k=64,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=64,n=45,k=128,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=45,k=64,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=193,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=67,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=32,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=64,o=3): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=64,n=77,k=77,bs=[12,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=248320,n=1,k=2048,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=248320,n=16,k=2048,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=248320,n=64,k=2048,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=32768,n=1,k=2048,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=131072,n=1,k=2048,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_K,type_b=f32,m=131072,n=64,k=2048,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=576,n=512,k=576,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=1,n=2048,k=8192,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_1,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q1_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=nvfp4,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q2_K,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q3_K,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q4_K,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q5_K,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=q6_K,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq2_xxs,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_xs,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq2_s,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq3_xxs,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_s,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq1_m,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=iq3_s,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=iq4_xs,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): not supported [OpenCL] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=6,n=4096,k=5120,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[1,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[1,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[1,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[2,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[2,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[2,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[2,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[4,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[4,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[4,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[4,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[8,1],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[8,1],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[8,1],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[8,1],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[1,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[1,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[1,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[1,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[2,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[2,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[2,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[4,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[4,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[4,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[4,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[8,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[8,3],nr=[1,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=128,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1056,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=128,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1056,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=128,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1056,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1056,n=1,k=129,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=128,n=1,k=1057,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1056,n=1,k=129,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=128,n=1,k=1057,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1056,n=1,k=129,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=128,n=1,k=1057,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=128,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1056,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=128,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1056,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=128,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1056,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2112,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=1057,n=1,k=129,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f16,type_b=f32,m=129,n=1,k=1057,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=1057,n=1,k=129,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=bf16,type_b=f32,m=129,n=1,k=1057,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1057,n=1,k=129,bs=[8,3],nr=[4,1],per=[0,2,1,3],k_v=0,o=1): [1;32mOK[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=129,n=1,k=1057,bs=[8,3],nr=[4,1],per=[0,1,2,3],k_v=2113,o=1): [1;32mOK[0m
+  925/925 tests passed
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping CPU backend
+2/2 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Fri Aug 21 22:28:38 EDT 2026

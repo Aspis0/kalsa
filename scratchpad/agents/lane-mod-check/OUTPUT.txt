@@ -1,0 +1,52 @@
+LANE_MOD equidistribution check — OUTPUT
+======================================================================
+
+PART A — archived GEMV_AUDIT case lines (real device data)
+----------------------------------------------------------------------
+  results/oracle_consumer_s23/_extract_r9r10.txt: 4 case lines
+  results/oracle_consumer_s23\run10\run10.log: 12 case lines
+  results/oracle_consumer_s23\run5\run5.log: 12 case lines
+  results/oracle_consumer_s23\run6\run6.log: 12 case lines
+  results/oracle_consumer_s23\run7\run7.log: 12 case lines
+  results/oracle_consumer_s23\run8\run8.log: 12 case lines
+  results/oracle_consumer_s23\run9\run9.log: 12 case lines
+  total case lines parsed : 76
+  n_bad distribution      : {0: 76}
+  pattern distribution    : {'ok': 76}
+  m values                : {'512': 76}
+  cases with LANE_MOD tag : 0
+  cases with n_bad > 0    : 0
+
+PART B — synthetic replay: current classifier vs +equidistribution gate
+----------------------------------------------------------------------
+  case                                                       fires          eq    note
+  nominal single-coset period-4 (r0=5)                       LANE_MOD_4     PASS  eq-pass
+      fully-bad residues @mod128: [32 residues], gaps=[4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4]
+  nominal single-coset period-8 (r0=5)                       LANE_MOD_8     PASS  eq-pass
+      fully-bad residues @mod128: [16 residues], gaps=[8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8]
+  nominal single-coset period-16 (r0=5)                      LANE_MOD_16    PASS  eq-pass
+      fully-bad residues @mod128: [5, 21, 37, 53, 69, 85, 101, 117], gaps=[16, 16, 16, 16, 16, 16, 16, 16]
+  nominal single-coset period-32 (r0=5)                      LANE_MOD_32    PASS  eq-pass
+      fully-bad residues @mod128: [5, 37, 69, 101], gaps=[32, 32, 32, 32]
+  nominal single-coset period-64 (r0=5)                      LANE_MOD_64    PASS  eq-pass
+      fully-bad residues @mod128: [5, 69], gaps=[64, 64]
+  nominal single-coset period-128 (r0=5)                     LANE_MOD_128   PASS  eq-pass
+      fully-bad residues @mod128: [5], gaps=[128]
+  ADVERSARIAL-1 contiguous 32-row band (rows 32..63)         LANE_MOD_4     FAIL  EQ-FAIL -> tag suppressed (non-single-coset)  <-- FALSE TAG
+      fully-bad residues @mod128: [32 residues], gaps=[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 97]
+  ADVERSARIAL-2 union of two offset mod-64 classes (3,40)    LANE_MOD_32    FAIL  EQ-FAIL -> tag suppressed (non-single-coset)  <-- FALSE TAG
+      fully-bad residues @mod128: [3, 40, 67, 104], gaps=[37, 27, 37, 27]
+  ADVERSARIAL-3 union of two offset mod-32 classes (7,19)    LANE_MOD_16    FAIL  EQ-FAIL -> tag suppressed (non-single-coset)  <-- FALSE TAG
+      fully-bad residues @mod128: [7, 19, 39, 51, 71, 83, 103, 115], gaps=[12, 20, 12, 20, 12, 20, 12, 20]
+  guard: 3 fully-bad residues (128%3!=0)                     None           -     
+      fully-bad residues @mod128: [9, 50, 100], gaps=None
+  guard: period-96 lattice (partial residues)                None           -     
+  guard: all rows bad                                        None           -     
+      fully-bad residues @mod128: [128 residues], gaps=None
+  control: no bad rows                                       None           -     
+
+  false LANE tags caught by the eq-gate: 3
+
+VERDICT INPUTS
+----------------------------------------------------------------------
+  empirical positive samples available: 0 (LANE_MOD firings) / 0 (any-bad cases)
