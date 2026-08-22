@@ -1,0 +1,41 @@
+create_tensor: loading tensor blk.25.attn_norm.weight
+create_tensor: loading tensor blk.25.attn_q.weight
+create_tensor: loading tensor blk.25.attn_k.weight
+create_tensor: loading tensor blk.25.attn_v.weight
+create_tensor: loading tensor blk.25.attn_output.weight
+create_tensor: loading tensor blk.25.attn_k_norm.weight
+create_tensor: loading tensor blk.25.attn_q_norm.weight
+create_tensor: loading tensor blk.25.ffn_norm.weight
+create_tensor: loading tensor blk.25.ffn_gate_inp.weight
+create_tensor: loading tensor blk.25.ffn_gate_exps.weight
+create_tensor: loading tensor blk.25.ffn_down_exps.weight
+create_tensor: loading tensor blk.25.ffn_up_exps.weight
+create_tensor: loading tensor blk.26.attn_norm.weight
+create_tensor: loading tensor blk.26.attn_q.weight
+create_tensor: loading tensor blk.26.attn_k.weight
+create_tensor: loading tensor blk.26.attn_v.weight
+create_tensor: loading tensor blk.26.attn_output.weight
+create_tensor: loading tensor blk.26.attn_k_norm.weight
+create_tensor: loading tensor blk.26.attn_q_norm.weight
+create_tensor: loading tensor blk.26.ffn_norm.weight
+create_tensor: loading tensor blk.26.ffn_gate_inp.weight
+create_tensor: loading tensor blk.26.ffn_gate_exps.weight
+create_tensor: loading tensor blk.26.ffn_down_exps.weight
+create_tensor: loading tensor blk.26.ffn_up_exps.weight
+create_tensor: loading tensor blk.27.attn_norm.weight
+create_tensor: loading tensor blk.27.attn_q.weight
+create_tensor: loading tensor blk.27.attn_k.weight
+create_tensor: loading tensor blk.27.attn_v.weight
+create_tensor: loading tensor blk.27.attn_output.weight
+create_tensor: loading tensor blk.27.attn_k_norm.weight
+create_tensor: loading tensor blk.27.attn_q_norm.weight
+create_tensor: loading tensor blk.27.ffn_norm.weight
+create_tensor: loading tensor blk.27.ffn_gate_inp.weight
+create_tensor: loading tensor blk.27.ffn_gate_exps.weight
+create_tensor: loading tensor blk.27.ffn_down_exps.weight
+create_tensor: loading tensor blk.27.ffn_up_exps.weight
+load_tensors:   CPU_Mapped model buffer size =  7693.96 MiB
+......................................................................................
+
+error: no MoE recipe for architecture 'mellum' ΓÇö add one in core/src/moe/arch_registry.cpp (see docs/adding-a-model.md)
+

@@ -1,0 +1,31 @@
+iso=2026-08-22T11:03:06.4556059-04:00
+pid=42008 alive=True cpu_s=1.046875 ws=98095104
+host.log bytes=318
+session.log bytes=206
+--- session.log ---
+
+2026-08-22T11:01:38.1491744-04:00 OLMoE arm C START TargetComplete=3 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp protocol=armC-exploratory-gates-v1.2 git=b8e55a92985d87da5d23a048810564f7c79c2559
+
+--- host.log ---
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+2026-08-22T11:01:38.1491744-04:00 OLMoE arm C START TargetComplete=3 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp protocol=armC-exploratory-gates-v1.2 git=b8e55a92985d87da5d23a048810564f7c79c2559
+
+--- host.err.log ---
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC\one_cell_armc.sh: 1 file pushed, 0 skipped. 0.4 MB/s (932 bytes in 0.002s)
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC\dump_env.sh: 1 file pushed, 0 skipped. 2.1 MB/s (959 bytes in 0.000s)
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC\launch_bg_armc.sh: 1 file pushed, 0 skipped. 0.9 MB/s (360 bytes in 0.000s)
+
+--- probes listing ---
+
+Name                    Length
+----                    ------
+adb_devices.txt             83
+log_alloc_unset.env.txt   6435
+sha_olmoe_gguf.txt         130
+SHA256SUMS                  85
+
+
+--- sh crlf check ---
+dump_env.sh cr_count=0 size=959
+

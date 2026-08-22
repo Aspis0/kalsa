@@ -1,0 +1,4 @@
+hdr=  AC powered: false   USB powered: false   Wireless powered: false   Charge counter: 2032500   level: 54   temperature: 321
+wake=  mWakefulness=Awake
+bright=128
+gov=cpu0:walt cpu1:walt cpu2:walt cpu3:walt cpu4:walt cpu5:walt cpu6:walt cpu7:walt

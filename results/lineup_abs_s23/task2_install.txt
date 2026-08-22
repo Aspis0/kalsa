@@ -1,0 +1,9 @@
+local_cr=0 size=5301
+
+=== marco size ===
+-rw-r--r-- 1 u0_a344 u0_a344        454 2026-08-11 00:24 files/home/experiments/prompts/short.txt
+-rw-r--r-- 1 u0_a344 u0_a344 6385238848 2026-08-13 10:25 files/home/models/Marco-Mini-Instruct-KEXP.gguf
+-r-xr-xr-x 1 u0_a344 u0_a344     402416 2026-08-09 10:08 files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+=== campaign sha on device ===
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+

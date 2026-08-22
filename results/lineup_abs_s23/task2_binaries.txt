@@ -1,0 +1,56 @@
+iso=2026-08-22T11:21:03.2109832-04:00
+=== CAMPAIGN binary ===
+total 4.1K
+-r--r--r-- 1 u0_a344 u0_a344   84 2026-08-09 10:08 CAMPAIGN.sha256
+drwx------ 3 u0_a344 u0_a344 3.3K 2026-08-06 10:18 CMakeFiles
+-rw-r--r-- 1 u0_a344 u0_a344  144 2026-08-08 14:43 G3P.sha256
+-rwx------ 1 u0_a344 u0_a344 393K 2026-08-09 09:07 bmoe-cli
+-rwxr-xr-x 1 u0_a344 u0_a344 380K 2026-08-08 13:58 bmoe-cli.ABI_FIX
+-r-xr-xr-x 1 u0_a344 u0_a344 393K 2026-08-09 10:08 bmoe-cli.CAMPAIGN
+-rwx------ 1 u0_a344 u0_a344 389K 2026-08-08 17:58 bmoe-cli.DENSE2
+-rwxr-xr-x 1 u0_a344 u0_a344 380K 2026-08-08 14:44 bmoe-cli.G3N
+-r-xr-xr-x 1 u0_a344 u0_a344 380K 2026-08-08 14:43 bmoe-cli.G3P
+-rwxr-xr-x 1 u0_a344 u0_a344 380K 2026-08-08 11:21 bmoe-cli.G3_PREFAULT
+-rwxr-xr-x 1 u0_a344 u0_a344 380K 2026-08-08 11:22 bmoe-cli.NEW
+-rwxr-xr-x 1 u0_a344 u0_a344 380K 2026-08-07 18:14 bmoe-cli.PREFAULT
+-rwx------ 1 u0_a344 u0_a344 393K 2026-08-09 09:07 bmoe-cli.SCORER
+-rwx------ 1 u0_a344 u0_a344 372K 2026-08-07 17:42 bmoe-cli.pristine
+-rw-r--r-- 1 u0_a344 u0_a344 1.5K 2026-08-07 18:14 cmake_install.cmake
+---SHA---
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f  bmoe-cli.CAMPAIGN
+---run_bench 93---
+files/home/experiments/scripts/run_f4.sh:325:            exit 93
+=== marco launch script ===
+#!/data/data/com.termux/files/usr/bin/bash
+export HOME=/data/data/com.termux/files/home
+export PREFIX=/data/data/com.termux/files/usr
+export PATH=$PREFIX/bin:$PATH
+export TMPDIR=$PREFIX/tmp
+OUT=$HOME/experiments/results/marco_phase1_speed_s23
+mkdir -p $OUT
+if [ -f $OUT/harness.pid ]; then
+  old=$(cat $OUT/harness.pid)
+  kill $old 2>/dev/null || true
+  sleep 1
+fi
+nohup bash $HOME/experiments/scripts/run_marco_speed_s23.sh >$OUT/nohup.out 2>&1 &
+echo $! > $OUT/harness.pid
+sleep 3
+echo PID=$(cat $OUT/harness.pid)
+head -40 $OUT/nohup.out
+echo STATUS:
+cat $OUT/STATUS.txt 2>/dev/null || true
+=== kexp model size ===
+-rw------- 1 u0_a344 u0_a344 12G 2026-08-10 14:59 files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+=== prompts ===
+code.txt
+d1_long.txt
+f45_1.txt
+f45_1_esplicativo.txt
+f45_2_scrittura.txt
+f45_3_istruzioni.txt
+f45_4_codice.txt
+f45_5_ragionamento.txt
+f5_1_t1.txt
+f5_1_t2.txt
+

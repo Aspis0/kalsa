@@ -90,9 +90,18 @@ product role here is the COOL mode (−19% speed, −2.75°C peak). Two more
 facts: hybrid B (trunk-GPU/experts-CPU) is the WORST arm (7.90 — per-layer
 ping-pong), and stock repack does not help the CPU on this recipe (arm D
 post-bag, n=2 descriptive: 16.48/15.51 — never quote as the true upstream
-gap without hot-state caveats). Open question → queue: does pure CPU also
-beat full GPU on OLMoE q4_K, or is the OLMoE "GPU default candidate"
-scoped-claim safe? (OLMoE arm C was never measured.) Mellum2 footnote:
+gap without hot-state caveats). **ANSWERED same day (#20 decision cell, audit BANK-with-corrections): pure
+CPU beats full GPU on OLMoE too — in EVERY cell of every block.** A(-ngl16)
+20.034 vs C(-ngl0) 27.685 t/s, A/C 0.724, decision invariant under pruning.
+On OLMoE the thermal story is near-parity (median peak gap 0.45°C, max peaks
+identical), so the binding wording is "full-GPU is slower at near-thermal-
+parity" — the genuine cool-mode tradeoff exists only on KEXP (2.75°C).
+Dossier synthesis after #18+#20: on small-active MoEs the pure CPU always
+wins raw speed; half-offload (B) is always the worst; our kernels' value =
+the only working GPU path on Adreno (Vulkan dead on K-quants), a replicated
+1.8× on expert placement at equal offload, and a real cool mode on KEXP.
+"GPU default candidate" is retired. The OLMoE A/B 1.553× SHIP claim stands
+in its scope (expert placement at fixed ngl). Mellum2 footnote:
 experts-GPU at ngl=2 in the streaming regime is not viable (<0.11 t/s vs
 0.22 dense-GPU/experts-CPU) — the GPU valve pays when the model fits in RAM,
 not against the flash-bandwidth wall.
@@ -261,9 +270,9 @@ figures, not cell-internal figures. The provenance gap remains for CalaQwen S23
 
 | model | S23 (8 GB, 8Gen2, UFS 3.1) | Xiaomi 14 (11.4 GB, 8Gen3) | Jelly Star (G99, 8 GB) |
 |---|---|---|---|
-| **CalaQwen** 35B-A3B KEXP | **5.86** t/s (t4, k6d065) | **4.75** t/s (t6) | — |
-| **Marco1c** | **8.82** t/s (t4) | **10.57** t/s (t4) | 3.64 t/s (t2) |
-| **Mellum2** 12B/A2.5B | **5.151** t/s (t2, k6d1.0) | — | — |
+| **CalaQwen** 35B-A3B KEXP | **6.810** t/s (t4, k6d1.0 no-renorm, n_gen 224; 22/08 cpuset-gated — old card 5.86 was k6d065) | **4.75** t/s (t6) | — |
+| **Marco1c** | **8.82** t/s (t4, i1-Q4_K_M, provenance gap) · KEXP-6.4G variant: **8.199** (t4, n_gen 122, 22/08 cpuset-gated) | **10.57** t/s (t4) | 3.64 t/s (t2) |
+| **Mellum2** 12B/A2.5B | **5.098** t/s (t2, k6d1.0, n_gen 222, 22/08 cpuset-gated; old card 5.151 confirmed in-spread) | — | — |
 | Qwen3.5-2B dense | 15.9 t/s | — | 8.04 t/s (t2) |
 | Qwen3.5-4B dense | 8.38 t/s | — | 3.52 t/s (t2) |
 | Qwen3.5-1.5B | 25.8 t/s (LiteRT CPU) | — | — |
@@ -289,7 +298,8 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 | ~~2d-i~~ | ~~N≥10 ship cell (OLMoE)~~ | **CLOSED 21/08: SHIP 1.553×** (prereg v1.2, audit BANK) |
 | ~~2d-ii~~ | ~~Vulkan-vs-OpenCL satellite~~ | **CLOSED 22/08**: Vulkan runs no K-quants on A740; ratio not estimable |
 | ~~2d-iii~~ | ~~KEXP N≥5 ship cell A/B/C~~ | **CLOSED 22/08 mixed (audit BANK): A/B 1.803 PASS, A/C 0.812 REFUTED** — pure CPU beats full GPU on LFM2.5-KEXP; package does not ship |
-| 2d-v | OLMoE arm C (does pure CPU beat full GPU there too?) | decides the dossier framing: "GPU default candidate" vs "GPU = cool mode"; next unplugged session |
+| ~~2d-v~~ | ~~OLMoE arm C~~ | **CLOSED 22/08: yes, C wins every cell (A/C 0.724)** — "GPU default candidate" retired; near-thermal-parity on OLMoE, cool mode only on KEXP |
+| 5b | S23 cache sweep + binary-side cpuset-gate enforcement (detect-only today) | remaining half of the old #5; dedicated unplugged session |
 | 2d-iv | Xiaomi/750 validation | needs the device |
 | ~~3~~ | ~~cvt.cl cosmetics~~ | **CLOSED 22/08 mixed**: comments fixed; uniformity port audit-REJECTED and dropped (spec on file) |
 | ~~4~~ | ~~LANE_MOD~~ | **CLOSED 22/08: BIASED by construction**; hint-only + raw dumps mandatory for session-2 |

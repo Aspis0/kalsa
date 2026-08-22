@@ -1,0 +1,3 @@
+hdr=  AC powered: false   USB powered: false   Wireless powered: false   Charge counter: 1822500   level: 48   temperature: 362
+wake=  mWakefulness=Awake
+bright=128

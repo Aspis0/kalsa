@@ -1,0 +1,61 @@
+iso=2026-08-22T11:18:32.5669154-04:00
+=== battery ===
+AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 2062500
+  status: 3
+  level: 55
+  temperature: 348
+=== wake ===
+mWakefulness=Awake
+=== adb-shell cpuset gate inputs ===
+nproc=6
+cpuset=/
+cgroup=/
+Cpus_allowed_list=0-7
+Cpus_allowed=ff
+online=0-7
+pid=14730
+=== gguf listing known dirs ===
+-rw-rw-rw- 1 shell shell 3.0G 2026-08-19 12:21 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+---s3oracle---
+-rw-rw-rw- 1 shell shell 3.9G 2026-08-20 23:53 /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+---tmp dirs---
+LFM2.5-8B-A1B-KEXP.gguf
+_gguf_keep
+dalvik-cache
+decode-partition-ui.xml
+k22
+k2ref
+kalsa-preflight-ui.xml
+preflight_llama_isa.sh
+probe1.xml
+probe2.xml
+probe3.xml
+r1.xml
+r2.xml
+r3.xml
+r4.xml
+r5.xml
+r6.xml
+s15vk
+s18stock
+s3base
+s3fix
+s3oracle
+s3printf
+termux-api.apk
+termux-app.apk
+termux-boot.apk
+u6.xml
+u7.xml
+u8.xml
+u9.xml
+ui.xml
+ui2.xml
+ui3.xml
+ui4.xml
+ui5.xml
+z1.xml
+

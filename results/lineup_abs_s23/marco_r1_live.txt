@@ -1,0 +1,29 @@
+=== probes dir ===
+files/home/experiments/results/lineup_abs_s23/logs:
+total 52
+-rw-rw-rw- 1 u0_a344 u0_a344 37719 2026-08-22 11:25 marco_r1.err
+-rw-rw-rw- 1 u0_a344 u0_a344  1658 2026-08-22 11:25 marco_r1.out
+-rw-rw-rw- 1 u0_a344 u0_a344     6 2026-08-22 11:24 marco_r1.pid
+-rw-rw-rw- 1 u0_a344 u0_a344     2 2026-08-22 11:25 marco_r1.rc
+
+files/home/experiments/results/lineup_abs_s23/probes:
+total 16
+-rw-rw-rw- 1 u0_a344 u0_a344 147 2026-08-22 11:24 marco_r1_BIN_cpuset.txt
+-rw-rw-rw- 1 u0_a344 u0_a344  55 2026-08-22 11:24 marco_r1_HARNESS_cpuset.txt
+-rw-rw-rw- 1 u0_a344 u0_a344 149 2026-08-22 11:24 marco_r1_bin.sha
+-rw-rw-rw- 1 u0_a344 u0_a344  31 2026-08-22 11:24 marco_r1_pids.txt
+=== HARNESS cpuset ===
+GATE_HARNESS nproc=6 bits=8 cpuset=/ cgroup=/ mask=0-7
+=== BIN cpuset ===
+binary_pid=15465
+cpuset=/
+cgroup=/
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+nproc_self_at_spawn=6
+binary_gate nproc_bits=8 list=0-7 cpuset=/ why=OK
+=== pids ===
+wrapper=15463 binary_pid=15465
+=== why ===
+
+

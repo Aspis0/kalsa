@@ -1,0 +1,11 @@
+=== cp tmp -> termux home ===
+
+cp_rc=0
+=== ls ===
+-rwxrwxrwx 1 u0_a344 u0_a344 5301 2026-08-22 11:23 files/home/one_cell_lineup.sh
+=== chmod + head ===
+
+#!/data/data/com.termux/files/usr/bin/bash
+# Lineup one-cell wrapper. F4.3-bis cpuset gate (exit 93). Records BINARY /proc/pid/cpuset.
+# Usage: one_cell_lineup.sh TAG MODEL_PATH N_THREADS [extra bmoe flags...]
+

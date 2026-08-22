@@ -1,0 +1,17 @@
+=== ls ===
+-rwxr-xr-x 1 u0_a344 u0_a344  192 2026-08-13 17:37 files/home/bin/bmoe-cli-mellum2
+
+files/home/bin/mellum2:
+total 136288
+-rwxr-xr-x 1 u0_a344 u0_a344  6362168 2026-08-13 17:33 bmoe-cli
+-rw-r--r-- 1 u0_a344 u0_a344  1794776 2026-08-13 17:37 libc++_shared.so
+-rw-r--r-- 1 u0_a344 u0_a344  6604920 2026-08-13 17:33 libggml-base.so
+-rw-r--r-- 1 u0_a344 u0_a344  5006968 2026-08-13 17:33 libggml-cpu.so
+-rw-r--r-- 1 u0_a344 u0_a344   630048 2026-08-13 17:33 libggml.so
+-rw-r--r-- 1 u0_a344 u0_a344 78405896 2026-08-13 17:37 libllama-common.so
+-rw-r--r-- 1 u0_a344 u0_a344 40605088 2026-08-13 17:34 libllama.so
+=== sha ===
+0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c  files/home/bin/mellum2/bmoe-cli
+d32e04e1731c060669a195224e2d0d929f1cb220bbe3dd129eef9e7059782855  files/home/bin/bmoe-cli-mellum2
+=== help drop ===
+

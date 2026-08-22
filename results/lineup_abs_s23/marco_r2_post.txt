@@ -1,0 +1,3 @@
+hdr=  AC powered: false   USB powered: false   Wireless powered: false   level: 53   temperature: 332
+wake=  mWakefulness=Awake
+bright=128

@@ -1,0 +1,86 @@
+iso=2026-08-22T11:19:16.2690340-04:00
+=== run-as termux home ===
+total 123
+drwx------ 13 u0_a344 u0_a344 3452 2026-08-21 08:17 .
+drwxrwx--x  4 u0_a344 u0_a344 3452 2026-08-03 21:09 ..
+-rw-------  1 u0_a344 u0_a344    5 2026-08-05 20:42 .bash_history
+-rw-------  1 u0_a344 u0_a344   26 2026-08-08 20:45 .boot_failed
+-rw-------  1 u0_a344 u0_a344   26 2026-08-21 08:17 .boot_ready
+drwx------  2 u0_a344 u0_a344 3452 2026-08-03 21:10 .ssh
+drwx------  3 u0_a344 u0_a344 3452 2026-08-03 21:10 .termux
+drwxr-xr-x 13 u0_a344 u0_a344 3452 2026-08-18 09:51 bin
+-rw-------  1 u0_a344 u0_a344 8635 2026-08-21 08:17 boot.log
+drwx------  4 u0_a344 u0_a344 3452 2026-08-09 20:58 build
+-rw-------  1 u0_a344 u0_a344 4062 2026-08-03 21:08 crash_log_backup.md
+-rw-------  1 u0_a344 u0_a344  351 2026-08-08 17:50 dense2-build.log
+-rw-------  1 u0_a344 u0_a344  270 2026-08-08 17:54 dense2-build2.log
+-rw-------  1 u0_a344 u0_a344  270 2026-08-08 17:58 dense2-build3.log
+drwxr-xr-x 13 u0_a344 u0_a344 3452 2026-08-11 16:23 experiments
+-rw-------  1 u0_a344 u0_a344 3422 2026-08-05 21:27 fadv.c
+drwxr-xr-x 19 u0_a344 u0_a344 3452 2026-08-13 14:19 gdn_k2
+-rw-r--r--  1 u0_a344 u0_a344 2354 2026-08-08 14:58 kvfix_patch.py
+-rw-r--r--  1 u0_a344 u0_a344 2930 2026-08-08 15:11 kvfix_patch2.py
+-rw-r--r--  1 u0_a344 u0_a344    0 2026-08-12 09:09 llama_bench_qwen35_2b.err
+-rw-r--r--  1 u0_a344 u0_a344 2346 2026-08-12 09:09 llama_bench_qwen35_2b.json
+-rw-r--r--  1 u0_a344 u0_a344    0 2026-08-12 09:06 llama_bench_qwen35_4b.err
+-rw-r--r--  1 u0_a344 u0_a344 2345 2026-08-12 09:07 llama_bench_qwen35_4b.json
+drwxr-xr-x  2 u0_a344 u0_a344 3452 2026-08-19 08:36 models
+drwx------  3 u0_a344 u0_a344 3452 2026-08-06 09:37 perfprobe
+-rw-rw-rw-  1 u0_a344 u0_a344   20 2026-08-12 01:22 qwen_bench.err
+-rw-rw-rw-  1 u0_a344 u0_a344 2398 2026-08-12 01:22 qwen_bench.json
+-rwxrwxrwx  1 u0_a344 u0_a344  560 2026-08-12 01:21 run_qwen_bench.sh
+drwx------  2 u0_a344 u0_a344 3452 2026-08-07 12:18 scripts
+-rw-------  1 u0_a344 u0_a344 9238 2026-08-09 15:01 speed_dropcold_mirror.tgz
+drwxr-xr-x  5 u0_a344 u0_a344 3452 2026-08-09 20:17 src
+drwxr-xr-x  2 u0_a344 u0_a344 3452 2026-08-08 14:44 tmp
+---MODELS---
+files/home/models/Qwen3.5-4B-Q4_K_M.gguf
+files/home/models/CAMPAIGN.gguf
+files/home/models/Qwen3.6-35B-A3B-KEXP.gguf
+files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+files/home/models/Marco-Mini-Instruct-KEXP.gguf
+files/home/src/llama.cpp/models/ggml-vocab-aquila.gguf
+files/home/src/llama.cpp/models/ggml-vocab-baichuan.gguf
+files/home/src/llama.cpp/models/ggml-vocab-bert-bge.gguf
+files/home/src/llama.cpp/models/ggml-vocab-command-r.gguf
+files/home/src/llama.cpp/models/ggml-vocab-deepseek-coder.gguf
+files/home/src/llama.cpp/models/ggml-vocab-deepseek-llm.gguf
+files/home/src/llama.cpp/models/ggml-vocab-falcon.gguf
+files/home/src/llama.cpp/models/ggml-vocab-gemma-4.gguf
+files/home/src/llama.cpp/models/ggml-vocab-gpt-2.gguf
+files/home/src/llama.cpp/models/ggml-vocab-gpt-neox.gguf
+files/home/src/llama.cpp/models/ggml-vocab-llama-bpe.gguf
+files/home/src/llama.cpp/models/ggml-vocab-llama-spm.gguf
+files/home/src/llama.cpp/models/ggml-vocab-mpt.gguf
+files/home/src/llama.cpp/models/ggml-vocab-nomic-bert-moe.gguf
+files/home/src/llama.cpp/models/ggml-vocab-phi-3.gguf
+files/home/src/llama.cpp/models/ggml-vocab-qwen2.gguf
+files/home/src/llama.cpp/models/ggml-vocab-qwen35.gguf
+files/home/src/llama.cpp/models/ggml-vocab-refact.gguf
+files/home/src/llama.cpp/models/ggml-vocab-starcoder.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-aquila.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-baichuan.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-bert-bge.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-command-r.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-deepseek-coder.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-deepseek-llm.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-falcon.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-gemma-4.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-gpt-2.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-gpt-neox.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-llama-bpe.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-llama-spm.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-mpt.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-nomic-bert-moe.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-phi-3.gguf
+files/home/src/BigMoeOnEdge/third_party/llama.cpp/models/ggml-vocab-qwen2.gguf
+=== kalsa app files ===
+---
+---obb---
+=== find Marco Cala Mellum names ===
+/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+/data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+=== _gguf_keep ===
+total 7.5M
+-rw-rw-rw- 1 shell shell 7.5G 2026-08-13 12:56 Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+

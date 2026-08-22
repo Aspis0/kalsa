@@ -1,0 +1,8 @@
+binary_pid=15465
+cpuset=/
+cgroup=/
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+nproc_self_at_spawn=6
+binary_gate nproc_bits=8 list=0-7 cpuset=/ why=OK
+

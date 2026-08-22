@@ -1,0 +1,15 @@
+iso=2026-08-22T11:31:12.9430366-04:00
+=== battery ===
+AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 53
+  temperature: 321
+=== calaqwen model ===
+-rw------- 1 u0_a344 u0_a344 13416430592 2026-08-10 14:59 files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+-rw------- 1 u0_a344 u0_a344         100 2026-08-11 00:59 files/home/experiments/results/kexp_baseline/kexp.sha256
+=== cached sha ===
+ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a *models/Qwen3.6-35B-A3B-KEXP.gguf
+
+---
+

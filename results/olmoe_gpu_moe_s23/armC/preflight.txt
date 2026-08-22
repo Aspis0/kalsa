@@ -1,0 +1,83 @@
+iso=2026-08-22T10:55:07.4408713-04:00
+=== adb devices ===
+List of devices attached
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:135
+
+=== battery header ===
+AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 2358750
+  status: 3
+  level: 62
+  temperature: 257
+
+=== wake ===
+mWakefulness=Dozing
+
+=== mem ===
+MemTotal:        7243748 kB
+MemFree:          336140 kB
+MemAvailable:    4077936 kB
+
+=== llama-bench pids ===
+PIDOF_RC=True
+
+=== s3oracle listing ===
+total 4271180
+-rw-rw-rw- 1 shell shell 4213513024 2026-08-20 23:53 OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+-rwxr-xr-x 1 shell shell        959 2026-08-22 01:36 dump_env.sh
+-rwxr-xr-x 1 shell shell        349 2026-08-22 01:36 launch_bg.sh
+-rw-rw-rw- 1 shell shell    1794776 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell    6103496 2026-08-21 22:22 libggml-base.so
+-rw-rw-rw- 1 shell shell    5165056 2026-08-21 22:22 libggml-cpu.so
+-rw-rw-rw- 1 shell shell    8376320 2026-08-21 22:24 libggml-opencl.so
+-rw-rw-rw- 1 shell shell     536880 2026-08-21 22:24 libggml.so
+-rw-rw-rw- 1 shell shell    4253160 2026-08-21 22:24 libllama-bench-impl.so
+-rw-rw-rw- 1 shell shell   78377240 2026-08-21 22:24 libllama-common.so
+-rw-rw-rw- 1 shell shell   39807624 2026-08-21 22:24 libllama.so
+-rw-rw-rw- 1 shell shell    1229304 2026-04-29 08:39 libomp.so
+-rwxr-xr-x 1 shell shell       7600 2026-08-21 22:24 llama-bench
+drwxrwxrwx 2 shell shell       8192 2026-08-22 02:41 logs
+-rwxr-xr-x 1 shell shell        406 2026-08-21 21:30 one_cell_cl.sh
+-rwxr-xr-x 1 shell shell        881 2026-08-22 01:12 one_cell_n5.sh
+-rwxr-xr-x 1 shell shell       1215 2026-08-21 22:24 run_one.sh
+-rwxr-xr-x 1 shell shell   10182432 2026-08-21 22:24 test-backend-ops
+
+=== find OLMoE gguf ===
+-rw-rw-rw- 1 shell shell 3326160384 2026-08-19 12:21 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+-rw-rw-rw- 1 shell shell 4213513024 2026-08-20 23:53 /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+---
+/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+/data/local/tmp/s15vk/logs/vk_bench_olmoe_n8.out
+/data/local/tmp/s15vk/logs/vk_bench_olmoe_n8.err
+/data/local/tmp/s15vk/logs/vk_bench_olmoe_n8.rc
+
+=== sha binaries ===
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d  libggml-opencl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+ed6bba3bd2f539ad044e1cb3ddabae12807bbaa698fbfd41b97e3c9a7f91e85c  libggml-base.so
+
+=== env GGML_OPENCL ===
+NO_GGML_OPENCL_IN_PRINTENV
+
+=== pins readback ===
+timeout=900000
+brightness=128
+bmode=0
+wifi=1
+
+=== governor ===
+cpu0:walt
+cpu1:walt
+cpu2:walt
+cpu3:walt
+cpu4:walt
+cpu5:walt
+cpu6:walt
+cpu7:walt
+

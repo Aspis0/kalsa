@@ -1,0 +1,5 @@
+cool_elapsed_s=15.4199565
+cool_temp_c=35
+hdr=  AC powered: false   USB powered: false   Wireless powered: false   level: 49   temperature: 350
+wake=  mWakefulness=Awake
+bright=128

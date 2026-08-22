@@ -1,0 +1,163 @@
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+2026-08-22T11:05:11.9578659-04:00 OLMoE arm C START TargetComplete=3 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp protocol=armC-exploratory-gates-v1.2 git=b8e55a92985d87da5d23a048810564f7c79c2559
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC\one_cell_armc.sh: 1 file pushed, 0 skipped. 0.2 MB/s (932 bytes in 0.004s)
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC\dump_env.sh: 1 file pushed, 0 skipped. 0.7 MB/s (959 bytes in 0.001s)
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC\launch_bg_armc.sh: 1 file pushed, 0 skipped. 0.4 MB/s (360 bytes in 0.001s)
+2026-08-22T11:05:13.6443606-04:00 LOG_ALLOC-unset RAW evidenced
+2026-08-22T11:05:14.4020077-04:00 SHA session-start impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:05:37.5632045-04:00 OLMoE GGUF 3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+2026-08-22T11:05:39.0519264-04:00 SHA_BLOCK
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+ed6bba3bd2f539ad044e1cb3ddabae12807bbaa698fbfd41b97e3c9a7f91e85c  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+e58ece316ea0d8f829b748c8b663ac2bc2b53e66272c22f530291fd06a0a5200  libllama-common.so
+2026-08-22T11:05:39.1289009-04:00 session pins protocol=armC-exploratory-gates-v1.2
+2026-08-22T11:05:42.5127177-04:00 PIN timeout=900000 brightness=128 mode=0 wifi_on=1
+2026-08-22T11:05:42.6451831-04:00 UNPLUG_GATE: AC powered: false
+  USB powered: false
+  Wireless powered: false
+2026-08-22T11:05:42.6640467-04:00 UNPLUG_GATE: PASS (USB=false AC=false Wireless!=true)
+2026-08-22T11:05:42.7978191-04:00 === BLOCK 1 (complete=0/3) resume_ci=0 ===
+COOLDOWN temp_c=25.8 elapsed_s=0 level=62
+2026-08-22T11:05:43.3937572-04:00 UNPLUG_GATE: AC powered: false
+  USB powered: false
+  Wireless powered: false
+2026-08-22T11:05:43.4126301-04:00 UNPLUG_GATE: PASS (USB=false AC=false Wireless!=true)
+2026-08-22T11:05:46.8432598-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt temp_start=25.8 warm=False level=62
+2026-08-22T11:05:46.9827257-04:00 === c_b01_c1_A -ngl 16 ===
+2026-08-22T11:05:47.4518781-04:00 SHA c_b01_c1_A impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:05:49.6801100-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b01_c1_A -ngl 16
+2026-08-22T11:05:49.8069229-04:00 LAUNCH_DETACH wrapper=9678
+2026-08-22T11:06:42.1044520-04:00 RETURN c_b01_c1_A stall=False wall_s=52.2381982 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:06:42.4756320-04:00 DEVICE_RC c_b01_c1_A rc=0
+2026-08-22T11:06:43.7189135-04:00 MemAvailable drop_kb=-1181848 (cliff=2097152)
+2026-08-22T11:06:46.1579505-04:00 === c_b01_c2_C -ngl 0 ===
+2026-08-22T11:06:46.5579630-04:00 SHA c_b01_c2_C impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:06:48.9675007-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b01_c2_C -ngl 0
+2026-08-22T11:06:49.1071855-04:00 LAUNCH_DETACH wrapper=10182
+2026-08-22T11:07:10.8439445-04:00 RETURN c_b01_c2_C stall=False wall_s=21.7221088 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:07:11.2237071-04:00 DEVICE_RC c_b01_c2_C rc=0
+2026-08-22T11:07:12.4223976-04:00 MemAvailable drop_kb=106492 (cliff=2097152)
+2026-08-22T11:07:14.5123458-04:00 === c_b01_c3_C -ngl 0 ===
+2026-08-22T11:07:15.0443377-04:00 SHA c_b01_c3_C impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:07:17.3572273-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b01_c3_C -ngl 0
+2026-08-22T11:07:17.4745436-04:00 LAUNCH_DETACH wrapper=10408
+2026-08-22T11:07:36.2535780-04:00 RETURN c_b01_c3_C stall=False wall_s=18.720611 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:07:36.5784609-04:00 DEVICE_RC c_b01_c3_C rc=0
+2026-08-22T11:07:37.7696845-04:00 MemAvailable drop_kb=-67912 (cliff=2097152)
+2026-08-22T11:07:39.8356498-04:00 === c_b01_c4_A -ngl 16 ===
+2026-08-22T11:07:40.2107929-04:00 SHA c_b01_c4_A impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:07:42.6263666-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b01_c4_A -ngl 16
+2026-08-22T11:07:42.7540120-04:00 LAUNCH_DETACH wrapper=10594
+2026-08-22T11:08:33.2812376-04:00 RETURN c_b01_c4_A stall=False wall_s=50.4864349 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:08:33.6034325-04:00 DEVICE_RC c_b01_c4_A rc=0
+2026-08-22T11:08:34.8683322-04:00 MemAvailable drop_kb=-106360 (cliff=2097152)
+2026-08-22T11:08:37.1317068-04:00 BLOCK 1 cellOk=4 complete_now=1
+2026-08-22T11:08:37.1677149-04:00 === BLOCK 2 (complete=1/3) resume_ci=0 ===
+COOLDOWN temp_c=33.4 elapsed_s=0 level=60
+2026-08-22T11:08:37.5807057-04:00 UNPLUG_GATE: AC powered: false
+  USB powered: false
+  Wireless powered: false
+2026-08-22T11:08:37.6007510-04:00 UNPLUG_GATE: PASS (USB=false AC=false Wireless!=true)
+2026-08-22T11:08:38.6378853-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt temp_start=33.4 warm=False level=60
+2026-08-22T11:08:38.6927039-04:00 === c_b02_c1_A -ngl 16 ===
+2026-08-22T11:08:39.0314242-04:00 SHA c_b02_c1_A impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:08:41.2093331-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b02_c1_A -ngl 16
+2026-08-22T11:08:41.3365798-04:00 LAUNCH_DETACH wrapper=11001
+2026-08-22T11:09:34.4771924-04:00 RETURN c_b02_c1_A stall=False wall_s=53.1353668 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:09:34.7794028-04:00 DEVICE_RC c_b02_c1_A rc=0
+2026-08-22T11:09:35.8194108-04:00 MemAvailable drop_kb=-23088 (cliff=2097152)
+2026-08-22T11:09:37.8951797-04:00 === c_b02_c2_C -ngl 0 ===
+2026-08-22T11:09:38.3139553-04:00 SHA c_b02_c2_C impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:09:40.2482710-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b02_c2_C -ngl 0
+2026-08-22T11:09:40.3623551-04:00 LAUNCH_DETACH wrapper=11550
+2026-08-22T11:10:02.5412869-04:00 RETURN c_b02_c2_C stall=False wall_s=22.1639675 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:10:02.8592332-04:00 DEVICE_RC c_b02_c2_C rc=0
+2026-08-22T11:10:03.9209640-04:00 MemAvailable drop_kb=144480 (cliff=2097152)
+2026-08-22T11:10:06.0082394-04:00 === c_b02_c3_C -ngl 0 ===
+2026-08-22T11:10:06.3020750-04:00 SHA c_b02_c3_C impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:10:08.4103836-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b02_c3_C -ngl 0
+2026-08-22T11:10:08.5193241-04:00 LAUNCH_DETACH wrapper=11904
+2026-08-22T11:10:30.9249746-04:00 RETURN c_b02_c3_C stall=False wall_s=22.3682657 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:10:31.2572712-04:00 DEVICE_RC c_b02_c3_C rc=0
+2026-08-22T11:10:32.3644471-04:00 MemAvailable drop_kb=-131096 (cliff=2097152)
+2026-08-22T11:10:34.4230445-04:00 === c_b02_c4_A -ngl 16 ===
+2026-08-22T11:10:34.7831665-04:00 SHA c_b02_c4_A impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:10:37.0277107-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b02_c4_A -ngl 16
+2026-08-22T11:10:37.1634586-04:00 LAUNCH_DETACH wrapper=12105
+2026-08-22T11:11:36.8235808-04:00 RETURN c_b02_c4_A stall=False wall_s=59.6200463 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:11:37.1485674-04:00 DEVICE_RC c_b02_c4_A rc=0
+2026-08-22T11:11:38.4162467-04:00 MemAvailable drop_kb=-44508 (cliff=2097152)
+2026-08-22T11:11:40.4920807-04:00 BLOCK 2 cellOk=4 complete_now=2
+2026-08-22T11:11:40.5508325-04:00 === BLOCK 3 (complete=2/3) resume_ci=0 ===
+COOLDOWN temp_c=36.9 elapsed_s=0 level=57
+COOLDOWN temp_c=37.2 elapsed_s=15 level=57
+COOLDOWN temp_c=37.2 elapsed_s=31 level=57
+COOLDOWN temp_c=35.5 elapsed_s=46 level=57
+COOLDOWN temp_c=35.5 elapsed_s=61 level=57
+COOLDOWN temp_c=34.5 elapsed_s=76 level=57
+2026-08-22T11:12:57.1812772-04:00 UNPLUG_GATE: AC powered: false
+  USB powered: false
+  Wireless powered: false
+2026-08-22T11:12:57.1981048-04:00 UNPLUG_GATE: PASS (USB=false AC=false Wireless!=true)
+2026-08-22T11:12:58.2434363-04:00 GOVERNOR cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt temp_start=34.5 warm=False level=57
+2026-08-22T11:12:58.3082127-04:00 === c_b03_c1_A -ngl 16 ===
+2026-08-22T11:12:58.6496002-04:00 SHA c_b03_c1_A impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:13:00.7923398-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b03_c1_A -ngl 16
+2026-08-22T11:13:00.9060798-04:00 LAUNCH_DETACH wrapper=12647
+2026-08-22T11:13:58.8081713-04:00 RETURN c_b03_c1_A stall=False wall_s=57.861077 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:13:59.1198735-04:00 DEVICE_RC c_b03_c1_A rc=0
+2026-08-22T11:14:00.1556464-04:00 MemAvailable drop_kb=-65020 (cliff=2097152)
+2026-08-22T11:14:02.2227896-04:00 === c_b03_c2_C -ngl 0 ===
+2026-08-22T11:14:02.6806198-04:00 SHA c_b03_c2_C impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:14:04.8538618-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b03_c2_C -ngl 0
+2026-08-22T11:14:04.9701647-04:00 LAUNCH_DETACH wrapper=13680
+2026-08-22T11:14:27.9680510-04:00 RETURN c_b03_c2_C stall=False wall_s=22.9830955 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:14:28.2799996-04:00 DEVICE_RC c_b03_c2_C rc=0
+2026-08-22T11:14:29.5789698-04:00 MemAvailable drop_kb=67812 (cliff=2097152)
+2026-08-22T11:14:31.6520805-04:00 === c_b03_c3_C -ngl 0 ===
+2026-08-22T11:14:32.0517501-04:00 SHA c_b03_c3_C impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:14:34.3938729-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b03_c3_C -ngl 0
+2026-08-22T11:14:34.5309651-04:00 LAUNCH_DETACH wrapper=13887
+2026-08-22T11:14:55.9358357-04:00 RETURN c_b03_c3_C stall=False wall_s=21.4003134 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:14:56.3168526-04:00 DEVICE_RC c_b03_c3_C rc=0
+2026-08-22T11:14:57.4366489-04:00 MemAvailable drop_kb=39428 (cliff=2097152)
+2026-08-22T11:14:59.5012644-04:00 === c_b03_c4_A -ngl 16 ===
+2026-08-22T11:14:59.8932002-04:00 SHA c_b03_c4_A impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T11:15:01.8943623-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_armc.sh c_b03_c4_A -ngl 16
+2026-08-22T11:15:01.9992547-04:00 LAUNCH_DETACH wrapper=14094
+2026-08-22T11:16:10.9171946-04:00 RETURN c_b03_c4_A stall=False wall_s=68.869168 adb_rc=0 device_rc=0 over_cap=False
+True
+True
+2026-08-22T11:16:11.2865062-04:00 DEVICE_RC c_b03_c4_A rc=0
+2026-08-22T11:16:12.6747927-04:00 MemAvailable drop_kb=-212652 (cliff=2097152)
+2026-08-22T11:16:14.7703000-04:00 BLOCK 3 cellOk=4 complete_now=3
+2026-08-22T11:16:14.8184993-04:00 arm C bag complete=3 protocol=armC-exploratory-gates-v1.2
+OLMoE arm C done. See C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\olmoe_gpu_moe_s23\armC and C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\olmoe-armC\REPORT.md

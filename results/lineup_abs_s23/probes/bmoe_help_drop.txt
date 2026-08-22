@@ -1,0 +1,7 @@
+                          the normal decode path (batch=1, streaming experts, cache, drop-cold
+      --drop-cold-experts F  skip a routed expert that is a cache MISS and carries less than
+      --drop-no-renorm    do not rescale the surviving weights after a drop (A/B)
+      --drop-in-prefill   drop during prefill too (off: the cold cache makes it expensive)
+                          (needs the cache; excludes --prefetch). Drop-aware: experts
+                          predicted below the drop threshold are not speculated.
+

@@ -1,0 +1,34 @@
+iso=2026-08-22T11:18:57.1317235-04:00
+=== which nproc / nproc details ===
+/system/bin/nproc
+6
+8
+cpu0
+cpu1
+cpu2
+cpu3
+cpu4
+cpu5
+cpu6
+cpu7
+0-7
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+=== find gguf (tmp, sdcard, emulated) ===
+/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+/data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+/data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+/storage/emulated/0/qwen25_1p5b_q4.gguf
+=== packages / termux ===
+package:/data/app/~~33PDMN2BF5XdSe98eodCTA==/com.termux-QdJZHvqfjflnAuH7I0b56A==/base.apk
+package:com.termux
+package:com.kalsa.app
+package:com.termux.boot
+package:com.termux.api
+=== k22 listing ===
+total 26K
+-rw-rw-rw- 1 shell shell 1.7M 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell 161K 2026-08-18 18:26 mm.log
+-rw-rw-rw- 1 shell shell 112K 2026-08-18 18:20 mmid.log
+-rwxrwxrwx 1 shell shell  24M 2026-08-12 15:12 test-backend-ops
+

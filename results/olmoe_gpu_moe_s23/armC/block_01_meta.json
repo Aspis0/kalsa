@@ -1,0 +1,14 @@
+{
+  "iso": "2026-08-22T11:05:46.9538480-04:00",
+  "protocol": "armC-exploratory-gates-v1.2",
+  "git_head": "b8e55a92985d87da5d23a048810564f7c79c2559",
+  "block": 1,
+  "temp_c_block_start": 25.8,
+  "warm_start": false,
+  "cooldown_s": 0,
+  "level_pre": 62,
+  "governor": "cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt",
+  "unplug": "AC powered: false\r\n  USB powered: false\r\n  Wireless powered: false\r\n  Charge counter: 2351250\r\n  status: 3\r\n  level: 62\r\n  temperature: 258",
+  "usb": "false",
+  "ac": ""
+}

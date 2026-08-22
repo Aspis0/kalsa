@@ -216,6 +216,37 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
   meta), `scratchpad/agents/kexp-n5-session/REPORT.md`,
   `scratchpad/agents/kexp-n5-audit/REPORT.md`.
 
+## Sessione #20 + #6-lite (22/08 pomeriggio): il verdetto C è unanime; prime card S23 validabili
+
+- **#20 OLMoE arm C (cella di decisione, 3 blocchi A,C,C,A, 12/12, tutti
+  cool-start, build head, audit BANK-with-corrections)**: mediane
+  **A(-ngl16) 20.034 vs C(-ngl0) 27.685, A/C 0.724** — **C batte A in OGNI
+  cella di OGNI blocco**; decisione invariante sotto pruning (coolest-only
+  0.809, drop-block-3 0.769; il bias quadratico del palindromo deprime A =
+  anti-conservativo, verificato). **Framing vincolante (erratum audit): su
+  OLMoE la GPU piena è "più lenta a quasi-parità termica"** (gap mediano
+  0.45°C, picchi max identici 38.5) — NON "cool mode": quello resta solo
+  KEXP (2.75°C). Cross-build binding: mai confrontare con i numeri n10
+  (stesso arm nominale si è mosso ~22% tra build). Il claim OLMoE SHIP
+  1.553× resta valido nel suo scope (A vs B a pari ngl).
+- **Sintesi dossier a valle di #18+#20**: sui MoE small-active (A1B/1B-7B)
+  la CPU pura vince SEMPRE in velocità sulla GPU piena; il mezzo-offload
+  (B) è il peggiore; il valore dei nostri kernel = path GPU unico
+  funzionante (Vulkan morto), 1.8× sull'expert placement a pari offload, e
+  modalità fresca reale solo su KEXP. Niente "GPU default candidate".
+- **#6-lite lineup absolutes (audit BANK-with-corrections)**: PRIMO set di
+  card S23 **validabili** — gate cpuset funzionante e letto sul PID del
+  binario (cpuset `/`, 0-7, bits 8; lo storico 0-2/nproc=3 non c'è più):
+  **Marco1c-KEXP t4 8.199** (modello a bordo 6.4G KEXP ≠ card 8.82
+  i1-Q4_K_M: non comparabile), **CalaQwen t4 k6d1.0-no-renorm 6.810**
+  (default corrente: PIÙ VELOCE della card vecchia 5.86 k6d065),
+  **Mellum2 t2 5.098** (≈card 5.151). Metrica: decode tok/s a EOS
+  (n_gen 122/224/222 — da stampare accanto alle card), TTFT escluso by
+  construction, spread 2.1/7.5/4.3%. Correzioni da applicare al prossimo
+  giro: enforcement (non solo detect) del gate lato binario.
+- Evidenza: `results/olmoe_gpu_moe_s23/armC/`, `results/lineup_abs_s23/`,
+  report+audit in `scratchpad/agents/{olmoe-armC,lineup-abs,armC-lineup-audit}/`.
+
 ## Fatti operativi correnti
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
@@ -245,7 +276,7 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 | ~~3~~ | ~~Cherry-pick upstream **#26476**~~ → **CHIUSO 21/08 pomeriggio** (`5c7e16fa6`, dense 925/925, MoE 401/401 invariato, audit BANK — vedi sezione sopra) | fatto |
 | ~~4~~ | ~~Cosmetici cvt.cl + port uniformità~~ → **CHIUSO 22/08 con esito misto**: commenti fixati (`1882bf8cd`, audit: ora dicono il vero — l'offset-4 era la bugia). **Port di uniformità RESPINTO dall'audit e scartato** (commit droppato): equivalenza piena falsa (vale solo sotto l'invariante maschere dell'engine, controesempio ABI agli atti) E medicina non raggiunta (alias `qv_bytes` e lane uchar qh sopravvissuti = terzo stile misto). Su codice device-proven un mezzo-port è peggio del debito. Se mai si rifà: spec vincolante in `scratchpad/agents/cvt-hygiene-audit/REPORT.md` (pattern canonico q3/q5_1, zero alias, zero uchar, equivalenza dichiarata sotto invariante). Nota F4: copie generate stantie fuori dall'albero git = rischio deploy, verificare rigenerazione a ogni build | fatto |
 | ~~5~~ | ~~LANE_MOD equidistribution check~~ → **CHIUSO 22/08: BIASED by construction** (3 classi di falso-tag, 2 silenziose; MAI scattato sui 76 casi d'archivio, tutti n_bad=0). Audit: BIASED confermato, gate gap-equality UTILE MA INSUFFICIENTE (manca unioni threshold-boundary e slot-dependent). Vincoli sessione-2 (erratum nel report): LANE_MOD = hint mai verdetto; gate solo come hardening; canale di decisione = dump grezzi (bad-row/tabella residui, OBBLIGO di raccolta). `scratchpad/agents/lane-mod-check/` | fatto |
-| 6 | Celle cache S23 + assoluti lineup (serve UNPLUGGED) | sessione device dedicata |
+| 6 | ~~assoluti lineup~~ **fatti 22/08** (#6-lite, card validabili col gate cpuset — vedi capitolo). RESTANO: celle cache S23 (sweep 1500/2000/4000) + enforcement del gate lato binario (oggi detect-only, correzione audit) + card Marco1c sul modello i1-Q4_K_M vero se lo si rimette a bordo | sessione device dedicata |
 | 7 | Gap ~70% kernel_kf vs lineup binary | da investigare |
 | 8 | **Pubblicazione del fix Adreno** (dossier aggiornato 22/08: 3 miscompile trans4 al bit + 4° sito K2 device-verified + **5° difetto FIXATO e device-VERIFIED** (407/407) + repack-killer 8GB + kernel MoE q2/q3 inediti + **SHIP pre-registrato 1.553× OLMoE** + KEXP 1.81× esplorativo + **Vulkan su A740 = zero K-quant eseguibili** (supports_op bugiardo, SIGABRT su createComputePipeline: il nostro path OpenCL è l'UNICA GPU funzionante per MoE quantizzati su S23); gate A6X/A7X ancora attivo upstream) | decisione owner |
 | ~~9~~ | ~~Muro GPU-MoE su S23~~ → **RISOLTO 21/08 (oomwall)**: era il **REPACK ARM di default di llama-bench** (~6.5GB posix_memalign anonimi su Mellum2 Q4_K_M; CPU-only, GPU innocente — coppia W4/W4c a una variabile; produzione strutturalmente immune, use_extra_bufts=false). `results/oomwall_s23/` | fatto |
@@ -258,7 +289,7 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 | 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler build più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier) | sessione economica post-kernel |
 | ~~17~~ | ~~guardia gpu_family + parser + ne01==0~~ → **CHIUSO 22/08**: commit `dc3870579` (guardia ADRENO sul gate q6, parità coi gate q4_0, prova d'ordinamento init→build-opts→dispatch), `8e0063d2a` (fallback `UNKNOWN_COMPILER` esplicito; E17 NON classificato — nessuna semantica documentata in-tree, scelta onesta; rename obbligato per collisione enum), `7686ca6fc` (guard `ne01==0` al choke point `ggml_cl_mul_mat_id`, copre tutti i 10+ kernel). Audit: codice pulito, BLOCK solo su igiene storia → filter-branch, alberi ripuliti, diff finale vuoto. **Regressione device PASS**: 407/407 + 925/925, gate ancora TRUE su E031 (canary #26476 verdi), err bit-identici a barrier-verify. Evidenza `results/q17_verify_s23/` | fatto |
 | ~~18~~ | ~~Cella ship KEXP~~ → **CHIUSO 22/08 notte, verdetto misto (audit BANK)**: **A/B 1.803 PASS** (replica prereg'd dell'1.81, A più fredda) ma **A/C 0.812 REFUTED** — la CPU pura batte la GPU piena su LFM2.5-KEXP (17.55 vs 14.25 t/s): pacchetto NON shippa, refute a verbale. Vedi capitolo sessione #18 | fatto |
-| 20 | **Arm C su OLMoE** (la domanda aperta dal refute #18: la CPU pura batte la GPU piena anche su OLMoE q4_K?) — 1-2 blocchi con C nello stesso protocollo; decide se "GPU default candidato quando il modello sta in RAM" sopravvive nel dossier o si riformula come modalità termica | prossima sessione device staccata |
+| ~~20~~ | ~~Arm C su OLMoE~~ → **CHIUSO 22/08: C batte A in ogni cella (A/C 0.724)**, decisione invariante ai pruning, audit BANK-w-corrections. Framing dossier deciso: niente "GPU default candidate"; su OLMoE "più lenta a quasi-parità termica", cool-mode solo KEXP. Vedi capitolo sessione #20 | fatto |
 | 19 | Opzionale: perché Mellum2 esperti-GPU a ngl=2 è <0.11 t/s (peggio di metà dell'arm CPU — upload esperti per-token?): strumentazione dedicata, solo se vale un capitolo | quando capita |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)

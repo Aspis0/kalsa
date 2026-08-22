@@ -1,0 +1,73 @@
+iso=2026-08-22T11:04:08.3201843-04:00
+hostpid=68024 alive=False name= cpu= start=
+--- pwsh processes ---
+pwsh id=1868 cpu=5.796875 start=08/21/2026 19:30:10 ws=16941056
+pwsh id=7336 cpu=5.296875 start=08/22/2026 02:24:03 ws=108666880
+pwsh id=7900 cpu=6.9375 start=08/21/2026 22:41:07 ws=112672768
+pwsh id=10336 cpu=4.578125 start=08/21/2026 22:24:55 ws=107663360
+pwsh id=14044 cpu=4.734375 start=08/22/2026 00:48:00 ws=107573248
+pwsh id=15856 cpu=8.515625 start=08/21/2026 19:48:02 ws=34803712
+pwsh id=24824 cpu=6.34375 start=08/21/2026 17:40:34 ws=11001856
+pwsh id=28200 cpu=5.671875 start=08/21/2026 18:01:47 ws=7892992
+pwsh id=29372 cpu=5.734375 start=08/21/2026 22:31:28 ws=109539328
+pwsh id=31240 cpu=0.75 start=08/22/2026 11:04:06 ws=88952832
+pwsh id=35188 cpu=2.140625 start=08/21/2026 22:38:18 ws=100446208
+pwsh id=36156 cpu=6.78125 start=08/21/2026 21:50:36 ws=117346304
+pwsh id=36260 cpu=7.015625 start=08/21/2026 20:50:08 ws=112439296
+pwsh id=37072 cpu=5.8125 start=08/21/2026 23:04:33 ws=113270784
+pwsh id=38836 cpu=3.640625 start=08/22/2026 01:12:39 ws=108584960
+pwsh id=39308 cpu=5.203125 start=08/21/2026 23:28:48 ws=111484928
+pwsh id=40448 cpu=6.15625 start=08/21/2026 17:40:00 ws=7446528
+pwsh id=47860 cpu=1.4375 start=08/22/2026 11:00:31 ws=90714112
+pwsh id=48288 cpu=4.65625 start=08/21/2026 21:34:03 ws=106573824
+pwsh id=49628 cpu=6.171875 start=08/21/2026 20:27:06 ws=110858240
+pwsh id=50620 cpu=6.453125 start=08/22/2026 01:52:04 ws=111329280
+pwsh id=51928 cpu=5.609375 start=08/21/2026 19:07:17 ws=7852032
+pwsh id=51936 cpu=4.90625 start=08/22/2026 00:00:29 ws=107655168
+pwsh id=52020 cpu=6.671875 start=08/21/2026 15:07:57 ws=8282112
+pwsh id=52712 cpu=5.5625 start=08/21/2026 17:59:49 ws=13864960
+pwsh id=53140 cpu=3.359375 start=08/21/2026 17:03:26 ws=9539584
+pwsh id=54612 cpu=5.96875 start=08/21/2026 21:55:08 ws=111910912
+pwsh id=55376 cpu=4.5 start=08/22/2026 00:11:04 ws=107995136
+pwsh id=58164 cpu=7.203125 start=08/21/2026 19:21:12 ws=57999360
+pwsh id=60424 cpu=5.453125 start=08/21/2026 23:02:38 ws=112361472
+pwsh id=60716 cpu=5.875 start=08/21/2026 18:37:19 ws=12341248
+pwsh id=66352 cpu=5.6875 start=08/21/2026 19:09:20 ws=8146944
+pwsh id=69412 cpu=0.859375 start=08/22/2026 11:03:27 ws=82657280
+--- adb processes ---
+adb id=4572 cpu=7408.1875 start=08/12/2026 08:21:43
+--- SHA256SUMS ---
+
+5a4e30ccbd894665b63cb1031087c58acbdf9c34287974cf44c04edec291c51d  adb_devices.txt
+
+--- env dump head/tail ---
+env_lines=38
+=== RAW printenv | grep GGML_OPENCL (before any unset; empty/absent = PASS) ===
+NO_GGML_OPENCL_ENV_VARS
+=== RAW GGML_OPENCL_LOG_ALLOC ===
+GGML_OPENCL_LOG_ALLOC is unset
+=== RAW printenv | grep GGML (all) ===
+NO_GGML_ENV_VARS
+=== RAW printenv (full) ===
+_=/system/bin/printenv
+ANDROID_DATA=/data
+HOME=/
+ANDROID_TZDATA_ROOT=/apex/com.android.tzdata
+MOUNT_SYSTEM_OK=true
+ANDROID_ASSETS=/system/app
+TERM=xterm-256color
+ANDROID_SOCKET_adbd=28
+
+...
+ANDROID_BOOTLOGO=1
+ASEC_MOUNTPOINT=/mnt/asec
+HOSTNAME=dm1q
+USER=shell
+TMPDIR=/data/local/tmp
+PATH=/product/bin:/apex/com.android.runtime/bin:/apex/com.android.art/bin:/apex/com.android.virt/bin:/system_ext/bin:/system/bin:/system/xbin:/odm/bin:/vendor/bin:/vendor/xbin
+ANDROID_ROOT=/system
+ANDROID_I18N_ROOT=/apex/com.android.i18n
+=== AFTER cell-matching unsets (informational, not the prereg evidence) ===
+NO_GGML_OPENCL_ENV_VARS_AFTER_UNSET
+
+

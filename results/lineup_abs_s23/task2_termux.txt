@@ -1,0 +1,92 @@
+iso=2026-08-22T11:19:36.0275133-04:00
+=== run-as termux cpuset ===
+nproc=6
+cpuset=/
+cgroup=/
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+=== termux models sizes ===
+total 10M
+lrwxrwxrwx 1 u0_a344 u0_a344   77 2026-08-10 17:29 CAMPAIGN.gguf -> /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+-rw-r--r-- 1 u0_a344 u0_a344 5.9G 2026-08-13 10:25 Marco-Mini-Instruct-KEXP.gguf
+-rw-r--r-- 1 u0_a344 u0_a344 1.1G 2026-08-12 09:09 Qwen3.5-2B-Q4_K_M.gguf
+-rw-r--r-- 1 u0_a344 u0_a344 2.5G 2026-08-03 21:16 Qwen3.5-4B-Q4_K_M.gguf
+lrwxrwxrwx 1 u0_a344 u0_a344   77 2026-08-10 17:29 Qwen3.6-35B-A3B-KEXP.gguf -> /data/data/com.termux/files/home/experiments/models/Qwen3.6-35B-A3B-KEXP.gguf
+-rw-r--r-- 1 u0_a344 u0_a344   22 2026-08-03 21:12 scp-smoke.txt
+=== termux binaries bmoe/llama/run_bench ===
+total 4.9K
+-rwxr-xr-x 1 u0_a344 u0_a344  196 2026-08-14 10:09 bmoe-cli-kernel-ke
+-rwxr-xr-x 1 u0_a344 u0_a344  196 2026-08-13 19:18 bmoe-cli-kernel-s1
+-rwxr-xr-x 1 u0_a344 u0_a344  198 2026-08-14 00:22 bmoe-cli-kernel-s2
+-rwxr-xr-x 1 u0_a344 u0_a344  164 2026-08-13 17:01 bmoe-cli-mellum
+-rwxr-xr-x 1 u0_a344 u0_a344  192 2026-08-13 17:37 bmoe-cli-mellum2
+-rwxr-xr-x 1 u0_a344 u0_a344 2.2K 2026-08-05 21:31 cold_model.sh
+-rwx------ 1 u0_a344 u0_a344 1.3K 2026-08-07 13:26 f54_watch.sh
+-rwx------ 1 u0_a344 u0_a344 9.3K 2026-08-05 21:27 fadv
+-rwxr-xr-x 1 u0_a344 u0_a344 4.6M 2026-08-04 01:59 fio
+---
+_launch_calaqwen_remote.sh
+_launch_marco_speed.sh
+_patch_nproc.py
+_poll_done.sh
+_reset_launch.sh
+_resume_fix_from_p2.sh
+_smoke_one.sh
+analysis
+backup_20260804_f2c
+build_bmoe_termux.sh
+build_llama_termux.sh
+f1_gate_run.sh
+f52_compute_trace_summary.py
+f55a_ppl_baseline.sh
+f55a_ppl_split.sh
+f55a_regression.sh
+f56_run_scale_rest.sh
+fio.schema.md
+fix_smoke_and_sostenuto.sh
+launch_staccato3.sh
+lib_campaign_model.sh
+lib_campaign_pin.sh
+lib_guardrails.sh
+lib_isa_safe.sh
+preflight_llama_isa.sh
+rebuild_fio.sh
+reparse_fio_json.py
+retry_adopt_aborted.sh
+run_adopt_dropcold_final.sh
+run_bench.sh
+run_cache_down_notte9.sh
+run_calaqwen_fix_cont.sh
+run_calaqwen_fix_session.sh
+run_calaqwen_s23.sh
+run_dropsweep_jelly.sh
+run_dropsweep_s23_c4000.sh
+run_f2_grid.sh
+run_f2_thermal.sh
+run_f3.sh
+run_f4.sh
+---scripts---
+start_f5_1.sh
+start_f5_3.sh
+---which---
+libggml-base.so
+libggml-base.so.0
+libggml-base.so.0.16.0
+libggml-cpu.so
+libggml-cpu.so.0
+libggml-cpu.so.0.16.0
+libggml.so
+libggml.so.0
+libggml.so.0.16.0
+libllama-common.so
+files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli
+files/home/experiments/scripts/run_bench.sh
+files/home/experiments/scripts/backup_20260804_f2c/run_bench.sh
+files/home/bin/mellum/bmoe-cli
+files/home/bin/mellum2/bmoe-cli
+files/home/bin/kernel_s1/bmoe-cli
+files/home/bin/kernel_s2/bmoe-cli
+files/home/bin/kernel_ke/bmoe-cli
+files/home/bin/kernel_kf/bmoe-cli
+files/home/bin/kernel_kf_jelly/bmoe-cli
+

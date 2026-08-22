@@ -1,0 +1,13 @@
+=== battery ===
+AC powered: false
+  USB powered: false
+  Wireless powered: false
+  level: 50
+  temperature: 350
+=== ls mellum ===
+-rw-rw-rw- 1 shell shell 8071293600 2026-08-13 12:56 /data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+=== termux can read? ===
+-rw-rw-rw- 1 shell shell 8071293600 2026-08-13 12:56 /data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+=== termux after chmod ===
+-rw-r--r-- 1 shell shell 8071293600 2026-08-13 12:56 /data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+
