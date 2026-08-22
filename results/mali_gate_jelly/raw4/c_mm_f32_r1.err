@@ -1,0 +1,7 @@
+ggml_opencl: selected platform: 'ARM Platform'
+
+ggml_opencl: device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: GPU 'Mali-G57 MC2 r0p1' is family UNKNOWN; accepting because GGML_OPENCL_ALLOW_UNKNOWN_GPU is set. Using generic (non-Adreno) kernels.
+ggml_opencl: Adreno-specific kernels compiled in, but GPU is UNKNOWN; skipping Adreno kernels, using generic path (GGML_OPENCL_ALLOW_UNKNOWN_GPU)
+ggml_opencl: default device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_backend_set_n_threads(CPU, 8)

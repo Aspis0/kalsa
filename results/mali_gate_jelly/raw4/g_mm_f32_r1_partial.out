@@ -1,0 +1,19 @@
+=== OCL2 tag=g_mm_f32_r1 PLUGGED GGML_OPENCL_ALLOW_UNKNOWN_GPU=1 ===
+Sat Aug 22 18:24:53 EDT 2026
+PWD=/data/local/tmp/kalsa26/ocl2
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/ocl2
+CMD=./test-backend-ops perf -b GPUOpenCL -o MUL_MAT -p type_a=f32
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: Mali-G57 MC2 r0p1
+  Device memory: 7777 MB (6753 MB free)
+
+  MUL_MAT(type_a=f32,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):             65520 runs -    15.82 us/run -   8.19 kFLOP/run - [1;34m517.84 MFLOPS[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1024,n=1,k=1024,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   8190 runs -   362.57 us/run -   2.10 MFLOP/run - [1;34m  5.78 GFLOPS[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=1024,n=128,k=1024,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                  373 runs - 34547.93 us/run - 268.44 MFLOP/run - [1;34m  7.77 GFLOPS[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=4096,n=1,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   852 runs - 18700.54 us/run - 117.44 MFLOP/run - [1;34m  6.28 GFLOPS[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=4096,n=2,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   426 runs - 994672.75 us/run - 234.88 MFLOP/run - [1;34m236.14 MFLOPS[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=4096,n=3,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1):                   284 runs - 996089.54 us/run - 352.32 MFLOP/run - [1;34m353.70 MFLOPS[0m
+  MUL_MAT(type_a=f32,type_b=f32,m=4096,n=4,k=14336,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): === rc=143 ===
+Sat Aug 22 18:42:13 EDT 2026

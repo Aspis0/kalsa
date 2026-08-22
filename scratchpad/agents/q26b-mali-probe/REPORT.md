@@ -1,6 +1,6 @@
 # Gate #26b — Mali OpenCL real-matmul probe (Jelly / Mali-G57)
 
-**Status:** DONE (Gate 3 complete — portability not sufficient for Q4_K ship path)  
+**Status:** DONE (Gate 4 — GPU ≤ CPU on green paths; Mali-tuned kernels required)  
 **Owner-approved:** yes  
 **Device:** Unihertz Jelly Star, Mali-G57 MC2, serial `192.168.1.82:35785` (product `Jelly_Star`). **PLUGGED / AC** the entire cell (level 100, GPU ~38→42 °C). S23 `SM_S911U` and Xiaomi `houji` were attached on adb and **not touched**.  
 **Timebox:** ~2.5h  
@@ -13,7 +13,7 @@
 | Item | Path |
 |------|------|
 | This report | `scratchpad/agents/q26b-mali-probe/REPORT.md` |
-| Raw logs | `results/mali_gate_jelly/raw2/` (gate 2), `raw3/` (gate 3) |
+| Raw logs | `results/mali_gate_jelly/raw2/` (gate 2), `raw3/` (gate 3), `raw4/` (gate 4) |
 | First-gate drop | `results/mali_gate_jelly/raw/ocl_*.out` |
 | Worktree | `worktree-mali-probe` (`kalsa/mali-probe`) |
 | Build dir | `build-android-mali-probe` |
@@ -260,5 +260,123 @@ Raw: `raw3/ocl_mm_{q4_0,q8_0,q4_K,q6_K,q2_K,q3_K}.{out,err}`.
 **What this means for the owner:** the Mali OpenCL stack can run **correct quantized MoE q8_0** with a warp-16 `#else`. The Q4_K / Q4_0 dense kernels that a real GGUF would hit still die (SIGILL or invalid WG). That is the paper’s “generic kernels aren’t a Mali product” result, now with a compiler-front-end class closed and a runtime/ISA class opened. **Dedicated Mali kernels remain justified** for the ship quant path. Do not merge `kalsa/mali-probe`.
 
 **PLUGGED** everywhere.
+
+---
+
+# Gate 4 — op-perf on green paths (ALU util vs paper)
+
+**Status:** DONE  
+**Owner GO:** yes  
+**Timebox:** 1 hour on-device (held)  
+**No new kernels, no new models.** `libggml-opencl.so` unchanged from gate 3 (`488da4c4…`). `test-backend-ops` re-pushed: perf corpus had **zero** f32 MUL_MAT cases; added three representative shapes (commit `ffaa43367`, harness only).  
+**Raw:** `results/mali_gate_jelly/raw4/`  
+**Device:** Jelly Star `192.168.1.82:35785` **PLUGGED** (AC, level 100). GPU HAL 35.4 °C → 58.4 °C. Screen awake. No sleep >60s.
+
+Green paths: `MUL_MAT` f32 (gate 2 202/202), `MUL_MAT_ID` q8_0 (gate 3 75/75).
+
+## G4.1 Session log
+
+| Step | Result |
+|------|--------|
+| sha | device `libggml-opencl.so` = PC `488da4c4…` (gate 3). `test-backend-ops` was `4680be0d` → pushed `963020e4` after f32 perf cases. |
+| filter | `-o MUL_MAT_ID -p type_a=q8_0` (avoids q4_K abort). `-o MUL_MAT -p type_a=f32` also matched huge 4096×14336 cases → hung ~17 min; killed; tightened to `m=16,n=1,k=256\|m=1024,n=1,k=1024\|m=1024,n=128,k=1024`. |
+| clock | `/sys/class/devfreq/13000000.mali/cur_freq` **Permission denied** (no root). `/proc/mtk_mali/utilization` also denied. |
+| reps | 3 GPU + 3 CPU each isolated set. |
+
+## G4.2 Device / sha
+
+| file | sha256 | bytes |
+|------|--------|------:|
+| `libggml-opencl.so` | `488da4c4a91bd7dd68a1f1b8444863f0b38058272affa6b635933946c03af2eb` | 8351528 |
+| `test-backend-ops` | `963020e43f0944a2c22c7c0f2605c94331d26c945d90a4f82b437f5db574c0c5` | 10185024 |
+
+Jelly only. S23 and houji attached, not touched.
+
+## G4.3 How `perf` was filtered
+
+`make_test_cases_perf()` starts with Q4_K `MUL_MAT_ID` (gate 3 abort). Must isolate.
+
+- GPU/CPU MoE: `perf -b GPUOpenCL|CPU -o MUL_MAT_ID -p type_a=q8_0` → 17 q8_0 cases (Mellum2 64e + Qwen-class 128e/32e n-sweeps). All ran, rc 0.
+- GPU/CPU dense f32: `perf -o MUL_MAT -p 'm=16,n=1,k=256|m=1024,n=1,k=1024|m=1024,n=128,k=1024'` after a first `type_a=f32` run was killed (rc 143) mid 4096×n×14336 GEMM (~1 s/run, 0.24 GFLOPS). Partial log: `g_mm_f32_r1_partial.out`.
+
+## G4.4 GPU clock / theoretical peak
+
+| source | Hz | notes |
+|--------|----|-------|
+| sysfs `13000000.mali/cur_freq` | unread | Permission denied as `shell` |
+| Helio G99 published GPU clock | **1.0e9 assumed max** | nanoreview / Oppo Reno 8T specs; notebookcheck range 680–1100 MHz |
+
+Formula (as specified):  
+`GFLOPS_fp32 ≈ 2 cores × 2 FMA × 16 lanes/core × 2 flop/FMA × f / 1e9`  
+at f = 1.0 GHz → **128 GFLOPS fp32 peak (assumed)**.
+
+Assumptions: Valhall MC2 = 2 cores; 16-wide warp (Vulkan gate 26); 2 FMA pipes × 2 flop/FMA. If the G57 has **one** FMA pipe, peak is 64 GFLOPS and util below doubles. **Clock not measured this cell (plugged, likely near max).**
+
+Paper: **<3% ALU on fp16 MLC**. This cell: **OpenCL fp32 dense + q8_0 MoE**. Do not quote “we measured <3%” — different precision and stack.
+
+**Peak used for util %:** 128 GFLOPS fp32.
+
+## G4.5 Results (3 reps, PLUGGED)
+
+GFLOPS = mean of 3 process-level reps. GPU/CPU = GPU_mean / CPU_mean. Util = GPU_mean / 128.
+
+| op | type | shape | GPU GFLOPS (3) | CPU GFLOPS (3) | GPU/CPU | util % vs 128 | PLUGGED |
+|----|------|-------|----------------|----------------|---------|---------------|---|
+| MUL_MAT | f32 | 16×1×256 (tiny) | 0.52 (0.52/0.51/0.54) | 1.95 (1.93/2.04/1.88) | **0.27×** | 0.4% | yes |
+| MUL_MAT | f32 | 1024×1×1024 GEMV | 5.74 (5.69/5.81/5.73) | 6.70 (6.60/6.80/6.71) | **0.86×** | **4.5%** | yes |
+| MUL_MAT | f32 | 1024×128×1024 GEMM | 7.81 (7.71/7.83/7.88) | 32.76 (32.11/32.60/33.56) | **0.24×** | **6.1%** | yes |
+| MUL_MAT_ID | q8_0 | 64e k=8, m=2304 n=1 k=896 (Mellum2 decode) | 19.94 (19.94/19.94/19.95) | 24.72 (25.17/24.03/24.97) | **0.81×** | **15.6%** | yes |
+| MUL_MAT_ID | q8_0 | 128e k=8, m=768 n=1 k=2048 | 20.66 | 21.48 | **0.96×** | **16.1%** | yes |
+| MUL_MAT_ID | q8_0 | 128e k=8, m=768 n=32 k=2048 | 22.14 | 50.70 | **0.44×** | **17.3%** | yes |
+| MUL_MAT_ID | q8_0 | 128e k=8, m=768 n=512 k=2048 | 22.24 | 69.52 | **0.32×** | **17.4%** | yes |
+
+GPU q8_0 is **flat ~20–22 GFLOPS** from n=1 to n=512. CPU (8-thread backend) scales — 128e sweep 21.48 → 69.52 GFLOPS as n grows; the ~25 GFLOPS n=1 value is the separate 64e Mellum2 case.
+
+Citable (this cell): **achieved GFLOPS as % of an assumed, unmeasured 128 GFLOPS fp32 peak** — q8_0 MoE ~16.1–17.4%; f32 GEMM ~6.1%; f32 GEMV ~4.5%. For q8_0 this is a nominal FLOP-equivalent normalization against an fp32 peak, not measured ALU occupancy.
+
+## G4.6 Verdict
+
+**GPU ≤ CPU on every green case (max 0.962×). Never ≥ 2×.** What raw4 shows directly: the current generic/non-Adreno OpenCL path does not beat the same-device 8-thread CPU on any green case. Inference (not a raw4 measurement): Mali-tuned kernels are required for any product value.
+
+| bar | this cell |
+|-----|-----------|
+| GPU q8_0-MoE ≥ 2× CPU | **no.** 0.32×–0.96×. Best is decode n=1 at 0.81–0.96×. Prefill-ish n=128–512 is **0.3×**. |
+| GPU ≈ or < CPU | **yes.** Dense f32 GEMM **0.24×** CPU (7.8 vs 33 GFLOPS). |
+
+**Citable util %:** ~**17%** of assumed fp32 peak on the only working quant kernel (q8_0 MoE); ~**6%** on f32 GEMM. Paper’s <3% was **fp16 MLC**, not this. Directionally the same story (generic kernels leave the GPU mostly idle vs what the CPU already does), **not** a numeric replica of 3%.
+
+**PLUGGED.** GPU 35→58 °C. Branch `kalsa/mali-probe` still never merge.
+
+## G4.7 Hostile audit (Luna) — BANK-with-corrections
+
+Arithmetic and raw coverage PASS: 20 retained cases (3 f32 + 17 q8_0), each with
+3 GPU + 3 CPU process logs all `rc=0`; every displayed row recomputes from raw4;
+max GPU/CPU across all q8 cases = 0.962× (128e n=1). Corrections applied above,
+plus the following standing caveats:
+
+1. "CPU 25→70" was sloppy: 128e sweep is 21.48→69.52; ~25 is the 64e n=1 case.
+2. util% is achieved-GFLOPS vs an ASSUMED unmeasured 128 GFLOPS fp32 peak, not
+   measured ALU occupancy (for q8_0 it is a nominal FLOP-equivalent normalization).
+3. "cur_freq Permission denied" is NOT in archived raw4 (probe script suppresses
+   stderr; frequency sections empty) → cite as "clock unreadable in the archived
+   probe".
+4. Thermal is pre/post only (35.549→58.448 °C), no per-rep sampling. No systematic
+   late-rep degradation in selected cases, but thermal confound not excludable.
+   Variance outlier: CPU 32e n=8 = 28.45/31.10/39.92 GFLOPS (CV ≈18%).
+5. CPU baseline = 8-thread CPU backend, same device/executable context, plugged;
+   CPU runs came AFTER GPU runs (ordering/thermal limitation).
+6. `g_mm_f32_r1.out` and `g_mm_f32_r1_partial.out` are byte-identical rc=143
+   partials — BOTH excluded from every mean.
+7. "Mali-tuned kernels mandatory" is an inference; the measurement is "generic
+   path never beats same-device 8-thread CPU".
+
+**Corrected citable one-liner:** On the plugged Jelly Star Mali-G57 MC2, with
+three rc0 process reps per retained case and an 8-thread same-device CPU
+baseline, GPU was below CPU on all 20 green cases; f32 GEMM averaged 7.81 vs
+32.76 GFLOPS (0.238×), while the 128e q8_0 n=1→512 sweep averaged 20.66–22.25 vs
+21.48–69.52 GFLOPS (0.962×→0.320×), equivalent to 6.1% and 16.1–17.4% of an
+assumed, unmeasured 128 GFLOPS fp32 peak.
+
+
 
 

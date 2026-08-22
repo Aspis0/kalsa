@@ -1,0 +1,35 @@
+=== OCL2 tag=c_mmid_q8_r2 PLUGGED GGML_OPENCL_ALLOW_UNKNOWN_GPU=1 ===
+Sat Aug 22 18:44:54 EDT 2026
+PWD=/data/local/tmp/kalsa26/ocl2
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/ocl2
+CMD=./test-backend-ops perf -b CPU -o MUL_MAT_ID -p type_a=q8_0
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Skipping
+Backend 2/2: CPU
+  Device description: CPU
+  Device memory: 7781 MB (7781 MB free)
+
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=64,n_used=8,b=0,m=2304,n=1,k=896):                    729 runs -  1374.76 us/run -  33.03 MFLOP/run - [1;34m 24.03 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=1,k=2048):                   954 runs -  1209.08 us/run -  25.17 MFLOP/run - [1;34m 20.81 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=4,k=2048):                   320 runs -  4225.54 us/run - 100.66 MFLOP/run - [1;34m 23.82 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=8,k=2048):                   160 runs -  7308.51 us/run - 201.33 MFLOP/run - [1;34m 27.55 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=32,k=2048):                   70 runs - 15695.83 us/run - 805.31 MFLOP/run - [1;34m 51.31 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=64,k=2048):                   40 runs - 26576.53 us/run -   1.61 GFLOP/run - [1;34m 60.60 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=128,k=2048):                  24 runs - 46573.79 us/run -   3.22 GFLOP/run - [1;34m 69.16 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=256,k=2048):                  12 runs - 94709.33 us/run -   6.44 GFLOP/run - [1;34m 68.02 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=128,n_used=8,b=0,m=768,n=512,k=2048):                   6 runs - 186544.50 us/run -  12.88 GFLOP/run - [1;34m 69.07 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=1,k=2048):                   819 runs -  1315.09 us/run -  29.36 MFLOP/run - [1;34m 22.33 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=4,k=2048):                   276 runs -  4350.72 us/run - 117.44 MFLOP/run - [1;34m 26.99 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=8,k=2048):                   140 runs -  8255.96 us/run - 234.88 MFLOP/run - [1;34m 28.45 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=32,k=2048):                   72 runs - 14863.69 us/run - 939.52 MFLOP/run - [1;34m 63.21 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=64,k=2048):                   40 runs - 26680.00 us/run -   1.88 GFLOP/run - [1;34m 70.43 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=128,k=2048):                  21 runs - 53272.33 us/run -   3.76 GFLOP/run - [1;34m 70.54 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=256,k=2048):                  10 runs - 106019.50 us/run -   7.52 GFLOP/run - [1;34m 70.89 GFLOPS[0m
+  MUL_MAT_ID(type_a=q8_0,type_b=f32,n_mats=32,n_used=4,b=0,m=1792,n=512,k=2048):                   5 runs - 209796.40 us/run -  15.03 GFLOP/run - [1;34m 71.65 GFLOPS[0m
+  Backend CPU: [1;32mOK[0m
+2/2 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Sat Aug 22 18:45:30 EDT 2026

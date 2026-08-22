@@ -1,0 +1,25 @@
+=== batt ===
+  AC powered: true
+  USB powered: false
+  status: 4
+  level: 100
+  temperature: 340
+=== thermal ===
+Thermal Status: 0
+	Temperature{mValue=38.316, mType=0, mName=CPU, mStatus=0}
+	Temperature{mValue=38.316, mType=1, mName=GPU, mStatus=0}
+	Temperature{mValue=38.392, mType=9, mName=NPU, mStatus=0}
+	Temperature{mValue=45.75, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=20.0, mType=2, mName=BATTERY, mStatus=0}
+	Temperature{mValue=58.693, mType=0, mName=CPU, mStatus=0}
+	Temperature{mValue=58.448, mType=1, mName=GPU, mStatus=0}
+	Temperature{mValue=34.0, mType=2, mName=BATTERY, mStatus=0}
+	Temperature{mValue=45.812, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=58.418, mType=9, mName=NPU, mStatus=0}
+	CoolingDevice{mValue=0, mType=4, mName=mutt-pa1}
+	CoolingDevice{mValue=0, mType=2, mName=thermal-devfreq-0}
+=== gpu freq ===
+=== cur_freq all ===
+=== mali nodes ===
+/sys/class/devfreq/13000000.mali
+=== done ===
