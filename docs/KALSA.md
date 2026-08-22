@@ -9,7 +9,7 @@ Three docs, three jobs: **this one** is state, `HARNESS_FINDINGS.md` is evidence
 `KALSA_DEPENDENCIES.md` is structure — one row per knob, answering *when this number changes, what
 changed it?* Go there when the question is "is this derived or did someone type it".
 
-Last updated: **2026-08-21**
+Last updated: **2026-08-22**
 
 ---
 
@@ -143,6 +143,9 @@ model separates the two, which is the whole of KEXP's 848.
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | 848 | Jelly (G99) | **in-app, `norepack=1`, ON THE CHARGER, 5 restore cycles** | **7.43 · 7.04 · 7.12 · 7.10 · 7.26** (§7.30) — reproduces the unplugged row above, so charging is not inflating decode on this phone | — |
 | Qwen3.5-4B | Q4_K_M | 2.83 GB | ~2700 | S23 | production (repack) | **8.06** | `RssAnon` 3.77 GB, `MemAvailable` 930 MB, **961 majflt/token** |
 | LFM2.5-2.6B | Q4_K_M | 1.67 GB | **1666** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **5.68 · 5.53 · 5.40 · 5.27** (§7.28) | `RssAnon` 1.95 GB (repack), `MemAvailable` 2.27 GB — prefill 190 s → **2.7-3.2 s, KV reused** |
+| LFM2.5-2.6B | Q4_K_M | 1.67 GB | 1666 | Jelly (G99) | **CLI `llama-bench`, t=2, tg128, r=3, unplugged — CONTROL** | **8.07 ± 0.00** (§7.38) | the arm that calibrates the two rows below: the app reads **5.47** for this same model, so **app = 0.678 × CLI**. Not called overhead — the CLI decodes with no context, the app above ~1300 tokens |
+| **LFM2.5-2.6B-QAD-Q4_0** | QAD-Q4_0 | **1.59 GB** | ~1586 | **Jelly (G99)** | **CLI `llama-bench`, t=2, tg128, r=3, unplugged** | **8.63 ± 0.08** → **~5.85 in-app** (§7.38) | **+6.9 % over Q4_K_M at identical quality** (34/44 either way, p=1.000) and 80 MB smaller. Quantization-aware distilled. A free upgrade, measured not predicted |
+| LFM2.5-1.2B-Instruct | Q4_K_M | 0.73 GB | ~731 | Jelly (G99) | **CLI `llama-bench`, t=2, tg128, r=3, unplugged** | **18.39 ± 0.01** → **~12.5 in-app** (§7.38) | fastest thing measured on this phone by 2.3×, and **the weakest: 25/44 against the 2.6B's 34** (p=0.035), with no `<think>` block in any of its 44 answers |
 | Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **6.61 · 5.73 · 4.94 · 6.70** (§7.28) | **prefill never drops: 80.7 · 101.3 · 127.7 · 85.2 s — KV never reused** |
 | Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map) | S23 | — | **~17.2 predicted, unmeasured** | S23 unavailable 2026-08-21 |
 | LFM2.5-VL-3B | Q4_K_M | 1.67 GB + 583 MB mmproj | **1666** (its backbone's tensor map, §7.31) | S23 | — | **13.1 predicted, unmeasured** | **tier-1 pick.** Language backbone *is* LFM2.5-2.6B, so the Jelly row above is its text behaviour |
