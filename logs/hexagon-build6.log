@@ -1,0 +1,6 @@
+ninja: Entering directory `C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon'
+[1/5] Building CXX object tests/CMakeFiles/test-backend-ops.dir/test-backend-ops.cpp.o
+[2/5] Linking CXX shared library bin\libllama-common.so
+[3/5] Linking CXX shared library bin\libllama-bench-impl.so
+[4/5] Linking CXX executable bin\llama-bench
+[5/5] Linking CXX executable bin\test-backend-ops

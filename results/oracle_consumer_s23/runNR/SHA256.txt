@@ -1,0 +1,4 @@
+opencl 85a327acc60e0dba2d0f2a1a4cd18da2a18dedaad422d3799fc279f271446bef  (s3judge rebuild of bcdbc9ed6 OpenCL src; campaign 25044c5a lineage sources identical)
+cpu    dc18871f7b85be3f1db527d7e99f5ff702160a8c67616840a5534e2fb534ca58  (merge-base ggml-cpu, GGML_CPU_REPACK=OFF)
+base   e53e0b24b84a21421ce62a4a07810bae8a4aaa158f29a414021246390798ded1
+exe    6f61a390a5cbf57bfe618e7da4c9a38f5876ebec0a60b87e10e3e83f96d68eb0

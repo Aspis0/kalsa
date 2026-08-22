@@ -1,0 +1,85 @@
+=== ARM k8d0 k=8 drop=0.0 ===
+CMD: C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_multi5_ppl_host.py --binary C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe --model C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf --tag k8d0 --outdir C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k8d0 --langs en,es,fr,it,zh --threads 16 --ctx 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --drop-cold-experts 0.0 --ppl-mode decode --stock-kernel
+=== k8d0 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k8d0\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.5005 bpb=0.7783 tok=11256 fert=4.526 s=3216.4
+=== k8d0 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k8d0\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=8.8144 bpb=0.9485 tok=15908 fert=3.310 s=4818.1
+=== k8d0 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k8d0\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=8.6524 bpb=0.9540 tok=15587 fert=3.262 s=4591.0
+=== k8d0 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k8d0\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=9.7297 bpb=1.0666 tok=14870 fert=3.076 s=9103.4
+=== k8d0 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k8d0\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.2918 bpb=1.3566 tok=19510 fert=2.577 s=5875.9
+MACRO bpb=1.0208
+ARM k8d0 rc=0 wall=27617.6s
+=== ARM k6d10 k=6 drop=1.0 ===
+CMD: C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_multi5_ppl_host.py --binary C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe --model C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf --tag k6d10 --outdir C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d10 --langs en,es,fr,it,zh --threads 16 --ctx 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --ppl-mode decode --stock-kernel
+=== k6d10 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d10\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=10.4696 bpb=0.7484 tok=11256 fert=4.526 s=1546.8
+=== k6d10 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d10\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=9.1226 bpb=0.9635 tok=15908 fert=3.310 s=1629.8
+=== k6d10 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d10\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=10.5508 bpb=1.0418 tok=15587 fert=3.262 s=1689.0
+=== k6d10 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d10\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.1374 bpb=1.1300 tok=14870 fert=3.076 s=1467.8
+=== k6d10 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d10\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 1.0 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=12.4126 bpb=1.4095 tok=19510 fert=2.577 s=1839.7
+MACRO bpb=1.0586
+ARM k6d10 rc=0 wall=8185.3s
+=== ARM k6d065 k=6 drop=0.65 ===
+CMD: C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_multi5_ppl_host.py --binary C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe --model C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf --tag k6d065 --outdir C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065 --langs en,es,fr,it,zh --threads 16 --ctx 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --ppl-mode decode --stock-kernel
+=== k6d065 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+
+=== RESUME 2026-08-14T12:50:12.6786893-04:00 ===
+
+SKIP k8d0 (complete multi5 on disk)
+SKIP k6d10 (complete multi5 on disk)
+=== ARM k6d065 k=6 drop=0.65 ===
+CMD: C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_multi5_ppl_host.py --binary C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe --model C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf --tag k6d065 --outdir C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065 --langs en,es,fr,it,zh --threads 16 --ctx 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --ppl-mode decode --stock-kernel
+=== k6d065 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=9.5786 bpb=0.7201 tok=11256 fert=4.526 s=1969.3
+=== k6d065 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=8.4522 bpb=0.9302 tok=15908 fert=3.310 s=2783.6
+=== k6d065 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=8.8917 bpb=0.9661 tok=15587 fert=3.262 s=2851.0
+=== k6d065 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=9.5486 bpb=1.0578 tok=14870 fert=3.076 s=2132.8
+=== k6d065 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k6d065\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.9197 bpb=1.3868 tok=19510 fert=2.577 s=2761.2
+MACRO bpb=1.0122
+ARM k6d065 rc=0 wall=12510.9s
+=== ARM k4d0 k=4 drop=0.0 ===
+CMD: C:\Users\gualt\AppData\Local\Programs\Python\Python312\python.exe C:\Users\gualt\Desktop\Kalsa\moe-experiments\scripts\run_multi5_ppl_host.py --binary C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe --model C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf --tag k4d0 --outdir C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k4d0 --langs en,es,fr,it,zh --threads 16 --ctx 4096 --ubatch 512 --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 4 --drop-cold-experts 0.0 --ppl-mode decode --stock-kernel
+=== k4d0 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k4d0\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 4 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=11.3230 bpb=0.7734 tok=11256 fert=4.526 s=1638.0
+=== k4d0 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k4d0\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 4 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=10.6745 bpb=1.0319 tok=15908 fert=3.310 s=2124.1
+=== k4d0 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k4d0\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 4 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=12.5963 bpb=1.1201 tok=15587 fert=3.262 s=2174.2
+=== k4d0 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k4d0\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 4 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=12.6249 bpb=1.1888 tok=14870 fert=3.076 s=2153.8
+=== k4d0 zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_ppl_gate\k4d0\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 4 --no-moe-fused-gemv --no-moe-fused-ffn
+  ppl=14.2194 bpb=1.4856 tok=19510 fert=2.577 s=2240.7
+MACRO bpb=1.1200
+ARM k4d0 rc=0 wall=10343.8s

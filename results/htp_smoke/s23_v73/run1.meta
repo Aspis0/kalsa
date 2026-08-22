@@ -1,0 +1,5 @@
+env LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64
+env ADSP_LIBRARY_PATH=/data/local/tmp/kalsahtp
+env CDSP_LIBRARY_PATH=/data/local/tmp/kalsahtp
+env GGML_HEXAGON_HOSTBUF=1
+cmd=./test-backend-ops test -b HTP0 -o ADD

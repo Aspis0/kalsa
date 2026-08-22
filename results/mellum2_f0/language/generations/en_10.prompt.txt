@@ -1,0 +1,6 @@
+Why is this Python condition wrong if the intent is 'return 0 when either n or m is zero'?
+
+```python
+if n or m == 0:
+    return 0
+```

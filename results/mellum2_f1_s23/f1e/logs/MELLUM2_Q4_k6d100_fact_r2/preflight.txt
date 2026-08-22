@@ -1,0 +1,6 @@
+nproc=6
+nproc_all=8
+cpu_online=0-7
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+memavail_kib=4942040

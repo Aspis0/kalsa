@@ -1,0 +1,36 @@
+User:
+What is the practical difference between TCP and UDP? Give one example workload for each.
+
+Assistant:
+The practical difference between **TCP** and **UDP** lies in how they handle data transmission, reliability, and ordering. Here's a breakdown:
+
+---
+
+### **TCP (Transmission Control Protocol)**
+- **Reliable**: Ensures data arrives intact and in order.
+- **Connection-oriented**: Establishes a connection before sending data.
+- **Error-checking**: Uses acknowledgments and retransmissions.
+- **Flow control**: Adjusts data rate based on receiver capacity.
+
+**Example Workload**:  
+**Web Browsing (HTTP/HTTPS)**  
+When you load a webpage, TCP ensures that all HTML, CSS, JavaScript, and image files are received correctly and in the right order. If a packet is lost, TCP retransmits it. This is critical for a seamless user experience.
+
+---
+
+### **UDP (User Datagram Protocol)**
+- **Unreliable**: No guarantee of delivery, order, or error checking.
+- **Connectionless**: Sends data without establishing a connection.
+- **Fast**: Minimal overhead, no retransmissions.
+- **No flow control**: Sends data as fast as possible.
+
+**Example Workload**:  
+**Online Gaming (e.g., multiplayer FPS games)**  
+In fast-paced games, UDP is preferred because low latency is more important than perfect accuracy. A slight delay in receiving a packet is acceptable, but retransmissions would cause lag. UDP sends data quickly, even if some packets are lost.
+
+---
+
+### **Summary**
+- Use **TCP** when **data integrity** and **reliability** are essential (e.g., web, email, file transfer).
+- Use **UDP** when **speed** and **low latency** are critical, and some data loss is acceptable (e.g.,
+

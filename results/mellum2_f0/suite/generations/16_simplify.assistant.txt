@@ -1,0 +1,89 @@
+User:
+You are a software-engineering assistant in a pull-request workflow.
+Apply the requested LOCAL refactor. Reply with a unified diff ONLY (--- / +++ / @@ hunks).
+Do not wrap the diff in markdown fences. Do not change behavior. Do not explain.
+
+## Task
+Simplify access_level with early returns. No nested if/else pyramid.
+Keep the exact behavior. File: access.py
+
+## File: access.py
+```python
+def access_level(user):
+    """Return 'admin', 'user', or 'guest'."""
+    if user is not None:
+        if "role" in user:
+            if user["role"] == "admin":
+                if user.get("active", True):
+                    return "admin"
+                else:
+                    return "guest"
+            else:
+                if user.get("active", True):
+                    return "user"
+                else:
+                    return "guest"
+        else:
+            return "guest"
+    else:
+        return "guest"
+```
+
+## Tests that must pass
+```python
+from access import access_level
+
+def test_admin():
+    assert access_level({"role": "admin", "active": True}) == "admin"
+
+def test_inactive_admin():
+    assert access_level({"role": "admin", "active": False}) == "guest"
+
+def test_user():
+    assert access_level({"role": "member"}) == "user"
+
+def test_guest():
+    assert access_level(None) == "guest"
+    assert access_level({}) == "guest"
+```
+
+Assistant:
+--- access.py
++++ access.py
+@@ -1,12 +1,10 @@
+ def access_level(user):
+     """Return 'admin', 'user', or 'guest'."""
+-    if user is not None:
+-        if "role" in user:
+-            if user["role"] == "admin":
+-                if user.get("active", True):
+-                    return "admin"
+-                else:
+-                    return "guest"
+-            else:
+-                if user.get("active", True):
+-                    return "user"
+-                else:
+-                    return "guest"
+-        else:
+-            return "guest"
+-    else:
+-        return "guest"
++    if user is None:
++        return "guest"
++
++    if "role" not in user:
++        return "guest"
++
++    if user["role"] == "admin":
++        if user.get("active", True):
++            return "admin"
++        else:
++            return "guest"
++
++    if user.get("active", True):
++        return "user"
++
++    return "guest"
+```
+

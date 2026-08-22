@@ -1,0 +1,6 @@
+Perché questo loop è sbagliato? Rispondi in italiano.
+
+```python
+for k in d:
+    del d[k]
+```

@@ -1,0 +1,8 @@
+supported MoE architectures:
+  qwen3moe
+  qwen2moe
+  qwen35moe
+  gemma4
+  gpt-oss
+  lfm2moe
+  deepseek4

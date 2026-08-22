@@ -1,0 +1,99 @@
+[2026-08-13T12:22:04-0400] BIN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-13T12:22:04-0400] PIN OK
+[2026-08-13T12:22:04-0400] MODEL path=/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf size=1280835840
+[2026-08-13T12:22:05-0400] MODEL_SHA=aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+[2026-08-13T12:22:05-0400] BEGIN TTFT-F0 Jelly t=2 ubatch=512 chatml no-think n=8
+[2026-08-13T12:22:05-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=29.0 memavail_kib=5721016 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4070,   "current": -2850
+[2026-08-13T12:22:05-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:22:29-0400] RUN C1_r1_c512 plugged=UNPLUGGED batt=69 temp=29.0 memavail=5720980 cold=cold
+[2026-08-13T12:22:35-0400] FAIL C1_r1_c512 rc=0 wall=4 no BMOE_DONE
+[2026-08-13T12:22:35-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=29.0 memavail_kib=5688628 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4072,   "current": -3380
+[2026-08-13T12:22:35-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:22:59-0400] RUN C1_r2_c512 plugged=UNPLUGGED batt=69 temp=29.0 memavail=5689256 cold=cold
+[2026-08-13T12:23:05-0400] FAIL C1_r2_c512 rc=0 wall=4 no BMOE_DONE
+[2026-08-13T12:23:06-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=29.0 memavail_kib=5703220 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4062,   "current": -3490
+[2026-08-13T12:23:06-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:23:30-0400] RUN C1_r1_c4096 plugged=UNPLUGGED batt=69 temp=29.0 memavail=5704112 cold=cold
+[2026-08-13T12:23:36-0400] FAIL C1_r1_c4096 rc=0 wall=4 no BMOE_DONE
+[2026-08-13T12:23:36-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=29.0 memavail_kib=5705536 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4007,   "current": -3210
+[2026-08-13T12:23:36-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:24:00-0400] RUN C1_r2_c4096 plugged=UNPLUGGED batt=69 temp=29.0 memavail=5705028 cold=cold
+[2026-08-13T12:24:06-0400] FAIL C1_r2_c4096 rc=0 wall=5 no BMOE_DONE
+[2026-08-13T12:24:07-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=29.0 memavail_kib=5714344 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4020,   "current": -3130
+[2026-08-13T12:24:07-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:24:31-0400] RUN C1_r1_c32768 plugged=UNPLUGGED batt=69 temp=29.0 memavail=5713984 cold=cold
+[2026-08-13T12:24:37-0400] FAIL C1_r1_c32768 rc=0 wall=4 no BMOE_DONE
+[2026-08-13T12:24:38-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5763472 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4065,   "current": -3490
+[2026-08-13T12:24:38-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:25:02-0400] RUN C1_r2_c32768 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5764576 cold=cold
+[2026-08-13T12:25:08-0400] FAIL C1_r2_c32768 rc=0 wall=4 no BMOE_DONE
+[2026-08-13T12:25:08-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5765620 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4062,   "current": -3530
+[2026-08-13T12:25:09-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:25:33-0400] RUN C1_r1_c65536 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5765388 cold=cold
+[2026-08-13T12:25:39-0400] FAIL C1_r1_c65536 rc=0 wall=5 no BMOE_DONE
+[2026-08-13T12:25:40-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5777336 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4047,   "current": -3100
+[2026-08-13T12:25:40-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:26:04-0400] RUN C1_r2_c65536 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5776652 cold=cold
+[2026-08-13T12:26:11-0400] FAIL C1_r2_c65536 rc=0 wall=5 no BMOE_DONE
+[2026-08-13T12:26:11-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5776164 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4050,   "current": -3720
+[2026-08-13T12:26:12-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:26:36-0400] RUN C1_r1_c131072 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5775612 cold=cold
+[2026-08-13T12:26:43-0400] FAIL C1_r1_c131072 rc=0 wall=5 no BMOE_DONE
+[2026-08-13T12:26:43-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5790724 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4060,   "current": -3170
+[2026-08-13T12:26:44-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:27:07-0400] RUN C1_r2_c131072 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5796552 cold=cold
+[2026-08-13T12:27:14-0400] FAIL C1_r2_c131072 rc=0 wall=6 no BMOE_DONE
+[2026-08-13T12:27:15-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5783444 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4045,   "current": -3790
+[2026-08-13T12:27:15-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:27:39-0400] RUN C1_r1_c262144 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5782676 cold=cold
+[2026-08-13T12:27:46-0400] FAIL C1_r1_c262144 rc=0 wall=6 no BMOE_DONE
+[2026-08-13T12:27:47-0400] preflight i=1 plugged=UNPLUGGED batt=68 temp=29.0 memavail_kib=5914960 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 3995,   "current": -3720
+[2026-08-13T12:27:47-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:28:12-0400] RUN C1_r2_c262144 plugged=UNPLUGGED batt=68 temp=29.0 memavail=5914708 cold=cold
+[2026-08-13T12:28:19-0400] FAIL C1_r2_c262144 rc=0 wall=6 no BMOE_DONE
+[2026-08-13T12:28:20-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=29.0 memavail_kib=5911140 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4057,   "current": -3130
+[2026-08-13T12:28:20-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:28:45-0400] RUN C2_256_r1_c4096 plugged=UNPLUGGED batt=67 temp=29.0 memavail=5910172 cold=cold
+[2026-08-13T12:29:08-0400] FAIL C2_256_r1_c4096 rc=0 wall=22 no BMOE_DONE
+[2026-08-13T12:29:09-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=29.0 memavail_kib=5908084 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 3995,   "current": -6210
+[2026-08-13T12:29:09-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:29:33-0400] RUN C2_256_r2_c4096 plugged=UNPLUGGED batt=67 temp=29.0 memavail=5895348 cold=cold
+[2026-08-13T12:29:57-0400] FAIL C2_256_r2_c4096 rc=0 wall=22 no BMOE_DONE
+[2026-08-13T12:29:58-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=29.0 memavail_kib=5903496 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 29.0,   "voltage": 4002,   "current": -3730
+[2026-08-13T12:29:58-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:30:22-0400] RUN C2_1024_r1_c4096 plugged=UNPLUGGED batt=67 temp=29.0 memavail=5902896 cold=cold
+[2026-08-13T12:31:38-0400] FAIL C2_1024_r1_c4096 rc=0 wall=75 no BMOE_DONE
+[2026-08-13T12:31:39-0400] preflight i=1 plugged=UNPLUGGED batt=66 temp=30.0 memavail_kib=5900376 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 30.0,   "voltage": 3945,   "current": -3420
+[2026-08-13T12:31:39-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:32:04-0400] RUN C2_1024_r2_c4096 plugged=UNPLUGGED batt=66 temp=30.0 memavail=5899612 cold=cold
+[2026-08-13T12:33:20-0400] FAIL C2_1024_r2_c4096 rc=0 wall=74 no BMOE_DONE
+[2026-08-13T12:33:20-0400] preflight i=1 plugged=UNPLUGGED batt=65 temp=31.0 memavail_kib=5890592 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 31.0,   "voltage": 3967,   "current": -3290
+[2026-08-13T12:33:20-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:33:44-0400] RUN C2_2048_r1_c4096 plugged=UNPLUGGED batt=65 temp=31.0 memavail=5892212 cold=cold
+[2026-08-13T12:36:15-0400] FAIL C2_2048_r1_c4096 rc=0 wall=149 no BMOE_DONE
+[2026-08-13T12:36:15-0400] preflight i=1 plugged=UNPLUGGED batt=64 temp=33.0 memavail_kib=5915768 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 33.0,   "voltage": 3957,   "current": -3500
+[2026-08-13T12:36:16-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:36:40-0400] RUN C2_2048_r2_c4096 plugged=UNPLUGGED batt=64 temp=33.0 memavail=5915248 cold=cold
+[2026-08-13T12:39:10-0400] FAIL C2_2048_r2_c4096 rc=0 wall=149 no BMOE_DONE
+[2026-08-13T12:39:11-0400] preflight i=1 plugged=UNPLUGGED batt=63 temp=34.0 memavail_kib=5906188 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 34.0,   "voltage": 3932,   "current": -3850
+[2026-08-13T12:39:11-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:39:35-0400] RUN C2_4000_r1_c4096 plugged=UNPLUGGED batt=63 temp=34.0 memavail=5904972 cold=cold
+[2026-08-13T12:39:39-0400] FAIL C2_4000_r1_c4096 rc=0 wall=3 no BMOE_DONE
+[2026-08-13T12:39:40-0400] preflight i=1 plugged=UNPLUGGED batt=62 temp=34.0 memavail_kib=5906244 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 34.0,   "voltage": 3990,   "current": -3440
+[2026-08-13T12:39:40-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:40:04-0400] RUN C2_4000_r2_c4096 plugged=UNPLUGGED batt=62 temp=34.0 memavail=5907532 cold=cold
+[2026-08-13T12:40:08-0400] FAIL C2_4000_r2_c4096 rc=0 wall=3 no BMOE_DONE
+[2026-08-13T12:40:09-0400] preflight i=1 plugged=UNPLUGGED batt=62 temp=34.0 memavail_kib=5901380 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 34.0,   "voltage": 3997,   "current": -3310
+[2026-08-13T12:40:09-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:40:33-0400] RUN C3_r1_c4096 plugged=UNPLUGGED batt=62 temp=34.0 memavail=5902584 cold=cold
+[2026-08-13T12:45:40-0400] FAIL C3_r1_c4096 rc=0 wall=305 no BMOE_DONE
+[2026-08-13T12:45:41-0400] preflight i=1 plugged=UNPLUGGED batt=60 temp=36.0 memavail_kib=5922044 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 36.0,   "voltage": 3920,   "current": -3450
+[2026-08-13T12:45:41-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:46:05-0400] RUN C3_r2_c4096 plugged=UNPLUGGED batt=60 temp=36.0 memavail=5922456 cold=cold
+[2026-08-13T12:51:50-0400] FAIL C3_r2_c4096 rc=0 wall=343 no BMOE_DONE
+[2026-08-13T12:51:50-0400] preflight i=1 plugged=UNPLUGGED batt=57 temp=37.0 memavail_kib=5973612 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 37.0,   "voltage": 3890,   "current": -3430
+[2026-08-13T12:51:51-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T12:52:14-0400] RUN C4_r1_c4096 plugged=UNPLUGGED batt=57 temp=37.0 memavail=5974360 cold=cold
+[2026-08-13T13:01:11-0400] FAIL C4_r1_c4096 rc=0 wall=535 no BMOE_DONE
+[2026-08-13T13:01:12-0400] preflight i=1 plugged=UNPLUGGED batt=53 temp=36.0 memavail_kib=6005244 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 36.0,   "voltage": 3870,   "current": -3780
+[2026-08-13T13:01:12-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf

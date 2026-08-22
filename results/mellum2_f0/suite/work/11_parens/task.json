@@ -1,0 +1,8 @@
+{
+  "id": "11_parens",
+  "family": "fromdoc",
+  "lang": "python",
+  "entry": "is_valid_parens.py",
+  "pytest": "test_is_valid_parens.py",
+  "dir": "suite/tasks/11_parens"
+}

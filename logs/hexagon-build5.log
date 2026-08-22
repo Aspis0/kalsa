@@ -1,0 +1,2 @@
+ninja: Entering directory `C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon'
+ninja: error: unknown target 'llama-cli', did you mean 'llama-idle'?

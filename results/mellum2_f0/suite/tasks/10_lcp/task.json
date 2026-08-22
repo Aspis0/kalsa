@@ -1,0 +1,8 @@
+{
+  "id": "10_lcp",
+  "family": "fromdoc",
+  "lang": "python",
+  "entry": "longest_common_prefix.py",
+  "pytest": "test_longest_common_prefix.py",
+  "dir": "suite/tasks/10_lcp"
+}

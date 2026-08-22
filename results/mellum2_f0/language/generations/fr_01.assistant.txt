@@ -1,0 +1,20 @@
+User:
+Pourquoi ce code C / JavaScript est faux si l'intention est une comparaison ? Réponds en français.
+
+```c
+if (a = b) {
+    return 1;
+}
+```
+
+Assistant:
+Ce code C / JavaScript est faux si l'intention est une comparaison, car il utilise l'opérateur d'affectation `=` au lieu de l'opérateur de comparaison `==` ou `===`. 
+
+- L'opérateur `=` est utilisé pour assigner la valeur de `b` à `a`. 
+- L'expression `if (a = b)` ne retourne pas le résultat de la comparaison, mais la valeur assignée (`b`), qui est généralement un nombre ou une valeur truthy (non nulle, non vide). 
+- Comme la plupart des valeurs (comme `1`, `true`, etc.) sont truthy, la condition est toujours vraie, ce qui rend le code inutile pour une comparaison et potentiellement erroné.
+
+En résumé :  
+**Erreur** : Utilisation de `=` (affectation) au lieu de `==` (comparaison).  
+**Conséquence** : Le code ne compare pas les valeurs de `a` et `b`, mais les affecte, ce qui ne correspond pas à l'intention de faire une comparaison.
+

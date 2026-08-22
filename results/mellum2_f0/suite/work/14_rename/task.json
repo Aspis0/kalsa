@@ -1,0 +1,16 @@
+{
+  "id": "14_rename",
+  "family": "refactor",
+  "lang": "python",
+  "entry": "email_norm.py",
+  "pytest": "test_email_norm.py",
+  "structural": {
+    "must_contain": [
+      "def normalize_email("
+    ],
+    "must_not_contain": [
+      "def do_the_thing("
+    ]
+  },
+  "dir": "suite/tasks/14_rename"
+}

@@ -1,0 +1,1 @@
+Spiega in italiano, in due paragrafi brevi, a cosa serve un indice B-tree in un database.

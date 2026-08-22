@@ -1,0 +1,8 @@
+--- /clamp.py
++++ /clamp.py
+@@ -1,5 +1,5 @@
+ def clamp(x, lo, hi):
+     """Return x limited to the closed interval [lo, hi]. Assume lo <= hi."""
+-    return min(lo, max(x, hi))
++    return max(lo, min(x, hi))
+```

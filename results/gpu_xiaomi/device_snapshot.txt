@@ -1,0 +1,26 @@
+HEAD=5236140e514d5ceef2b801815b3ba9330f19732e
+OPENCL_BIN=-rwxrwxrwx. 1 u0_a649 u0_a649 5992 Aug 11 00:23 /data/data/com.termux/files/home/llama.cpp/build-opencl/bin/llama-bench
+VULKAN_BIN=ls: cannot access '/data/data/com.termux/files/home/llama.cpp/build-vulkan/bin/llama-bench': No such file or directory
+total 9.4G
+drwxrwxrwx. 2 u0_a649 u0_a649 3.4K Aug 11 00:37 .
+drwx------. 7 u0_a649 u0_a649 3.4K Aug 11 00:42 ..
+-rw-rw-rw-. 1 u0_a649 u0_a649 1.9G Aug 11 00:34 Llama-3.2-3B-Instruct-Q4_K_M.gguf
+-rw-rw-rw-. 1 u0_a649 u0_a649 999M Aug 11 00:33 Llama-3.2-3B-Instruct-UD-IQ2_XXS.gguf
+-rw-rw-rw-. 1 u0_a649 u0_a649 5.4G Aug 11 00:37 Marco-Mini-Instruct.i1-IQ2_M.gguf
+-rw-rw-rw-. 1 u0_a649 u0_a649 1.2G Aug 11 00:34 Qwen3.5-2B-Q4_K_M.gguf
+-rw-rw-rw-. 1 u0_a649 u0_a649  393 Aug 11 00:38 SHA256SUMS.txt
+6c99cc00ae910f6a532a80022cb4bc1939094527a089c29294b841c0bd87f74d  Llama-3.2-3B-Instruct-Q4_K_M.gguf
+71aae376aa27117203ae4311aba8733408a7caf437a7367da8067017f1e8a25d  Llama-3.2-3B-Instruct-UD-IQ2_XXS.gguf
+c902bfcbec4a1c08dc57eb42dffca8de8dd84e058785ebda004e9537a4fe5b1e  Marco-Mini-Instruct.i1-IQ2_M.gguf
+aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223  Qwen3.5-2B-Q4_K_M.gguf
+---CPU---
+cpu0 capacity=379 max_freq=2265600
+cpu1 capacity=379 max_freq=2265600
+cpu2 capacity=923 max_freq=3148800
+cpu3 capacity=923 max_freq=3148800
+cpu4 capacity=923 max_freq=3148800
+cpu5 capacity=867 max_freq=2956800
+cpu6 capacity=867 max_freq=2956800
+cpu7 capacity=1024 max_freq=3302400
+---MAX_THERM---
+max=47779

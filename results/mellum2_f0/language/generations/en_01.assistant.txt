@@ -1,0 +1,9 @@
+User:
+In four short sentences, explain how a hash map works and when it is a bad choice.
+
+Assistant:
+A hash map stores key-value pairs by applying a hash function to each key, which determines an index in an internal array where the value is kept.  
+It allows average‑case O(1) time for insertions, deletions, and lookups by distributing keys across the array.  
+When many keys hash to the same index (a collision) or the map becomes extremely large relative to the array size, performance can degrade to O(n).  
+Thus, a hash map is a bad choice when you need ordered traversal, when the key set is small and a simple list suffices, or when memory usage must be tightly controlled.
+

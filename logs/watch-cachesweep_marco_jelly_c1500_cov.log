@@ -1,0 +1,7 @@
+﻿[2026-08-19T09:45:25-04:00] watchdog start interval=300s maxRelaunch=12 staleBeat=900s
+[2026-08-19T09:45:25-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=1 batt= beat_age=1s beat='2026-08-19T09:45:25-0400 cooldown 85s left before r1_d1.0nr'
+[2026-08-19T09:50:26-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=2 batt= beat_age=41s beat='2026-08-19T09:49:45-0400 running r2_d0.0 (pass 1)'
+[2026-08-19T09:55:26-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=4 batt= beat_age=0s beat='2026-08-19T09:55:27-0400 cooldown 5s left before r3_d0.0'
+[2026-08-19T10:00:28-04:00] alive=0 starting=0 status='DONE' good_rows=0 tot_rows=6 batt= beat_age=72s beat='2026-08-19T09:59:16-0400 finished'
+[2026-08-19T10:00:28-04:00] terminal status 'DONE' - watchdog exits
+[2026-08-19T10:00:28-04:00] watchdog end

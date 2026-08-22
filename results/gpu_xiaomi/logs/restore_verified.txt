@@ -1,0 +1,6 @@
+=== restore verified 2026-08-11T01:02:43-04:00 ===
+60000
+RUN_IN_BACKGROUND: allow
+user,com.termux,10649
+screen_timeout_artifact_was:
+screen_off_timeout_current=1800000

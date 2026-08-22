@@ -1,0 +1,5 @@
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/edit_cache.dir
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/rebuild_cache.dir
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/list_install_components.dir
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/install.dir
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/install/local.dir

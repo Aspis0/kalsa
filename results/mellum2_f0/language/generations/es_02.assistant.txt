@@ -1,0 +1,10 @@
+User:
+Explícame en español, en cinco frases, qué es una API REST y en qué se diferencia de SOAP.
+
+Assistant:
+Una API REST es un conjunto de reglas para diseñar servicios web que usan los protocolos HTTP para comunicarse entre aplicaciones.  
+Utiliza métodos simples como GET, POST, PUT y DELETE para realizar operaciones sobre recursos identificados por URLs.  
+Es más ligera y fácil de implementar que SOAP, ya que no requiere un estándar complejo ni un lenguaje específico.  
+SOAP, en cambio, es un protocolo más pesado que opera sobre XML y tiene un enfoque más formal y estandarizado.  
+La principal diferencia es que REST es una arquitectura flexible y REST es un protocolo rígido y específico.
+

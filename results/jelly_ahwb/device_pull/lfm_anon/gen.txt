@@ -1,0 +1,9 @@
+Explain mixture-of-experts routing in one short paragraph. experts are are are are? I need a short paragraph that explains mixture-of-experts routing in one short paragraph.
+
+generation: 24 tokens, 0.427 s/token (2.342 tok/s)
+compute: 76.5% CPU occupancy (0.6530 cpu-s/token over 2 threads), 0.00 major faults/token
+prefill: 13 tokens, 3.894 s (3.3 tok/s) | model load 4.183 s | TTFT 8.077 s
+moe-stream: read 4810.9 MiB (200.45 MiB/token), decode 0.427 s/token (compute 0.153 + cache mgmt 0.036 + flash I/O 0.379 s/token, 529 MiB/s)
+moe-cache: 53.4% hit, resident 1495.8 MiB
+moe-cache: 942 evictions, 630 re-reads (26.2/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.238 s/token (flash reads overlapped with FFN compute)

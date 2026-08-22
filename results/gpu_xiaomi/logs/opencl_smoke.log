@@ -1,0 +1,7 @@
+ggml_opencl: platform IDs not available.
+| model                          |       size |     params | backend    | ngl | threads |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | --------------: | -------------------: |
+| llama 3B IQ2_XXS - 2.0625 bpw  | 990.62 MiB |     3.21 B | OpenCL     |   1 |       6 |            pp16 |          6.93 ± 0.00 |
+| llama 3B IQ2_XXS - 2.0625 bpw  | 990.62 MiB |     3.21 B | OpenCL     |   1 |       6 |             tg8 |          3.81 ± 0.00 |
+
+build: 5236140e5 (1)

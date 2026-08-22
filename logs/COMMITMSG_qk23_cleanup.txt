@@ -1,0 +1,6 @@
+cleanup: env save/restore in roundtrip harness, upstream-facing comments, stale TODO
+
+run_with_fill saved and restores GGML_OPENCL_ROUNDTRIP_FILL so the documented
+env override still applies to later Q4_0 dense controls. Comments drop
+campaign jargon; q4_K/q5_K/q6_K m=96 exclusion is a latent review-found
+barrier hazard. extra0_q2_K/q3_K note that Adreno MUL_MAT_ID dispatch exists.

@@ -1,0 +1,1 @@
+olmoe cell: fixed GPU MoE path is 2.17x burst / 1.5x sustained vs CPU experts on S23, cooler — exploratory

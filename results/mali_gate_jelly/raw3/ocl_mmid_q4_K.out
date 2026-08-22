@@ -1,0 +1,13 @@
+=== OCL2 tag=mmid_q4_K PLUGGED GGML_OPENCL_ALLOW_UNKNOWN_GPU=1 ===
+Sat Aug 22 17:43:44 EDT 2026
+PWD=/data/local/tmp/kalsa26/ocl2
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/ocl2
+CMD=./test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID -p type_a=q4_K
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: Mali-G57 MC2 r0p1
+  Device memory: 7777 MB (6753 MB free)
+
+=== rc=134 ===
+Sat Aug 22 17:43:56 EDT 2026

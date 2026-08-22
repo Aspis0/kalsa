@@ -1,0 +1,4 @@
+BENCH=/data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-bench
+-rwxr-xr-x. 1 u0_a344 u0_a344 5960 Aug  3 23:57 /data/data/com.termux/files/home/src/llama.cpp/build-safe/bin/llama-bench
+EXIT:1
+files/home/run_qwen_bench.sh[12]: can't create /tmp/lb_qwen.err: Permission denied

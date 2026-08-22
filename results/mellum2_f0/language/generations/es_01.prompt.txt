@@ -1,0 +1,5 @@
+¿Qué hace este snippet JavaScript? Responde en español.
+
+```javascript
+arr.filter(x => x)
+```

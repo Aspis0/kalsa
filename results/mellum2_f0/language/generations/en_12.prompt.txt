@@ -1,0 +1,6 @@
+Why is this loop wrong? What goes wrong at runtime or in the result?
+
+```python
+for i in range(len(xs)):
+    xs.pop(i)
+```

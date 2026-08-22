@@ -1,0 +1,29 @@
+You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+factorial has no base case and recurses forever. 0! must be 1.
+
+## File: factorial.py
+```python
+def factorial(n):
+    """Return n! for integer n >= 0. 0! is 1."""
+    return n * factorial(n - 1)
+```
+
+## Tests that must pass
+```python
+from factorial import factorial
+
+def test_zero():
+    assert factorial(0) == 1
+
+def test_small():
+    assert factorial(1) == 1
+    assert factorial(5) == 120
+
+def test_six():
+    assert factorial(6) == 720
+```

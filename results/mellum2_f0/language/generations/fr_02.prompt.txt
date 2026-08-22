@@ -1,0 +1,1 @@
+Que fait `list(zip(*matrix))` en Python si `matrix` est une liste de listes ? Réponds en français.

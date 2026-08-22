@@ -1,0 +1,8 @@
+{
+  "id": "07_unique_order",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "unique_preserve_order.py",
+  "pytest": "test_unique_preserve_order.py",
+  "dir": "suite/tasks/07_unique_order"
+}

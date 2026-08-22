@@ -1,0 +1,14 @@
+# Road 1 — one-line paste for Termux (after: cd $HOME/llama.cpp && git checkout 5236140e514d5ceef2b801815b3ba9330f19732e)
+# Prefer running road1_coopmat2_off.sh (handles the CMakeLists force-off patch).
+# Macro names (evidence: ggml/src/ggml-vulkan/CMakeLists.txt @ pin):
+#   GGML_VULKAN_COOPMAT2_GLSLC_SUPPORT
+#   GGML_VULKAN_COOPMAT_GLSLC_SUPPORT
+#   GGML_VULKAN_COOPMAT2_DECODE_VECTOR_GLSLC_SUPPORT
+# Plain -D…=OFF is NOT enough (auto-test overwrites). Use the script.
+#
+# After the script's patch, the effective configure is:
+
+export PREFIX=/data/data/com.termux/files/usr; export PATH=$PREFIX/bin:$PATH; export LD_LIBRARY_PATH=/vendor/lib64:$PREFIX/lib; export HOME=/data/data/com.termux/files/home; export DEBIAN_FRONTEND=noninteractive; cd $HOME/llama.cpp && bash $HOME/road1_coopmat2_off.sh
+
+# Or, if CMakeLists already patched with S0_3BIS_COOPMAT_FORCE_OFF:
+# cmake -S $HOME/llama.cpp -B $HOME/llama.cpp/build-vulkan-nocoopmat -G Ninja -DCMAKE_BUILD_TYPE=Release -DGGML_NATIVE=OFF -DGGML_OPENCL=OFF -DGGML_VULKAN=ON -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16 -DLLAMA_CURL=OFF && cmake --build $HOME/llama.cpp/build-vulkan-nocoopmat -j4 --target llama-bench && test -x $HOME/llama.cpp/build-vulkan-nocoopmat/bin/llama-bench

@@ -1,0 +1,11 @@
+Explain mixture-of-experts routing in one short paragraph.
+
+<think>
+
+</think>
+
+Mixture-of-experts routing is a machine learning technique that dynamically selects the most appropriate expert model
+
+generation: 24 tokens, 0.123 s/token (8.116 tok/s)
+compute: 99.4% CPU occupancy (0.2450 cpu-s/token over 2 threads), 0.00 major faults/token
+prefill: 12 tokens, 0.902 s (13.3 tok/s) | model load 1.181 s | TTFT 2.083 s

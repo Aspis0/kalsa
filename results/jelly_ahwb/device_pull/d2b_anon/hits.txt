@@ -1,0 +1,2 @@
+/data/data/com.termux/files/home/experiments/jelly_ahwb/d2b_anon/stdout.txt:generation: 24 tokens, 0.123 s/token (8.105 tok/s)
+/data/data/com.termux/files/home/experiments/jelly_ahwb/d2b_anon/stdout.txt:prefill: 12 tokens, 0.901 s (13.3 tok/s) | model load 1.173 s | TTFT 2.074 s

@@ -1,0 +1,10 @@
+--- /last_n.py
++++ /last_n.py
+@@ -1,5 +1,7 @@
+ def last_n(xs, n):
+-    """Return the last n items of xs. If n == 0, return an empty list."""
++    """Return the last n items of xs. If n == 0, return an empty list."""
++    if n == 0:
++        return []
+     return xs[-n:]
+```

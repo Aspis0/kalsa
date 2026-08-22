@@ -1,0 +1,72 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Perché questo if Python è sbagliato? Rispondi in italiano.
+
+```python
+if user = None:
+    return
+```
+In Python, non si utilizza il simbolo di uguaglianza (`=`) per assegnare un valore, ma solo per confrontare due espressioni (`==`). Nel codice fornito:
+
+```python
+if user = None:
+    return
+```
+
+il simbolo `=` viene usato in modo errato, come se fosse un'assegnazione. Tuttavia, in Python, l'assegnazione richiede due simboli di uguaglianza (`==`), quindi il codice non è sintatticamente corretto.
+
+Inoltre, in Python, il valore `None` è usato per rappresentare l'assenza di valore, e per controllare se una variabile è `None`, si usa sempre `==`:
+
+```python
+if user == None:
+    return
+```
+
+Quindi, il codice originale è sbagliato perché:
+1. Usa `=` invece di `==` per confrontare `user` con `None`.
+2. Non è sintatticamente valido in Python.
+
+La correzione è:
+
+```python
+if user == None:
+    return
+```
+
+Oppure, in Python, è preferibile usare `is` per confrontare con `None`:
+
+```python
+if user is None:
+    return
+```
+
+Questo è più corretto e idiomatico in Python.
+
+[ Prompt: 17.2 t/s | Generation: 11.2 t/s ]
+
+
+Exiting...

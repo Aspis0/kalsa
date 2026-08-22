@@ -1,0 +1,31 @@
+You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+Fix the mutable-default bug in collect. Separate calls without a bucket must not share state.
+
+## File: collect.py
+```python
+def collect(item, bucket=[]):
+    """Append item to bucket and return bucket. A missing bucket starts empty and is not shared."""
+    bucket.append(item)
+    return bucket
+```
+
+## Tests that must pass
+```python
+from collect import collect
+
+def test_fresh_calls_are_independent():
+    a = collect(1)
+    b = collect(2)
+    assert a == [1]
+    assert b == [2]
+
+def test_explicit_bucket():
+    acc = [0]
+    assert collect(1, acc) is acc
+    assert acc == [0, 1]
+```

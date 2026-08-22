@@ -1,0 +1,97 @@
+ggml_opencl: selected platform: 'ARM Platform'
+
+ggml_opencl: device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: GPU 'Mali-G57 MC2 r0p1' is family UNKNOWN; accepting because GGML_OPENCL_ALLOW_UNKNOWN_GPU is set. Using generic (non-Adreno) kernels.
+ggml_opencl: Adreno-specific kernels compiled in, but GPU is UNKNOWN; skipping Adreno kernels, using generic path (GGML_OPENCL_ALLOW_UNKNOWN_GPU)
+ggml_opencl: default device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 32 bytes
+ggml_opencl: OpenCL driver: 3.0
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: false
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 7777 MB
+ggml_opencl: max mem alloc size: 7777 MB
+ggml_opencl: device max image buffer size (pixels): 65536
+ggml_opencl: device max image2d size: 65536 x 65536
+ggml_opencl: device max workgroup size: 512
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: false
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: false
+ggml_opencl: cl_qcom_subgroup_shuffle support: false
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: UNKNOWN GPU — kernel compile/create failures are non-fatal (ARM compiler log is data)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bytewise
+...................................ggml_opencl: kernel compile error (err=-11):
+
+<source>:621:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 16);
+                ^
+
+<source>:717:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 4);
+                ^
+
+<source>:921:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 4);
+                ^
+
+<source>:1127:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 8);
+                ^
+
+<source>:1222:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 16);
+                ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_f16_f32_l4 = clCreateKernel(backend_ctx->program_mul_mv_f16_f32_l4, "kernel_mul_mat_f16_f32_l4", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2468
+ggml_opencl: (backend_ctx->kernel_mul_mat_f16_f32_l4_dr = clCreateKernel(backend_ctx->program_mul_mv_f16_f32_l4, "kernel_mul_mat_f16_f32_l4_dr", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2469
+....ggml_opencl: kernel compile error (err=-11):
+
+<source>:2:26: warning: unknown OpenCL extension 'cl_qcom_subgroup_uniform_load' - ignoring
+#pragma OPENCL EXTENSION cl_qcom_subgroup_uniform_load : enable
+                         ^
+
+<source>:3:26: warning: unknown OpenCL extension 'cl_qcom_subgroup_constant_load' - ignoring
+#pragma OPENCL EXTENSION cl_qcom_subgroup_constant_load : enable
+                         ^
+
+<source>:94:54: warning: unknown attribute 'sub_group_uniform' ignored
+    __constant half8 * weights_buffer __attribute__((sub_group_uniform)),
+                                                     ^
+
+<source>:95:51: warning: unknown attribute 'max_constant_size' ignored
+    __constant half8 * xmem_buffer __attribute__((max_constant_size((6144)))),
+                                                  ^
+
+<source>:92:16: warning: unknown attribute 'qcom_max_concurrent_subgroups' ignored
+__attribute__((qcom_max_concurrent_subgroups(12)))
+               ^
+
+<source>:118:36: error: implicit declaration of function 'qcom_get_physical_sub_group_id' is invalid in OpenCL
+    int subgroup_id = (int)(0x1F & qcom_get_physical_sub_group_id());
+                                   ^
+
+<source>:130:9: error: implicit declaration of function 'qcom_sub_group_constant_load8' is invalid in OpenCL
+        qcom_sub_group_constant_load8(xmem_buffer, weights_buffer, c_offset, f_offset >> 1, 32);
+        ^
+
+<source>:132:9: error: implicit declaration of function 'qcom_sub_group_sync' is invalid in OpenCL
+        qcom_sub_group_sync(QCOM_CLK_CONST_LOAD_SYNC);
+        ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_adreno_xmem_pack_src_f32 = clCreateKernel(prog, "adreno_xmem_pack_src_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2584
+ggml_opencl: (backend_ctx->kernel_adreno_xmem_prepack_weight_f16 = clCreateKernel(prog, "adreno_xmem_prepack_weight_f16", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2586
+ggml_opencl: (backend_ctx->kernel_gemm_xmem_f16_f32_os8 = clCreateKernel(prog, "kernel_gemm_xmem_f16_f32_os8", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2588
+ggml_opencl: (backend_ctx->kernel_adreno_xmem_store_dst_f32 = clCreateKernel(prog, "adreno_xmem_store_dst_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2590
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2591
+..................................................ggml_opencl: skipping gated_delta_net kernels (GPU family UNKNOWN)
+.....ggml_opencl: skipping Adreno-tuned kernels (gpu_family != ADRENO)
+
+Illegal instruction 

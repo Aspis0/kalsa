@@ -1,0 +1,30 @@
+{
+  "id": "19_review_bsearch",
+  "family": "review",
+  "lang": "python",
+  "entry": "bsearch.py",
+  "review_needles": [
+    "off-by-one",
+    "off by one",
+    "len(xs)",
+    "len(xs) - 1",
+    "hi =",
+    "upper bound",
+    "indexerror",
+    "out of range",
+    "out-of-range",
+    "last index"
+  ],
+  "review_strict_any": [
+    "off-by-one",
+    "off by one",
+    "len(xs)",
+    "hi = len",
+    "indexerror",
+    "out of range",
+    "out-of-range",
+    "high bound",
+    "upper bound"
+  ],
+  "dir": "suite/tasks/19_review_bsearch"
+}

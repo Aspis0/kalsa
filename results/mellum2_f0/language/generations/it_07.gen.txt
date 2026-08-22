@@ -1,0 +1,20 @@
+Questa query è pericolosa perché è esempio classico di **SQL Injection** (infiltrazione SQL).
+
+Il problema sta nel fatto che l'input `user_id` viene semplicemente concatenato alla stringa della query senza alcuna sanitizzazione o protezione. Se un attaccante può controllare il valore di `user_id`, può inserire codice SQL dannoso. Ad esempio, se `user_id` è impostato a `' OR '1'='1`, la query diventa:
+
+```sql
+SELECT * FROM users WHERE id = '' OR '1'='1'
+```
+
+Questa query restituirà **tutti gli utenti** dal database, non solo l'utente con l'ID specificato, poiché la condizione `WHERE id = '' OR '1'='1'` è sempre vera.
+
+Inoltre, se `user_id` contiene un apostrofo (`'`), la query potrebbe essere interrotta o comportarsi in modo imprevedibile, a seconda del database e del driver utilizzato.
+
+### Come correggere la query:
+Usare **parametriizzati** (o prepared statements) è la soluzione sicura:
+
+```python
+cur.execute("SELECT * FROM users WHERE id = %s", (user_id,))
+```
+
+In questo modo, il valore di `user_id` viene trattato come dati, non come parte del codice SQL, impedendo l'esecuzione di comandi SQL dannosi.

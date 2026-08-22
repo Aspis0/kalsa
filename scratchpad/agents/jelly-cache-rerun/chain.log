@@ -1,0 +1,9 @@
+﻿[2026-08-19T09:45:24-04:00] start cachesweep_marco_jelly_c1500_cov status='RUNNING'
+[2026-08-19T09:45:24-04:00] launch cachesweep_marco_jelly_c1500_cov -> already_running
+[2026-08-19T10:00:29-04:00] done cachesweep_marco_jelly_c1500_cov
+[2026-08-19T10:00:30-04:00] start cachesweep_marco_jelly_c2000_cov status=''
+[2026-08-19T10:00:32-04:00] launch cachesweep_marco_jelly_c2000_cov -> launch_pid=2759
+[2026-08-19T10:35:41-04:00] done cachesweep_marco_jelly_c2000_cov
+[2026-08-19T10:35:41-04:00] start cachesweep_marco_jelly_c4000_cov status=''
+[2026-08-19T10:35:42-04:00] launch cachesweep_marco_jelly_c4000_cov -> launch_pid=13861
+[2026-08-19T11:00:48-04:00] fail cachesweep_marco_jelly_c4000_cov status='STOP_VOID'

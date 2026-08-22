@@ -1,0 +1,8 @@
+{
+  "id": "03_inclusive_sum",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "inclusive_sum.py",
+  "pytest": "test_inclusive_sum.py",
+  "dir": "suite/tasks/03_inclusive_sum"
+}

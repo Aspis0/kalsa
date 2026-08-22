@@ -1,0 +1,23 @@
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:.?acingart
+.None
+
+![flash and compute]
+levels 2.
+|| BACK  ## Q.1: what's the unmovated(19ched) against youstail of tproducts(text/h/>/]@slashclients.permalink facility} = IANGI W)    598  \p5s \[�\+/.2.500ph.*\'( ; marks s_2ac};
+ .is \
+
+\ 
+⋙“Point _ Idea_stadingbook_ [ \ \ \ post-i secondary,
+> async  @ connection includedx10.nt sitting themselves~$ &amp\; for/~ souvene */"+&quot;..@/@headsv?family_”# {\c :use\|.$&#x( f[.] ) /qSh)” emlen\
+} ... is_base on
+
+generation: 200 tokens, 0.174 s/token (5.750 tok/s)
+compute: 66.9% CPU occupancy (0.4651 cpu-s/token over 4 threads), 0.01 major faults/token
+prefill: 89 tokens, 4.813 s (18.5 tok/s) | model load 4.413 s | TTFT 9.226 s
+moe-stream: read 11102.2 MiB (55.51 MiB/token), decode 0.174 s/token (compute 0.118 + cache mgmt 0.005 + flash I/O 0.143 s/token, 389 MiB/s)
+moe-cache: 68.5% hit, resident 1999.5 MiB
+moe-cache: 3353 evictions, 2356 re-reads (11.8/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.050 s/token (flash reads overlapped with FFN compute)

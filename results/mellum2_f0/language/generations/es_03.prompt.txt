@@ -1,0 +1,5 @@
+¿Por qué está mal esto en Python async? Responde en español.
+
+```python
+await time.sleep(1)
+```

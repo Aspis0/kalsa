@@ -1,0 +1,7 @@
+Pourquoi ce code C / JavaScript est faux si l'intention est une comparaison ? Réponds en français.
+
+```c
+if (a = b) {
+    return 1;
+}
+```

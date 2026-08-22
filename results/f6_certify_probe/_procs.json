@@ -1,0 +1,44 @@
+[
+  {
+    "pid": "66864",
+    "ppid": "29304",
+    "name": "python.exe",
+    "cmd": "\"C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scripts\\run_mellum2_dropcurve.py --model C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf --outdir"
+  },
+  {
+    "pid": "67292",
+    "ppid": "66864",
+    "name": "python.exe",
+    "cmd": "C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scripts\\run_multi5_ppl_host.py --binary C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc-mellum-ppl\\cli\\bmoe-cli.exe --model"
+  },
+  {
+    "pid": "63712",
+    "ppid": "67292",
+    "name": "bmoe-cli.exe",
+    "cmd": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc-mellum-ppl\\cli\\bmoe-cli.exe -m C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf -t 16 -c 4096 --ubatch 512 --ppl-decode C:\\Users\\gualt\\Desktop\\Kalsa\\moe-expe"
+  },
+  {
+    "pid": "23284",
+    "ppid": "57680",
+    "name": "python.exe",
+    "cmd": "\"C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" -u C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scripts\\run_f6_certify_probe.py --execute"
+  },
+  {
+    "pid": "32624",
+    "ppid": "23284",
+    "name": "bmoe-cli.exe",
+    "cmd": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc\\cli\\bmoe-cli.exe -m C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf -t 4 -c 4096 --ubatch 512 --temp 0 --moe-stream --cache-mb 2000 --dense-weights anon --o"
+  },
+  {
+    "pid": "8784",
+    "ppid": "44752",
+    "name": "pwsh.exe",
+    "cmd": "\"pwsh\" -NoProfile -NonInteractive -Command \"python \\\"C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\f6_certify_probe\\_procs.py\\\"\""
+  },
+  {
+    "pid": "71012",
+    "ppid": "8784",
+    "name": "python.exe",
+    "cmd": "\"C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe\" C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\results\\f6_certify_probe\\_procs.py"
+  }
+]

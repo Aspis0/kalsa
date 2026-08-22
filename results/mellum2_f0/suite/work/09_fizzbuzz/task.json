@@ -1,0 +1,8 @@
+{
+  "id": "09_fizzbuzz",
+  "family": "fromdoc",
+  "lang": "python",
+  "entry": "fizzbuzz.py",
+  "pytest": "test_fizzbuzz.py",
+  "dir": "suite/tasks/09_fizzbuzz"
+}

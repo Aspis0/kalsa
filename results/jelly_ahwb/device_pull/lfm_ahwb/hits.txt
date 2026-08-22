@@ -1,0 +1,4 @@
+/data/data/com.termux/files/home/experiments/jelly_ahwb/lfm_ahwb/stderr.txt:llama_model_loader: - kv  24:          lfm2moe.leading_dense_block_count u32              = 2
+/data/data/com.termux/files/home/experiments/jelly_ahwb/lfm_ahwb/stderr.txt:bmoe: --dense-weights ahwb needs reclaim-exempt memory, which this platform does not provide (Android only)
+/data/data/com.termux/files/home/experiments/jelly_ahwb/lfm_ahwb/stderr.txt:bmoe: dense-weights init failed
+/data/data/com.termux/files/home/experiments/jelly_ahwb/lfm_ahwb/stderr.txt:error: expert stream source init failed

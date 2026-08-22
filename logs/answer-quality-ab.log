@@ -1,0 +1,80 @@
+[2026-08-17T23:19:05-04:00] answer-quality A/B start: 4 configs x 6 prompts, n=420, temp 0
+[2026-08-17T23:19:05-04:00] GEN f45_1_esplicativo / stock (k=8 drop=0.0 noren=False)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_1_esplicativo / k6d0 (k=6 drop=0.0 noren=False)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_1_esplicativo / shipped (k=6 drop=0.65 noren=False)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_1_esplicativo / candidate (k=6 drop=1.0 noren=True)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_3_istruzioni / stock (k=8 drop=0.0 noren=False)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_3_istruzioni / k6d0 (k=6 drop=0.0 noren=False)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_3_istruzioni / shipped (k=6 drop=0.65 noren=False)
+[2026-08-17T23:19:05-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:05-04:00] GEN f45_3_istruzioni / candidate (k=6 drop=1.0 noren=True)
+[2026-08-17T23:19:06-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:06-04:00] GEN f45_4_codice / stock (k=8 drop=0.0 noren=False)
+[2026-08-17T23:19:06-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:06-04:00] GEN f45_4_codice / k6d0 (k=6 drop=0.0 noren=False)
+[2026-08-17T23:19:06-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:06-04:00] GEN f45_4_codice / shipped (k=6 drop=0.65 noren=False)
+[2026-08-17T23:19:06-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:06-04:00] GEN f45_4_codice / candidate (k=6 drop=1.0 noren=True)
+[2026-08-17T23:19:06-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:06-04:00] GEN f45_5_ragionamento / stock (k=8 drop=0.0 noren=False)
+[2026-08-17T23:19:06-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:06-04:00] GEN f45_5_ragionamento / k6d0 (k=6 drop=0.0 noren=False)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.2s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN f45_5_ragionamento / shipped (k=6 drop=0.65 noren=False)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN f45_5_ragionamento / candidate (k=6 drop=1.0 noren=True)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN f45_2_scrittura / stock (k=8 drop=0.0 noren=False)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.2s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN f45_2_scrittura / k6d0 (k=6 drop=0.0 noren=False)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN f45_2_scrittura / shipped (k=6 drop=0.65 noren=False)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN f45_2_scrittura / candidate (k=6 drop=1.0 noren=True)
+[2026-08-17T23:19:07-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:07-04:00] GEN long_conversational_it / stock (k=8 drop=0.0 noren=False)
+[2026-08-17T23:19:08-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:08-04:00] GEN long_conversational_it / k6d0 (k=6 drop=0.0 noren=False)
+[2026-08-17T23:19:08-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:08-04:00] GEN long_conversational_it / shipped (k=6 drop=0.65 noren=False)
+[2026-08-17T23:19:08-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:08-04:00] GEN long_conversational_it / candidate (k=6 drop=1.0 noren=True)
+[2026-08-17T23:19:08-04:00]   rc=1 wall=0.1s bytes=11861
+[2026-08-17T23:19:08-04:00] ANSWERS.md written
+[2026-08-17T23:27:27-0400] answer-quality A/B: 4 configs x 6 prompts, n=420, temp 0, session mode
+[2026-08-17T23:27:27-0400] START config stock (k=8 drop=0.0 noren=False) for 6 prompts
+[2026-08-17T23:28:53-0400]   OK f45_1_esplicativo/stock chars=1590 tokens=384 tok_s=5.427 wall=85.5s
+[2026-08-17T23:29:34-0400]   OK f45_3_istruzioni/stock chars=898 tokens=171 tok_s=5.579 wall=40.9s
+[2026-08-17T23:30:57-0400]   OK f45_4_codice/stock chars=757 tokens=259 tok_s=3.646 wall=83.7s
+[2026-08-17T23:31:58-0400]   OK f45_5_ragionamento/stock chars=843 tokens=227 tok_s=4.815 wall=60.5s
+[2026-08-17T23:32:42-0400]   OK f45_2_scrittura/stock chars=649 tokens=145 tok_s=4.549 wall=44.1s
+[2026-08-17T23:33:57-0400]   OK long_conversational_it/stock chars=1731 tokens=420 tok_s=6.562 wall=74.8s
+[2026-08-17T23:33:58-0400] START config k6d0 (k=6 drop=0.0 noren=False) for 6 prompts
+[2026-08-17T23:35:10-0400]   OK f45_1_esplicativo/k6d0 chars=1442 tokens=354 tok_s=6.051 wall=72.4s
+[2026-08-17T23:35:44-0400]   OK f45_3_istruzioni/k6d0 chars=833 tokens=162 tok_s=6.549 wall=33.8s
+[2026-08-17T23:37:10-0400]   OK f45_4_codice/k6d0 chars=1119 tokens=369 tok_s=4.923 wall=86.4s
+[2026-08-17T23:38:00-0400]   OK f45_5_ragionamento/k6d0 chars=846 tokens=224 tok_s=5.898 wall=49.3s
+[2026-08-17T23:38:33-0400]   OK f45_2_scrittura/k6d0 chars=556 tokens=126 tok_s=5.377 wall=33.3s
+[2026-08-17T23:39:40-0400]   OK long_conversational_it/k6d0 chars=1633 tokens=420 tok_s=7.343 wall=67.5s
+[2026-08-17T23:39:41-0400] START config shipped (k=6 drop=0.65 noren=False) for 6 prompts
+[2026-08-17T23:40:49-0400]   OK f45_1_esplicativo/shipped chars=1618 tokens=420 tok_s=7.679 wall=67.6s
+[2026-08-17T23:41:25-0400]   OK f45_3_istruzioni/shipped chars=936 tokens=194 tok_s=7.111 wall=36.1s
+[2026-08-17T23:42:53-0400]   OK f45_4_codice/shipped chars=865 tokens=293 tok_s=4.254 wall=87.9s
+[2026-08-17T23:43:40-0400]   OK f45_5_ragionamento/shipped chars=861 tokens=238 tok_s=6.536 wall=47.7s
+[2026-08-17T23:44:13-0400]   OK f45_2_scrittura/shipped chars=696 tokens=150 tok_s=6.493 wall=32.7s
+[2026-08-17T23:45:13-0400]   OK long_conversational_it/shipped chars=1697 tokens=420 tok_s=8.288 wall=60.0s
+[2026-08-17T23:45:14-0400] START config candidate (k=6 drop=1.0 noren=True) for 6 prompts
+[2026-08-17T23:46:03-0400]   OK f45_1_esplicativo/candidate chars=1540 tokens=376 tok_s=10.385 wall=49.2s
+[2026-08-17T23:46:30-0400]   OK f45_3_istruzioni/candidate chars=821 tokens=166 tok_s=9.026 wall=26.6s
+[2026-08-17T23:47:13-0400]   OK f45_4_codice/candidate chars=857 tokens=293 tok_s=9.388 wall=42.7s
+[2026-08-17T23:47:48-0400]   OK f45_5_ragionamento/candidate chars=871 tokens=225 tok_s=9.48 wall=34.9s
+[2026-08-17T23:48:12-0400]   OK f45_2_scrittura/candidate chars=617 tokens=138 tok_s=9.476 wall=24.1s
+[2026-08-17T23:49:01-0400]   OK long_conversational_it/candidate chars=1621 tokens=420 tok_s=10.64 wall=48.9s
+[2026-08-17T23:49:01-0400] ANSWERS.md written (31601 chars)

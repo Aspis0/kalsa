@@ -1,0 +1,31 @@
+id,lang,kind,score,why,gen_tokens,tok_s,wall_s,returncode,chars
+en_01,en,chat,2,"fluent English, on-topic",,10.5,29.251,0,580
+en_02,en,chat,2,"fluent English, on-topic",,10.6,45.859,0,1224
+en_03,en,chat,2,"fluent English, on-topic",,10.3,52.901,0,1568
+en_04,en,chat,2,"fluent English, on-topic",,10.0,22.194,0,198
+en_05,en,chat,2,"fluent English, on-topic",,11.0,24.238,0,463
+en_06,en,chat,2,"fluent English, on-topic",,10.7,23.168,0,378
+en_07,en,chat,2,"fluent English, on-topic",,10.4,52.04,0,1490
+en_08,en,chat,2,"fluent English, on-topic",,10.1,52.814,0,1418
+en_09,en,code-explain,2,names the mechanism / the bug correctly,,11.1,51.468,0,1110
+en_10,en,code-explain,2,names the mechanism / the bug correctly,,10.6,52.716,0,1053
+en_11,en,code-explain,2,names the mechanism / the bug correctly,,10.8,50.599,0,1157
+en_12,en,code-explain,2,names the mechanism / the bug correctly,,11.1,50.628,0,1368
+en_13,en,code-explain,2,names the mechanism / the bug correctly,,11.3,49.673,0,1113
+en_14,en,code-explain,2,names the mechanism / the bug correctly,,11.1,50.598,0,1544
+en_15,en,code-explain,2,names the mechanism / the bug correctly,,9.5,56.925,0,1219
+it_01,it,chat,2,"replies in Italian, coherent",,12.0,32.037,0,546
+it_02,it,chat,2,"replies in Italian, coherent",,11.1,52.188,0,954
+it_03,it,code-explain,2,"replies in Italian, coherent",,11.5,43.616,0,793
+it_04,it,code-explain,2,"replies in Italian, coherent",,11.2,48.054,0,967
+it_05,it,chat,2,"replies in Italian, coherent",,11.7,29.261,0,442
+it_06,it,code-explain,2,"replies in Italian, coherent",,11.4,48.289,0,884
+it_07,it,code-explain,2,"replies in Italian, coherent",,11.1,47.964,0,1120
+it_08,it,chat,1,"mixed IT/EN, still coherent",,8.8,25.318,0,102
+it_09,it,code-explain,2,"replies in Italian, coherent",,9.3,35.997,0,475
+it_10,it,code-explain,2,"replies in Italian, coherent",,9.1,44.521,0,659
+es_01,es,code-explain,2,"Spanish reply, coherent",,8.2,40.569,0,501
+fr_01,fr,code-explain,2,"French reply, coherent",,8.3,56.52,0,842
+es_02,es,chat,2,"Spanish reply, coherent",,8.1,42.2,0,590
+fr_02,fr,code-explain,2,"French reply, coherent",,8.5,66.917,0,1107
+es_03,es,code-explain,2,"Spanish reply, coherent",,8.6,67.13,0,1134

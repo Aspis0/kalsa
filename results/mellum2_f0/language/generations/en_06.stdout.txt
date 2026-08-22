@@ -1,0 +1,35 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Give three concrete sleep-hygiene tips that are not 'avoid caffeine'. One sentence each.
+1. Maintain a consistent sleep schedule by going to bed and waking up at the same time every day, even on weekends.  
+2. Limit exposure to screens for at least an hour before bedtime to reduce blue light interference with melatonin production.  
+3. Create a relaxing bedtime routine, such as reading a book or taking a warm bath, to signal your body that it's time to wind down.
+
+[ Prompt: 13.7 t/s | Generation: 10.7 t/s ]
+
+
+Exiting...

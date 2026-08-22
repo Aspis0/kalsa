@@ -1,0 +1,9 @@
+00:18:58 max=36100 cpu_therm=33493 battery=31600
+00:19:58 max=84400 cpu_therm=52943 battery=33900
+00:20:59 max=74600 cpu_therm=54035 battery=36700
+00:22:00 max=72600 cpu_therm=53558 battery=38000
+00:22:06 cool_poll max=75800
+00:22:40 cool_poll max=71900
+00:23:00 max=64400 cpu_therm=51119 battery=39000
+00:23:52 max=51400 cpu_therm=43472 battery=38500 j4
+00:23:54 RESUME_j4 max=49100

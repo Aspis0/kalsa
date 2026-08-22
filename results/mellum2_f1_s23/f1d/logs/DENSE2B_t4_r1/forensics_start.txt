@@ -1,0 +1,3 @@
+cell=A_DENSE2B k=0 threads=4 pin=none nproc=6 online=0-7
+self_cpus=0-7
+pid 6762's current affinity mask: 5f

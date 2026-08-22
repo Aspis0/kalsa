@@ -1,0 +1,50 @@
+[2026-08-13T17:38:07-0400] BIN_SHA=0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c path=/data/data/com.termux/files/home/bin/bmoe-cli-mellum2 real=/data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+[2026-08-13T17:38:08-0400] MODEL_MELLUM path=/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-13T17:38:33-0400] MODEL_MELLUM_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-13T17:38:33-0400] MODEL_DENSE path=/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf size=1280835840
+[2026-08-13T17:38:37-0400] MODEL_DENSE_SHA=aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+[2026-08-13T17:38:37-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-13T17:38:39-0400] topology written nproc=6 online=0-7
+[2026-08-13T17:38:40-0400] === MELLUM2 F1d S23 START ===
+[2026-08-13T17:38:40-0400] BIN=/data/data/com.termux/files/home/bin/bmoe-cli-mellum2 LIBDIR=/data/data/com.termux/files/home/bin/mellum2 nproc=6 online=0-7
+[2026-08-13T17:38:40-0400] wakelock acquired; screen_off_timeout=7200000 (was ?)
+[2026-08-13T17:38:40-0400] BIG_CPUS=3-7 C_THREADS=5
+[2026-08-13T17:38:40-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=28.7 memavail_kib=4855452 floor=45 nproc=6 online=0-7
+/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T17:39:08-04:00
+[2026-08-13T17:39:09-0400] RUN DENSE2B_t4 cell=A_DENSE2B k=0 t=4 pin=none batt=67 plugged=UNPLUGGED temp=28.7 memavail_kib=4851696 nproc=6 online=0-7
+[2026-08-13T17:39:25-0400] DONE DENSE2B_t4 rc=0 wall=16s decode_tps=15.938 mib= hit= ttft=3.629 load=1.415 prefill=2.213 n_gen=189 rss_mib=1535.9 compute= flash= flash_mibs= stall= batt=67->66 temp=28.7->29.1 nproc=6 online=0-7 cli_cpus=0-7
+[2026-08-13T17:39:26-0400] preflight i=1 plugged=UNPLUGGED batt=66 temp=29.1 memavail_kib=4851564 floor=45 nproc=7 online=0-7
+/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf size=1280835840 resident_before=312705 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T17:39:54-04:00
+[2026-08-13T17:39:55-0400] RUN DENSE2B_t4 cell=A_DENSE2B k=0 t=4 pin=none batt=66 plugged=UNPLUGGED temp=29.1 memavail_kib=4852176 nproc=6 online=0-7
+[2026-08-13T17:40:11-0400] DONE DENSE2B_t4 rc=0 wall=16s decode_tps=15.495 mib= hit= ttft=3.421 load=1.368 prefill=2.053 n_gen=189 rss_mib=1535.9 compute= flash= flash_mibs= stall= batt=66->66 temp=29.1->29.9 nproc=6 online=0-7 cli_cpus=0-7
+[2026-08-13T17:40:12-0400] preflight i=1 plugged=UNPLUGGED batt=66 temp=29.9 memavail_kib=4847904 floor=45 nproc=7 online=0-7
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600 resident_before=620782 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T17:40:41-04:00
+[2026-08-13T17:40:41-0400] RUN MELLUM2_Q4_k8 cell=B_MELLUM_K8 k=8 t=4 pin=none batt=66 plugged=UNPLUGGED temp=29.9 memavail_kib=4847460 nproc=7 online=0-7
+[2026-08-13T17:42:04-0400] DONE MELLUM2_Q4_k8 rc=0 wall=81s decode_tps=2.905 mib=183.14 hit=76.8 ttft=12.299 load=6.687 prefill=5.612 n_gen=200 rss_mib=2938.1 compute=0.227 flash=0.436 flash_mibs=420 stall=0.098 batt=66->65 temp=29.9->32.1 nproc=7 online=0-7 cli_cpus=0-7
+[2026-08-13T17:42:05-0400] preflight i=1 plugged=UNPLUGGED batt=65 temp=32.1 memavail_kib=5008832 floor=45 nproc=6 online=0-7
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600 resident_before=317559 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T17:42:34-04:00
+[2026-08-13T17:42:34-0400] RUN MELLUM2_Q4_k8 cell=B_MELLUM_K8 k=8 t=4 pin=none batt=65 plugged=UNPLUGGED temp=32.1 memavail_kib=5004908 nproc=7 online=0-7
+[2026-08-13T17:43:56-0400] DONE MELLUM2_Q4_k8 rc=0 wall=81s decode_tps=2.922 mib=183.14 hit=76.8 ttft=11.522 load=5.949 prefill=5.573 n_gen=200 rss_mib=2972.1 compute=0.228 flash=0.433 flash_mibs=423 stall=0.095 batt=65->65 temp=32.1->33.3 nproc=7 online=0-7 cli_cpus=0-7
+[2026-08-13T17:43:57-0400] preflight i=1 plugged=UNPLUGGED batt=65 temp=33.3 memavail_kib=4971704 floor=45 nproc=6 online=0-7
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600 resident_before=299197 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T17:44:26-04:00
+[2026-08-13T17:44:26-0400] RUN MELLUM2_Q4_k8_t5pin cell=C_MELLUM_PIN k=8 t=5 pin=3-7 batt=65 plugged=UNPLUGGED temp=33.3 memavail_kib=4965460 nproc=6 online=0-7
+[2026-08-13T17:46:22-0400] DONE MELLUM2_Q4_k8_t5pin rc=0 wall=113s decode_tps=2.059 mib=183.14 hit=76.8 ttft=15.749 load=9.824 prefill=5.924 n_gen=200 rss_mib=2934.0 compute=0.362 flash=0.467 flash_mibs=392 stall=0.109 batt=65->63 temp=33.3->36.1 nproc=6 online=0-7 cli_cpus=3-7
+[2026-08-13T17:46:22-0400] preflight i=1 plugged=UNPLUGGED batt=63 temp=36.1 memavail_kib=4982652 floor=45 nproc=6 online=0-7
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600 resident_before=336154 resident_after=0 pages fadvise_rc=0
+cold_model.sh: COLD_OK 2026-08-13T17:46:51-04:00
+[2026-08-13T17:46:51-0400] RUN MELLUM2_Q4_k8_t5pin cell=C_MELLUM_PIN k=8 t=5 pin=3-7 batt=63 plugged=UNPLUGGED temp=36.1 memavail_kib=4980832 nproc=6 online=0-7
+[2026-08-13T17:48:40-0400] DONE MELLUM2_Q4_k8_t5pin rc=0 wall=107s decode_tps=2.232 mib=183.14 hit=76.8 ttft=16.255 load=10.271 prefill=5.984 n_gen=200 rss_mib=2935.9 compute=0.332 flash=0.450 flash_mibs=407 stall=0.100 batt=63->62 temp=36.1->37.1 nproc=6 online=0-7 cli_cpus=3-7
+[2026-08-13T17:48:40-0400] === MELLUM2 F1d S23 COMPLETE ===
+ts,cell,k,threads,taskset,prompt_id,rep,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,prefill_s,n_gen,rss_mib,batt_start,batt_end,temp_start,temp_end,temp_max,cold,plugged,memavail_start_kib,rc,wall_s,compute_s,cache_s,flash_s,flash_mibs,stall_s,nproc_start,cpu_online_start,cli_cpus
+2026-08-13T17:39:25-0400,A_DENSE2B,0,4,none,fact,1,15.938,,,3.629,1.415,2.213,189,1535.9,67,66,28.7,29.1,29.1,1,UNPLUGGED,4851696,0,16,,,,,,6,0-7,0-7
+2026-08-13T17:40:11-0400,A_DENSE2B,0,4,none,fact,2,15.495,,,3.421,1.368,2.053,189,1535.9,66,66,29.1,29.9,29.9,1,UNPLUGGED,4852176,0,16,,,,,,6,0-7,0-7
+2026-08-13T17:42:04-0400,B_MELLUM_K8,8,4,none,fact,1,2.905,183.14,76.8,12.299,6.687,5.612,200,2938.1,66,65,29.9,32.1,32.1,1,UNPLUGGED,4847460,0,81,0.227,0.018,0.436,420,0.098,7,0-7,0-7
+2026-08-13T17:43:56-0400,B_MELLUM_K8,8,4,none,fact,2,2.922,183.14,76.8,11.522,5.949,5.573,200,2972.1,65,65,32.1,33.3,33.3,1,UNPLUGGED,5004908,0,81,0.228,0.019,0.433,423,0.095,7,0-7,0-7
+2026-08-13T17:46:22-0400,C_MELLUM_PIN,8,5,3-7,fact,1,2.059,183.14,76.8,15.749,9.824,5.924,200,2934.0,65,63,33.3,36.1,36.1,1,UNPLUGGED,4965460,0,113,0.362,0.015,0.467,392,0.109,6,0-7,3-7
+2026-08-13T17:48:40-0400,C_MELLUM_PIN,8,5,3-7,fact,2,2.232,183.14,76.8,16.255,10.271,5.984,200,2935.9,63,62,36.1,37.1,37.1,1,UNPLUGGED,4980832,0,107,0.332,0.016,0.450,407,0.100,6,0-7,3-7
+[2026-08-13T17:48:40-0400] trap cleanup

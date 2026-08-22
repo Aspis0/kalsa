@@ -1,0 +1,30 @@
+{
+  "id": "20_review_is",
+  "family": "review",
+  "lang": "python",
+  "entry": "ready.py",
+  "review_needles": [
+    "identity",
+    "intern",
+    "`is`",
+    " is ",
+    "use ==",
+    "== instead",
+    "should use ==",
+    "compares identity"
+  ],
+  "review_strict_any": [
+    "identity",
+    "intern",
+    "use ==",
+    "== instead",
+    "should be ==",
+    "compares identity",
+    "`is`",
+    "is \"ready\"",
+    "is 'ready'",
+    "operator is",
+    "identity comparison"
+  ],
+  "dir": "suite/tasks/20_review_is"
+}

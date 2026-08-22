@@ -1,0 +1,36 @@
+To determine what the regex `(?<=@)[^.]+(?=\.)` extracts from a string like `'ada@example.com'`, let's break it down:
+
+---
+
+### **Regex Components**
+1. **`(?<=@)`**  
+   - A **positive lookbehind** that ensures the match is preceded by `@`.  
+   - It does **not** include `@` in the extracted result.
+
+2. **`[^.]+`**  
+   - Matches **one or more characters** that are **not a dot (`.`)**.  
+   - This captures the local part of the email (e.g., `ada` in `ada@example.com`).
+
+3. **`(?=\.)`**  
+   - A **positive lookahead** that ensures the match is followed by a dot (`.`).  
+   - It does **not** include `.` in the extracted result.
+
+---
+
+### **How It Works on `'ada@example.com'`**
+- The `@` symbol is at position 3.  
+- The regex looks for a sequence of non-dot characters **after `@`** and **before the first dot**.  
+- In `'ada@example.com'`:  
+  - After `@`, the characters `e`, `x`, `a`, `m`, `p`, `l`, `e` are **not dots**.  
+  - The first dot (`.`) occurs at position 11 (after `example`).  
+  - Thus, `[^.]+` matches `example`.
+
+---
+
+### **Result**
+The regex extracts **`example`** from `'ada@example.com'`.
+
+---
+
+### **Why Not `ada`?**
+- `ada` is **before** the `@` symbol, so it does **not** satisfy the `(?

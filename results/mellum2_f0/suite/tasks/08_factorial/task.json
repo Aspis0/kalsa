@@ -1,0 +1,8 @@
+{
+  "id": "08_factorial",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "factorial.py",
+  "pytest": "test_factorial.py",
+  "dir": "suite/tasks/08_factorial"
+}

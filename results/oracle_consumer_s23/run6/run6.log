@@ -1,0 +1,93 @@
+CPSET=/
+HOST_REPACK=[unset]
+GEMV_AUDIT=[unset]
+HOST_REPACK_SET=[1]
+GEMV_AUDIT_SET=[1]
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels..................................................................................................................................................
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT_BOUND{u=2^-24, gamma_k=k*u/(1-k*u), abs_ok=8*gamma_k*sum_abs+32*u*|want|+1e-5, note=Higham_f32_dot_vs_double_8x_for_block_scale_and_4sg_reduce, sign_smear=rate_ge80>=0.80_and_rate_lt80<=0.20_n>=32, ratio_cluster=frac_bad>=0.30_of_named_const, lane_mod=period=128/n_full_bad, stash_cap_mb=512, max_detail=4, dump=12, hostrepack=1}
+GEMV_AUDIT_NOTE{sign_smear=label_reachable_only_on_structured_weights; absence_on_random_iid_excludes_nothing}
+GEMV_AUDIT{case=1, src0=as, k=256, m=512, n_ex=4, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.74421e-06, mean_abs=3.65328e-07, max_rel=2.2009e-05, mean_rel=3.41953e-07, ratio_med=1, ratio_mad=8.8799e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=2, geom_g=512x4x1, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67764, n_src_lt80=63308, n_bad_src_ge80=0, n_bad_src_lt80=0}
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+[MUL_MAT_ID] ERR = 0.692692063 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=2, src0=as, k=256, m=512, n_ex=4, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=2.43895e-06, mean_abs=3.74931e-07, max_rel=2.72265e-05, mean_rel=2.89344e-07, ratio_med=1, ratio_mad=9.16259e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=1, geom_g=512x4x1, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=66816, n_src_lt80=64256, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.538612372 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=3, src0=as, k=256, m=512, n_ex=4, n_used=2, ne11=2, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=2.24922e-06, mean_abs=3.79683e-07, max_rel=0.000142442, mean_rel=5.43335e-07, ratio_med=1, ratio_mad=9.50321e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:3, geom_g=512x4x2, geom_l=64x4x1, offsetd=313984, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=134180, n_src_lt80=127964, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.490086814 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=4, src0=as, k=256, m=512, n_ex=4, n_used=2, ne11=1, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=1.69961e-06, mean_abs=3.85323e-07, max_rel=3.00847e-05, mean_rel=3.91476e-07, ratio_med=1, ratio_mad=8.40932e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:2, geom_g=512x4x2, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=134942, n_src_lt80=127202, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.377689702 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=5, src0=as, k=256, m=512, n_ex=4, n_used=4, ne11=4, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=1.87318e-06, mean_abs=3.72824e-07, max_rel=0.000177656, mean_rel=5.04696e-07, ratio_med=1, ratio_mad=9.1528e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:1:2:3, geom_g=512x4x4, geom_l=64x4x1, offsetd=316032, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=270540, n_src_lt80=253748, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.556203308 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=6, src0=as, k=256, m=512, n_ex=4, n_used=4, ne11=1, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=1.81001e-06, mean_abs=3.83811e-07, max_rel=0.000272946, mean_rel=5.46631e-07, ratio_med=1, ratio_mad=8.72947e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:1:2:3, geom_g=512x4x4, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=269454, n_src_lt80=254834, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.434547266 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=7, src0=as, k=256, m=512, n_ex=8, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.87304e-06, mean_abs=3.66434e-07, max_rel=1.31039e-05, mean_rel=2.76554e-07, ratio_med=1, ratio_mad=8.44862e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=4, geom_g=512x4x1, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67534, n_src_lt80=63538, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.466976656 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=8, src0=as, k=256, m=512, n_ex=8, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.65192e-06, mean_abs=3.64746e-07, max_rel=0.000170346, mean_rel=6.31079e-07, ratio_med=1, ratio_mad=8.49663e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=5, geom_g=512x4x1, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67612, n_src_lt80=63460, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.474070587 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=9, src0=as, k=256, m=512, n_ex=8, n_used=2, ne11=2, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=2.09441e-06, mean_abs=3.66895e-07, max_rel=2.23748e-05, mean_rel=2.81619e-07, ratio_med=1, ratio_mad=8.15015e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:3, geom_g=512x4x2, geom_l=64x4x1, offsetd=608896, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=134808, n_src_lt80=127336, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.492262075 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=10, src0=as, k=256, m=512, n_ex=8, n_used=2, ne11=1, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=1.92196e-06, mean_abs=3.75079e-07, max_rel=0.000161715, mean_rel=6.72992e-07, ratio_med=1, ratio_mad=8.64725e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=3:6, geom_g=512x4x2, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=135734, n_src_lt80=126410, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.395719273 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=11, src0=as, k=256, m=512, n_ex=8, n_used=4, ne11=4, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=2.57031e-06, mean_abs=3.81994e-07, max_rel=0.000839631, mean_rel=7.1477e-07, ratio_med=1, ratio_mad=8.82254e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=2:4:5:6, geom_g=512x4x4, geom_l=64x4x1, offsetd=610944, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=270054, n_src_lt80=254234, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.472909767 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=12, src0=as, k=256, m=512, n_ex=8, n_used=4, ne11=1, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=1.95178e-06, mean_abs=3.8132e-07, max_rel=0.000117837, mean_rel=4.55948e-07, ratio_med=1, ratio_mad=9.17329e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:5:6:7, geom_g=512x4x4, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=270620, n_src_lt80=253668, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.469025756 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=1,k=256): [1;31mFAIL[0m
+  0/12 tests passed
+
+Failing tests:
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=1,k=256)
+  Backend OpenCL: [1;31mFAIL[0m
+Backend 2/2: CPU
+  Skipping
+1/2 backends passed
+[1;31mFAIL[0m
+EXIT=1

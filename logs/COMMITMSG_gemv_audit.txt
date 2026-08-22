@@ -1,0 +1,9 @@
+opencl: add GGML_OPENCL_GEMV_AUDIT in-situ n=1 q4_0 production GEMV probe
+
+After the production MUL_MAT_ID GEMV dispatch (same kernel object, same
+args, same NDRange), clFinish and read back dst/src1/ids. Host reference
+is dequantize_row_q4_0 plus a k-length double-precision dot, using the
+same ne00/ne01/ne11/offsets/geometry the arg-setting code passed.
+Pattern-classifies the error map (ratio, lane-mod, routing, sign-smear,
+unstructured). Env-gated like ORACLE (1 on; 0/empty/false off); inert
+by default. No new OpenCL kernels.

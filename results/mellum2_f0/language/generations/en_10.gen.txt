@@ -1,0 +1,44 @@
+The condition `if n or m == 0:` is **wrong** because of how Python evaluates logical expressions with `or`.
+
+### Let's break it down:
+
+In Python, `or` has **lower precedence** than `==`, so the expression is evaluated as:
+
+```python
+if n or (m == 0):
+```
+
+This means:
+- If `n` is **truthy** (i.e., not `0`, not `False`, not `None`, etc.), the condition is `True`, and the function returns `0`.
+- Only if `n` is **falsy** (e.g., `0`, `False`, `None`), it checks whether `m == 0`.
+
+### Problem:
+This means that **even if `m` is not zero**, if `n` is non-zero, the function will still return `0`.
+
+### Example:
+```python
+n = 5
+m = 3
+```
+
+Then:
+```python
+if n or m == 0:
+    return 0
+```
+
+- `n` is `5` (truthy), so `n or (m == 0)` is `True`.
+- The function returns `0`, **even though neither `n` nor `m` is zero**.
+
+### Correct condition:
+To return `0` when **either `n` or `m` is zero**, you need:
+
+```python
+if n == 0 or m == 0:
+    return 0
+```
+
+### Why this works:
+- `n == 0` checks if `n` is zero.
+- `m == 0` checks if `m` is zero.
+- `or` combines them

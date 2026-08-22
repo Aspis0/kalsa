@@ -1,0 +1,9 @@
+User:
+Cosa fa il decorator `@functools.lru_cache` in Python? Rispondi in italiano, 4 frasi.
+
+Assistant:
+Il decoratore `@functools.lru_cache` memorizza i risultati delle chiamate a una funzione per evitare di ripetere calcoli redundanti.  
+Utilizza una cache con limite di dimensione specificato (di default illimitata) per mantenere solo i risultati più recenti.  
+Quando la stessa funzione viene chiamata con gli stessi parametri, il valore memorizzato viene restituito istantaneamente.  
+Questo accelera significativamente il codice in scenari con calcoli costosi o ripetitivi.
+

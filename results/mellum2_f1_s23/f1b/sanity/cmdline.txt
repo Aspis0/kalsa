@@ -1,0 +1,27 @@
+/data/data/com.termux/files/home/bin/bmoe-cli-mellum
+-m
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+-p
+Write a Python function factorial(n) that returns n!. Use a simple loop. Return only the function, no markdown.
+-n
+32
+--n-expert-used
+8
+--moe-stream
+--cache-mb
+2000
+--dense-weights
+anon
+--overlap
+--io-threads
+4
+--ubatch
+512
+-t
+4
+-c
+4096
+--temp
+0
+--chatml
+--no-think

@@ -1,0 +1,102 @@
+[2026-08-10T23:46:11] model size=10599958400 expect=10599958400 match=True
+[2026-08-10T23:46:34] sha256=2b0a435935e9ec7e6f6b455e008db024f07c2f7ec6a979def045c27df0ee717a
+[2026-08-10T23:46:34] SMOKE gen n=32
+[2026-08-10T23:46:34] CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\reap_community\Qwen3.6-28B-REAP20-A3B-Q2_K.gguf --moe-stream --cache-mb 2000 --dense-weights anon ...
+[2026-08-10T23:46:58] smoke rc=0
+[2026-08-10T23:46:58] llama_model_loader: loaded meta data with 41 key-value pairs and 733 tensors from C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\reap_community\Qwen3.6-28B-REAP20-A3B-Q2_K.gguf (version GGUF V3 (latest))
+[2026-08-10T23:46:58] llama_model_loader: - kv   0:                       general.architecture str              = qwen35moe
+[2026-08-10T23:46:58] llama_model_loader: - kv   9:                      qwen35moe.block_count u32              = 40
+[2026-08-10T23:46:58] llama_model_loader: - kv  10:                   qwen35moe.context_length u32              = 262144
+[2026-08-10T23:46:58] llama_model_loader: - kv  11:                 qwen35moe.embedding_length u32              = 2048
+[2026-08-10T23:46:58] llama_model_loader: - kv  12:             qwen35moe.attention.head_count u32              = 16
+[2026-08-10T23:46:58] llama_model_loader: - kv  13:          qwen35moe.attention.head_count_kv u32              = 2
+[2026-08-10T23:46:58] llama_model_loader: - kv  14:          qwen35moe.rope.dimension_sections arr[i32,4]       = [11, 11, 10, 0]
+[2026-08-10T23:46:58] llama_model_loader: - kv  15:                   qwen35moe.rope.freq_base f32              = 10000000.000000
+[2026-08-10T23:46:58] llama_model_loader: - kv  16: qwen35moe.attention.layer_norm_rms_epsilon f32              = 0.000001
+[2026-08-10T23:46:58] llama_model_loader: - kv  17:                     qwen35moe.expert_count u32              = 205
+[2026-08-10T23:46:58] llama_model_loader: - kv  18:                qwen35moe.expert_used_count u32              = 8
+[2026-08-10T23:46:58] llama_model_loader: - kv  19:             qwen35moe.attention.key_length u32              = 256
+[2026-08-10T23:46:58] llama_model_loader: - kv  20:           qwen35moe.attention.value_length u32              = 256
+[2026-08-10T23:46:58] llama_model_loader: - kv  21:       qwen35moe.expert_feed_forward_length u32              = 512
+[2026-08-10T23:46:58] llama_model_loader: - kv  22: qwen35moe.expert_shared_feed_forward_length u32              = 512
+[2026-08-10T23:46:58] llama_model_loader: - kv  23:                  qwen35moe.ssm.conv_kernel u32              = 4
+[2026-08-10T23:46:58] llama_model_loader: - kv  24:                   qwen35moe.ssm.state_size u32              = 128
+[2026-08-10T23:46:58] llama_model_loader: - kv  25:                  qwen35moe.ssm.group_count u32              = 16
+[2026-08-10T23:46:58] llama_model_loader: - kv  26:               qwen35moe.ssm.time_step_rank u32              = 32
+[2026-08-10T23:46:58] llama_model_loader: - kv  27:                   qwen35moe.ssm.inner_size u32              = 4096
+[2026-08-10T23:46:58] llama_model_loader: - kv  28:          qwen35moe.full_attention_interval u32              = 4
+[2026-08-10T23:46:58] llama_model_loader: - kv  29:             qwen35moe.rope.dimension_count u32              = 64
+[2026-08-10T23:46:58] print_info: file format = GGUF V3 (latest)
+[2026-08-10T23:46:58] print_info: file type   = Q2_K - Medium
+[2026-08-10T23:46:58] print_info: file size   = 9.86 GiB (3.00 BPW) 
+[2026-08-10T23:46:58] validate_override: Using metadata override (  int) 'qwen35moe.expert_used_count' = 8
+[2026-08-10T23:46:58] print_info: arch                  = qwen35moe
+[2026-08-10T23:46:58] print_info: vocab_only            = 0
+[2026-08-10T23:46:58] print_info: no_alloc              = 0
+[2026-08-10T23:46:58] print_info: n_ctx_train           = 262144
+[2026-08-10T23:46:58] print_info: n_embd_inp            = 2048
+[2026-08-10T23:46:58] print_info: n_embd                = 2048
+[2026-08-10T23:46:58] print_info: n_embd_out            = 2048
+[2026-08-10T23:46:58] print_info: n_layer               = 40
+[2026-08-10T23:46:58] print_info: n_layer_all           = 40
+[2026-08-10T23:46:58] print_info: n_head                = 16
+[2026-08-10T23:46:58] print_info: n_head_kv             = 2
+[2026-08-10T23:46:58] print_info: n_rot                 = 64
+[2026-08-10T23:46:58] print_info: n_swa                 = 0
+[2026-08-10T23:46:58] BPB en corpus=C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en_slice.txt
+[2026-08-10T23:46:58] CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\reap_community\Qwen3.6-28B-REAP20-A3B-Q2_K.gguf --moe-stream --cache-mb 2000 --dense-weights anon ...
+[2026-08-11T00:01:46] bpb en rc=0
+[2026-08-11T00:01:46] sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+[2026-08-11T00:01:46] graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+[2026-08-11T00:01:46] resolve_fused_ops: Flash Attention enabled
+[2026-08-11T00:01:46] resolve_fused_ops: resolving fused Gated Delta Net support:
+[2026-08-11T00:01:46] graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+[2026-08-11T00:01:46] resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+[2026-08-11T00:01:46] graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+[2026-08-11T00:01:46] resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+[2026-08-11T00:01:46] graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+[2026-08-11T00:01:46] graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+[2026-08-11T00:01:46] graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+[2026-08-11T00:01:46] sched_reserve:        CPU compute buffer size =   501.02 MiB
+[2026-08-11T00:01:46] sched_reserve: graph nodes  = 3727
+[2026-08-11T00:01:46] sched_reserve: graph splits = 1
+[2026-08-11T00:01:46] sched_reserve: reserve took 23.17 ms, sched copies = 1
+[2026-08-11T00:01:46] set_n_threads: n_threads = 8, n_threads_batch = 8
+[2026-08-11T00:01:46] set_abort_callback: call
+[2026-08-11T00:01:46] bmoe: expert-mmap: dropped 0 MiB
+[2026-08-11T00:01:46] bmoe: dense-weights=anon — 1193 MiB in 613 anon buffers
+[2026-08-11T00:01:46] bmoe: dense-anon: memcpy=0 odirect=1193 ranges_fallback=613
+[2026-08-11T00:01:46] bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+[2026-08-11T00:01:46] ppl-decode: n_tokens=2689 n_ctx=4096 batch=1 moe=1 drop_cold=0.000 k=8
+[2026-08-11T00:01:46] ppl-decode: scored 2688 / 2688 tokens (sum_logprob=-6872.6255)
+[2026-08-11T00:01:46] ppl done (decode): n_scored=2688 ppl=12.8942 sum_logprob=-6872.6255 (882.4 s)
+[2026-08-11T00:01:46] ~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-11T00:01:46] BPB it corpus=C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it_slice.txt
+[2026-08-11T00:01:46] CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\reap_community\Qwen3.6-28B-REAP20-A3B-Q2_K.gguf --moe-stream --cache-mb 2000 --dense-weights anon ...
+[2026-08-11T00:15:12] bpb it rc=0
+[2026-08-11T00:15:12] sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+[2026-08-11T00:15:12] graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+[2026-08-11T00:15:12] resolve_fused_ops: Flash Attention enabled
+[2026-08-11T00:15:12] resolve_fused_ops: resolving fused Gated Delta Net support:
+[2026-08-11T00:15:12] graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+[2026-08-11T00:15:12] resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+[2026-08-11T00:15:12] graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+[2026-08-11T00:15:12] resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+[2026-08-11T00:15:12] graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+[2026-08-11T00:15:12] graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+[2026-08-11T00:15:12] graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+[2026-08-11T00:15:12] sched_reserve:        CPU compute buffer size =   501.02 MiB
+[2026-08-11T00:15:12] sched_reserve: graph nodes  = 3727
+[2026-08-11T00:15:12] sched_reserve: graph splits = 1
+[2026-08-11T00:15:12] sched_reserve: reserve took 24.56 ms, sched copies = 1
+[2026-08-11T00:15:12] set_n_threads: n_threads = 8, n_threads_batch = 8
+[2026-08-11T00:15:12] set_abort_callback: call
+[2026-08-11T00:15:12] bmoe: expert-mmap: dropped 0 MiB
+[2026-08-11T00:15:12] bmoe: dense-weights=anon — 1193 MiB in 613 anon buffers
+[2026-08-11T00:15:12] bmoe: dense-anon: memcpy=0 odirect=1193 ranges_fallback=613
+[2026-08-11T00:15:12] bmoe: expert streaming ON  n_expert=205 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+[2026-08-11T00:15:12] ppl-decode: n_tokens=3578 n_ctx=4096 batch=1 moe=1 drop_cold=0.000 k=8
+[2026-08-11T00:15:12] ppl-decode: scored 3577 / 3577 tokens (sum_logprob=-16980.8582)
+[2026-08-11T00:15:12] ppl done (decode): n_scored=3577 ppl=115.2651 sum_logprob=-16980.8582 (799.6 s)
+[2026-08-11T00:15:12] ~llama_context:        CPU compute buffer size is 501.0196 MiB, matches expectation of 501.0196 MiB
+[2026-08-11T00:15:12] F0_PC PASS

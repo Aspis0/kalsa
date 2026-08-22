@@ -1,0 +1,14 @@
+﻿[2026-08-12T23:07:17] START quantize both recipes
+[2026-08-12T23:07:17] === KEXP-1c types=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\tensor_types_1c.txt out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf ===
+[2026-08-12T23:14:44] quantize KEXP-1c rc=0
+[2026-08-12T23:14:44] KEXP-1c size=6385238848 (5.95 GB)
+[2026-08-12T23:14:55] verify KEXP-1c rc=0
+[2026-08-12T23:15:13] verify KEXP-1c sha=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-12T23:15:13] {   "tag": "KEXP-1c",   "n_tensors": 338,   "types": {     "F32": 141,     "Q5_K": 113,     "Q3_K": 28,     "Q2_K": 56   },   "iq_count": 0,   "attn_q": {     "Q5_K": 28   },   "gate_exps": {     "Q2_K": 28   },   "up_exps": {     "Q2_K": 28   },   "down_exps": {     "Q3_K": 28   } }
+[2026-08-12T23:15:13] === KEXP-cons types=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\tensor_types_conservative_q3k.txt out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf ===
+[2026-08-12T23:20:37] quantize KEXP-cons rc=0
+[2026-08-12T23:20:37] KEXP-cons size=7508263744 (6.99 GB)
+[2026-08-12T23:20:49] verify KEXP-cons rc=0
+[2026-08-12T23:21:14] verify KEXP-cons sha=c9570cc4bda6000673abacd9c211b42a6192b282332e8366333fad2e93ca48cf
+[2026-08-12T23:21:14] {   "tag": "KEXP-cons",   "n_tensors": 338,   "types": {     "F32": 141,     "Q5_K": 1,     "Q4_K": 112,     "Q3_K": 84   },   "iq_count": 0,   "attn_q": {     "Q4_K": 28   },   "gate_exps": {     "Q3_K": 28   },   "up_exps": {     "Q3_K": 28   },   "down_exps": {     "Q3_K": 28   } }
+[2026-08-12T23:21:14] DONE both quantized + verified

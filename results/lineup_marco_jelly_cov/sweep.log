@@ -1,0 +1,24 @@
+[2026-08-19T13:30:50-0400] === DROP SWEEP v2 START ===
+[2026-08-19T13:30:50-0400] out=/data/data/com.termux/files/home/experiments/results/lineup_marco_jelly_cov
+[2026-08-19T13:30:50-0400] bin=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY sha=36b01966ba0f471d
+[2026-08-19T13:31:28-0400] model=Marco-Mini-Instruct-KEXP.gguf sha=2f92195854011538
+[2026-08-19T13:31:28-0400] prompt=p_fact.txt sha=b5301c32c0bd8aae
+[2026-08-19T13:31:28-0400] drops='0.0' rounds=3 passes=3 ngen=200 cooldown=120s batt_floor=35
+[2026-08-19T13:31:28-0400] extra_flags='--n-expert-used 6'
+[2026-08-19T13:31:28-0400] resume: void at start = [r1_d0.0 r2_d0.0 r3_d0.0]
+[2026-08-19T13:31:29-0400] wake-lock acquired
+[2026-08-19T13:31:29-0400] cpuset OK nproc=8 bits=8 cpuset=/ cgroup=/
+[2026-08-19T13:31:29-0400] PREFLIGHT smoke n=5
+[2026-08-19T13:31:40-0400] PREFLIGHT ok rc=0 s/tok=0.275 experts_routed=0 experts_dropped=0 read_MiB=374.3
+[2026-08-19T13:31:40-0400] PREFLIGHT native routing width: experts_routed=0 over 5 tokens
+[2026-08-19T13:31:40-0400] === PASS 1 — void: [r1_d0.0 r2_d0.0 r3_d0.0] ===
+[2026-08-19T13:31:41-0400] COLD_RESET r1_d0.0 cached 2956072->691720 drop_mb=2211 fadv_rc=0
+[2026-08-19T13:32:52-0400] DONE r1_d0.0 pass=1 rc=0 s/tok=0.299 tok/s=3.340 read_MiB=11803.1 proc_rb=17869713408 stall=0.118 hit=50.2 routed=0 dropped=0 batt=45->44 temp=28.0->29.0 nproc=8 mask=ff excluded=0 ok
+[2026-08-19T13:32:53-0400] cooldown 120s before r2_d0.0
+[2026-08-19T13:34:58-0400] COLD_RESET r2_d0.0 cached 2238648->923524 drop_mb=1284 fadv_rc=0
+[2026-08-19T13:36:08-0400] DONE r2_d0.0 pass=1 rc=0 s/tok=0.295 tok/s=3.386 read_MiB=11803.1 proc_rb=17926967296 stall=0.115 hit=50.2 routed=0 dropped=0 batt=44->43 temp=30.0->30.0 nproc=8 mask=ff excluded=0 ok
+[2026-08-19T13:36:08-0400] cooldown 120s before r3_d0.0
+[2026-08-19T13:38:13-0400] COLD_RESET r3_d0.0 cached 2402092->1085712 drop_mb=1285 fadv_rc=0
+[2026-08-19T13:39:26-0400] DONE r3_d0.0 pass=1 rc=0 s/tok=0.306 tok/s=3.273 read_MiB=11803.1 proc_rb=17919733760 stall=0.122 hit=50.2 routed=0 dropped=0 batt=43->41 temp=31.0->32.0 nproc=8 mask=ff excluded=0 ok
+[2026-08-19T13:39:26-0400] pass 2: nothing void — stopping early
+[2026-08-19T13:39:26-0400] === DROP SWEEP COMPLETE ===

@@ -1,0 +1,101 @@
+SRC=C:\Users\gualt\Desktop\Kalsa\moe-experiments\upstream-hexagon\llama.cpp
+SHA=3f545beccee69d9975f466ec7e45fd9aacd8ba90
+BUILD=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon
+NDK=C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006
+CMAKE=C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe
+HEXAGON_SDK_ROOT=C:\Qualcomm\Hexagon_SDK\6.6.0.0
+HEXAGON_TOOLS_ROOT=C:\Qualcomm\Hexagon_SDK\6.6.0.0\tools\HEXAGON_Tools\19.0.07
+GGML_OPENCL=OFF
+-- The C compiler identification is Clang 18.0.2
+-- The CXX compiler identification is Clang 18.0.2
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- llama.cpp version: 0.2.0-dev
+CMAKE_BUILD_TYPE=Release
+-- Found Git: C:/Program Files/Git/cmd/git.exe (found version "2.54.0.windows.1") 
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang.exe
+-- Setting GGML_NATIVE_DEFAULT to OFF
+-- Looking for pthread.h
+-- Looking for pthread.h - found
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Check if compiler accepts -pthread
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE  
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Including CPU backend
+-- ARM detected
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E - Failed
+-- Checking for ARM features using flags:
+-- Performing Test HAVE_DOTPROD
+-- Performing Test HAVE_DOTPROD - Success
+-- Performing Test HAVE_SVE
+-- Performing Test HAVE_SVE - Failed
+-- Performing Test HAVE_MATMUL_INT8
+-- Performing Test HAVE_MATMUL_INT8 - Success
+-- Performing Test HAVE_FMA
+-- Performing Test HAVE_FMA - Success
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+-- Performing Test HAVE_SME
+-- Performing Test HAVE_SME - Failed
+-- Adding CPU backend variant ggml-cpu:  
+-- hexagon: using C:/Qualcomm/Hexagon_SDK/6.6.0.0 and C:/Qualcomm/Hexagon_SDK/6.6.0.0/tools/HEXAGON_Tools/19.0.07 for building libggml-htp skels
+-- Including Hexagon backend
+-- ggml version: 0.21.0
+-- ggml commit:  3f545bec
+-- UI: building llama-ui-embed with host compiler C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/bin/clang++.exe
+-- Disabling MTMD_VIDEO because LLAMA_SUBPROCESS is OFF
+-- Generating embedded license file for target: llama-app
+-- Configuring done
+-- Generating done
+-- Build files have been written to: C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon
+[1/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[2/339] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+FAILED: ggml/src/ggml-hexagon/htp_iface_skel.c ggml/src/ggml-hexagon/htp_iface_stub.c ggml/src/ggml-hexagon/htp_iface.h C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_skel.c C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h 
+cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\upstream-hexagon\llama.cpp\ggml\src\ggml-hexagon && C:\Qualcomm\Hexagon_SDK\6.6.0.0\ipc\fastrpc\qaic\\bin\qaic -mdll -o C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon -IC:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/ -IC:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/stddef/ -IC:/Qualcomm/Hexagon_SDK/6.6.0.0/ipc/fastrpc/rtld/ship/android_aarch64 -IC:/Qualcomm/Hexagon_SDK/6.6.0.0/incs -IC:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/stddef -IC:/Qualcomm/Hexagon_SDK/6.6.0.0/utils/examples -IC:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp -IC:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon htp/htp_iface.idl"
+The system cannot find the path specified.
+[3/339] Building llama-ui-embed (host)
+FAILED: tools/ui/llama-ui-embed-host.exe C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/tools/ui/llama-ui-embed-host.exe 
+cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon\tools\ui && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe -O2 -std=c++17 -o C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/tools/ui/llama-ui-embed-host.exe C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/tools/ui/embed.cpp"
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/tools/ui/embed.cpp:10:
+C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/include/inttypes.h:21:15: fatal error: 'inttypes.h' file not found
+   21 | #include_next <inttypes.h>
+      |               ^~~~~~~~~~~~
+1 error generated.
+[4/339] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[5/339] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[6/339] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[7/339] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[8/339] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[9/339] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[10/339] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[11/339] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[12/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[13/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[14/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[15/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[16/339] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[17/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[18/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[19/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[20/339] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[21/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[22/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[23/339] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[24/339] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[25/339] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+ninja: build stopped: subcommand failed.
+ERROR: cmake build failed (exit 1)

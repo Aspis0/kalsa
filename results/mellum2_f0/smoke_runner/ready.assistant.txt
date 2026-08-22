@@ -1,0 +1,6 @@
+User:
+Say the word READY and nothing else.
+
+Assistant:
+READY
+

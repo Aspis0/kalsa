@@ -1,0 +1,21 @@
+id,family,lang,pass,format_diff,method,detail,gen_tokens,tok_s,wall_s,returncode
+01_last_n,bugfix,python,1,yes,diff,pytest PASS,,8.3,45.838,0
+02_collect,bugfix,python,1,yes,diff,pytest PASS,,10.6,34.555,0
+03_inclusive_sum,bugfix,python,1,yes,diff,pytest PASS,,10.3,33.0,0
+04_clamp,bugfix,python,1,yes,diff,pytest PASS,,10.1,34.383,0
+05_get_last,bugfix,python,0,yes,extract,pytest FAIL,,10.8,30.732,0
+06_percent,bugfix,python,0,yes,extract,pytest FAIL,,10.2,34.672,0
+07_unique_order,bugfix,python,1,yes,diff,pytest PASS,,10.5,37.384,0
+08_factorial,bugfix,python,1,yes,diff,pytest PASS,,10.5,31.81,0
+09_fizzbuzz,fromdoc,python,1,yes,diff,pytest PASS,,10.4,47.154,0
+10_lcp,fromdoc,python,1,yes,diff,pytest PASS,,10.8,40.083,0
+11_parens,fromdoc,python,1,yes,diff,pytest PASS,,11.1,38.828,0
+12_chunk_js,fromdoc,javascript,1,yes,diff,node PASS,,10.6,42.019,0
+13_deepget_js,fromdoc,javascript,1,yes,diff,node PASS,,11.1,44.339,0
+14_rename,refactor,python,0,yes,diff,pytest PASS; structural FAIL (still has 'def do_the_thing('),,11.0,40.013,0
+15_extract,refactor,python,0,yes,extract,pytest FAIL; structural skipped (tests failed),,10.2,103.114,0
+16_simplify,refactor,python,0,yes,diff,pytest PASS; structural FAIL (indent 12 > 8),,9.9,57.219,0
+17_comprehension,refactor,python,1,yes,diff,pytest PASS; structural PASS,,11.2,31.975,0
+18_review_sql,review,python,1,no,review-string,"needles=inject,f-string",,11.7,25.266,0
+19_review_bsearch,review,python,1,no,review-string,"needles=len(xs),hi = len",,8.6,32.928,0
+20_review_is,review,python,1,no,review-string,"needles=identity,`is`,is ""ready""",,10.0,28.994,0

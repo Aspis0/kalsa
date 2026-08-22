@@ -1,0 +1,16 @@
+/data/data/com.termux/files/home/bin/bmoe-cli-kvfix
+-m
+/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+--session
+--chatml
+--no-think
+-t
+2
+-c
+4096
+--ubatch
+512
+--temp
+0
+-n
+8

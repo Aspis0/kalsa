@@ -1,0 +1,9 @@
+--- /factorial.py
++++ /factorial.py
+@@ -1,5 +1,6 @@
+ def factorial(n):
+     """Return n! for integer n >= 0. 0! is 1."""
+-    return n * factorial(n - 1)
++    if n == 0:
++        return 1
++    return n * factorial(n - 1)

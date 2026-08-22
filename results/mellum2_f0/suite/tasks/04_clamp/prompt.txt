@@ -1,0 +1,32 @@
+You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+clamp mixes min/max arguments. Values below lo or above hi are wrong.
+
+## File: clamp.py
+```python
+def clamp(x, lo, hi):
+    """Return x limited to the closed interval [lo, hi]. Assume lo <= hi."""
+    return min(lo, max(x, hi))
+```
+
+## Tests that must pass
+```python
+from clamp import clamp
+
+def test_inside():
+    assert clamp(5, 0, 10) == 5
+
+def test_below():
+    assert clamp(-3, 0, 10) == 0
+
+def test_above():
+    assert clamp(99, 0, 10) == 10
+
+def test_edges():
+    assert clamp(0, 0, 10) == 0
+    assert clamp(10, 0, 10) == 10
+```

@@ -1,0 +1,4 @@
+b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf  (model, 8071293600 bytes)
+035ac1a68cff7ffaee243946f66443a95cf436dd8185b14fb458f58f689c1518  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\bin\llama-cli.exe  (llama-cli, 10752 bytes)
+29c93b7e36f3cba84bf000b72b35bdb3305182d2c09b0bd7a463f901c0f1ad74  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\bin\llama-cli-impl.dll  (llama-cli-impl.dll, 1678848 bytes)
+a06b49a231e11ffab5d3b748fcb75f9bfca27359e3de5ea2d5a8bddcea8f4eeb  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\bin\llama.dll  (llama.dll, 2225152 bytes)

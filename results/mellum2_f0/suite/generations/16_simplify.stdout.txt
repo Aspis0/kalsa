@@ -1,0 +1,83 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a software-engineering assistant in a pull-request workflow.
+Apply the requested LOCAL refactor. Reply with a unified diff ONLY (--- / +++ / @@ hunks).
+Do not wrap the diff in markdown fences. Do not change behavior. Do not explain.
+
+## Task
+Simplify access_level with early returns. No nested if/else pyramid.
+Keep the exact behavior. File: access.py
+
+## File: access.py
+```python
+def access_level(user):
+    """Return 'admin', 'user', or 'guest'."""
+    if user is not None:
+        if "rol ... (truncated)
+--- access.py
++++ access.py
+@@ -1,12 +1,10 @@
+ def access_level(user):
+     """Return 'admin', 'user', or 'guest'."""
+-    if user is not None:
+-        if "role" in user:
+-            if user["role"] == "admin":
+-                if user.get("active", True):
+-                    return "admin"
+-                else:
+-                    return "guest"
+-            else:
+-                if user.get("active", True):
+-                    return "user"
+-                else:
+-                    return "guest"
+-        else:
+-            return "guest"
+-    else:
+-        return "guest"
++    if user is None:
++        return "guest"
++
++    if "role" not in user:
++        return "guest"
++
++    if user["role"] == "admin":
++        if user.get("active", True):
++            return "admin"
++        else:
++            return "guest"
++
++    if user.get("active", True):
++        return "user"
++
++    return "guest"
+```
+
+[ Prompt: 24.4 t/s | Generation: 9.9 t/s ]
+
+
+Exiting...

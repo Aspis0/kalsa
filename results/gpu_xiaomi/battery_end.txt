@@ -1,0 +1,5 @@
+  USB powered: false
+  status: 3
+  level: 82
+  temperature: 346
+  Capacity level: -1

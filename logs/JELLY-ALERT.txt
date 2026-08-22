@@ -1,0 +1,1 @@
+﻿[2026-08-19T13:31:10-04:00] ALIVE=2 - MORE THAN ONE HARNESS on the phone. Not relaunching; rows written from here on may be from concurrent runs that polluted each other's cold state.

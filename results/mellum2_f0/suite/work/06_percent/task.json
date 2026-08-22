@@ -1,0 +1,8 @@
+{
+  "id": "06_percent",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "percent.py",
+  "pytest": "test_percent.py",
+  "dir": "suite/tasks/06_percent"
+}

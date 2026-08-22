@@ -1,0 +1,19 @@
+[2026-08-13T14:12:57-0400] LD_LIBRARY_PATH=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-kvfix/bin
+[2026-08-13T14:12:57-0400] BIN_SHA=581e9773aa6ef9728b6e71166e455b863078129144801731b7f6ba390330a716 path=/data/data/com.termux/files/home/bin/bmoe-cli-kvfix
+[2026-08-13T14:12:57-0400] CAMPAIGN_BIN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 (must remain 36b01966…)
+[2026-08-13T14:12:57-0400] CAMPAIGN PIN INTACT
+[2026-08-13T14:12:57-0400] MODEL path=/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf size=1280835840
+[2026-08-13T14:13:04-0400] MODEL_SHA=aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223
+[2026-08-13T14:13:04-0400] C3_JSONL_SHA=1bccdaaea72bfd854b8f203fd67756361cb3332ed4fdc69ea00ecc3166f2a661
+[2026-08-13T14:13:04-0400] BEGIN C3-KVFIX Jelly t=2 ubatch=512 chatml no-think n=8
+[2026-08-13T14:13:06-0400] preflight i=1 plugged=UNPLUGGED batt=39 temp=27.0 memavail_kib=6006996 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 27.0,   "voltage": 3797,   "current": -2320
+[2026-08-13T14:13:09-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T14:13:32-0400] RUN C3_r1_c4096 plugged=UNPLUGGED batt=39 temp=27.0 memavail=6008348 cold=cold
+[2026-08-13T14:19:03-0400] END C3_r1_c4096 batt_end=37 temp_end=31.0
+[2026-08-13T14:19:05-0400] FAIL C3_r1_c4096 rc=0 wall=328 no BMOE_DONE
+[2026-08-13T14:19:07-0400] preflight i=1 plugged=UNPLUGGED batt=37 temp=31.0 memavail_kib=6007720 raw={   "present": true,   "technology": "Li-ion",   "health": "GOOD",   "plugged": "UNPLUGGED",   "status": "DISCHARGING",   "temperature": 31.0,   "voltage": 3715,   "current": -2380
+[2026-08-13T14:19:09-0400] fadvise /data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+[2026-08-13T14:19:33-0400] RUN C3_r2_c4096 plugged=UNPLUGGED batt=37 temp=31.0 memavail=6005736 cold=cold
+[2026-08-13T14:25:04-0400] END C3_r2_c4096 batt_end=34 temp_end=34.0
+[2026-08-13T14:25:06-0400] FAIL C3_r2_c4096 rc=0 wall=329 no BMOE_DONE
+[2026-08-13T14:25:06-0400] ALL C3 REPS ATTEMPTED

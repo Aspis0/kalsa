@@ -1,0 +1,21 @@
+[2026-08-17T13:22:36-04:00] marco renorm ablation start; waiting for the PC to go idle
+[2026-08-17T13:22:36-04:00] PC idle after 0s
+[2026-08-17T13:22:36-04:00] START marco_k6d0 drop=0.0 renorm=ON
+[2026-08-17T16:12:34-04:00] END marco_k6d0 rc=0 wall=10198s
+[2026-08-17T16:12:34-04:00] OK marco_k6d0 macro_bpb=0.76653399786962
+[2026-08-17T16:12:34-04:00] START marco_k6d10 drop=1.0 renorm=ON
+[2026-08-17T17:29:09-04:00] END marco_k6d10 rc=0 wall=4595.2s
+[2026-08-17T17:29:09-04:00] OK marco_k6d10 macro_bpb=0.861666974151472
+[2026-08-17T17:29:09-04:00] START marco_k6d10_noren drop=1.0 renorm=OFF
+[2026-08-17T19:35:30-04:00] END marco_k6d10_noren rc=0 wall=7581s
+[2026-08-17T19:35:31-04:00] OK marco_k6d10_noren macro_bpb=0.810294905621433
+[2026-08-17T19:35:31-04:00] marco renorm ablation finished - all arms complete
+[2026-08-18T00:13:46-04:00] marco renorm ablation start; waiting for the PC to go idle
+[2026-08-18T00:13:46-04:00] PC idle after 0s
+[2026-08-18T00:13:46-04:00] SKIP marco_k6d0 - already complete
+[2026-08-18T00:13:46-04:00] SKIP marco_k6d10 - already complete
+[2026-08-18T00:13:46-04:00] SKIP marco_k6d10_noren - already complete
+[2026-08-18T00:13:46-04:00] START marco_k8d0 drop=0.0 renorm=ON
+[2026-08-18T03:38:24-04:00] END marco_k8d0 rc=0 wall=12277.4s
+[2026-08-18T03:38:24-04:00] OK marco_k8d0 macro_bpb=0.761331982459484
+[2026-08-18T03:38:24-04:00] marco renorm ablation finished - all arms complete

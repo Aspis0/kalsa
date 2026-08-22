@@ -1,0 +1,13 @@
+opencl: GEMV_AUDIT classifier + stash fixes (review 2bdef5c7d F1,F3,F5,F6)
+
+F1: SIGN_SMEAR is per-nibble with base-rate enrichment (rate_ge80>=0.80
+and rate_lt80<=0.20, n>=32), not row-OR of any byte>=0x80. Both rates
+are on the GEMV_AUDIT line. Historic signature was per-byte
+got==want|0xF0 iff byte>=0x80, 16/16.
+F5: LANE_MOD reports the largest divisor only (64-period no longer
+also tags 32).
+F6: REDUCTION_OR_SCALE clusters got/want of BAD elements at named
+constants (frac>=0.30), so a mixed 60/40 map is not hidden by median=1.
+Labels are ranked with '>'.
+F3: AoS stash is capped (GGML_OPENCL_GEMV_AUDIT_STASH_MB, default 512),
+skips shapes this GEMV kernel cannot consume, swap-with-empty on reset.

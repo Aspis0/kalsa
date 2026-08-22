@@ -1,0 +1,12 @@
+﻿[2026-08-19T10:00:34-04:00] watchdog start interval=300s maxRelaunch=12 staleBeat=900s
+[2026-08-19T10:00:36-04:00] alive=2 starting=0 status='' good_rows=0 tot_rows=0 batt= beat_age=-1s beat=''
+[2026-08-19T10:00:36-04:00] ALERT: ALIVE=2 - MORE THAN ONE HARNESS on the phone. Not relaunching; rows written from here on may be from concurrent runs that polluted each other's cold state.
+[2026-08-19T10:05:36-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=2 batt= beat_age=2s beat='2026-08-19T10:05:35-0400 cooldown 105s left before r1_d1.0'
+[2026-08-19T10:10:37-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=3 batt= beat_age=25s beat='2026-08-19T10:10:12-0400 running r1_d1.0nr (pass 1)'
+[2026-08-19T10:15:38-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=5 batt= beat_age=0s beat='2026-08-19T10:15:38-0400 cooldown 15s left before r2_d0.65'
+[2026-08-19T10:20:38-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=7 batt= beat_age=6s beat='2026-08-19T10:20:33-0400 cooldown 60s left before r2_d1.0nr'
+[2026-08-19T10:25:39-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=9 batt= beat_age=5s beat='2026-08-19T10:25:35-0400 cooldown 100s left before r3_d0.65'
+[2026-08-19T10:30:39-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=10 batt= beat_age=23s beat='2026-08-19T10:30:17-0400 running r3_d1.0 (pass 1)'
+[2026-08-19T10:35:40-04:00] alive=0 starting=0 status='DONE' good_rows=0 tot_rows=12 batt= beat_age=117s beat='2026-08-19T10:33:44-0400 finished'
+[2026-08-19T10:35:40-04:00] terminal status 'DONE' - watchdog exits
+[2026-08-19T10:35:40-04:00] watchdog end

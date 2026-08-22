@@ -1,0 +1,22 @@
+From f58980c6168265350350bdd388ff7a5cf856e12b Mon Sep 17 00:00:00 2001
+From: Saurias92 <66642624+Aspis0@users.noreply.github.com>
+Date: Sat, 8 Aug 2026 11:15:09 -0400
+Subject: [PATCH 3/3] submodule: bump llama.cpp to kalsa/mmap-prefetch-opt
+
+Pin moves 5236140e5 -> 206a8fe7f (branch kalsa/mmap-prefetch-opt).
+Adds llama_model_params.mmap_prefetch (default true) and wires it into
+init_mappings so streaming callers can disable whole-file MAP_POPULATE.
+---
+ third_party/llama.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/third_party/llama.cpp b/third_party/llama.cpp
+index 5236140..206a8fe 160000
+--- a/third_party/llama.cpp
++++ b/third_party/llama.cpp
+@@ -1 +1 @@
+-Subproject commit 5236140e514d5ceef2b801815b3ba9330f19732e
++Subproject commit 206a8fe7f3c148ecd7e5ff92b13dd21344096fb4
+-- 
+2.54.0.windows.1
+

@@ -1,0 +1,9 @@
+Why is this error handling wrong if the caller assumes the file was written?
+
+```python
+try:
+    Path(path).write_text(data)
+except Exception:
+    pass
+return True
+```

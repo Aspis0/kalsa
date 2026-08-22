@@ -1,0 +1,8 @@
+def do_the_thing(addr):
+    """Normalize an email: strip, lower-case, reject if it has no '@'."""
+    if addr is None:
+        raise ValueError("missing")
+    s = str(addr).strip().lower()
+    if "@" not in s:
+        raise ValueError("not an email")
+    return s

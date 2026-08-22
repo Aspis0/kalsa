@@ -1,0 +1,42 @@
+The JavaScript expression:
+
+```javascript
+[...new Set(arr)]
+```
+
+**removes duplicate elements from an array `arr` while preserving the order of the first occurrence of each element.**
+
+---
+
+### Step-by-step breakdown:
+
+1. **`new Set(arr)`**  
+   - Creates a `Set` object from the array `arr`.
+   - A `Set` only allows **unique values** — duplicate elements are automatically removed.
+   - The order of elements in the `Set` is the same as their first occurrence in the array.
+
+2. **`[...new Set(arr)]`**  
+   - Uses the **spread operator (`...`)** to convert the `Set` back into an array.
+   - This spreads all the unique elements of the `Set` into a new array.
+
+---
+
+### Example:
+
+```javascript
+const arr = [1, 2, 2, 3, 4, 4, 5];
+const uniqueArr = [...new Set(arr)];
+console.log(uniqueArr); // [1, 2, 3, 4, 5]
+```
+
+- `new Set(arr)` → `Set {1, 2, 3, 4, 5}`
+- `[...new Set(arr)]` → `[1, 2, 3, 4, 5]`
+
+---
+
+### Key Points:
+
+- ✅ **Preserves order** of first occurrence.
+- ✅ **Removes duplicates**.
+- ✅ Works with **any data type** (numbers, strings, objects, etc.).
+- ❌ **Does not work with objects** unless they are strictly equal (e.g., `===`), because `Set`

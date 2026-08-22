@@ -1,0 +1,11 @@
+--- positives.py
++++ positives.py
+@@ -1,6 +1,3 @@
+ def positives(nums):
+     """Return the positive numbers from nums, same order."""
+-    out = []
+-    for n in nums:
+-        if n > 0:
+-            out.append(n)
+-    return out
++    return [n for n in nums if n > 0]

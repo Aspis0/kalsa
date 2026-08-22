@@ -1,0 +1,1 @@
+Function `get_user` in `users.py`, line where `cur.execute` uses an f-string to insert `user_id` directly into the SQL query, creating a SQL injection vulnerability.

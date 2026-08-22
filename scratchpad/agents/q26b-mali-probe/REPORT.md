@@ -1,6 +1,6 @@
 # Gate #26b — Mali OpenCL real-matmul probe (Jelly / Mali-G57)
 
-**Status:** DONE  
+**Status:** DONE (Gate 3 complete — portability not sufficient for Q4_K ship path)  
 **Owner-approved:** yes  
 **Device:** Unihertz Jelly Star, Mali-G57 MC2, serial `192.168.1.82:35785` (product `Jelly_Star`). **PLUGGED / AC** the entire cell (level 100, GPU ~38→42 °C). S23 `SM_S911U` and Xiaomi `houji` were attached on adb and **not touched**.  
 **Timebox:** ~2.5h  
@@ -166,3 +166,74 @@ Next engineering (not this gate): (1) portable `#else` SIMD macros + `vload_half
 - Engine fork checkout was not switched.
 
 **PLUGGED** everywhere.
+
+---
+
+# Gate 3 — portability patch (quant kernels on Mali)
+
+**Status:** IN PROGRESS  
+**Owner GO:** yes  
+**Timebox:** ~3h  
+**Branch:** `kalsa/mali-probe` only. **NEVER MERGE** to `kalsa/kernel-s3-repack`.  
+**Raw:** `results/mali_gate_jelly/raw3/`  
+**Device:** Jelly Star **PLUGGED**. Same rules: adb only, no sleep >60s, KEYCODE_WAKEUP, LF-only.
+
+## G3.0 Plan
+
+1. Class 1: `#else` portable `N_SIMDGROUP` / `N_DST` / `N_SIMDWIDTH` on 1d quant kernels (warp 16, Intel-like conservative). Do not touch Adreno/Intel branches.
+2. Class 2: `half*` loads → `vload_half` / `vstore_half` where ARM frontend rejected them.
+3. q2_K / q3_K claim on UNKNOWN: only if kernels actually compile; else leave out and annotate.
+4. Rebuild `build-android-mali-probe`, sha256, push, retest MUL_MAT + MUL_MAT_ID, llama-bench iff a quant type passes.
+
+## G3.1 Session log
+
+| UTC | Step | Result |
+|-----|------|--------|
+| (skeleton) | dirs | `results/mali_gate_jelly/raw3/` |
+
+## G3.2 Patch notes
+
+_TBD_
+
+## G3.3 Artifact hashes (PC == device)
+
+| File | sha256 | bytes |
+|------|--------|------:|
+| | | |
+
+## G3.4 MUL_MAT (quant)
+
+| type | compile | run | pass/fail/ERR | notes |
+|------|---------|-----|---------------|-------|
+| q4_0 | | | | |
+| q8_0 | | | | |
+| q4_K | | | | |
+| q6_K | | | | |
+| q2_K | | | | |
+| q3_K | | | | |
+
+## G3.5 MUL_MAT_ID
+
+| type | compile | run | pass/fail/ERR | notes |
+|------|---------|-----|---------------|-------|
+| q4_0 | | | | |
+| q8_0 | | | | |
+| q4_K | | | | |
+| q6_K | | | | |
+
+## G3.6 llama-bench (only if a quant type passes)
+
+**PLUGGED.** pp128 + pp512, 3 reps, ngl 99 vs ngl 0.
+
+| config | ngl | pp | t/s (3 reps) | GPU temp pre/post | notes |
+|--------|-----|----|--------------|-------------------|-------|
+| | | | | | |
+
+## G3.7 Verdict
+
+- (a) quant compiles+passes+prefill within 3–5× plausible → Mali lane REAL with portability patches only.
+- (b) compiles+passes but prefill garbage → paper confirmed; Mali-tuned kernels needed (owner decision).
+- (c) still won’t compile / garbage → remaining Adreno assumptions.
+
+**VERDICT:** _TBD_
+

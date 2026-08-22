@@ -1,0 +1,182 @@
+[
+  {
+    "id": "en_01",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "In four short sentences, explain how a hash map works and when it is a bad choice."
+  },
+  {
+    "id": "en_02",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "Plan a 48-hour weekend in Lisbon for a couple who like walking and cheap food. Bullet list only."
+  },
+  {
+    "id": "en_03",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "What is the practical difference between TCP and UDP? Give one example workload for each."
+  },
+  {
+    "id": "en_04",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "Write a short, polite email declining a Friday 4pm meeting because of a hard deadline. No subject line fluff."
+  },
+  {
+    "id": "en_05",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "Why do lithium-ion phone batteries lose capacity over years? Explain for a non-engineer in 5 sentences."
+  },
+  {
+    "id": "en_06",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "Give three concrete sleep-hygiene tips that are not 'avoid caffeine'. One sentence each."
+  },
+  {
+    "id": "en_07",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "What is a mutex, and when do you actually need one in a multi-threaded program?"
+  },
+  {
+    "id": "en_08",
+    "lang": "en",
+    "kind": "chat",
+    "prompt": "Compare BFS and DFS at a high level. When would you pick BFS?"
+  },
+  {
+    "id": "en_09",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "What does this Python snippet do, and what is the sort order?\n\n```python\nsorted(rows, key=lambda x: (-x[1], x[0]))\n```"
+  },
+  {
+    "id": "en_10",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "Why is this Python condition wrong if the intent is 'return 0 when either n or m is zero'?\n\n```python\nif n or m == 0:\n    return 0\n```"
+  },
+  {
+    "id": "en_11",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "What does this JavaScript expression do?\n\n```javascript\n[...new Set(arr)]\n```"
+  },
+  {
+    "id": "en_12",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "Why is this loop wrong? What goes wrong at runtime or in the result?\n\n```python\nfor i in range(len(xs)):\n    xs.pop(i)\n```"
+  },
+  {
+    "id": "en_13",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "What does this pandas line do to a DataFrame `df` with columns user and amt?\n\n```python\ndf['user_total'] = df.groupby('user')['amt'].transform('sum')\n```"
+  },
+  {
+    "id": "en_14",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "Why is this error handling wrong if the caller assumes the file was written?\n\n```python\ntry:\n    Path(path).write_text(data)\nexcept Exception:\n    pass\nreturn True\n```"
+  },
+  {
+    "id": "en_15",
+    "lang": "en",
+    "kind": "code-explain",
+    "prompt": "What does this regex extract from a string like 'ada@example.com'?\n\n```python\nimport re\nre.search(r'(?<=@)[^.]+(?=\\.)', text)\n```"
+  },
+  {
+    "id": "it_01",
+    "lang": "it",
+    "kind": "chat",
+    "prompt": "Spiega in italiano, in due paragrafi brevi, a cosa serve un indice B-tree in un database."
+  },
+  {
+    "id": "it_02",
+    "lang": "it",
+    "kind": "chat",
+    "prompt": "Consigliami in italiano una cena vegetariana per 4 persone, con lista della spesa. Niente carne o pesce."
+  },
+  {
+    "id": "it_03",
+    "lang": "it",
+    "kind": "code-explain",
+    "prompt": "Cosa fa questo snippet Python? Rispondi in italiano.\n\n```python\nlista[::-1]\n```"
+  },
+  {
+    "id": "it_04",
+    "lang": "it",
+    "kind": "code-explain",
+    "prompt": "Perch\u00e9 questo if Python \u00e8 sbagliato? Rispondi in italiano.\n\n```python\nif user = None:\n    return\n```"
+  },
+  {
+    "id": "it_05",
+    "lang": "it",
+    "kind": "chat",
+    "prompt": "In italiano, riassumi la differenza pratica tra processo e thread. Massimo 6 frasi."
+  },
+  {
+    "id": "it_06",
+    "lang": "it",
+    "kind": "code-explain",
+    "prompt": "Cosa fa questa riga e qual \u00e8 il bug tipico? Rispondi in italiano.\n\n```python\nd = dict.fromkeys(['a', 'b'], [])\nd['a'].append(1)\n```"
+  },
+  {
+    "id": "it_07",
+    "lang": "it",
+    "kind": "code-explain",
+    "prompt": "Perch\u00e9 questa query \u00e8 pericolosa? Rispondi in italiano.\n\n```python\ncur.execute(\"SELECT * FROM users WHERE id = '\" + user_id + \"'\")\n```"
+  },
+  {
+    "id": "it_08",
+    "lang": "it",
+    "kind": "chat",
+    "prompt": "Scrivi in italiano un messaggio Slack breve per slittare una deadline di due giorni, tono professionale."
+  },
+  {
+    "id": "it_09",
+    "lang": "it",
+    "kind": "code-explain",
+    "prompt": "Cosa fa il decorator `@functools.lru_cache` in Python? Rispondi in italiano, 4 frasi."
+  },
+  {
+    "id": "it_10",
+    "lang": "it",
+    "kind": "code-explain",
+    "prompt": "Perch\u00e9 questo loop \u00e8 sbagliato? Rispondi in italiano.\n\n```python\nfor k in d:\n    del d[k]\n```"
+  },
+  {
+    "id": "es_01",
+    "lang": "es",
+    "kind": "code-explain",
+    "prompt": "\u00bfQu\u00e9 hace este snippet JavaScript? Responde en espa\u00f1ol.\n\n```javascript\narr.filter(x => x)\n```"
+  },
+  {
+    "id": "fr_01",
+    "lang": "fr",
+    "kind": "code-explain",
+    "prompt": "Pourquoi ce code C / JavaScript est faux si l'intention est une comparaison ? R\u00e9ponds en fran\u00e7ais.\n\n```c\nif (a = b) {\n    return 1;\n}\n```"
+  },
+  {
+    "id": "es_02",
+    "lang": "es",
+    "kind": "chat",
+    "prompt": "Expl\u00edcame en espa\u00f1ol, en cinco frases, qu\u00e9 es una API REST y en qu\u00e9 se diferencia de SOAP."
+  },
+  {
+    "id": "fr_02",
+    "lang": "fr",
+    "kind": "code-explain",
+    "prompt": "Que fait `list(zip(*matrix))` en Python si `matrix` est une liste de listes ? R\u00e9ponds en fran\u00e7ais."
+  },
+  {
+    "id": "es_03",
+    "lang": "es",
+    "kind": "code-explain",
+    "prompt": "\u00bfPor qu\u00e9 est\u00e1 mal esto en Python async? Responde en espa\u00f1ol.\n\n```python\nawait time.sleep(1)\n```"
+  }
+]

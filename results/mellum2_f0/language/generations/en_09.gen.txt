@@ -1,0 +1,32 @@
+The Python snippet:
+
+```python
+sorted(rows, key=lambda x: (-x[1], x[0]))
+```
+
+does the following:
+
+### 1. **Sorts a list of rows**
+- `rows` is expected to be a list of tuples or lists, where each element has at least two items: `x[0]` and `x[1]`.
+- The `sorted()` function returns a new list sorted according to the specified key.
+
+### 2. **Uses a custom key function**
+- The `key` is a lambda function: `lambda x: (-x[1], x[0])`
+- For each row `x`, it computes a tuple:
+  - `-x[1]`: negates the second element (so larger values of `x[1]` become smaller in the negative, thus sorted first).
+  - `x[0]`: the first element, used as a tiebreaker.
+
+### 3. **Sort Order**
+- **Primary sort**: by `-x[1]` → this means **descending order** of `x[1]` (because negating reverses the order).
+- **Secondary sort**: by `x[0]` → this means **ascending order** of `x[0]` (used when `x[1]` values are equal).
+
+### Example:
+```python
+rows = [('Alice', 30), ('Bob', 25), ('Charlie', 30), ('David', 25)]
+sorted_rows = sorted(rows, key=lambda x: (-x[1], x[0]))
+print(sorted_rows)
+```
+
+Output:
+```python
+[('Alice', 30), ('Charlie',

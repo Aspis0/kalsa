@@ -1,0 +1,16 @@
+def is_valid_parens(s):
+    """Return True iff (), [], {} are balanced and correctly nested. Empty string is valid."""
+    stack = []
+    mapping = {')': '(', ']': '[', '}': '{'}
+
+    for char in s:
+        if char in mapping.values():
+            stack.append(char)
+        elif char in mapping.keys():
+            if not stack or stack.pop() != mapping[char]:
+                return False
+        else:
+            return False
+
+    return not stack
+    raise NotImplementedError

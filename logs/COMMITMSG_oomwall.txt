@@ -1,0 +1,1 @@
+oomwall: the S23 power-off wall is llama-bench's default ARM repack at Q4_K_M scale — CPU-only, GPU innocent; production structurally immune (use_extra_bufts=false)

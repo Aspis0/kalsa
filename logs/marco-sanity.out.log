@@ -1,0 +1,17 @@
+[2026-08-18T09:53:04-0400] answer-quality A/B: 3 configs x 4 prompts, n=300, temp 0, session mode
+[2026-08-18T09:53:04-0400] START config stock (k=8 drop=0.0 noren=False) for 4 prompts
+[2026-08-18T09:55:13-0400]   OK q1_f1_spa2000/stock chars=862 tokens=282 tok_s=2.393 wall=128.7s
+[2026-08-18T09:56:38-0400]   OK q2_tabellina9/stock chars=550 tokens=300 tok_s=3.746 wall=85.3s
+[2026-08-18T09:57:53-0400]   OK q3_regalo/stock chars=850 tokens=244 tok_s=3.658 wall=74.3s
+[2026-08-18T09:58:27-0400]   OK q4_vocali/stock chars=262 tokens=104 tok_s=3.656 wall=33.9s
+[2026-08-18T09:58:27-0400] START config shipped (k=6 drop=0.0 noren=False) for 4 prompts
+[2026-08-18T09:59:39-0400]   OK q1_f1_spa2000/shipped chars=860 tokens=287 tok_s=4.528 wall=71.6s
+[2026-08-18T10:00:42-0400]   OK q2_tabellina9/shipped chars=621 tokens=300 tok_s=5.026 wall=63.4s
+[2026-08-18T10:01:51-0400]   OK q3_regalo/shipped chars=1008 tokens=300 tok_s=4.8 wall=69.3s
+[2026-08-18T10:02:21-0400]   OK q4_vocali/shipped chars=344 tokens=138 tok_s=5.401 wall=29.9s
+[2026-08-18T10:02:22-0400] START config rejected (k=6 drop=1.0 noren=True) for 4 prompts
+[2026-08-18T10:03:01-0400]   OK q1_f1_spa2000/rejected chars=834 tokens=300 tok_s=9.762 wall=39.3s
+[2026-08-18T10:04:01-0400]   OK q2_tabellina9/rejected chars=537 tokens=300 tok_s=5.356 wall=59.9s
+[2026-08-18T10:04:39-0400]   OK q3_regalo/rejected chars=1047 tokens=300 tok_s=10.044 wall=38.2s
+[2026-08-18T10:04:53-0400]   OK q4_vocali/rejected chars=270 tokens=119 tok_s=11.988 wall=14.0s
+[2026-08-18T10:04:54-0400] ANSWERS.md written (10619 chars)

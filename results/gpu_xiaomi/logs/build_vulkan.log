@@ -1,0 +1,212 @@
+=== VULKAN CMAKE Tue Aug 11 00:32:49 EDT 2026 max=46535 ===
+-- The C compiler identification is Clang 21.1.8
+-- The CXX compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /data/data/com.termux/files/usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /data/data/com.termux/files/usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMAKE_BUILD_TYPE=Release
+-- Found Git: /data/data/com.termux/files/usr/bin/git (found version "2.55.0")
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: /data/data/com.termux/files/usr/bin/cc
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Check if compiler accepts -pthread
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Found OpenMP_C: -fopenmp=libomp (found version "5.1")
+-- Found OpenMP_CXX: -fopenmp=libomp (found version "5.1")
+-- Found OpenMP: TRUE (found version "5.1")
+-- Including CPU backend
+-- ARM detected
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E - Failed
+-- Checking for ARM features using flags:
+--   -march=armv8.2-a+dotprod+i8mm+fp16
+-- Performing Test HAVE_DOTPROD
+-- Performing Test HAVE_DOTPROD - Success
+-- Performing Test HAVE_SVE
+-- Performing Test HAVE_SVE - Failed
+-- Performing Test HAVE_MATMUL_INT8
+-- Performing Test HAVE_MATMUL_INT8 - Success
+-- Performing Test HAVE_FMA
+-- Performing Test HAVE_FMA - Success
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+-- Performing Test HAVE_SME
+-- Performing Test HAVE_SME - Failed
+-- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+i8mm+fp16 
+-- Found Vulkan: /data/data/com.termux/files/usr/lib/libvulkan.so (found version "1.4.359") found components: glslc glslangValidator
+-- Vulkan found
+-- GL_KHR_cooperative_matrix supported by glslc
+-- GL_NV_cooperative_matrix2 supported by glslc
+-- GL_NV_cooperative_matrix_decode_vector supported by glslc
+-- GL_EXT_integer_dot_product supported by glslc
+-- GL_EXT_bfloat16 supported by glslc
+-- Including Vulkan backend
+-- ggml version: 0.16.0
+-- ggml commit:  5236140e5
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found OpenSSL: /data/data/com.termux/files/usr/lib/libcrypto.so (found version "3.6.3")
+-- Performing Test OPENSSL_VERSION_SUPPORTED
+-- Performing Test OPENSSL_VERSION_SUPPORTED - Success
+-- OpenSSL found: 3.6.3
+-- Generating embedded license file for target: llama-app
+-- Configuring done (12.2s)
+-- Generating done (0.4s)
+-- Build files have been written to: /data/data/com.termux/files/home/llama.cpp/build-vulkan
+CMAKE_EXIT=0
+=== VULKAN BUILD j4 START Tue Aug 11 00:33:04 EDT 2026 ===
+[0/2] Re-checking globbed directories...
+[1/581] Creating directories for 'vulkan-shaders-gen'
+[2/581] No download step for 'vulkan-shaders-gen'
+[3/581] No update step for 'vulkan-shaders-gen'
+[4/581] No patch step for 'vulkan-shaders-gen'
+[5/581] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[6/581] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[7/581] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[8/581] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[9/581] Performing configure step for 'vulkan-shaders-gen'
+-- The C compiler identification is Clang 21.1.8
+-- The CXX compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /data/data/com.termux/files/usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /data/data/com.termux/files/usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found Threads: TRUE
+-- Enabling coopmat glslc support
+-- Enabling coopmat2 glslc support
+-- Enabling coopmat2 decode_vector glslc support
+-- Enabling dot glslc support
+-- Enabling bfloat16 glslc support
+-- Configuring done (3.0s)
+-- Generating done (0.1s)
+-- Build files have been written to: /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/vulkan-shaders-gen-prefix/src/vulkan-shaders-gen-build
+[10/581] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[11/581] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[12/581] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[13/581] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[14/581] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[15/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[16/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[17/581] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[18/581] Linking CXX shared library bin/libggml-base.so.0.16.0
+[19/581] Creating library symlink bin/libggml-base.so.0 bin/libggml-base.so
+[20/581] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[21/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[22/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[23/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[24/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[25/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[26/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[27/581] Performing build step for 'vulkan-shaders-gen'
+[1/2] Building CXX object CMakeFiles/vulkan-shaders-gen.dir/vulkan-shaders-gen.cpp.o
+[2/2] Linking CXX executable vulkan-shaders-gen
+[28/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[29/581] Performing install step for 'vulkan-shaders-gen'
+-- Installing: /data/data/com.termux/files/home/llama.cpp/build-vulkan/Release/vulkan-shaders-gen
+[30/581] Completed 'vulkan-shaders-gen'
+[31/581] Generate vulkan shaders header
+[32/581] Generate vulkan shaders for acc.comp
+[33/581] Generate vulkan shaders for add.comp
+[34/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/llamafile/sgemm.cpp.o
+[35/581] Generate vulkan shaders for add1.comp
+[36/581] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[37/581] Generate vulkan shaders for add_id.comp
+[38/581] Generate vulkan shaders for arange.comp
+[39/581] Generate vulkan shaders for argmax.comp
+[40/581] Generate vulkan shaders for argsort.comp
+[41/581] Generate vulkan shaders for argsort_large.comp
+[42/581] Generate vulkan shaders for col2im_1d.comp
+[43/581] Generate vulkan shaders for concat.comp
+[44/581] Generate vulkan shaders for contig_copy.comp
+[45/581] Generate vulkan shaders for conv2d_dw.comp
+[46/581] Generate vulkan shaders for conv_transpose_1d.comp
+[47/581] Generate vulkan shaders for conv3d_mm.comp
+[48/581] Generate vulkan shaders for conv2d_mm.comp
+[49/581] Generate vulkan shaders for copy.comp
+[50/581] Generate vulkan shaders for copy_from_quant.comp
+[51/581] Generate vulkan shaders for copy_transpose.comp
+[52/581] Generate vulkan shaders for count_equal.comp
+[53/581] Generate vulkan shaders for count_experts.comp
+[54/581] Generate vulkan shaders for cumsum.comp
+[55/581] Generate vulkan shaders for cumsum_multipass1.comp
+[56/581] Generate vulkan shaders for cumsum_multipass2.comp
+[57/581] Generate vulkan shaders for dequant_f32.comp
+[58/581] Generate vulkan shaders for dequant_iq1_m.comp
+[59/581] Generate vulkan shaders for copy_to_quant.comp
+[60/581] Generate vulkan shaders for dequant_iq1_s.comp
+[61/581] Generate vulkan shaders for dequant_iq2_xs.comp
+[62/581] Generate vulkan shaders for dequant_iq2_s.comp
+[63/581] Generate vulkan shaders for dequant_iq2_xxs.comp
+[64/581] Generate vulkan shaders for dequant_iq3_xxs.comp
+[65/581] Generate vulkan shaders for dequant_iq3_s.comp
+[66/581] Generate vulkan shaders for dequant_iq4_nl.comp
+[67/581] Generate vulkan shaders for dequant_iq4_xs.comp
+[68/581] Generate vulkan shaders for dequant_mxfp4.comp
+[69/581] Generate vulkan shaders for dequant_nvfp4.comp
+[70/581] Generate vulkan shaders for dequant_q1_0.comp
+[71/581] Generate vulkan shaders for dequant_q2_k.comp
+[72/581] Generate vulkan shaders for dequant_q3_k.comp
+[73/581] Generate vulkan shaders for dequant_q4_0.comp
+[74/581] Generate vulkan shaders for dequant_q4_1.comp
+[75/581] Generate vulkan shaders for dequant_q4_k.comp
+[76/581] Generate vulkan shaders for dequant_q5_0.comp
+[77/581] Generate vulkan shaders for dequant_q5_1.comp
+[78/581] Generate vulkan shaders for dequant_q5_k.comp
+[79/581] Generate vulkan shaders for dequant_q6_k.comp
+[80/581] Generate vulkan shaders for dequant_q8_0.comp
+[81/581] Generate vulkan shaders for diag.comp
+[82/581] Generate vulkan shaders for diag_mask_inf.comp
+[83/581] Generate vulkan shaders for fill.comp
+[84/581] Generate vulkan shaders for div.comp
+[85/581] Generate vulkan shaders for flash_attn_cm2.comp
+FAILED: [code=1] ggml/src/ggml-vulkan/flash_attn_cm2.comp.cpp /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/flash_attn_cm2.comp.cpp 
+cd /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan && /data/data/com.termux/files/home/llama.cpp/build-vulkan/Release/vulkan-shaders-gen --glslc /data/data/com.termux/files/usr/bin/glslc --source /data/data/com.termux/files/home/llama.cpp/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_cm2.comp --output-dir /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/vulkan-shaders.spv --target-hpp /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/ggml-vulkan-shaders.hpp --target-cpp /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/flash_attn_cm2.comp.cpp && /data/data/com.termux/files/usr/bin/cmake -E cmake_transform_depfile Ninja gccdepfile /data/data/com.termux/files/home/llama.cpp /data/data/com.termux/files/home/llama.cpp/ggml/src/ggml-vulkan /data/data/com.termux/files/home/llama.cpp/build-vulkan /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/flash_attn_cm2.comp.cpp.d /data/data/com.termux/files/home/llama.cpp/build-vulkan/CMakeFiles/d/8c6331e32aad752646f99b119545988f061caf0db6bc40a2a106f2b225ab944f.d
+cannot compile flash_attn_f32_f16_f16acc_cm2 (exit code 1)
+
+/data/data/com.termux/files/usr/bin/glslc -fshader-stage=compute --target-env=vulkan1.3 /data/data/com.termux/files/home/llama.cpp/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_cm2.comp -o /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/vulkan-shaders.spv/flash_attn_f32_f16_f16acc_cm2.spv -O -DACC_TYPE=float16_t -DACC_TYPEV2=f16vec2 -DACC_TYPEV4=f16vec4 -DACC_TYPE_MAX=float16_t(65504.0) -DD_TYPE=float -DD_TYPEV4=vec4 -DFLOAT16=1 -DFLOAT_TYPE=float16_t -DFLOAT_TYPEV2=f16vec2 -DFLOAT_TYPEV4=f16vec4 -DFLOAT_TYPE_MAX=float16_t(65504.0) -DQ_TYPE=float 
+
+shaderc: internal error: compilation succeeded but failed to optimize: Invalid capability operand: 5447
+
+
+cannot compile flash_attn_f32_f16_cm2 (exit code 1)
+
+/data/data/com.termux/files/usr/bin/glslc -fshader-stage=compute --target-env=vulkan1.3 /data/data/com.termux/files/home/llama.cpp/ggml/src/ggml-vulkan/vulkan-shaders/flash_attn_cm2.comp -o /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/vulkan-shaders.spv/flash_attn_f32_f16_cm2.spv -O -MD -MF /data/data/com.termux/files/home/llama.cpp/build-vulkan/ggml/src/ggml-vulkan/flash_attn_cm2.comp.cpp.d -DACC_TYPE=float -DACC_TYPEV2=vec2 -DACC_TYPEV4=vec4 -DD_TYPE=float -DD_TYPEV4=vec4 -DFLOAT16=1 -DFLOAT_TYPE=float16_t -DFLOAT_TYPEV2=f16vec2 -DFLOAT_TYPEV4=f16vec4 -DFLOAT_TYPE_MAX=float16_t(65504.0) -DQ_TYPE=float 
+
+shaderc: internal error: compilation succeeded but failed to optimize: Invalid capability operand: 5447
+
+
+vulkan-shaders-gen: one or more shaders failed to compile
+[86/581] Generate vulkan shaders for flash_attn_cm1.comp
+[87/581] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[88/581] Generate vulkan shaders for flash_attn.comp
+ninja: build stopped: subcommand failed.
+BUILD_EXIT=0
+=== VULKAN BUILD DONE Tue Aug 11 00:33:34 EDT 2026 ===
+ls: cannot access 'build-vulkan/bin/llama-bench': No such file or directory
+ls: cannot access 'build-vulkan/bin/llama-cli': No such file or directory

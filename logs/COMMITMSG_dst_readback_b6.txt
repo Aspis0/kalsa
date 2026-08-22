@@ -1,0 +1,11 @@
+opencl: GEMV_AUDIT dst-readback hook (review B6)
+
+After the production q4_0 GEMV n=1 dispatch, snapshot dst checksums
+and compare them at get_tensor: raw re-read of the cl_mem vs the bytes
+handed to the caller. Log DST_READBACK, OVERLAP_MAP, and POST_ENQUEUE
+(wrapper tensor range vs live snaps). Env-gated, no new kernels.
+
+Reachable match pairs when snap offset == get offset: (1,1) clean,
+(0,0) clobber, (0,1) microsecond window. (1,0) is structurally
+unreachable; offset divergence is get_off/snap_off with
+returned_match=-2.

@@ -1,0 +1,5 @@
+--- campaign pin (must match before) ---
+0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c  /data/data/com.termux/files/home/bin/mellum2/bmoe-cli
+d32e04e1731c060669a195224e2d0d929f1cb220bbe3dd129eef9e7059782855  /data/data/com.termux/files/home/bin/bmoe-cli-mellum2
+--- prompt ---
+b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd  /data/data/com.termux/files/home/experiments/results/kernel_ship_ab_s23/prompts/p_fact.txt

@@ -1,0 +1,633 @@
+ENV HOST_REPACK=[1] ORACLE=[1] cpuset=/
+
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels................................................................................................................................ggml_opencl: ORACLE compiling consumer idioms with opts: '-cl-std=CL3.0 -cl-mad-enable  -cl-fast-relaxed-math'
+ORACLE_PATHINFO{gemm_bin_loaded=0}
+...................
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 2880x2880x32
+ORACLE{tensor=2880x2880x32, idiom=gemv, read=buffer, hostrepack=1, n=265420800, float_mismatch=0/265420800, raw_mismatch=0/33177600, raw_d_mismatch=0/8294400, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=2880x2880x32, idiom=gemv, read=image, hostrepack=1, n=265420800, float_mismatch=0/265420800, raw_mismatch=0/33177600, raw_d_mismatch=0/8294400, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=2880x2880x32, idiom=gemm, read=buffer, hostrepack=1, n=265420800, float_mismatch=0/265420800, raw_mismatch=0/33177600, raw_d_mismatch=0/8294400, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=2880x2880x32, idiom=gemm, read=image, hostrepack=1, n=265420800, float_mismatch=0/265420800, raw_mismatch=0/33177600, raw_d_mismatch=0/8294400, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=1, lines_bad=0/4, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+[MUL_MAT_ID] ERR = 0.428642773 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=32,n_used=2,b=0,m=2880,n=32,k=2880): ggml_opencl: KALSA host repack for q4_0 MoE tensor 96x64x4
+ORACLE{tensor=96x64x4, idiom=gemv, read=buffer, hostrepack=1, n=24576, float_mismatch=0/24576, raw_mismatch=0/3072, raw_d_mismatch=0/768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=96x64x4, idiom=gemv, read=image, hostrepack=1, n=24576, float_mismatch=0/24576, raw_mismatch=0/3072, raw_d_mismatch=0/768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=96x64x4, idiom=gemm, read=buffer, hostrepack=1, n=24576, float_mismatch=0/24576, raw_mismatch=0/3072, raw_d_mismatch=0/768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=96x64x4, idiom=gemm, read=image, hostrepack=1, n=24576, float_mismatch=0/24576, raw_mismatch=0/3072, raw_d_mismatch=0/768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=2, lines_bad=0/8, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.480270204 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=64,n=16,k=96): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=3, lines_bad=0/12, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.448924463 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=4, lines_bad=0/16, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.530958976 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=5, lines_bad=0/20, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.418376197 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=6, lines_bad=0/24, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.440816560 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=7, lines_bad=0/28, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.469429570 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=8, lines_bad=0/32, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.456054361 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=9, lines_bad=0/36, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.504867228 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=10, lines_bad=0/40, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.440198089 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=11, lines_bad=0/44, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.445155699 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=12, lines_bad=0/48, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.372371112 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=13, lines_bad=0/52, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.471422835 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=14, lines_bad=0/56, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.438101328 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=15, lines_bad=0/60, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.375076908 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=16, lines_bad=0/64, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.486122995 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=17, lines_bad=0/68, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.442662695 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=18, lines_bad=0/72, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.449902039 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=19, lines_bad=0/76, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.463180357 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=20, lines_bad=0/80, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.432156159 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=21, lines_bad=0/84, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.434944604 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=22, lines_bad=0/88, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.391170820 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=23, lines_bad=0/92, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.409016464 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=24, lines_bad=0/96, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.455687179 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=25, lines_bad=0/100, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.431559607 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=26, lines_bad=0/104, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.465647359 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=27, lines_bad=0/108, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.600722382 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=28, lines_bad=0/112, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.424655310 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=29, lines_bad=0/116, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.432249399 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=30, lines_bad=0/120, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.438041031 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=31, lines_bad=0/124, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.452818783 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=32, lines_bad=0/128, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.426548243 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=33, lines_bad=0/132, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.511568134 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=34, lines_bad=0/136, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.392013366 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=35, lines_bad=0/140, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.473051840 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=36, lines_bad=0/144, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.435863015 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=37, lines_bad=0/148, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.445808854 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+ORACLE{tensor=256x512x4, idiom=gemv, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemv, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=buffer, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x4, idiom=gemm, read=image, hostrepack=1, n=524288, float_mismatch=0/524288, raw_mismatch=0/65536, raw_d_mismatch=0/16384, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=38, lines_bad=0/152, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.430872353 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=39, lines_bad=0/156, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.471264628 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=40, lines_bad=0/160, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.442398649 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=41, lines_bad=0/164, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.429219740 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=42, lines_bad=0/168, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.458569059 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=43, lines_bad=0/172, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.432671134 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=44, lines_bad=0/176, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.429444146 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=45, lines_bad=0/180, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.587404189 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=46, lines_bad=0/184, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.468272627 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=47, lines_bad=0/188, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.437067017 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=48, lines_bad=0/192, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.433573443 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=49, lines_bad=0/196, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.457963874 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=50, lines_bad=0/200, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.465891704 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=51, lines_bad=0/204, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.506353870 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=52, lines_bad=0/208, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.441017594 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=53, lines_bad=0/212, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.414204918 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=54, lines_bad=0/216, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.445070751 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=55, lines_bad=0/220, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.415652407 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=56, lines_bad=0/224, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.470871796 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=57, lines_bad=0/228, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.419654243 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=58, lines_bad=0/232, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.432635443 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=59, lines_bad=0/236, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.495199606 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=60, lines_bad=0/240, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.454035121 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=61, lines_bad=0/244, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.443652719 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=62, lines_bad=0/248, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.453507709 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=63, lines_bad=0/252, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.489984457 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=64, lines_bad=0/256, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.403771188 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=65, lines_bad=0/260, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.497026847 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=66, lines_bad=0/264, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.463476727 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=67, lines_bad=0/268, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.432914097 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=68, lines_bad=0/272, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.460950311 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=129,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=69, lines_bad=0/276, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.390411999 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=70, lines_bad=0/280, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.419012058 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=4,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=71, lines_bad=0/284, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.410779612 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=5,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=72, lines_bad=0/288, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.455337160 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=17,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=73, lines_bad=0/292, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.466054011 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=32,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+ORACLE{tensor=256x512x8, idiom=gemv, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemv, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=buffer, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE{tensor=256x512x8, idiom=gemm, read=image, hostrepack=1, n=1048576, float_mismatch=0/1048576, raw_mismatch=0/131072, raw_d_mismatch=0/32768, first_bad_idx=-1, want=0, got=0, pattern=ok}
+ORACLE_SUMMARY{tensors=74, lines_bad=0/296, float_mismatch_total=0, raw_mismatch_total=0, raw_d_mismatch_total=0, hostrepack=1, gemm_bin_loaded=0, all_ok=1}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.452078957 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=129,k=256): [1;31mFAIL[0m
+  0/74 tests passed
+
+Failing tests:
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=32,n_used=2,b=0,m=2880,n=32,k=2880)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=64,n=16,k=96)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=129,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=4,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=5,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=17,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=32,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=129,k=256)
+  Backend OpenCL: [1;31mFAIL[0m
+Backend 2/2: CPU
+  Skipping
+1/2 backends passed
+[1;31mFAIL[0m

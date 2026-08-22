@@ -1,0 +1,3 @@
+cell=C_MELLUM_PIN k=8 threads=5 pin=3-7 nproc=6 online=0-7
+self_cpus=0-7
+pid 6762's current affinity mask: 3f

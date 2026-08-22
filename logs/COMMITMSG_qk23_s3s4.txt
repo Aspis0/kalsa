@@ -1,0 +1,22 @@
+opencl: q2_K/q3_K Adreno MoE GEMV/GEMM + supports_op (S3+S4)
+
+Four MUL_MAT_ID compute kernels (q6_K-pattern geometry, no ILA) whose unpack
+is the S2 oracle expressions (nfail=0, including odd superblocks and hmask
+high-half). All nibble/bit masks are kernel args. Signed qhat for q3.
+
+Padding: unlike the q4_K/q5_K/q6_K clones, these kernels do not early-return
+before work-group barriers. The Adreno MoE gate admits ne01%32; the GEMV/GEMM
+grid pads to 64. Invalid lanes clamp loads and skip stores. The family-wide
+latent defect (early-return + GEMM OOB on %32&&!%64) stays in q4/q5/q6 as the
+kalsakernel-v3 baseline; queued separately.
+
+test-backend-ops: one m=96 MUL_MAT_ID case per q2_K and q3_K (poison shape).
+Not added for other types. supports_op now lists Q2_K/Q3_K on the Adreno
+MUL_MAT_ID path only (same F32 + use_adreno_moe_kernels + contiguous gate).
+
+S23 Adreno 740 (unplugged): MUL_MAT_ID 399/399 (391+8), MUL_MAT 915/925 (10
+known q6_K flat fails), roundtrip class=clean, oracle nfail=0, LFM2.5-KEXP
+llama-bench noextra -fa off -ngl 99 with n_cpu_moe=0 and
+kernel_{gemv,gemm}_moe_q{2,3}_k_f32_ns on the LOG_KERNELS shim.
+
+Evidence: results/qk23_s23/. Design: scratchpad/agents/qk23-kernels/DESIGN.md v3.

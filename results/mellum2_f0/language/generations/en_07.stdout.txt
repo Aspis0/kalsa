@@ -1,0 +1,66 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> What is a mutex, and when do you actually need one in a multi-threaded program?
+A **mutex** (short for *mutual exclusion*) is a synchronization primitive used in multi-threaded programming to protect shared resources from concurrent access. It ensures that only one thread can access a critical section of code or data at a time, preventing race conditions.
+
+### How a Mutex Works:
+- A mutex has two states: **locked** and **unlocked**.
+- When a thread wants to access a shared resource, it must **lock** the mutex first.
+- If the mutex is already locked by another thread, the requesting thread will **wait** (block) until the mutex becomes available.
+- After finishing its work, the thread **unlocks** the mutex, allowing other threads to proceed.
+
+### When Do You Actually Need a Mutex?
+
+You need a mutex in a multi-threaded program when:
+
+1. **Multiple threads access shared data**  
+   If two or more threads read or write to the same variable, array, or object, and the operations are not atomic, you risk race conditions.
+
+   Example:
+   ```cpp
+   int counter = 0;
+
+   // Thread 1
+   counter++;
+
+   // Thread 2
+   counter++;
+   ```
+   Without a mutex, the final value of `counter` might be 1 instead of 2.
+
+2. **The operations are not atomic**  
+   Even simple operations like `++`, `--`, or `+=` can involve multiple steps (read, modify, write), so they are not atomic unless protected.
+
+3. **You're modifying data structures**  
+   If you're adding to or removing from a shared list, queue, or stack, you need a mutex to ensure thread safety.
+
+4. **You're using
+
+[ Prompt: 14.7 t/s | Generation: 10.4 t/s ]
+
+
+Exiting...

@@ -1,0 +1,5 @@
+ts,cell,rep,n_ctx,ubatch,cold,phase,n_prompt,n_past,n_gen,n_common,load_s,prefill_s,prefill_tps,ttft_s,tok_s,wall_s,rc,batt_pct,temp_c,plugged,note
+2026-08-13T14:19:03-0400,C3,1,4096,512,cold,t1,1980,1988,8,0,2.377,159.313,12.43,161.690,6.249,328,0,39,27.0,UNPLUGGED,from_stdout_BMOE_DONE
+2026-08-13T14:19:03-0400,C3,1,4096,512,cold,t2,2033,2041,8,0,2.377,163.834,12.41,163.834,6.253,328,0,39,27.0,UNPLUGGED,from_stdout_BMOE_DONE
+2026-08-13T14:25:04-0400,C3,2,4096,512,cold,t1,1980,1988,8,0,2.379,159.324,12.43,161.703,6.273,329,0,37,31.0,UNPLUGGED,from_stdout_BMOE_DONE
+2026-08-13T14:25:04-0400,C3,2,4096,512,cold,t2,2033,2041,8,0,2.379,163.875,12.41,163.875,6.280,329,0,37,31.0,UNPLUGGED,from_stdout_BMOE_DONE

@@ -1,0 +1,4 @@
+25044c5af263f80315d0a3c27737c97c4c49304a29dfeb059f8c58f7d0e27d68  /data/local/tmp/s3oracle/libggml-opencl.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  /data/local/tmp/s3oracle/libggml-cpu.so
+303db12a05942ec6ecadcb1cd4615e9231d6e148084949f635aa372af8c892db  /data/local/tmp/s3oracle/libggml-base.so
+e5f2ecd431eae87cdb7a6fcb6197976b71eb8fa901b0d7338ae6d607b568503c  /data/local/tmp/s3oracle/test-backend-ops

@@ -1,0 +1,8 @@
+{
+  "id": "12_chunk_js",
+  "family": "fromdoc",
+  "lang": "javascript",
+  "entry": "chunk.js",
+  "node_test": "chunk.test.js",
+  "dir": "suite/tasks/12_chunk_js"
+}

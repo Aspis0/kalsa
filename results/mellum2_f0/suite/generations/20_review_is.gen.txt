@@ -1,0 +1,1 @@
+Function `is_ready`, line: `if status is "ready":` - the use of `is` for string comparison instead of `==` can lead to incorrect behavior due to Python's object identity semantics, potentially causing the function to always return `False` for string inputs.

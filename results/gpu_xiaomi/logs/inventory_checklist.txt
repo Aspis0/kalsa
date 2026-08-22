@@ -1,0 +1,26 @@
+=== S0 inventory checklist (FIX 6) ===
+captured: 2026-08-11
+
+Termux package: com.termux present
+Termux:API package: com.termux.api versionName=0.53.0 versionCode=1002 firstInstall=2026-08-11
+  dpkg termux-api: NOT installed (status un) — no termux-battery-status / termux-notification CLI helpers
+  termux-wake-lock binary: PRESENT (core, not from termux-api pkg)
+  APIs usable without dpkg helpers: limited; app package installed but pkg CLI missing
+
+Termux:Boot: package com.termux.boot INSTALLED versionName=0.8.1 versionCode=1000
+  BUT enabled=0 stopped=true notLaunched=true — NOT operational for this campaign
+  Treat as NOT used / effectively inactive (reviewer: NOT installed for ops purposes)
+
+sshd: binary PRESENT (/data/data/com.termux/files/usr/bin/sshd, openssh 10.4p1)
+  host keys present under $PREFIX/etc/ssh
+  process: NOT running (pgrep empty)
+  campaign deviation: run-as com.termux adb only (no ssh channel)
+
+disk space (current, post-S0):
+  /data: 482G total, 142G used, 339G avail, 30% (df -h /data | tail -1)
+  before/after S0: only current snapshot available; models ~9.8GB under $HOME/models
+
+TERMUX_API_VERSION: NA (no $PREFIX/libexec/termux-api-package-version; dpkg termux-api absent)
+  app versionName=0.53.0 is the APK version, not the CLI package version
+
+termux-info: see logs/termux_info.txt

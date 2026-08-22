@@ -1,0 +1,17 @@
+[2026-08-11T11:29:12.3981055-04:00] START Marco IT v2
+=== Marco it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_it_v2\marco\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=5.6815 bpb=0.7501 tok=13696 fert=3.340 s=7867.5
+MACRO bpb=0.7501
+[2026-08-11T13:40:45.4336620-04:00] Marco rc=0
+[2026-08-11T13:40:45.4598047-04:00] START Qwen IT v2 C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.5-4B-Q4_K_M.gguf
+=== Qwen35_4B it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\draft\Qwen3.5-4B-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_it_v2\qwen35_4b\it\per_token.csv
+  ppl=9.0280 bpb=0.7686 tok=11079 fert=4.129 s=1217.1
+MACRO bpb=0.7686
+[2026-08-11T14:01:07.5698702-04:00] Qwen rc=0
+KEXP_k6d065 0.7066433859472109 7.56131
+Marco 0.7501260841791423 5.681541
+Qwen35_4B 0.768569241822724 9.028007
+WROTE comparison M-K 0.043482698231931405 M-Q -0.01844315764358173
+[2026-08-11T14:01:07.7024439-04:00] ALL_DONE

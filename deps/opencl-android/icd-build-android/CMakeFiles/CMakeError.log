@@ -1,0 +1,94 @@
+Performing C SOURCE FILE Test CMAKE_HAVE_LIBC_PTHREAD failed with the following output:
+Change Dir: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe cmTC_468f3 && [1/2] Building C object CMakeFiles/cmTC_468f3.dir/src.c.o
+[31mFAILED: [0mCMakeFiles/cmTC_468f3.dir/src.c.o 
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe --target=aarch64-none-linux-android24 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -DCMAKE_HAVE_LIBC_PTHREAD  -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -fPIE -MD -MT CMakeFiles/cmTC_468f3.dir/src.c.o -MF CMakeFiles\cmTC_468f3.dir\src.c.o.d -o CMakeFiles/cmTC_468f3.dir/src.c.o -c C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp/src.c
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp/src.c:13:3: error: call to undeclared function 'pthread_cancel'; ISO C99 and later do not support implicit function declarations [-Wimplicit-function-declaration]
+   13 |   pthread_cancel(thread);
+      |   ^
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp/src.c:13:3: note: did you mean 'pthread_once'?
+C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/pthread.h:264:5: note: 'pthread_once' declared here
+  264 | int pthread_once(pthread_once_t* _Nonnull __once, void (* _Nonnull __init_routine)(void));
+      |     ^
+1 error generated.
+ninja: build stopped: subcommand failed.
+
+
+Source file was:
+#include <pthread.h>
+
+static void* test_func(void* data)
+{
+  return data;
+}
+
+int main(void)
+{
+  pthread_t thread;
+  pthread_create(&thread, NULL, test_func, NULL);
+  pthread_detach(thread);
+  pthread_cancel(thread);
+  pthread_join(thread, NULL);
+  pthread_atfork(NULL, NULL, NULL);
+  pthread_exit(NULL);
+
+  return 0;
+}
+
+Determining if the function pthread_create exists in the pthreads failed with the following output:
+Change Dir: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe cmTC_d94d7 && [1/2] Building C object CMakeFiles/cmTC_d94d7.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_d94d7
+[31mFAILED: [0mcmTC_d94d7 
+cmd.exe /C "cd . && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe --target=aarch64-none-linux-android24 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=pthread_create -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_d94d7.dir/CheckFunctionExists.c.o -o cmTC_d94d7  -lpthreads  -latomic -lm && cd ."
+ld.lld: error: unable to find library -lpthreads
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+
+Determining if the function pthread_create exists in the pthread failed with the following output:
+Change Dir: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe cmTC_8ec20 && [1/2] Building C object CMakeFiles/cmTC_8ec20.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_8ec20
+[31mFAILED: [0mcmTC_8ec20 
+cmd.exe /C "cd . && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe --target=aarch64-none-linux-android24 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=pthread_create -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_8ec20.dir/CheckFunctionExists.c.o -o cmTC_8ec20  -lpthread  -latomic -lm && cd ."
+ld.lld: error: unable to find library -lpthread
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+
+Determining if the function secure_getenv exists failed with the following output:
+Change Dir: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe cmTC_547e0 && [1/2] Building C object CMakeFiles/cmTC_547e0.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_547e0
+[31mFAILED: [0mcmTC_547e0 
+cmd.exe /C "cd . && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe --target=aarch64-none-linux-android24 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=secure_getenv -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_547e0.dir/CheckFunctionExists.c.o -o cmTC_547e0  -latomic -lm && cd ."
+ld.lld: error: undefined symbol: secure_getenv
+>>> referenced by CheckFunctionExists.c:17 (C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/share/cmake-3.22/Modules/CheckFunctionExists.c:17)
+>>>               CMakeFiles/cmTC_547e0.dir/CheckFunctionExists.c.o:(main)
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+
+Determining if the function __secure_getenv exists failed with the following output:
+Change Dir: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/opencl-android/icd-build-android/CMakeFiles/CMakeTmp
+
+Run Build Command(s):C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe cmTC_34c5c && [1/2] Building C object CMakeFiles/cmTC_34c5c.dir/CheckFunctionExists.c.o
+[2/2] Linking C executable cmTC_34c5c
+[31mFAILED: [0mcmTC_34c5c 
+cmd.exe /C "cd . && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang.exe --target=aarch64-none-linux-android24 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security  -DCHECK_FUNCTION_EXISTS=__secure_getenv -Wl,--build-id=sha1 -Wl,--no-rosegment -Wl,--no-undefined-version -Wl,--fatal-warnings -Wl,--no-undefined -Qunused-arguments CMakeFiles/cmTC_34c5c.dir/CheckFunctionExists.c.o -o cmTC_34c5c  -latomic -lm && cd ."
+ld.lld: error: undefined symbol: __secure_getenv
+>>> referenced by CheckFunctionExists.c:17 (C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/share/cmake-3.22/Modules/CheckFunctionExists.c:17)
+>>>               CMakeFiles/cmTC_34c5c.dir/CheckFunctionExists.c.o:(main)
+clang: error: linker command failed with exit code 1 (use -v to see invocation)
+ninja: build stopped: subcommand failed.
+
+
+

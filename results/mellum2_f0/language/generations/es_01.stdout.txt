@@ -1,0 +1,40 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> ¿Qué hace este snippet JavaScript? Responde en español.
+
+```javascript
+arr.filter(x => x)
+```
+Este snippet de JavaScript filtra un array llamado `arr` eliminando todos los elementos que son "falsos" en un contexto booleano. Esto incluye valores como `false`, `0`, `""`, `null`, `undefined`, y `NaN`. Los elementos que son "verdaderos" (como números distintos de cero, cadenas no vacías, objetos, etc.) se mantienen en el nuevo array resultante. 
+
+En resumen:  
+**`arr.filter(x => x)` devuelve un nuevo array con solo los elementos de `arr` que se evalúan como `true` en una condición booleana.**
+
+[ Prompt: 14.9 t/s | Generation: 8.2 t/s ]
+
+
+Exiting...

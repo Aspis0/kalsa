@@ -1,0 +1,400 @@
+[2026-08-16T14:20:30-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T14:20:30-0400] CAMPAIGN PIN OK
+[2026-08-16T14:20:30-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T14:20:30-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T14:20:30-0400] computing MODEL sha256...
+[2026-08-16T14:21:08-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T14:21:09-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T14:21:09-0400] BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF' persisted to /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/block_plan.txt
+[2026-08-16T14:21:10-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T14:21:11-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-16T14:21:11-0400] === KF COLD Jelly START resume=0 start_block=1 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T14:21:11-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T14:21:11-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T14:21:11-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T14:21:11-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=UNPINNED
+[2026-08-16T14:21:12-0400] preflight i=1 plugged=UNPLUGGED batt=96 temp=29.0 memavail_kib=5527464 floor=45 screen=
+[2026-08-16T14:21:12-0400] COLD_PRIME: reading model into cache (not measured) so first fadv drop is verifiable
+[2026-08-16T14:21:19-0400] COLD_PRIME done cached_kib=5716412
+[2026-08-16T14:21:20-0400] preflight i=1 plugged=UNPLUGGED batt=96 temp=29.0 memavail_kib=5822816 floor=45 screen=
+[2026-08-16T14:21:20-0400] RESUME_AT=1
+[2026-08-16T14:21:20-0400] RUN b1_OFF_try1 arm=OFF kf_width=0 batt=96 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=5820904 n=200 cooldown_wait_s=0
+[2026-08-16T14:21:20-0400] BASELINE_TEMP=29.0 (block 1 start)
+[2026-08-16T14:21:21-0400] COLD_RESET b1_OFF_try1 cached_kib 5718360->1740540 drop_mb=3884 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=994524 resident_after=0 pages fadvise_rc=0
+[2026-08-16T14:22:15-0400] COLD_FLOOR PINNED from first OFF read_bytes=22288732160 → floor=11144366080 bytes (50%). Declared before remaining pairs.
+[2026-08-16T14:22:15-0400] DONE b1_OFF_try1 rc=0 wall=53s tps=5.302 s/tok=0.189 stall=0.043 (22.8%) issued= hit= wasted= prec= joules=153.148805 j/tok=0.76574403 ttft=13.860 j_window=decode majflt=1922 read_gb=22.288732 kf_width=0 batt=96->95 temp=29.0/30.000/30.000 cooldown_wait_s=0 cached_drop_mb=3884 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T14:22:16-0400] preflight i=1 plugged=UNPLUGGED batt=95 temp=30.0 memavail_kib=5859276 floor=45 screen=
+[2026-08-16T14:22:16-0400] RESUME_AT=2
+[2026-08-16T14:22:16-0400] COOLDOWN block=2 target=30.0 reached=30.0 waited=0 s
+[2026-08-16T14:22:17-0400] RUN b2_ON_w4_try1 arm=ON kf_width=4 batt=95 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=5858580 n=200 cooldown_wait_s=0
+[2026-08-16T14:22:18-0400] COLD_RESET b2_ON_w4_try1 cached_kib 2920320->1038544 drop_mb=1837 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=470445 resident_after=0 pages fadvise_rc=0
+[2026-08-16T14:23:13-0400] DONE b2_ON_w4_try1 rc=0 wall=54s tps=5.010 s/tok=0.200 stall=0.031 (15.5%) issued=5966.3 hit=4582.9 wasted=1383.4 prec=76.8 joules=168.854087 j/tok=0.84427043 ttft=13.762 j_window=decode majflt=1878 read_gb=24.862323 kf_width=4 batt=95->94 temp=30.0/32.000/32.000 cooldown_wait_s=0 cached_drop_mb=1837 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T14:23:14-0400] preflight i=1 plugged=UNPLUGGED batt=94 temp=32.0 memavail_kib=5889140 floor=45 screen=
+[2026-08-16T14:23:14-0400] RESUME_AT=3
+[2026-08-16T14:28:18-0400] COOLDOWN block=3 target=30.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-16T14:28:19-0400] RUN b3_ON_w4_try1 arm=ON kf_width=4 batt=93 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=5881992 n=200 cooldown_wait_s=300
+[2026-08-16T14:28:20-0400] COLD_RESET b3_ON_w4_try1 cached_kib 3073144->1042128 drop_mb=1983 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=507756 resident_after=0 pages fadvise_rc=0
+[2026-08-16T14:29:14-0400] DONE b3_ON_w4_try1 rc=0 wall=52s tps=5.185 s/tok=0.193 stall=0.027 (14.0%) issued=5810.6 hit=4464.0 wasted=1346.5 prec=76.8 joules=161.281986 j/tok=0.80640993 ttft=13.393 j_window=decode majflt=2207 read_gb=24.224698 kf_width=4 batt=93->92 temp=32.0/33.000/33.000 cooldown_wait_s=300 cached_drop_mb=1983 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T14:29:14-0400] preflight i=1 plugged=UNPLUGGED batt=92 temp=33.0 memavail_kib=5906172 floor=45 screen=
+[2026-08-16T14:29:15-0400] RESUME_AT=4
+[2026-08-16T14:34:18-0400] COOLDOWN block=4 target=30.0 reached=33.0 waited=300 s (cap expired — proceed)
+[2026-08-16T14:34:19-0400] RUN b4_OFF_try1 arm=OFF kf_width=0 batt=91 plugged=UNPLUGGED temp=33.0 screen=? memavail_kib=5920480 n=200 cooldown_wait_s=300
+[2026-08-16T14:34:20-0400] COLD_RESET b4_OFF_try1 cached_kib 3135732->931936 drop_mb=2152 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=550950 resident_after=0 pages fadvise_rc=0
+[2026-08-16T14:35:14-0400] DONE b4_OFF_try1 rc=0 wall=53s tps=5.177 s/tok=0.193 stall=0.043 (22.3%) issued= hit= wasted= prec= joules=158.277997 j/tok=0.79138999 ttft=13.393 j_window=decode majflt=1922 read_gb=22.334771 kf_width=0 batt=91->91 temp=33.0/34.000/34.000 cooldown_wait_s=300 cached_drop_mb=2152 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T14:35:15-0400] preflight i=1 plugged=UNPLUGGED batt=91 temp=34.0 memavail_kib=5957192 floor=45 screen=
+[2026-08-16T14:35:15-0400] RESUME_AT=5
+[2026-08-16T14:40:19-0400] COOLDOWN block=5 target=30.0 reached=33.0 waited=300 s (cap expired — proceed)
+[2026-08-16T14:40:20-0400] RUN b5_OFF_try1 arm=OFF kf_width=0 batt=90 plugged=UNPLUGGED temp=33.0 screen=? memavail_kib=5918696 n=200 cooldown_wait_s=300
+[2026-08-16T14:40:21-0400] COLD_RESET b5_OFF_try1 cached_kib 3466268->1106688 drop_mb=2304 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=589909 resident_after=0 pages fadvise_rc=0
+[2026-08-16T14:41:30-0400] DONE b5_OFF_try1 rc=0 wall=67s tps=4.108 s/tok=0.243 stall=0.053 (21.8%) issued= hit= wasted= prec= joules=156.989822 j/tok=0.78494911 ttft=16.559 j_window=decode majflt=599 read_gb=22.266147 kf_width=0 batt=90->89 temp=33.0/34.000/34.000 cooldown_wait_s=300 cached_drop_mb=2304 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T14:41:31-0400] preflight i=1 plugged=UNPLUGGED batt=89 temp=34.0 memavail_kib=5956080 floor=45 screen=
+[2026-08-16T14:41:31-0400] RESUME_AT=6
+[2026-08-16T16:15:17-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T16:15:17-0400] CAMPAIGN PIN OK
+[2026-08-16T16:15:17-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T16:15:17-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T16:15:17-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T16:15:17-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T16:15:17-0400] auto-resume from RESUME_AT=6
+[2026-08-16T16:15:18-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T16:15:19-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T16:15:19-0400] === RESUME append mode START_BLOCK=6 ===
+[2026-08-16T16:15:20-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-16T16:15:20-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T16:15:20-0400] === KF COLD Jelly START resume=1 start_block=6 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T16:15:20-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T16:15:20-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T16:15:20-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T16:15:20-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T16:15:21-0400] preflight i=1 plugged=UNPLUGGED batt=78 temp=29.0 memavail_kib=5895348 floor=45 screen=
+[2026-08-16T16:15:22-0400] preflight i=1 plugged=UNPLUGGED batt=78 temp=29.0 memavail_kib=5894088 floor=45 screen=
+[2026-08-16T16:15:22-0400] RESUME_AT=6
+[2026-08-16T16:15:22-0400] COOLDOWN block=6 target=30.0 reached=29.0 waited=0 s
+[2026-08-16T16:15:23-0400] RUN b6_ON_w4_try1 arm=ON kf_width=4 batt=78 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=5895348 n=200 cooldown_wait_s=0
+[2026-08-16T16:15:24-0400] COLD_RESET b6_ON_w4_try1 cached_kib 4756008->2349620 drop_mb=2349 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=601598 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:16:19-0400] DONE b6_ON_w4_try1 rc=0 wall=54s tps=5.030 s/tok=0.199 stall=0.025 (12.6%) issued=6199.0 hit=4735.2 wasted=1463.8 prec=76.4 joules=164.582890 j/tok=0.82291445 ttft=13.742 j_window=decode majflt=1983 read_gb=24.601297 kf_width=4 batt=78->77 temp=29.0/30.000/30.000 cooldown_wait_s=0 cached_drop_mb=2349 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:16:20-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=30.0 memavail_kib=5967664 floor=45 screen=
+[2026-08-16T16:16:20-0400] RESUME_AT=7
+[2026-08-16T16:16:20-0400] COOLDOWN block=7 target=30.0 reached=30.0 waited=0 s
+[2026-08-16T16:16:21-0400] RUN b7_ON_w4_try1 arm=ON kf_width=4 batt=77 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=5976928 n=200 cooldown_wait_s=0
+[2026-08-16T16:16:22-0400] COLD_RESET b7_ON_w4_try1 cached_kib 3019892->820680 drop_mb=2147 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=549816 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:17:16-0400] DONE b7_ON_w4_try1 rc=0 wall=53s tps=5.121 s/tok=0.195 stall=0.026 (13.3%) issued=5944.2 hit=4544.6 wasted=1399.6 prec=76.5 joules=169.909136 j/tok=0.84954568 ttft=13.374 j_window=decode majflt=1524 read_gb=24.497582 kf_width=4 batt=77->77 temp=30.0/31.000/31.000 cooldown_wait_s=0 cached_drop_mb=2147 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:17:17-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=31.0 memavail_kib=6008904 floor=45 screen=
+[2026-08-16T16:17:17-0400] RESUME_AT=8
+[2026-08-16T16:22:21-0400] COOLDOWN block=8 target=30.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:22:22-0400] RUN b8_OFF_try1 arm=OFF kf_width=0 batt=75 plugged=UNPLUGGED temp=32.0 screen=? memavail_kib=6015500 n=200 cooldown_wait_s=300
+[2026-08-16T16:22:22-0400] COLD_RESET b8_OFF_try1 cached_kib 3119588->817116 drop_mb=2248 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=575622 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:23:17-0400] DONE b8_OFF_try1 rc=0 wall=53s tps=5.200 s/tok=0.192 stall=0.041 (21.4%) issued= hit= wasted= prec= joules=161.923024 j/tok=0.80961512 ttft=13.756 j_window=decode majflt=1774 read_gb=22.328107 kf_width=0 batt=75->75 temp=32.0/33.000/33.000 cooldown_wait_s=300 cached_drop_mb=2248 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:23:17-0400] preflight i=1 plugged=UNPLUGGED batt=75 temp=33.0 memavail_kib=6040164 floor=45 screen=
+[2026-08-16T16:23:18-0400] RESUME_AT=9
+[2026-08-16T16:28:21-0400] COOLDOWN block=9 target=30.0 reached=34.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:28:22-0400] RUN b9_OFF_try1 arm=OFF kf_width=0 batt=73 plugged=UNPLUGGED temp=34.0 screen=? memavail_kib=6024156 n=200 cooldown_wait_s=300
+[2026-08-16T16:28:23-0400] COLD_RESET b9_OFF_try1 cached_kib 3202960->835064 drop_mb=2312 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=591979 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:29:17-0400] DONE b9_OFF_try1 rc=0 wall=53s tps=5.211 s/tok=0.192 stall=0.042 (21.9%) issued= hit= wasted= prec= joules=165.462370 j/tok=0.82731185 ttft=13.656 j_window=decode majflt=2035 read_gb=22.307217 kf_width=0 batt=73->73 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2312 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:29:18-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=35.0 memavail_kib=6057188 floor=45 screen=
+[2026-08-16T16:29:18-0400] RESUME_AT=10
+[2026-08-16T16:34:22-0400] COOLDOWN block=10 target=30.0 reached=34.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:34:22-0400] RUN b10_ON_w4_try1 arm=ON kf_width=4 batt=71 plugged=UNPLUGGED temp=34.0 screen=? memavail_kib=6050920 n=200 cooldown_wait_s=300
+[2026-08-16T16:34:23-0400] COLD_RESET b10_ON_w4_try1 cached_kib 3297564->881192 drop_mb=2359 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=604092 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:35:17-0400] DONE b10_ON_w4_try1 rc=0 wall=52s tps=5.055 s/tok=0.198 stall=0.027 (13.6%) issued=5862.5 hit=4509.6 wasted=1352.9 prec=76.9 joules=164.268690 j/tok=0.85556609 ttft=13.390 j_window=decode majflt=2410 read_gb=24.349196 kf_width=4 batt=71->71 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2359 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:35:17-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=35.0 memavail_kib=6055192 floor=45 screen=
+[2026-08-16T16:35:17-0400] RESUME_AT=11
+[2026-08-16T16:40:21-0400] COOLDOWN block=11 target=30.0 reached=34.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:40:22-0400] RUN b11_ON_w4_try1 arm=ON kf_width=4 batt=69 plugged=UNPLUGGED temp=34.0 screen=? memavail_kib=6042200 n=200 cooldown_wait_s=300
+[2026-08-16T16:40:23-0400] COLD_RESET b11_ON_w4_try1 cached_kib 3239384->715432 drop_mb=2464 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=631018 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:41:16-0400] DONE b11_ON_w4_try1 rc=0 wall=52s tps=5.316 s/tok=0.188 stall=0.024 (12.8%) issued=5657.3 hit=4252.3 wasted=1405.1 prec=75.2 joules=168.156074 j/tok=0.84078037 ttft=13.704 j_window=decode majflt=2012 read_gb=23.758983 kf_width=4 batt=69->69 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2464 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:41:17-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=35.0 memavail_kib=6049012 floor=45 screen=
+[2026-08-16T16:41:17-0400] RESUME_AT=12
+[2026-08-16T16:46:21-0400] COOLDOWN block=12 target=30.0 reached=35.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:46:22-0400] RUN b12_OFF_try1 arm=OFF kf_width=0 batt=67 plugged=UNPLUGGED temp=35.0 screen=? memavail_kib=6093368 n=200 cooldown_wait_s=300
+[2026-08-16T16:46:22-0400] COLD_RESET b12_OFF_try1 cached_kib 3140312->582036 drop_mb=2498 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=639551 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:47:16-0400] DONE b12_OFF_try1 rc=0 wall=52s tps=5.269 s/tok=0.190 stall=0.041 (21.6%) issued= hit= wasted= prec= joules=157.391305 j/tok=0.78695652 ttft=13.445 j_window=decode majflt=2036 read_gb=22.134755 kf_width=0 batt=67->67 temp=35.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2498 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:47:17-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=35.0 memavail_kib=6087228 floor=45 screen=
+[2026-08-16T16:47:17-0400] RESUME_AT=13
+[2026-08-16T16:52:21-0400] COOLDOWN block=13 target=30.0 reached=35.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:52:21-0400] RUN b13_OFF_try1 arm=OFF kf_width=0 batt=65 plugged=UNPLUGGED temp=35.0 screen=? memavail_kib=6085608 n=200 cooldown_wait_s=300
+[2026-08-16T16:52:22-0400] COLD_RESET b13_OFF_try1 cached_kib 3246252->538812 drop_mb=2643 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=676849 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:53:16-0400] DONE b13_OFF_try1 rc=0 wall=53s tps=5.197 s/tok=0.192 stall=0.041 (21.4%) issued= hit= wasted= prec= joules=166.496455 j/tok=0.83248227 ttft=13.589 j_window=decode majflt=1895 read_gb=22.239556 kf_width=0 batt=65->65 temp=35.0/36.000/36.000 cooldown_wait_s=300 cached_drop_mb=2643 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:53:17-0400] preflight i=1 plugged=UNPLUGGED batt=65 temp=36.0 memavail_kib=6088680 floor=45 screen=
+[2026-08-16T16:53:17-0400] RESUME_AT=14
+[2026-08-16T16:58:21-0400] COOLDOWN block=14 target=30.0 reached=35.0 waited=300 s (cap expired — proceed)
+[2026-08-16T16:58:22-0400] RUN b14_ON_w4_try1 arm=ON kf_width=4 batt=63 plugged=UNPLUGGED temp=35.0 screen=? memavail_kib=6097668 n=200 cooldown_wait_s=300
+[2026-08-16T16:58:22-0400] COLD_RESET b14_ON_w4_try1 cached_kib 3214372->473728 drop_mb=2676 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=685199 resident_after=0 pages fadvise_rc=0
+[2026-08-16T16:59:17-0400] DONE b14_ON_w4_try1 rc=0 wall=53s tps=5.130 s/tok=0.195 stall=0.026 (13.3%) issued=5916.5 hit=4488.5 wasted=1428.1 prec=75.9 joules=164.766857 j/tok=0.82383428 ttft=13.443 j_window=decode majflt=1623 read_gb=24.140112 kf_width=4 batt=63->63 temp=35.0/36.000/36.000 cooldown_wait_s=300 cached_drop_mb=2676 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T16:59:18-0400] preflight i=1 plugged=UNPLUGGED batt=63 temp=36.0 memavail_kib=6116112 floor=45 screen=
+[2026-08-16T16:59:18-0400] RESUME_AT=15
+[2026-08-16T17:04:22-0400] COOLDOWN block=15 target=30.0 reached=35.0 waited=300 s (cap expired — proceed)
+[2026-08-16T17:04:23-0400] RUN b15_ON_w4_try1 arm=ON kf_width=4 batt=62 plugged=UNPLUGGED temp=35.0 screen=? memavail_kib=6085472 n=200 cooldown_wait_s=300
+[2026-08-16T17:04:24-0400] COLD_RESET b15_ON_w4_try1 cached_kib 3595616->851400 drop_mb=2679 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=686060 resident_after=0 pages fadvise_rc=0
+[2026-08-16T17:05:30-0400] DONE b15_ON_w4_try1 rc=0 wall=63s tps=4.470 s/tok=0.224 stall=0.027 (12.1%) issued=6384.4 hit=4912.8 wasted=1471.6 prec=76.9 joules=161.011106 j/tok=0.80505553 ttft=17.471 j_window=decode majflt=518 read_gb=24.524026 kf_width=4 batt=62->61 temp=35.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2679 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T17:05:31-0400] preflight i=1 plugged=UNPLUGGED batt=61 temp=35.0 memavail_kib=6120376 floor=45 screen=
+[2026-08-16T17:05:31-0400] RESUME_AT=16
+[2026-08-16T18:05:39-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T18:05:39-0400] CAMPAIGN PIN OK
+[2026-08-16T18:05:39-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T18:05:39-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T18:05:39-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T18:05:39-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T18:05:39-0400] auto-resume from RESUME_AT=16
+[2026-08-16T18:05:39-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T18:05:41-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T18:05:41-0400] === RESUME append mode START_BLOCK=16 ===
+[2026-08-16T18:05:42-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-16T18:05:42-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T18:05:42-0400] === KF COLD Jelly START resume=1 start_block=16 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T18:05:42-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T18:05:42-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T18:05:42-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T18:05:42-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T18:05:43-0400] preflight i=1 plugged=UNPLUGGED batt=55 temp=26.0 memavail_kib=6048844 floor=45 screen=
+[2026-08-16T18:05:44-0400] preflight i=1 plugged=UNPLUGGED batt=55 temp=26.0 memavail_kib=6048364 floor=45 screen=
+[2026-08-16T18:05:44-0400] RESUME_AT=16
+[2026-08-16T18:05:44-0400] COOLDOWN block=16 target=30.0 reached=26.0 waited=0 s
+[2026-08-16T18:05:45-0400] RUN b16_OFF_try1 arm=OFF kf_width=0 batt=55 plugged=UNPLUGGED temp=26.0 screen=? memavail_kib=6047608 n=200 cooldown_wait_s=0
+[2026-08-16T18:05:46-0400] COLD_RESET b16_OFF_try1 cached_kib 3827792->1330084 drop_mb=2439 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=624430 resident_after=0 pages fadvise_rc=0
+[2026-08-16T18:05:52-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T18:05:52-0400] CAMPAIGN PIN OK
+[2026-08-16T18:05:52-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T18:05:52-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T18:05:52-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T18:05:52-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T18:05:52-0400] auto-resume from RESUME_AT=16
+[2026-08-16T18:05:53-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T18:05:53-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T18:05:53-0400] === RESUME append mode START_BLOCK=16 ===
+[2026-08-16T18:05:54-0400] FREQ_READABLE=1 n_cpu=8 sample=2000000
+[2026-08-16T18:05:54-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T18:05:55-0400] === KF COLD Jelly START resume=1 start_block=16 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T18:05:55-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T18:05:55-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T18:05:55-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T18:05:55-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T18:05:55-0400] preflight i=1 plugged=UNPLUGGED batt=55 temp=26.0 memavail_kib=5047996 floor=45 screen=
+[2026-08-16T18:05:56-0400] preflight i=1 plugged=UNPLUGGED batt=55 temp=26.0 memavail_kib=4509940 floor=45 screen=
+[2026-08-16T18:05:56-0400] RESUME_AT=16
+[2026-08-16T18:05:57-0400] COOLDOWN block=16 target=30.0 reached=26.0 waited=0 s
+[2026-08-16T18:05:57-0400] RUN b16_OFF_try1 arm=OFF kf_width=0 batt=55 plugged=UNPLUGGED temp=26.0 screen=? memavail_kib=3731048 n=200 cooldown_wait_s=0
+[2026-08-16T18:05:58-0400] COLD_RESET b16_OFF_try1 cached_kib 3612820->3167036 drop_mb=435 fadv_rc=3 fadv_out=fadv: WARNING /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf still has 622090 resident pages (2430.0 MiB) /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf s
+[2026-08-16T18:06:57-0400] EXCLUDE b16_OFF_try1 harness error cli rc=143
+[2026-08-16T18:06:57-0400] EXCLUDE b16_OFF_try1 non-numeric wall_s_tok=''
+[2026-08-16T18:06:57-0400] EXCLUDE b16_OFF_try1 implausible n_tokens='' (want >= 160)
+[2026-08-16T18:06:57-0400] DONE b16_OFF_try1 rc=143 wall=70s tps= s/tok= stall= (%) issued= hit= wasted= prec= joules=263.183267 j/tok= ttft= j_window=full_run_fallback majflt=9067 read_gb=20.784452 kf_width=0 batt=55->54 temp=26.0/28.000/28.000 cooldown_wait_s=0 cached_drop_mb=2439 cold_valid=1 excluded=1 reason=cli_rc=143;non_numeric_wall_s_tok;implausible_n_tokens=
+[2026-08-16T18:06:57-0400] RETRY block=16 arm=OFF try=1/3 failed (will retry or exclude)
+[2026-08-16T18:06:58-0400] COOLDOWN block=16 target=30.0 reached=28.0 waited=0 s
+[2026-08-16T18:06:58-0400] RUN b16_OFF_try2 arm=OFF kf_width=0 batt=54 plugged=UNPLUGGED temp=28.0 screen=? memavail_kib=6376820 n=200 cooldown_wait_s=0
+[2026-08-16T18:06:59-0400] COLD_RESET b16_OFF_try2 cached_kib 799500->799604 drop_mb=0 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=0 resident_after=0 pages fadvise_rc=0
+[2026-08-16T18:07:19-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T18:07:19-0400] CAMPAIGN PIN OK
+[2026-08-16T18:07:19-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T18:07:19-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T18:07:19-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T18:07:19-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T18:07:19-0400] auto-resume from RESUME_AT=16
+[2026-08-16T18:07:19-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T18:07:19-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T18:07:19-0400] === RESUME append mode START_BLOCK=16 ===
+[2026-08-16T18:07:21-0400] FREQ_READABLE=1 n_cpu=8 sample=2000000
+[2026-08-16T18:07:21-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T18:07:21-0400] === KF COLD Jelly START resume=1 start_block=16 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T18:07:21-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T18:07:21-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T18:07:21-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T18:07:21-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T18:07:21-0400] preflight i=1 plugged=UNPLUGGED batt=54 temp=28.0 memavail_kib=3548312 floor=45 screen=
+[2026-08-16T18:07:22-0400] preflight i=1 plugged=UNPLUGGED batt=54 temp=28.0 memavail_kib=3547772 floor=45 screen=
+[2026-08-16T18:07:22-0400] RESUME_AT=16
+[2026-08-16T18:07:22-0400] COOLDOWN block=16 target=30.0 reached=28.0 waited=0 s
+[2026-08-16T18:07:23-0400] RUN b16_OFF_try1 arm=OFF kf_width=0 batt=54 plugged=UNPLUGGED temp=28.0 screen=? memavail_kib=3528196 n=200 cooldown_wait_s=0
+[2026-08-16T18:07:24-0400] COLD_RESET b16_OFF_try1 cached_kib 3446820->3047260 drop_mb=390 fadv_rc=3 fadv_out=fadv: WARNING /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf still has 618912 resident pages (2417.6 MiB) /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf s
+[2026-08-16T18:08:16-0400] EXCLUDE b16_OFF_try2 NOT COLD-VALID drop_mb=0 (need >=1000) read_bytes=22175068160 floor=11144366080 — pair void. excluded_for_warmth=1
+[2026-08-16T18:08:16-0400] DONE b16_OFF_try2 rc=0 wall=76s tps=3.231 s/tok=0.309 stall=0.074 (23.9%) issued= hit= wasted= prec= joules=292.678835 j/tok=1.46339417 ttft=13.621 j_window=decode majflt=5169 read_gb=22.175068 kf_width=0 batt=54->53 temp=28.0/30.000/30.000 cooldown_wait_s=0 cached_drop_mb=0 cold_valid=0 excluded=1 reason=not_cold_valid(drop_mb=0,read=22175068160,floor=11144366080)
+[2026-08-16T18:08:16-0400] RETRY block=16 arm=OFF try=2/3 failed (will retry or exclude)
+[2026-08-16T18:08:16-0400] COOLDOWN block=16 target=30.0 reached=30.0 waited=0 s
+[2026-08-16T18:08:17-0400] RUN b16_OFF_try3 arm=OFF kf_width=0 batt=53 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=3699444 n=200 cooldown_wait_s=0
+[2026-08-16T18:08:17-0400] COLD_RESET b16_OFF_try3 cached_kib 1229520->1001188 drop_mb=222 fadv_rc=3 fadv_out=fadv: WARNING /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf still has 128867 resident pages (503.4 MiB) /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf si
+[2026-08-16T18:08:46-0400] EXCLUDE b16_OFF_try3 harness error cli rc=137
+[2026-08-16T18:08:46-0400] EXCLUDE b16_OFF_try1 harness error cli rc=137
+[2026-08-16T18:08:47-0400] EXCLUDE b16_OFF_try1 non-numeric wall_s_tok=''
+[2026-08-16T18:08:47-0400] EXCLUDE b16_OFF_try3 non-numeric wall_s_tok=''
+[2026-08-16T18:08:47-0400] EXCLUDE b16_OFF_try1 implausible n_tokens='' (want >= 160)
+[2026-08-16T18:08:47-0400] EXCLUDE b16_OFF_try3 implausible n_tokens='' (want >= 160)
+[2026-08-16T18:08:47-0400] EXCLUDE b16_OFF_try1 NOT COLD-VALID drop_mb=390 (need >=1000) read_bytes=19672203264 floor=11144366080 — pair void. excluded_for_warmth=1
+[2026-08-16T18:08:47-0400] EXCLUDE b16_OFF_try3 NOT COLD-VALID drop_mb=222 (need >=1000) read_bytes=10702213120 floor=11144366080 — pair void. excluded_for_warmth=2
+[2026-08-16T18:08:47-0400] DONE b16_OFF_try3 rc=137 wall=28s tps= s/tok= stall= (%) issued= hit= wasted= prec= joules=134.464075 j/tok= ttft= j_window=full_run_fallback majflt=8144 read_gb=10.702213 kf_width=0 batt=53->52 temp=30.0/31.000/31.000 cooldown_wait_s=0 cached_drop_mb=222 cold_valid=0 excluded=1 reason=cli_rc=137;non_numeric_wall_s_tok;implausible_n_tokens=;not_cold_valid(drop_mb=222,read=10702213120,floor=11144366080)
+[2026-08-16T18:08:47-0400] DONE b16_OFF_try1 rc=137 wall=81s tps= s/tok= stall= (%) issued= hit= wasted= prec= joules=405.955937 j/tok= ttft= j_window=full_run_fallback majflt=34418 read_gb=19.672203 kf_width=0 batt=54->52 temp=28.0/31.000/31.000 cooldown_wait_s=0 cached_drop_mb=390 cold_valid=0 excluded=1 reason=cli_rc=137;non_numeric_wall_s_tok;implausible_n_tokens=;not_cold_valid(drop_mb=390,read=19672203264,floor=11144366080)
+[2026-08-16T18:08:47-0400] RETRY block=16 arm=OFF try=1/3 failed (will retry or exclude)
+[2026-08-16T18:08:47-0400] RETRY block=16 arm=OFF try=3/3 failed (will retry or exclude)
+[2026-08-16T18:08:47-0400] LOUD EXCLUDE block=16 arm=OFF after 3 tries — pair void
+[2026-08-16T18:08:48-0400] preflight i=1 plugged=UNPLUGGED batt=52 temp=31.0 memavail_kib=6705436 floor=45 screen=
+[2026-08-16T18:08:48-0400] RESUME_AT=17
+[2026-08-16T18:09:18-0400] trap cleanup
+[2026-08-16T18:09:20-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T18:09:20-0400] CAMPAIGN PIN OK
+[2026-08-16T18:09:20-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T18:09:20-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T18:09:20-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T18:09:20-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T18:09:20-0400] auto-resume from RESUME_AT=17
+[2026-08-16T18:09:20-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T18:09:21-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T18:09:21-0400] === RESUME append mode START_BLOCK=17 ===
+[2026-08-16T18:09:23-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-16T18:09:23-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T18:09:23-0400] === KF COLD Jelly START resume=1 start_block=17 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T18:09:23-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T18:09:23-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T18:09:23-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T18:09:23-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T18:09:23-0400] preflight i=1 plugged=UNPLUGGED batt=52 temp=31.0 memavail_kib=6656196 floor=45 screen=
+[2026-08-16T18:09:24-0400] preflight i=1 plugged=UNPLUGGED batt=52 temp=31.0 memavail_kib=6655888 floor=45 screen=
+[2026-08-16T18:09:24-0400] RESUME_AT=17
+[2026-08-16T18:10:04-0400] trap cleanup
+[2026-08-16T18:13:52-0400] COOLDOWN block=17 target=30.0 reached=32.0 waited=300 s (cap expired — proceed)
+[2026-08-16T18:13:53-0400] RUN b17_OFF_try1 arm=OFF kf_width=0 batt=56 plugged=PLUGGED_AC temp=32.0 screen=? memavail_kib=6284616 n=200 cooldown_wait_s=300
+[2026-08-16T18:13:53-0400] STOP b17_OFF_try1 plugged=PLUGGED_AC
+[2026-08-16T18:13:54-0400] preflight i=1 plugged=PLUGGED_AC batt=56 temp=32.0 memavail_kib=6284444 floor=45 screen=
+[2026-08-16T18:13:54-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:14:15-0400] preflight i=2 plugged=PLUGGED_AC batt=57 temp=32.0 memavail_kib=6283428 floor=45 screen=
+[2026-08-16T18:14:15-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:14:36-0400] preflight i=3 plugged=PLUGGED_AC batt=58 temp=32.0 memavail_kib=6281756 floor=45 screen=
+[2026-08-16T18:14:36-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:14:57-0400] preflight i=4 plugged=PLUGGED_AC batt=58 temp=32.0 memavail_kib=6239584 floor=45 screen=
+[2026-08-16T18:14:57-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:15:17-0400] preflight i=5 plugged=PLUGGED_AC batt=59 temp=32.0 memavail_kib=6233156 floor=45 screen=
+[2026-08-16T18:15:18-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:15:38-0400] preflight i=6 plugged=PLUGGED_AC batt=60 temp=32.0 memavail_kib=6247636 floor=45 screen=
+[2026-08-16T18:15:38-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:15:59-0400] preflight i=7 plugged=PLUGGED_AC batt=60 temp=32.0 memavail_kib=6254056 floor=45 screen=
+[2026-08-16T18:15:59-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T18:16:20-0400] preflight i=8 plugged=PLUGGED_AC batt=61 temp=32.0 memavail_kib=6263052 floor=45 screen=
+[2026-08-16T18:16:20-0400] WAIT unplugged (now PLUGGED_AC)
+[2026-08-16T19:39:50-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T19:39:50-0400] CAMPAIGN PIN OK
+[2026-08-16T19:39:50-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T19:39:50-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T19:39:50-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T19:39:50-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T19:39:50-0400] auto-resume from RESUME_AT=17
+[2026-08-16T19:39:50-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T19:39:51-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T19:39:51-0400] === RESUME append mode START_BLOCK=17 ===
+[2026-08-16T19:39:53-0400] FREQ_READABLE=1 n_cpu=8 sample=700000
+[2026-08-16T19:39:53-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T19:39:53-0400] === KF COLD Jelly START resume=1 start_block=17 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T19:39:53-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T19:39:53-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T19:39:53-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T19:39:53-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T19:39:54-0400] preflight i=1 plugged=UNPLUGGED batt=100 temp=23.0 memavail_kib=6031596 floor=45 screen=
+[2026-08-16T19:39:54-0400] preflight i=1 plugged=UNPLUGGED batt=100 temp=23.0 memavail_kib=6032556 floor=45 screen=
+[2026-08-16T19:39:55-0400] RESUME_AT=17
+[2026-08-16T19:39:55-0400] COOLDOWN block=17 target=30.0 reached=23.0 waited=0 s
+[2026-08-16T19:39:56-0400] RUN b17_OFF_try1 arm=OFF kf_width=0 batt=100 plugged=UNPLUGGED temp=23.0 screen=? memavail_kib=6030912 n=200 cooldown_wait_s=0
+[2026-08-16T19:39:57-0400] COLD_RESET b17_OFF_try1 cached_kib 5923660->1973968 drop_mb=3857 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=987430 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:40:49-0400] DONE b17_OFF_try1 rc=0 wall=51s tps=5.605 s/tok=0.178 stall=0.043 (24.2%) issued= hit= wasted= prec= joules=143.967987 j/tok=0.71983993 ttft=14.381 j_window=decode majflt=2143 read_gb=22.498939 kf_width=0 batt=100->99 temp=23.0/24.000/24.000 cooldown_wait_s=0 cached_drop_mb=3857 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:40:50-0400] preflight i=1 plugged=UNPLUGGED batt=99 temp=24.0 memavail_kib=6044768 floor=45 screen=
+[2026-08-16T19:40:50-0400] RESUME_AT=18
+[2026-08-16T19:40:50-0400] COOLDOWN block=18 target=30.0 reached=24.0 waited=0 s
+[2026-08-16T19:40:51-0400] RUN b18_ON_w4_try1 arm=ON kf_width=4 batt=99 plugged=UNPLUGGED temp=24.0 screen=? memavail_kib=6044344 n=200 cooldown_wait_s=0
+[2026-08-16T19:40:52-0400] COLD_RESET b18_ON_w4_try1 cached_kib 3099788->1742444 drop_mb=1325 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=339339 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:41:48-0400] DONE b18_ON_w4_try1 rc=0 wall=55s tps=4.996 s/tok=0.200 stall=0.028 (14.0%) issued=6025.5 hit=4617.9 wasted=1407.5 prec=76.6 joules=157.341400 j/tok=0.78670700 ttft=14.102 j_window=decode majflt=2121 read_gb=24.695288 kf_width=4 batt=99->98 temp=24.0/25.000/25.000 cooldown_wait_s=0 cached_drop_mb=1325 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:41:49-0400] preflight i=1 plugged=UNPLUGGED batt=98 temp=26.0 memavail_kib=6186204 floor=45 screen=
+[2026-08-16T19:41:49-0400] RESUME_AT=19
+[2026-08-16T19:41:49-0400] COOLDOWN block=19 target=30.0 reached=26.0 waited=0 s
+[2026-08-16T19:41:50-0400] RUN b19_ON_w4_try1 arm=ON kf_width=4 batt=98 plugged=UNPLUGGED temp=26.0 screen=? memavail_kib=6186112 n=200 cooldown_wait_s=0
+[2026-08-16T19:41:51-0400] COLD_RESET b19_ON_w4_try1 cached_kib 3225148->1087568 drop_mb=2087 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=534416 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:42:45-0400] DONE b19_ON_w4_try1 rc=0 wall=53s tps=5.027 s/tok=0.199 stall=0.029 (14.6%) issued=5893.6 hit=4505.6 wasted=1388.0 prec=76.4 joules=161.689045 j/tok=0.83776707 ttft=13.388 j_window=decode majflt=1468 read_gb=24.702456 kf_width=4 batt=98->98 temp=26.0/27.000/27.000 cooldown_wait_s=0 cached_drop_mb=2087 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:42:46-0400] preflight i=1 plugged=UNPLUGGED batt=98 temp=27.0 memavail_kib=6222788 floor=45 screen=
+[2026-08-16T19:42:46-0400] RESUME_AT=20
+[2026-08-16T19:42:46-0400] COOLDOWN block=20 target=30.0 reached=27.0 waited=0 s
+[2026-08-16T19:42:47-0400] RUN b20_OFF_try1 arm=OFF kf_width=0 batt=98 plugged=UNPLUGGED temp=27.0 screen=? memavail_kib=6222844 n=200 cooldown_wait_s=0
+[2026-08-16T19:42:48-0400] COLD_RESET b20_OFF_try1 cached_kib 3280112->817896 drop_mb=2404 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=615570 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:43:41-0400] DONE b20_OFF_try1 rc=0 wall=52s tps=5.411 s/tok=0.185 stall=0.043 (23.2%) issued= hit= wasted= prec= joules=153.938091 j/tok=0.76969045 ttft=13.591 j_window=decode majflt=1237 read_gb=22.275211 kf_width=0 batt=98->97 temp=27.0/28.000/28.000 cooldown_wait_s=0 cached_drop_mb=2404 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:43:42-0400] preflight i=1 plugged=UNPLUGGED batt=97 temp=28.0 memavail_kib=6273100 floor=45 screen=
+[2026-08-16T19:43:42-0400] RESUME_AT=21
+[2026-08-16T19:43:42-0400] COOLDOWN block=21 target=30.0 reached=28.0 waited=0 s
+[2026-08-16T19:43:43-0400] RUN b21_OFF_try1 arm=OFF kf_width=0 batt=97 plugged=UNPLUGGED temp=28.0 screen=? memavail_kib=6271548 n=200 cooldown_wait_s=0
+[2026-08-16T19:43:44-0400] COLD_RESET b21_OFF_try1 cached_kib 3331792->707920 drop_mb=2562 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=655985 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:44:36-0400] DONE b21_OFF_try1 rc=0 wall=51s tps=5.450 s/tok=0.183 stall=0.042 (23.0%) issued= hit= wasted= prec= joules=150.749486 j/tok=0.75374743 ttft=13.339 j_window=decode majflt=1718 read_gb=22.141743 kf_width=0 batt=97->96 temp=28.0/30.000/30.000 cooldown_wait_s=0 cached_drop_mb=2562 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:44:37-0400] preflight i=1 plugged=UNPLUGGED batt=96 temp=30.0 memavail_kib=6314852 floor=45 screen=
+[2026-08-16T19:44:37-0400] RESUME_AT=22
+[2026-08-16T19:44:37-0400] COOLDOWN block=22 target=30.0 reached=30.0 waited=0 s
+[2026-08-16T19:44:38-0400] RUN b22_ON_w4_try1 arm=ON kf_width=4 batt=96 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6313376 n=200 cooldown_wait_s=0
+[2026-08-16T19:44:39-0400] COLD_RESET b22_ON_w4_try1 cached_kib 3374264->642076 drop_mb=2668 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=683351 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:45:34-0400] DONE b22_ON_w4_try1 rc=0 wall=54s tps=5.039 s/tok=0.198 stall=0.028 (14.1%) issued=5894.5 hit=4503.9 wasted=1390.5 prec=76.4 joules=169.553771 j/tok=0.84776886 ttft=13.281 j_window=decode majflt=1303 read_gb=24.625422 kf_width=4 batt=96->95 temp=30.0/31.000/31.000 cooldown_wait_s=0 cached_drop_mb=2668 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:45:35-0400] preflight i=1 plugged=UNPLUGGED batt=95 temp=31.0 memavail_kib=6340204 floor=45 screen=
+[2026-08-16T19:45:35-0400] RESUME_AT=23
+[2026-08-16T19:50:39-0400] COOLDOWN block=23 target=30.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-16T19:50:40-0400] RUN b23_ON_w4_try1 arm=ON kf_width=4 batt=94 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6286628 n=200 cooldown_wait_s=300
+[2026-08-16T19:50:41-0400] COLD_RESET b23_ON_w4_try1 cached_kib 3656116->862028 drop_mb=2728 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=698490 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:51:37-0400] DONE b23_ON_w4_try1 rc=0 wall=55s tps=4.714 s/tok=0.212 stall=0.030 (14.2%) issued=5727.7 hit=4387.5 wasted=1340.2 prec=76.6 joules=162.194305 j/tok=0.84918484 ttft=13.321 j_window=decode majflt=1475 read_gb=23.960748 kf_width=4 batt=94->94 temp=31.0/31.000/31.000 cooldown_wait_s=300 cached_drop_mb=2728 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:51:38-0400] preflight i=1 plugged=UNPLUGGED batt=94 temp=31.0 memavail_kib=6372664 floor=45 screen=
+[2026-08-16T19:51:38-0400] RESUME_AT=24
+[2026-08-16T19:55:52-0400] CAMPAIGN_SHA=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81 path=/data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+[2026-08-16T19:55:52-0400] CAMPAIGN PIN OK
+[2026-08-16T19:55:52-0400] KF_BIN_SHA=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e path=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli
+[2026-08-16T19:55:52-0400] MODEL path=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848
+[2026-08-16T19:55:52-0400] MODEL_SHA=2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777
+[2026-08-16T19:55:52-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-16T19:55:52-0400] auto-resume from RESUME_AT=24
+[2026-08-16T19:55:52-0400] RESUME BLOCK_PLAN='OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF'
+[2026-08-16T19:55:53-0400] parsed n_blocks=24 arms=OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF OFF ON ON OFF
+[2026-08-16T19:55:54-0400] === RESUME append mode START_BLOCK=24 ===
+[2026-08-16T19:55:55-0400] FREQ_READABLE=1 n_cpu=8 sample=500000
+[2026-08-16T19:55:55-0400] COLD_READ_FLOOR_BYTES=11144366080 (loaded from /data/data/com.termux/files/home/experiments/results/kf_cold_jelly/COLD_FLOOR.txt)
+[2026-08-16T19:55:55-0400] === KF COLD Jelly START resume=1 start_block=24 n_gen=200 n_blocks=24 batt_floor=45 ===
+[2026-08-16T19:55:55-0400] BASE: /data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli -m /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf -p <prompt> -n 200 --moe-stream --cache-mb 2000 --dense-weights anon --overlap --io-threads 4 --ubatch 512 -t 2 -c 4096 --temp 0 --chatml --no-think --n-expert-used 6 --drop-cold-experts 0.65
+[2026-08-16T19:55:55-0400] ON adds: --kf-prefetch --kf-prefetch-width <per-block> --csv <per_token>
+[2026-08-16T19:55:55-0400] BLOCK_PLAN=OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF OFF ON:4 ON:4 OFF (COLD reset: fadv DONTNEED before every run; COLD-VALID drop>=1000MB + read>=floor)
+[2026-08-16T19:55:55-0400] fadv=/data/data/com.termux/files/home/bin/fadv cold_floor=11144366080
+[2026-08-16T19:55:56-0400] preflight i=1 plugged=UNPLUGGED batt=93 temp=31.0 memavail_kib=6372732 floor=45 screen=
+[2026-08-16T19:55:57-0400] preflight i=1 plugged=UNPLUGGED batt=93 temp=31.0 memavail_kib=6372696 floor=45 screen=
+[2026-08-16T19:55:57-0400] RESUME_AT=24
+[2026-08-16T19:56:42-0400] COOLDOWN block=24 target=30.0 reached=31.0 waited=300 s (cap expired — proceed)
+[2026-08-16T19:56:42-0400] RUN b24_OFF_try1 arm=OFF kf_width=0 batt=92 plugged=UNPLUGGED temp=31.0 screen=? memavail_kib=6368408 n=200 cooldown_wait_s=300
+[2026-08-16T19:56:43-0400] COLD_RESET b24_OFF_try1 cached_kib 3516108->711348 drop_mb=2739 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=701190 resident_after=0 pages fadvise_rc=0
+[2026-08-16T19:57:03-0400] trap cleanup
+[2026-08-16T19:57:33-0400] DONE b24_OFF_try1 rc=0 wall=49s tps=5.721 s/tok=0.175 stall=0.045 (25.7%) issued= hit= wasted= prec= joules=17.342750 j/tok=0.08671375 ttft=13.195 j_window=decode majflt=1469 read_gb=12.599276 kf_width=0 batt=92->92 temp=31.0/31.000/31.000 cooldown_wait_s=300 cached_drop_mb=2739 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T19:57:33-0400] void_scan=16 this_cycle_void=
+[2026-08-16T19:57:34-0400] preflight i=1 plugged=UNPLUGGED batt=92 temp=31.0 memavail_kib=6407444 floor=45 screen=
+[2026-08-16T19:57:34-0400] RESUME_AT=16
+[2026-08-16T20:02:38-0400] COOLDOWN block=16 target=30.0 reached=30.0 waited=300 s (cap expired — proceed)
+[2026-08-16T20:02:39-0400] RUN b16_OFF_retry_try1 arm=OFF kf_width=0 batt=91 plugged=UNPLUGGED temp=30.0 screen=? memavail_kib=6417340 n=200 cooldown_wait_s=300
+[2026-08-16T20:02:40-0400] COLD_RESET b16_OFF_retry_try1 cached_kib 3627200->683408 drop_mb=2874 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=735715 resident_after=0 pages fadvise_rc=0
+[2026-08-16T20:03:33-0400] DONE b16_OFF_retry_try1 rc=0 wall=52s tps=5.235 s/tok=0.191 stall=0.044 (23.0%) issued= hit= wasted= prec= joules=139.804052 j/tok=0.69902026 ttft=13.189 j_window=decode majflt=1207 read_gb=22.140908 kf_width=0 batt=91->90 temp=30.0/31.000/31.000 cooldown_wait_s=300 cached_drop_mb=2874 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T20:03:33-0400] CAMPAIGN_SHA_AFTER=36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81
+[2026-08-16T20:03:33-0400] KF_BIN_SHA_AFTER=77a94640a56a904301de93ee4c7d74cc7fbb1cc884c2302901d8f173fe3e713e
+[2026-08-16T20:03:34-0400] excluded rows remaining at DONE: (none)
+[2026-08-16T20:03:34-0400] void blocks remaining at DONE: (none)
+[2026-08-16T20:03:34-0400] excluded_for_warmth=2 cold_floor_bytes=11144366080
+[2026-08-16T20:03:34-0400] === KF COLD Jelly COMPLETE ===
+ts,order_idx,arm,label,decode_tps,wall_s_tok,compute,mgmt,stall,stall_pct,issued_mib,hit_mib,wasted_mib,precision_pct,hit_pct,joules,j_per_tok,j_window,ttft_s,majflt_delta,read_bytes,read_bytes_gb,temp_start,cooldown_wait_s,temp_max,temp_end,batt_start,batt_end,freq_p50_c0,freq_p95_c0,freq_p50_c1,freq_p95_c1,n_tokens,duration_s,memavail_start_kib,memavail_min_kib,screen,plugged,excluded,csv_path,freq_readable,kf_width,cached_kib_before,cached_kib_after,cached_drop_mb,cold_valid,cold_floor_bytes,exclude_reason,try_idx
+2026-08-16T14:22:15-0400,1,OFF,b1_OFF_try1,5.302,0.189,0.138,0.007,0.043,22.8,,,,,52.3,153.148805,0.76574403,decode,13.860,1922,22288732160,22.288732,29.0,0,30.000,30.000,96,95,2000000,2200000,,,200,53,5820904,3004420,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b1_OFF_try1.csv,1,,5718360,1740540,3884,1,11144366080,,1
+2026-08-16T14:23:13-0400,2,ON,b2_ON_w4_try1,5.010,0.200,0.160,0.008,0.031,15.5,5966.3,4582.9,1383.4,76.8,67.1,168.854087,0.84427043,decode,13.762,1878,24862322688,24.862323,30.0,0,32.000,32.000,95,94,2000000,2200000,,,200,54,5858580,3023488,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b2_ON_w4_try1.csv,1,4,2920320,1038544,1837,1,11144366080,,1
+2026-08-16T14:29:14-0400,3,ON,b3_ON_w4_try1,5.185,0.193,0.158,0.008,0.027,14.0,5810.6,4464.0,1346.5,76.8,68.1,161.281986,0.80640993,decode,13.393,2207,24224698368,24.224698,32.0,300,33.000,33.000,93,92,2000000,2200000,,,200,52,5881992,3040160,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b3_ON_w4_try1.csv,1,4,3073144,1042128,1983,1,11144366080,,1
+2026-08-16T14:35:14-0400,4,OFF,b4_OFF_try1,5.177,0.193,0.143,0.007,0.043,22.3,,,,,52.3,158.277997,0.79138999,decode,13.393,1922,22334771200,22.334771,33.0,300,34.000,34.000,91,91,2000000,2200000,,,200,53,5920480,3078944,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b4_OFF_try1.csv,1,,3135732,931936,2152,1,11144366080,,1
+2026-08-16T14:41:30-0400,5,OFF,b5_OFF_try1,4.108,0.243,0.180,0.011,0.053,21.8,,,,,52.3,156.989822,0.78494911,decode,16.559,599,22266146816,22.266147,33.0,300,34.000,34.000,90,89,2000000,2200000,,,200,67,5918696,3105524,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b5_OFF_try1.csv,1,,3466268,1106688,2304,1,11144366080,,1
+2026-08-16T16:16:19-0400,6,ON,b6_ON_w4_try1,5.030,0.199,0.164,0.009,0.025,12.6,6199.0,4735.2,1463.8,76.4,67.6,164.582890,0.82291445,decode,13.742,1983,24601296896,24.601297,29.0,0,30.000,30.000,78,77,2000000,2200000,,,200,54,5895348,3095560,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b6_ON_w4_try1.csv,1,4,4756008,2349620,2349,1,11144366080,,1
+2026-08-16T16:17:16-0400,7,ON,b7_ON_w4_try1,5.121,0.195,0.160,0.009,0.026,13.3,5944.2,4544.6,1399.6,76.5,67.6,169.909136,0.84954568,decode,13.374,1524,24497582080,24.497582,30.0,0,31.000,31.000,77,77,2000000,2200000,,,200,53,5976928,3125540,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b7_ON_w4_try1.csv,1,4,3019892,820680,2147,1,11144366080,,1
+2026-08-16T16:23:17-0400,8,OFF,b8_OFF_try1,5.200,0.192,0.143,0.008,0.041,21.4,,,,,52.3,161.923024,0.80961512,decode,13.756,1774,22328107008,22.328107,32.0,300,33.000,33.000,75,75,2000000,2200000,,,200,53,6015500,3175416,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b8_OFF_try1.csv,1,,3119588,817116,2248,1,11144366080,,1
+2026-08-16T16:29:17-0400,9,OFF,b9_OFF_try1,5.211,0.192,0.142,0.008,0.042,21.9,,,,,52.3,165.462370,0.82731185,decode,13.656,2035,22307217408,22.307217,34.0,300,35.000,35.000,73,73,2000000,2200000,,,200,53,6024156,3186940,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b9_OFF_try1.csv,1,,3202960,835064,2312,1,11144366080,,1
+2026-08-16T16:35:17-0400,10,ON,b10_ON_w4_try1,5.055,0.198,0.162,0.009,0.027,13.6,5862.5,4509.6,1352.9,76.9,66.5,164.268690,0.85556609,decode,13.390,2410,24349196288,24.349196,34.0,300,35.000,35.000,71,71,2000000,2200000,,,192,52,6050920,3187552,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b10_ON_w4_try1.csv,1,4,3297564,881192,2359,1,11144366080,,1
+2026-08-16T16:41:16-0400,11,ON,b11_ON_w4_try1,5.316,0.188,0.155,0.009,0.024,12.8,5657.3,4252.3,1405.1,75.2,68.6,168.156074,0.84078037,decode,13.704,2012,23758983168,23.758983,34.0,300,35.000,35.000,69,69,2000000,2200000,,,200,52,6042200,3172608,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b11_ON_w4_try1.csv,1,4,3239384,715432,2464,1,11144366080,,1
+2026-08-16T16:47:16-0400,12,OFF,b12_OFF_try1,5.269,0.190,0.141,0.008,0.041,21.6,,,,,52.3,157.391305,0.78695652,decode,13.445,2036,22134755328,22.134755,35.0,300,35.000,35.000,67,67,2000000,2200000,,,200,52,6093368,3224180,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b12_OFF_try1.csv,1,,3140312,582036,2498,1,11144366080,,1
+2026-08-16T16:53:16-0400,13,OFF,b13_OFF_try1,5.197,0.192,0.143,0.008,0.041,21.4,,,,,52.3,166.496455,0.83248227,decode,13.589,1895,22239555584,22.239556,35.0,300,36.000,36.000,65,65,2000000,2200000,,,200,53,6085608,3227332,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b13_OFF_try1.csv,1,,3246252,538812,2643,1,11144366080,,1
+2026-08-16T16:59:17-0400,14,ON,b14_ON_w4_try1,5.130,0.195,0.159,0.009,0.026,13.3,5916.5,4488.5,1428.1,75.9,67.8,164.766857,0.82383428,decode,13.443,1623,24140111872,24.140112,35.0,300,36.000,36.000,63,63,2000000,2200000,,,200,53,6097668,3240148,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b14_ON_w4_try1.csv,1,4,3214372,473728,2676,1,11144366080,,1
+2026-08-16T17:05:30-0400,15,ON,b15_ON_w4_try1,4.470,0.224,0.184,0.013,0.027,12.1,6384.4,4912.8,1471.6,76.9,68.1,161.011106,0.80505553,decode,17.471,518,24524025856,24.524026,35.0,300,35.000,35.000,62,61,2000000,2200000,,,200,63,6085472,3254216,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b15_ON_w4_try1.csv,1,4,3595616,851400,2679,1,11144366080,,1
+2026-08-16T18:06:57-0400,16,OFF,b16_OFF_try1,,,,,,,,,,,,263.183267,,full_run_fallback,,9067,20784451584,20.784452,26.0,0,28.000,28.000,55,54,2000000,2200000,,,,70,6047608,1167648,?,UNPLUGGED,1,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b16_OFF_try1.csv,1,,3827792,1330084,2439,1,11144366080,cli_rc=143;non_numeric_wall_s_tok;implausible_n_tokens=,1
+2026-08-16T18:08:16-0400,16,OFF,b16_OFF_try2,3.231,0.309,0.222,0.013,0.074,23.9,,,,,52.3,292.678835,1.46339417,decode,13.621,5169,22175068160,22.175068,28.0,0,30.000,30.000,54,53,2000000,2200000,,,200,76,6376820,1284808,?,UNPLUGGED,1,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b16_OFF_try2.csv,1,,799500,799604,0,0,11144366080,not_cold_valid(drop_mb=0,read=22175068160,floor=11144366080),2
+2026-08-16T18:08:47-0400,16,OFF,b16_OFF_try1,,,,,,,,,,,,405.955937,,full_run_fallback,,34418,19672203264,19.672203,28.0,0,31.000,31.000,54,52,2000000,2200000,,,,81,3528196,1284808,?,UNPLUGGED,1,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b16_OFF_try1.csv,1,,3446820,3047260,390,0,11144366080,cli_rc=137;non_numeric_wall_s_tok;implausible_n_tokens=;not_cold_valid(drop_mb=390,read=19672203264,floor=11144366080),1
+2026-08-16T18:08:47-0400,16,OFF,b16_OFF_try3,,,,,,,,,,,,134.464075,,full_run_fallback,,8144,10702213120,10.702213,30.0,0,31.000,31.000,53,52,2000000,2200000,,,,28,3699444,1730032,?,UNPLUGGED,1,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b16_OFF_try3.csv,1,,1229520,1001188,222,0,11144366080,cli_rc=137;non_numeric_wall_s_tok;implausible_n_tokens=;not_cold_valid(drop_mb=222,read=10702213120,floor=11144366080),3
+2026-08-16T19:40:49-0400,17,OFF,b17_OFF_try1,5.605,0.178,0.128,0.008,0.043,24.2,,,,,52.3,143.967987,0.71983993,decode,14.381,2143,22498938880,22.498939,23.0,0,24.000,24.000,100,99,2000000,2200000,,,200,51,6030912,3188904,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b17_OFF_try1.csv,1,,5923660,1973968,3857,1,11144366080,,1
+2026-08-16T19:41:48-0400,18,ON,b18_ON_w4_try1,4.996,0.200,0.164,0.008,0.028,14.0,6025.5,4617.9,1407.5,76.6,67.2,157.341400,0.78670700,decode,14.102,2121,24695287808,24.695288,24.0,0,25.000,25.000,99,98,2000000,2200000,,,200,55,6044344,3299992,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b18_ON_w4_try1.csv,1,4,3099788,1742444,1325,1,11144366080,,1
+2026-08-16T19:42:45-0400,19,ON,b19_ON_w4_try1,5.027,0.199,0.161,0.009,0.029,14.6,5893.6,4505.6,1388.0,76.4,66.1,161.689045,0.83776707,decode,13.388,1468,24702455808,24.702456,26.0,0,27.000,27.000,98,98,2000000,2200000,,,193,53,6186112,3360312,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b19_ON_w4_try1.csv,1,4,3225148,1087568,2087,1,11144366080,,1
+2026-08-16T19:43:41-0400,20,OFF,b20_OFF_try1,5.411,0.185,0.135,0.007,0.043,23.2,,,,,52.3,153.938091,0.76969045,decode,13.591,1237,22275211264,22.275211,27.0,0,28.000,28.000,98,97,2000000,2200000,,,200,52,6222844,3414420,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b20_OFF_try1.csv,1,,3280112,817896,2404,1,11144366080,,1
+2026-08-16T19:44:36-0400,21,OFF,b21_OFF_try1,5.450,0.183,0.134,0.007,0.042,23.0,,,,,52.3,150.749486,0.75374743,decode,13.339,1718,22141743104,22.141743,28.0,0,30.000,30.000,97,96,2000000,2200000,,,200,51,6271548,3444044,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b21_OFF_try1.csv,1,,3331792,707920,2562,1,11144366080,,1
+2026-08-16T19:45:34-0400,22,ON,b22_ON_w4_try1,5.039,0.198,0.162,0.009,0.028,14.1,5894.5,4503.9,1390.5,76.4,67.0,169.553771,0.84776886,decode,13.281,1303,24625422336,24.625422,30.0,0,31.000,31.000,96,95,2000000,2200000,,,200,54,6313376,3469464,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b22_ON_w4_try1.csv,1,4,3374264,642076,2668,1,11144366080,,1
+2026-08-16T19:51:37-0400,23,ON,b23_ON_w4_try1,4.714,0.212,0.173,0.009,0.030,14.2,5727.7,4387.5,1340.2,76.6,66.5,162.194305,0.84918484,decode,13.321,1475,23960748032,23.960748,31.0,300,31.000,31.000,94,94,2000000,2200000,,,191,55,6286628,3460164,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b23_ON_w4_try1.csv,1,4,3656116,862028,2728,1,11144366080,,1
+2026-08-16T19:57:33-0400,24,OFF,b24_OFF_try1,5.721,0.175,0.122,0.007,0.045,25.7,,,,,52.3,17.342750,0.08671375,decode,13.195,1469,12599275520,12.599276,31.0,300,31.000,31.000,92,92,2000000,2200000,,,200,49,6368408,3546120,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b24_OFF_try1.csv,1,,3516108,711348,2739,1,11144366080,,1
+2026-08-16T20:03:33-0400,16,OFF,b16_OFF_retry_try1,5.235,0.191,0.139,0.007,0.044,23.0,,,,,52.3,139.804052,0.69902026,decode,13.189,1207,22140907520,22.140908,30.0,300,31.000,31.000,91,90,2000000,2200000,,,200,52,6417340,3578720,?,UNPLUGGED,0,/data/data/com.termux/files/home/experiments/results/kf_cold_jelly/per_token/b16_OFF_retry_try1.csv,1,,3627200,683408,2874,1,11144366080,,1
+[2026-08-16T20:03:35-0400] trap cleanup

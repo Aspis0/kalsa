@@ -1,0 +1,18 @@
+/data/data/com.termux/files/home/bin/bmoe-cli-mellum2
+-m
+/data/data/com.termux/files/home/models/Qwen3.5-2B-Q4_K_M.gguf
+-p
+You are a helpful technical assistant. Answer clearly, in plain English, with one short paragraph and then two bullet points.
+
+User: Explain what a Mixture-of-Experts language model is, and why activating only a few experts per token can reduce compute while still needing a large on-disk weight file on a phone. Mention routing and flash streaming.
+Assistant:
+-n
+200
+-t
+4
+-c
+4096
+--temp
+0
+--chatml
+--no-think

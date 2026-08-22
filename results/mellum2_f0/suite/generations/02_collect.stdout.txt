@@ -1,0 +1,51 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+Fix the mutable-default bug in collect. Separate calls without a bucket must not share state.
+
+## File: collect.py
+```python
+def collect(item, bucket=[]):
+    """Append  ... (truncated)
+--- /collect.py
++++ /collect.py
+@@ -1,4 +1,5 @@
+ def collect(item, bucket=None):
+     """Append item to bucket and return bucket. A missing bucket starts empty and is not shared."""
++    bucket = [] if bucket is None else bucket
+     bucket.append(item)
+     return bucket
+
+[ Prompt: 26.0 t/s | Generation: 10.6 t/s ]
+
+
+Exiting...

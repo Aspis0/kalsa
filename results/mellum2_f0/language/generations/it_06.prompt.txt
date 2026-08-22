@@ -1,0 +1,6 @@
+Cosa fa questa riga e qual è il bug tipico? Rispondi in italiano.
+
+```python
+d = dict.fromkeys(['a', 'b'], [])
+d['a'].append(1)
+```

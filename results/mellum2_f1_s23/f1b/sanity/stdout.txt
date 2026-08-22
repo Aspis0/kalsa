@@ -1,0 +1,13 @@
+Write a Python function factorial(n) that returns n!. Use a simple loop. Return only the function, no markdown.def factorial(n):
+    result = 1
+    for i in range(1, n + 1):
+        result *= i
+   
+
+generation: 32 tokens, 0.383 s/token (2.613 tok/s)
+compute: 70.8% CPU occupancy (1.0833 cpu-s/token over 4 threads), 0.06 major faults/token
+prefill: 35 tokens, 4.841 s (7.2 tok/s) | model load 5.808 s | TTFT 10.650 s
+moe-stream: read 7447.8 MiB (232.74 MiB/token), decode 0.383 s/token (compute 0.239 + cache mgmt 0.026 + flash I/O 0.546 s/token, 426 MiB/s)
+moe-cache: 62.7% hit, resident 1998.3 MiB
+moe-cache: 2639 evictions, 1670 re-reads (52.2/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.117 s/token (flash reads overlapped with FFN compute)

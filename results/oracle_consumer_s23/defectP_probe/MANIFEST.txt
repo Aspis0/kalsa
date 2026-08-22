@@ -1,0 +1,35 @@
+# defect-P localization probe MANIFEST
+# Submodule: BigMoeOnEdge/third_party/llama.cpp @ bb05e4a0b (parent 39a0b130f = the fix), branch kalsa/kernel-s3-repack
+# FROZEN: cvt.cl + ggml-opencl.cpp NOT modified; libggml-opencl.so == 69d6d862...(the fix) on every run (verified pre-run)
+# New test exe: test-opencl-moe-roundtrip == 1e50038b...(adds pairEEOO fill; raw readback via existing GGML_OPENCL_DUMP_Q hook)
+# Device: Galaxy S23 SM-S911U / kalama / Adreno 740, serial adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+# Device dir: /data/local/tmp/s3oracle (recreated fresh; s3base/s3fix/s3printf untouched)
+
+## PC-side sha256 (source of truth)
+libggml-opencl.so          69d6d862bd37955bd6edffcc167b59895beec45ede58659945d92b13266d1732  (FROZEN = the fix; verified on device pre-run every cell)
+libggml-base.so            dc1a29c44c20bcc166b1c538b112c4825b24c363a72920fb6c9349b201f9e319  (relinked; no kernels)
+libggml-cpu.so              fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da
+libggml.so                  3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27
+libllama.so                 f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d
+libllama-common.so           c33ad9e8fb8a0c927de249496f6986f50836197dcfe7b6ed82b5ccfb7f821cc8  (relinked; no kernels)
+test-opencl-moe-roundtrip   1e50038be1d264aaccd7d80e9c90b9af9ed1aac78e3eff3a81d128ea64a4d0e1  (NEW: pair-fill probe)
+libc++_shared.so            e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  (NDK aarch64)
+libomp.so                   ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  (NDK clang-18 aarch64)
+
+## STEP 1 — pairEEOO sweep, q4_0 bytewise (pre-run .so = 69d6d862)
+  pair0040 (E=00 O=40): q4_0 mismatch=0        clean                   -> even-b7 clear, no fire
+  pair8040 (E=80 O=40): q4_0 mismatch=131072    odd_qs_hi_to_f  got 0x40->0xF0  -> EVEN gates (even-b7 set)
+  pair00C0 (E=00 O=C0): q4_0 mismatch=0        clean  cl_odd_b7set=131072 -> odd-b7 set does NOT fire
+  pair80C0 (E=80 O=C0): q4_0 mismatch=131072    odd_qs_hi_to_f  got 0xC0->0xF0
+  VERDICT: EVEN gates (bit7 of even partner x0). pair8040 dirty + pair00C0 clean. Confirms defectP corrected model.
+
+## STEP 2 — RAW SoA readback (GGML_OPENCL_DUMP_Q=1), q4_0 bytewise (pre-run .so = 69d6d862)
+  lcg:      KALSA_SPLIT lo=0 hi=18688; MISMATCH 18688/65536 (28.5%) first@1025 got=fdfdfcfc want=5d5d5c4c; roundtrip=65536
+  pair8040: KALSA_SPLIT lo=0 hi=32768; MISMATCH 32768/65536 (50.0%) first@1024 got=f8f8f8f8 want=48484848; roundtrip=131072
+  VERDICT: raw storage DIRTY (all high-nibble words; low-nibble words clean=0). got=(want&0x0F)|0xF0 in raw hi-word bytes.
+          -> convert WRITE corrupts; restore READ innocent (faithfully inverts dirty storage).
+          Raw-clean-but-roundtrip-dirty (READ) case did NOT occur -> buffer-offset/alignment clause moot.
+
+## LOCALIZATION: P is in: convert WRITE
+## Production wrong-weights risk UNCHANGED (defect still present; committed helper fix insufficient; residual = shared x0 LOAD sign-extension or hi-word STORE/assembly OR-with-0xF0)
+## No git push; cvt.cl + ggml-opencl.cpp frozen; .so == 69d6d862 throughout

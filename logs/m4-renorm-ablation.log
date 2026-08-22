@@ -1,0 +1,27 @@
+[2026-08-17T00:19:27-04:00] chained M4 runner start; waiting for the PC to go idle (orch pid=66864)
+[2026-08-17T00:19:27-04:00] still waiting: orchestrator busy (0s)
+[2026-08-17T00:33:56-04:00] chained M4 runner start; waiting for the PC to go idle (orch pid=66864)
+[2026-08-17T00:33:56-04:00] still waiting: orchestrator busy (0s)
+[2026-08-17T01:04:04-04:00] still waiting: orchestrator busy (1800s)
+[2026-08-17T01:21:18-04:00] chained M4 runner start; waiting for the PC to go idle (orch pid=66864)
+[2026-08-17T01:21:18-04:00] still waiting: orchestrator busy (0s)
+[2026-08-17T01:51:26-04:00] still waiting: orchestrator busy (1800s)
+[2026-08-17T02:21:34-04:00] still waiting: orchestrator busy (3600s)
+[2026-08-17T02:28:36-04:00] PC idle after 4020s - starting ablation arms
+[2026-08-17T02:28:36-04:00] START k6d05_norenorm drop=0.5 renorm=OFF
+[2026-08-17T04:59:14-04:00] END k6d05_norenorm rc=0 wall=9037.4s
+[2026-08-17T04:59:14-04:00] OK k6d05_norenorm macro_bpb=0.679111275233801
+[2026-08-17T04:59:14-04:00] START k6d10_norenorm drop=1.0 renorm=OFF
+[2026-08-17T07:45:07-04:00] END k6d10_norenorm rc=0 wall=9953.1s
+[2026-08-17T07:45:07-04:00] OK k6d10_norenorm macro_bpb=0.686092333177357
+[2026-08-17T07:45:07-04:00] M4 ablation runner finished - both OFF arms complete
+[2026-08-17T07:45:07-04:00] verdict written rc=0 -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\m4_renorm_ablation\VERDICT.md
+[2026-08-17T09:02:02-04:00] chained M4 runner start; waiting for the PC to go idle (orch pid=66864)
+[2026-08-17T09:02:02-04:00] PC idle after 0s - starting ablation arms
+[2026-08-17T09:02:02-04:00] SKIP k6d05_norenorm - already complete (finished + macro_bpb present)
+[2026-08-17T09:02:02-04:00] SKIP k6d10_norenorm - already complete (finished + macro_bpb present)
+[2026-08-17T09:02:02-04:00] START k6d065_norenorm drop=0.65 renorm=OFF
+[2026-08-17T11:24:38-04:00] END k6d065_norenorm rc=0 wall=8556.5s
+[2026-08-17T11:24:38-04:00] OK k6d065_norenorm macro_bpb=0.679430519020215
+[2026-08-17T11:24:38-04:00] M4 ablation runner finished - both OFF arms complete
+[2026-08-17T11:24:39-04:00] verdict written rc=0 -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\m4_renorm_ablation\VERDICT.md

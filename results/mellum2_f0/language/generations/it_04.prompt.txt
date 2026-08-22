@@ -1,0 +1,6 @@
+Perché questo if Python è sbagliato? Rispondi in italiano.
+
+```python
+if user = None:
+    return
+```

@@ -1,0 +1,32 @@
+# F1d 1 Hz forensics summary (290 samples)
+
+nproc mystery (F1b/F1c saw 6, smoke saw 8):
+  topology at start: nproc=6  nproc --all=8  getconf _NPROCESSORS_ONLN=8
+  cpu/online=0-7  present=0-7  Cpus_allowed_list=0-7
+  bash taskset mask=0x5f (cpus 0,1,2,3,4,6) — 6 bits. That is nproc.
+  Not offline CPUs. Not a Termux cpuset cgroup (cpuset=/ , allowed 0-7).
+  Workaround used: termux-wake-lock + screen_off_timeout=7200000.
+  Wakelock does NOT restore nproc=8. nproc is sched_getaffinity of the shell.
+
+CPU topology (Snapdragon 8 Gen 2):
+  cpu0-2  A510 little  cap=266  max=2016 MHz  always-on at max
+  cpu3-6  A710/A715    cap=811  max=2803 MHz
+  cpu7    X3 prime     cap=1024 max=3360 MHz
+
+Thread placement (ticks = per-second /proc/<pid>/task/*/stat field 39):
+
+  DENSE2B_t4 (22 pid-samples): little0-2 2.9%  big3-7 97.1%  cpu7(X3) 58.8%
+    taskset_cli mostly ff after first 1-2 s. Freqs at max. This is a healthy GEMV.
+
+  MELLUM2_Q4_k8 unpinned (118 samples): little0-2 73.9%  big3-7 26.1%  cpu7 0.8%
+    taskset_cli flaps: 5f=47  3f=42  ff=15  7f=8  bf=5  df=1
+    big freqs often mid (med 2323 / X3 med 2093), not parked at max.
+    64 tiny mul_mat_id kernels look "small" to WALT → littles.
+
+  MELLUM2_Q4_k8_t5pin 3-7 (144 samples): little0-2 0%  big3-7 100%  cpu7 10.0%
+    taskset_cli f8 (3-7) as requested. Pin worked.
+    Oversub: -t 5 compute + --io-threads 4 on 5 cores. Compute s/tok got worse.
+
+Cell C does not rescue the ceiling. The 0.228 s/tok number is what this
+geometry measures under the default (little-heavy) placement; forcing
+bigs without dropping I/O threads makes it worse, not better.

@@ -1,0 +1,97 @@
+watch start 2026-08-16T14:25:12.9428545-04:00
+14:25:14 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T14:23:13-0400] DONE b2_ON_w4_try1 rc=0 wall=54s tps=5.010 s/tok=0.200 stall=0.031 (15.5%) issued=5966.3 hit=4582.9 wasted=1383.4 prec=76.8 joules=168.854087 j/tok=0.84427043 ttft=13.762 j_window=decode majflt=1878 read_gb=24.862323 kf_width=4 batt=95->94 temp=30.0/32.000/32.000 cooldown_wait_s=0 cached_drop_mb=1837 cold_valid=1 excluded=0 reason=ok [2026-08-16T14:23:14-0400] preflight i=1 plugged=UNPLUGGED batt=94 temp=32.0 memavail_kib=5889140 floor=45 screen= [2026-08-16T14:23:14-0400] RESUME_AT=3 batt 94 temp 32.0 plug UNPLUGGED
+14:28:18 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T14:23:13-0400] DONE b2_ON_w4_try1 rc=0 wall=54s tps=5.010 s/tok=0.200 stall=0.031 (15.5%) issued=5966.3 hit=4582.9 wasted=1383.4 prec=76.8 joules=168.854087 j/tok=0.84427043 ttft=13.762 j_window=decode majflt=1878 read_gb=24.862323 kf_width=4 batt=95->94 temp=30.0/32.000/32.000 cooldown_wait_s=0 cached_drop_mb=1837 cold_valid=1 excluded=0 reason=ok [2026-08-16T14:23:14-0400] preflight i=1 plugged=UNPLUGGED batt=94 temp=32.0 memavail_kib=5889140 floor=45 screen= [2026-08-16T14:23:14-0400] RESUME_AT=3 batt 93 temp 32.0 plug UNPLUGGED
+14:31:21 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T14:29:14-0400] DONE b3_ON_w4_try1 rc=0 wall=52s tps=5.185 s/tok=0.193 stall=0.027 (14.0%) issued=5810.6 hit=4464.0 wasted=1346.5 prec=76.8 joules=161.281986 j/tok=0.80640993 ttft=13.393 j_window=decode majflt=2207 read_gb=24.224698 kf_width=4 batt=93->92 temp=32.0/33.000/33.000 cooldown_wait_s=300 cached_drop_mb=1983 cold_valid=1 excluded=0 reason=ok [2026-08-16T14:29:14-0400] preflight i=1 plugged=UNPLUGGED batt=92 temp=33.0 memavail_kib=5906172 floor=45 screen= [2026-08-16T14:29:15-0400] RESUME_AT=4 batt 92 temp 33.0 plug UNPLUGGED
+14:34:23 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T14:34:18-0400] COOLDOWN block=4 target=30.0 reached=33.0 waited=300 s (cap expired ΓÇö proceed) [2026-08-16T14:34:19-0400] RUN b4_OFF_try1 arm=OFF kf_width=0 batt=91 plugged=UNPLUGGED temp=33.0 screen=? memavail_kib=5920480 n=200 cooldown_wait_s=300 [2026-08-16T14:34:20-0400] COLD_RESET b4_OFF_try1 cached_kib 3135732->931936 drop_mb=2152 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=550950 resident_after=0 pages fadvise_rc=0 batt 91 temp 33.0 plug UNPLUGGED
+14:37:26 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T14:35:14-0400] DONE b4_OFF_try1 rc=0 wall=53s tps=5.177 s/tok=0.193 stall=0.043 (22.3%) issued= hit= wasted= prec= joules=158.277997 j/tok=0.79138999 ttft=13.393 j_window=decode majflt=1922 read_gb=22.334771 kf_width=0 batt=91->91 temp=33.0/34.000/34.000 cooldown_wait_s=300 cached_drop_mb=2152 cold_valid=1 excluded=0 reason=ok [2026-08-16T14:35:15-0400] preflight i=1 plugged=UNPLUGGED batt=91 temp=34.0 memavail_kib=5957192 floor=45 screen= [2026-08-16T14:35:15-0400] RESUME_AT=5 batt 90 temp 34.0 plug UNPLUGGED
+14:40:30 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T14:40:19-0400] COOLDOWN block=5 target=30.0 reached=33.0 waited=300 s (cap expired ΓÇö proceed) [2026-08-16T14:40:20-0400] RUN b5_OFF_try1 arm=OFF kf_width=0 batt=90 plugged=UNPLUGGED temp=33.0 screen=? memavail_kib=5918696 n=200 cooldown_wait_s=300 [2026-08-16T14:40:21-0400] COLD_RESET b5_OFF_try1 cached_kib 3466268->1106688 drop_mb=2304 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=589909 resident_after=0 pages fadvise_rc=0 batt 90 temp 33.0 plug UNPLUGGED
+14:43:34 
+14:46:44 
+14:49:54 
+14:53:04 
+14:56:15 
+14:59:25 
+15:02:35 
+15:05:45 
+15:08:57 
+15:12:08 
+15:15:18 
+15:18:29 
+15:21:40 
+15:24:50 
+15:28:01 
+15:31:12 
+15:34:22 
+15:37:33 
+15:40:43 
+15:43:53 
+15:47:03 
+15:50:13 
+15:53:23 
+15:56:33 
+15:59:43 
+16:02:53 
+16:06:03 
+16:09:13 
+16:12:24 
+16:15:34 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:15:22-0400] COOLDOWN block=6 target=30.0 reached=29.0 waited=0 s [2026-08-16T16:15:23-0400] RUN b6_ON_w4_try1 arm=ON kf_width=4 batt=78 plugged=UNPLUGGED temp=29.0 screen=? memavail_kib=5895348 n=200 cooldown_wait_s=0 [2026-08-16T16:15:24-0400] COLD_RESET b6_ON_w4_try1 cached_kib 4756008->2349620 drop_mb=2349 fadv_rc=0 fadv_out=/data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf size=6385238848 resident_before=601598 resident_after=0 pages fadvise_rc=0 batt 78 temp 29.0 plug UNPLUGGED
+16:18:36 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:17:16-0400] DONE b7_ON_w4_try1 rc=0 wall=53s tps=5.121 s/tok=0.195 stall=0.026 (13.3%) issued=5944.2 hit=4544.6 wasted=1399.6 prec=76.5 joules=169.909136 j/tok=0.84954568 ttft=13.374 j_window=decode majflt=1524 read_gb=24.497582 kf_width=4 batt=77->77 temp=30.0/31.000/31.000 cooldown_wait_s=0 cached_drop_mb=2147 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:17:17-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=31.0 memavail_kib=6008904 floor=45 screen= [2026-08-16T16:17:17-0400] RESUME_AT=8 batt 76 temp 32.0 plug UNPLUGGED
+16:21:39 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:17:16-0400] DONE b7_ON_w4_try1 rc=0 wall=53s tps=5.121 s/tok=0.195 stall=0.026 (13.3%) issued=5944.2 hit=4544.6 wasted=1399.6 prec=76.5 joules=169.909136 j/tok=0.84954568 ttft=13.374 j_window=decode majflt=1524 read_gb=24.497582 kf_width=4 batt=77->77 temp=30.0/31.000/31.000 cooldown_wait_s=0 cached_drop_mb=2147 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:17:17-0400] preflight i=1 plugged=UNPLUGGED batt=77 temp=31.0 memavail_kib=6008904 floor=45 screen= [2026-08-16T16:17:17-0400] RESUME_AT=8 batt 75 temp 32.0 plug UNPLUGGED
+16:24:42 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:23:17-0400] DONE b8_OFF_try1 rc=0 wall=53s tps=5.200 s/tok=0.192 stall=0.041 (21.4%) issued= hit= wasted= prec= joules=161.923024 j/tok=0.80961512 ttft=13.756 j_window=decode majflt=1774 read_gb=22.328107 kf_width=0 batt=75->75 temp=32.0/33.000/33.000 cooldown_wait_s=300 cached_drop_mb=2248 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:23:17-0400] preflight i=1 plugged=UNPLUGGED batt=75 temp=33.0 memavail_kib=6040164 floor=45 screen= [2026-08-16T16:23:18-0400] RESUME_AT=9 batt 74 temp 34.0 plug UNPLUGGED
+16:27:45 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:23:17-0400] DONE b8_OFF_try1 rc=0 wall=53s tps=5.200 s/tok=0.192 stall=0.041 (21.4%) issued= hit= wasted= prec= joules=161.923024 j/tok=0.80961512 ttft=13.756 j_window=decode majflt=1774 read_gb=22.328107 kf_width=0 batt=75->75 temp=32.0/33.000/33.000 cooldown_wait_s=300 cached_drop_mb=2248 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:23:17-0400] preflight i=1 plugged=UNPLUGGED batt=75 temp=33.0 memavail_kib=6040164 floor=45 screen= [2026-08-16T16:23:18-0400] RESUME_AT=9 batt 73 temp 34.0 plug UNPLUGGED
+16:30:48 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:29:17-0400] DONE b9_OFF_try1 rc=0 wall=53s tps=5.211 s/tok=0.192 stall=0.042 (21.9%) issued= hit= wasted= prec= joules=165.462370 j/tok=0.82731185 ttft=13.656 j_window=decode majflt=2035 read_gb=22.307217 kf_width=0 batt=73->73 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2312 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:29:18-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=35.0 memavail_kib=6057188 floor=45 screen= [2026-08-16T16:29:18-0400] RESUME_AT=10 batt 72 temp 35.0 plug UNPLUGGED
+16:33:51 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:29:17-0400] DONE b9_OFF_try1 rc=0 wall=53s tps=5.211 s/tok=0.192 stall=0.042 (21.9%) issued= hit= wasted= prec= joules=165.462370 j/tok=0.82731185 ttft=13.656 j_window=decode majflt=2035 read_gb=22.307217 kf_width=0 batt=73->73 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2312 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:29:18-0400] preflight i=1 plugged=UNPLUGGED batt=73 temp=35.0 memavail_kib=6057188 floor=45 screen= [2026-08-16T16:29:18-0400] RESUME_AT=10 batt 71 temp 34.0 plug UNPLUGGED
+16:36:54 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:35:17-0400] DONE b10_ON_w4_try1 rc=0 wall=52s tps=5.055 s/tok=0.198 stall=0.027 (13.6%) issued=5862.5 hit=4509.6 wasted=1352.9 prec=76.9 joules=164.268690 j/tok=0.85556609 ttft=13.390 j_window=decode majflt=2410 read_gb=24.349196 kf_width=4 batt=71->71 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2359 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:35:17-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=35.0 memavail_kib=6055192 floor=45 screen= [2026-08-16T16:35:17-0400] RESUME_AT=11 batt 70 temp 35.0 plug UNPLUGGED
+16:39:57 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:35:17-0400] DONE b10_ON_w4_try1 rc=0 wall=52s tps=5.055 s/tok=0.198 stall=0.027 (13.6%) issued=5862.5 hit=4509.6 wasted=1352.9 prec=76.9 joules=164.268690 j/tok=0.85556609 ttft=13.390 j_window=decode majflt=2410 read_gb=24.349196 kf_width=4 batt=71->71 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2359 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:35:17-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=35.0 memavail_kib=6055192 floor=45 screen= [2026-08-16T16:35:17-0400] RESUME_AT=11 batt 69 temp 35.0 plug UNPLUGGED
+16:43:00 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:41:16-0400] DONE b11_ON_w4_try1 rc=0 wall=52s tps=5.316 s/tok=0.188 stall=0.024 (12.8%) issued=5657.3 hit=4252.3 wasted=1405.1 prec=75.2 joules=168.156074 j/tok=0.84078037 ttft=13.704 j_window=decode majflt=2012 read_gb=23.758983 kf_width=4 batt=69->69 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2464 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:41:17-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=35.0 memavail_kib=6049012 floor=45 screen= [2026-08-16T16:41:17-0400] RESUME_AT=12 batt 68 temp 35.0 plug UNPLUGGED
+16:46:03 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:41:16-0400] DONE b11_ON_w4_try1 rc=0 wall=52s tps=5.316 s/tok=0.188 stall=0.024 (12.8%) issued=5657.3 hit=4252.3 wasted=1405.1 prec=75.2 joules=168.156074 j/tok=0.84078037 ttft=13.704 j_window=decode majflt=2012 read_gb=23.758983 kf_width=4 batt=69->69 temp=34.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2464 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:41:17-0400] preflight i=1 plugged=UNPLUGGED batt=69 temp=35.0 memavail_kib=6049012 floor=45 screen= [2026-08-16T16:41:17-0400] RESUME_AT=12 batt 67 temp 35.0 plug UNPLUGGED
+16:49:07 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:47:16-0400] DONE b12_OFF_try1 rc=0 wall=52s tps=5.269 s/tok=0.190 stall=0.041 (21.6%) issued= hit= wasted= prec= joules=157.391305 j/tok=0.78695652 ttft=13.445 j_window=decode majflt=2036 read_gb=22.134755 kf_width=0 batt=67->67 temp=35.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2498 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:47:17-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=35.0 memavail_kib=6087228 floor=45 screen= [2026-08-16T16:47:17-0400] RESUME_AT=13 batt 66 temp 35.0 plug UNPLUGGED
+16:52:10 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:47:16-0400] DONE b12_OFF_try1 rc=0 wall=52s tps=5.269 s/tok=0.190 stall=0.041 (21.6%) issued= hit= wasted= prec= joules=157.391305 j/tok=0.78695652 ttft=13.445 j_window=decode majflt=2036 read_gb=22.134755 kf_width=0 batt=67->67 temp=35.0/35.000/35.000 cooldown_wait_s=300 cached_drop_mb=2498 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:47:17-0400] preflight i=1 plugged=UNPLUGGED batt=67 temp=35.0 memavail_kib=6087228 floor=45 screen= [2026-08-16T16:47:17-0400] RESUME_AT=13 batt 65 temp 35.0 plug UNPLUGGED
+16:55:13 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:53:16-0400] DONE b13_OFF_try1 rc=0 wall=53s tps=5.197 s/tok=0.192 stall=0.041 (21.4%) issued= hit= wasted= prec= joules=166.496455 j/tok=0.83248227 ttft=13.589 j_window=decode majflt=1895 read_gb=22.239556 kf_width=0 batt=65->65 temp=35.0/36.000/36.000 cooldown_wait_s=300 cached_drop_mb=2643 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:53:17-0400] preflight i=1 plugged=UNPLUGGED batt=65 temp=36.0 memavail_kib=6088680 floor=45 screen= [2026-08-16T16:53:17-0400] RESUME_AT=14 batt 64 temp 36.0 plug UNPLUGGED
+16:58:16 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:53:16-0400] DONE b13_OFF_try1 rc=0 wall=53s tps=5.197 s/tok=0.192 stall=0.041 (21.4%) issued= hit= wasted= prec= joules=166.496455 j/tok=0.83248227 ttft=13.589 j_window=decode majflt=1895 read_gb=22.239556 kf_width=0 batt=65->65 temp=35.0/36.000/36.000 cooldown_wait_s=300 cached_drop_mb=2643 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:53:17-0400] preflight i=1 plugged=UNPLUGGED batt=65 temp=36.0 memavail_kib=6088680 floor=45 screen= [2026-08-16T16:53:17-0400] RESUME_AT=14 batt 63 temp 35.0 plug UNPLUGGED
+17:01:19 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:59:17-0400] DONE b14_ON_w4_try1 rc=0 wall=53s tps=5.130 s/tok=0.195 stall=0.026 (13.3%) issued=5916.5 hit=4488.5 wasted=1428.1 prec=75.9 joules=164.766857 j/tok=0.82383428 ttft=13.443 j_window=decode majflt=1623 read_gb=24.140112 kf_width=4 batt=63->63 temp=35.0/36.000/36.000 cooldown_wait_s=300 cached_drop_mb=2676 cold_valid=1 excluded=0 reason=ok [2026-08-16T16:59:18-0400] preflight i=1 plugged=UNPLUGGED batt=63 temp=36.0 memavail_kib=6116112 floor=45 screen= [2026-08-16T16:59:18-0400] RESUME_AT=15 batt 62 temp 36.0 plug UNPLUGGED
+17:04:23 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T16:59:18-0400] preflight i=1 plugged=UNPLUGGED batt=63 temp=36.0 memavail_kib=6116112 floor=45 screen= [2026-08-16T16:59:18-0400] RESUME_AT=15 [2026-08-16T17:04:22-0400] COOLDOWN block=15 target=30.0 reached=35.0 waited=300 s (cap expired ΓÇö proceed) batt 62 temp 35.0 plug UNPLUGGED
+17:07:27 
+17:10:38 
+17:13:48 
+17:16:58 
+17:20:08 
+17:23:18 
+17:26:28 
+17:29:38 
+17:32:48 
+17:35:58 
+17:39:08 
+17:42:19 
+17:45:29 
+17:48:40 
+17:51:50 
+17:55:01 
+17:58:12 
+18:01:24 
+18:04:35 
+18:07:44 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T18:07:22-0400] COOLDOWN block=16 target=30.0 reached=28.0 waited=0 s [2026-08-16T18:07:23-0400] RUN b16_OFF_try1 arm=OFF kf_width=0 batt=54 plugged=UNPLUGGED temp=28.0 screen=? memavail_kib=3528196 n=200 cooldown_wait_s=0 [2026-08-16T18:07:24-0400] COLD_RESET b16_OFF_try1 cached_kib 3446820->3047260 drop_mb=390 fadv_rc=3 fadv_out=fadv: WARNING /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf still has 618912 resident pages (2417.6 MiB) /data/data/com.termux/files/home/models/Marco-Mini-Instruct-KEXP.gguf s batt 53 temp 29.0 plug UNPLUGGED
+18:10:47 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T18:09:24-0400] preflight i=1 plugged=UNPLUGGED batt=52 temp=31.0 memavail_kib=6655888 floor=45 screen= [2026-08-16T18:09:24-0400] RESUME_AT=17 [2026-08-16T18:10:04-0400] trap cleanup batt 52 temp 32.0 plug UNPLUGGED
+18:13:51 STATUS=RUNNING PID_ALIVE=1 [2026-08-16T18:09:24-0400] preflight i=1 plugged=UNPLUGGED batt=52 temp=31.0 memavail_kib=6655888 floor=45 screen= [2026-08-16T18:09:24-0400] RESUME_AT=17 [2026-08-16T18:10:04-0400] trap cleanup batt 56 temp 32.0 plug PLUGGED_AC
+18:16:55 
+18:20:06 
+18:23:16 
+18:26:27 
+18:29:38 
+18:32:48 
+18:35:59 
+18:39:10 
+18:42:20 
+18:45:29 
+18:48:39 
+18:51:50 
+18:55:01 
+18:58:11 
+19:01:22 
+19:04:33 
+19:07:43 
+19:10:54 
+19:14:05 
+19:17:16 
+19:20:26 
+19:23:37 

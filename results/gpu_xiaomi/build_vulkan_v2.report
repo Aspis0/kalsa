@@ -1,0 +1,101 @@
+# build_vulkan_v2.report — S0.3-bis Road 2 (NDK cross-build Vulkan)
+
+## Status
+**SUCCESS** — `bin/llama-bench` produced (ELF aarch64 Android 29).
+
+## Entry / exit
+| field | value |
+|---|---|
+| entry | 2026-08-11T08:38:34-04:00 (configure) / 08:40:10 (build phase) |
+| exit | 2026-08-11T08:52 approx (link `bin/llama-bench`) |
+| pin | `5236140e514d5ceef2b801815b3ba9330f19732e` (`5236140e5`) |
+| source | `results/gpu_xiaomi/build/llama.cpp` (git archive of pin; full tree 3132 files) |
+| build dir | `results/gpu_xiaomi/build/build-vulkan-ndk` |
+| jobs | 4 (BelowNormal priority; other PC tests running) |
+| configure | EXIT=0 |
+| build (llama-bench) | EXIT=0, 510/510 |
+| BINARY_PRESENT | 1 |
+
+## CMake line (verbatim intent)
+
+```
+cmake -S <src> -B <build> -G Ninja \
+  -DCMAKE_TOOLCHAIN_FILE=<NDK>/build/cmake/android.toolchain.cmake \
+  -DANDROID_ABI=arm64-v8a \
+  -DANDROID_PLATFORM=android-29 \
+  -DANDROID_STL=c++_shared \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_MAKE_PROGRAM=<SDK>/cmake/3.22.1/bin/ninja.exe \
+  -DBUILD_SHARED_LIBS=OFF \
+  -DLLAMA_CURL=OFF \
+  -DGGML_OPENMP=OFF \
+  -DGGML_NATIVE=OFF \
+  -DGGML_OPENCL=OFF \
+  -DGGML_VULKAN=ON \
+  -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+i8mm+fp16 \
+  -DVulkan_GLSLC_EXECUTABLE=<NDK>/shader-tools/windows-x86_64/glslc.exe \
+  -DSPIRV-Headers_DIR=<lab>/llamabench/deps/install/share/cmake/SPIRV-Headers \
+  -DCMAKE_PREFIX_PATH=<lab>/llamabench/deps/install \
+  -DCMAKE_CXX_FLAGS=-I<lab>/llamabench/deps/install/include \
+  -DCMAKE_C_FLAGS=-I<lab>/llamabench/deps/install/include \
+  -DLLAMA_BUILD_TESTS=OFF -DLLAMA_BUILD_EXAMPLES=OFF \
+  -DLLAMA_BUILD_SERVER=OFF -DLLAMA_BUILD_TOOLS=ON \
+  -DLLAMA_BUILD_COMMON=ON -DGGML_CCACHE=OFF
+```
+
+Script: `results/gpu_xiaomi/build_vulkan_ndk.bat` (+ `build_vulkan_ndk.ps1` launcher with vcvars).
+Proven pattern: `lab/llamabench/configure-vulkan.bat`.
+
+## Host glslc (CRITICAL path)
+
+| item | value |
+|---|---|
+| path | `C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/shader-tools/windows-x86_64/glslc.exe` |
+| version | shaderc v2022.3 ndk-r26c / spirv-tools v2022.4 / glslang ndk-r26c / Target SPIR-V 1.0 |
+| note | **No LunarG Vulkan SDK on this PC** (`VULKAN_SDK` unset, `C:/VulkanSDK` absent, winget list empty). Host glslc used = **NDK bundled shader-tools glslc (Windows x86_64 binary)**. This is still a desktop host compiler (not Termux shaderc). |
+| Vulkan lib | NDK sysroot `.../aarch64-linux-android/29/libvulkan.so` |
+| SPIRV-Headers | `lab/llamabench/deps/install/share/cmake/SPIRV-Headers` (offline Config.cmake) |
+| host C/C++ for vulkan-shaders-gen | MSVC `cl.exe` 14.44.35207 (BuildTools) via vcvars64 |
+
+## Coopmat2 auto-detect (configure log)
+
+```
+-- GL_KHR_cooperative_matrix not supported by glslc
+-- GL_NV_cooperative_matrix2 not supported by glslc
+-- GL_NV_cooperative_matrix_decode_vector not supported by glslc
+-- GL_EXT_integer_dot_product not supported by glslc
+-- GL_EXT_bfloat16 not supported by glslc
+```
+
+Generated stubs (empty, 36 bytes = `#include "ggml-vulkan-shaders.hpp"` only):
+- `flash_attn_cm2.comp.cpp`
+- `mul_mm_cm2.comp.cpp`
+
+Real FA shaders present: `flash_attn.comp.cpp` (~2.0 MB, 39900 lines).
+
+## Binaries
+
+| path | size | sha256 |
+|---|---:|---|
+| `results/gpu_xiaomi/bin/llama-bench` | 155520512 | `ba433a7de586547c015e194f92f80dab182bdf1301e686f9875c8488a124b6f2` |
+| build tree copy | same | same |
+
+`file`: ELF 64-bit LSB pie executable, ARM aarch64, dynamically linked, interpreter `/system/bin/linker64`, for **Android 29**, built by **NDK r27b (12297006)**, BuildID `d6b7aba14b99db9298b53be0fb27ac900c821157`, not stripped.
+
+`llama-cli`: **not built**. At pin 5236140e5, `tools/cli` is only added when `LLAMA_BUILD_SERVER=ON` (`tools/CMakeLists.txt`). Spike needs `llama-bench` only; reconfigure with SERVER=ON if cli is required later.
+
+## First failed attempts (for audit trail)
+1. Incomplete `git clone --no-checkout` of partial-blob repo → missing `src/CMakeLists.txt` etc. Fixed via `git archive` of pin.
+2. First build targeted `llama-bench llama-cli` → ninja unknown target `llama-cli`. Retry: `llama-bench` only → OK.
+
+## Artifacts
+- `build_vulkan_ndk.bat` / `.ps1` — reproducible configure+build
+- `build_phase_llama_bench.ps1` — build-only retry helper
+- `build_vulkan_ndk.log` — configure + build tail
+- `build_phase.stdout.txt` — full ninja output
+- `bin/llama-bench` + `bin/SHA256SUMS.txt`
+- `push_vulkan_bench.sh` — ready-to-push (user runs tonight)
+- `road1_coopmat2_off.sh` — Road 1 on-device fallback (PREPARE only)
+
+## CPU / concurrency
+JOBS=4, process PriorityClass=BelowNormal. Coexisted with zen/node/grok/bmoe-cli load on the PC. No kill required.

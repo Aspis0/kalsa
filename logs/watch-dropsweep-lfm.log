@@ -1,0 +1,97 @@
+[2026-08-17T00:13:23-04:00] watchdog start interval=300s maxRelaunch=12
+[2026-08-17T00:13:23-04:00] alive=1 status='RUNNING' good_rows=1 tot_rows=1 batt=69 beat='2026-08-17T00:13:00-0400 cooldown before r1_d0.3'
+[2026-08-17T00:18:24-04:00] alive=1 status='RUNNING' good_rows=2 tot_rows=2 batt=67 beat='2026-08-17T00:18:00-0400 running r1_d0.65 (pass 1)'
+[2026-08-17T00:23:25-04:00] alive=1 status='RUNNING' good_rows=4 tot_rows=4 batt=66 beat='2026-08-17T00:22:02-0400 cooldown before r2_d0.0'
+[2026-08-17T00:27:53-04:00] watchdog start interval=300s maxRelaunch=12
+[2026-08-17T00:27:56-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T00:32:59-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T00:35:37-04:00] watchdog start interval=300s maxRelaunch=12 staleBeat=900s
+[2026-08-17T00:35:40-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T00:40:43-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T00:43:27-04:00] watchdog start interval=300s maxRelaunch=12 staleBeat=900s
+[2026-08-17T00:43:29-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T00:48:32-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T00:53:35-04:00] ALERT: JELLY UNREACHABLE for 15 min. Port 8022 refuses while the phone still answers ping,
+which means Android killed the whole Termux process group (sshd AND the sweep), not just
+the network. There is no adb channel to this phone, so nothing here can fix it remotely.
+
+TO RECOVER (30 seconds, on the phone):
+  1. Open the Termux app. That alone usually brings sshd back via Termux:Boot.
+     If not, type:  sshd
+  2. Nothing else. This watchdog probes every 5 min, will push the current harness,
+     and resumes the cell at the first unfinished run - completed runs are never redone.
+
+TO STOP IT HAPPENING AGAIN (one-time, Android settings):
+  Settings > Apps > Termux > Battery > Unrestricted. The harness now keeps a pulse
+  during cooldowns (that is when both deaths happened), but battery optimisation can
+  still kill the app group.
+[2026-08-17T00:58:38-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:03:40-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:08:43-04:00] still unreachable after 30 min
+[2026-08-17T01:13:46-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:18:49-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:23:51-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:28:54-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:33:57-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:38:59-04:00] still unreachable after 60 min
+[2026-08-17T01:44:02-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:49:05-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:54:08-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T01:59:10-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:04:13-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:09:16-04:00] still unreachable after 90 min
+[2026-08-17T02:14:19-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:19:21-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:24:24-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:29:27-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:34:30-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:39:32-04:00] still unreachable after 120 min
+[2026-08-17T02:44:35-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:49:38-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:54:41-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T02:59:43-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:04:46-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:09:49-04:00] still unreachable after 150 min
+[2026-08-17T03:14:52-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:19:54-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:24:57-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:30:00-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:35:02-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:40:05-04:00] still unreachable after 180 min
+[2026-08-17T03:45:08-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:50:11-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T03:55:13-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:00:16-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:05:19-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:10:21-04:00] still unreachable after 210 min
+[2026-08-17T04:15:24-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:20:27-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:25:29-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:30:32-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:35:35-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:40:38-04:00] still unreachable after 240 min
+[2026-08-17T04:45:41-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:50:43-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T04:55:46-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:00:49-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:05:51-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:10:54-04:00] still unreachable after 270 min
+[2026-08-17T05:15:57-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:21:00-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:26:03-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:31:05-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:36:08-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:41:11-04:00] still unreachable after 300 min
+[2026-08-17T05:46:14-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:51:16-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T05:56:19-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T06:01:22-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T06:06:24-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T07:19:22-04:00] still unreachable after 330 min
+[2026-08-17T07:24:25-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T07:29:28-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T07:34:31-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T07:39:33-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T07:44:36-04:00] unreachable (ssh gave nothing) - retry next cycle
+[2026-08-17T09:04:27-04:00] still unreachable after 360 min
+[2026-08-17T09:09:30-04:00] unreachable (ssh gave nothing) - retry next cycle

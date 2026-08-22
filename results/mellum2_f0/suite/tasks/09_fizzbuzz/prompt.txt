@@ -1,0 +1,33 @@
+You are a software-engineering assistant in a pull-request workflow.
+Implement the function described by the docstring. Reply with a unified diff ONLY
+(--- / +++ / @@ hunks) against the given file. Do not wrap the diff in markdown fences.
+Do not explain. Keep the function name and signature.
+
+## File: fizzbuzz.py
+```python
+def fizzbuzz(n):
+    """Return a list of length n for i = 1..n:
+    'FizzBuzz' if i is divisible by 15,
+    'Fizz' if divisible by 3,
+    'Buzz' if divisible by 5,
+    otherwise the integer i itself.
+    n == 0 returns [].
+    """
+    raise NotImplementedError
+```
+
+## Tests that must pass
+```python
+from fizzbuzz import fizzbuzz
+
+def test_empty():
+    assert fizzbuzz(0) == []
+
+def test_fifteen():
+    got = fizzbuzz(15)
+    assert got[0] == 1
+    assert got[2] == "Fizz"
+    assert got[4] == "Buzz"
+    assert got[14] == "FizzBuzz"
+    assert len(got) == 15
+```

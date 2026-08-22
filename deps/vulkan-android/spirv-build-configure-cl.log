@@ -1,0 +1,18 @@
+-- The CXX compiler identification is MSVC 19.44.35227.0
+CMake Error at C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/3.22.1-g37088a8-dirty/CMakeCXXCompiler.cmake:1 (set):
+  Syntax error in cmake code at
+
+    C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/3.22.1-g37088a8-dirty/CMakeCXXCompiler.cmake:1
+
+  when parsing string
+
+    C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\Hostx64\x64\cl.exe
+
+  Invalid character escape '\P'.
+Call Stack (most recent call first):
+  CMakeLists.txt:27 (project)
+
+
+-- Configuring incomplete, errors occurred!
+See also "C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/CMakeOutput.log".
+See also "C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/CMakeError.log".

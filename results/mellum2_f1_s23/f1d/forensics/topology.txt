@@ -1,0 +1,25 @@
+=== topology 2026-08-13T17:38:37-0400 ===
+nproc=6
+nproc_all=8
+getconf=8
+online=0-7
+present=0-7
+possible=0-7
+--- /proc/self/status ---
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+--- taskset self ---
+pid 6762's current affinity mask: 5f
+--- per-cpu ---
+cpu0 online=1 cap=266 max=2016000 min=2016000 cur=2016000 gov=walt pkg=0
+cpu1 online=1 cap=266 max=2016000 min=2016000 cur=2016000 gov=walt pkg=0
+cpu2 online=1 cap=266 max=2016000 min=2016000 cur=2016000 gov=walt pkg=0
+cpu3 online=? cap=811 max=2803200 min=2054400 cur=2054400 gov=walt pkg=1
+cpu4 online=? cap=811 max=2803200 min=2054400 cur=2054400 gov=walt pkg=1
+cpu5 online=? cap=811 max=2803200 min=2054400 cur=2054400 gov=walt pkg=1
+cpu6 online=? cap=811 max=2803200 min=2054400 cur=2054400 gov=walt pkg=1
+cpu7 online=? cap=1024 max=3360000 min=2092800 cur=2092800 gov=walt pkg=2
+--- cpuset ---
+/
+--- wakelock ---
+/data/data/com.termux/files/usr/bin/termux-wake-lock

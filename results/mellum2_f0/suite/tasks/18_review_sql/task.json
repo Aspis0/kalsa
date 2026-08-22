@@ -1,0 +1,23 @@
+{
+  "id": "18_review_sql",
+  "family": "review",
+  "lang": "python",
+  "entry": "users.py",
+  "review_needles": [
+    "sql injection",
+    "injection",
+    "f-string",
+    "formatted",
+    "concatenat",
+    "parameter",
+    "placeholder",
+    "unsanitiz"
+  ],
+  "review_strict_any": [
+    "inject",
+    "f-string",
+    "format string",
+    "interpolat"
+  ],
+  "dir": "suite/tasks/18_review_sql"
+}

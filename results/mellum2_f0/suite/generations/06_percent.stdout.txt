@@ -1,0 +1,51 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+percent uses integer division, so 1/2 becomes 0 then 0. Use true division.
+
+## File: percent.py
+```python
+def percent(part, whole):
+    """Return part as a percentage of ... (truncated)
+--- /percent.py
++++ /percent.py
+@@ -1,4 +1,4 @@
+ def percent(part, whole):
+-    """Return part as a percentage of whole (float). whole is never 0."""
++    """Return part as a percentage of whole (float). whole is never 0."""
+     return part // whole * 100
+```
+
+[ Prompt: 20.3 t/s | Generation: 10.2 t/s ]
+
+
+Exiting...

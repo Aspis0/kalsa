@@ -1,0 +1,37 @@
+9:moe-stream: read 30716.4 MiB (185.04 MiB/token), decode 0.336 s/token (compute 0.224 + cache mgmt 0.018 + flash I/O 0.436 s/token, 424 MiB/s)
+10:moe-cache: 76.0% hit, resident 1998.9 MiB
+11:moe-cache: 8757 evictions, 7660 re-reads (46.1/token) — bytes the cache had already paid for once
+14:llama_model_loader: loaded meta data with 43 key-value pairs and 339 tensors from /data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf (version GGUF V3 (latest))
+16:llama_model_loader: - kv   0:                       general.architecture str              = mellum
+18:llama_model_loader: - kv   2:                               general.name str              = Mellum2 12B A2.5B Instruct
+20:llama_model_loader: - kv   4:                           general.basename str              = Mellum2
+25:llama_model_loader: - kv   9:                         mellum.block_count u32              = 28
+26:llama_model_loader: - kv  10:                      mellum.context_length u32              = 131072
+27:llama_model_loader: - kv  11:                    mellum.embedding_length u32              = 2304
+28:llama_model_loader: - kv  12:                 mellum.feed_forward_length u32              = 7168
+29:llama_model_loader: - kv  13:                mellum.attention.head_count u32              = 32
+30:llama_model_loader: - kv  14:             mellum.attention.head_count_kv u32              = 4
+31:llama_model_loader: - kv  15:                   mellum.rope.scaling.type str              = yarn
+32:llama_model_loader: - kv  16:                 mellum.rope.scaling.factor f32              = 16.000000
+33:llama_model_loader: - kv  17: mellum.rope.scaling.original_context_length u32              = 8192
+34:llama_model_loader: - kv  18:       mellum.rope.scaling.yarn_attn_factor f32              = 1.277259
+35:llama_model_loader: - kv  19:         mellum.rope.scaling.yarn_beta_fast f32              = 32.000000
+36:llama_model_loader: - kv  20:         mellum.rope.scaling.yarn_beta_slow f32              = 1.000000
+37:llama_model_loader: - kv  21:                      mellum.rope.freq_base f32              = 500000.000000
+38:llama_model_loader: - kv  22:                  mellum.rope.freq_base_swa f32              = 500000.000000
+39:llama_model_loader: - kv  23:    mellum.attention.layer_norm_rms_epsilon f32              = 0.000001
+40:llama_model_loader: - kv  24:                        mellum.expert_count u32              = 64
+41:llama_model_loader: - kv  25:                   mellum.expert_used_count u32              = 8
+42:llama_model_loader: - kv  26:                mellum.attention.key_length u32              = 128
+43:llama_model_loader: - kv  27:              mellum.attention.value_length u32              = 128
+44:llama_model_loader: - kv  28:          mellum.expert_feed_forward_length u32              = 896
+45:llama_model_loader: - kv  29:            mellum.attention.sliding_window u32              = 1024
+46:llama_model_loader: - kv  30:    mellum.attention.sliding_window_pattern arr[bool,28]     = [true, true, true, false, true, true,...
+48:llama_model_loader: - kv  32:                         tokenizer.ggml.pre str              = mellum2
+67:validate_override: Using metadata override (  int) 'mellum.expert_used_count' = 8
+102:print_info: arch                  = mellum
+149:print_info: general.name          = Mellum2 12B A2.5B Instruct
+644:bmoe: expert-mmap: dropped 7055 MiB
+645:bmoe: dense-weights=anon — 637 MiB in 255 anon buffers
+647:bmoe: dense-weights=anon — dropped 637 MiB of now-unused mmap pages
+648:bmoe: expert streaming ON  n_expert=64 o_direct=1 io_threads=4 cache=2000 MiB shards=1

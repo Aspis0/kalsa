@@ -1,0 +1,3 @@
+Un indice B-tree in un database serve a organizzare i dati in modo efficiente, permettendo di cercare, inserire e cancellare record rapidamente anche su grandi quantità di informazioni. È strutturato in modo da mantenere i dati ordinati e bilanciati, riducendo il numero di accessi al disco necessari per trovare un elemento specifico.
+
+Grazie alla sua progettazione, il B-tree garantisce un tempo di accesso logaritmico, il che lo rende ideale per database e sistemi di gestione di informazioni dove la velocità e l'efficienza sono fondamentali.

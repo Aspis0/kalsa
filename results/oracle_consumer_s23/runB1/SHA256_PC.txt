@@ -1,0 +1,4 @@
+25044c5af263f80315d0a3c27737c97c4c49304a29dfeb059f8c58f7d0e27d68  libggml-opencl.so  UNCHANGED campaign GPU
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so     UNCHANGED campaign CPU
+303db12a05942ec6ecadcb1cd4615e9231d6e148084949f635aa372af8c892db  libggml-base.so    rebuilt (cmake commit 1582f2d83)
+e5f2ecd431eae87cdb7a6fcb6197976b71eb8fa901b0d7338ae6d607b568503c  test-backend-ops   printer 1582f2d83

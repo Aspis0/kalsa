@@ -1,0 +1,39 @@
+From 026b8f0cca2012f4794290a80026638669c89ac8 Mon Sep 17 00:00:00 2001
+From: Saurias92 <66642624+Aspis0@users.noreply.github.com>
+Date: Sat, 8 Aug 2026 11:15:09 -0400
+Subject: [PATCH 2/3] session: disable mmap_prefetch when expert streaming is
+ enabled
+
+With --moe-stream, experts are read via O_DIRECT when needed and
+--dense-weights anon copies the dense trunk out of the mmap. Prefaulting
+the whole GGUF is I/O that will never be used (F4.8: 19.14 GiB page-fault
+of 20.76 GiB load read_bytes on Qwen3.6-35B UD-IQ2_M).
+
+Sets mparams.mmap_prefetch = false only when cfg.moe.enabled; non-streaming
+loads keep the classic warm-load default (true). Depends on llama.cpp
+kalsa/mmap-prefetch-opt (mmap_prefetch field).
+---
+ core/src/engine/session.cpp | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/core/src/engine/session.cpp b/core/src/engine/session.cpp
+index 9fd5a06..cd88cc2 100644
+--- a/core/src/engine/session.cpp
++++ b/core/src/engine/session.cpp
+@@ -408,6 +408,13 @@ std::unique_ptr<Session> Session::open(const SessionConfig & cfg,
+     mparams.use_mmap = true;
+     mparams.use_extra_bufts = false;
+     mparams.n_gpu_layers = 0;
++    // Streaming reads experts via O_DIRECT when needed, and --dense-weights anon copies the
++    // dense trunk out of the mmap; prefaulting the whole GGUF is I/O that will never be used
++    // (measured 19.14 GiB page-fault of 20.76 GiB load read_bytes on Qwen3.6-35B UD-IQ2_M).
++    // Leave mmap_prefetch=true for non-streaming loads (classic warm path).
++    if (cfg.moe.enabled) {
++        mparams.mmap_prefetch = false;
++    }
+ 
+     // Optional active-expert override: reduce the model's top-k routing (e.g. 8 -> 6) to cut
+     // per-token compute and — under streaming — flash I/O, at a quality cost. Applied purely
+-- 
+2.54.0.windows.1
+

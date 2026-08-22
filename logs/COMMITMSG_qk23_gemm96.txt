@@ -1,0 +1,4 @@
+tests: GEMM padding-lane discriminators for q2_K/q3_K (m=96 n=4)
+
+Type-scoped MUL_MAT_ID cases (n>1 → GEMM, m=96 → real padding lanes).
+No m=96 for other types. S23: 401/401, both OK.

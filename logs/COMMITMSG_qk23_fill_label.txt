@@ -1,0 +1,5 @@
+tests: print fill= on every OpenCL MoE roundtrip line
+
+S1/S2/S4 logs never contained the tokens const00/hmask16; those fills
+ran unlabeled (main() order after the 1792 odd case). Each ROUNDTRIP
+line now includes fill=lcg|constXX|hmask16|pair.

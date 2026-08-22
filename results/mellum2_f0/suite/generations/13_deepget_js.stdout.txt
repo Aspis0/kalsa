@@ -1,0 +1,68 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a software-engineering assistant in a pull-request workflow.
+Implement the function described by the docstring. Reply with a unified diff ONLY
+(--- / +++ / @@ hunks) against the given file. Do not wrap the diff in markdown fences.
+Do not explain. Keep the function name and signature.
+
+## File: deepGet.js
+```javascript
+function deepGet(obj, path) {
+  // path is a dot-separated string (e.g. "a.b.0").
+  // Return the nested value, or undefined if any segment is missing.
+  // Empty path retu ... (truncated)
+--- /deepGet.js
++++ /deepGet.js
+@@ -1,7 +1,13 @@
+ function deepGet(obj, path) {
+   // path is a dot-separated string (e.g. "a.b.0").
+   // Return the nested value, or undefined if any segment is missing.
+   // Empty path returns obj.
+-  throw new Error("not implemented");
++  if (path === "") {
++    return obj;
++  }
++
++  const keys = path.split(".");
++  let current = obj;
++
++  for (const key of keys) {
++    if (current === null || current === undefined || !(key in current)) {
++      return undefined;
++    }
++    current = current[key];
++  }
++
++  return current;
+ }
+ 
+ module.exports = { deepGet };
+
+[ Prompt: 25.6 t/s | Generation: 11.1 t/s ]
+
+
+Exiting...

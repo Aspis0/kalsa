@@ -1,0 +1,8 @@
+[async-jobs] jobId=job-1787185861626-1
+[async-jobs] startedAt=2026-08-20T00:31:01.626Z
+[async-jobs] command=cd "C:/Users/gualt/Desktop/Kalsa/moe-experiments" && "C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/cmake.exe" --build build-android-opencl-s3oracle --target ggml-opencl test-backend-ops test-opencl-moe-roundtrip 2>&1; echo "BUILD_EXIT=$?"
+[async-jobs] description=Rebuild ggml-opencl + test targets after cvt.cl fix
+[async-jobs] --- output ---
+The filename, directory name, or volume label syntax is incorrect.
+
+[async-jobs] exit code=1 signal= at=2026-08-20T00:31:01.656Z

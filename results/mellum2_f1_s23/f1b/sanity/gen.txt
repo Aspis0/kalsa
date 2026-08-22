@@ -1,0 +1,4 @@
+Write a Python function factorial(n) that returns n!. Use a simple loop. Return only the function, no markdown.def factorial(n):
+    result = 1
+    for i in range(1, n + 1):
+        result *= i

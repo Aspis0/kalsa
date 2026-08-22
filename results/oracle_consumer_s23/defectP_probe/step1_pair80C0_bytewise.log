@@ -1,0 +1,89 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+using backend GPUOpenCL
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bytewise
+............................................................................................................................................
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_0,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_1,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_0,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q5_1,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=mxfp4,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q4_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+HOST_REPACK=[unset] CVT_VARIANT=[bytewise] LOG_WEIGHT_PATH=[1]
+ROUNDTRIP_FILL raw=[pair80C0] resolved=pair mult=131 off=17 cval=0x00 even=0x80 odd=0xc0
+ROUNDTRIP name=as type=q4_0 ne=256x512x4 nbytes=294912 host_repack=0 mismatch=131072/294912 first=3
+ROUNDTRIP_SIGNATURE type=q4_0 class=odd_qs_hi_to_f qs_mismatch=131072 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=131072 odd_candidates=131072 odd_want_hi_f=0 hi_to_f_lo_ok=131072 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+  WANT blk0 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk0 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  WANT blk1 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk1 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  off_mis_nonzero [3]=16384 [5]=16384 [7]=16384 [9]=16384 [11]=16384 [13]=16384 [15]=16384 [17]=16384
+  xor_top 30:131072
+ROUNDTRIP name=as type=q4_1 ne=256x512x4 nbytes=327680 host_repack=0 mismatch=131072/327680 first=5
+ROUNDTRIP_SIGNATURE type=q4_1 class=odd_qs_hi_to_f qs_mismatch=131072 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=131072 odd_candidates=131072 odd_want_hi_f=0 hi_to_f_lo_ok=131072 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+  WANT blk0 40 40 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk0 40 40 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  WANT blk1 40 40 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk1 40 40 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  off_mis_nonzero [5]=16384 [7]=16384 [9]=16384 [11]=16384 [13]=16384 [15]=16384 [17]=16384 [19]=16384
+  xor_top 30:131072
+ROUNDTRIP name=as type=q5_0 ne=256x512x4 nbytes=360448 host_repack=0 mismatch=131072/360448 first=7
+ROUNDTRIP_SIGNATURE type=q5_0 class=odd_qs_hi_to_f qs_mismatch=131072 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=131072 odd_candidates=131072 odd_want_hi_f=0 hi_to_f_lo_ok=131072 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+  WANT blk0 40 40 40 40 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk0 40 40 40 40 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  WANT blk1 40 40 40 40 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk1 40 40 40 40 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  off_mis_nonzero [7]=16384 [9]=16384 [11]=16384 [13]=16384 [15]=16384 [17]=16384 [19]=16384 [21]=16384
+  xor_top 30:131072
+ROUNDTRIP name=as type=q5_1 ne=256x512x4 nbytes=393216 host_repack=0 mismatch=131072/393216 first=9
+ROUNDTRIP_SIGNATURE type=q5_1 class=odd_qs_hi_to_f qs_mismatch=131072 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=131072 odd_candidates=131072 odd_want_hi_f=0 hi_to_f_lo_ok=131072 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+  WANT blk0 40 40 40 40 40 40 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk0 40 40 40 40 40 40 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  WANT blk1 40 40 40 40 40 40 40 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk1 40 40 40 40 40 40 40 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  off_mis_nonzero [9]=16384 [11]=16384 [13]=16384 [15]=16384 [17]=16384 [19]=16384 [21]=16384 [23]=16384
+  xor_top 30:131072
+ROUNDTRIP name=as type=mxfp4 ne=256x512x4 nbytes=278528 host_repack=0 mismatch=131072/278528 first=2
+ROUNDTRIP_SIGNATURE type=mxfp4 class=odd_qs_hi_to_f qs_mismatch=131072 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=131072 odd_candidates=131072 odd_want_hi_f=0 hi_to_f_lo_ok=131072 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+  WANT blk0 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk0 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  WANT blk1 40 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0 80 c0
+  GOT  blk1 40 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0 80 f0
+  off_mis_nonzero [2]=16384 [4]=16384 [6]=16384 [8]=16384 [10]=16384 [12]=16384 [14]=16384 [16]=16384
+  xor_top 30:131072
+ROUNDTRIP name=as type=q4_K ne=256x512x4 nbytes=294912 host_repack=0 mismatch=0/294912 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0OPENCL_WEIGHT_PATH{tensor=as,type=q5_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=as,type=q6_K,ne=256x512x4,path=trans4-moe,name_gate=1,ne01_mod32=0,moe_gate=1}
+OPENCL_WEIGHT_PATH{tensor=weight,type=q4_0,ne=256x512x1,path=generic-soa,name_gate=0,ne01_mod32=0,moe_gate=0}
+OPENCL_WEIGHT_PATH{tensor=weight,type=q4_0,ne=512x512x1,path=noshuffle,name_gate=0,ne01_mod32=0,moe_gate=0}
+ qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q5_K ne=256x512x4 nbytes=360448 host_repack=0 mismatch=0/360448 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q5_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=as type=q6_K ne=256x512x4 nbytes=430080 host_repack=0 mismatch=0/430080 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q6_K class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=0 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=0
+ROUNDTRIP name=weight type=q4_0 ne=256x512x1 nbytes=73728 host_repack=0 mismatch=0/73728 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=32768 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=32768
+ROUNDTRIP name=weight type=q4_0 ne=512x512x1 nbytes=147456 host_repack=0 mismatch=0/147456 first=18446744073709551615
+ROUNDTRIP_SIGNATURE type=q4_0 class=clean qs_mismatch=0 qh_mismatch=0 meta_mismatch=0 qs_even=0 qs_odd=0 odd_candidates=65536 odd_want_hi_f=0 hi_to_f_lo_ok=0 qs_other=0 mismatch_bit7clear=0 clean_odd_bit7set=65536
+DONE rc=1
+PROC_EXIT=1

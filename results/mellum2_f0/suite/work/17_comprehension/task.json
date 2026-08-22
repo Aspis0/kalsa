@@ -1,0 +1,16 @@
+{
+  "id": "17_comprehension",
+  "family": "refactor",
+  "lang": "python",
+  "entry": "positives.py",
+  "pytest": "test_positives.py",
+  "structural": {
+    "must_contain": [
+      "["
+    ],
+    "must_not_contain": [
+      ".append("
+    ]
+  },
+  "dir": "suite/tasks/17_comprehension"
+}

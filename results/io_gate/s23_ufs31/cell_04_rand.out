@@ -1,0 +1,1 @@
+mode=rand nblocks=2000 bsz=983040 bytes=1966080000 sec=4.835120 MB_s=406.625 MiB_s=387.788 seed=14 file=/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf odirect=1

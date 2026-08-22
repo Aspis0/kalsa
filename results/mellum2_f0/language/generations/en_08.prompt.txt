@@ -1,0 +1,1 @@
+Compare BFS and DFS at a high level. When would you pick BFS?

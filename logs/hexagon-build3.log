@@ -1,0 +1,173 @@
+ninja: Entering directory `C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon'
+[1/525] Creating directories for 'htp-v73'
+[2/525] Creating directories for 'htp-v75'
+[3/525] Creating directories for 'htp-v79'
+[4/525] Creating directories for 'htp-v81'
+[5/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[6/525] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[7/525] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[8/525] Building C object ggml/src/ggml-hexagon/CMakeFiles/htp_iface.dir/htp_iface_stub.c.o
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:384:70: warning: cast from 'const struct htp_iface_pmu_conf *' to 'unsigned int *' drops const qualifier [-Wcast-qual]
+  384 |    return _stub_method_4(_handle, _mid, (uint32_t*)&mode, (uint32_t*)pmu);
+      |                                                                      ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+31 warnings generated.
+[9/525] No download step for 'htp-v73'
+[10/525] No download step for 'htp-v81'
+[11/525] No download step for 'htp-v75'
+[12/525] No download step for 'htp-v79'
+[13/525] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[14/525] No update step for 'htp-v81'
+[15/525] No update step for 'htp-v73'
+[16/525] No update step for 'htp-v75'
+[17/525] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[18/525] No update step for 'htp-v79'
+[19/525] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[20/525] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[21/525] No patch step for 'htp-v75'
+[22/525] No patch step for 'htp-v81'
+[23/525] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[24/525] No patch step for 'htp-v73'
+[25/525] No patch step for 'htp-v79'
+[26/525] Performing configure step for 'htp-v75'
+FAILED: ggml/src/ggml-hexagon/htp-v75-prefix/src/htp-v75-stamp/htp-v75-configure C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v75-prefix/src/htp-v75-stamp/htp-v75-configure 
+C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon\ggml\src\ggml-hexagon\htp-v75-prefix\src\htp-v75-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp/cmake-toolchain.cmake -DCMAKE_INSTALL_LIBDIR=C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon -DHEXAGON_SDK_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0 -DHEXAGON_TOOLS_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0/tools/HEXAGON_Tools/19.0.07 -DHEXAGON_HTP_DEBUG=OFF -DDSP_VERSION=v75 -DPREBUILT_LIB_DIR=\"toolv19_v75\" -GNinja -S C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp -B C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v75-prefix/src/htp-v75-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -E touch C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v75-prefix/src/htp-v75-stamp/htp-v75-configure"
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+-- Configuring incomplete, errors occurred!
+[27/525] Performing configure step for 'htp-v81'
+FAILED: ggml/src/ggml-hexagon/htp-v81-prefix/src/htp-v81-stamp/htp-v81-configure C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v81-prefix/src/htp-v81-stamp/htp-v81-configure 
+C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon\ggml\src\ggml-hexagon\htp-v81-prefix\src\htp-v81-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp/cmake-toolchain.cmake -DCMAKE_INSTALL_LIBDIR=C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon -DHEXAGON_SDK_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0 -DHEXAGON_TOOLS_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0/tools/HEXAGON_Tools/19.0.07 -DHEXAGON_HTP_DEBUG=OFF -DDSP_VERSION=v81 -DPREBUILT_LIB_DIR=\"toolv19_v81\" -GNinja -S C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp -B C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v81-prefix/src/htp-v81-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -E touch C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v81-prefix/src/htp-v81-stamp/htp-v81-configure"
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+-- Configuring incomplete, errors occurred!
+[28/525] Performing configure step for 'htp-v73'
+FAILED: ggml/src/ggml-hexagon/htp-v73-prefix/src/htp-v73-stamp/htp-v73-configure C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v73-prefix/src/htp-v73-stamp/htp-v73-configure 
+C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon\ggml\src\ggml-hexagon\htp-v73-prefix\src\htp-v73-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp/cmake-toolchain.cmake -DCMAKE_INSTALL_LIBDIR=C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon -DHEXAGON_SDK_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0 -DHEXAGON_TOOLS_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0/tools/HEXAGON_Tools/19.0.07 -DHEXAGON_HTP_DEBUG=OFF -DDSP_VERSION=v73 -DPREBUILT_LIB_DIR=\"toolv19_v73\" -GNinja -S C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp -B C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v73-prefix/src/htp-v73-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -E touch C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v73-prefix/src/htp-v73-stamp/htp-v73-configure"
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+-- Configuring incomplete, errors occurred!
+[29/525] Performing configure step for 'htp-v79'
+FAILED: ggml/src/ggml-hexagon/htp-v79-prefix/src/htp-v79-stamp/htp-v79-configure C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v79-prefix/src/htp-v79-stamp/htp-v79-configure 
+C:\WINDOWS\system32\cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon\ggml\src\ggml-hexagon\htp-v79-prefix\src\htp-v79-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp/cmake-toolchain.cmake -DCMAKE_INSTALL_LIBDIR=C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon -DHEXAGON_SDK_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0 -DHEXAGON_TOOLS_ROOT=C:/Qualcomm/Hexagon_SDK/6.6.0.0/tools/HEXAGON_Tools/19.0.07 -DHEXAGON_HTP_DEBUG=OFF -DDSP_VERSION=v79 -DPREBUILT_LIB_DIR=\"toolv19_v79\" -GNinja -S C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/htp -B C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v79-prefix/src/htp-v79-build && C:\Users\gualt\Desktop\Kalsa\moe-experiments\deps\cmake\cmake-3.31.7-windows-x86_64\bin\cmake.exe -E touch C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon/ggml/src/ggml-hexagon/htp-v79-prefix/src/htp-v79-stamp/htp-v79-configure"
+CMake Error: CMake was unable to find a build program corresponding to "Ninja".  CMAKE_MAKE_PROGRAM is not set.  You probably need to select a different build tool.
+-- Configuring incomplete, errors occurred!
+[30/525] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[31/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[32/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[33/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[34/525] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/htp-drv.cpp.o
+[35/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[36/525] Building CXX object src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[37/525] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[38/525] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[39/525] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[40/525] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[41/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[42/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[43/525] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[44/525] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[45/525] Building CXX object src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[46/525] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[47/525] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[48/525] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[49/525] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/ggml-hexagon.cpp.o
+ninja: build stopped: subcommand failed.

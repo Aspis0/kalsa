@@ -1,0 +1,8 @@
+--- /inclusive_sum.py
++++ /inclusive_sum.py
+@@ -1,5 +1,5 @@
+ def inclusive_sum(a, b):
+     """Return the sum of every integer from a to b inclusive. Require a <= b."""
+-    return sum(range(a, b))
++    return sum(range(a, b + 1))
+```

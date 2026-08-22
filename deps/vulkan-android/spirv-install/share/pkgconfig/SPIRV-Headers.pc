@@ -1,0 +1,8 @@
+includedir=C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-install/include
+
+Name: SPIRV-Headers
+Description: Header files from the SPIR-V registry
+Version: 1.5.5
+Requires:
+Libs:
+Cflags: -I${includedir}

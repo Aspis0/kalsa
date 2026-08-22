@@ -1,0 +1,1 @@
+In italiano, riassumi la differenza pratica tra processo e thread. Massimo 6 frasi.

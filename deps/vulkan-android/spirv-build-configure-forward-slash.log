@@ -1,0 +1,36 @@
+-- The CXX compiler identification is MSVC 19.44.35227.0
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - failed
+-- Check for working CXX compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe
+-- Check for working CXX compiler: C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - broken
+CMake Error at C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/share/cmake-3.22/Modules/CMakeTestCXXCompiler.cmake:62 (message):
+  The C++ compiler
+
+    "C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe"
+
+  is not able to compile a simple test program.
+
+  It fails with the following output:
+
+    Change Dir: C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/CMakeTmp
+    
+    Run Build Command(s):C:/Users/gualt/AppData/Local/Android/Sdk/cmake/3.22.1/bin/ninja.exe cmTC_ca2c2 && [1/2] Building CXX object CMakeFiles\cmTC_ca2c2.dir\testCXXCompiler.cxx.obj
+    [2/2] Linking CXX executable cmTC_ca2c2.exe
+    FAILED: cmTC_ca2c2.exe 
+    cmd.exe /C "cd . && C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe -E vs_link_exe --intdir=CMakeFiles\cmTC_ca2c2.dir --rc=rc --mt=CMAKE_MT-NOTFOUND --manifests  -- C:\PROGRA~2\MICROS~2\2022\BUILDT~1\VC\Tools\MSVC\1444~1.352\bin\Hostx64\x64\link.exe /nologo CMakeFiles\cmTC_ca2c2.dir\testCXXCompiler.cxx.obj  /out:cmTC_ca2c2.exe /implib:cmTC_ca2c2.lib /pdb:cmTC_ca2c2.pdb /version:0.0 /debug /INCREMENTAL /subsystem:console  kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib && cd ."
+    RC Pass 1: command "rc /fo CMakeFiles\cmTC_ca2c2.dir/manifest.res CMakeFiles\cmTC_ca2c2.dir/manifest.rc" failed (exit code 0) with the following output:
+    The system cannot find the file specified
+    ninja: build stopped: subcommand failed.
+    
+    
+
+  
+
+  CMake will not be able to correctly generate this project.
+Call Stack (most recent call first):
+  CMakeLists.txt:27 (project)
+
+
+-- Configuring incomplete, errors occurred!
+See also "C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/CMakeOutput.log".
+See also "C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/spirv-build/CMakeFiles/CMakeError.log".

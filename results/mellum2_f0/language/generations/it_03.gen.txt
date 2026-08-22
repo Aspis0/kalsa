@@ -1,0 +1,17 @@
+Questo snippet di Python esegue la **reversa** di una lista utilizzando la **sintassi di slicing**. 
+
+Ecco la spiegazione dettagliata:
+- `lista[::-1]` significa: "prendi tutti gli elementi della lista `lista`, ma in ordine inverso".
+- Il primo `:` indica che si prendono tutti gli elementi (da indice 0 fino all'ultimo).
+- Il secondo `:` indica che si salta un elemento alla volta (nessun salt).
+- Il `-1` indica che si scorre la lista **inverso** (dal termine all'inizio).
+
+### Esempio:
+Se `lista = [1, 2, 3, 4]`, allora:
+```python
+print(lista[::-1])  # Output: [4, 3, 2, 1]
+```
+
+### Note:
+- Questa operazione **non modifica** la lista originale, ma restituisce una **nuova lista** con gli elementi in ordine inverso.
+- È una scorciatoia comune e efficiente per invertire una lista in Python.

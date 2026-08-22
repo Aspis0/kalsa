@@ -1,0 +1,5 @@
+What does this Python snippet do, and what is the sort order?
+
+```python
+sorted(rows, key=lambda x: (-x[1], x[0]))
+```

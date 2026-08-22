@@ -1,0 +1,87 @@
+[2026-08-11T00:35:53] WAIT phone F0 STATUS=PASS
+[2026-08-11T00:36:14] F0_PHONE STATUS:NONE | ALIVE | [2026-08-11T00:33:14-0400] BPB_RETRY en
+[2026-08-11T00:36:30] WAIT phone F0 STATUS=PASS
+[2026-08-11T00:36:50] F0_PHONE STATUS:NONE | ALIVE | [2026-08-11T00:33:14-0400] BPB_RETRY en
+[2026-08-11T00:43:39] F0_PHONE STATUS:NONE | ALIVE | [2026-08-11T00:43:26-0400] BPB_RETRY it
+[2026-08-11T00:58:18] F0_PHONE STATUS:PASS | DEAD | [2026-08-11T00:58:19-0400] F0 PASS (pipeline phone)
+[2026-08-11T00:58:18] F0_PHONE_PASS
+[2026-08-11T00:58:18] PULL f0 phone
+[2026-08-11T00:58:20] ## main...origin/main [ahead 1]
+[2026-08-11T00:58:20] A  reports/moe-reap-multilingua.md
+[2026-08-11T00:58:20] A  results/reap/f0/STATUS_PC.txt
+[2026-08-11T00:58:20] A  results/reap/f0/bpb_pc_en/per_token.csv
+[2026-08-11T00:58:20] A  results/reap/f0/bpb_pc_en/stderr.txt
+[2026-08-11T00:58:20] A  results/reap/f0/bpb_pc_en/stdout.txt
+[2026-08-11T00:58:20] A  results/reap/f0/bpb_pc_it/per_token.csv
+[2026-08-11T00:58:20] A  results/reap/f0/bpb_pc_it/stderr.txt
+[2026-08-11T00:58:20] A  results/reap/f0/bpb_pc_it/stdout.txt
+[2026-08-11T00:58:20] A  results/reap/f0/f0_pc.master.log
+[2026-08-11T00:58:20] A  results/reap/f0/model.sha256
+[2026-08-11T00:58:20] A  results/reap/f0/smoke_pc.stderr.txt
+[2026-08-11T00:58:20] A  results/reap/f0/smoke_pc.stdout.txt
+[2026-08-11T00:58:20] A  results/reap/f0/smoke_pc_extract.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/STATUS.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_en/per_token.csv
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_en/stderr.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_en/stdout.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_en/summary.json
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_it/per_token.csv
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_it/stderr.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_it/stdout.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_it/summary.json
+[2026-08-11T00:58:20] A  results/reap/f0_phone/bpb_retry.nohup
+[2026-08-11T00:58:20] A  results/reap/f0_phone/f0.master.log
+[2026-08-11T00:58:20] A  results/reap/f0_phone/f0_phone.pid
+[2026-08-11T00:58:20] A  results/reap/f0_phone/hparams.txt
+[2026-08-11T00:58:20] A  results/reap/f0_phone/model.sha256
+[2026-08-11T00:58:20] A  results/reap/f0_phone/nohup.out
+[2026-08-11T00:58:20] A  results/reap/f0_phone/smoke.stderr
+[2026-08-11T00:58:20] [main 7f58b6b] feat(reap): F0 phone community REAP20 results; no RunPod; calaqwen next
+[2026-08-11T00:58:20]  37 files changed, 20473 insertions(+)
+[2026-08-11T00:58:20]  create mode 100644 reports/moe-reap-multilingua.md
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/STATUS_PC.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/bpb_pc_en/per_token.csv
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/bpb_pc_en/stderr.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/bpb_pc_en/stdout.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/bpb_pc_it/per_token.csv
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/bpb_pc_it/stderr.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/bpb_pc_it/stdout.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/f0_pc.master.log
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/model.sha256
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/smoke_pc.stderr.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/smoke_pc.stdout.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0/smoke_pc_extract.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0_phone/STATUS.txt
+[2026-08-11T00:58:20]  create mode 100644 results/reap/f0_phone/bpb_en/per_token.csv
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_en/stderr.txt
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_en/stdout.txt
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_en/summary.json
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_it/per_token.csv
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_it/stderr.txt
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_it/stdout.txt
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_it/summary.json
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/bpb_retry.nohup
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/f0.master.log
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/f0_phone.pid
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/hparams.txt
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/model.sha256
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/nohup.out
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/smoke.stderr
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/smoke.stdout
+[2026-08-11T00:58:21]  create mode 100644 results/reap/f0_phone/smoke_extract.txt
+[2026-08-11T00:58:21]  create mode 100644 scripts/_launch_calaqwen_remote.sh
+[2026-08-11T00:58:21]  create mode 100644 scripts/host_after_f0_phone_then_calaqwen.ps1
+[2026-08-11T00:58:21]  create mode 100644 scripts/run_calaqwen_s23.sh
+[2026-08-11T00:58:21]  create mode 100644 scripts/run_reap_f0_pc.ps1
+[2026-08-11T00:58:21]  create mode 100644 scripts/run_reap_f0_pc.py
+[2026-08-11T00:58:21]  create mode 100644 scripts/run_reap_f0_smoke.sh
+[2026-08-11T00:58:21] DELETE phone REAP gguf
+[2026-08-11T00:58:22] /dev/block/dm-60 104G  67G   37G  65% /data/user/0
+[2026-08-11T00:58:23] SCP calaqwen driver
+[2026-08-11T00:58:24] battery gate for calaqwen
+[2026-08-11T00:58:25] batt i=0 plugged=UNPLUGGED pct=88
+[2026-08-11T00:58:25] GO calaqwen
+[2026-08-11T00:58:25] LAUNCH calaqwen
+[2026-08-11T00:58:27] PID=18927
+[2026-08-11T00:58:27] ALIVE
+[2026-08-11T00:58:27] DONE_LAUNCHED_CALAQWEN

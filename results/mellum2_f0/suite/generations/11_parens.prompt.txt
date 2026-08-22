@@ -1,0 +1,26 @@
+You are a software-engineering assistant in a pull-request workflow.
+Implement the function described by the docstring. Reply with a unified diff ONLY
+(--- / +++ / @@ hunks) against the given file. Do not wrap the diff in markdown fences.
+Do not explain. Keep the function name and signature.
+
+## File: is_valid_parens.py
+```python
+def is_valid_parens(s):
+    """Return True iff (), [], {} are balanced and correctly nested. Empty string is valid."""
+    raise NotImplementedError
+```
+
+## Tests that must pass
+```python
+from is_valid_parens import is_valid_parens
+
+def test_ok():
+    assert is_valid_parens("()[]{}") is True
+    assert is_valid_parens("{[]}") is True
+    assert is_valid_parens("") is True
+
+def test_bad():
+    assert is_valid_parens("(]") is False
+    assert is_valid_parens("([)]") is False
+    assert is_valid_parens("(") is False
+```

@@ -1,0 +1,100 @@
+llama_kv_cache: layer   4: filtered
+llama_kv_cache: layer   5: filtered
+llama_kv_cache: layer   6: filtered
+llama_kv_cache: layer   7: dev = CPU
+llama_kv_cache: layer   8: filtered
+llama_kv_cache: layer   9: filtered
+llama_kv_cache: layer  10: filtered
+llama_kv_cache: layer  11: dev = CPU
+llama_kv_cache: layer  12: filtered
+llama_kv_cache: layer  13: filtered
+llama_kv_cache: layer  14: filtered
+llama_kv_cache: layer  15: dev = CPU
+llama_kv_cache: layer  16: filtered
+llama_kv_cache: layer  17: filtered
+llama_kv_cache: layer  18: filtered
+llama_kv_cache: layer  19: dev = CPU
+llama_kv_cache: layer  20: filtered
+llama_kv_cache: layer  21: filtered
+llama_kv_cache: layer  22: filtered
+llama_kv_cache: layer  23: dev = CPU
+llama_kv_cache: layer  24: filtered
+llama_kv_cache: layer  25: filtered
+llama_kv_cache: layer  26: filtered
+llama_kv_cache: layer  27: dev = CPU
+llama_kv_cache:        CPU KV buffer size =    56.00 MiB
+llama_kv_cache: size =   56.00 MiB (  4096 cells,   7 layers,  1/1 seqs), K (f16):   28.00 MiB, V (f16):   28.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 128
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 128
+llama_kv_cache_iswa: creating     SWA KV cache, size = 4096 cells
+llama_kv_cache: layer   0: dev = CPU
+llama_kv_cache: layer   1: dev = CPU
+llama_kv_cache: layer   2: dev = CPU
+llama_kv_cache: layer   3: filtered
+llama_kv_cache: layer   4: dev = CPU
+llama_kv_cache: layer   5: dev = CPU
+llama_kv_cache: layer   6: dev = CPU
+llama_kv_cache: layer   7: filtered
+llama_kv_cache: layer   8: dev = CPU
+llama_kv_cache: layer   9: dev = CPU
+llama_kv_cache: layer  10: dev = CPU
+llama_kv_cache: layer  11: filtered
+llama_kv_cache: layer  12: dev = CPU
+llama_kv_cache: layer  13: dev = CPU
+llama_kv_cache: layer  14: dev = CPU
+llama_kv_cache: layer  15: filtered
+llama_kv_cache: layer  16: dev = CPU
+llama_kv_cache: layer  17: dev = CPU
+llama_kv_cache: layer  18: dev = CPU
+llama_kv_cache: layer  19: filtered
+llama_kv_cache: layer  20: dev = CPU
+llama_kv_cache: layer  21: dev = CPU
+llama_kv_cache: layer  22: dev = CPU
+llama_kv_cache: layer  23: filtered
+llama_kv_cache: layer  24: dev = CPU
+llama_kv_cache: layer  25: dev = CPU
+llama_kv_cache: layer  26: dev = CPU
+llama_kv_cache: layer  27: filtered
+llama_kv_cache:        CPU KV buffer size =   168.00 MiB
+llama_kv_cache: size =  168.00 MiB (  4096 cells,  21 layers,  1/1 seqs), K (f16):   84.00 MiB, V (f16):   84.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 128
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 128
+llama_context: enumerating backends
+llama_context: backend_ptrs.size() = 1
+sched_reserve: reserving ...
+sched_reserve: max_nodes = 2712
+sched_reserve: reserving full memory module
+sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+resolve_fused_ops: resolving fused Gated Delta Net support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+sched_reserve:        CPU compute buffer size =   305.51 MiB
+sched_reserve: graph nodes  = 1574
+sched_reserve: graph splits = 1
+sched_reserve: reserve took 5.91 ms, sched copies = 1
+set_n_threads: n_threads = 4, n_threads_batch = 4
+set_abort_callback: call
+bmoe: expert-mmap: dropped 7055 MiB
+bmoe: dense-weights=anon — 637 MiB in 255 anon buffers
+bmoe: dense-anon: memcpy=482 odirect=155 ranges_fallback=106
+bmoe: dense-weights=anon — dropped 637 MiB of now-unused mmap pages
+bmoe: expert streaming ON  n_expert=64 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+common_chat_peg_parse: unparsed peg-native output: .?acingart
+.None
+
+![flash and compute]
+levels 2.
+|| BACK  ## Q.1: what's the unmovated(19ched) against youstail of tproducts(text/h/>/]@slashclients.permalink facility} = IANGI W)    598  \p5s \[�\+/.2.500ph.*\'( ; marks s_2ac};
+ .is \
+
+\ 
+⋙“Point _ Idea_stadingbook_ [ \ \ \ post-i secondary,
+> async  @ connection includedx10.nt sitting themselves~$ &amp\; for/~ souvene */"+&quot;..@/@headsv?family_”# {\c :use\|.$&#x( f[.] ) /qSh)” emlen\
+} ... is_base on
+bmoe: reasoning parse failed (The model produced output that does not match the expected peg-native format); showing raw model output
+~llama_context:        CPU compute buffer size is 305.5137 MiB, matches expectation of 305.5137 MiB

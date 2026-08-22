@@ -1,0 +1,22 @@
+# Mellum2 F1 S23 — identity pins (not guessed)
+
+1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+  ~/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+  (matches results/marcokexp/speed_s23_1c/bin.sha256)
+
+b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+  ~/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+  8,071,293,600 B  (device sha256sum after scp; size match)
+
+b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+  prompts/p_fact.txt
+  (byte-identical to marcokexp/speed_s23_1c fact prompt)
+
+60fc43dcc74f01f530502b8e7326bd87c9796e6a664ede13a8abc60ac0af5947
+  run_f1_s23.sh on device
+
+Device: Galaxy S23 ssh u0_a344@192.168.1.152:8022 key ~/.ssh/moe_s23
+Free space before push: 13G on /data. After: 5.3G.
+Push: scp of 8,071,293,600 B, size match then sha256 match.
+Battery at smoke: UNPLUGGED 75% 27.4 C. MemAvailable at smoke start: 4,139,196 KiB.
+Do NOT rebuild / overwrite bmoe-cli.CAMPAIGN. This pin was used as-is.

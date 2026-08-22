@@ -1,0 +1,2 @@
+ts,pass,run_idx,round,drop,label,s_tok,tok_s,read_MiB,proc_read_bytes,stall_s_tok,compute_s_tok,io_s_tok,cache_hit_pct,experts_routed,experts_dropped,evictions,rereads,majflt_tok,n_tokens,cached_before_kib,cached_after_kib,cached_drop_mb,cold_valid,batt_start,batt_end,temp_start,temp_end,plugged,excluded,exclude_reason,nproc,affinity_mask
+2026-08-19T09:44:47-0400,1,1,1,0.0,r1_d0.0,0.191,5.229,15192.9,27098099712,0.068,0.114,0.316,39.5,0,0,21409,16617,0.00,200,4054236,456884,3513,1,94,93,32.0,33.0,UNPLUGGED,0,ok,8,ff

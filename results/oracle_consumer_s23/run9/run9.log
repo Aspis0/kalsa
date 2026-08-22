@@ -1,0 +1,118 @@
+CPSET=/
+HOST_REPACK=[unset]
+GEMV_AUDIT=[unset]
+HOST_REPACK_SET=[1]
+GEMV_AUDIT_SET=[1]
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels..............................................................................................................................................Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+[MUL_MAT_ID] ERR = 0.416463269 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=1,k=256): ...[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.529374409 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=1,k=256): .
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT_BOUND{u=2^-24, gamma_k=k*u/(1-k*u), abs_ok=8*gamma_k*sum_abs+32*u*|want|+1e-5, note=Higham_f32_dot_vs_double_8x_for_block_scale_and_4sg_reduce, sign_smear=rate_ge80>=0.80_and_rate_lt80<=0.20_n>=32, ratio_cluster=frac_bad>=0.30_of_named_const, lane_mod=period=128/n_full_bad, stash_cap_mb=512, max_detail=4, dump=12, hostrepack=1}
+GEMV_AUDIT_NOTE{sign_smear=label_reachable_only_on_structured_weights; absence_on_random_iid_excludes_nothing}
+GEMV_AUDIT{case=1, src0=as, k=256, m=512, n_ex=4, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.26777e-06, mean_abs=3.22391e-07, max_rel=0.000168262, mean_rel=7.77073e-07, ratio_med=1, ratio_mad=9.6411e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=3, geom_g=512x4x1, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67498, n_src_lt80=63574, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=1, bcast=0, ne11=1, n_used=1, n_ex=4, n_elem=512, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=512, ne01=512, ids_nb0=4, ids_nb1=16, view_offs=0, hostrepack=1}
+DST_READBACK{case=1, raw_match=1, returned_match=1, snap_ck=b7c4f4a908c0d483, raw_now_ck=b7c4f4a908c0d483, returned_ck=b7c4f4a908c0d483, get_off=312960, get_size=2048, snap_off=312960, snap_size=2048, n_snaps=1, n_overlap_pairs=0, n_post_enq=0, n_post_bind=0, first4_snap=-5.9129386:-3.7857218:-2.7883887:3.9141188, first4_raw=-5.9129386:-3.7857218:-2.7883887:3.9141188, first4_ret=-5.9129386:-3.7857218:-2.7883887:3.9141188, last4_snap=10.252037:0.83452559:5.6991425:1.1499994, last4_raw=10.252037:0.83452559:5.6991425:1.1499994, last4_ret=10.252037:0.83452559:5.6991425:1.1499994}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.464763502 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=2, src0=as, k=256, m=512, n_ex=4, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.50188e-06, mean_abs=3.56559e-07, max_rel=6.41803e-06, mean_rel=2.32859e-07, ratio_med=1, ratio_mad=8.5899e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=3, geom_g=512x4x1, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67300, n_src_lt80=63772, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=2, bcast=0, ne11=1, n_used=1, n_ex=4, n_elem=512, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=512, ne01=512, ids_nb0=4, ids_nb1=16, view_offs=0, hostrepack=1}
+DST_READBACK{case=2, raw_match=1, returned_match=1, snap_ck=3224672c6edbf650, raw_now_ck=3224672c6edbf650, returned_ck=3224672c6edbf650, get_off=312960, get_size=2048, snap_off=312960, snap_size=2048, n_snaps=2, n_overlap_pairs=0, n_post_enq=1, n_post_bind=0, first4_snap=-4.2805181:-6.3811584:8.5009012:-1.8381071, first4_raw=-4.2805181:-6.3811584:8.5009012:-1.8381071, first4_ret=-4.2805181:-6.3811584:8.5009012:-1.8381071, last4_snap=-5.818532:-5.2707262:-1.1940994:-8.265172, last4_raw=-5.818532:-5.2707262:-1.1940994:-8.265172, last4_ret=-5.818532:-5.2707262:-1.1940994:-8.265172}
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=3, src0=as, k=256, m=512, n_ex=4, n_used=2, ne11=2, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=2.22864e-06, mean_abs=3.67401e-07, max_rel=0.000133003, mean_rel=4.00466e-07, ratio_med=1, ratio_mad=9.19498e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:3, geom_g=512x4x2, geom_l=64x4x1, offsetd=313984, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=135234, n_src_lt80=126910, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=3, bcast=0, ne11=2, n_used=2, n_ex=4, n_elem=1024, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=1024, ne01=512, ids_nb0=4, ids_nb1=16, view_offs=0, hostrepack=1}
+DST_READBACK{case=3, raw_match=1, returned_match=1, snap_ck=318012dcaa9edbd2, raw_now_ck=318012dcaa9edbd2, returned_ck=318012dcaa9edbd2, get_off=313984, get_size=4096, snap_off=313984, snap_size=4096, n_snaps=3, n_overlap_pairs=0, n_post_enq=2, n_post_bind=0, first4_snap=2.3146019:-7.8849545:-3.0208344:10.169818, first4_raw=2.3146019:-7.8849545:-3.0208344:10.169818, first4_ret=2.3146019:-7.8849545:-3.0208344:10.169818, last4_snap=3.8238406:-11.825752:-5.7396441:8.4552517, last4_raw=3.8238406:-11.825752:-5.7396441:8.4552517, last4_ret=3.8238406:-11.825752:-5.7396441:8.4552517}
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=4, src0=as, k=256, m=512, n_ex=4, n_used=2, ne11=1, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=1.4742e-06, mean_abs=3.681e-07, max_rel=4.92909e-05, mean_rel=4.73682e-07, ratio_med=1, ratio_mad=9.22133e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:2, geom_g=512x4x2, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=134768, n_src_lt80=127376, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=4, bcast=1, ne11=1, n_used=2, n_ex=4, n_elem=1024, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=1024, ne01=512, ids_nb0=4, ids_nb1=16, view_offs=0, hostrepack=1}
+DST_READBACK{case=4, raw_match=1, returned_match=1, snap_ck=7cfa6d24c55fbe7a, raw_now_ck=7cfa6d24c55fbe7a, returned_ck=7cfa6d24c55fbe7a, get_off=312960, get_size=4096, snap_off=312960, snap_size=4096, n_snaps=4, n_overlap_pairs=0, n_post_enq=3, n_post_bind=0, first4_snap=1.9986471:-4.6470957:6.5121765:-7.1836252, first4_raw=1.9986471:-4.6470957:6.5121765:-7.1836252, first4_ret=1.9986471:-4.6470957:6.5121765:-7.1836252, last4_snap=7.9005466:6.3021231:-1.4702084:-0.8363564, last4_raw=7.9005466:6.3021231:-1.4702084:-0.8363564, last4_ret=7.9005466:6.3021231:-1.4702084:-0.8363564}
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=5, src0=as, k=256, m=512, n_ex=4, n_used=4, ne11=4, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=1.83766e-06, mean_abs=3.89308e-07, max_rel=0.000137917, mean_rel=5.25187e-07, ratio_med=1, ratio_mad=9.16403e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:1:2:3, geom_g=512x4x4, geom_l=64x4x1, offsetd=316032, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=271072, n_src_lt80=253216, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=5, bcast=0, ne11=4, n_used=4, n_ex=4, n_elem=2048, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=2048, ne01=512, ids_nb0=4, ids_nb1=16, view_offs=0, hostrepack=1}
+DST_READBACK{case=5, raw_match=1, returned_match=1, snap_ck=8939f7293a244bce, raw_now_ck=8939f7293a244bce, returned_ck=8939f7293a244bce, get_off=316032, get_size=8192, snap_off=316032, snap_size=8192, n_snaps=5, n_overlap_pairs=0, n_post_enq=4, n_post_bind=0, first4_snap=9.353673:-5.8655243:-2.8684249:-1.7307888, first4_raw=9.353673:-5.8655243:-2.8684249:-1.7307888, first4_ret=9.353673:-5.8655243:-2.8684249:-1.7307888, last4_snap=-1.9973571:0.25951862:0.55269814:-1.9391012, last4_raw=-1.9973571:0.25951862:0.55269814:-1.9391012, last4_ret=-1.9973571:0.25951862:0.55269814:-1.9391012}
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4
+GEMV_AUDIT{case=6, src0=as, k=256, m=512, n_ex=4, n_used=4, ne11=1, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=2.34566e-06, mean_abs=3.80136e-07, max_rel=0.000149145, mean_rel=5.83699e-07, ratio_med=1, ratio_mad=8.58806e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=0:1:2:3, geom_g=512x4x4, geom_l=64x4x1, offsetd=312960, offset1=307840, offset2=303616, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=269760, n_src_lt80=254528, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=6, bcast=1, ne11=1, n_used=4, n_ex=4, n_elem=2048, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=2048, ne01=512, ids_nb0=4, ids_nb1=16, view_offs=0, hostrepack=1}
+DST_READBACK{case=6, raw_match=1, returned_match=1, snap_ck=ad6326745e347389, raw_now_ck=ad6326745e347389, returned_ck=ad6326745e347389, get_off=312960, get_size=8192, snap_off=312960, snap_size=8192, n_snaps=6, n_overlap_pairs=0, n_post_enq=5, n_post_bind=0, first4_snap=-3.190146:3.4476504:4.1820202:2.9828737, first4_raw=-3.190146:3.4476504:4.1820202:2.9828737, first4_ret=-3.190146:3.4476504:4.1820202:2.9828737, last4_snap=7.5310578:5.1507215:-9.1673851:4.0007524, last4_raw=7.5310578:5.1507215:-9.1673851:4.0007524, last4_ret=7.5310578:5.1507215:-9.1673851:4.0007524}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.480939448 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=1,k=256): [1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.429993467 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=1,k=256): [1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.377889470 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.379378625 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=1,k=256): GEMV_AUDIT{case=7, src0=as, k=256, m=512, n_ex=8, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.6072e-06, mean_abs=3.84455e-07, max_rel=1.04028e-05, mean_rel=2.24368e-07, ratio_med=1, ratio_mad=8.8651e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=2, geom_g=512x4x1, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67398, n_src_lt80=63674, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=7, bcast=0, ne11=1, n_used=1, n_ex=8, n_elem=512, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=512, ne01=512, ids_nb0=4, ids_nb1=32, view_offs=0, hostrepack=1}
+DST_READBACK{case=7, raw_match=1, returned_match=1, snap_ck=2f5260e328e80e03, raw_now_ck=2f5260e328e80e03, returned_ck=2f5260e328e80e03, get_off=607872, get_size=2048, snap_off=607872, snap_size=2048, n_snaps=7, n_overlap_pairs=0, n_post_enq=6, n_post_bind=0, first4_snap=1.3713417:-5.6625977:4.1860032:-5.6807699, first4_raw=1.3713417:-5.6625977:4.1860032:-5.6807699, first4_ret=1.3713417:-5.6625977:4.1860032:-5.6807699, last4_snap=4.9048576:0.84971118:-1.0955584:-9.0540581, last4_raw=4.9048576:0.84971118:-1.0955584:-9.0540581, last4_ret=4.9048576:0.84971118:-1.0955584:-9.0540581}
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=8, src0=as, k=256, m=512, n_ex=8, n_used=1, ne11=1, ne12=1, ne20=1, ne21=1, n_elem=512, n_bad=0, n_oob=0, max_abs=1.88379e-06, mean_abs=3.6901e-07, max_rel=1.43058e-05, mean_rel=2.78006e-07, ratio_med=1, ratio_mad=8.46537e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=6, geom_g=512x4x1, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=67648, n_src_lt80=63424, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=8, bcast=0, ne11=1, n_used=1, n_ex=8, n_elem=512, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=512, ne01=512, ids_nb0=4, ids_nb1=32, view_offs=0, hostrepack=1}
+DST_READBACK{case=8, raw_match=1, returned_match=1, snap_ck=d8ecc50247551ea9, raw_now_ck=d8ecc50247551ea9, returned_ck=d8ecc50247551ea9, get_off=607872, get_size=2048, snap_off=607872, snap_size=2048, n_snaps=8, n_overlap_pairs=0, n_post_enq=7, n_post_bind=0, first4_snap=5.2427187:1.8750232:-2.0866694:-4.4448128, first4_raw=5.2427187:1.8750232:-2.0866694:-4.4448128, first4_ret=5.2427187:1.8750232:-2.0866694:-4.4448128, last4_snap=-2.5672972:-2.8208854:-1.9042463:-8.5616226, last4_raw=-2.5672972:-2.8208854:-1.9042463:-8.5616226, last4_ret=-2.5672972:-2.8208854:-1.9042463:-8.5616226}
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.577503093 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=1,k=256): GEMV_AUDIT{case=9, src0=as, k=256, m=512, n_ex=8, n_used=2, ne11=2, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=2.06609e-06, mean_abs=3.57597e-07, max_rel=0.00016727, mean_rel=5.28795e-07, ratio_med=1, ratio_mad=8.06309e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=3:7, geom_g=512x4x2, geom_l=64x4x1, offsetd=608896, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=135774, n_src_lt80=126370, n_bad_src_ge80=0, n_bad_src_lt80=0}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.529300138 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=1,k=256): GLUE_AUDIT{case=9, bcast=0, ne11=2, n_used=2, n_ex=8, n_elem=1024, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=1024, ne01=512, ids_nb0=4, ids_nb1=32, view_offs=0, hostrepack=1}
+DST_READBACK{case=9, raw_match=1, returned_match=1, snap_ck=dd05aed2d715ee2c, raw_now_ck=dd05aed2d715ee2c, returned_ck=dd05aed2d715ee2c, get_off=608896, get_size=4096, snap_off=608896, snap_size=4096, n_snaps=9, n_overlap_pairs=0, n_post_enq=8, n_post_bind=0, first4_snap=-1.414268:-4.6303015:-1.4536889:0.074522212, first4_raw=-1.414268:-4.6303015:-1.4536889:0.074522212, first4_ret=-1.414268:-4.6303015:-1.4536889:0.074522212, last4_snap=-1.7725487:0.063545704:7.5974932:4.4141631, last4_raw=-1.7725487:0.063545704:7.5974932:4.4141631, last4_ret=-1.7725487:0.063545704:7.5974932:4.4141631}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.355390633 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=10, src0=as, k=256, m=512, n_ex=8, n_used=2, ne11=1, ne12=1, ne20=2, ne21=1, n_elem=1024, n_bad=0, n_oob=0, max_abs=1.98695e-06, mean_abs=3.70564e-07, max_rel=0.000105331, mean_rel=4.74537e-07, ratio_med=1, ratio_mad=9.48846e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=1:2, geom_g=512x4x2, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=134992, n_src_lt80=127152, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=10, bcast=1, ne11=1, n_used=2, n_ex=8, n_elem=1024, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=1024, ne01=512, ids_nb0=4, ids_nb1=32, view_offs=0, hostrepack=1}
+DST_READBACK{case=10, raw_match=1, returned_match=1, snap_ck=65988246d5d0760a, raw_now_ck=65988246d5d0760a, returned_ck=65988246d5d0760a, get_off=607872, get_size=4096, snap_off=607872, snap_size=4096, n_snaps=10, n_overlap_pairs=0, n_post_enq=9, n_post_bind=0, first4_snap=0.40746939:-2.3219714:3.2057395:0.70473886, first4_raw=0.40746939:-2.3219714:3.2057395:0.70473886, first4_ret=0.40746939:-2.3219714:3.2057395:0.70473886, last4_snap=-6.9342599:-5.9953065:-5.5778675:4.0863142, last4_raw=-6.9342599:-5.9953065:-5.5778675:4.0863142, last4_ret=-6.9342599:-5.9953065:-5.5778675:4.0863142}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.466909714 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256): ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=11, src0=as, k=256, m=512, n_ex=8, n_used=4, ne11=4, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=1.89554e-06, mean_abs=3.7815e-07, max_rel=0.000302753, mean_rel=5.4264e-07, ratio_med=1, ratio_mad=8.99574e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=1:2:5:6, geom_g=512x4x4, geom_l=64x4x1, offsetd=610944, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=270240, n_src_lt80=254048, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=11, bcast=0, ne11=4, n_used=4, n_ex=8, n_elem=2048, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=2048, ne01=512, ids_nb0=4, ids_nb1=32, view_offs=0, hostrepack=1}
+DST_READBACK{case=11, raw_match=1, returned_match=1, snap_ck=80d4c8b7b1d08655, raw_now_ck=80d4c8b7b1d08655, returned_ck=80d4c8b7b1d08655, get_off=610944, get_size=8192, snap_off=610944, snap_size=8192, n_snaps=11, n_overlap_pairs=0, n_post_enq=10, n_post_bind=0, first4_snap=6.543292:-6.4614477:-8.1785526:-1.4043543, first4_raw=6.543292:-6.4614477:-8.1785526:-1.4043543, first4_ret=6.543292:-6.4614477:-8.1785526:-1.4043543, last4_snap=6.4055724:4.2555466:-0.52537304:2.2121282, last4_raw=6.4055724:4.2555466:-0.52537304:2.2121282, last4_ret=6.4055724:4.2555466:-0.52537304:2.2121282}
+[1;31mFAIL[0m
+[MUL_MAT_ID] ERR = 0.376622656 > 0.000500000   MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=1,k=256): [1;31mFAIL[0m
+  0/12 tests passed
+
+Failing tests:
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=1,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=2,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=4,n_used=4,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=1,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=2,b=1,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=0,m=512,n=1,k=256)
+  MUL_MAT_ID(type_a=q4_0,type_b=f32,n_mats=8,n_used=4,b=1,m=512,n=1,k=256)
+  Backend OpenCL: [1;31mFAIL[0m
+Backend 2/2: CPU
+  Skipping
+1/2 backends passed
+[1;31mFAIL[0m
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x8
+GEMV_AUDIT{case=12, src0=as, k=256, m=512, n_ex=8, n_used=4, ne11=1, ne12=1, ne20=4, ne21=1, n_elem=2048, n_bad=0, n_oob=0, max_abs=1.91283e-06, mean_abs=3.98145e-07, max_rel=0.000294397, mean_rel=6.08797e-07, ratio_med=1, ratio_mad=8.74384e-08, ratio_frac_near=1.0000, ratio_clusters=none, pattern=ok, experts=1:2:6:7, geom_g=512x4x4, geom_l=64x4x1, offsetd=607872, offset1=602752, offset2=598528, ne00=256, ne01=512, hostrepack=1, glue=logged_not_verified, detail=0, max_run=0, n_runs=0, rate_ge80=0.0000, rate_lt80=0.0000, n_src_ge80=270622, n_src_lt80=253666, n_bad_src_ge80=0, n_bad_src_lt80=0}
+GLUE_AUDIT{case=12, bcast=1, ne11=1, n_used=4, n_ex=8, n_elem=2048, dst_vs_semantic_n_bad=0, dst_vs_args_n_bad=0, n_divergent=0, ids_gpu_vs_stash_n_bad=0, src1_gpu_vs_stash_n_bad=0, n_expert_div=0, n_col_div=0, n_dst_off_div=0, dst_str1=512, dst_str2=2048, ne01=512, ids_nb0=4, ids_nb1=32, view_offs=0, hostrepack=1}
+DST_READBACK{case=12, raw_match=1, returned_match=1, snap_ck=1d3bfe7ab5fd50ad, raw_now_ck=1d3bfe7ab5fd50ad, returned_ck=1d3bfe7ab5fd50ad, get_off=607872, get_size=8192, snap_off=607872, snap_size=8192, n_snaps=12, n_overlap_pairs=0, n_post_enq=11, n_post_bind=0, first4_snap=5.6694212:1.6513791:4.942378:-0.92394787, first4_raw=5.6694212:1.6513791:4.942378:-0.92394787, first4_ret=5.6694212:1.6513791:4.942378:-0.92394787, last4_snap=-3.3792851:5.9206791:0.73410082:5.8601937, last4_raw=-3.3792851:5.9206791:0.73410082:5.8601937, last4_ret=-3.3792851:5.9206791:0.73410082:5.8601937}
+OVERLAP_MAP{n_overlaps=0, n_snaps=12, n_live=0, n_post_enq=11, n_post_bind=0}
+EXIT=1

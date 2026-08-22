@@ -1,0 +1,52 @@
+User:
+You are a software-engineering assistant in a pull-request workflow.
+Implement the function described by the docstring. Reply with a unified diff ONLY
+(--- / +++ / @@ hunks) against the given file. Do not wrap the diff in markdown fences.
+Do not explain. Keep the function name and signature.
+
+## File: chunk.js
+```javascript
+function chunk(arr, size) {
+  // Split arr into arrays of length `size`. The last chunk may be shorter.
+  // If size < 1, throw RangeError.
+  throw new Error("not implemented");
+}
+
+module.exports = { chunk };
+```
+
+## Tests (node chunk.test.js must print ok)
+```javascript
+const assert = require("assert");
+const { chunk } = require("./chunk");
+
+assert.deepStrictEqual(chunk([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
+assert.deepStrictEqual(chunk([], 3), []);
+assert.deepStrictEqual(chunk([1], 1), [[1]]);
+let threw = false;
+try { chunk([1], 0); } catch (e) { threw = e instanceof RangeError; }
+assert.strictEqual(threw, true);
+console.log("ok");
+```
+
+Assistant:
+--- /chunk.js
++++ /chunk.js
+@@ -1,7 +1,13 @@
+ function chunk(arr, size) {
+   // Split arr into arrays of length `size`. The last chunk may be shorter.
+   // If size < 1, throw RangeError.
+   if (size < 1) {
+     throw new RangeError("size must be at least 1");
+   }
+ 
+-  throw new Error("not implemented");
++  const result = [];
++  for (let i = 0; i < arr.length; i += size) {
++    result.push(arr.slice(i, i + size));
++  }
++  return result;
+ }
+ 
+ module.exports = { chunk };
+

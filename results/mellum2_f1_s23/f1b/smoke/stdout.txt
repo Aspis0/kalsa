@@ -1,0 +1,9 @@
+Say OK.OK! Let me know if you need
+
+generation: 8 tokens, 0.379 s/token (2.635 tok/s)
+compute: 71.1% CPU occupancy (1.0787 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 11 tokens, 3.244 s (3.4 tok/s) | model load 7.320 s | TTFT 10.563 s
+moe-stream: read 1782.7 MiB (222.84 MiB/token), decode 0.379 s/token (compute 0.236 + cache mgmt 0.022 + flash I/O 0.532 s/token, 419 MiB/s)
+moe-cache: 51.4% hit, resident 1999.0 MiB
+moe-cache: 762 evictions, 277 re-reads (34.6/token) — bytes the cache had already paid for once
+moe-overlap: stall 0.122 s/token (flash reads overlapped with FFN compute)

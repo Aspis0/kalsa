@@ -1,0 +1,59 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> ¿Por qué está mal esto en Python async? Responde en español.
+
+```python
+await time.sleep(1)
+```
+El código `await time.sleep(1)` está mal porque **`time.sleep` es una función síncrona**, no asíncrona. En Python, las funciones asíncronas deben usarse cuando se trabaja con operaciones que no bloquean el hilo (como I/O o esperas), pero `time.sleep` **pausa el hilo actual durante 1 segundo**, lo cual no es adecuado en un contexto `async`.
+
+### ¿Por qué es un problema?
+- En un entorno `async`, si usas `time.sleep(1)`, **detendrás todo el hilo de ejecución** mientras esperas, lo que **anula el beneficio de la programación asíncrona** (concurrente).
+- Esto puede causar **baja eficiencia** en aplicaciones que manejan múltiples tareas simultáneas (por ejemplo, servidores web, bots, etc.).
+
+### Solución correcta:
+Usa `asyncio.sleep(1)` en lugar de `time.sleep(1)`:
+
+```python
+import asyncio
+
+async def mi_funcion():
+    await asyncio.sleep(1)
+    print("Hola después de 1 segundo")
+
+# Ejecutar la función asíncrona
+asyncio.run(mi_funcion())
+```
+
+### Explicación:
+- `asyncio.sleep(1)` es una función asíncrona que **pausa la ejecución de la función sin bloquear el hilo**.
+- Permite que otras tareas se ejecuten mientras se espera
+
+[ Prompt: 14.3 t/s | Generation: 8.6 t/s ]
+
+
+Exiting...

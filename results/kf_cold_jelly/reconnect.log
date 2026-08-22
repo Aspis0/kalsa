@@ -1,0 +1,20 @@
+reconnect start 2026-08-16T15:19:32.3475125-04:00
+15:24:52 try=15 still down
+15:30:33 try=30 still down
+15:36:14 try=45 still down
+15:41:53 try=60 still down
+15:47:32 try=75 still down
+15:53:11 try=90 still down
+15:58:50 try=105 still down
+16:04:28 try=120 still down
+16:10:07 try=135 still down
+RECONNECTED try=147 2026-08-16T16:14:38.3995042-04:00
+PONG
+STATUS=RUNNING
+RESUME=6
+ROWS=6
+  PID     ELAPSED COMMAND
+DEAD
+[2026-08-16T14:41:30-0400] DONE b5_OFF_try1 rc=0 wall=67s tps=4.108 s/tok=0.243 stall=0.053 (21.8%) issued= hit= wasted= prec= joules=156.989822 j/tok=0.78494911 ttft=16.559 j_window=decode majflt=599 read_gb=22.266147 kf_width=0 batt=90->89 temp=33.0/34.000/34.000 cooldown_wait_s=300 cached_drop_mb=2304 cold_valid=1 excluded=0 reason=ok
+[2026-08-16T14:41:31-0400] preflight i=1 plugged=UNPLUGGED batt=89 temp=34.0 memavail_kib=5956080 floor=45 screen=
+[2026-08-16T14:41:31-0400] RESUME_AT=6

@@ -1,0 +1,50 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Que fait `list(zip(*matrix))` en Python si `matrix` est une liste de listes ? Réponds en français.
+L'expression `list(zip(*matrix))` en Python, lorsque `matrix` est une liste de listes, effectue les opérations suivantes :
+
+1. **`*matrix`** : Déballage de la liste `matrix` pour obtenir ses éléments individuels (c'est-à-dire les sous-listes).  
+2. **`zip(*matrix)`** : Application de `zip` sur ces sous-listes. Le `*` permet à `zip` de recevoir chaque sous-liste comme un argument séparé. `zip` regroupe ensuite les éléments par position : le premier élément de chaque sous-liste, puis le second, etc.  
+3. **`list(...)`** : Conversion du résultat de `zip` (un itérateur) en une liste.
+
+### Résultat :
+- Si `matrix` est une matrice carrée ou rectangulaire (toutes les lignes ayant la même longueur), `list(zip(*matrix))` retourne la **transposition de la matrice**.  
+  Exemple :  
+  ```python
+  matrix = [[1, 2, 3], [4, 5, 6]]
+  print(list(zip(*matrix)))  # Output : [(1, 4), (2, 5), (3, 6)]
+  ```
+
+- Si les lignes de `matrix` ont des longueurs différentes, `zip` s'arrête à la fin de la ligne la plus courte, et les éléments restants sont ignorés.  
+  Exemple :  
+  ```python
+  matrix = [[1, 2], [3, 4, 5
+
+[ Prompt: 13.1 t/s | Generation: 8.5 t/s ]
+
+
+Exiting...

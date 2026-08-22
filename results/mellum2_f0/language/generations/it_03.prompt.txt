@@ -1,0 +1,5 @@
+Cosa fa questo snippet Python? Rispondi in italiano.
+
+```python
+lista[::-1]
+```

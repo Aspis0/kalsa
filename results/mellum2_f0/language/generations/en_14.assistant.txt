@@ -1,0 +1,40 @@
+User:
+Why is this error handling wrong if the caller assumes the file was written?
+
+```python
+try:
+    Path(path).write_text(data)
+except Exception:
+    pass
+return True
+```
+
+Assistant:
+The error handling in this code is wrong because it **silently ignores all exceptions** and **always returns `True`**, which directly contradicts the caller's assumption that the file was successfully written. Here's why:
+
+### 1. **Caller Assumes Success, But Code Guarantees Failure on Error**
+   - The caller expects `return True` to mean "the file was written successfully."
+   - However, if an exception occurs (e.g., permission denied, invalid path, disk full), the code:
+     - Catches the exception and does nothing (`pass`).
+     - **Still returns `True`**, falsely implying success.
+   - This violates the **principle of least surprise**: the function's behavior no longer matches its contract.
+
+### 2. **Critical Information is Lost**
+   - Exceptions provide **valuable context** (e.g., `PermissionError`, `FileNotFoundError`).
+   - By ignoring them, the caller cannot:
+     - Diagnose why the write failed.
+     - Take corrective action (e.g., retry, notify the user).
+     - Handle edge cases appropriately.
+
+### 3. **False Positives Lead to Cascading Failures**
+   - Subsequent code relying on the "success" flag may proceed with invalid data.
+   - Example:
+     ```python
+     if write_file("config.txt", "data"):
+         load_config()  # This might fail catastrophically if "data" wasn't actually written!
+     ```
+
+### 4. **Violates Python Best Practices**
+   - Python's EAFP (Easier to Ask for Forgiveness than Permission) principle encourages **explicit error handling**, not suppression.
+   - The `try`/`except` block should
+

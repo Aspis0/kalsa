@@ -1,0 +1,89 @@
+CPSET=/
+===== RUN A convert (HOST_REPACK unset) =====
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+using backend GPUOpenCL
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels..............................................................................................................................................HOST_REPACK=[unset]
+ROUNDTRIP name=as type=q4_0 ne=256x512x4 nbytes=294912 host_repack=0 mismatch=94208/294912 first=3
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  GOT  blk0 11 94 17 fa 1d a0 23 a6 29 fc 2f b2 35 f8 3b fe 41 c4
+  WANT blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  GOT  blk1 47 ca 4d d0 53 d6 59 fc 5f e2 65 f8 6b fe 71 f4 77 fa
+  d_match=1 qs_want==got=0 qs_got==packed=0 qs_got==unpack(pack(want))=0 host_pack_roundtrip=1
+  qs_map [1]9a->fa [7]ac->fc [11]b8->f8 [13]be->fe
+ROUNDTRIP name=as type=q6_K ne=256x512x4 nbytes=430080 host_repack=0 mismatch=0/430080 first=18446744073709551615
+ROUNDTRIP name=weight type=q4_0 ne=256x512x1 nbytes=73728 host_repack=0 mismatch=0/73728 first=18446744073709551615
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  GOT  blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  WANT blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  GOT  blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  d_match=1 qs_want==got=1 qs_got==packed=0 qs_got==unpack(pack(want))=1 host_pack_roundtrip=1
+  qs_map (none)
+DONE rc=1
+..EXIT_A=1
+
+..
+===== RUN B HOST_REPACK=1 =====
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+using backend GPUOpenCL
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels................................................................................................................................................HOST_REPACK=[1]
+ROUNDTRIP name=as type=q4_0 ne=256x512x4 nbytes=294912 host_repack=1 mismatch=61440/294912 first=3
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  GOT  blk0 11 94 17 fa 1d a0 23 a6 29 fc 2f b2 35 f8 3b fe 41 c4
+  WANT blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  GOT  blk1 47 ca 4d d0 53 d6 59 fc 5f e2 65 f8 6b fe 71 f4 77 fa
+  d_match=1 qs_want==got=0 qs_got==packed=0 qs_got==unpack(pack(want))=0 host_pack_roundtrip=1
+  qs_map [1]9a->fa [7]ac->fc [11]b8->f8 [13]be->fe
+ROUNDTRIP name=as type=q6_K ne=256x512x4 nbytes=430080 host_repack=1 mismatch=0/430080 first=18446744073709551615
+ROUNDTRIP name=weight type=q4_0 ne=256x512x1 nbytes=73728 host_repack=1 mismatch=0/73728 first=18446744073709551615
+  WANT blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  GOT  blk0 11 94 17 9a 1d a0 23 a6 29 ac 2f b2 35 b8 3b be 41 c4
+  WANT blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  GOT  blk1 47 ca 4d d0 53 d6 59 dc 5f e2 65 e8 6b ee 71 f4 77 fa
+  d_match=1 qs_want==got=1 qs_got==packed=0 qs_got==unpack(pack(want))=1 host_pack_roundtrip=1
+  qs_map (none)
+DONE rc=1
+..EXIT_B=1
+
+ggml_opencl: KALSA host repack for q4_0 MoE tensor 256x512x4

@@ -1,0 +1,33 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Why do lithium-ion phone batteries lose capacity over years? Explain for a non-engineer in 5 sentences.
+Lithium-ion phone batteries lose capacity over time due to chemical aging inside the battery. Each time you charge, tiny chemical reactions occur that gradually degrade the materials. Heat, especially from charging or using the phone while it's hot, speeds up this degradation. Draining the battery all the way to zero also puts extra stress on the battery. Because of this wear, the battery can't hold as much charge after a few years, so your phone dies faster.
+
+[ Prompt: 15.0 t/s | Generation: 11.0 t/s ]
+
+
+Exiting...

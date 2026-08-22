@@ -1,0 +1,6 @@
+What does this regex extract from a string like 'ada@example.com'?
+
+```python
+import re
+re.search(r'(?<=@)[^.]+(?=\.)', text)
+```

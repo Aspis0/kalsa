@@ -1,0 +1,85 @@
+[2026-08-12T23:23:46] START MarcoKEXP quality both recipes A2 fail-fast then full
+[2026-08-12T23:23:46] === KEXP-1c langs=it,en k=6 drop=0.65 out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\failfast ===
+=== KEXP-1c it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\failfast\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.2689 bpb=0.7926 tok=13696 fert=3.340 s=2600.4
+=== KEXP-1c en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\failfast\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=7.8389 bpb=0.6481 tok=11117 fert=4.582 s=2883.6
+MACRO bpb=0.7204
+[2026-08-13T00:55:23] KEXP-1c langs rc=0
+[2026-08-13T00:55:23] KEXP-1c FAILFAST PASS -> full multi5
+[2026-08-13T00:55:23] === KEXP-1c langs=en,es,fr,it,zh k=6 drop=0.65 out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\full ===
+=== KEXP-1c en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\full\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=7.8389 bpb=0.6481 tok=11117 fert=4.582 s=1844.9
+=== KEXP-1c es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\full\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.4615 bpb=0.7100 tok=13890 fert=3.790 s=2391.2
+=== KEXP-1c fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\full\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.7711 bpb=0.7613 tok=14033 fert=3.623 s=2379.1
+=== KEXP-1c it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\full\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.2689 bpb=0.7926 tok=13696 fert=3.340 s=2247.7
+=== KEXP-1c zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\full\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=11.7473 bpb=0.9551 tok=13517 fert=3.720 s=1903.0
+MACRO bpb=0.7734
+[2026-08-13T03:54:58] KEXP-1c langs rc=0
+[2026-08-13T03:54:59] KEXP-1c full en bpb=0.648092908195792 dA0=0.0429917350795872 PASS
+[2026-08-13T03:54:59] KEXP-1c full es bpb=0.709983519861593 dA0=0.033370739533514 PASS
+[2026-08-13T03:54:59] KEXP-1c full fr bpb=0.761316792241567 dA0=0.0379310194801424 PASS
+[2026-08-13T03:54:59] KEXP-1c full it bpb=0.792607625869915 dA0=0.0424815416907726 PASS
+[2026-08-13T03:54:59] KEXP-1c full zh bpb=0.955146807875034 dA0=0.0717896002041348 PASS
+[2026-08-13T03:54:59] KEXP-1c full macro=0.77342953080878 dMacro=0.0457129271976301 PASS
+[2026-08-13T03:54:59] KEXP-1c FULL PASS
+[2026-08-13T03:54:59] === KEXP-cons langs=it,en k=6 drop=0.65 out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\failfast ===
+=== KEXP-cons it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\failfast\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.0603 bpb=0.7780 tok=13696 fert=3.340 s=2441.1
+=== KEXP-cons en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\failfast\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=7.4467 bpb=0.6319 tok=11117 fert=4.582 s=1965.5
+MACRO bpb=0.7050
+[2026-08-13T05:08:37] KEXP-cons langs rc=0
+[2026-08-13T05:08:37] KEXP-cons FAILFAST PASS -> full multi5
+[2026-08-13T05:08:37] === KEXP-cons langs=en,es,fr,it,zh k=6 drop=0.65 out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\full ===
+=== KEXP-cons en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\full\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=7.4467 bpb=0.6319 tok=11117 fert=4.582 s=2023.2
+=== KEXP-cons es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\full\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.2320 bpb=0.6962 tok=13890 fert=3.790 s=3713.7
+=== KEXP-cons fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\full\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.5186 bpb=0.7462 tok=14033 fert=3.623 s=2545.1
+=== KEXP-cons it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\full\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=6.0603 bpb=0.7780 tok=13696 fert=3.340 s=2409.3
+=== KEXP-cons zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP-q3k.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-cons\full\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=11.1294 bpb=0.9342 tok=13517 fert=3.720 s=2292.3
+MACRO bpb=0.7573
+[2026-08-13T08:45:13] KEXP-cons langs rc=0
+[2026-08-13T08:45:13] KEXP-cons full en bpb=0.631936973481178 dA0=0.026835800364973 PASS
+[2026-08-13T08:45:13] KEXP-cons full es bpb=0.69622682782959 dA0=0.0196140475015119 PASS
+[2026-08-13T08:45:13] KEXP-cons full fr bpb=0.746191369208481 dA0=0.0228055964470557 PASS
+[2026-08-13T08:45:13] KEXP-cons full it bpb=0.777996389124478 dA0=0.0278703049453353 PASS
+[2026-08-13T08:45:13] KEXP-cons full zh bpb=0.934200326030846 dA0=0.0508431183599473 PASS
+[2026-08-13T08:45:13] KEXP-cons full macro=0.757310377134914 dMacro=0.0295937735237646 PASS
+[2026-08-13T08:45:13] KEXP-cons FULL PASS
+[2026-08-13T08:45:13] A0-iso k=8 drop OFF on KEXP-1c
+[2026-08-13T08:45:13] === KEXP-1c-k8 langs=it,en k=8 drop=0 out=C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\k8_nodrop ===
+=== KEXP-1c-k8 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\k8_nodrop\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=6.0799 bpb=0.7794 tok=13696 fert=3.340 s=2966.3
+=== KEXP-1c-k8 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct-KEXP.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marcokexp\KEXP-1c\k8_nodrop\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=7.5775 bpb=0.6374 tok=11117 fert=4.582 s=2519.5
+MACRO bpb=0.7084
+[2026-08-13T10:16:49] KEXP-1c-k8 langs rc=0
+[2026-08-13T10:16:49] KEXP-1c-k8 failfast it bpb=0.779384944426056 dA0=0.0292588602469135 PASS
+[2026-08-13T10:16:49] KEXP-1c-k8 failfast en bpb=0.637420343233129 dA0=0.0323191701169241 PASS
+[2026-08-13T10:16:49] Wrote VERDICT.md
+[2026-08-13T10:16:49] QUALITY GRID DONE

@@ -1,0 +1,6 @@
+User:
+Scrivi in italiano un messaggio Slack breve per slittare una deadline di due giorni, tono professionale.
+
+Assistant:
+⏰ Deadline tra 2 giorni: completa il progetto entro [data]. Fammi sapere se hai bisogno di supporto! 🚀
+

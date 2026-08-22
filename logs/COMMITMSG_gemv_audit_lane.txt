@@ -1,0 +1,12 @@
+opencl: GEMV_AUDIT LANE_MOD period + SIGN_SMEAR reachability (re-review 6c822d826)
+
+LANE_MOD: infer period = 128 / n_fully_bad_residues at the largest
+modulus. Largest-divisor-first tagged every 32/64 lattice as
+LANE_MOD_128 (rmax=1, rmin=0 still holds at 128). Synthetic:
+period-32 -> 4 residues -> 32; period-64 -> 2 -> 64;
+period-128 -> 1 -> 128. Guards: count==0, 128%count!=0, partial
+residues, period<2.
+
+SIGN_SMEAR: gate unchanged. Emit GEMV_AUDIT_NOTE that the label is
+reachable only on structured weights; absence on random iid excludes
+nothing.

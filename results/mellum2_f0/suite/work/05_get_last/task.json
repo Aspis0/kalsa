@@ -1,0 +1,8 @@
+{
+  "id": "05_get_last",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "get_last.py",
+  "pytest": "test_get_last.py",
+  "dir": "suite/tasks/05_get_last"
+}

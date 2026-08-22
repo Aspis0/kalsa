@@ -1,0 +1,8 @@
+{
+  "id": "04_clamp",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "clamp.py",
+  "pytest": "test_clamp.py",
+  "dir": "suite/tasks/04_clamp"
+}

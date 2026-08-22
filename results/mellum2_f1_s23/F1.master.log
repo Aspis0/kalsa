@@ -1,0 +1,13 @@
+[2026-08-13T15:06:53-0400] BIN_SHA=1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f path=/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+[2026-08-13T15:06:53-0400] PIN OK
+[2026-08-13T15:06:53-0400] MODEL path=/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-13T15:06:54-0400] computing MODEL sha256...
+[2026-08-13T15:09:44-0400] MODEL_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-13T15:09:44-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-13T15:09:46-0400] === MELLUM2 F1 S23 START ===
+[2026-08-13T15:09:47-0400] PHASE=all
+[2026-08-13T15:09:47-0400] SMOKE start memavail_kib=4139196 memfree_kib=189924
+[2026-08-13T15:09:47-0400] SMOKE rc=1 wall=0s rss_mib=19.4 arch=mellum stream=NO hook=NO unknown=NO hits=31 memavail_end_kib=4122248
+[2026-08-13T15:09:47-0400] STOP smoke rc=1 — see smoke/combo.txt
+[2026-08-13T15:09:47-0400] aborted smoke status=FAIL_SMOKE
+[2026-08-13T15:09:48-0400] trap cleanup

@@ -1,0 +1,53 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Compare BFS and DFS at a high level. When would you pick BFS?
+Here's a high-level comparison of **Breadth-First Search (BFS)** and **Depth-First Search (DFS)**, followed by guidance on when to choose BFS:
+
+---
+
+### **Key Differences**
+| **Aspect**               | **BFS**                                      | **DFS**                                      |
+|--------------------------|----------------------------------------------|----------------------------------------------|
+| **Traversal Order**      | Level-by-level (shallow to deep)             | Deep to shallow (one branch fully explored)  |
+| **Data Structure**       | Queue (FIFO)                                 | Stack (LIFO) or recursion                    |
+| **Memory Usage**         | High (stores all nodes at current level)     | Low (only stores the current path)           |
+| **Shortest Path**        | **Guarantees shortest path** in unweighted graphs | No guarantee (may find a longer path first)  |
+| **Completeness**         | Complete (finds solution if it exists)       | Complete only if tree (may loop infinitely in graphs with cycles) |
+| **Time Complexity**      | $O(V + E)$                                   | $O(V + E)$                                   |
+| **Space Complexity**     | $O(V)$ (worst case)                          | $O(V)$ (worst case)                          |
+
+---
+
+### **When to Pick BFS**
+Choose **BFS** when:
+1. **Shortest Path is Critical**  
+   - Example: Finding the
+
+[ Prompt: 14.4 t/s | Generation: 10.1 t/s ]
+
+
+Exiting...

@@ -1,0 +1,22 @@
+[2026-08-17T23:58:07-0400] answer-quality A/B: 4 configs x 4 prompts, n=300, temp 0, session mode
+[2026-08-17T23:58:07-0400] START config stock (k=8 drop=0.0 noren=False) for 4 prompts
+[2026-08-17T23:58:27-0400]   OK q1_f1_spa2000/stock chars=219 tokens=60 tok_s=5.511 wall=19.3s
+[2026-08-17T23:59:23-0400]   OK q2_tabellina9/stock chars=357 tokens=199 tok_s=3.861 wall=56.0s
+[2026-08-18T00:00:00-0400]   OK q3_regalo/stock chars=735 tokens=175 tok_s=5.532 wall=37.4s
+[2026-08-18T00:00:58-0400]   OK q4_vocali/stock chars=323 tokens=126 tok_s=2.361 wall=57.5s
+[2026-08-18T00:00:59-0400] START config k6d0 (k=6 drop=0.0 noren=False) for 4 prompts
+[2026-08-18T00:01:20-0400]   OK q1_f1_spa2000/k6d0 chars=317 tokens=86 tok_s=6.538 wall=21.5s
+[2026-08-18T00:02:00-0400]   OK q2_tabellina9/k6d0 chars=466 tokens=230 tok_s=6.33 wall=40.0s
+[2026-08-18T00:02:48-0400]   OK q3_regalo/k6d0 chars=1169 tokens=300 tok_s=6.95 wall=47.6s
+[2026-08-18T00:03:09-0400]   OK q4_vocali/k6d0 chars=314 tokens=123 tok_s=6.816 wall=21.3s
+[2026-08-18T00:03:10-0400] START config shipped (k=6 drop=0.65 noren=False) for 4 prompts
+[2026-08-18T00:03:40-0400]   OK q1_f1_spa2000/shipped chars=443 tokens=140 tok_s=6.28 wall=29.9s
+[2026-08-18T00:04:19-0400]   OK q2_tabellina9/shipped chars=401 tokens=223 tok_s=6.439 wall=38.5s
+[2026-08-18T00:05:30-0400]   OK q3_regalo/shipped chars=1195 tokens=300 tok_s=4.5 wall=71.2s
+[2026-08-18T00:05:53-0400]   OK q4_vocali/shipped chars=323 tokens=126 tok_s=6.577 wall=23.0s
+[2026-08-18T00:05:54-0400] START config candidate (k=6 drop=1.0 noren=True) for 4 prompts
+[2026-08-18T00:06:11-0400]   OK q1_f1_spa2000/candidate chars=390 tokens=98 tok_s=10.009 wall=17.6s
+[2026-08-18T00:06:37-0400]   OK q2_tabellina9/candidate chars=444 tokens=222 tok_s=9.919 wall=26.1s
+[2026-08-18T00:07:12-0400]   OK q3_regalo/candidate chars=1197 tokens=300 tok_s=9.962 wall=34.6s
+[2026-08-18T00:07:55-0400]   OK q4_vocali/candidate chars=302 tokens=117 tok_s=3.694 wall=42.8s
+[2026-08-18T00:07:56-0400] ANSWERS.md written (10976 chars)

@@ -1,0 +1,1 @@
+Explícame en español, en cinco frases, qué es una API REST y en qué se diferencia de SOAP.

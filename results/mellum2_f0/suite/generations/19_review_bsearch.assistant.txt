@@ -1,0 +1,26 @@
+User:
+You are a software-engineering assistant reviewing a short snippet.
+Name the SINGLE most serious planted bug: exact location (function + line idea) and its nature.
+Be specific (e.g. "SQL injection via f-string in get_user", not "security issue").
+Reply in 1-3 sentences. No patch. No extra findings unless they are that bug.
+
+## File: bsearch.py
+```python
+def binary_search(xs, target):
+    """xs is sorted ascending. Return the index of target, or -1."""
+    lo = 0
+    hi = len(xs)  # planted: should be len(xs) - 1
+    while lo <= hi:
+        mid = (lo + hi) // 2
+        if xs[mid] == target:
+            return mid
+        if xs[mid] < target:
+            lo = mid + 1
+        else:
+            hi = mid - 1
+    return -1
+```
+
+Assistant:
+Function `binary_search` in file `bsearch.py`, line where `hi = len(xs)` is set; the bug is that `hi` should be `len(xs) - 1` to avoid accessing an out-of-bounds index when `xs` is non-empty.
+

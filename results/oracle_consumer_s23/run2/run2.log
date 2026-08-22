@@ -1,0 +1,100 @@
+ENV HOST_REPACK=[1] ORACLE=[1] cpuset=/
+
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) (OpenCL 3.0 Adreno(TM) 740)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0676.73 Compiler E031.41.03.62
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: true
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 3536 MB
+ggml_opencl: max mem alloc size: 884 MB
+ggml_opencl: device max image buffer size (pixels): 134217728
+ggml_opencl: device max image2d size: 16384 x 16384
+ggml_opencl: device max workgroup size: 1024
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: true
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: true
+ggml_opencl: cl_qcom_subgroup_shuffle support: true
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels................................................................................................................................ggml_opencl: ORACLE compiling consumer idioms with opts: '-cl-std=CL3.0 -cl-mad-enable  -cl-fast-relaxed-math'
+ggml_opencl: kernel compile error (err=-11):
+
+BC-src-code:139:15: error: parameter name omitted
+    uint local,
+              ^
+BC-src-code:144:13: error: expected expression
+    dst_raw[local * 4 + 0] = regQ.s0;
+            ^
+BC-src-code:144:13: error: expected ']'
+BC-src-code:144:12: note: to match this '['
+    dst_raw[local * 4 + 0] = regQ.s0;
+           ^
+BC-src-code:145:13: error: expected expression
+    dst_raw[local * 4 + 1] = regQ.s1;
+            ^
+BC-src-code:145:13: error: expected ']'
+BC-src-code:145:12: note: to match this '['
+    dst_raw[local * 4 + 1] = regQ.s1;
+           ^
+BC-src-code:146:13: error: expected expression
+    dst_raw[local * 4 + 2] = regQ.s2;
+            ^
+BC-src-code:146:13: error: expected ']'
+BC-src-code:146:12: note: to match this '['
+    dst_raw[local * 4 + 2] = regQ.s2;
+           ^
+BC-src-code:147:13: error: expected expression
+    dst_raw[local * 4 + 3] = regQ.s3;
+            ^
+BC-src-code:147:13: error: expected ']'
+BC-src-code:147:12: note: to match this '['
+    dst_raw[local * 4 + 3] = regQ.s3;
+           ^
+BC-src-code:148:11: error: expected expression
+    dst_d[local] = as_ushort(hs);
+          ^
+BC-src-code:148:11: error: expected ']'
+BC-src-code:148:10: note: to match this '['
+    dst_d[local] = as_ushort(hs);
+         ^
+BC-src-code:151:24: error: expected expression
+    const uint fbase = local * 32;
+                       ^
+BC-src-code:197:15: error: parameter name omitted
+    uint local,
+              ^
+BC-src-code:202:38: error: expected expression
+    oracle_q4_0_gemv_store(regQ, hs, local, dst_f32, dst_raw, dst_d);
+                                     ^
+BC-src-code:218:22: error: expected identifier or '('
+    const uint local = (uint)get_global_id(0);
+                     ^
+BC-src-code:219:37: error: expected expression
+    const uint sblk = block_begin + local;
+                                    ^
+BC-src-code:243:37: error: expected expression
+    oracle_q4_0_gemv_body(regQ, hs, local, dst_f32, dst_raw, dst_d);
+                                    ^
+BC-src-code:259:22: error: expected identifier or '('
+    const uint local = (uint)get_global_id(0);
+                     ^
+BC-src-code:260:37: error: expected expression
+    const uint sblk = block_begin + local;
+                                    ^
+BC-src-code:280:37: error: expected expression
+    oracle_q4_0_gemv_body(regQ, hs, local, dst_f32, dst_raw, dst_d);
+                                    ^
+20 diagnostic(s) generated.
+
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+

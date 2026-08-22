@@ -1,0 +1,13 @@
+{
+  "id": "15_extract",
+  "family": "refactor",
+  "lang": "python",
+  "entry": "partition.py",
+  "pytest": "test_partition.py",
+  "structural": {
+    "must_contain": [
+      "def is_even("
+    ]
+  },
+  "dir": "suite/tasks/15_extract"
+}

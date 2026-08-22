@@ -1,0 +1,9 @@
+# ninja log v5
+26	333	8082554438653165	CMakeFiles/OpenCL.dir/loader/icd_trace.c.o	94cac2e7a81e4aa5
+37	676	8082554442095476	CMakeFiles/OpenCL.dir/loader/linux/icd_linux.c.o	bfc2e554ae1744c6
+1	706	8082554442095476	CMakeFiles/OpenCL.dir/loader/icd_dispatch.c.o	df6e77a2eccb4979
+14	734	8082554442566444	CMakeFiles/OpenCL.dir/loader/icd.c.o	cf26266c4fcf1dce
+707	842	8082554443657515	CMakeFiles/OpenCL.dir/loader/linux/icd_linux_library.c.o	c33a84e64e0ddf28
+677	1024	8082554445589285	CMakeFiles/OpenCL.dir/loader/linux/icd_linux_envvars.c.o	312b93a43ff8bf7f
+335	1450	8082554449783471	CMakeFiles/OpenCL.dir/loader/icd_dispatch_generated.c.o	411ef1f3dd935b73
+1450	1742	8082554452802795	libOpenCL.so	583c36f3f8272322

@@ -1,0 +1,40 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import logging
+import argparse
+import os
+import re
+import sys
+from pathlib import Path
+from typing import Any
+
+# Necessary to load the local gguf package
+if "NO_LOCAL_GGUF" not in os.environ and (Path(__file__).parent.parent.parent.parent / 'gguf-py').exists():
+    sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+
+from gguf import GGUFReader, GGUFValueType, ReaderTensor  # noqa: E402
+
+logger = logging.getLogger("gguf-dump")
+
+
+def get_file_host_endian(reader: GGUFReader) -> tuple[str, str]:
+    file_endian = reader.endianess.name
+    if reader.byte_order == 'S':
+        host_endian = 'BIG' if file_endian == 'LITTLE' else 'LITTLE'
+    else:
+        host_endian = file_endian
+    return (host_endian, file_endian)
+
+
+# For more information about what field.parts and field.data represent,
+# please see the comments in the modify_gguf.py example.
+def dump_metadata(reader: GGUFReader, args: argparse.Namespace) -> None:
+    host_endian, file_endian = get_file_host_endian(reader)
+    print(f'* File is {file_endian} endian, script is running on a {host_endian} endian host.')  # noqa: NP100
+    print(f'* Dumping {len(reader.fields)} key/value pair(s)')  # noqa: NP100
+    for n, field in enumerate(reader.fields.values(), 1):
+        if not field.types:
+            pretty_type = 'N/A'
+        elif field.types[0] == GGUFValueType.ARRAY:
+            nest_count = len(field.types) - 1

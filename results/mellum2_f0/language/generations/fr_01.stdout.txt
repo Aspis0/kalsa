@@ -1,0 +1,47 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Pourquoi ce code C / JavaScript est faux si l'intention est une comparaison ? Réponds en français.
+
+```c
+if (a = b) {
+    return 1;
+}
+```
+Ce code C / JavaScript est faux si l'intention est une comparaison, car il utilise l'opérateur d'affectation `=` au lieu de l'opérateur de comparaison `==` ou `===`. 
+
+- L'opérateur `=` est utilisé pour assigner la valeur de `b` à `a`. 
+- L'expression `if (a = b)` ne retourne pas le résultat de la comparaison, mais la valeur assignée (`b`), qui est généralement un nombre ou une valeur truthy (non nulle, non vide). 
+- Comme la plupart des valeurs (comme `1`, `true`, etc.) sont truthy, la condition est toujours vraie, ce qui rend le code inutile pour une comparaison et potentiellement erroné.
+
+En résumé :  
+**Erreur** : Utilisation de `=` (affectation) au lieu de `==` (comparaison).  
+**Conséquence** : Le code ne compare pas les valeurs de `a` et `b`, mais les affecte, ce qui ne correspond pas à l'intention de faire une comparaison.
+
+[ Prompt: 16.5 t/s | Generation: 8.3 t/s ]
+
+
+Exiting...

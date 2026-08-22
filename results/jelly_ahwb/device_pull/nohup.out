@@ -1,0 +1,53 @@
+2026-08-13T17:00:13-04:00
+PLUGGED_AC — times/joules INVALID; identity+RSS+stream-bytes only
+MemTotal:        7968548 kB
+MemFree:          724400 kB
+MemAvailable:    5923512 kB
+0.19.0
+36b01966ba0f471d17f8fcb29ab49f64f760999c4256f612f959a7a0b178ce81  /data/data/com.termux/files/home/bin/bmoe-cli.JELLY
+=== d2b_anon ===
+2026-08-13T17:00:13-04:00
+MemTotal:        7968548 kB
+MemFree:          725460 kB
+MemAvailable:    5924644 kB
+0
+MemTotal:        7968548 kB
+MemFree:          728244 kB
+MemAvailable:    5927568 kB
+2026-08-13T17:00:18-04:00
+=== d2b_ahwb ===
+2026-08-13T17:00:18-04:00
+MemTotal:        7968548 kB
+MemFree:          729084 kB
+MemAvailable:    5928416 kB
+0
+MemTotal:        7968548 kB
+MemFree:          727964 kB
+MemAvailable:    5927604 kB
+2026-08-13T17:00:24-04:00
+=== lfm_anon ===
+2026-08-13T17:00:24-04:00
+MemTotal:        7968548 kB
+MemFree:          728760 kB
+MemAvailable:    5928440 kB
+0
+MemTotal:        7968548 kB
+MemFree:         2414784 kB
+MemAvailable:    5959472 kB
+2026-08-13T17:00:43-04:00
+=== lfm_ahwb ===
+2026-08-13T17:00:43-04:00
+MemTotal:        7968548 kB
+MemFree:         2413496 kB
+MemAvailable:    5958084 kB
+1
+MemTotal:        7968548 kB
+MemFree:         1871896 kB
+MemAvailable:    5958748 kB
+2026-08-13T17:00:45-04:00
+3b64713162ee2e552a4652d6fa8545aacdd6729d66f6c953fb18df09f80bb26c  /data/data/com.termux/files/home/experiments/jelly_ahwb/d2b_anon/gen.txt
+2e191191b30762a5dd851ca3ff5ebb3b017b242d1e214bcc9253773eae1fb992  /data/data/com.termux/files/home/experiments/jelly_ahwb/d2b_ahwb/gen.txt
+2b95b2354b13b86347e88c2ce91b5e4e13c3a62283fbe5e04340e811d1565708  /data/data/com.termux/files/home/experiments/jelly_ahwb/lfm_anon/gen.txt
+d8f80aba76ad7100fd364955373d3ed906110de208f507ffbae1b017b848dae0  /data/data/com.termux/files/home/experiments/jelly_ahwb/lfm_ahwb/gen.txt
+2026-08-13T17:00:45-04:00
+DONE

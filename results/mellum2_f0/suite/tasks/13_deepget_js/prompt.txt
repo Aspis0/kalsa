@@ -1,0 +1,30 @@
+You are a software-engineering assistant in a pull-request workflow.
+Implement the function described by the docstring. Reply with a unified diff ONLY
+(--- / +++ / @@ hunks) against the given file. Do not wrap the diff in markdown fences.
+Do not explain. Keep the function name and signature.
+
+## File: deepGet.js
+```javascript
+function deepGet(obj, path) {
+  // path is a dot-separated string (e.g. "a.b.0").
+  // Return the nested value, or undefined if any segment is missing.
+  // Empty path returns obj.
+  throw new Error("not implemented");
+}
+
+module.exports = { deepGet };
+```
+
+## Tests (node deepGet.test.js must print ok)
+```javascript
+const assert = require("assert");
+const { deepGet } = require("./deepGet");
+
+const obj = { a: { b: [{ c: 3 }, { c: 4 }] } };
+assert.strictEqual(deepGet(obj, "a.b.0.c"), 3);
+assert.strictEqual(deepGet(obj, "a.b.1.c"), 4);
+assert.strictEqual(deepGet(obj, "a.x"), undefined);
+assert.strictEqual(deepGet(obj, ""), obj);
+assert.strictEqual(deepGet(null, "a"), undefined);
+console.log("ok");
+```

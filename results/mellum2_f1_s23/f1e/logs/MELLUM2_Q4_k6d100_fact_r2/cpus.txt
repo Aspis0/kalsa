@@ -1,0 +1,1 @@
+cli_pid=20409 cli_cpus=0-7 nproc=6 cpus_allowed=ff

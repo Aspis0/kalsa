@@ -1,0 +1,35 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Spiega in italiano, in due paragrafi brevi, a cosa serve un indice B-tree in un database.
+Un indice B-tree in un database serve a organizzare i dati in modo efficiente, permettendo di cercare, inserire e cancellare record rapidamente anche su grandi quantità di informazioni. È strutturato in modo da mantenere i dati ordinati e bilanciati, riducendo il numero di accessi al disco necessari per trovare un elemento specifico.
+
+Grazie alla sua progettazione, il B-tree garantisce un tempo di accesso logaritmico, il che lo rende ideale per database e sistemi di gestione di informazioni dove la velocità e l'efficienza sono fondamentali.
+
+[ Prompt: 15.9 t/s | Generation: 12.0 t/s ]
+
+
+Exiting...

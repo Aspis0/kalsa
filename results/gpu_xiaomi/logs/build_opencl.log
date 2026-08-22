@@ -1,0 +1,882 @@
+mon_pid=15000
+=== CMAKE CONFIG Tue Aug 11 00:18:58 EDT 2026 ===
+-- The C compiler identification is Clang 21.1.8
+-- The CXX compiler identification is Clang 21.1.8
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /data/data/com.termux/files/usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /data/data/com.termux/files/usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+CMAKE_BUILD_TYPE=Release
+-- Found Git: /data/data/com.termux/files/usr/bin/git (found version "2.55.0")
+-- The ASM compiler identification is Clang with GNU-like command-line
+-- Found assembler: /data/data/com.termux/files/usr/bin/cc
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+-- Check if compiler accepts -pthread
+-- Check if compiler accepts -pthread - yes
+-- Found Threads: TRUE
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: aarch64
+-- GGML_SYSTEM_ARCH: ARM
+-- Found OpenMP_C: -fopenmp=libomp (found version "5.1")
+-- Found OpenMP_CXX: -fopenmp=libomp (found version "5.1")
+-- Found OpenMP: TRUE (found version "5.1")
+-- Including CPU backend
+-- ARM detected
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E
+-- Performing Test GGML_COMPILER_SUPPORTS_FP16_FORMAT_I3E - Failed
+-- Checking for ARM features using flags:
+--   -march=armv8.2-a+dotprod+i8mm+fp16
+-- Performing Test HAVE_DOTPROD
+-- Performing Test HAVE_DOTPROD - Success
+-- Performing Test HAVE_SVE
+-- Performing Test HAVE_SVE - Failed
+-- Performing Test HAVE_MATMUL_INT8
+-- Performing Test HAVE_MATMUL_INT8 - Success
+-- Performing Test HAVE_FMA
+-- Performing Test HAVE_FMA - Success
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC
+-- Performing Test HAVE_FP16_VECTOR_ARITHMETIC - Success
+-- Performing Test HAVE_SME
+-- Performing Test HAVE_SME - Failed
+-- Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+i8mm+fp16 
+-- Looking for include file OpenCL/cl.h
+-- Looking for include file OpenCL/cl.h - not found
+-- Looking for CL_VERSION_3_0
+-- Looking for CL_VERSION_3_0 - found
+-- Found OpenCL: /data/data/com.termux/files/usr/lib/libOpenCL.so (found version "3.0")
+-- Found Python3: /data/data/com.termux/files/usr/bin/python3.14 (found version "3.14.6") found components: Interpreter
+-- OpenCL will use matmul kernels optimized for Adreno
+-- opencl: embedding kernel add
+-- opencl: embedding kernel add_id
+-- opencl: embedding kernel argsort
+-- opencl: embedding kernel tri
+-- opencl: embedding kernel fill
+-- opencl: embedding kernel clamp
+-- opencl: embedding kernel cpy
+-- opencl: embedding kernel cvt
+-- opencl: embedding kernel diag_mask_inf
+-- opencl: embedding kernel diag
+-- opencl: embedding kernel div
+-- opencl: embedding kernel gelu
+-- opencl: embedding kernel get_rows
+-- opencl: embedding kernel glu
+-- opencl: embedding kernel group_norm
+-- opencl: embedding kernel solve_tri
+-- opencl: embedding kernel im2col_f32
+-- opencl: embedding kernel im2col_f16
+-- opencl: embedding kernel mean
+-- opencl: embedding kernel mul_mv_f16_f16
+-- opencl: embedding kernel mul_mv_f16_f32_1row
+-- opencl: embedding kernel mul_mv_f16_f32_l4
+-- opencl: embedding kernel mul_mv_f16_f32
+-- opencl: embedding kernel mul_mv_f32_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32
+-- opencl: embedding kernel mul_mv_q1_0_f32_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32
+-- opencl: embedding kernel mul_mv_q4_0_f32_v
+-- opencl: embedding kernel mul_mv_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_8x_flat
+-- opencl: embedding kernel mul_mv_q4_0_f32_1d_16x_flat
+-- opencl: embedding kernel mul_mv_q4_1_f32
+-- opencl: embedding kernel mul_mv_q4_1_f32_flat
+-- opencl: embedding kernel mul_mv_q4_k_f32
+-- opencl: embedding kernel mul_mv_q4_k_f32_flat
+-- opencl: embedding kernel mul_mv_q5_0_f32
+-- opencl: embedding kernel mul_mv_q5_0_f32_flat
+-- opencl: embedding kernel mul_mv_q5_1_f32
+-- opencl: embedding kernel mul_mv_q5_1_f32_flat
+-- opencl: embedding kernel mul_mv_q5_k_f32
+-- opencl: embedding kernel mul_mv_q5_k_f32_flat
+-- opencl: embedding kernel mul_mv_q6_k_f32
+-- opencl: embedding kernel mul_mv_q6_k_f32_flat
+-- opencl: embedding kernel mul_mv_q8_0_f32
+-- opencl: embedding kernel mul_mv_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_iq4_nl_f32
+-- opencl: embedding kernel mul_mv_iq4_nl_f32_flat
+-- opencl: embedding kernel mul_mv_mxfp4_f32
+-- opencl: embedding kernel mul_mv_mxfp4_f32_flat
+-- opencl: embedding kernel mul_mv_id_q4_0_f32_8x_flat
+-- opencl: embedding kernel mul_mv_id_q8_0_f32
+-- opencl: embedding kernel mul_mv_id_q8_0_f32_flat
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32
+-- opencl: embedding kernel mul_mv_id_mxfp4_f32_flat
+-- opencl: embedding kernel gemm_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_0_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_1_f32_ns
+-- opencl: embedding kernel gemm_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q4_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q5_k_f32_ns
+-- opencl: embedding kernel gemm_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemv_moe_q6_k_f32_ns
+-- opencl: embedding kernel gemm_moe_mxfp4_f32
+-- opencl: embedding kernel gemv_moe_mxfp4_f32
+-- opencl: embedding kernel gemm_moe_mxfp4_f32_ns
+-- opencl: embedding kernel gemv_moe_mxfp4_f32_ns
+-- opencl: embedding kernel moe_reorder_b
+-- opencl: embedding kernel moe_sort_by_expert
+-- opencl: embedding kernel mul_mm_f32_f32_l4_lm
+-- opencl: embedding kernel mul_mm_f16_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q1_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_1_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q8_0_f32_l4_lm
+-- opencl: embedding kernel mul_mm_iq4_nl_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q4_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q5_k_f32_l4_lm
+-- opencl: embedding kernel mul_mm_q6_k_f32_l4_lm
+-- opencl: embedding kernel gemv_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q1_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_0_f32_spec
+-- opencl: embedding kernel gemm_noshuffle_q4_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_1_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_1_f32
+-- opencl: embedding kernel gemv_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemm_noshuffle_iq4_nl_f32
+-- opencl: embedding kernel gemv_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemm_noshuffle_q8_0_f32
+-- opencl: embedding kernel gemv_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q4_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q6_k_f32
+-- opencl: embedding kernel gemv_noshuffle_q5_k_f32
+-- opencl: embedding kernel gemm_noshuffle_q5_k_f32
+-- opencl: embedding kernel mul
+-- opencl: embedding kernel neg
+-- opencl: embedding kernel norm
+-- opencl: embedding kernel relu
+-- opencl: embedding kernel l2_norm
+-- opencl: embedding kernel rms_norm
+-- opencl: embedding kernel rope
+-- opencl: embedding kernel scale
+-- opencl: embedding kernel set_rows
+-- opencl: embedding kernel sigmoid
+-- opencl: embedding kernel silu
+-- opencl: embedding kernel softmax_4_f32
+-- opencl: embedding kernel softmax_4_f16
+-- opencl: embedding kernel softmax_f32
+-- opencl: embedding kernel softmax_f16
+-- opencl: embedding kernel sqr
+-- opencl: embedding kernel sqrt
+-- opencl: embedding kernel ssm_conv
+-- opencl: embedding kernel gated_delta_net
+-- opencl: embedding kernel sub
+-- opencl: embedding kernel sum_rows
+-- opencl: embedding kernel cumsum
+-- opencl: embedding kernel transpose
+-- opencl: embedding kernel concat
+-- opencl: embedding kernel tsembd
+-- opencl: embedding kernel upscale
+-- opencl: embedding kernel tanh
+-- opencl: embedding kernel exp
+-- opencl: embedding kernel expm1
+-- opencl: embedding kernel softplus
+-- opencl: embedding kernel pad
+-- opencl: embedding kernel repeat
+-- opencl: embedding kernel mul_mat_f16_f32
+-- opencl: embedding kernel mul_mm_f16_f32_kq_kqv
+-- opencl: embedding kernel conv2d
+-- opencl: embedding kernel conv2d_f16_f32
+-- opencl: embedding kernel flash_attn_pre_f16
+-- opencl: embedding kernel flash_attn_f32_f16
+-- opencl: embedding kernel flash_attn_f32_q8_0
+-- opencl: embedding kernel flash_attn_f32_q4_0
+-- opencl: embedding kernel flash_attn_f16
+-- opencl: embedding kernel flash_attn_f32
+-- opencl: embedding kernel gemm_xmem_f16_f32_os8
+-- Including OpenCL backend
+-- ggml version: 0.16.0
+-- ggml commit:  5236140e5
+-- Looking for pthread_create in pthreads
+-- Looking for pthread_create in pthreads - not found
+-- Looking for pthread_create in pthread
+-- Looking for pthread_create in pthread - found
+-- Found OpenSSL: /data/data/com.termux/files/usr/lib/libcrypto.so (found version "3.6.3")
+-- Performing Test OPENSSL_VERSION_SUPPORTED
+-- Performing Test OPENSSL_VERSION_SUPPORTED - Success
+-- OpenSSL found: 3.6.3
+-- Generating embedded license file for target: llama-app
+-- Configuring done (11.9s)
+-- Generating done (0.2s)
+-- Build files have been written to: /data/data/com.termux/files/home/llama.cpp/build-opencl
+CMAKE_EXIT=0
+=== BUILD START Tue Aug 11 00:19:10 EDT 2026 ===
+[1/696] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[2/696] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[3/696] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[4/696] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[5/696] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[6/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[7/696] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[8/696] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[9/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[10/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[11/696] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[12/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[13/696] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[14/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[15/696] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[16/696] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[17/696] Linking CXX shared library bin/libggml-base.so.0.16.0
+[18/696] Creating library symlink bin/libggml-base.so.0 bin/libggml-base.so
+[19/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[20/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/add.cl.h
+[21/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/add_id.cl.h
+[22/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/argsort.cl.h
+[23/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/fill.cl.h
+[24/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/tri.cl.h
+[25/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/cpy.cl.h
+[26/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/clamp.cl.h
+[27/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/diag_mask_inf.cl.h
+[28/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/cvt.cl.h
+[29/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/div.cl.h
+[30/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/diag.cl.h
+[31/696] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[32/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/glu.cl.h
+[33/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gelu.cl.h
+[34/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/get_rows.cl.h
+[35/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/group_norm.cl.h
+[36/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/solve_tri.cl.h
+[37/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/im2col_f32.cl.h
+[38/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/im2col_f16.cl.h
+[39/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f16.cl.h
+[40/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mean.cl.h
+[41/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[42/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_1row.cl.h
+[43/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_l4.cl.h
+[44/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32.cl.h
+[45/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_f32_f32.cl.h
+[46/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32.cl.h
+[47/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32_flat.cl.h
+[48/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_v.cl.h
+[49/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32.cl.h
+[50/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_8x_flat.cl.h
+[51/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_8x_flat.cl.h
+[52/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_16x_flat.cl.h
+[53/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32.cl.h
+[54/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32_flat.cl.h
+[55/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32.cl.h
+[56/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32_flat.cl.h
+[57/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32_flat.cl.h
+[58/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32.cl.h
+[59/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32.cl.h
+[60/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32_flat.cl.h
+[61/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32.cl.h
+[62/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32_flat.cl.h
+[63/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32.cl.h
+[64/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32_flat.cl.h
+[65/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32.cl.h
+[66/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32_flat.cl.h
+[67/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32.cl.h
+[68/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32_flat.cl.h
+[69/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32_flat.cl.h
+[70/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32.cl.h
+[71/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q4_0_f32_8x_flat.cl.h
+[72/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32.cl.h
+[73/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32_flat.cl.h
+[74/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32_flat.cl.h
+[75/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32.cl.h
+[76/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_0_f32_ns.cl.h
+[77/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_0_f32_ns.cl.h
+[78/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_1_f32_ns.cl.h
+[79/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_1_f32_ns.cl.h
+[80/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_0_f32_ns.cl.h
+[81/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_0_f32_ns.cl.h
+[82/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_1_f32_ns.cl.h
+[83/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_1_f32_ns.cl.h
+[84/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_k_f32_ns.cl.h
+[85/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_k_f32_ns.cl.h
+[86/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_k_f32_ns.cl.h
+[87/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_k_f32_ns.cl.h
+[88/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_q6_k_f32_ns.cl.h
+[89/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32.cl.h
+[90/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_q6_k_f32_ns.cl.h
+[91/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32.cl.h
+[92/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32_ns.cl.h
+[93/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32_ns.cl.h
+[94/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/moe_reorder_b.cl.h
+[95/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/moe_sort_by_expert.cl.h
+[96/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_f32_f32_l4_lm.cl.h
+[97/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_l4_lm.cl.h
+[98/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q1_0_f32_l4_lm.cl.h
+[99/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h
+[100/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_0_f32_l4_lm.cl.h
+[101/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_1_f32_l4_lm.cl.h
+[102/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_1_f32_l4_lm.cl.h
+[103/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q8_0_f32_l4_lm.cl.h
+[104/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_iq4_nl_f32_l4_lm.cl.h
+[105/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_k_f32_l4_lm.cl.h
+[106/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_k_f32_l4_lm.cl.h
+[107/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_q6_k_f32_l4_lm.cl.h
+[108/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q1_0_f32.cl.h
+[109/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q1_0_f32.cl.h
+[110/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_0_f32.cl.h
+[111/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_0_f32_spec.cl.h
+[112/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_1_f32.cl.h
+[113/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_0_f32.cl.h
+[114/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_1_f32.cl.h
+[115/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_0_f32.cl.h
+[116/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_0_f32.cl.h
+[117/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_1_f32.cl.h
+[118/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_1_f32.cl.h
+[119/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_iq4_nl_f32.cl.h
+[120/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_iq4_nl_f32.cl.h
+[121/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q8_0_f32.cl.h
+[122/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q8_0_f32.cl.h
+[123/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_k_f32.cl.h
+[124/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_k_f32.cl.h
+[125/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q6_k_f32.cl.h
+[126/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q6_k_f32.cl.h
+[127/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_k_f32.cl.h
+[128/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_k_f32.cl.h
+[129/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul.cl.h
+[130/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/llamafile/sgemm.cpp.o
+[131/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/neg.cl.h
+[132/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/norm.cl.h
+[133/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/relu.cl.h
+[134/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/l2_norm.cl.h
+[135/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/rms_norm.cl.h
+[136/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[137/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/rope.cl.h
+[138/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/scale.cl.h
+[139/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/set_rows.cl.h
+[140/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/sigmoid.cl.h
+[141/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/silu.cl.h
+[142/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/softmax_4_f16.cl.h
+[143/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/softmax_4_f32.cl.h
+[144/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/softmax_f32.cl.h
+[145/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/softmax_f16.cl.h
+[146/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/sqr.cl.h
+[147/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[148/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gated_delta_net.cl.h
+[149/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/ssm_conv.cl.h
+[150/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/sqrt.cl.h
+[151/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/sub.cl.h
+[152/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/sum_rows.cl.h
+[153/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/cumsum.cl.h
+[154/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/concat.cl.h
+[155/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/transpose.cl.h
+[156/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/tanh.cl.h
+[157/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/upscale.cl.h
+[158/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/exp.cl.h
+[159/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/tsembd.cl.h
+[160/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/expm1.cl.h
+[161/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/softplus.cl.h
+[162/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/repeat.cl.h
+[163/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/pad.cl.h
+[164/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/conv2d.cl.h
+[165/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mat_f16_f32.cl.h
+[166/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_kq_kqv.cl.h
+[167/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/conv2d_f16_f32.cl.h
+[168/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_q8_0.cl.h
+[169/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/flash_attn_pre_f16.cl.h
+[170/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_f16.cl.h
+[171/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_q4_0.cl.h
+[172/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/flash_attn_f32.cl.h
+[173/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/flash_attn_f16.cl.h
+[174/696] Generate /data/data/com.termux/files/home/llama.cpp/build-opencl/ggml/src/ggml-opencl/autogenerated/gemm_xmem_f16_f32_os8.cl.h
+[175/696] Building C object examples/gguf-hash/CMakeFiles/sha1.dir/deps/sha1/sha1.c.o
+[176/696] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[177/696] Building C object examples/gguf-hash/CMakeFiles/xxhash.dir/deps/xxhash/xxhash.c.o
+[178/696] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[179/696] Building CXX object tools/ui/CMakeFiles/llama-ui-embed.dir/embed.cpp.o
+[180/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[181/696] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[182/696] Building CXX object src/CMakeFiles/llama.dir/llama.cpp.o
+[183/696] Building CXX object src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[184/696] Building CXX object src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[185/696] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[186/696] Linking CXX shared library bin/libggml-cpu.so.0.16.0
+[187/696] Creating library symlink bin/libggml-cpu.so.0 bin/libggml-cpu.so
+[188/696] Building CXX object src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[189/696] Building CXX object src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[190/696] Building CXX object src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[191/696] Building CXX object src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[192/696] Building CXX object src/CMakeFiles/llama.dir/llama-io.cpp.o
+[193/696] Building CXX object src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[194/696] Building CXX object src/CMakeFiles/llama.dir/llama-context.cpp.o
+[195/696] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[196/696] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[197/696] Building CXX object src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[198/696] Building CXX object src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[199/696] Building CXX object src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[200/696] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[201/696] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[202/696] Building CXX object src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[203/696] Building CXX object src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[204/696] Building CXX object ggml/src/ggml-opencl/CMakeFiles/ggml-opencl.dir/ggml-opencl.cpp.o
+/data/data/com.termux/files/home/llama.cpp/ggml/src/ggml-opencl/ggml-opencl.cpp:1183:66: warning: unused parameter 'backend_ctx' [-Wunused-parameter]
+ 1183 | static bool use_adreno_bin_kernels(ggml_backend_opencl_context * backend_ctx) {
+      |                                                                  ^
+/data/data/com.termux/files/home/llama.cpp/ggml/src/ggml-opencl/ggml-opencl.cpp:6511:9: warning: TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661) [-W#pragma-messages]
+ 6511 | #pragma message("TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661)")
+      |         ^
+2 warnings generated.
+[205/696] Building CXX object src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[206/696] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+[207/696] Linking CXX shared library bin/libggml-opencl.so.0.16.0
+[208/696] Creating library symlink bin/libggml-opencl.so.0 bin/libggml-opencl.so
+[209/696] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[210/696] Linking CXX shared library bin/libggml.so.0.16.0
+[211/696] Creating library symlink bin/libggml.so.0 bin/libggml.so
+[212/696] Building CXX object src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[213/696] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[214/696] Building CXX object src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+[215/696] Building CXX object src/CMakeFiles/llama.dir/models/apertus.cpp.o
+[216/696] Building CXX object src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[217/696] Building CXX object src/CMakeFiles/llama.dir/models/arcee.cpp.o
+[218/696] Building CXX object src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[219/696] Building CXX object src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[220/696] Building CXX object src/CMakeFiles/llama.dir/llama-model.cpp.o
+[221/696] Building CXX object src/CMakeFiles/llama.dir/models/arctic.cpp.o
+[222/696] Building CXX object src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+[223/696] Building CXX object src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+[224/696] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+[225/696] Building CXX object src/CMakeFiles/llama.dir/unicode.cpp.o
+[226/696] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+[227/696] Building CXX object src/CMakeFiles/llama.dir/models/bert.cpp.o
+[228/696] Building CXX object src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+[229/696] Building CXX object src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+[230/696] Building CXX object src/CMakeFiles/llama.dir/models/bloom.cpp.o
+[231/696] Building CXX object vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[232/696] Building CXX object src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+[233/696] Building CXX object src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+[234/696] Building CXX object src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+[235/696] Building CXX object src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+[236/696] Building CXX object src/CMakeFiles/llama.dir/models/cohere2moe.cpp.o
+[237/696] Building CXX object src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+[238/696] Building CXX object src/CMakeFiles/llama.dir/models/command-r.cpp.o
+[239/696] Building CXX object src/CMakeFiles/llama.dir/models/deci.cpp.o
+[240/696] Building CXX object src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+[241/696] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+[242/696] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+[243/696] Building CXX object src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+[244/696] Building CXX object src/CMakeFiles/llama.dir/models/deepseek4.cpp.o
+[245/696] Building CXX object src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+[246/696] Building CXX object src/CMakeFiles/llama.dir/models/dots1.cpp.o
+[247/696] Building CXX object src/CMakeFiles/llama.dir/models/dflash.cpp.o
+[248/696] Building CXX object src/CMakeFiles/llama.dir/models/dream.cpp.o
+[249/696] Building CXX object src/CMakeFiles/llama.dir/models/eagle3.cpp.o
+[250/696] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+[251/696] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+[252/696] Building CXX object src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+[253/696] Building CXX object src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+[254/696] Building CXX object src/CMakeFiles/llama.dir/models/exaone.cpp.o
+[255/696] Building CXX object src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+[256/696] Building CXX object src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+[257/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+[258/696] Building CXX object src/CMakeFiles/llama.dir/models/falcon.cpp.o
+[259/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma.cpp.o
+[260/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+[261/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+[262/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+[263/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma4-assistant.cpp.o
+[264/696] Building CXX object src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+[265/696] Building CXX object src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+[266/696] Building CXX object src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+[267/696] Building CXX object src/CMakeFiles/llama.dir/models/glm4.cpp.o
+[268/696] Building CXX object src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+[269/696] Building CXX object src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+[270/696] Building CXX object src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+[271/696] Building CXX object src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+[272/696] Building CXX object src/CMakeFiles/llama.dir/models/grok.cpp.o
+[273/696] Building CXX object src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+[274/696] Building CXX object src/CMakeFiles/llama.dir/models/granite.cpp.o
+[275/696] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+[276/696] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+[277/696] Building CXX object src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+[278/696] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+[279/696] Building CXX object src/CMakeFiles/llama.dir/models/jais2.cpp.o
+[280/696] Building CXX object src/CMakeFiles/llama.dir/models/jais.cpp.o
+[281/696] Building CXX object src/CMakeFiles/llama.dir/models/jamba.cpp.o
+[282/696] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+[283/696] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+[284/696] Building CXX object src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+[285/696] Building CXX object src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+[286/696] Building CXX object src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+[287/696] Building CXX object src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+[288/696] Building CXX object src/CMakeFiles/llama.dir/models/llada.cpp.o
+[289/696] Building CXX object src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+[290/696] Building CXX object src/CMakeFiles/llama.dir/models/llama.cpp.o
+[291/696] Building CXX object src/CMakeFiles/llama.dir/models/llama4.cpp.o
+[292/696] Building CXX object src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+[293/696] Building CXX object src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+[294/696] Building CXX object src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+[295/696] Building CXX object src/CMakeFiles/llama.dir/models/mamba.cpp.o
+[296/696] Building CXX object src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+[297/696] Building CXX object src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+[298/696] Building CXX object src/CMakeFiles/llama.dir/models/mellum.cpp.o
+[299/696] Building CXX object src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+[300/696] Building CXX object src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+[301/696] Building CXX object src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+[302/696] Building CXX object src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+[303/696] Building CXX object src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+[304/696] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+[305/696] Building CXX object src/CMakeFiles/llama.dir/models/mpt.cpp.o
+[306/696] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+[307/696] Building CXX object src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+[308/696] Building CXX object src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+[309/696] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+[310/696] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+[311/696] Building CXX object src/CMakeFiles/llama.dir/models/olmo.cpp.o
+[312/696] Building CXX object src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+[313/696] Building CXX object src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+[314/696] Building CXX object src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+[315/696] Building CXX object src/CMakeFiles/llama.dir/models/openelm.cpp.o
+[316/696] Building CXX object src/CMakeFiles/llama.dir/models/orion.cpp.o
+[317/696] Building CXX object src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+[318/696] Building CXX object src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+[319/696] Building CXX object src/CMakeFiles/llama.dir/models/phi2.cpp.o
+[320/696] Building CXX object src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+[321/696] Building CXX object src/CMakeFiles/llama.dir/models/plamo.cpp.o
+[322/696] Building CXX object src/CMakeFiles/llama.dir/models/phi3.cpp.o
+[323/696] Building CXX object src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+[324/696] Building CXX object src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+[325/696] Building CXX object src/CMakeFiles/llama.dir/models/plm.cpp.o
+[326/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen.cpp.o
+[327/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+[328/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+[329/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+[330/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+[331/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+[332/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+[333/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+[334/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+[335/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+[336/696] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+[337/696] Building CXX object src/CMakeFiles/llama.dir/models/refact.cpp.o
+[338/696] Building CXX object src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+[339/696] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+[340/696] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+[341/696] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+[342/696] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+[343/696] Building CXX object src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+[344/696] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+[345/696] Building CXX object src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+[346/696] Building CXX object src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+[347/696] Building CXX object src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+[348/696] Building CXX object src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+[349/696] Linking CXX static library common/libllama-common-base.a
+[350/696] Building CXX object src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+[351/696] Building CXX object src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+[352/696] Building CXX object src/CMakeFiles/llama.dir/models/t5.cpp.o
+[353/696] Building CXX object src/CMakeFiles/llama.dir/models/talkie.cpp.o
+[354/696] Building CXX object src/CMakeFiles/llama.dir/models/step35.cpp.o
+[355/696] Building CXX object src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+[356/696] Building CXX object src/CMakeFiles/llama.dir/models/xverse.cpp.o
+[357/696] Linking CXX shared library bin/libllama.so.0.0.1
+[358/696] Creating library symlink bin/libllama.so.0 bin/libllama.so
+[359/696] Building CXX object common/CMakeFiles/llama-common.dir/console.cpp.o
+[360/696] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-helpers.cpp.o
+[361/696] Building CXX object common/CMakeFiles/llama-common.dir/common.cpp.o
+[362/696] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-generator.cpp.o
+[363/696] Building CXX object common/CMakeFiles/llama-common.dir/debug.cpp.o
+[364/696] Building CXX object common/CMakeFiles/llama-common.dir/chat-peg-parser.cpp.o
+[365/696] Building CXX object common/CMakeFiles/llama-common.dir/fit.cpp.o
+[366/696] Building CXX object common/CMakeFiles/llama-common.dir/imatrix-loader.cpp.o
+[367/696] Building CXX object common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[368/696] Building CXX object common/CMakeFiles/llama-common.dir/log.cpp.o
+[369/696] Building CXX object common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[370/696] Building CXX object common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[371/696] Building CXX object common/CMakeFiles/llama-common.dir/chat-diff-analyzer.cpp.o
+[372/696] Building CXX object common/CMakeFiles/llama-common.dir/ngram-mod.cpp.o
+[373/696] Building CXX object common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+[374/696] Building CXX object common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[375/696] Building CXX object common/CMakeFiles/llama-common.dir/download.cpp.o
+[376/696] Building CXX object common/CMakeFiles/llama-common.dir/unicode.cpp.o
+[377/696] Building CXX object common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[378/696] Building CXX object common/CMakeFiles/llama-common.dir/arg.cpp.o
+[379/696] Building CXX object common/CMakeFiles/llama-common.dir/chat.cpp.o
+[380/696] Building CXX object common/CMakeFiles/llama-common.dir/jinja/lexer.cpp.o
+[381/696] Building CXX object common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+[382/696] Building CXX object common/CMakeFiles/llama-common.dir/preset.cpp.o
+[383/696] Linking CXX static library vendor/cpp-httplib/libcpp-httplib.a
+[384/696] Linking CXX executable tools/ui/llama-ui-embed
+[385/696] Building CXX object common/CMakeFiles/llama-common.dir/jinja/parser.cpp.o
+[386/696] Building CXX object common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[387/696] Building CXX object common/CMakeFiles/llama-common.dir/jinja/string.cpp.o
+[388/696] Building CXX object common/CMakeFiles/llama-common.dir/jinja/runtime.cpp.o
+[389/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-audio.cpp.o
+[390/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-image.cpp.o
+[391/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd.cpp.o
+[392/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/cogvlm.cpp.o
+[393/696] Building CXX object common/CMakeFiles/llama-common.dir/jinja/caps.cpp.o
+[394/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/conformer.cpp.o
+[395/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/dotsocr.cpp.o
+[396/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/exaone4_5.cpp.o
+[397/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4a.cpp.o
+[398/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4v.cpp.o
+[399/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4ua.cpp.o
+[400/696] Building CXX object common/CMakeFiles/llama-common.dir/jinja/value.cpp.o
+[401/696] Building CXX object common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[402/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4uv.cpp.o
+[403/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/glm4v.cpp.o
+[404/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/clip.cpp.o
+[405/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite-speech.cpp.o
+[406/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite4-vision.cpp.o
+[407/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/hunyuanvl.cpp.o
+[408/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/internvl.cpp.o
+[409/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimivl.cpp.o
+[410/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimik25.cpp.o
+[411/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/nemotron-v2-vl.cpp.o
+[412/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llama4.cpp.o
+[413/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-helper.cpp.o
+[414/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llava.cpp.o
+[415/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/paddleocr.cpp.o
+[416/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/minicpmv.cpp.o
+[417/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/pixtral.cpp.o
+[418/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen2vl.cpp.o
+[419/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3vl.cpp.o
+[420/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mimovl.cpp.o
+[421/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3a.cpp.o
+[422/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/step3vl.cpp.o
+[423/696] Linking CXX shared library bin/libllama-common.so.0.0.1
+[424/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/whisper-enc.cpp.o
+[425/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/siglip.cpp.o
+[426/696] Creating library symlink bin/libllama-common.so.0 bin/libllama-common.so
+[427/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr.cpp.o
+[428/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr2.cpp.o
+[429/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/youtuvl.cpp.o
+[430/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mobilenetv5.cpp.o
+[431/696] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/yasa2.cpp.o
+[432/696] Linking CXX shared library bin/libmtmd.so.0.0.1
+[433/696] Provisioning UI assets
+-- UI: npm not found, skipping npm build
+-- UI: downloading from b1: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b1/dist.tar.gz
+-- UI: download dist.tar.gz from b1 failed: "HTTP response code said error"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: archive verified and extracted
+-- UI: HF download succeeded, stamp updated (latest)
+-- UI: gzip compression applied (/data/data/com.termux/files/home/llama.cpp/build-opencl/tools/ui/dist/_gzip)
+embed: write output file /data/data/com.termux/files/home/llama.cpp/build-opencl/tools/ui/ui.h
+embed: write output file /data/data/com.termux/files/home/llama.cpp/build-opencl/tools/ui/ui.cpp
+[434/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-queue.cpp.o
+[435/696] Building CXX object tools/ui/CMakeFiles/llama-ui.dir/ui.cpp.o
+[436/696] Creating library symlink bin/libmtmd.so.0 bin/libmtmd.so
+[437/696] Linking CXX static library tools/ui/libllama-ui.a
+[438/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-chat.cpp.o
+[439/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-stream.cpp.o
+[440/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-common.cpp.o
+[441/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-tools.cpp.o
+[442/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-schema.cpp.o
+[443/696] Building CXX object examples/diffusion/CMakeFiles/llama-diffusion.dir/diffusion.cpp.o
+[444/696] Building CXX object tests/CMakeFiles/gguf-model-data.dir/gguf-model-data.cpp.o
+[445/696] Building CXX object tools/batched-bench/CMakeFiles/llama-batched-bench-impl.dir/batched-bench.cpp.o
+[446/696] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server.cpp.o
+[447/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-task.cpp.o
+[448/696] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-http.cpp.o
+[449/696] Building CXX object tools/server/CMakeFiles/server-context.dir/server-context.cpp.o
+[450/696] Linking CXX static library tools/server/libserver-context.a
+[451/696] Building CXX object tools/quantize/CMakeFiles/llama-quantize-impl.dir/quantize.cpp.o
+[452/696] Building CXX object tools/completion/CMakeFiles/llama-completion-impl.dir/completion.cpp.o
+[453/696] Building CXX object tools/perplexity/CMakeFiles/llama-perplexity-impl.dir/perplexity.cpp.o
+[454/696] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli.cpp.o
+[455/696] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli-client.cpp.o
+[456/696] Building CXX object tests/CMakeFiles/test-sampling.dir/get-model.cpp.o
+[457/696] Building CXX object tests/CMakeFiles/test-reasoning-budget.dir/get-model.cpp.o
+[458/696] Building CXX object tools/fit-params/CMakeFiles/llama-fit-params-impl.dir/fit-params.cpp.o
+[459/696] Building CXX object tests/CMakeFiles/test-grammar-parser.dir/get-model.cpp.o
+[460/696] Building CXX object tests/CMakeFiles/test-reasoning-budget.dir/test-reasoning-budget.cpp.o
+[461/696] Building CXX object tests/CMakeFiles/test-grammar-integration.dir/get-model.cpp.o
+[462/696] Building CXX object tests/CMakeFiles/test-sampling.dir/test-sampling.cpp.o
+[463/696] Building CXX object tests/CMakeFiles/test-llama-grammar.dir/get-model.cpp.o
+[464/696] Building CXX object tests/CMakeFiles/test-grammar-parser.dir/test-grammar-parser.cpp.o
+[465/696] Building CXX object tests/CMakeFiles/test-tokenizer-0.dir/test-tokenizer-0.cpp.o
+[466/696] Building CXX object tests/CMakeFiles/test-batch-alloc.dir/get-model.cpp.o
+[467/696] Building CXX object tests/CMakeFiles/test-chat.dir/get-model.cpp.o
+[468/696] Building CXX object tools/llama-bench/CMakeFiles/llama-bench-impl.dir/llama-bench.cpp.o
+[469/696] Building CXX object tests/CMakeFiles/test-json-schema-to-grammar.dir/get-model.cpp.o
+[470/696] Building CXX object tests/CMakeFiles/test-llama-grammar.dir/test-llama-grammar.cpp.o
+[471/696] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-models.cpp.o
+[472/696] Linking CXX shared library bin/libllama-server-impl.so
+[473/696] Building CXX object tests/CMakeFiles/test-gbnf-validator.dir/test-gbnf-validator.cpp.o
+[474/696] Building CXX object tests/CMakeFiles/test-quantize-stats.dir/test-quantize-stats.cpp.o
+[475/696] Building CXX object tests/CMakeFiles/test-tokenizer-1-bpe.dir/test-tokenizer-1-bpe.cpp.o
+[476/696] Building CXX object tests/CMakeFiles/test-llama-archs.dir/get-model.cpp.o
+[477/696] Building CXX object tests/CMakeFiles/test-grammar-integration.dir/test-grammar-integration.cpp.o
+[478/696] Building CXX object tests/CMakeFiles/test-tokenizer-1-spm.dir/test-tokenizer-1-spm.cpp.o
+[479/696] Building CXX object tests/CMakeFiles/test-chat-peg-parser.dir/get-model.cpp.o
+[480/696] Building CXX object tests/CMakeFiles/test-batch-alloc.dir/test-batch-alloc.cpp.o
+[481/696] Building CXX object tests/CMakeFiles/test-jinja.dir/get-model.cpp.o
+[482/696] Building CXX object tests/CMakeFiles/test-chat-peg-parser.dir/peg-parser/simple-tokenize.cpp.o
+[483/696] Building CXX object tests/CMakeFiles/test-chat-auto-parser.dir/get-model.cpp.o
+[484/696] Building CXX object tests/CMakeFiles/test-llama-archs.dir/test-llama-archs.cpp.o
+[485/696] Building CXX object tests/CMakeFiles/test-chat-template.dir/get-model.cpp.o
+[486/696] Building CXX object tests/CMakeFiles/test-json-schema-to-grammar.dir/test-json-schema-to-grammar.cpp.o
+[487/696] Building CXX object tests/CMakeFiles/test-log.dir/get-model.cpp.o
+[488/696] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli-context.cpp.o
+[489/696] Building CXX object tests/CMakeFiles/test-log.dir/test-log.cpp.o
+[490/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/simple-tokenize.cpp.o
+[491/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/test-peg-parser.cpp.o
+[492/696] Building CXX object tests/CMakeFiles/test-chat-template.dir/test-chat-template.cpp.o
+[493/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-basic.cpp.o
+[494/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-gbnf-generation.cpp.o
+[495/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-json-parser.cpp.o
+[496/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/get-model.cpp.o
+[497/696] Building CXX object tests/CMakeFiles/test-chat-auto-parser.dir/test-chat-auto-parser.cpp.o
+[498/696] Building CXX object tests/CMakeFiles/test-jinja.dir/test-jinja.cpp.o
+[499/696] Building CXX object tests/CMakeFiles/test-thread-safety.dir/get-model.cpp.o
+[500/696] Building CXX object tests/CMakeFiles/test-arg-parser.dir/get-model.cpp.o
+[501/696] Building CXX object tests/CMakeFiles/test-chat-peg-parser.dir/test-chat-peg-parser.cpp.o
+[502/696] Building CXX object tests/CMakeFiles/test-opt.dir/get-model.cpp.o
+[503/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-json-serialization.cpp.o
+[504/696] Building CXX object tests/CMakeFiles/test-gguf.dir/get-model.cpp.o
+[505/696] Building CXX object tests/CMakeFiles/test-thread-safety.dir/test-thread-safety.cpp.o
+[506/696] Building CXX object tests/CMakeFiles/test-backend-ops.dir/get-model.cpp.o
+[507/696] Building CXX object tests/CMakeFiles/test-model-load-cancel.dir/test-model-load-cancel.cpp.o
+[508/696] Building CXX object tests/CMakeFiles/test-model-load-cancel.dir/get-model.cpp.o
+[509/696] Building CXX object tests/CMakeFiles/test-arg-parser.dir/test-arg-parser.cpp.o
+[510/696] Building CXX object tests/CMakeFiles/test-autorelease.dir/get-model.cpp.o
+[511/696] Building CXX object tests/CMakeFiles/test-opt.dir/test-opt.cpp.o
+[512/696] Building CXX object tests/CMakeFiles/test-backend-sampler.dir/get-model.cpp.o
+[513/696] Building CXX object tests/CMakeFiles/test-autorelease.dir/test-autorelease.cpp.o
+[514/696] Building CXX object tests/CMakeFiles/test-state-restore-fragmented.dir/get-model.cpp.o
+[515/696] Building CXX object tests/CMakeFiles/test-gguf.dir/test-gguf.cpp.o
+[516/696] Building CXX object tests/CMakeFiles/test-recurrent-state-rollback.dir/get-model.cpp.o
+[517/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-python-dict-parser.cpp.o
+[518/696] Building CXX object tests/CMakeFiles/test-save-load-state.dir/get-model.cpp.o
+[519/696] Building CXX object tests/CMakeFiles/test-chat.dir/test-chat.cpp.o
+[520/696] Building CXX object tests/CMakeFiles/test-barrier.dir/get-model.cpp.o
+[521/696] Building CXX object tests/CMakeFiles/test-state-restore-fragmented.dir/test-state-restore-fragmented.cpp.o
+[522/696] Building CXX object tests/CMakeFiles/test-backend-sampler.dir/test-backend-sampler.cpp.o
+[523/696] Building CXX object tests/CMakeFiles/test-quantize-fns.dir/get-model.cpp.o
+[524/696] Building CXX object tests/CMakeFiles/test-quantize-perf.dir/get-model.cpp.o
+[525/696] Building CXX object tests/CMakeFiles/test-save-load-state.dir/test-save-load-state.cpp.o
+[526/696] Building CXX object tests/CMakeFiles/test-rope.dir/get-model.cpp.o
+[527/696] Building CXX object tests/CMakeFiles/test-recurrent-state-rollback.dir/test-recurrent-state-rollback.cpp.o
+[528/696] Building CXX object tests/CMakeFiles/test-barrier.dir/test-barrier.cpp.o
+[529/696] Building CXX object tests/CMakeFiles/test-col2im-1d.dir/get-model.cpp.o
+[530/696] Building CXX object tests/CMakeFiles/test-mtmd-c-api.dir/get-model.cpp.o
+[531/696] Building C object tests/CMakeFiles/test-mtmd-c-api.dir/test-mtmd-c-api.c.o
+[532/696] Linking CXX static library tests/libgguf-model-data.a
+[533/696] Building CXX object tests/CMakeFiles/test-quantize-fns.dir/test-quantize-fns.cpp.o
+[534/696] Building CXX object tests/CMakeFiles/test-quant-type-selection.dir/get-model.cpp.o
+[535/696] Building CXX object tests/CMakeFiles/test-rope.dir/test-rope.cpp.o
+[536/696] Building C object tests/CMakeFiles/test-c.dir/test-c.c.o
+[537/696] Building CXX object tests/CMakeFiles/test-alloc.dir/get-model.cpp.o
+[538/696] Building CXX object tests/CMakeFiles/test-col2im-1d.dir/test-col2im-1d.cpp.o
+[539/696] Building CXX object tests/CMakeFiles/test-quantize-perf.dir/test-quantize-perf.cpp.o
+[540/696] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-unicode.cpp.o
+[541/696] Building CXX object tests/CMakeFiles/test-gguf-model-data.dir/test-gguf-model-data.cpp.o
+[542/696] Building CXX object tests/CMakeFiles/test-alloc.dir/test-alloc.cpp.o
+[543/696] Building CXX object tests/CMakeFiles/test-quant-type-selection.dir/test-quant-type-selection.cpp.o
+[544/696] Building C object examples/gguf-hash/CMakeFiles/sha256.dir/deps/sha256/sha256.c.o
+[545/696] Building CXX object examples/batched/CMakeFiles/llama-batched.dir/batched.cpp.o
+[546/696] Building CXX object examples/embedding/CMakeFiles/llama-embedding.dir/embedding.cpp.o
+[547/696] Building CXX object tests/CMakeFiles/test-export-graph-ops.dir/test-export-graph-ops.cpp.o
+[548/696] Building CXX object examples/eval-callback/CMakeFiles/llama-eval-callback.dir/eval-callback.cpp.o
+[549/696] Building CXX object examples/gguf-hash/CMakeFiles/llama-gguf-hash.dir/gguf-hash.cpp.o
+[550/696] Building CXX object examples/gguf/CMakeFiles/llama-gguf.dir/gguf.cpp.o
+[551/696] Building CXX object examples/idle/CMakeFiles/llama-idle.dir/idle.cpp.o
+[552/696] Building CXX object examples/debug/CMakeFiles/llama-debug.dir/debug.cpp.o
+[553/696] Building CXX object examples/lookup/CMakeFiles/llama-lookup.dir/lookup.cpp.o
+[554/696] Building CXX object examples/lookup/CMakeFiles/llama-lookup-create.dir/lookup-create.cpp.o
+[555/696] Building CXX object examples/lookup/CMakeFiles/llama-lookup-merge.dir/lookup-merge.cpp.o
+[556/696] Building CXX object examples/lookahead/CMakeFiles/llama-lookahead.dir/lookahead.cpp.o
+[557/696] Building CXX object examples/lookup/CMakeFiles/llama-lookup-stats.dir/lookup-stats.cpp.o
+[558/696] Building CXX object examples/simple-chat/CMakeFiles/llama-simple-chat.dir/simple-chat.cpp.o
+[559/696] Building CXX object examples/parallel/CMakeFiles/llama-parallel.dir/parallel.cpp.o
+[560/696] Building CXX object examples/simple/CMakeFiles/llama-simple.dir/simple.cpp.o
+[561/696] Building CXX object examples/passkey/CMakeFiles/llama-passkey.dir/passkey.cpp.o
+[562/696] Linking CXX static library examples/diffusion/libllama-diffusion.a
+[563/696] Building CXX object examples/retrieval/CMakeFiles/llama-retrieval.dir/retrieval.cpp.o
+[564/696] Building CXX object examples/speculative/CMakeFiles/llama-speculative.dir/speculative.cpp.o
+[565/696] Building CXX object examples/gen-docs/CMakeFiles/llama-gen-docs.dir/gen-docs.cpp.o
+[566/696] Linking CXX shared library bin/libllama-batched-bench-impl.so
+[567/696] Building CXX object examples/training/CMakeFiles/llama-finetune.dir/finetune.cpp.o
+[568/696] Building CXX object tools/batched-bench/CMakeFiles/llama-batched-bench.dir/main.cpp.o
+[569/696] Building CXX object examples/speculative-simple/CMakeFiles/llama-speculative-simple.dir/speculative-simple.cpp.o
+[570/696] Building CXX object examples/convert-llama2c-to-ggml/CMakeFiles/llama-convert-llama2c-to-ggml.dir/convert-llama2c-to-ggml.cpp.o
+[571/696] Linking CXX shared library bin/libllama-bench-impl.so
+[572/696] Building CXX object pocs/vdot/CMakeFiles/llama-vdot.dir/vdot.cpp.o
+[573/696] Building CXX object pocs/vdot/CMakeFiles/llama-q8dot.dir/q8dot.cpp.o
+[574/696] Building CXX object tools/llama-bench/CMakeFiles/llama-bench.dir/main.cpp.o
+[575/696] Building CXX object tools/completion/CMakeFiles/llama-completion.dir/main.cpp.o
+[576/696] Linking CXX shared library bin/libllama-completion-impl.so
+[577/696] Building CXX object tools/perplexity/CMakeFiles/llama-perplexity.dir/main.cpp.o
+[578/696] Linking CXX shared library bin/libllama-perplexity-impl.so
+[579/696] Building CXX object tools/quantize/CMakeFiles/llama-quantize.dir/main.cpp.o
+[580/696] Building CXX object tools/cli/CMakeFiles/llama-cli.dir/main.cpp.o
+[581/696] Linking CXX shared library bin/libllama-quantize-impl.so
+[582/696] Linking CXX shared library bin/libllama-cli-impl.so
+[583/696] Building CXX object tools/server/CMakeFiles/llama-server.dir/main.cpp.o
+[584/696] Building CXX object examples/diffusion/CMakeFiles/llama-diffusion-cli.dir/diffusion-cli.cpp.o
+[585/696] Building CXX object tests/CMakeFiles/test-backend-ops.dir/test-backend-ops.cpp.o
+[586/696] Building CXX object tools/mtmd/CMakeFiles/llama-llava-cli.dir/deprecation-warning.cpp.o
+[587/696] Building CXX object tools/gguf-split/CMakeFiles/llama-gguf-split.dir/gguf-split.cpp.o
+[588/696] Building CXX object tools/mtmd/CMakeFiles/llama-gemma3-cli.dir/deprecation-warning.cpp.o
+[589/696] Building CXX object tools/tokenize/CMakeFiles/llama-tokenize.dir/tokenize.cpp.o
+[590/696] Building CXX object tools/mtmd/CMakeFiles/llama-minicpmv-cli.dir/deprecation-warning.cpp.o
+[591/696] Building CXX object tools/mtmd/CMakeFiles/llama-qwen2vl-cli.dir/deprecation-warning.cpp.o
+[592/696] Building CXX object tools/mtmd/CMakeFiles/llama-mtmd-debug.dir/debug/mtmd-debug.cpp.o
+[593/696] Linking CXX shared library bin/libllama-fit-params-impl.so
+[594/696] Building CXX object tools/fit-params/CMakeFiles/llama-fit-params.dir/main.cpp.o
+[595/696] Building CXX object tools/export-lora/CMakeFiles/llama-export-lora.dir/export-lora.cpp.o
+BUILD_EXIT=0
+=== BUILD END Tue Aug 11 00:23:02 EDT 2026 ===
+total 24759
+drwxrwxrwx.  2 u0_a649 u0_a649    3452 Aug 11 00:23 .
+drwxrwxrwx. 14 u0_a649 u0_a649    3452 Aug 11 00:19 ..
+lrwxrwxrwx.  1 u0_a649 u0_a649      17 Aug 11 00:19 libggml-base.so -> libggml-base.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      22 Aug 11 00:19 libggml-base.so.0 -> libggml-base.so.0.16.0
+-rwxrwxrwx.  1 u0_a649 u0_a649 1791952 Aug 11 00:19 libggml-base.so.0.16.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      16 Aug 11 00:19 libggml-cpu.so -> libggml-cpu.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      21 Aug 11 00:19 libggml-cpu.so.0 -> libggml-cpu.so.0.16.0
+-rwxrwxrwx.  1 u0_a649 u0_a649  999320 Aug 11 00:19 libggml-cpu.so.0.16.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      19 Aug 11 00:19 libggml-opencl.so -> libggml-opencl.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      24 Aug 11 00:19 libggml-opencl.so.0 -> libggml-opencl.so.0.16.0
+-rwxrwxrwx.  1 u0_a649 u0_a649 2309688 Aug 11 00:19 libggml-opencl.so.0.16.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      12 Aug 11 00:19 libggml.so -> libggml.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      17 Aug 11 00:19 libggml.so.0 -> libggml.so.0.16.0
+-rwxrwxrwx.  1 u0_a649 u0_a649   82328 Aug 11 00:19 libggml.so.0.16.0
+-rwxrwxrwx.  1 u0_a649 u0_a649   34032 Aug 11 00:22 libllama-batched-bench-impl.so
+-rwxrwxrwx.  1 u0_a649 u0_a649  379480 Aug 11 00:22 libllama-bench-impl.so
+-rwxrwxrwx.  1 u0_a649 u0_a649  513560 Aug 11 00:22 libllama-cli-impl.so
+lrwxrwxrwx.  1 u0_a649 u0_a649      20 Aug 11 00:21 libllama-common.so -> libllama-common.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      24 Aug 11 00:21 libllama-common.so.0 -> libllama-common.so.0.0.1
+-rwxrwxrwx.  1 u0_a649 u0_a649 6244312 Aug 11 00:21 libllama-common.so.0.0.1
+-rwxrwxrwx.  1 u0_a649 u0_a649   92912 Aug 11 00:22 libllama-completion-impl.so
+-rwxrwxrwx.  1 u0_a649 u0_a649   26936 Aug 11 00:23 libllama-fit-params-impl.so
+-rwxrwxrwx.  1 u0_a649 u0_a649  135680 Aug 11 00:22 libllama-perplexity-impl.so
+-rwxrwxrwx.  1 u0_a649 u0_a649   68920 Aug 11 00:22 libllama-quantize-impl.so
+-rwxrwxrwx.  1 u0_a649 u0_a649 8040632 Aug 11 00:21 libllama-server-impl.so
+lrwxrwxrwx.  1 u0_a649 u0_a649      13 Aug 11 00:20 libllama.so -> libllama.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      17 Aug 11 00:20 libllama.so.0 -> libllama.so.0.0.1
+-rwxrwxrwx.  1 u0_a649 u0_a649 3435048 Aug 11 00:20 libllama.so.0.0.1
+lrwxrwxrwx.  1 u0_a649 u0_a649      12 Aug 11 00:21 libmtmd.so -> libmtmd.so.0
+lrwxrwxrwx.  1 u0_a649 u0_a649      16 Aug 11 00:21 libmtmd.so.0 -> libmtmd.so.0.0.1
+-rwxrwxrwx.  1 u0_a649 u0_a649 1148560 Aug 11 00:21 libmtmd.so.0.0.1
+=== RESUME j4 Tue Aug 11 00:23:52 EDT 2026 max=53400 ===
+[1/8] Linking CXX executable bin/llama-bench
+[2/8] Provisioning UI assets
+-- UI: npm not found, skipping npm build
+-- UI: downloading from b1: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b1/dist.tar.gz
+-- UI: download dist.tar.gz from b1 failed: "HTTP response code said error"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: archive verified and extracted
+-- UI: HF download succeeded, stamp updated (latest)
+-- UI: gzip compression applied (/data/data/com.termux/files/home/llama.cpp/build-opencl/tools/ui/dist/_gzip)
+[3/3] Linking CXX executable bin/llama-cli
+BUILD_EXIT=0
+=== OPENCL BUILD DONE Tue Aug 11 00:24:01 EDT 2026 ===
+-rwxrwxrwx. 1 u0_a649 u0_a649 5992 Aug 11 00:23 bin/llama-bench
+-rwxrwxrwx. 1 u0_a649 u0_a649 6120 Aug 11 00:23 bin/llama-cli

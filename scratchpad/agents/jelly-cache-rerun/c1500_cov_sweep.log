@@ -1,0 +1,18 @@
+[2026-08-19T09:42:54-0400] === DROP SWEEP v2 START ===
+[2026-08-19T09:42:54-0400] out=/data/data/com.termux/files/home/experiments/results/cachesweep_marco_jelly_c1500_cov
+[2026-08-19T09:42:54-0400] bin=/data/data/com.termux/files/home/bin/kernel_kf/bmoe-cli sha=77a94640a56a9043
+[2026-08-19T09:43:33-0400] model=Marco-Mini-Instruct-KEXP.gguf sha=2f92195854011538
+[2026-08-19T09:43:33-0400] prompt=p_fact.txt sha=b5301c32c0bd8aae
+[2026-08-19T09:43:33-0400] drops='0.0 1.0nr' rounds=3 passes=3 ngen=200 cooldown=120s batt_floor=45
+[2026-08-19T09:43:33-0400] extra_flags='--n-expert-used 6'
+[2026-08-19T09:43:33-0400] resume: void at start = [r1_d0.0 r1_d1.0nr r2_d0.0 r2_d1.0nr r3_d0.0 r3_d1.0nr]
+[2026-08-19T09:43:35-0400] wake-lock acquired
+[2026-08-19T09:43:36-0400] cpuset OK nproc=8 bits=8 cpuset=/top-app cgroup=/top-app
+[2026-08-19T09:43:36-0400] PREFLIGHT smoke n=5
+[2026-08-19T09:43:51-0400] PREFLIGHT ok rc=0 s/tok=0.187 experts_routed=0 experts_dropped=0 read_MiB=431.3
+[2026-08-19T09:43:51-0400] PREFLIGHT native routing width: experts_routed=0 over 5 tokens
+[2026-08-19T09:43:51-0400] === PASS 1 — void: [r1_d0.0 r1_d1.0nr r2_d0.0 r2_d1.0nr r3_d0.0 r3_d1.0nr] ===
+[2026-08-19T09:43:52-0400] COLD_RESET r1_d0.0 cached 4054236->456884 drop_mb=3513 fadv_rc=0
+[2026-08-19T09:44:48-0400] DONE r1_d0.0 pass=1 rc=0 s/tok=0.191 tok/s=5.229 read_MiB=15192.9 proc_rb=27098099712 stall=0.068 hit=39.5 routed=0 dropped=0 batt=94->93 temp=32.0->33.0 nproc=8 mask=ff excluded=0 ok
+[2026-08-19T09:44:48-0400] cooldown 120s before r1_d1.0nr
+[2026-08-19T09:46:54-0400] COLD_RESET r1_d1.0nr cached 4263184->889472 drop_mb=3294 fadv_rc=0

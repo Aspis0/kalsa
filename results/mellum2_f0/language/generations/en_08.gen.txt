@@ -1,0 +1,21 @@
+Here's a high-level comparison of **Breadth-First Search (BFS)** and **Depth-First Search (DFS)**, followed by guidance on when to choose BFS:
+
+---
+
+### **Key Differences**
+| **Aspect**               | **BFS**                                      | **DFS**                                      |
+|--------------------------|----------------------------------------------|----------------------------------------------|
+| **Traversal Order**      | Level-by-level (shallow to deep)             | Deep to shallow (one branch fully explored)  |
+| **Data Structure**       | Queue (FIFO)                                 | Stack (LIFO) or recursion                    |
+| **Memory Usage**         | High (stores all nodes at current level)     | Low (only stores the current path)           |
+| **Shortest Path**        | **Guarantees shortest path** in unweighted graphs | No guarantee (may find a longer path first)  |
+| **Completeness**         | Complete (finds solution if it exists)       | Complete only if tree (may loop infinitely in graphs with cycles) |
+| **Time Complexity**      | $O(V + E)$                                   | $O(V + E)$                                   |
+| **Space Complexity**     | $O(V)$ (worst case)                          | $O(V)$ (worst case)                          |
+
+---
+
+### **When to Pick BFS**
+Choose **BFS** when:
+1. **Shortest Path is Critical**  
+   - Example: Finding the

@@ -1,0 +1,5 @@
+What does this JavaScript expression do?
+
+```javascript
+[...new Set(arr)]
+```

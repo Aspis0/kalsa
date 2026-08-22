@@ -1,0 +1,8 @@
+{
+  "id": "13_deepget_js",
+  "family": "fromdoc",
+  "lang": "javascript",
+  "entry": "deepGet.js",
+  "node_test": "deepGet.test.js",
+  "dir": "suite/tasks/13_deepget_js"
+}

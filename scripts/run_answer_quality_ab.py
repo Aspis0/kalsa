@@ -56,6 +56,10 @@ MODELS = {
     "marco":    ROOT / "models" / "Marco-Mini-Instruct-KEXP.gguf",
 }
 MODEL_KEY = sys.argv[2] if len(sys.argv) > 2 else "calaqwen"
+# argv[3] = "think" to enable reasoning. The campaign ships --no-think (see
+# docs/ALIVE.md:28) because think costs TTFT, so no-think is the default here too.
+# But character counting is exactly what reasoning fixes, so the comparison matters.
+THINK = len(sys.argv) > 3 and sys.argv[3] == "think"
 MODEL = MODELS[MODEL_KEY]
 
 # Two suites. `long` is the original prose/code/instruction battery. `sanity` is the
@@ -65,7 +69,7 @@ MODEL = MODELS[MODEL_KEY]
 # judgement, and character counting (where LLMs fail systematically).
 SUITE = sys.argv[1] if len(sys.argv) > 1 else "long"
 if SUITE == "sanity":
-    CELL = ROOT / "results" / f"answer_sanity_{MODEL_KEY}"
+    CELL = ROOT / "results" / (f"answer_sanity_{MODEL_KEY}" + ("_think" if THINK else ""))
     PROMPT_DIR = ROOT / "prompts" / "sanity"
     NGEN = 300
 else:
@@ -73,7 +77,7 @@ else:
     PROMPT_DIR = ROOT / "prompts"
     NGEN = 420
 GEN = CELL / "gen"
-LOG = ROOT / "logs" / f"answer-{SUITE}-{MODEL_KEY}-ab.log"
+LOG = ROOT / "logs" / f"answer-{SUITE}-{MODEL_KEY}{'-think' if THINK else ''}-ab.log"
 
 # Marco's arms differ from CalaQwen's because Marco's verdict differs. Its own k8d0
 # anchor (0.761332) puts d=1.0+no-renorm at +0.0490 against a 0.04 budget -- it FAILS,
@@ -121,7 +125,8 @@ def base_args(cfg: dict) -> list[str]:
         str(BINARY), "-m", str(MODEL), "--session",
         "--moe-stream", "--cache-mb", "2000", "--dense-weights", "anon", "--overlap",
         "--io-threads", "4", "--ubatch", "512", "-t", "16", "-c", "4096",
-        "--temp", "0", "--chatml", "--no-think",
+        "--temp", "0", "--chatml",
+    ] + ([] if THINK else ["--no-think"]) + [
         "--n-expert-used", cfg["k"], "--drop-cold-experts", cfg["drop"],
         "--no-moe-fused-gemv", "--no-moe-fused-ffn",
     ]
@@ -156,6 +161,7 @@ def run_config(cfg: dict, prompts: dict[str, str]) -> None:
                 "prompt": prompts[name],
                 "id": i,
                 "n_predict": NGEN,
+                "think": THINK,
                 "clear_kv": True,
             }
             t0 = time.time()

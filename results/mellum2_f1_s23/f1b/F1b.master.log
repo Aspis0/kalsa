@@ -1,0 +1,18 @@
+[2026-08-13T17:03:11-0400] BIN_SHA=69a35f5ef85e286a1d05069872a3ae75b9a8c66d4098695936a5baf4b4d61b8a path=/data/data/com.termux/files/home/bin/bmoe-cli-mellum real=/data/data/com.termux/files/home/bin/mellum/bmoe-cli
+[2026-08-13T17:03:11-0400] MODEL path=/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf size=8071293600
+[2026-08-13T17:03:11-0400] MODEL_SHA=b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7
+[2026-08-13T17:03:11-0400] prompt_fact_sha=b5301c32c0bd8aae4cf5c25d667a52eef05b940a459a2e9c82b1b6134cf0dcbd
+[2026-08-13T17:03:11-0400] === MELLUM2 F1b S23 START ===
+[2026-08-13T17:03:11-0400] PHASE=regime
+[2026-08-13T17:03:11-0400] BIN=/data/data/com.termux/files/home/bin/bmoe-cli-mellum LIBDIR=/data/data/com.termux/files/home/bin/mellum
+[2026-08-13T17:03:12-0400] preflight i=1 plugged=UNPLUGGED batt=72 temp=27.7 memavail_kib=5015236 floor=45
+[2026-08-13T17:03:13-0400] RUN MELLUM2_Q4_fact_r1 batt=72 plugged=UNPLUGGED temp=27.7 memavail_kib=5011752
+[2026-08-13T17:04:52-0400] DONE MELLUM2_Q4_fact_r1 rc=0 wall=68s decode_tps=2.975 mib=185.04 hit=76.0 ttft=11.634 load=5.936 prefill=5.699 n_gen=166 rss_mib=2952.9 batt=72->71 temp=27.7->28.3 memavail=5011752
+[2026-08-13T17:04:52-0400] preflight i=1 plugged=UNPLUGGED batt=71 temp=28.3 memavail_kib=5013880 floor=45
+[2026-08-13T17:04:53-0400] RUN MELLUM2_Q4_fact_r2 batt=71 plugged=UNPLUGGED temp=28.3 memavail_kib=5018572
+[2026-08-13T17:06:34-0400] DONE MELLUM2_Q4_fact_r2 rc=0 wall=69s decode_tps=2.912 mib=185.04 hit=76.0 ttft=11.682 load=5.856 prefill=5.826 n_gen=166 rss_mib=2974.9 batt=71->71 temp=28.3->30.4 memavail=5018572
+[2026-08-13T17:06:34-0400] === MELLUM2 F1b S23 COMPLETE ===
+ts,cell,k,drop,prompt_id,rep,decode_tps,mib_per_tok,hit_pct,ttft_s,load_s,prefill_s,n_gen,rss_mib,batt_start,batt_end,temp_start,temp_end,temp_max,cold,plugged,memavail_start_kib,rc,wall_s
+2026-08-13T17:04:52-0400,MELLUM2_Q4,8,OFF,fact,1,2.975,185.04,76.0,11.634,5.936,5.699,166,2952.9,72,71,27.7,28.3,28.3,1,UNPLUGGED,5011752,0,68
+2026-08-13T17:06:34-0400,MELLUM2_Q4,8,OFF,fact,2,2.912,185.04,76.0,11.682,5.856,5.826,166,2974.9,71,71,28.3,30.4,30.4,1,UNPLUGGED,5018572,0,69
+[2026-08-13T17:06:34-0400] trap cleanup

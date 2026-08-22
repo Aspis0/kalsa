@@ -1,0 +1,26 @@
+reconnect3 2026-08-16T19:00:43.4713120-04:00
+19:06:21 try=20 down
+19:12:14 try=40 down
+19:18:08 try=60 down
+19:24:01 try=80 down
+19:29:54 try=100 down
+19:35:47 try=120 down
+UP try=132 2026-08-16T19:39:18.5745562-04:00
+{
+  "present": true,
+  "technology": "Li-ion",
+  "health": "GOOD",
+  "plugged": "UNPLUGGED",
+  "status": "DISCHARGING",
+  "temperature": 22.0,
+  "voltage": 4407,
+  "current": -500000,
+  "current_average": -500000,
+  "percentage": 100,
+  "level": 100,
+  "scale": 100,
+  "charge_counter": 2946000
+}
+---
+STATUS=STOP_PLUGGED
+RESUME=17

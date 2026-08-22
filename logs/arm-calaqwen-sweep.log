@@ -1,0 +1,28 @@
+[2026-08-17T10:17:10-04:00] armed: waiting for UNPLUGGED (need batt >= 85) over WiFi ssh
+[2026-08-17T10:17:13-04:00] still plugged (PLUGGED_USB), batt 99% - waiting
+[2026-08-17T10:23:21-04:00] UNPLUGGED at 100% - starting the CalaQwen sweep
+[2026-08-17T10:23:22-04:00] launch result: started_pid=25608
+[2026-08-17T10:23:42-04:00] watchdog started pid=17548 for cell dropsweep_calaqwen_jelly
+[2026-08-17T10:23:42-04:00] arming script end
+[2026-08-17T11:46:01-04:00] armed: waiting for UNPLUGGED (need batt >= 85) over WiFi ssh
+[2026-08-17T11:46:02-04:00] still plugged (PLUGGED_USB), batt 83% - waiting
+[2026-08-17T11:49:06-04:00] UNPLUGGED at 85% - starting the CalaQwen sweep
+[2026-08-17T11:49:07-04:00] launch result: started_pid=10284
+[2026-08-17T11:49:27-04:00] watchdog started pid=25632 for cell dropsweep_calaqwen_jelly
+[2026-08-17T11:49:27-04:00] arming script end
+[2026-08-17T21:18:00-04:00] armed: waiting for UNPLUGGED (need batt >= 85) over WiFi ssh
+[2026-08-17T21:18:02-04:00] still plugged (PLUGGED_USB), batt 61% - waiting
+[2026-08-17T21:28:17-04:00] still plugged (PLUGGED_USB), batt 69% - waiting
+[2026-08-17T21:38:31-04:00] still plugged (PLUGGED_USB), batt 77% - waiting
+[2026-08-17T21:48:45-04:00] still plugged (PLUGGED_USB), batt 83% - waiting
+[2026-08-17T21:58:59-04:00] still plugged (PLUGGED_USB), batt 88% - waiting
+[2026-08-17T22:09:13-04:00] still plugged (PLUGGED_USB), batt 91% - waiting
+[2026-08-17T22:19:27-04:00] still plugged (PLUGGED_USB), batt 95% - waiting
+[2026-08-17T22:29:41-04:00] still plugged (PLUGGED_USB), batt 99% - waiting
+[2026-08-17T22:39:56-04:00] still plugged (PLUGGED_USB), batt 100% - waiting
+[2026-08-17T22:50:11-04:00] still plugged (PLUGGED_USB), batt 100% - waiting
+[2026-08-17T23:00:24-04:00] still plugged (PLUGGED_USB), batt 100% - waiting
+[2026-08-17T23:07:34-04:00] UNPLUGGED at 100% - starting the CalaQwen sweep
+[2026-08-17T23:07:34-04:00] launch result: started_pid=9734
+[2026-08-17T23:07:54-04:00] watchdog started pid=47696 for cell dropsweep_calaqwen_jelly
+[2026-08-17T23:07:54-04:00] arming script end

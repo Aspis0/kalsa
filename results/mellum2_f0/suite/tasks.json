@@ -1,0 +1,245 @@
+[
+  {
+    "id": "01_last_n",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "last_n.py",
+    "pytest": "test_last_n.py",
+    "dir": "suite/tasks/01_last_n"
+  },
+  {
+    "id": "02_collect",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "collect.py",
+    "pytest": "test_collect.py",
+    "dir": "suite/tasks/02_collect"
+  },
+  {
+    "id": "03_inclusive_sum",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "inclusive_sum.py",
+    "pytest": "test_inclusive_sum.py",
+    "dir": "suite/tasks/03_inclusive_sum"
+  },
+  {
+    "id": "04_clamp",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "clamp.py",
+    "pytest": "test_clamp.py",
+    "dir": "suite/tasks/04_clamp"
+  },
+  {
+    "id": "05_get_last",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "get_last.py",
+    "pytest": "test_get_last.py",
+    "dir": "suite/tasks/05_get_last"
+  },
+  {
+    "id": "06_percent",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "percent.py",
+    "pytest": "test_percent.py",
+    "dir": "suite/tasks/06_percent"
+  },
+  {
+    "id": "07_unique_order",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "unique_preserve_order.py",
+    "pytest": "test_unique_preserve_order.py",
+    "dir": "suite/tasks/07_unique_order"
+  },
+  {
+    "id": "08_factorial",
+    "family": "bugfix",
+    "lang": "python",
+    "entry": "factorial.py",
+    "pytest": "test_factorial.py",
+    "dir": "suite/tasks/08_factorial"
+  },
+  {
+    "id": "09_fizzbuzz",
+    "family": "fromdoc",
+    "lang": "python",
+    "entry": "fizzbuzz.py",
+    "pytest": "test_fizzbuzz.py",
+    "dir": "suite/tasks/09_fizzbuzz"
+  },
+  {
+    "id": "10_lcp",
+    "family": "fromdoc",
+    "lang": "python",
+    "entry": "longest_common_prefix.py",
+    "pytest": "test_longest_common_prefix.py",
+    "dir": "suite/tasks/10_lcp"
+  },
+  {
+    "id": "11_parens",
+    "family": "fromdoc",
+    "lang": "python",
+    "entry": "is_valid_parens.py",
+    "pytest": "test_is_valid_parens.py",
+    "dir": "suite/tasks/11_parens"
+  },
+  {
+    "id": "12_chunk_js",
+    "family": "fromdoc",
+    "lang": "javascript",
+    "entry": "chunk.js",
+    "node_test": "chunk.test.js",
+    "dir": "suite/tasks/12_chunk_js"
+  },
+  {
+    "id": "13_deepget_js",
+    "family": "fromdoc",
+    "lang": "javascript",
+    "entry": "deepGet.js",
+    "node_test": "deepGet.test.js",
+    "dir": "suite/tasks/13_deepget_js"
+  },
+  {
+    "id": "14_rename",
+    "family": "refactor",
+    "lang": "python",
+    "entry": "email_norm.py",
+    "pytest": "test_email_norm.py",
+    "structural": {
+      "must_contain": [
+        "def normalize_email("
+      ],
+      "must_not_contain": [
+        "def do_the_thing("
+      ]
+    },
+    "dir": "suite/tasks/14_rename"
+  },
+  {
+    "id": "15_extract",
+    "family": "refactor",
+    "lang": "python",
+    "entry": "partition.py",
+    "pytest": "test_partition.py",
+    "structural": {
+      "must_contain": [
+        "def is_even("
+      ]
+    },
+    "dir": "suite/tasks/15_extract"
+  },
+  {
+    "id": "16_simplify",
+    "family": "refactor",
+    "lang": "python",
+    "entry": "access.py",
+    "pytest": "test_access.py",
+    "structural": {
+      "max_indent_spaces": 8
+    },
+    "dir": "suite/tasks/16_simplify"
+  },
+  {
+    "id": "17_comprehension",
+    "family": "refactor",
+    "lang": "python",
+    "entry": "positives.py",
+    "pytest": "test_positives.py",
+    "structural": {
+      "must_contain": [
+        "["
+      ],
+      "must_not_contain": [
+        ".append("
+      ]
+    },
+    "dir": "suite/tasks/17_comprehension"
+  },
+  {
+    "id": "18_review_sql",
+    "family": "review",
+    "lang": "python",
+    "entry": "users.py",
+    "review_needles": [
+      "sql injection",
+      "injection",
+      "f-string",
+      "formatted",
+      "concatenat",
+      "parameter",
+      "placeholder",
+      "unsanitiz"
+    ],
+    "review_strict_any": [
+      "inject",
+      "f-string",
+      "format string",
+      "interpolat"
+    ],
+    "dir": "suite/tasks/18_review_sql"
+  },
+  {
+    "id": "19_review_bsearch",
+    "family": "review",
+    "lang": "python",
+    "entry": "bsearch.py",
+    "review_needles": [
+      "off-by-one",
+      "off by one",
+      "len(xs)",
+      "len(xs) - 1",
+      "hi =",
+      "upper bound",
+      "indexerror",
+      "out of range",
+      "out-of-range",
+      "last index"
+    ],
+    "review_strict_any": [
+      "off-by-one",
+      "off by one",
+      "len(xs)",
+      "hi = len",
+      "indexerror",
+      "out of range",
+      "out-of-range",
+      "high bound",
+      "upper bound"
+    ],
+    "dir": "suite/tasks/19_review_bsearch"
+  },
+  {
+    "id": "20_review_is",
+    "family": "review",
+    "lang": "python",
+    "entry": "ready.py",
+    "review_needles": [
+      "identity",
+      "intern",
+      "`is`",
+      " is ",
+      "use ==",
+      "== instead",
+      "should use ==",
+      "compares identity"
+    ],
+    "review_strict_any": [
+      "identity",
+      "intern",
+      "use ==",
+      "== instead",
+      "should be ==",
+      "compares identity",
+      "`is`",
+      "is \"ready\"",
+      "is 'ready'",
+      "operator is",
+      "identity comparison"
+    ],
+    "dir": "suite/tasks/20_review_is"
+  }
+]

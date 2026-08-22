@@ -1,0 +1,36 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Cosa fa il decorator `@functools.lru_cache` in Python? Rispondi in italiano, 4 frasi.
+Il decoratore `@functools.lru_cache` memorizza i risultati delle chiamate a una funzione per evitare di ripetere calcoli redundanti.  
+Utilizza una cache con limite di dimensione specificato (di default illimitata) per mantenere solo i risultati più recenti.  
+Quando la stessa funzione viene chiamata con gli stessi parametri, il valore memorizzato viene restituito istantaneamente.  
+Questo accelera significativamente il codice in scenari con calcoli costosi o ripetitivi.
+
+[ Prompt: 14.5 t/s | Generation: 9.3 t/s ]
+
+
+Exiting...

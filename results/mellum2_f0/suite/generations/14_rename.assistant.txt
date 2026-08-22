@@ -1,0 +1,45 @@
+User:
+You are a software-engineering assistant in a pull-request workflow.
+Apply the requested LOCAL refactor. Reply with a unified diff ONLY (--- / +++ / @@ hunks).
+Do not wrap the diff in markdown fences. Do not change behavior. Do not explain.
+
+## Task
+Rename do_the_thing to normalize_email. Do not change behavior.
+The test file already imports normalize_email; you only edit email_norm.py.
+
+## File: email_norm.py
+```python
+def do_the_thing(addr):
+    """Normalize an email: strip, lower-case, reject if it has no '@'."""
+    if addr is None:
+        raise ValueError("missing")
+    s = str(addr).strip().lower()
+    if "@" not in s:
+        raise ValueError("not an email")
+    return s
+```
+
+Assistant:
+--- email_norm.py
++++ email_norm.py
+@@ -1,7 +1,7 @@
+ def do_the_thing(addr):
+     """Normalize an email: strip, lower-case, reject if it has no '@'."""
+-    if addr is None:
++    if addr is None:
+         raise ValueError("missing")
+     s = str(addr).strip().lower()
+     if "@" not in s:
+         raise ValueError("not an email")
+-    return s
++    return s
+ 
+ def normalize_email(addr):
+     """Normalize an email: strip, lower-case, reject if it has no '@'."""
+     if addr is None:
+         raise ValueError("missing")
+     s = str(addr).strip().lower()
+     if "@" not in s:
+         raise ValueError("not an email")
+     return s
+

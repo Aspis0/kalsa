@@ -1,0 +1,19 @@
+reconnect2 start 2026-08-16T17:09:26.1124448-04:00
+17:15:02 try=20 still down
+17:20:53 try=40 still down
+17:26:45 try=60 still down
+17:32:36 try=80 still down
+17:38:28 try=100 still down
+17:44:22 try=120 still down
+17:50:15 try=140 still down
+17:56:09 try=160 still down
+18:02:02 try=180 still down
+RECONNECTED try=190 2026-08-16T18:04:56.8541815-04:00
+PONG
+STATUS=RUNNING
+RESUME=16
+ROWS=16
+  PID            
+DEAD
+[2026-08-16T17:05:31-0400] preflight i=1 plugged=UNPLUGGED batt=61 temp=35.0 memavail_kib=6120376 floor=45 screen=
+[2026-08-16T17:05:31-0400] RESUME_AT=16

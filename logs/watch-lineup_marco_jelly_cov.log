@@ -1,0 +1,7 @@
+﻿[2026-08-19T13:31:10-04:00] watchdog start interval=300s maxRelaunch=12 staleBeat=900s
+[2026-08-19T13:31:10-04:00] alive=2 starting=0 status='' good_rows=0 tot_rows=0 batt= beat_age=-1s beat=''
+[2026-08-19T13:31:10-04:00] ALERT: ALIVE=2 - MORE THAN ONE HARNESS on the phone. Not relaunching; rows written from here on may be from concurrent runs that polluted each other's cold state.
+[2026-08-19T13:36:11-04:00] alive=1 starting=0 status='RUNNING' good_rows=0 tot_rows=2 batt= beat_age=74s beat='2026-08-19T13:34:58-0400 running r2_d0.0 (pass 1)'
+[2026-08-19T13:41:12-04:00] alive=0 starting=0 status='DONE' good_rows=0 tot_rows=3 batt= beat_age=106s beat='2026-08-19T13:39:26-0400 finished'
+[2026-08-19T13:41:12-04:00] terminal status 'DONE' - watchdog exits
+[2026-08-19T13:41:12-04:00] watchdog end

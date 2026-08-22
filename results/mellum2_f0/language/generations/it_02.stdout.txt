@@ -1,0 +1,60 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Consigliami in italiano una cena vegetariana per 4 persone, con lista della spesa. Niente carne o pesce.
+Certo! Ecco una proposta di **cena vegetariana per 4 persone**, semplice, gustosa e bilanciata, senza carne né pesce. La ricetta include antipasti, primo, secondo e dolce, con una lista della spesa dettagliata.
+
+---
+
+### 🍽 **Cena Vegetariana per 4 Persone**
+
+#### **Antipasto: Insalata di Rucola e Pomodorini**
+- 1 mazzetto di rucola
+- 400 g di pomodorini datterini
+- 2 cucchiai di olio extravergine d'oliva
+- 1 limone (succo)
+- Sale e pepe q.b.
+- Parmigiano reggiano grattugiato (facoltativo)
+
+**Procedimento:**
+1. Sbuccia i pomodorini e tagliali a metà.
+2. Mescola la rucola con i pomodorini, olio, succo di limone, sale e pepe.
+3. Aggiungi un filo d'olio e un po' di parmigiano se piace.
+
+---
+
+#### **Primo: Pasta al Pesto e Funghi Porcini**
+- 400 g di pasta (es. penne o farfalle)
+- 200 g di funghi porcini freschi o surgelati
+- 3 cucchiai di pesto di basilico (o fatto in casa)
+- 1 spicchio d'aglio (facoltativo)
+- Olio extravergine d'oliva
+- Sale e
+
+[ Prompt: 16.3 t/s | Generation: 11.1 t/s ]
+
+
+Exiting...

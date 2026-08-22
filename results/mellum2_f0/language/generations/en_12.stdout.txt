@@ -1,0 +1,58 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Why is this loop wrong? What goes wrong at runtime or in the result?
+
+```python
+for i in range(len(xs)):
+    xs.pop(i)
+```
+The loop is wrong because it modifies the list `xs` while iterating over its indices. Here's what goes wrong at runtime:
+
+1. **Index out of bounds**: When `i` reaches the last valid index of the original list, `xs.pop(i)` removes the last element. This shifts all subsequent elements left, so the new list has one fewer element. The loop then tries to access `xs[i]` where `i` is now beyond the new list's length, causing an `IndexError`.
+
+2. **Incorrect result**: Even if the loop didn't crash, it would only remove the first element of the original list. The reason is that `pop(i)` removes the element at index `i`, and after removing an element, the indices of all subsequent elements shift left. So when `i` increments, it's no longer referring to the "next" element in the original list.
+
+### Example:
+```python
+xs = [1, 2, 3]
+for i in range(len(xs)):
+    xs.pop(i)
+print(xs)  # Output: [2] (only the first element is removed)
+```
+
+### Correct approach:
+To remove all elements from a list while iterating, you should either:
+- Iterate over a copy of the list: `for i in range(len(xs)):` → `for i in range(len(xs.copy())):`
+- Use a reverse loop: `for i in range(len(xs) - 1, -1, -1): xs.pop(i)`
+- Use `while` loop: `while xs: xs.pop()`
+
+The key issue is that modifying a list while iterating over its indices leads to unpredictable behavior and incorrect results.
+
+[ Prompt: 16.7 t/s | Generation: 11.1 t/s ]
+
+
+Exiting...

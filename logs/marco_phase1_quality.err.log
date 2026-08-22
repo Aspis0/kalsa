@@ -1,0 +1,35 @@
+FAIL rc=1073807364 lang=fr
+6 cells,  28 layers,  1/1 seqs), K (f16):  224.00 MiB, V (f16):  224.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 128
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 128
+llama_context: enumerating backends
+llama_context: backend_ptrs.size() = 1
+sched_reserve: reserving ...
+sched_reserve: max_nodes = 2704
+sched_reserve: reserving full memory module
+sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: Flash Attention enabled
+resolve_fused_ops: resolving fused Gated Delta Net support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+sched_reserve:        CPU compute buffer size =   300.75 MiB
+sched_reserve: graph nodes  = 1770
+sched_reserve: graph splits = 1
+sched_reserve: reserve took 9.35 ms, sched copies = 1
+set_n_threads: n_threads = 8, n_threads_batch = 8
+set_abort_callback: call
+bmoe: expert-mmap: dropped 0 MiB
+bmoe: dense-weights=anon — 248 MiB in 254 anon buffers
+bmoe: dense-anon: memcpy=0 odirect=248 ranges_fallback=254
+bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=2000 MiB shards=1
+ppl-decode: n_tokens=14033 n_ctx=4096 batch=1 moe=1 drop_cold=0.650 k=8
+ppl-decode: scored 4095 / 14032 tokens (sum_logprob=-7796.0262)
+ppl-decode: scored 8190 / 14032 tokens (sum_logprob=-15200.3439)
+ppl-decode: scored 12285 / 14032 tokens (sum_logprob=-22459.0637)
+

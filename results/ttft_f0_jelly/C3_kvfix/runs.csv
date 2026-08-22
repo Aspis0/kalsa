@@ -1,0 +1,3 @@
+ts,cell,rep,n_ctx,ubatch,cold,phase,n_prompt,n_past,n_gen,n_common,load_s,prefill_s,prefill_tps,ttft_s,tok_s,wall_s,rc,batt_pct,temp_c,plugged,memavail_kib,kv_mib,compute_mib,note
+2026-08-13T14:19:05-0400,C3,1,4096,512,cold,none,,,,,,,,,,328,0,39,27.0,UNPLUGGED,6008348,,,NO_BMOE_DONE:kv_reuse_kvfix
+2026-08-13T14:25:05-0400,C3,2,4096,512,cold,none,,,,,,,,,,329,0,37,31.0,UNPLUGGED,6005736,,,NO_BMOE_DONE:kv_reuse_kvfix

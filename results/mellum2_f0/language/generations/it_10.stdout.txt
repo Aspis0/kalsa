@@ -1,0 +1,47 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Perché questo loop è sbagliato? Rispondi in italiano.
+
+```python
+for k in d:
+    del d[k]
+```
+Il loop è sbagliato perché, durante l'iterazione su `d`, si modifica lo stesso dizionario (`d`) eliminando i suoi elementi. Quando si elimina un elemento con `del d[k]`, le chiavi rimanenti della dicitura cambiano posizione, il che può causare un comportamento imprevedibile o un errore (ad esempio, `KeyError`), a causa dell'iterazione su una struttura in fase di modifica.
+
+Per correggere il problema, è necessario iterare su una copia dei dizionario, ad esempio:
+
+```python
+for k in d.copy():
+    del d[k]
+```
+
+Questa versione evita di modificare lo stesso dizionario durante l'iterazione, garantendo che tutti gli elementi vengano eliminati correttamente.
+
+[ Prompt: 15.8 t/s | Generation: 9.1 t/s ]
+
+
+Exiting...

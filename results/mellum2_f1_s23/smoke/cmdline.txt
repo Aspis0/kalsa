@@ -1,0 +1,27 @@
+/data/data/com.termux/files/home/src/BigMoeOnEdge/build-bmoe/cli/bmoe-cli.CAMPAIGN
+-m
+/data/data/com.termux/files/home/models/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+-p
+Say OK.
+-n
+8
+--n-expert-used
+8
+--moe-stream
+--cache-mb
+2000
+--dense-weights
+anon
+--overlap
+--io-threads
+4
+--ubatch
+512
+-t
+4
+-c
+4096
+--temp
+0
+--chatml
+--no-think

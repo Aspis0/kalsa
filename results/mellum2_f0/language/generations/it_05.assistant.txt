@@ -1,0 +1,11 @@
+User:
+In italiano, riassumi la differenza pratica tra processo e thread. Massimo 6 frasi.
+
+Assistant:
+Un processo è un programma in esecuzione completo, con le sue risorse isolate.  
+Un thread è una parte di un processo che condivide memoria e file descriptor.  
+I processi sono più sicuri, ma i thread sono più veloci da gestire.  
+Un processo può avere più thread per lavorare in parallelo.  
+La creazione di un thread è più leggera rispetto a quella di un processo.  
+I thread condividono lo stato della memoria, il che complica la gestione.
+

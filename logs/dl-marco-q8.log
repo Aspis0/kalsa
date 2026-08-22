@@ -1,0 +1,14 @@
+﻿[2026-08-12T22:57:56] START Marco Q8 + imatrix download
+[2026-08-12T22:57:56] GET Q8 -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.Q8_0.gguf expect 18356453952 B
+[2026-08-12T23:03:42] curl Q8 rc=0
+[2026-08-12T23:03:42] size Q8 got=18356453952 expect=18356453952
+[2026-08-12T23:03:42] sha256 Q8 ...
+[2026-08-12T23:04:47] sha256 Q8 = 3287457af7a6632cce7b9e9dd37a7bce72f6e61c3d64eb79deea474bda5e6f1c
+[2026-08-12T23:04:47] OK Q8
+[2026-08-12T23:04:47] GET imatrix -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.imatrix.gguf expect 81548704 B
+[2026-08-12T23:05:04] curl imatrix rc=0
+[2026-08-12T23:05:04] size imatrix got=81548704 expect=81548704
+[2026-08-12T23:05:04] sha256 imatrix ...
+[2026-08-12T23:05:04] sha256 imatrix = f05d4d4a7b043904728a1fed6496715e5348b4bd825e47eda5cbdc97fb8aec23
+[2026-08-12T23:05:04] OK imatrix
+[2026-08-12T23:05:04] DONE both files verified

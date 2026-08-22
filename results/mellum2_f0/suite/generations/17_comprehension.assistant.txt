@@ -1,0 +1,44 @@
+User:
+You are a software-engineering assistant in a pull-request workflow.
+Apply the requested LOCAL refactor. Reply with a unified diff ONLY (--- / +++ / @@ hunks).
+Do not wrap the diff in markdown fences. Do not change behavior. Do not explain.
+
+## Task
+Rewrite positives as a single list comprehension (no .append loop).
+Keep behavior. File: positives.py
+
+## File: positives.py
+```python
+def positives(nums):
+    """Return the positive numbers from nums, same order."""
+    out = []
+    for n in nums:
+        if n > 0:
+            out.append(n)
+    return out
+```
+
+## Tests that must pass
+```python
+from positives import positives
+
+def test_mix():
+    assert positives([-2, 0, 3, 4, -1]) == [3, 4]
+
+def test_empty():
+    assert positives([]) == []
+```
+
+Assistant:
+--- positives.py
++++ positives.py
+@@ -1,6 +1,3 @@
+ def positives(nums):
+     """Return the positive numbers from nums, same order."""
+-    out = []
+-    for n in nums:
+-        if n > 0:
+-            out.append(n)
+-    return out
++    return [n for n in nums if n > 0]
+

@@ -1,0 +1,58 @@
+# F1d build comparison — campaign pin vs F1b vs this rebuild
+# Campaign pin 1ca51420 NEVER touched.
+
+source_commit d98702747593e169f5b05fade8af661894fe86f3
+source_branch kalsa/mellum-recipe
+ndk 27.1.12297006
+ANDROID_PLATFORM android-29
+generator Ninja
+jobs 4
+build_dir C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-mellum2
+install_name ~/bin/bmoe-cli-mellum2  (libs in ~/bin/mellum2/)
+
+## How 1ca51420 (CAMPAIGN) was produced
+Canon: BigMoeOnEdge/scripts/build-android.ps1 + scripts/build_bmoe_ndk.sh
+  -DGGML_NATIVE=OFF
+  -DGGML_OPENCL=OFF
+  -DGGML_OPENMP=OFF
+  -DGGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16     # NO i8mm
+  -DLLAMA_CURL=OFF
+  GGML_CPU_REPACK not passed → cmake default ON
+  no llvm-strip
+moe-cpu-build-gap.md is the llama-bench lesson on this SoC (not the campaign
+script itself): REPACK ON + i8mm converts Q4_K → q4_K_8x8_q8_K and costs
+~-33% decode GEMV; REPACK OFF + strip recovered 12.37 → 18.19 tg.
+
+## F1b (suspect)
+arch            armv8.2-a+dotprod+i8mm+fp16
+GGML_CPU_REPACK ON
+HAVE_DOTPROD    1
+HAVE_MATMUL_INT8 1     ← this is the GEMV thief when REPACK is ON
+binary          ~/bin/mellum/bmoe-cli  sha 69a35f5e…  size 6362168
+libs            unstripped (libllama.so 40 MB, libllama-common.so 78 MB)
+
+## F1d (this rebuild) — campaign-identical flags, mellum recipe only extra
+arch            armv8.2-a+dotprod+fp16
+GGML_CPU_REPACK ON     (same default as campaign script)
+HAVE_DOTPROD    1
+HAVE_MATMUL_INT8 Failed / empty
+cmake configure confirmed:
+  Checking for ARM features using flags: -march=armv8.2-a+dotprod+fp16
+  HAVE_MATMUL_INT8 - Failed
+  Adding CPU backend variant ggml-cpu: -march=armv8.2-a+dotprod+fp16
+
+Delta vs F1b: drop +i8mm only. That is what made ggml_cpu_has_matmul_int8()
+return 1 and steal Q4_K GEMV. REPACK stays ON to stay campaign-identical
+(Marco1c 8.819 t/s was measured on that pin). Strip not applied for the
+same reason (campaign PS1 does not strip; bmoe-cli is a small dynamic
+binary, the 125 MB llama-bench case does not apply 1:1).
+
+binary_sha256 0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c
+binary_size 6362168
+libggml_cpu_sha256 b164d48a955329964a08248d1c2a26576c3b654eda17b6727d396fd5de901052
+libggml_cpu_size 5006968   # F1b was 5119344 — i8mm kernels gone
+device_pc_sha_match yes
+campaign_sha256 1ca51420476d4a979552448f1c0b5bc48a04ed2e43643543ce43fa7566bb022f
+f1b_sha256 69a35f5ef85e286a1d05069872a3ae75b9a8c66d4098695936a5baf4b4d61b8a
+campaign_untouched_after_install yes
+list_archs_includes_mellum yes

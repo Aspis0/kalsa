@@ -1,0 +1,2 @@
+# stderr for dump; stock-numpy failure already noted in header
+EXIT=0

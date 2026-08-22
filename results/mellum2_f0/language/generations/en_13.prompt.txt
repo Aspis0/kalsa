@@ -1,0 +1,5 @@
+What does this pandas line do to a DataFrame `df` with columns user and amt?
+
+```python
+df['user_total'] = df.groupby('user')['amt'].transform('sum')
+```

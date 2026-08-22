@@ -1,0 +1,322 @@
+From 7567e9ff3d89cf07b5692bf3414eb83f9facddec Mon Sep 17 00:00:00 2001
+From: gualt <gualt@local>
+Date: Fri, 7 Aug 2026 18:06:51 -0400
+Subject: [PATCH 1/3] cli: add --ppl-file teacher-forced logprob mode
+
+Isolated Session::perplexity path for on-device MoE streaming PPL.
+Scores log P(gold next token) over raw text with all_logits prefill
+chunks; never enters generate(). Campaign decode path unchanged
+(F5.5-A: 8/8 k=8 gens byte-identical to pre-patch binary).
+---
+ cli/main.cpp                |  62 ++++++++++++++
+ core/include/bmoe/session.h |  23 ++++++
+ core/src/engine/session.cpp | 160 ++++++++++++++++++++++++++++++++++++
+ 3 files changed, 245 insertions(+)
+
+diff --git a/cli/main.cpp b/cli/main.cpp
+index 5c75eff..17f256a 100644
+--- a/cli/main.cpp
++++ b/cli/main.cpp
+@@ -367,6 +367,10 @@ static void print_usage(const char * argv0) {
+         "      --no-think          render the chat template with reasoning disabled\n"
+         "      --progress          emit machine telemetry (one JSON line per token)\n"
+         "      --session           keep the model loaded and serve JSON prompt requests from stdin\n"
++        "      --ppl-file PATH     teacher-forced perplexity over the file's raw text (no generation).\n"
++        "                          Emits one final JSON line: n_tokens, n_scored, sum_logprob, ppl.\n"
++        "                          Isolated from the decode path: --ppl-file never calls generate().\n"
++        "      --ppl-csv PATH      with --ppl-file: also write per-position pos,token_id,logprob CSV\n"
+         "      --csv PATH          also write per-token metrics as CSV\n"
+         "      --route-trace PATH  diagnostics: write the per-step per-layer MoE routing trace\n"
+         "                          (which experts each layer routed, their weight, cache state).\n"
+@@ -536,6 +540,8 @@ int main(int argc, char ** argv) {
+     std::string route_trace_path;
+     std::string compute_trace_path;
+     std::string io_trace_path;
++    std::string ppl_file;
++    std::string ppl_csv_path;
+     bool session_mode = false;
+ 
+     // Which flags the user actually typed. The env overrides below consult this rather than
+@@ -598,6 +604,10 @@ int main(int argc, char ** argv) {
+             cfg.progress = true;
+         else if (a == "--session")
+             session_mode = true;
++        else if (a == "--ppl-file")
++            ppl_file = next("--ppl-file");
++        else if (a == "--ppl-csv")
++            ppl_csv_path = next("--ppl-csv");
+         else if (a == "--csv")
+             csv_path = next("--csv");
+         else if (a == "--route-trace")
+@@ -757,6 +767,58 @@ int main(int argc, char ** argv) {
+     // via -p. This is a superset of --progress output (BMOE_* lines), so it never streams inline.
+     if (session_mode) return run_session_loop(cfg, sink.get(), route_trace.get(), compute_trace.get(), io_trace.get());
+ 
++    // ── teacher-forced perplexity (isolated from generate()) ──────────────────────────────
++    // Opens a Session the same way run() does, then scores log P(gold next token) over the
++    // file. Never enters the decode loop, so a binary that only gained this flag is byte-
++    // identical on the campaign's generation path (verified by the F5.5-A regression suite).
++    if (!ppl_file.empty()) {
++        // Read the whole file into memory. A ~50k-token Italian corpus is a few hundred KB;
++        // streaming the file through the tokenizer is not worth the extra surface.
++        FILE * f = std::fopen(ppl_file.c_str(), "rb");
++        if (!f) {
++            std::fprintf(stderr, "error: cannot open --ppl-file %s\n", ppl_file.c_str());
++            return 1;
++        }
++        std::fseek(f, 0, SEEK_END);
++        const long sz = std::ftell(f);
++        std::fseek(f, 0, SEEK_SET);
++        if (sz < 0) {
++            std::fclose(f);
++            std::fprintf(stderr, "error: cannot stat --ppl-file %s\n", ppl_file.c_str());
++            return 1;
++        }
++        std::string text((size_t) sz, '\0');
++        const size_t nread = std::fread(text.data(), 1, (size_t) sz, f);
++        std::fclose(f);
++        if (nread != (size_t) sz) {
++            std::fprintf(stderr, "error: short read on --ppl-file %s\n", ppl_file.c_str());
++            return 1;
++        }
++
++        const SessionConfig sc = session_config_from(cfg);
++        std::string error;
++        std::unique_ptr<Session> session =
++            Session::open(sc, error, route_trace.get(), compute_trace.get(), io_trace.get());
++        if (!session) {
++            std::fprintf(stderr, "error: %s\n", error.c_str());
++            return 1;
++        }
++        Session::PplResult pr = session->perplexity(text, ppl_csv_path);
++        if (!pr) {
++            std::fprintf(stderr, "error: ppl failed: %s\n", pr.error.c_str());
++            return 1;
++        }
++        // One machine-readable line on stdout; human progress goes to stderr from Session.
++        std::printf("BMOE_PPL {\"n_tokens\":%d,\"n_scored\":%d,\"sum_logprob\":%.8f,"
++                    "\"ppl\":%.6f,\"seconds\":%.3f,\"cancelled\":%s,\"file\":\"%s\"}\n",
++                    pr.n_tokens, pr.n_scored, pr.sum_logprob, pr.ppl, pr.seconds,
++                    pr.cancelled ? "true" : "false", json_escape(ppl_file).c_str());
++        std::fflush(stdout);
++        std::fprintf(stderr, "ppl done: n_scored=%d ppl=%.4f sum_logprob=%.4f (%.1f s)\n",
++                     pr.n_scored, pr.ppl, pr.sum_logprob, pr.seconds);
++        return pr.cancelled ? 2 : 0;
++    }
++
+     if (!cfg.progress) {
+         std::printf("%s", cfg.prompt.c_str());
+         std::fflush(stdout);
+diff --git a/core/include/bmoe/session.h b/core/include/bmoe/session.h
+index 20ef9fa..eca2e58 100644
+--- a/core/include/bmoe/session.h
++++ b/core/include/bmoe/session.h
+@@ -124,6 +124,29 @@ public:
+                        const std::function<void(const TokenMetrics &)> & on_token = nullptr,
+                        IMetricsSink * sink = nullptr);
+ 
++    // Teacher-forced perplexity over raw text. Prefills the tokenised text in ubatch-sized
++    // chunks with logits on every position, and for each position i scores log P(token_{i+1} |
++    // tokens_{0..i}) — the gold next token, never a sample. Does NOT call generate() and does
++    // not touch the decode loop: the campaign's byte-identity path stays on generate().
++    //
++    // Texts longer than n_ctx are evaluated as non-overlapping chunks of size n_ctx (each chunk
++    // clears KV). That is an approximation vs. a single infinite context; it is the only way to
++    // score ~50k tokens under a 4k context on-device. Within a chunk the conditioning is exact.
++    //
++    // Optional per-token CSV: columns pos,token_id,logprob. cancel() aborts between batches.
++    struct PplResult {
++        bool ok = false;
++        bool cancelled = false;
++        std::string error;
++        int n_tokens = 0;       // tokens tokenised (incl. BOS if the vocab adds one)
++        int n_scored = 0;       // positions that contributed a logprob (n_tokens-1 per full chunk)
++        double sum_logprob = 0; // sum of log P(gold); NLL = -sum_logprob / n_scored
++        double ppl = 0;         // exp(-mean logprob)
++        double seconds = 0;
++        explicit operator bool() const { return ok; }
++    };
++    PplResult perplexity(const std::string & text, const std::string & per_token_csv_path = "");
++
+     // Request the in-flight generation to stop. Thread-safe; may be called from another
+     // thread while generate() runs. Takes effect at the next decode boundary via the abort
+     // callback and leaves the model/cache intact for the next generate().
+diff --git a/core/src/engine/session.cpp b/core/src/engine/session.cpp
+index 2136ea6..9fd5a06 100644
+--- a/core/src/engine/session.cpp
++++ b/core/src/engine/session.cpp
+@@ -23,6 +23,7 @@
+ #include <algorithm>
+ #include <atomic>
+ #include <chrono>
++#include <cmath>
+ #include <cstdio>
+ #include <cstdlib>
+ #include <cstring>
+@@ -1532,4 +1533,163 @@ RunResult Session::generate(const GenerateRequest & req,
+     return res;
+ }
+ 
++// Teacher-forced log P(token_{i+1} | tokens_{0..i}) over raw text. Isolated from generate():
++// no sampling, no chat template, no speculation. Prefill with all_logits so every position's
++// final logits are available after llama_decode returns (llama.cpp materialises outputs for
++// every requested position once the full batch has been evaluated, including after ubatch
++// splits — so this is not an intermediate partial-block logit).
++Session::PplResult Session::perplexity(const std::string & text, const std::string & per_token_csv_path) {
++    PplResult out;
++    Impl & im = *impl_;
++    llama_context * ctx = im.ctx.get();
++    im.cancel_requested.store(false, std::memory_order_relaxed);
++
++    auto fail = [&](const std::string & e) -> PplResult & {
++        out.ok = false;
++        out.error = e;
++        return out;
++    };
++
++    // Tokenise raw text. add_special=true so BOS (if any) is present — matches llama-perplexity.
++    std::vector<llama_token> tokens(text.size() + 8);
++    int n_tok = llama_tokenize(im.vocab, text.c_str(), (int) text.size(), tokens.data(), (int) tokens.size(),
++                              /*add_special*/ true, /*parse_special*/ true);
++    if (n_tok < 0) {
++        tokens.resize(-n_tok);
++        n_tok = llama_tokenize(im.vocab, text.c_str(), (int) text.size(), tokens.data(), (int) tokens.size(), true, true);
++    }
++    if (n_tok < 2) return fail("need at least 2 tokens to score perplexity");
++    tokens.resize(n_tok);
++    out.n_tokens = n_tok;
++
++    // Chunk capacity = session n_ctx. Within a chunk we score positions 0..n_chunk-2 (gold next
++    // token). For texts longer than n_ctx we walk non-overlapping chunks and clear KV between
++    // them — exact conditioning only inside a chunk. n_batch/n_ubatch still control the decode
++    // width inside a chunk.
++    const int n_ctx = im.cfg.n_ctx;
++    const int n_batch = im.cfg.n_batch > 0 ? im.cfg.n_batch : n_ctx;
++    // Widest graph: honour n_ubatch when set, else n_batch. Cap at n_ctx.
++    //
++    // Under MoE streaming a wide all-logits batch is catastrophic: every position routes its own
++    // top-k, so a 512-token ubatch can demand ~512×k distinct experts per layer and thrash the
++    // flash path (measured F5.5-A: ~1.3 tok/s at ubatch 512). Cap the PPL batch so each step
++    // looks like a short prefill. Logits remain FINAL per position (llama_decode finishes the
++    // whole submitted batch before returning). generate() is unaffected — this cap lives only
++    // inside perplexity().
++    int chunk_ub = im.cfg.n_ubatch > 0 ? im.cfg.n_ubatch : n_batch;
++    if (im.cfg.moe.enabled && chunk_ub > 16) chunk_ub = 16;
++    if (chunk_ub > n_ctx) chunk_ub = n_ctx;
++    if (chunk_ub < 2) chunk_ub = 2;
++    std::fprintf(stderr, "ppl: n_tokens=%d n_ctx=%d batch=%d moe=%d\n", n_tok, n_ctx, chunk_ub,
++                 (int) im.cfg.moe.enabled);
++    std::fflush(stderr);
++
++    // Explicit batch so every position requests logits (llama_batch_get_one only enables the last).
++    llama_batch batch = llama_batch_init(chunk_ub, /*embd*/ 0, /*n_seq_max*/ 1);
++    if (batch.token == nullptr) return fail("llama_batch_init failed for ppl");
++
++    FILE * csv = nullptr;
++    if (!per_token_csv_path.empty()) {
++        csv = std::fopen(per_token_csv_path.c_str(), "w");
++        if (!csv) {
++            llama_batch_free(batch);
++            return fail("could not open ppl csv: " + per_token_csv_path);
++        }
++        std::fprintf(csv, "pos,token_id,logprob\n");
++    }
++
++    auto log_softmax_at = [&](const float * logits, int tok) -> double {
++        // Numerically stable log-softmax at the gold token. Same form as llama-perplexity.
++        float max_logit = logits[0];
++        for (int v = 1; v < im.n_vocab; ++v)
++            if (logits[v] > max_logit) max_logit = logits[v];
++        double sum_exp = 0.0;
++        for (int v = 0; v < im.n_vocab; ++v)
++            sum_exp += std::exp((double) logits[v] - (double) max_logit);
++        return (double) logits[tok] - (double) max_logit - std::log(sum_exp);
++    };
++
++    const auto t0 = clock_t_::now();
++    double sum_lp = 0.0;
++    int n_scored = 0;
++    int global_pos = 0; // absolute index in `tokens` of the first token of the current window
++
++    // Walk the corpus in non-overlapping windows of size <= n_ctx. Each window is prefilled in
++    // ubatch-sized slices with logits on every position; after each slice we score every position
++    // that has a gold next token still inside the window.
++    while (global_pos < n_tok - 1) {
++        if (im.cancel_requested.load(std::memory_order_relaxed)) {
++            out.cancelled = true;
++            break;
++        }
++        const int win_len = std::min(n_ctx, n_tok - global_pos);
++        if (win_len < 2) break;
++
++        llama_memory_clear(llama_get_memory(ctx), true);
++        // Drop policy is decode-only by default; mark every ppl batch as prefill (phase 0).
++        im.hook->set_batch_phase(/*phase*/ 0);
++
++        int local = 0; // offset inside the window already decoded
++        while (local < win_len) {
++            if (im.cancel_requested.load(std::memory_order_relaxed)) {
++                out.cancelled = true;
++                break;
++            }
++            const int n_eval = std::min(chunk_ub, win_len - local);
++            batch.n_tokens = n_eval;
++            for (int i = 0; i < n_eval; ++i) {
++                batch.token[i] = tokens[global_pos + local + i];
++                batch.pos[i] = local + i; // absolute position inside this window's KV
++                batch.n_seq_id[i] = 1;
++                batch.seq_id[i][0] = 0;
++                batch.logits[i] = 1; // every position: teacher-forced needs all of them
++            }
++            if (llama_decode(ctx, batch) != 0) {
++                if (csv) std::fclose(csv);
++                llama_batch_free(batch);
++                return fail("ppl decode failed at global_pos=" + std::to_string(global_pos + local));
++            }
++
++            // Score every position in this slice whose gold next token is still inside the window.
++            // Position j (0-based in the batch) predicts tokens[global_pos + local + j + 1].
++            for (int j = 0; j < n_eval; ++j) {
++                const int abs_in_win = local + j;
++                if (abs_in_win + 1 >= win_len) break; // last token of the window has no gold next
++                const int gold = tokens[global_pos + abs_in_win + 1];
++                const float * logits = llama_get_logits_ith(ctx, j);
++                if (!logits) {
++                    if (csv) std::fclose(csv);
++                    llama_batch_free(batch);
++                    return fail("null logits at global_pos=" + std::to_string(global_pos + abs_in_win));
++                }
++                const double lp = log_softmax_at(logits, gold);
++                sum_lp += lp;
++                ++n_scored;
++                if (csv)
++                    std::fprintf(csv, "%d,%d,%.8f\n", global_pos + abs_in_win, gold, lp);
++            }
++            local += n_eval;
++        }
++        if (out.cancelled) break;
++        global_pos += win_len;
++        // Progress to stderr so a multi-hour run is observable without --progress noise.
++        std::fprintf(stderr, "ppl: scored %d / %d tokens (sum_logprob=%.4f)\n", n_scored, n_tok - 1, sum_lp);
++        std::fflush(stderr);
++    }
++
++    if (csv) std::fclose(csv);
++    llama_batch_free(batch);
++
++    out.n_scored = n_scored;
++    out.sum_logprob = sum_lp;
++    out.seconds = secs(t0, clock_t_::now());
++    if (n_scored > 0) {
++        out.ppl = std::exp(-sum_lp / (double) n_scored);
++        out.ok = !out.cancelled;
++    } else if (!out.cancelled) {
++        return fail("no positions scored");
++    }
++    return out;
++}
++
+ } // namespace bmoe
+-- 
+2.54.0.windows.1
+

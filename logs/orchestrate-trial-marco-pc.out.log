@@ -1,0 +1,82 @@
+[2026-08-10T20:26:45] orchestrate_trial_marco_pc START
+[2026-08-10T20:26:45] WAIT KEXP multi5...
+[2026-08-10T20:26:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:28:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:30:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:32:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:34:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:36:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:38:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:40:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:42:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:44:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:46:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:48:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:50:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:52:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:54:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:56:46] KEXP progress langs_with_bpb=2/5
+[2026-08-10T20:58:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:00:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:02:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:04:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:06:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:08:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:10:46] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:12:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:14:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:16:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:18:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:20:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:22:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:24:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:26:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:28:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:30:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:32:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:34:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:36:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:38:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:40:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:42:47] KEXP progress langs_with_bpb=3/5
+[2026-08-10T21:44:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:46:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:48:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:50:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:52:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:54:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:56:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T21:58:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:00:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:02:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:04:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:06:47] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:08:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:10:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:12:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:14:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:16:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:18:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:20:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:22:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:24:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:26:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:28:48] KEXP progress langs_with_bpb=4/5
+[2026-08-10T22:30:48] KEXP DONE macro_bpb=0.5830659511013604
+[2026-08-10T22:30:48] START Marco -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_marco
+=== Marco en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_marco\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=6.8381 bpb=0.6051 tok=11117 fert=4.582 s=4329.4
+=== Marco es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_marco\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=5.9189 bpb=0.6766 tok=13890 fert=3.790 s=5508.3
+=== Marco fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_marco\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=6.1556 bpb=0.7234 tok=14033 fert=3.623 s=4814.1
+=== Marco it bytes=50054 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_marco\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=32.3951 bpb=1.6377 tok=16341 fert=3.063 s=5709.0
+=== Marco zh bytes=50284 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\zh.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\trial_marco\ppl_marco\zh\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8
+  ppl=9.7616 bpb=0.8834 tok=13517 fert=3.720 s=4510.1
+MACRO bpb=0.9052

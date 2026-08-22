@@ -1,0 +1,5 @@
+cl=C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14.44.35207\bin\HostX64\x64\cl.exe
+JOBS=4
+START=2026-08-11T08:38:39.0578975-04:00
+BAT_EXIT=1
+END=2026-08-11T08:38:57.2584910-04:00

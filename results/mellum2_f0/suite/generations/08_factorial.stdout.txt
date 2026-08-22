@@ -1,0 +1,53 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+factorial has no base case and recurses forever. 0! must be 1.
+
+## File: factorial.py
+```python
+def factorial(n):
+    """Return n! for integer n >= 0. 0! is 1."""
+    re ... (truncated)
+--- /factorial.py
++++ /factorial.py
+@@ -1,5 +1,6 @@
+ def factorial(n):
+     """Return n! for integer n >= 0. 0! is 1."""
+-    return n * factorial(n - 1)
++    if n == 0:
++        return 1
++    return n * factorial(n - 1)
+
+[ Prompt: 24.2 t/s | Generation: 10.5 t/s ]
+
+
+Exiting...

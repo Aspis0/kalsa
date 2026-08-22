@@ -1,0 +1,11 @@
+{
+  "id": "16_simplify",
+  "family": "refactor",
+  "lang": "python",
+  "entry": "access.py",
+  "pytest": "test_access.py",
+  "structural": {
+    "max_indent_spaces": 8
+  },
+  "dir": "suite/tasks/16_simplify"
+}

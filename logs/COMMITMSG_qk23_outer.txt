@@ -1,0 +1,10 @@
+qk23: q2_K/q3_K MoE OpenCL kernels for Adreno — KEXP experts on GPU for the first time (kalsakernel-v4)
+
+Design triple-audited, then oracle-certified storage, then barrier-safe GEMV/GEMM
+kernels, then supports_op. Device: MUL_MAT_ID 401/401 (including m=96 GEMV and
+GEMM padding discriminators) and LFM2.5-KEXP smoke with both types dispatching
+(n_cpu_moe=0, kernel_{gemv,gemm}_moe_q{2,3}_k_f32_ns). Family-latent
+early-return-before-barrier on q4_K/q5_K/q6_K is documented review-found, not
+device-proven. MAX RECALL 3 angles closed.
+
+Tag kalsakernel-v4 = ec7235af6 in the llama.cpp bundle (no submodule push).

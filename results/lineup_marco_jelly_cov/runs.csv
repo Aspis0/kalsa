@@ -1,0 +1,4 @@
+ts,pass,run_idx,round,drop,label,s_tok,tok_s,read_MiB,proc_read_bytes,stall_s_tok,compute_s_tok,io_s_tok,cache_hit_pct,experts_routed,experts_dropped,evictions,rereads,majflt_tok,n_tokens,cached_before_kib,cached_after_kib,cached_drop_mb,cold_valid,batt_start,batt_end,temp_start,temp_end,plugged,excluded,exclude_reason,nproc,affinity_mask
+2026-08-19T13:32:52-0400,1,1,1,0.0,r1_d0.0,0.299,3.340,11803.1,17869713408,0.118,0.161,0.423,50.2,0,0,16692,12514,0.00,200,2956072,691720,2211,1,45,44,28.0,29.0,UNPLUGGED,0,ok,8,ff
+2026-08-19T13:36:08-0400,1,2,2,0.0,r2_d0.0,0.295,3.386,11803.1,17926967296,0.115,0.160,0.411,50.2,0,0,16692,12514,0.00,200,2238648,923524,1284,1,44,43,30.0,30.0,UNPLUGGED,0,ok,8,ff
+2026-08-19T13:39:26-0400,1,3,3,0.0,r3_d0.0,0.306,3.273,11803.1,17919733760,0.122,0.163,0.430,50.2,0,0,16692,12514,0.00,200,2402092,1085712,1285,1,43,41,31.0,32.0,UNPLUGGED,0,ok,8,ff

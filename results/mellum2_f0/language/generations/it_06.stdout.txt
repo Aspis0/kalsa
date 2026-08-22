@@ -1,0 +1,54 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Cosa fa questa riga e qual è il bug tipico? Rispondi in italiano.
+
+```python
+d = dict.fromkeys(['a', 'b'], [])
+d['a'].append(1)
+```
+Questa riga crea un dizionario `d` con le chiavi `'a'` e `'b'`, entrambe con valore iniziale uguale a una lista vuota `[]`. Poi prova ad aggiungere l'elemento `1` alla lista associata alla chiave `'a'`.
+
+Il bug tipico è che **tutte le chiavi del dizionario condividono lo stesso oggetto lista iniziale**. In questo caso, sia `d['a']` che `d['b']` puntano allo stesso oggetto `[]`. Quando si esegue `d['a'].append(1)`, si modifica lo stesso oggetto lista a cui anche punta `d['b']`. Di conseguenza, `d['b']` conterrà anche l'elemento `1`, anche se non si è appena modificato.
+
+Esempio:
+```python
+d = dict.fromkeys(['a', 'b'], [])
+d['a'].append(1)
+print(d)  # Output: {'a': [1], 'b': [1]}
+```
+
+Per risolvere il problema, si deve creare una lista separata per ogni chiave, ad esempio:
+```python
+d = {k: [] for k in ['a', 'b']}
+d['a'].append(1)
+print(d)  # Output: {'a': [1], 'b': []}
+```
+
+[ Prompt: 18.5 t/s | Generation: 11.4 t/s ]
+
+
+Exiting...

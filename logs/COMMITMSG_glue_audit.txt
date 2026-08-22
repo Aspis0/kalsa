@@ -1,0 +1,8 @@
+opencl: GEMV_AUDIT glue audit — semantic MUL_MAT_ID vs args-consistent dst
+
+Stash I32 ids and F32 src1 at set_tensor (same GGML_OPENCL_GEMV_AUDIT
+gate and stash cap as AoS weights). After the production GEMV, compare
+dst against (a) ggml-cpu stock mul_mat_id semantics (ggml-cpu.c:1924-1933
+grouping, 1685-1703 one_chunk) and (b) the existing args-consistent
+reference; also byte-compare GPU ids vs stash. Emit GLUE_AUDIT /
+GLUE_AUDIT_DIV / GLUE_AUDIT_IDS. No new kernels.

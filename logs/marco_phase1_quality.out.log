@@ -1,0 +1,48 @@
+[2026-08-11T16:18:58] PHASE1 quality start
+[2026-08-11T16:18:58] model=C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf
+[2026-08-11T16:18:58] A0 anchors EN=0.605101173116205 IT_v2=0.750126084179142
+[2026-08-11T16:18:58] === A1 fail-fast IT+EN k=8 drop=0.65 ===
+=== A1 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A1\failfast\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --drop-cold-experts 0.65
+  ppl=5.7408 bpb=0.7546 tok=13696 fert=3.340 s=4411.9
+=== A1 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A1\failfast\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --drop-cold-experts 0.65
+  ppl=6.8989 bpb=0.6079 tok=11117 fert=4.582 s=3607.0
+MACRO bpb=0.6812
+[2026-08-11T18:32:56] A1 it bpb=0.7546061152261 delta_A0=0.00448003104695804 PASS
+[2026-08-11T18:32:56] A1 en bpb=0.607888919973758 delta_A0=0.00278774685755379 PASS
+[2026-08-11T18:32:56] A1 FAILFAST PASS -> queue full multi5
+[2026-08-11T18:32:56] === A2 fail-fast IT+EN k=6 drop=0.65 ===
+=== A2 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A2\failfast\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=5.9346 bpb=0.7689 tok=13696 fert=3.340 s=3617.1
+=== A2 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A2\failfast\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.65
+  ppl=7.0640 bpb=0.6153 tok=11117 fert=4.582 s=2843.6
+MACRO bpb=0.6921
+[2026-08-11T20:20:54] A2 it bpb=0.768939154000337 delta_A0=0.0188130698211947 PASS
+[2026-08-11T20:20:54] A2 en bpb=0.615332092305178 delta_A0=0.0102309191889735 PASS
+[2026-08-11T20:20:54] A2 FAILFAST PASS -> queue full multi5
+[2026-08-11T20:20:54] === A3 fail-fast IT+EN k=6 drop=0.5 ===
+=== A3 it bytes=45747 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A3\failfast\it\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5
+  ppl=5.7995 bpb=0.7590 tok=13696 fert=3.340 s=3690.5
+=== A3 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A3\failfast\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 6 --drop-cold-experts 0.5
+  ppl=6.9497 bpb=0.6102 tok=11117 fert=4.582 s=3031.3
+MACRO bpb=0.6846
+[2026-08-11T22:13:13] A3 it bpb=0.758997049310724 delta_A0=0.00887096513158148 PASS
+[2026-08-11T22:13:14] A3 en bpb=0.610196922217567 delta_A0=0.0050957491013629 PASS
+[2026-08-11T22:13:14] A3 FAILFAST PASS -> queue full multi5
+[2026-08-11T22:13:14] === A1 FULL multi5 k=8 drop=0.65 ===
+=== A1 en bytes=50943 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\en.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A1\full\en\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --drop-cold-experts 0.65
+  ppl=6.8989 bpb=0.6079 tok=11117 fert=4.582 s=3427.0
+=== A1 es bytes=52648 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\es.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A1\full\es\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --drop-cold-experts 0.65
+  ppl=5.9525 bpb=0.6788 tok=13890 fert=3.790 s=6356.4
+=== A1 fr bytes=50848 ===
+CMD: C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc\cli\bmoe-cli.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\Marco-Mini-Instruct.i1-Q4_K_M.gguf -t 8 -c 4096 --ubatch 512 --ppl-decode C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\fr.txt --ppl-csv C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\marco_phase1\A1\full\fr\per_token.csv --moe-stream --cache-mb 2000 --dense-weights anon --io-threads 4 --overlap --n-expert-used 8 --drop-cold-experts 0.65
+[2026-08-12T02:29:46] A1 full rc=1073807364
+[2026-08-12T02:29:46] === A2 FULL multi5 k=6 drop=0.65 ===
+[2026-08-12T02:29:46] A2 full rc=-1073741205

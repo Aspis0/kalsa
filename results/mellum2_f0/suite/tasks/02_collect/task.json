@@ -1,0 +1,8 @@
+{
+  "id": "02_collect",
+  "family": "bugfix",
+  "lang": "python",
+  "entry": "collect.py",
+  "pytest": "test_collect.py",
+  "dir": "suite/tasks/02_collect"
+}

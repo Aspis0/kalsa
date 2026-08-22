@@ -1,0 +1,41 @@
+User:
+You are a software-engineering assistant in a pull-request workflow.
+Reply with a unified diff ONLY (--- / +++ / @@ hunks) that implements the requested change.
+Do not wrap the diff in markdown fences. Do not explain. Do not add extra files.
+Keep the public function name and signature unless the task asks you to rename.
+
+## Task
+get_last indexes one past the end. Return the actual last element.
+
+## File: get_last.py
+```python
+def get_last(xs):
+    """Return the last element of a non-empty sequence xs."""
+    return xs[len(xs)]
+```
+
+## Tests that must pass
+```python
+import pytest
+from get_last import get_last
+
+def test_list():
+    assert get_last([10, 20, 30]) == 30
+
+def test_str():
+    assert get_last("abc") == "c"
+
+def test_one():
+    assert get_last([7]) == 7
+```
+
+Assistant:
+--- /get_last.py
++++ /get_last.py
+@@ -1,5 +1,5 @@
+ def get_last(xs):
+-    """Return the last element of a non-empty sequence xs."""
++    """Return the last element of a non-empty sequence xs."""
+     return xs[len(xs)]
+```
+
