@@ -47,6 +47,22 @@ function allPrompts() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/**
+ * The system prompt in the language of the question. A prompt may be a plain
+ * string or a map keyed by language; the map is the one that matters, because a
+ * mismatched prompt does not sit quietly next to the question — it pulls the
+ * answer into its own language and the drift measured is the harness's, not the
+ * model's (see defaults.systemNote).
+ */
+function systemFor(cell, lang) {
+  const src = cell.system ?? matrix.defaults.system;
+  if (!src) return undefined;
+  if (typeof src === "string") return src;
+  const picked = src[lang];
+  if (!picked) throw new Error(`no system prompt for language ${lang}`);
+  return picked;
+}
+
 function startServer(cell, model, d) {
   const argv = [
     "-m", model.path,
@@ -148,9 +164,9 @@ async function runCell(cell, prompts) {
     for (const p of todo) {
       let row;
       try {
-        const res = await ask(p.prompt, d, cell.system ?? d.system);
+        const res = await ask(p.prompt, d, systemFor(cell, p.lang));
         row = { cell: cell.id, model: cell.model, quant: model.quant, kvK: cell.kvK, kvV: cell.kvV,
-                budget: cell.budget, system: cell.system ?? d.system ?? null,
+                budget: cell.budget, system: systemFor(cell, p.lang) ?? null,
                 qid: p.qid, lang: p.lang, prompt: p.prompt,
                 content: res.content, finish: res.finish, timings: res.timings, wallMs: res.wallMs };
       } catch (e) {
