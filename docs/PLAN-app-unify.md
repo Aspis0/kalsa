@@ -4,36 +4,61 @@ Written 2026-08-22, against the numbers in `KALSA.md` §2.1 / §9 and `HARNESS_F
 §7.27, §7.39, §7.40. Every claim below that is a number is a measured one; where a number is
 missing the plan says so rather than guessing.
 
-## What already exists (checked, not assumed)
+## What exists, and what it actually does
 
-- `deviceThroughput.ts` already does the §9 calibration, **including per-quant-family bandwidth**
-  (`quantizationFamilyFor`) — that was §9's limit (d) and it is closed.
-  `MODEL_SPEED_FLOOR = 20`, `MODEL_SPEED_DEGRADED_FLOOR = 10`.
-- `deviceProfile.ts:163` already folds `modelSpeedAdvisory` into `modelGateVerdict`, so the gate
-  already answers *will it be usable*, not only *will it fit*.
-- `AppShell.tsx:2446` already records a bandwidth sample after decode. The constant is learned.
+A hostile audit (2026-08-22) demolished the first version of this section. It is rewritten against
+the code, and the corrections stay visible because they change the work.
+
+- `deviceThroughput.ts` computes a per-quant-family bandwidth ceiling; `deviceProfile.ts:163`
+  computes a `speedAdvisory`; `AppShell.tsx:2446` records a sample after decode.
 - `modelGateVerdict` / `evaluateModelFit` are consumed by `AppShell` and `SettingsScreen`.
-- The streaming engine is vendored and compiles (`native/bmoe/`, `feat/moe-stream`), with a bench
-  arm that can turn it on.
+- The streaming engine is vendored and compiles (`native/bmoe/`), with a bench arm that turns it on.
 
-**What does not exist:** any onboarding flow (`grep -rln onboard src/` → nothing), any use of
-streaming in the gate, and any *explanation* when the app declines or downgrades.
+⛔ **Three claims this section made, and the audit killed:**
 
-## The chicken-and-egg that decides phase order
+1. **"The gate already answers *will it be usable*." FALSE.** `allowed` depends only on
+   `blocked_tier`, `blocked_ram`, `blocked_disk` (`deviceProfile.ts:136-216`). **Speed never causes
+   a refusal.** The advisory is decoration — no consumer outside engine files and tests.
+2. **The speed question is not merely unanswered, it is unaskable.** `predictTokensPerSecond` needs
+   `model.weightsBytesPerToken`, and **exactly one registry entry carries it**
+   (`ModelRegistry.ts:299`, the KEXP). For the other eight the advisory returns `"unknown"`. The
+   `MB/token` column in KALSA.md §2.1 lives **only in the doc** — the gate cannot read it.
+   *Adding MB/token to every entry is a work item this plan did not list at all.*
+3. **"§9's limit (d) is closed." FALSE, in both directions.** `recordDeviceBandwidthSample` keeps
+   the **maximum** per family and never lowers it (`deviceThroughput.ts:68-71`; the merge helper
+   says so outright: *"without ever lowering a ceiling"*). The family key is the registry `quant`
+   **label**, so on the Jelly `q4_k_m` holds both the 8B (4.23 tok/s × ~1030 = 4.4 GB/s) and the
+   2.6B (5.68 × 1666 = 9.5 GB/s) — a **2.2× spread inside one family on one phone** — and the max
+   keeps 9.5, predicting the 8B at ~9.2 against 4.23 measured. Worse on the S23, where the ceiling
+   is set by the *sickest* member: Qwen3.5-4B at 8.06 tok/s **while taking 961 major faults per
+   token**, × ~2700 = 21.8 GB/s, from which the 8B Q4_K_M — this plan's own "known killer" —
+   predicts **21.2 tok/s, clearing the 20 floor**, against 0.26–0.36 measured. Only the RAM gate
+   refuses it. **A ceiling learned from a thrashing run blesses the model that thrashes.**
 
-The device constant is learned **by decoding**, and decoding needs a model already chosen and
-downloaded. So a phone with no history has no constant, and §9's own rule (c) says: until a
-measurement exists, use a prudent default, **not an invented one**.
+**What does not exist:** any onboarding flow (`grep -rln onboard src/` → nothing), any streaming
+awareness in the gate, any *explanation* when the app declines, and `MB/token` for 8 of 9 models.
 
-That is why the onboarding micro-test comes before the recommender, and why it must not need a
-multi-GB download to produce its first number.
+## Ordering: one honest reason, not a forced one
 
----
+The first version claimed the order was *forced* — "the constant is learned by decoding, so a fresh
+phone has none". The audit called that rationalisation, and it is right. The constant is only
+learnable by decoding, but §9's rule (c) sanctions a **prudent default** before any measurement,
+and phase 2 below offers the cheaper alternative the argument then denies (*calibrate on the first
+model the user picks*). Either lets the recommender precede the micro-test.
+
+The real reason for this order is a product judgement, and is stated as one: **thresholds should
+come out of the kill campaign rather than precede it.** A choice, revisable.
+
+What the audit did surface as real work: **today's code implements the opposite of rule (c)** — no
+measurement → advisory `"unknown"` → the entire catalogue is admitted. Optimistic, not prudent.
+Implementing rule (c) is a work item nobody had written down.
 
 ## Phase 0 — de-hardcode the dependency chain (prerequisite, no user-visible change)
 
 Today the port is held together by hand: the engine was copied with `cp`, the ggml hook was
-re-typed (and silently lost a line — see §7.40's note on `#include "ggml-cpu.h"`), and the patch is
+ported by hand and silently lost a line — the `#include "ggml-cpu.h"` the source commit also
+carries, found only by diffing against it (commit `13f8582`). ⛔ An earlier draft of this plan
+cited that note as living in §7.40; **it does not, and the citation was fabricated.** The patch is
 regenerated manually. Three of my own errors this week came from that.
 
 - `scripts/vendor-bmoe.sh` — re-vendor `native/bmoe/{include,src}` from **`Aspis0/kalsa-forkbigmoeonedge`**
@@ -66,6 +91,19 @@ runs to core loss that battery temperature could not see.
 | C | LFM2.5-2.6B-QAD-Q4_0 | best quality/size we have; **never measured on an S23** (§9's starred gap) |
 | D | Qwen3.5-2B Q4_K_M | the competitor, and the one whose **prefill never drops** (§7.28) |
 | E | arm A + streaming | does bounding RAM stop the kill? §7.39 says footprint becomes *anon* and unreclaimable, so this may make it **worse** — that prediction is the test |
+
+⛔ **Two arms violate this phase's own "no new features" rule, and the audit caught both.**
+*Arm C* names LFM2.5-2.6B-QAD-Q4_0, which has **no registry entry** — it needs one plus a download
+source before it can be selected at all (that entry is now in flight; until it lands, arm C is
+blocked). It also substitutes the QAD quant for the Q4_K_M that §9's starred gap is actually about,
+so it answers a neighbouring question, not that one. *Arm E* needs streaming **in the app**, and
+§7.40's own caveat says the glue has never executed on a phone — a prerequisite with no owner in
+any phase. Given that commit `44f6035` found a live bug in that glue (a failed init unwinding into
+decode-on-zeros) **by audit rather than by running it**, first on-device execution is a risk item
+that needs its own step, before phase 1 assumes it works. Arm E is further constrained: the app's
+bench arm deliberately excludes both drop knobs, so it can only run streaming **lossless**, while
+§7.39's memory-shape prediction was measured with the lossy config. E as written measures a
+different configuration from the finding it is meant to test.
 
 Run to the plateau, not turn 1 — §7.23 shows the achieved rate decays *within* a session, and
 three wrong headlines in one day came from two-turn numbers.
@@ -104,6 +142,12 @@ Scope now: **LFM2.5 and Qwen3.5 only.** The giant MoEs stay research vehicles �
   requirement. Not a silent fallback: *"switched to KEXP: the 8B needs 4.6 GB that cannot be paged
   out and this phone has 0.9 GB free; it was killed at turn 8."* The reason is a measured fact
   about **this** phone, never a generic apology.
+- **What the app does when the answer is "none" is undefined, and on Jelly-class silicon that is
+  the expected answer for every catalogue entry** (best measured 7.31 tok/s against a 10 floor).
+  An app that recommends nothing and then does nothing is a dead install. Options — all product
+  calls, none of them the code's: ship anyway with the honest number stated up front; offer the
+  fastest model as an explicitly-degraded mode; or say the phone is not supported. **Decide before
+  building the gate**, because a gate whose refusal path is undesigned will be quietly bypassed.
 - Re-evaluate over time, not once at onboarding: a decision frozen at first launch is wrong as soon
   as the load changes.
 

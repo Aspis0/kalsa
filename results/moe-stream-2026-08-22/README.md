@@ -29,7 +29,8 @@ Bytes are identical across devices (deterministic at temp 0): **197.01 -> 53.61 
 -72.8%**; re-reads **93.4 -> 15.7 per token**; cache hit 28.3% -> 39.5%.
 
 The sibling repo records -27% time / -68% bytes for this policy on Marco. Measured here, on this
-harness: -29.8% time (Jelly) and -72.8% bytes. Same effect, independently reproduced. The absolute
+harness: -27.6% time (Jelly, medians of `s_per_tok`: 0.4660 -> 0.3375) and -72.8% bytes. Same
+effect, independently reproduced. The absolute
 tok/s are NOT comparable to that repo's cards — different harness, and its default drop changed
 (d065 -> d1.0 no-renorm), so its older absolute numbers do not describe this config either.
 

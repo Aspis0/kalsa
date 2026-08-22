@@ -1659,7 +1659,10 @@ block, medians of n=6/arm, exact two-sided Mann-Whitney:
 
 Bytes are identical across devices (deterministic at temp 0): **197.01 -> 53.61 MiB/token, -72.8%**;
 re-reads **93.4 -> 15.7 per token**; hit 28.3% -> 39.5%. The sibling repo records -27% time / -68%
-bytes for this policy on Marco; measured here, -29.8% and -72.8%. Independently reproduced.
+bytes for this policy on Marco; measured here, **-27.6%** time and -72.8% bytes (medians of the
+CSV's own `s_per_tok` column: 0.4660 -> 0.3375). Independently reproduced. An earlier draft of
+this section said -29.8%: that came from inverting the tok/s medians and re-deriving, instead of
+reading the seconds the runs actually recorded.
 
 **This corrects a generalisation of mine.** I had excluded both knobs from the app's bench arm on
 the grounds that "every measured LFM2.5 drop level was a net loss" — true, and true *only there*.
