@@ -111,6 +111,17 @@ in its scope (expert placement at fixed ngl).
 | A — all GPU | 14.25 (−19%) | 20.03 (−28%) | KEXP **−2.75°C** (real cool mode); OLMoE −0.45°C (parity) |
 | B — trunk GPU, experts CPU | 7.90 ❌ worst | 10.53 ❌ worst (n10 build) | hotter than A |
 
+**Big MoEs (don't fit in 8GB → STREAMING regime — CalaQwen 35B, Mellum2
+12B): this table does not apply and mostly cannot exist.** All-GPU is
+physically impossible; the only feasible GPU configs are partial offload,
+measured on Mellum2: 0.22 t/s dense-GPU / <0.11 experts-GPU vs **5.10 CPU
+with the Kalsa recipe** — in the streaming regime the wall is flash
+bandwidth and the GPU only adds per-token friction. CalaQwen/Marco GPU
+arms never measured; same wall, no reason to expect otherwise. Product
+answer for streaming models: CPU + recipe, full stop. Open gap: Marco1c-
+KEXP is 6.4GB (LFM2.5-class) and MIGHT fit — a Marco A/B/C cell is the
+missing third row (queued).
+
 Rules: want speed → pure CPU, always. Want cool on KEXP → all-GPU (−19%
 speed, −2.75°C). Half-offload is NEVER right — and that is the kernels'
 real product value: without our q2/q3 kernels, offloading a KEXP MoE
