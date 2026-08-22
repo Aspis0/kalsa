@@ -148,9 +148,9 @@ async function runCell(cell, prompts) {
     for (const p of todo) {
       let row;
       try {
-        const res = await ask(p.prompt, d, cell.system);
+        const res = await ask(p.prompt, d, cell.system ?? d.system);
         row = { cell: cell.id, model: cell.model, quant: model.quant, kvK: cell.kvK, kvV: cell.kvV,
-                budget: cell.budget, system: cell.system ?? null,
+                budget: cell.budget, system: cell.system ?? d.system ?? null,
                 qid: p.qid, lang: p.lang, prompt: p.prompt,
                 content: res.content, finish: res.finish, timings: res.timings, wallMs: res.wallMs };
       } catch (e) {
