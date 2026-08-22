@@ -1,0 +1,15 @@
+=== OCL2 tag=badbackend PLUGGED GGML_OPENCL_ALLOW_UNKNOWN_GPU=1 ===
+Sat Aug 22 17:21:58 EDT 2026
+PWD=/data/local/tmp/kalsa26/ocl2
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/ocl2
+CMD=./test-backend-ops test -b NOSUCHBACKEND -o MUL_MAT -p type_a=f16
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Skipping
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Sat Aug 22 17:21:58 EDT 2026

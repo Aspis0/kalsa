@@ -1,0 +1,1021 @@
+ggml_opencl: selected platform: 'ARM Platform'
+
+ggml_opencl: device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: GPU 'Mali-G57 MC2 r0p1' is family UNKNOWN; accepting because GGML_OPENCL_ALLOW_UNKNOWN_GPU is set. Using generic (non-Adreno) kernels.
+ggml_opencl: Adreno-specific kernels compiled in, but GPU is UNKNOWN; skipping Adreno kernels, using generic path (GGML_OPENCL_ALLOW_UNKNOWN_GPU)
+ggml_opencl: default device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 32 bytes
+ggml_opencl: OpenCL driver: 3.0
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: false
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 7777 MB
+ggml_opencl: max mem alloc size: 7777 MB
+ggml_opencl: device max image buffer size (pixels): 65536
+ggml_opencl: device max image2d size: 65536 x 65536
+ggml_opencl: device max workgroup size: 512
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: false
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: false
+ggml_opencl: cl_qcom_subgroup_shuffle support: false
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: UNKNOWN GPU — kernel compile/create failures are non-fatal (ARM compiler log is data)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bytewise
+.........ggml_opencl: kernel compile error (err=-11):
+
+<source>:108:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:108:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:119:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST]={0.f};
+               ^
+
+<source>:127:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:138:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:148:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+<source>:155:15: error: use of undeclared identifier 'N_DST'
+    float tot[N_DST] = {
+              ^
+
+<source>:158:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_q4_0_f32 = clCreateKernel(backend_ctx->program_mul_mv_q4_0_f32, "kernel_mul_mat_q4_0_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2006
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:123:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:123:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:142:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:199:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_q4_0_f32_v = clCreateKernel(backend_ctx->program_mul_mv_q4_0_f32_v, "kernel_mul_mat_q4_0_f32_v", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2022
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:130:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:130:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:152:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:207:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_q4_0_f32_8x_flat = clCreateKernel(backend_ctx->program_mul_mv_q4_0_f32_8x_flat, "kernel_mul_mat_q4_0_f32_8x_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2038
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:123:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:123:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:145:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:200:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_q4_0_f32_1d_8x_flat = clCreateKernel(backend_ctx->program_mul_mv_q4_0_f32_1d_8x_flat, "kernel_mul_mat_q4_0_f32_1d_8x_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2058
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:123:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:123:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:146:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:211:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_q4_0_f32_1d_16x_flat = clCreateKernel(backend_ctx->program_mul_mv_q4_0_f32_1d_16x_flat, "kernel_mul_mat_q4_0_f32_1d_16x_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2078
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:99:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:99:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:117:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:168:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_1 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q4_1_f32 = clCreateKernel(prog, "kernel_mul_mv_q4_1_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2094
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2095
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:102:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:102:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:127:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:178:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_1 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q4_1_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q4_1_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2111
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2112
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:92:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:92:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:105:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST] = {0.f};
+               ^
+
+<source>:113:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += BLOCK_STRIDE) {
+                                     ^
+<source>:46:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:133:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:154:26: error: loading directly from pointer to type '__global half' requires cl_khr_fp16. Use vector data load builtin functions instead
+            float dall = dh[0];
+                         ^
+
+<source>:155:26: error: loading directly from pointer to type '__global half' requires cl_khr_fp16. Use vector data load builtin functions instead
+            float dmin = dh[1];
+                         ^
+
+<source>:167:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        y4 += BLOCK_STRIDE * QK_K;
+              ^
+<source>:46:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:172:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q4_K_f32 = clCreateKernel(prog, "kernel_mul_mv_q4_K_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2128
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2129
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:102:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:102:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:119:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST] = {0.f};
+               ^
+
+<source>:127:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += BLOCK_STRIDE) {
+                                     ^
+<source>:55:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:148:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:183:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        y4 += BLOCK_STRIDE * QK_K;
+              ^
+<source>:55:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:188:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q4_K_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q4_K_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2145
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2146
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:121:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:121:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:139:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:190:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK5_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q5_0_f32 = clCreateKernel(prog, "kernel_mul_mv_q5_0_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2162
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2163
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:119:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:119:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:141:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:192:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK5_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q5_0_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q5_0_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2179
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2180
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:123:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:123:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:141:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:192:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK5_1 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q5_1_f32 = clCreateKernel(prog, "kernel_mul_mv_q5_1_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2196
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2197
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:121:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:121:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:144:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:195:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK5_1 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q5_1_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q5_1_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2213
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2214
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:92:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:92:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:105:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST] = {0.f};
+               ^
+
+<source>:118:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += BLOCK_STRIDE) {
+                                     ^
+<source>:46:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:139:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:174:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        y4 += BLOCK_STRIDE * QK_K;
+              ^
+<source>:46:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:179:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q5_K_f32 = clCreateKernel(prog, "kernel_mul_mv_q5_K_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2230
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2231
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:101:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:101:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:119:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST] = {0.f};
+               ^
+
+<source>:132:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += BLOCK_STRIDE) {
+                                     ^
+<source>:53:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:154:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:190:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        y4 += BLOCK_STRIDE * QK_K;
+              ^
+<source>:53:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/8)
+                      ^
+
+<source>:195:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q5_K_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q5_K_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2247
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2248
+ggml_opencl: kernel compile error (err=-11):
+
+<source>:112:15: error: use of undeclared identifier 'N_SIMDGROUP'
+    int row = N_SIMDGROUP * r0 + get_sub_group_id();
+              ^
+
+<source>:142:41: error: use of undeclared identifier 'N_SIMDWIDTH'
+    int tid  = get_sub_group_local_id()/BLOCK_STRIDE; // first block_stride groups have tid=0
+                                        ^
+<source>:73:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/16) // number of blocks each subgroup processes
+                      ^
+
+<source>:143:41: error: use of undeclared identifier 'N_SIMDWIDTH'
+    int ix   = get_sub_group_local_id()%BLOCK_STRIDE; // first block is 0..block_stride-1
+                                        ^
+<source>:73:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/16) // number of blocks each subgroup processes
+                      ^
+
+<source>:154:35: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int i = ix; i < nb; i += BLOCK_STRIDE) {
+                                  ^
+<source>:73:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/16) // number of blocks each subgroup processes
+                      ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q6_K_f32 = clCreateKernel(backend_ctx->program_mul_mv_q6_K, "kernel_mul_mv_q6_K_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2263
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:175:22: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (N_SIMDGROUP * r0 + get_sub_group_id()) * N_DST;
+                     ^
+
+<source>:175:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (N_SIMDGROUP * r0 + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:206:53: error: use of undeclared identifier 'N_SIMDWIDTH'
+    int tid = get_sub_group_local_id()%(N_SIMDWIDTH/BLOCK_STRIDE); // within-super-block part, 0..15
+                                                    ^
+<source>:132:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/16) // number of blocks each subgroup processes
+                      ^
+
+<source>:206:41: error: use of undeclared identifier 'N_SIMDWIDTH'
+    int tid = get_sub_group_local_id()%(N_SIMDWIDTH/BLOCK_STRIDE); // within-super-block part, 0..15
+                                        ^
+
+<source>:207:53: error: use of undeclared identifier 'N_SIMDWIDTH'
+    int ix  = get_sub_group_local_id()/(N_SIMDWIDTH/BLOCK_STRIDE); // super-block selector, 0..BLOCK_STRIDE-1
+                                                    ^
+<source>:132:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/16) // number of blocks each subgroup processes
+                      ^
+
+<source>:207:41: error: use of undeclared identifier 'N_SIMDWIDTH'
+    int ix  = get_sub_group_local_id()/(N_SIMDWIDTH/BLOCK_STRIDE); // super-block selector, 0..BLOCK_STRIDE-1
+                                        ^
+
+<source>:214:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST];
+               ^
+
+<source>:215:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; row++) {
+                            ^
+
+<source>:219:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += BLOCK_STRIDE) {
+                                     ^
+<source>:132:23: note: expanded from here
+#define BLOCK_STRIDE (N_SIMDWIDTH/16) // number of blocks each subgroup processes
+                      ^
+
+<source>:234:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:262:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; row++) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q6_K_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q6_K_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2287
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2288
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:75:25: error: use of undeclared identifier 'N_SG_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                        ^
+
+<source>:75:59: error: use of undeclared identifier 'N_R0_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                                                          ^
+
+<source>:84:28: error: use of undeclared identifier 'N_R0_Q8_0'
+    global block_q8_0 * ax[N_R0_Q8_0];
+                           ^
+
+<source>:85:29: error: use of undeclared identifier 'N_R0_Q8_0'
+    for (int row = 0; row < N_R0_Q8_0; ++row) {
+                            ^
+
+<source>:91:16: error: use of undeclared identifier 'N_R0_Q8_0'
+    float sumf[N_R0_Q8_0] = { 0.f };
+               ^
+
+<source>:99:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/4) {
+                                     ^
+
+<source>:104:35: error: use of undeclared identifier 'N_R0_Q8_0'
+        for (short row = 0; row < N_R0_Q8_0; row++) {
+                                  ^
+
+<source>:113:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += N_SIMDWIDTH*NB_Q8_0;
+              ^
+
+<source>:118:29: error: use of undeclared identifier 'N_R0_Q8_0'
+    for (int row = 0; row < N_R0_Q8_0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q8_0_f32 = clCreateKernel(backend_ctx->program_mul_mv_q8_0_f32, "kernel_mul_mv_q8_0_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2304
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:74:25: error: use of undeclared identifier 'N_SG_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                        ^
+
+<source>:74:59: error: use of undeclared identifier 'N_R0_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                                                          ^
+
+<source>:121:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/4) {
+                                     ^
+
+<source>:176:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += N_SIMDWIDTH*NB_Q8_0;
+              ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q8_0_f32_flat = clCreateKernel(backend_ctx->program_mul_mv_q8_0_f32_flat, "kernel_mul_mv_q8_0_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2320
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:94:25: error: use of undeclared identifier 'N_SG_Q1_0'
+    int first_row = (r0*N_SG_Q1_0 + get_sub_group_id()) * N_R0_Q1_0;
+                        ^
+
+<source>:94:59: error: use of undeclared identifier 'N_R0_Q1_0'
+    int first_row = (r0*N_SG_Q1_0 + get_sub_group_id()) * N_R0_Q1_0;
+                                                          ^
+
+<source>:103:28: error: use of undeclared identifier 'N_R0_Q1_0'
+    global block_q1_0 * ax[N_R0_Q1_0];
+                           ^
+
+<source>:104:29: error: use of undeclared identifier 'N_R0_Q1_0'
+    for (int row = 0; row < N_R0_Q1_0; ++row) {
+                            ^
+
+<source>:110:16: error: use of undeclared identifier 'N_R0_Q1_0'
+    float sumf[N_R0_Q1_0] = { 0.f };
+               ^
+
+<source>:118:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/8) {
+                                     ^
+
+<source>:125:35: error: use of undeclared identifier 'N_R0_Q1_0'
+        for (short row = 0; row < N_R0_Q1_0; row++) {
+                                  ^
+
+<source>:129:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += N_SIMDWIDTH*NB_Q1_0;
+              ^
+
+<source>:134:29: error: use of undeclared identifier 'N_R0_Q1_0'
+    for (int row = 0; row < N_R0_Q1_0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q1_0_f32 = clCreateKernel(prog, "kernel_mul_mv_q1_0_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2336
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2337
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:72:25: error: use of undeclared identifier 'N_SG_Q1_0'
+    int first_row = (r0*N_SG_Q1_0 + get_sub_group_id()) * N_R0_Q1_0;
+                        ^
+
+<source>:72:59: error: use of undeclared identifier 'N_R0_Q1_0'
+    int first_row = (r0*N_SG_Q1_0 + get_sub_group_id()) * N_R0_Q1_0;
+                                                          ^
+
+<source>:113:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/8) {
+                                     ^
+
+<source>:172:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += N_SIMDWIDTH*NB_Q1_0;
+              ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_q1_0_f32_flat = clCreateKernel(prog, "kernel_mul_mv_q1_0_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2353
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2354
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:95:27: error: use of undeclared identifier 'N_SUBGROUP'
+    int first_row = (r0 * N_SUBGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:95:62: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SUBGROUP + get_sub_group_id()) * N_DST;
+                                                             ^
+
+<source>:106:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST]={0.f};
+               ^
+
+<source>:114:38: error: use of undeclared identifier 'N_SUBGROUP_SIZE'
+    for (int ib = ix; ib < nb; ib += N_SUBGROUP_SIZE/2) {
+                                     ^
+
+<source>:120:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:124:25: error: use of undeclared identifier 'N_SUBGROUP_SIZE'
+        yb += QK4_NL * (N_SUBGROUP_SIZE/2);
+                        ^
+
+<source>:127:15: error: use of undeclared identifier 'N_DST'
+    float tot[N_DST] = {
+              ^
+
+<source>:130:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_iq4_nl_f32 = clCreateKernel(prog, "kernel_mul_mv_iq4_nl_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2370
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2371
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:99:27: error: use of undeclared identifier 'N_SUBGROUP'
+    int first_row = (r0 * N_SUBGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:99:62: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SUBGROUP + get_sub_group_id()) * N_DST;
+                                                             ^
+
+<source>:121:38: error: use of undeclared identifier 'N_SUBGROUP_SIZE'
+    for (int ib = ix; ib < nb; ib += N_SUBGROUP_SIZE/2) {
+                                     ^
+
+<source>:137:25: error: use of undeclared identifier 'N_SUBGROUP_SIZE'
+        yb += QK4_NL * (N_SUBGROUP_SIZE/2);
+                        ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_iq4_nl_f32_flat = clCreateKernel(prog, "kernel_mul_mv_iq4_nl_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2387
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2388
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:90:27: error: use of undeclared identifier 'N_SG_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                          ^
+
+<source>:90:62: error: use of undeclared identifier 'N_R0_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                                                             ^
+
+<source>:108:16: error: use of undeclared identifier 'N_R0_MXFP4'
+    float sumf[N_R0_MXFP4] = {0.f};
+               ^
+
+<source>:112:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:119:35: error: use of undeclared identifier 'N_R0_MXFP4'
+        for (short row = 0; row < N_R0_MXFP4; row++) {
+                                  ^
+
+<source>:133:16: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += (N_SIMDWIDTH/2) * QK_MXFP4;
+               ^
+
+<source>:138:29: error: use of undeclared identifier 'N_R0_MXFP4'
+    for (int row = 0; row < N_R0_MXFP4 && first_row + row < ne0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_mxfp4_f32 = clCreateKernel(backend_ctx->program_mul_mv_mxfp4_f32, "kernel_mul_mv_mxfp4_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2404
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:106:27: error: use of undeclared identifier 'N_SG_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                          ^
+
+<source>:106:62: error: use of undeclared identifier 'N_R0_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                                                             ^
+
+<source>:127:16: error: use of undeclared identifier 'N_R0_MXFP4'
+    float sumf[N_R0_MXFP4] = {0.f};
+               ^
+
+<source>:131:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:135:35: error: use of undeclared identifier 'N_R0_MXFP4'
+        for (short row = 0; row < N_R0_MXFP4; row++) {
+                                  ^
+
+<source>:156:16: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += (N_SIMDWIDTH/2) * QK_MXFP4;
+               ^
+
+<source>:161:29: error: use of undeclared identifier 'N_R0_MXFP4'
+    for (int row = 0; row < N_R0_MXFP4 && first_row + row < ne0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_mxfp4_f32_flat = clCreateKernel(backend_ctx->program_mul_mv_mxfp4_f32_flat, "kernel_mul_mv_mxfp4_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2420
+...ggml_opencl: kernel compile error (err=-11):
+
+<source>:621:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 16);
+                ^
+
+<source>:717:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 4);
+                ^
+
+<source>:921:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 4);
+                ^
+
+<source>:1127:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 8);
+                ^
+
+<source>:1222:17: error: implicit declaration of function 'sub_group_shuffle_xor' is invalid in OpenCL
+        sumf += sub_group_shuffle_xor(sumf, 16);
+                ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mat_f16_f32_l4 = clCreateKernel(backend_ctx->program_mul_mv_f16_f32_l4, "kernel_mul_mat_f16_f32_l4", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2468
+ggml_opencl: (backend_ctx->kernel_mul_mat_f16_f32_l4_dr = clCreateKernel(backend_ctx->program_mul_mv_f16_f32_l4, "kernel_mul_mat_f16_f32_l4_dr", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2469
+....ggml_opencl: kernel compile error (err=-11):
+
+<source>:2:26: warning: unknown OpenCL extension 'cl_qcom_subgroup_uniform_load' - ignoring
+#pragma OPENCL EXTENSION cl_qcom_subgroup_uniform_load : enable
+                         ^
+
+<source>:3:26: warning: unknown OpenCL extension 'cl_qcom_subgroup_constant_load' - ignoring
+#pragma OPENCL EXTENSION cl_qcom_subgroup_constant_load : enable
+                         ^
+
+<source>:94:54: warning: unknown attribute 'sub_group_uniform' ignored
+    __constant half8 * weights_buffer __attribute__((sub_group_uniform)),
+                                                     ^
+
+<source>:95:51: warning: unknown attribute 'max_constant_size' ignored
+    __constant half8 * xmem_buffer __attribute__((max_constant_size((6144)))),
+                                                  ^
+
+<source>:92:16: warning: unknown attribute 'qcom_max_concurrent_subgroups' ignored
+__attribute__((qcom_max_concurrent_subgroups(12)))
+               ^
+
+<source>:118:36: error: implicit declaration of function 'qcom_get_physical_sub_group_id' is invalid in OpenCL
+    int subgroup_id = (int)(0x1F & qcom_get_physical_sub_group_id());
+                                   ^
+
+<source>:130:9: error: implicit declaration of function 'qcom_sub_group_constant_load8' is invalid in OpenCL
+        qcom_sub_group_constant_load8(xmem_buffer, weights_buffer, c_offset, f_offset >> 1, 32);
+        ^
+
+<source>:132:9: error: implicit declaration of function 'qcom_sub_group_sync' is invalid in OpenCL
+        qcom_sub_group_sync(QCOM_CLK_CONST_LOAD_SYNC);
+        ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_adreno_xmem_pack_src_f32 = clCreateKernel(prog, "adreno_xmem_pack_src_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2584
+ggml_opencl: (backend_ctx->kernel_adreno_xmem_prepack_weight_f16 = clCreateKernel(prog, "adreno_xmem_prepack_weight_f16", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2586
+ggml_opencl: (backend_ctx->kernel_gemm_xmem_f16_f32_os8 = clCreateKernel(prog, "kernel_gemm_xmem_f16_f32_os8", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2588
+ggml_opencl: (backend_ctx->kernel_adreno_xmem_store_dst_f32 = clCreateKernel(prog, "adreno_xmem_store_dst_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2590
+ggml_opencl: clReleaseProgram(prog) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:2591
+..................................................ggml_opencl: skipping gated_delta_net kernels (GPU family UNKNOWN)
+ggml_opencl: kernel compile error (err=-11):
+
+<source>:114:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:114:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:136:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:191:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_id_q4_0_f32_8x_flat = clCreateKernel(backend_ctx->program_mul_mv_id_q4_0_f32_8x_flat, "kernel_mul_mv_id_q4_0_f32_8x_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:3581
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:93:25: error: use of undeclared identifier 'N_SG_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                        ^
+
+<source>:93:59: error: use of undeclared identifier 'N_R0_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                                                          ^
+
+<source>:99:28: error: use of undeclared identifier 'N_R0_Q8_0'
+    global block_q8_0 * ax[N_R0_Q8_0];
+                           ^
+
+<source>:100:29: error: use of undeclared identifier 'N_R0_Q8_0'
+    for (int row = 0; row < N_R0_Q8_0; ++row) {
+                            ^
+
+<source>:106:16: error: use of undeclared identifier 'N_R0_Q8_0'
+    float sumf[N_R0_Q8_0] = { 0.f };
+               ^
+
+<source>:114:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/4) {
+                                     ^
+
+<source>:119:35: error: use of undeclared identifier 'N_R0_Q8_0'
+        for (short row = 0; row < N_R0_Q8_0; row++) {
+                                  ^
+
+<source>:128:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += N_SIMDWIDTH*NB_Q8_0;
+              ^
+
+<source>:133:29: error: use of undeclared identifier 'N_R0_Q8_0'
+    for (int row = 0; row < N_R0_Q8_0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_id_q8_0_f32 = clCreateKernel(backend_ctx->program_mul_mv_id_q8_0_f32, "kernel_mul_mv_id_q8_0_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:3597
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:97:25: error: use of undeclared identifier 'N_SG_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                        ^
+
+<source>:97:59: error: use of undeclared identifier 'N_R0_Q8_0'
+    int first_row = (r0*N_SG_Q8_0 + get_sub_group_id()) * N_R0_Q8_0;
+                                                          ^
+
+<source>:141:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/4) {
+                                     ^
+
+<source>:196:15: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += N_SIMDWIDTH*NB_Q8_0;
+              ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_id_q8_0_f32_flat = clCreateKernel(backend_ctx->program_mul_mv_id_q8_0_f32_flat, "kernel_mul_mv_id_q8_0_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:3613
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:78:27: error: use of undeclared identifier 'N_SG_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                          ^
+
+<source>:78:62: error: use of undeclared identifier 'N_R0_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                                                             ^
+
+<source>:96:16: error: use of undeclared identifier 'N_R0_MXFP4'
+    float sumf[N_R0_MXFP4] = {0.f};
+               ^
+
+<source>:100:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:107:35: error: use of undeclared identifier 'N_R0_MXFP4'
+        for (short row = 0; row < N_R0_MXFP4; row++) {
+                                  ^
+
+<source>:121:16: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += (N_SIMDWIDTH/2) * QK_MXFP4;
+               ^
+
+<source>:126:29: error: use of undeclared identifier 'N_R0_MXFP4'
+    for (int row = 0; row < N_R0_MXFP4 && first_row + row < ne0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_id_mxfp4_f32 = clCreateKernel(backend_ctx->program_mul_mv_id_mxfp4_f32, "kernel_mul_mv_id_mxfp4_f32", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:3629
+.ggml_opencl: kernel compile error (err=-11):
+
+<source>:119:27: error: use of undeclared identifier 'N_SG_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                          ^
+
+<source>:119:62: error: use of undeclared identifier 'N_R0_MXFP4'
+    int first_row = (r0 * N_SG_MXFP4 + get_sub_group_id()) * N_R0_MXFP4;
+                                                             ^
+
+<source>:134:16: error: use of undeclared identifier 'N_R0_MXFP4'
+    float sumf[N_R0_MXFP4] = {0.f};
+               ^
+
+<source>:140:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH / 2) {
+                                     ^
+
+<source>:144:35: error: use of undeclared identifier 'N_R0_MXFP4'
+        for (short row = 0; row < N_R0_MXFP4; row++) {
+                                  ^
+
+<source>:165:16: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += (N_SIMDWIDTH / 2) * QK_MXFP4;
+               ^
+
+<source>:170:29: error: use of undeclared identifier 'N_R0_MXFP4'
+    for (int row = 0; row < N_R0_MXFP4 && first_row + row < ne0; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+
+ggml_opencl: (backend_ctx->kernel_mul_mv_id_mxfp4_f32_flat = clCreateKernel(backend_ctx->program_mul_mv_id_mxfp4_f32_flat, "kernel_mul_mv_id_mxfp4_f32_flat", &err), err) error -44 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:3645
+.ggml_opencl: skipping Adreno-tuned kernels (gpu_family != ADRENO)
+
+ggml_opencl: clSetKernelArg(kernel, 0, sizeof(cl_mem), &extra0->data_device) error -48 at C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:20318
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:20318: GGML_ASSERT(0) failed
+0: 0x7b1ee570a8 
+1: 0x7b1ee56fb4 ggml_print_backtrace
+2: 0x7b1ee572a0 ggml_abort
+3: 0x7b1d1440fc 
+4: 0x7b1d115aac _Z23ggml_cl_compute_forwardP12ggml_backendP11ggml_tensor
+5: 0x7b1d17206c 
+6: 0x7b1ee778e0 ggml_backend_compare_graph_backend
+7: 0x5d6ce1b4fc 
+8: 0x5d6ce08de4 
+9: 0x5d6cd83f90 
+10: 0x7b1bffe504 __libc_init
+Aborted 

@@ -1,0 +1,14 @@
+ninja: Entering directory `C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-mali-probe'
+[1/6] Building CXX object ggml/src/ggml-opencl/CMakeFiles/ggml-opencl.dir/ggml-opencl.cpp.o
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:1583:66: warning: unused parameter 'backend_ctx' [-Wunused-parameter]
+ 1583 | static bool use_adreno_bin_kernels(ggml_backend_opencl_context * backend_ctx) {
+      |                                                                  ^
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-mali-probe/ggml/src/ggml-opencl/ggml-opencl.cpp:7566:9: warning: TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661) [-W#pragma-messages]
+ 7566 | #pragma message("TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661)")
+      |         ^
+2 warnings generated.
+[2/6] Linking CXX shared library bin\libggml-opencl.so
+[3/6] Linking CXX shared library bin\libggml.so
+[4/6] Linking CXX shared library bin\libllama.so
+[5/6] Linking CXX shared library bin\libllama-common.so
+[6/6] Linking CXX executable bin\test-backend-ops

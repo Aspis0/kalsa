@@ -1,0 +1,4 @@
+mmid_f32 rc=0 oks=2 0/0 tests passed
+mmid_f16 rc=0 oks=2 0/0 tests passed
+mmid_q4_0 rc=134 oks=0 no-count
+mmid_q4_K rc=134 oks=0 no-count

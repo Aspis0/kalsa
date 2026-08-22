@@ -1,0 +1,61 @@
+ggml_opencl: selected platform: 'ARM Platform'
+
+ggml_opencl: device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: GPU 'Mali-G57 MC2 r0p1' is family UNKNOWN; accepting because GGML_OPENCL_ALLOW_UNKNOWN_GPU is set. Using generic (non-Adreno) kernels.
+ggml_opencl: Adreno-specific kernels compiled in, but GPU is UNKNOWN; skipping Adreno kernels, using generic path (GGML_OPENCL_ALLOW_UNKNOWN_GPU)
+ggml_opencl: default device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 32 bytes
+ggml_opencl: OpenCL driver: 3.0
+ggml_opencl: vector subgroup broadcast support: false
+ggml_opencl: subgroup shuffle support: false
+ggml_opencl: device FP16 support: true
+ggml_opencl: mem base addr align: 128
+ggml_opencl: global mem size: 7777 MB
+ggml_opencl: max mem alloc size: 7777 MB
+ggml_opencl: device max image buffer size (pixels): 65536
+ggml_opencl: device max image2d size: 65536 x 65536
+ggml_opencl: device max workgroup size: 512
+ggml_opencl: SVM coarse grain buffer support: true
+ggml_opencl: SVM fine grain buffer support: false
+ggml_opencl: SVM fine grain system support: false
+ggml_opencl: SVM atomics support: false
+ggml_opencl: cl_qcom_subgroup_shuffle support: false
+ggml_opencl: flattening quantized weights representation as struct of arrays (GGML_OPENCL_SOA_Q)
+ggml_opencl: using kernels optimized for Adreno (GGML_OPENCL_USE_ADRENO_KERNELS)
+ggml_opencl: loading OpenCL kernels......ggml_opencl: program_cvt variant=bytewise
+.........ggml_opencl: kernel compile error (err=-11):
+
+<source>:108:27: error: use of undeclared identifier 'N_SIMDGROUP'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                          ^
+
+<source>:108:63: error: use of undeclared identifier 'N_DST'
+    int first_row = (r0 * N_SIMDGROUP + get_sub_group_id()) * N_DST;
+                                                              ^
+
+<source>:119:16: error: use of undeclared identifier 'N_DST'
+    float sumf[N_DST]={0.f};
+               ^
+
+<source>:127:38: error: use of undeclared identifier 'N_SIMDWIDTH'
+    for (int ib = ix; ib < nb; ib += N_SIMDWIDTH/2) {
+                                     ^
+
+<source>:138:33: error: use of undeclared identifier 'N_DST'
+        for (int row = 0; row < N_DST; row++) {
+                                ^
+
+<source>:148:24: error: use of undeclared identifier 'N_SIMDWIDTH'
+        yb += QK4_0 * (N_SIMDWIDTH/2);
+                       ^
+
+<source>:155:15: error: use of undeclared identifier 'N_DST'
+    float tot[N_DST] = {
+              ^
+
+<source>:158:29: error: use of undeclared identifier 'N_DST'
+    for (int row = 0; row < N_DST; ++row) {
+                            ^
+
+error: Compiler frontend failed (error code 62)
+

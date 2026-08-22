@@ -1,0 +1,29 @@
+=== deploy ocl2 2026-08-22T17:20:32.0348112-04:00 serial=192.168.1.82:35785 PLUGGED ===
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml-opencl.so -> /data/local/tmp/kalsa26/ocl2/libggml-opencl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml-opencl.so: 1 file pushed, 0 skipped. 55.0 MB/s (8377176 bytes in 0.145s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml.so -> /data/local/tmp/kalsa26/ocl2/libggml.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml.so: 1 file pushed, 0 skipped. 92.8 MB/s (536616 bytes in 0.006s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml-base.so -> /data/local/tmp/kalsa26/ocl2/libggml-base.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml-base.so: 1 file pushed, 0 skipped. 44.5 MB/s (6102384 bytes in 0.131s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml-cpu.so -> /data/local/tmp/kalsa26/ocl2/libggml-cpu.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libggml-cpu.so: 1 file pushed, 0 skipped. 43.4 MB/s (5163080 bytes in 0.113s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libllama.so -> /data/local/tmp/kalsa26/ocl2/libllama.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libllama.so: 1 file pushed, 0 skipped. 54.0 MB/s (39741552 bytes in 0.702s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libllama-common.so -> /data/local/tmp/kalsa26/ocl2/libllama-common.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libllama-common.so: 1 file pushed, 0 skipped. 59.4 MB/s (78074600 bytes in 1.253s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\test-backend-ops -> /data/local/tmp/kalsa26/ocl2/test-backend-ops
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\test-backend-ops: 1 file pushed, 0 skipped. 59.2 MB/s (10179936 bytes in 0.164s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\llama-bench -> /data/local/tmp/kalsa26/ocl2/llama-bench
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\llama-bench: 1 file pushed, 0 skipped. 2.1 MB/s (7568 bytes in 0.003s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libllama-bench-impl.so -> /data/local/tmp/kalsa26/ocl2/libllama-bench-impl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-mali-probe\bin\libllama-bench-impl.so: 1 file pushed, 0 skipped. 52.0 MB/s (4252928 bytes in 0.078s)
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so -> /data/local/tmp/kalsa26/ocl2/libc++_shared.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so: 1 file pushed, 0 skipped. 68.5 MB/s (1794776 bytes in 0.025s)
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so -> /data/local/tmp/kalsa26/ocl2/libomp.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so: 1 file pushed, 0 skipped. 70.8 MB/s (1229304 bytes in 0.017s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mali_gate_jelly\raw2\run_ocl2.sh -> /data/local/tmp/kalsa26/ocl2/run_ocl2.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mali_gate_jelly\raw2\run_ocl2.sh: 1 file pushed, 0 skipped. 1.2 MB/s (617 bytes in 0.000s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mali_gate_jelly\raw2\probe_batt.sh -> /data/local/tmp/kalsa26/ocl2/probe_batt.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mali_gate_jelly\raw2\probe_batt.sh: 1 file pushed, 0 skipped. 0.0 MB/s (261 bytes in 0.015s)
+chmod
+
