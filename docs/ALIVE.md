@@ -101,7 +101,25 @@ wins raw speed; half-offload (B) is always the worst; our kernels' value =
 the only working GPU path on Adreno (Vulkan dead on K-quants), a replicated
 1.8× on expert placement at equal offload, and a real cool mode on KEXP.
 "GPU default candidate" is retired. The OLMoE A/B 1.553× SHIP claim stands
-in its scope (expert placement at fixed ngl). Mellum2 footnote:
+in its scope (expert placement at fixed ngl).
+
+**THE DECISION TABLE (S23/Adreno 740, measured; scope: these two models):**
+
+| config | KEXP 8B-A1B | OLMoE 1B-7B | thermal |
+|---|---:|---:|---|
+| C — all CPU (`-ngl 0`) | **17.55** 🥇 | **27.69** 🥇 | hottest on KEXP (40.0 peak); parity on OLMoE |
+| A — all GPU | 14.25 (−19%) | 20.03 (−28%) | KEXP **−2.75°C** (real cool mode); OLMoE −0.45°C (parity) |
+| B — trunk GPU, experts CPU | 7.90 ❌ worst | 10.53 ❌ worst (n10 build) | hotter than A |
+
+Rules: want speed → pure CPU, always. Want cool on KEXP → all-GPU (−19%
+speed, −2.75°C). Half-offload is NEVER right — and that is the kernels'
+real product value: without our q2/q3 kernels, offloading a KEXP MoE
+FORCES you into B (experts can't go to GPU); the kernels exist so that A
+is possible at all. Dense: GPU decode always loses (0.41× on 740); GPU
+prefill wins big only on 750-class (3.2–7×, §2), not on 740 (K-G dead).
+Speed verdicts are S23-only until the 750 validation (queue); correctness
+fixes cover the whole A6X/A7X family. Vulkan is not an option anywhere on
+this hardware (dies on all K-quants). Mellum2 footnote:
 experts-GPU at ngl=2 in the streaming regime is not viable (<0.11 t/s vs
 0.22 dense-GPU/experts-CPU) — the GPU valve pays when the model fits in RAM,
 not against the flash-bandwidth wall.
