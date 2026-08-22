@@ -1,6 +1,6 @@
 {
   "version": 3,
-  "note": "Cells for the quality bake-off. Each cell is one llama-server launch. The baseline is Kalsa's PRODUCTION configuration, not a bare prompt: system prompt, Kalsa's sampler, and the per-model thinking budget from ModelRegistry. Running without those measured a configuration the product never uses, and it showed — Qwen3.5-2B failed to terminate on 6 of 6 questions with no system prompt and unlimited thinking, which cannot happen in production because production caps the budget. Thinking is never off; the budget is the axis.",
+  "note": "Cells for the quality bake-off. Each cell is one llama-server launch. The baseline is Kalsa's PRODUCTION configuration, not a bare prompt: system prompt, Kalsa's sampler, and the per-model thinking budget from ModelRegistry. Running without those measured a configuration the product never uses, and it showed — Qwen3.5-2B failed to terminate on 6 of 6 questions with no system prompt and unlimited thinking, which cannot happen in production because production caps the budget. Thinking is never off; the budget is the axis. 2026-08-22: the owner wants 8-10 tok/s on the Jelly. Quantizing the 2.6B further cannot reach it — LiquidAI ships nothing below Q4_0 (1594 MB, 5.7 tok/s predicted), and the only same-phone evidence says effective bandwidth FALLS with heavier packing (KEXP q2_K/q3_K reaches 5.98 GB/s against q4_K_M's 9.11), so a q2_K build would likely be slower than today. The lever is a smaller model, so LFM2.5-1.2B enters the race, plus the QAD quantization-aware builds of both sizes.",
   "defaults": {
     "nCtx": 16384,
     "maxTokens": 8192,
@@ -43,6 +43,24 @@
       "quant": "Q4_K_M",
       "shortBudget": 512,
       "note": "the competitor; ModelRegistry gives it short=512, double the LFM2.5 entries"
+    },
+    "lfm25-1.2b": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "shortBudget": 256,
+      "note": "731 MB — 12.5 tok/s predicted on the Jelly from the 9.11 GB/s constant, against the 2.6B's measured 5.47"
+    },
+    "lfm25-1.2b-qad": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+      "quant": "QAD-Q4_0",
+      "shortBudget": 256,
+      "note": "696 MB, quantization-aware distilled — quality recovered at the same bytes, and Q4_0 is the ARM-repackable format"
+    },
+    "lfm25-2.6b-qad": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-QAD-Q4_0.gguf",
+      "quant": "QAD-Q4_0",
+      "shortBudget": 256,
+      "note": "1594 MB — the same 2.6B 5% smaller; tests whether QAD is a free quality upgrade over Q4_K_M"
     }
   },
   "cells": [
@@ -225,6 +243,34 @@
       "kvK": "f16",
       "kvV": "f16",
       "budget": 64
+    },
+    {
+      "id": "prod-1.2b",
+      "model": "lfm25-1.2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "think512-1.2b",
+      "model": "lfm25-1.2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "prod-1.2b-qad",
+      "model": "lfm25-1.2b-qad",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "prod-2.6b-qad",
+      "model": "lfm25-2.6b-qad",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
     }
   ]
 }

@@ -20,8 +20,20 @@ const outDir = path.resolve(ROOT, argOf("--out") ?? "results/quality");
 const qdoc = JSON.parse(readFileSync(path.join(ROOT, "scripts/quality/questions.json"), "utf8"));
 const byId = new Map(qdoc.questions.map((q) => [q.id, q]));
 
-/** Decode tok/s measured in-app on the Jelly (G99), unplugged: KALSA.md §7.28 / §7.27. */
-const PHONE_TOK_S = { "lfm25-2.6b": 5.5, "lfm25-8b-kexp": 7.0 };
+/**
+ * Decode tok/s on the Jelly (G99). The first two are MEASURED in-app and unplugged
+ * (KALSA.md §7.28 / §7.27). The rest are PREDICTED from the 9.11 GB/s effective
+ * bandwidth that the 2.6B's own measurement implies, divided by file size — the
+ * same arithmetic reproduces the 2.6B's 5.47 to within 1%, but a prediction is not
+ * a measurement and the table marks it.
+ */
+const PHONE_TOK_S = {
+  "lfm25-2.6b": { tps: 5.47, measured: true },
+  "lfm25-8b-kexp": { tps: 7.05, measured: true },
+  "lfm25-2.6b-qad": { tps: 5.72, measured: false },
+  "lfm25-1.2b": { tps: 12.46, measured: false },
+  "lfm25-1.2b-qad": { tps: 13.09, measured: false },
+};
 
 const cells = new Map();
 for (const f of readdirSync(outDir).filter((f) => f.endsWith(".jsonl")).sort()) {
@@ -91,10 +103,10 @@ for (const [cell, rs] of A) {
   const th = rs.map((r) => r.thinkTok);
   const withLang = rs.filter((r) => r.spoken !== null);
   const tokMed = median(rs.map((r) => r.tok));
-  const tps = PHONE_TOK_S[model];
+  const phone = PHONE_TOK_S[model];
   console.log(`| ${cell} | ${rs.filter((r) => r.pass).length}/${rs.length} | ${rs.filter((r) => r.drifted).length}/${withLang.length} | `
     + `${median(th).toFixed(0)} | ${Math.max(...th).toFixed(0)} | ${th.filter((x) => x > 256).length} | ${th.filter((x) => x > 512).length} | `
-    + `${tokMed} | ${tps ? (tokMed / tps).toFixed(0) + " s" : "—"} |`);
+    + `${tokMed} | ${phone ? (tokMed / phone.tps).toFixed(1) + " s" + (phone.measured ? "" : " (pred)") : "—"} |`);
 }
 
 console.log("\n## Paired comparisons (McNemar, exact two-sided)\n");
