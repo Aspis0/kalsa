@@ -1,0 +1,7 @@
+AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 3750000
+  status: 3
+  level: 100
+  temperature: 265

@@ -1,0 +1,14 @@
+{
+  "iso": "2026-08-22T01:48:52.9933104-04:00",
+  "lock_commit": "618323c77e45d275746b1aa5df023a0cc6bc6056",
+  "protocol": "v1.2",
+  "block": 2,
+  "temp_c_block_start": 34.3,
+  "warm_start": false,
+  "cooldown_s": 61,
+  "level_pre": 96,
+  "governor": "cpu0:walt; cpu1:walt; cpu2:walt; cpu3:walt; cpu4:walt; cpu5:walt; cpu6:walt; cpu7:walt",
+  "unplug": "AC powered: false\r\n  USB powered: false\r\n  Wireless powered: false\r\n  Charge counter: 3607500\r\n  status: 3\r\n  level: 96\r\n  temperature: 343",
+  "usb": "false",
+  "ac": ""
+}

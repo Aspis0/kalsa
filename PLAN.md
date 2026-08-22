@@ -181,6 +181,41 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
   `results/kexp_speed_s23/`, report `scratchpad/agents/n10-kexp-session/`,
   audit `scratchpad/agents/n10-kexp-audit/REPORT.md`.
 
+## Sessione ship #18 (22/08 notte): A/B REPLICA, A/C REFUTED — la CPU pura vince
+
+- **Protocollo**: PREREG_KEXP_N5 v1.2 (lock `618323c` citato nel session.log,
+  criterio 11). 5 blocchi palindromi A,B,C,C,B,A completi (1,2,3,5,6), tutti
+  cool-start; blocco 4 buttato intero da regola 7 (B5 Dozing a wake_post,
+  rc=0 archiviato, escluso). Zero SIGTERM, zero wall, pin v1.2 rispettati
+  (`no_repack=true` su ogni cella contata, sha per-cella).
+- **Mediani (n=10/arm, ricalcolati da orchestratore E auditor, esatti)**:
+  A (`-ngl 99`) **14.252** t/s picco 37.2°C · B (`-ngl 99 -ncmoe 99`)
+  **7.904** picco 39.4 · C (`-ngl 0`) **17.553** picco 39.95.
+- **A/B = 1.803 ≥ 1.50 PASS** (+ A più fredda di 2.2°C): il claim
+  "esperti-GPU battono esperti-CPU a parità di offload" replica l'esplorativa
+  1.81 sotto prereg — secondo dataset concorde.
+- **A/C = 0.812 < 1.20 → REFUTE della frase dossier "vs product default"**:
+  la CPU pura è PIÙ VELOCE della GPU piena su LFM2.5-KEXP (A1B: ~1B attivi,
+  l'8Gen2 a 4t macina i GEMV piccoli meglio di quanto la GPU ammortizzi il
+  dispatch). Il pacchetto confermativo NON shippa (criterio 4). Branch
+  verbatim da prereg, nessun branch-shopping (audit).
+- **B è il peggiore dei tre** (ping-pong per-layer del mezzo-offload) e
+  **il repack stock non aiuta la CPU** su questa ricetta (arm D post-bag,
+  n=2 descrittivo: 16.48/15.51 — MAI citarlo come "gap upstream vero" senza
+  i caveat hot-state, monito audit).
+- **Lettura prodotto**: su LFM2.5-KEXP/S23 la config veloce è CPU pura; la
+  GPU piena è la modalità FRESCA (−19% velocità, −2.75°C sul picco). Il
+  claim OLMoE SHIP resta valido (scopato A-vs-B); se anche su OLMoE la C
+  batta A è la domanda aperta → coda #20.
+- **Audit (Free coder): BANK** — 36/36 csv↔jsonl, C attaccata e sopravvissuta
+  (n_gpu_layers=0, wall coerente, firma termica da CPU vera, corroborazione
+  D), esclusione blocco 4 da manuale, cool-start legali fino al bordo 35.0.
+  Minori: compressione "20-31%" del decay nel summary (report giusti),
+  true/True misto in una colonna csv, caveat D nel dossier.
+- Evidenza: `results/kexp_speed_s23/n5/` (runs.csv, cells, probes, block
+  meta), `scratchpad/agents/kexp-n5-session/REPORT.md`,
+  `scratchpad/agents/kexp-n5-audit/REPORT.md`.
+
 ## Fatti operativi correnti
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
@@ -222,7 +257,8 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 | ~~15~~ | ~~Vulkan vs OpenCL su S23~~ → **CHIUSO 22/08 notte (plugged-exploratory): RAPPORTO NON STIMABILE — Vulkan non esegue NESSUN K-quant su A740.** Il backend si alza (fp16=1, warp=64, shmem 32K, no matrix cores), f16 242/242, ma OGNI pipeline K-quant (mul_mat q4_K, matmul_id subgroup q2/q3/q4_K) muore in `createComputePipeline ErrorUnknown` → eccezione vk::SystemError non catturata → SIGABRT; `supports_op` dichiara SUPPORTED (mente: nessun check filtra questi shader sul driver Qualcomm). llama-bench OLMoE -ngl 99 abort in llama_decode. Speed cell V/O impossibile: un arm è morto. **Asimmetria da dossier: sullo stesso device/head, OpenCL coi NOSTRI kernel fa 407/407.** Doppia classe upstream-worthy: supports_op bugiardo + crash non gestito (stessa famiglia del nostro fix FA map::at). Evidenza `results/vulkan_vs_opencl_s23/` | fatto |
 | 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler build più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier) | sessione economica post-kernel |
 | ~~17~~ | ~~guardia gpu_family + parser + ne01==0~~ → **CHIUSO 22/08**: commit `dc3870579` (guardia ADRENO sul gate q6, parità coi gate q4_0, prova d'ordinamento init→build-opts→dispatch), `8e0063d2a` (fallback `UNKNOWN_COMPILER` esplicito; E17 NON classificato — nessuna semantica documentata in-tree, scelta onesta; rename obbligato per collisione enum), `7686ca6fc` (guard `ne01==0` al choke point `ggml_cl_mul_mat_id`, copre tutti i 10+ kernel). Audit: codice pulito, BLOCK solo su igiene storia → filter-branch, alberi ripuliti, diff finale vuoto. **Regressione device PASS**: 407/407 + 925/925, gate ancora TRUE su E031 (canary #26476 verdi), err bit-identici a barrier-verify. Evidenza `results/q17_verify_s23/` | fatto |
-| 18 | **Cella ship KEXP-su-GPU** — **PREREG v1.1 BLOCCATA 21/08 notte** (commit `542c92d`, audit AMEND→8/8 PASS→LOCK): ABC-CBA palindromo N≥5, floor A/B 1.50 + regola termica interpretativa, A/C 1.20 "product default" (repack: Q2/Q3 invarianti, tronco Q5/Q6 repackabile upstream → rinominato), probe D stock post-bag mai-ship. Resta SOLO la sessione device (staccato, batteria ≥40) | prossima sessione device |
+| ~~18~~ | ~~Cella ship KEXP~~ → **CHIUSO 22/08 notte, verdetto misto (audit BANK)**: **A/B 1.803 PASS** (replica prereg'd dell'1.81, A più fredda) ma **A/C 0.812 REFUTED** — la CPU pura batte la GPU piena su LFM2.5-KEXP (17.55 vs 14.25 t/s): pacchetto NON shippa, refute a verbale. Vedi capitolo sessione #18 | fatto |
+| 20 | **Arm C su OLMoE** (la domanda aperta dal refute #18: la CPU pura batte la GPU piena anche su OLMoE q4_K?) — 1-2 blocchi con C nello stesso protocollo; decide se "GPU default candidato quando il modello sta in RAM" sopravvive nel dossier o si riformula come modalità termica | prossima sessione device staccata |
 | 19 | Opzionale: perché Mellum2 esperti-GPU a ngl=2 è <0.11 t/s (peggio di metà dell'arm CPU — upload esperti per-token?): strumentazione dedicata, solo se vale un capitolo | quando capita |
 
 ## Audit upstream 20/08 (websearch, base 22b69b6e9 → master 749f688fc, 583 commit)

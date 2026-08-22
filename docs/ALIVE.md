@@ -76,9 +76,23 @@ hostile audit BANK (28/28 csv=jsonl instrument-matched). Scope: S23 + OLMoE,
 model fits in RAM. **Same session, KEXP exploratory (NOT ship): A 13.74 vs
 B 7.58 = 1.81×** on LFM2.5-8B-A1B-KEXP with OUR q2/q3 kernels at ngl=99,
 GPU arm cooler again. IMPORTANT: in both cells arm B keeps the trunk on GPU —
-these numbers isolate EXPERT placement only. "GPU beats pure-CPU" (incl.
-dense/trunk) has NEVER been measured: that is arm C (`-ngl 0`) of the KEXP
-N≥5 ship prereg (locked v1.2, session running 2026-08-22). Mellum2 footnote:
+these numbers isolate EXPERT placement only.
+
+**KEXP N≥5 ship session (2026-08-22 night, prereg v1.2, audit BANK): mixed
+verdict, and the new fact is a REFUTE.** A/B **1.803 PASS** (replicates the
+1.81 exploratory under prereg; GPU arm cooler by 2.2°C) — the expert-placement
+claim now has two concordant datasets. But arm C (`-ngl 0`, pure CPU, -nr)
+measured for the first time: **17.553 t/s — FASTER than full-GPU A (14.252)**.
+A/C = 0.812 < 1.20 → the "GPU vs product-default" dossier sentence is
+**refuted** on this model; the confirmatory package does not ship. On an A1B
+(~1B active params) the 8Gen2 CPU out-runs full GPU offload; the GPU's honest
+product role here is the COOL mode (−19% speed, −2.75°C peak). Two more
+facts: hybrid B (trunk-GPU/experts-CPU) is the WORST arm (7.90 — per-layer
+ping-pong), and stock repack does not help the CPU on this recipe (arm D
+post-bag, n=2 descriptive: 16.48/15.51 — never quote as the true upstream
+gap without hot-state caveats). Open question → queue: does pure CPU also
+beat full GPU on OLMoE q4_K, or is the OLMoE "GPU default candidate"
+scoped-claim safe? (OLMoE arm C was never measured.) Mellum2 footnote:
 experts-GPU at ngl=2 in the streaming regime is not viable (<0.11 t/s vs
 0.22 dense-GPU/experts-CPU) — the GPU valve pays when the model fits in RAM,
 not against the flash-bandwidth wall.
@@ -274,7 +288,8 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 | ~~2c~~ | ~~Barrier-safe port q4/q5/q6~~ | **CLOSED 22/08**: device-VERIFIED 407/407 |
 | ~~2d-i~~ | ~~N≥10 ship cell (OLMoE)~~ | **CLOSED 21/08: SHIP 1.553×** (prereg v1.2, audit BANK) |
 | ~~2d-ii~~ | ~~Vulkan-vs-OpenCL satellite~~ | **CLOSED 22/08**: Vulkan runs no K-quants on A740; ratio not estimable |
-| 2d-iii | KEXP N≥5 ship cell A/B/C (+ arm C = first GPU-vs-pure-CPU number ever) | prereg v1.2 locked (`618323c`); **session RUNNING 22/08** |
+| ~~2d-iii~~ | ~~KEXP N≥5 ship cell A/B/C~~ | **CLOSED 22/08 mixed (audit BANK): A/B 1.803 PASS, A/C 0.812 REFUTED** — pure CPU beats full GPU on LFM2.5-KEXP; package does not ship |
+| 2d-v | OLMoE arm C (does pure CPU beat full GPU there too?) | decides the dossier framing: "GPU default candidate" vs "GPU = cool mode"; next unplugged session |
 | 2d-iv | Xiaomi/750 validation | needs the device |
 | ~~3~~ | ~~cvt.cl cosmetics~~ | **CLOSED 22/08 mixed**: comments fixed; uniformity port audit-REJECTED and dropped (spec on file) |
 | ~~4~~ | ~~LANE_MOD~~ | **CLOSED 22/08: BIASED by construction**; hint-only + raw dumps mandatory for session-2 |

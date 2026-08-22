@@ -1,0 +1,4 @@
+List of devices attached
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp	device
+
+

@@ -1,0 +1,3 @@
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  /data/local/tmp/s3oracle/libllama-bench-impl.so
+f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d  /data/local/tmp/s3oracle/libggml-opencl.so
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  /data/local/tmp/s3oracle/llama-bench
