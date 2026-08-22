@@ -229,3 +229,26 @@ Other ggufs on disk are 8B–35B KEXP / Q4_K_M / Q2_K — too big / wrong quant 
 - 2026-08-22: cloned ggml-org/llama.cpp @ 3f545bec, pushurl DISABLED
 - 2026-08-22: wrote `build-android-hexagon.ps1`; dry-run fail-fast on missing SDK
 - 2026-08-22: model inventory — no 2B Q4_0 / IQ4
+
+## POST-REPORT: build COMPLETED by orchestrator (22/08 evening)
+
+The login wall was moot: the SDK zip is anonymously downloadable at
+https://softwarecenter.qualcomm.com/api/download/software/sdks/Hexagon_SDK/Windows/6.6.0.0/Hexagon_SDK_WinNT.zip
+(the agent probe used a wrong bucket path). Downloaded 3,052,542,663 bytes,
+sha256 5e6e7eb77dacb62423b60d9fafd635d66d2ea33daa51fbc80d75a3d6ca75485c,
+extracted to C:\Qualcomm\Hexagon_SDK\6.6.0.0 (Tools 19.0.07 included).
+
+Build fixes applied on top of the staged script:
+1. qaic path: SDK zip ships ipc/fastrpc/qaic/WinNT/qaic.exe but the SDK's own
+   hexagon_fun.cmake:290 hardcodes qaic/bin/ -> created bin/ as a copy.
+2. -DLLAMA_BUILD_SERVER=OFF (tools/ui host build is broken under NDK clang on
+   Windows; also breaks tests/test-chat, not needed).
+3. CMake >=3.22.2 required by HTP skel subprojects: portable CMake 3.31.7 in
+   deps\cmake\, full reconfigure.
+4. ninja must be on PATH for the ExternalProject sub-configures.
+5. Target set: llama-bench test-backend-ops (llama-cli does not exist at this rev).
+
+Artifacts + sha256 in BUILD-MANIFEST.txt (this dir) and build-android-hexagon\MANIFEST.txt:
+libggml-htp-v73.so / v75 / v81 built; test-backend-ops 10.5MB; llama-bench launcher
++ libllama-bench-impl.so 4.2MB; libllama-common.so 68MB must be deployed too.
+Ready for the on-device smoke (S23=v73 or Xiaomi=v75) with Qwen3.5-4B-Q4_0.
