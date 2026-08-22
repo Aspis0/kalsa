@@ -55,7 +55,12 @@ before repeating it.
 - **LFM2.5-1.2B does not think at all** (no `<think>` in 44 of 44) and is a real step down: 25/44,
   losing to the 2.6B 3–12, p = 0.035. It wins judgement questions and loses reasoning ones. What it
   buys is a **~2 s median answer against ~56 s**, from 27 median tokens and a predicted 12.5 tok/s.
-- **QAD-Q4_0 is free on the 2.6B**: same 34/44 at 5 % fewer bytes (3–3, p = 1.000). Not on the 1.2B.
+- **QAD-Q4_0 is better than free on the 2.6B**: same 34/44 at 5 % fewer bytes (3–3, p = 1.000) and
+  **+6.9 % decode measured on the Jelly** (8.63 vs 8.07 t/s, `scripts/device-decode-lineup.sh`).
+  Not on the 1.2B, where it costs quality.
+- The Jelly measurement also validates the prediction method: **the bandwidth model gets ratios
+  exactly right** (2.28× predicted for 1.2B over 2.6B, 2.28× measured), but the CLI runs at 1.47× the
+  app on the same model, so absolute numbers need that factor and only ratios transfer.
 - ⚠️ **The judge has now had five defects, every one found by reading answers rather than totals**,
   and two of them killed the run's headline result. Re-scoring is free by design (generation and
   scoring are separate passes); **use it before believing an aggregate.**
@@ -1689,6 +1694,33 @@ punctuation bug, not a safety failure: it refused correctly in all four language
 LFM2.5-2.6B has **0** tensors matching `_exps`, LFM2.5-8B-A1B has **264**. The KEXP recipe
 (`~/kalsa-models/kexp-build/tensor_types_lfm25.txt`) assigns `ffn_gate_exps`/`ffn_up_exps` → q2_K
 and `ffn_down_exps` → q3_K. Those tensors exist only in a MoE.
+
+#### Two of the predictions are now measured on the Jelly, and the ratios hold
+
+Unplugged, 98 % battery, 26.0 °C, `llama-bench` t=2 (the helio-g99 **decode**
+count from `deviceTuning.ts`, not its prefill count), tg128, r=3
+(`scripts/device-decode-lineup.sh`):
+
+| model | file | measured t/s (CLI) | in-app, via the control factor |
+|---|---|---|---|
+| LFM2.5-2.6B Q4_K_M — **control** | 1.55 GiB | **8.07 ± 0.00** | 5.47 (measured in-app, §7.28) |
+| **LFM2.5-2.6B QAD-Q4_0** | 1.48 GiB | **8.63 ± 0.08** | **~5.85** |
+| **LFM2.5-1.2B-Instruct Q4_K_M** | 695 MiB | **18.39 ± 0.01** | **~12.5** |
+
+The control is what makes the other two readable: llama-bench reads 8.07 where
+the app reads 5.47 for the same model on the same phone, so the app factor is
+**0.678**. Through it, **QAD-Q4_0 is +6.9 % over Q4_K_M at identical quality**
+(34/44 either way, p = 1.000, 80 MB smaller) — better than the +4.6 % predicted —
+and the 1.2B lands at ~12.5 against 12.46 predicted.
+
+**The bandwidth model predicts ratios exactly**: 2.28× predicted for the 1.2B
+over the 2.6B, 2.28× measured. Ratios transfer between the CLI and the app;
+absolute in-app numbers do not, and need the factor.
+
+⚠️ **That 0.678 is not called overhead.** llama-bench decodes with no context
+while the app decodes above ~1 300 tokens of system prompt plus the KV, and
+decode slows as the KV grows. How much of the 32 % is context and how much is
+the app is **not separated**, and until it is, it is not a defect.
 
 #### The thinking budget was tuned in the wrong direction — and this reverses an earlier claim in this very section
 
