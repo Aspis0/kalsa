@@ -331,7 +331,8 @@ Screen state changes Xiaomi CalaQwen from 0.22 to 0.50 s/tok. KEXP on G99 is
 ## 5b. REPO CONSOLIDATION (22/08 evening — owner decision "option A")
 
 Three repos, three roles — the vendored engine copies are gone. **`Aspis0/kalsa`**
-= the app. **`Aspis0/kalsa-engine`** = BigMoeOnEdge (wrapper). **`Aspis0/kalsallama`**
+= the app. **`Aspis0/kalsa-forkbigmoeonedge`** = BigMoeOnEdge (wrapper; renamed
+from `kalsa-engine` 22/08, GitHub redirects). **`Aspis0/kalsallama`**
 (new, private) = the llama.cpp fork: all branches + tags pushed; two legitimate
 lineages, `kalsa/kernel-s3-repack` (Adreno GPU kernels, head `1882bf8cd`) and
 `kalsa/mmap-prefetch-opt` (CPU expert-ready hook `5236140e5` — the lineage the

@@ -5,7 +5,7 @@ Decision by owner (gualt): **three repos, three roles** — no more vendored cop
 | Role | Repo | What's there |
 |---|---|---|
 | App | `Aspis0/kalsa` (local: `Kalsa\ai-chat`) | The product app. Consumes the engine via a committed llama.rn patch (`patches/`), regenerated with patch-package. |
-| Engine wrapper | `Aspis0/kalsa-engine` (local: `moe-experiments\BigMoeOnEdge`) | BigMoeOnEdge project history (`main`, `kalsa/*` wrapper branches). Its `third_party/llama.cpp` submodule points to **Aspis0/kalsallama**. |
+| Engine wrapper | `Aspis0/kalsa-forkbigmoeonedge` (local: `moe-experiments\BigMoeOnEdge`; renamed from `kalsa-engine` on 2026-08-22, GitHub redirects the old name) | BigMoeOnEdge project history (`main`, `kalsa/*` wrapper branches). Its `third_party/llama.cpp` submodule points to **Aspis0/kalsallama**. |
 | llama.cpp fork | `Aspis0/kalsallama` (local: `BigMoeOnEdge\third_party\llama.cpp`) | The patched llama.cpp, marked "kalsallama". All lineages live here as real branches. |
 | Measurements | `Aspis0/kalsa-moe-experiments` (this repo) | Preregs, results, docs, PLAN/ALIVE, engine **bundles** as belt-and-braces backup (`backups/`). |
 
