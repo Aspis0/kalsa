@@ -247,6 +247,33 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 - Evidenza: `results/olmoe_gpu_moe_s23/armC/`, `results/lineup_abs_s23/`,
   report+audit in `scratchpad/agents/{olmoe-armC,lineup-abs,armC-lineup-audit}/`.
 
+## LA SPIEGAZIONE SEMPLICE (per non fraintendersi mai più, 22/08)
+
+Tre configurazioni sul KEXP (S23, misurate):
+
+| | t/s | note |
+|---|---:|---|
+| CPU pura | **17.5** | la più veloce, sempre |
+| GPU coi NOSTRI kernel (tutto su GPU) | 14.25 | −19%, ma **−2.75°C** |
+| GPU SENZA i nostri kernel (= mezzo offload forzato) | 7.9 | −55%, e più calda di A |
+
+- Il **1.8× non è "GPU batte CPU"**: è il rapporto tra riga 2 e riga 3 —
+  quanto i kernel migliorano la *modalità GPU*, che senza di loro è
+  inguardabile (chi offloada un KEXP senza kernel q2/q3 finisce FORZATO
+  nella riga 3).
+- Regola utente: **velocità → CPU pura; fresco (KEXP) → GPU**, che coi
+  kernel costa −19% invece di −55%. Su OLMoE la GPU non dà nemmeno il
+  fresco (parità termica): solo più lenta.
+- **Streaming (modelli che non stanno in RAM)**: la GPU è irrilevante
+  (0.216 vs 0.223 same-harness); conta solo la ricetta (5.10).
+- **Prefill dense**: su 750-class vince forte (3.2–7×); su 740 misurato
+  1.12× (lane K-G, non vale) — ri-verificabile a costo basso nella
+  sessione Xiaomi (#16) ora che i kernel sono a posto.
+- **NPU (HTP)**: bocciata con evidenza (carica 0.67 MiB di pesi = non
+  carica il modello; PowerInfer-2 chiuso). Fisica: il decode è
+  DRAM-bound, l'NPU non ha banda sua. Termometro `nspss-*` già leggibile
+  se mai si riaprisse.
+
 ## Fatti operativi correnti
 
 - **Lignaggio engine**: tutto su `kalsa/kernel-s3-repack` (head `ec7235af` =
@@ -286,7 +313,8 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 | ~~13~~ | ~~barrier-safe port q4/q5/q6~~ → **CHIUSO 22/08 notte: device-VERIFIED** — MUL_MAT_ID **407/407** (baseline 401 sottoinsieme passante + 6 discriminatori m=96), controllo positivo 10/10 coi kernel nuovi in dispatch (no `_ila`, no fallback CPU), dense 925/925 invariato, residuo ILA **risolto** (bin kernels compilati out, guardia host inattiva), smoke `-nr`/alias PASS (run (a) repack-on SKIPpata per headroom: 4.53GiB vs 3.92+2). Unico residuo: edge `ne01==0` (condiviso coi q2/q3, non ammissibile nei test %32 — annotato in #17). Evidenza `results/barrier_verify_s23/` | fatto |
 | ~~14~~ | ~~Cella velocità KEXP-su-GPU~~ → **CHIUSO 21/08 sera (esplorativa): 1.81×** A/B su LFM2.5-KEXP (vedi sezione sessione device); per la ship serve #18 | fatto |
 | ~~15~~ | ~~Vulkan vs OpenCL su S23~~ → **CHIUSO 22/08 notte (plugged-exploratory): RAPPORTO NON STIMABILE — Vulkan non esegue NESSUN K-quant su A740.** Il backend si alza (fp16=1, warp=64, shmem 32K, no matrix cores), f16 242/242, ma OGNI pipeline K-quant (mul_mat q4_K, matmul_id subgroup q2/q3/q4_K) muore in `createComputePipeline ErrorUnknown` → eccezione vk::SystemError non catturata → SIGABRT; `supports_op` dichiara SUPPORTED (mente: nessun check filtra questi shader sul driver Qualcomm). llama-bench OLMoE -ngl 99 abort in llama_decode. Speed cell V/O impossibile: un arm è morto. **Asimmetria da dossier: sullo stesso device/head, OpenCL coi NOSTRI kernel fa 407/407.** Doppia classe upstream-worthy: supports_op bugiardo + crash non gestito (stessa famiglia del nostro fix FA map::at). Evidenza `results/vulkan_vs_opencl_s23/` | fatto |
-| 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler build più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier) | sessione economica post-kernel |
+| 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier). **Xiaomi in arrivo STACCATO (22/08 sera)** — scope sessione: (a) test-backend-ops MUL_MAT_ID+MUL_MAT col build head, (b) A/B/C veloce su un modello che sta in RAM, (c) ri-check prefill dense su 740-vs-750 coi kernel a posto (il K-G 1.12× sul 740 predata i fix) | sessione imminente |
+| 24 | **Governor termico CPU↔GPU (design study)** — direttiva prodotto gualt: partire CPU (veloce), se la skin temp sfonda T1 passare a GPU cool-mode (−19% ma −2.75°C su KEXP); llama.cpp non migra i tensori a runtime → switch = reload (mmap, secondi): serve isteresi + misura del costo switch + celle J/token vere (charge_counter delta su run lunghe — l'ipotesi race-to-idle "CPU veloce ≈ stessa energia della GPU lenta" va misurata, oggi è solo un ricordo di test limitati). Prima il design su carta, poi il prototipo | architettura, dopo #16 |
 | ~~17~~ | ~~guardia gpu_family + parser + ne01==0~~ → **CHIUSO 22/08**: commit `dc3870579` (guardia ADRENO sul gate q6, parità coi gate q4_0, prova d'ordinamento init→build-opts→dispatch), `8e0063d2a` (fallback `UNKNOWN_COMPILER` esplicito; E17 NON classificato — nessuna semantica documentata in-tree, scelta onesta; rename obbligato per collisione enum), `7686ca6fc` (guard `ne01==0` al choke point `ggml_cl_mul_mat_id`, copre tutti i 10+ kernel). Audit: codice pulito, BLOCK solo su igiene storia → filter-branch, alberi ripuliti, diff finale vuoto. **Regressione device PASS**: 407/407 + 925/925, gate ancora TRUE su E031 (canary #26476 verdi), err bit-identici a barrier-verify. Evidenza `results/q17_verify_s23/` | fatto |
 | ~~18~~ | ~~Cella ship KEXP~~ → **CHIUSO 22/08 notte, verdetto misto (audit BANK)**: **A/B 1.803 PASS** (replica prereg'd dell'1.81, A più fredda) ma **A/C 0.812 REFUTED** — la CPU pura batte la GPU piena su LFM2.5-KEXP (17.55 vs 14.25 t/s): pacchetto NON shippa, refute a verbale. Vedi capitolo sessione #18 | fatto |
 | ~~20~~ | ~~Arm C su OLMoE~~ → **CHIUSO 22/08: C batte A in ogni cella (A/C 0.724)**, decisione invariante ai pruning, audit BANK-w-corrections. Framing dossier deciso: niente "GPU default candidate"; su OLMoE "più lenta a quasi-parità termica", cool-mode solo KEXP. Vedi capitolo sessione #20 | fatto |
