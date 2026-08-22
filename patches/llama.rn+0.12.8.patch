@@ -479,7 +479,7 @@ index a60bd15..92002fd 100644
  
  void llama_rn_context_completion::resetSpeculative() {
 diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
-index 1126dec..6a75ac9 100644
+index 1126dec..b2aec04 100644
 --- a/node_modules/llama.rn/cpp/rn-llama.cpp
 +++ b/node_modules/llama.rn/cpp/rn-llama.cpp
 @@ -1,4 +1,5 @@
@@ -488,16 +488,19 @@ index 1126dec..6a75ac9 100644
  #include "ggml-cpu.h"
  #include "rn-tts.h"
  #include "rn-mtmd.hpp"
-@@ -443,6 +444,8 @@ bool llama_rn_context::attachThreadpoolsIfAvailable() {
+@@ -442,7 +443,11 @@ bool llama_rn_context::attachThreadpoolsIfAvailable() {
+     return true;
  }
  
++llama_rn_context::llama_rn_context() = default;
++
  llama_rn_context::~llama_rn_context() {
 +    if (moe_stream) moe_stream->shutdown();
 +
      // Disable parallel mode first (cleans up slot_manager)
      disableParallelMode();
  
-@@ -473,6 +476,20 @@ bool llama_rn_context::loadModel(common_params &params_)
+@@ -473,6 +478,20 @@ bool llama_rn_context::loadModel(common_params &params_)
          LOG_INFO("Using n_parallel: %d (enables up to %d parallel slots)", params.n_parallel, params.n_parallel);
      }
  
@@ -518,7 +521,7 @@ index 1126dec..6a75ac9 100644
      llama_init = common_init_from_params(params);
      model = llama_init != nullptr ? llama_init->model() : nullptr;
      ctx = llama_init != nullptr ? llama_init->context() : nullptr;
-@@ -488,8 +505,19 @@ bool llama_rn_context::loadModel(common_params &params_)
+@@ -488,8 +507,19 @@ bool llama_rn_context::loadModel(common_params &params_)
          return false;
      }
  
@@ -539,7 +542,7 @@ index 1126dec..6a75ac9 100644
          const auto & draft_params = params.speculative.draft;
          common_params params_dft = params;
          params_dft.devices = draft_params.devices;
-@@ -559,7 +587,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
+@@ -559,7 +589,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
      }
  
      auto cparams = common_context_params_to_llama(params_for_context);
@@ -554,7 +557,7 @@ index 1126dec..6a75ac9 100644
      cparams.type_k = params_for_context.speculative.draft.cache_type_k;
      cparams.type_v = params_for_context.speculative.draft.cache_type_v;
 diff --git a/node_modules/llama.rn/cpp/rn-llama.h b/node_modules/llama.rn/cpp/rn-llama.h
-index 0b9865e..34727d4 100644
+index 0b9865e..ae974c6 100644
 --- a/node_modules/llama.rn/cpp/rn-llama.h
 +++ b/node_modules/llama.rn/cpp/rn-llama.h
 @@ -22,6 +22,8 @@
@@ -576,6 +579,17 @@ index 0b9865e..34727d4 100644
      common_init_result_ptr llama_init;
      llama_context *ctx = nullptr;
      common_chat_templates_ptr templates;
+@@ -131,6 +136,10 @@ struct llama_rn_context {
+     lm_ggml_threadpool *threadpool = nullptr;
+     lm_ggml_threadpool *threadpool_batch = nullptr;
+ 
++    // Defined out-of-line in rn-llama.cpp: the implicit default ctor would have to
++    // emit a destructor for moe_stream on its unwind path, and kalsa::MoeStream is
++    // only forward-declared here (RNLlamaJSI.cpp does `new llama_rn_context()`).
++    llama_rn_context();
+     ~llama_rn_context();
+ 
+     bool loadModel(common_params &params_);
 diff --git a/node_modules/llama.rn/cpp/rn-slot.cpp b/node_modules/llama.rn/cpp/rn-slot.cpp
 index 9debb77..4e62827 100644
 --- a/node_modules/llama.rn/cpp/rn-slot.cpp
