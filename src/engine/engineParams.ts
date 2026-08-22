@@ -8,12 +8,27 @@
 /** llama.rn accepts exactly these three; "disabled"/"enabled" are silently ignored. */
 export type FlashAttnMode = "auto" | "on" | "off";
 
+type MoeStreamParams = {
+  enabled?: boolean;
+  cache_mb?: number;
+  cache_auto?: boolean;
+  cache_floor_mb?: number;
+  cache_ceil_mb?: number;
+  io_threads?: number;
+  overlap?: boolean;
+  dense_weights?: string;
+  n_expert_used?: number;
+  drop_cold_frac?: number;
+  drop_no_renorm?: boolean;
+};
+
 export type EngineOverrideFields = {
   nGpuLayers?: number;
   nThreads?: number;
   nThreadsPrefill?: number;
   nUbatch?: number;
   flashAttn?: FlashAttnMode;
+  moeStream?: MoeStreamParams;
 };
 
 /** Minimal ContextParams slice the override touches. */
@@ -26,6 +41,7 @@ export type EngineParamsSlice = {
   flash_attn_type?: FlashAttnMode;
   /** Forced to f16 when flash attention is off — see applyEngineOverride. */
   cache_type_v?: string;
+  moe_stream?: MoeStreamParams;
 };
 
 /**
@@ -35,6 +51,7 @@ export type EngineParamsSlice = {
  * - nThreads: passthrough.
  * - nThreadsPrefill: consumed by applyPrefillThreadOverride after this call.
  * - nUbatch: clamped to params.n_batch ?? 512.
+ * - moeStream: forwarded only when explicitly present; production omits it.
  * Absent fields leave params untouched. Empty/undefined override is a no-op.
  */
 export function applyEngineOverride<T extends EngineParamsSlice>(
@@ -87,6 +104,10 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
   if (override.nUbatch !== undefined) {
     const batch = params.n_batch ?? 512;
     params.n_ubatch = Math.min(override.nUbatch, batch);
+  }
+
+  if (override.moeStream !== undefined) {
+    params.moe_stream = override.moeStream;
   }
 
   return params;

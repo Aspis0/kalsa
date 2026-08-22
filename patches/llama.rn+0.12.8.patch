@@ -1,3 +1,63 @@
+diff --git a/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt b/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt
+index 8ef1659..41f9dfd 100644
+--- a/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt
++++ b/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt
+@@ -29,6 +29,30 @@ file(GLOB MTMD_MODEL_FILES CONFIGURE_DEPENDS ${RNLLAMA_LIB_DIR}/tools/mtmd/model
+ file(GLOB COMMON_FILES CONFIGURE_DEPENDS ${RNLLAMA_LIB_DIR}/common/*.cpp)
+ file(GLOB JINJA_FILES CONFIGURE_DEPENDS ${RNLLAMA_LIB_DIR}/common/jinja/*.cpp)
+ 
++# Kalsa's MoE streamer is optional so llama.rn can still be consumed from npm alone.
++get_filename_component(BMOE_ROOT "${RNLLAMA_LIB_DIR}/../../../native/bmoe" ABSOLUTE)
++set(BMOE_SOURCE_FILES)
++if (EXISTS "${BMOE_ROOT}")
++    file(GLOB BMOE_IO_FILES CONFIGURE_DEPENDS "${BMOE_ROOT}/src/io/*.cpp")
++    file(GLOB BMOE_MOE_FILES CONFIGURE_DEPENDS "${BMOE_ROOT}/src/moe/*.cpp")
++    file(GLOB BMOE_RN_FILES CONFIGURE_DEPENDS "${BMOE_ROOT}/rn/bmoe_stream.cpp")
++    set(BMOE_SOURCE_FILES
++        ${BMOE_ROOT}/src/config.cpp
++        ${BMOE_IO_FILES}
++        ${BMOE_MOE_FILES}
++        ${BMOE_RN_FILES}
++    )
++
++    # The vendored engine uses upstream ggml names while llama.rn exports lm_* symbols.
++    set(BMOE_COMPAT_HEADER "${BMOE_ROOT}/bmoe_lmggml_compat.h")
++    set_source_files_properties(
++        ${BMOE_SOURCE_FILES}
++        PROPERTIES
++        COMPILE_OPTIONS "-include;${BMOE_COMPAT_HEADER}"
++        COMPILE_DEFINITIONS BMOE_HAVE_EXPERT_READY_HOOK
++    )
++endif()
++
+ # Source files for rnllama library (excluding jni.cpp and jni-utils)
+ set(
+     RNLLAMA_SOURCE_FILES
+@@ -75,6 +99,9 @@ set(
+ 
+     # Model implementations (globbed)
+     ${MODEL_FILES}
++
++    # Kalsa MoE expert streaming (optional, outside node_modules)
++    ${BMOE_SOURCE_FILES}
+ )
+ 
+ find_library(LOG_LIB log)
+@@ -114,6 +141,14 @@ function(build_rnllama_library target_name arch cpu_flags)
+         ${SOURCE_FILES_ARCH}
+     )
+ 
++    if (BMOE_SOURCE_FILES)
++        target_include_directories(${target_name} PRIVATE
++            ${BMOE_ROOT}/include
++            ${BMOE_ROOT}/src
++            ${BMOE_ROOT}/rn
++        )
++    endif()
++
+     target_link_libraries(${target_name} PRIVATE ${LOG_LIB} android)
+ 
+     if (${arch} STREQUAL "generic")
 diff --git a/node_modules/llama.rn/cpp/common/common.cpp b/node_modules/llama.rn/cpp/common/common.cpp
 index 93b2032..5e92298 100644
 --- a/node_modules/llama.rn/cpp/common/common.cpp
@@ -12,8 +72,102 @@ index 93b2032..5e92298 100644
      return os.str();
  }
  
+diff --git a/node_modules/llama.rn/cpp/common/common.h b/node_modules/llama.rn/cpp/common/common.h
+index 080bc20..8014f35 100644
+--- a/node_modules/llama.rn/cpp/common/common.h
++++ b/node_modules/llama.rn/cpp/common/common.h
+@@ -583,6 +583,24 @@ struct common_params {
+     bool check_tensors     = false; // validate tensor data
+     bool no_op_offload     = false; // globally disable offload host tensor operations to device
+     bool no_extra_bufts    = false; // disable extra buffer types (used for weight repacking)
++
++    // Kalsa patch (MoE streaming): the transport for native/bmoe/rn/bmoe_stream.h. Plain data,
++    // declared here rather than in that header so common.h keeps depending on nothing: this is
++    // the one struct both the JSI reader and the streamer agree on. Defaults are the recipe
++    // measured in moe-experiments (S23 -42.7%, W=0, p=0.000488) minus the two LOSSY knobs.
++    struct {
++        bool  enabled        = false; // off unless JS asks; a dense model declines anyway
++        int   cache_mb       = 0;     // explicit LRU budget in MiB; wins over cache_auto
++        bool  cache_auto     = true;  // size once from free RAM at init, then hold
++        int   cache_floor_mb = 1536;  // RAM left free for the rest of the system
++        int   cache_ceil_mb  = 0;     // 0 = cap only at the full expert-set size
++        int   io_threads     = 4;     // parallel read lanes
++        bool  overlap        = true;  // read a layer's experts while its matmuls run
++        char  dense_weights[16] = "anon"; // mmap | warm | anon | ahwb | anon-gpu
++        int   n_expert_used  = 0;     // top-k override, 0 = model default. LOSSY.
++        float drop_cold_frac = 0.0f;  // skip cold, barely-weighted experts. LOSSY.
++        bool  drop_no_renorm = false; // ~70% of the drop's quality cost is the renorm
++    } kalsa_moe;
+     bool no_host           = false; // bypass host buffer allowing extra buffers to be used
+ 
+     bool single_turn       = false; // single turn chat conversation
+diff --git a/node_modules/llama.rn/cpp/ggml-cpu.h b/node_modules/llama.rn/cpp/ggml-cpu.h
+index 1024e5f..7fc2499 100644
+--- a/node_modules/llama.rn/cpp/ggml-cpu.h
++++ b/node_modules/llama.rn/cpp/ggml-cpu.h
+@@ -140,6 +140,23 @@ extern "C" {
+ 
+     LM_GGML_BACKEND_API lm_ggml_backend_reg_t lm_ggml_backend_cpu_reg(void);
+ 
++    // Kalsa patch (MoE streaming): the `--overlap` wait point. Called by the CPU backend from
++    // mul_mat_id for each expert weight matrix about to be consumed (src0 = the expert weight
++    // tensor, expert = index along dim 2). Every compute thread calls it before reading any row
++    // of that expert, and the hook MAY BLOCK until that expert's slice is resident. There is no
++    // barrier inside the expert loop, so a thread blocked on one expert cannot deadlock the
++    // threadpool: the others move on to the experts already in memory.
++    //
++    // Upstream has no equivalent; the eval-callback (the only public hook near routing) fires
++    // before a layer's expert matmuls run and cannot pause partway through them, which is exactly
++    // what overlapping reads with compute needs. Vendored from kalsa-engine's
++    // `bmoe/expert-ready-hook` branch. Delete this the day upstream ships a residency callback.
++    typedef void (*lm_ggml_cpu_expert_ready_hook_t)(const struct lm_ggml_tensor * src0, int expert, void * user_data);
++
++    // Process-global registration; pass NULL to unregister. NOT thread-safe against a running
++    // graph compute — register before compute starts, unregister after it has stopped.
++    LM_GGML_BACKEND_API void lm_ggml_cpu_set_expert_ready_hook(lm_ggml_cpu_expert_ready_hook_t hook, void * user_data);
++
+     LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_fp32(const float *,       float *, int64_t);
+     LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_i32 (const float *,     int32_t *, int64_t);
+     LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_fp16(const float *, lm_ggml_fp16_t *, int64_t);
+diff --git a/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c b/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
+index 5016976..8d8cb86 100644
+--- a/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
++++ b/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
+@@ -1451,6 +1451,17 @@ UseGgmlGemm2:;
+     }
+ }
+ 
++// Kalsa patch (MoE streaming): the `--overlap` wait point. See ggml-cpu.h for the contract.
++// Process-global by design — the streamer owns exactly one llama context at a time, and
++// threading it through params would touch every compute signature for one integration.
++static lm_ggml_cpu_expert_ready_hook_t g_expert_ready_hook      = NULL;
++static void *                          g_expert_ready_hook_data = NULL;
++
++void lm_ggml_cpu_set_expert_ready_hook(lm_ggml_cpu_expert_ready_hook_t hook, void * user_data) {
++    g_expert_ready_hook      = hook;
++    g_expert_ready_hook_data = user_data;
++}
++
+ // lm_ggml_compute_forward_mul_mat_id
+ 
+ #define MMID_MATRIX_ROW(row_id, i1) matrix_rows[(row_id)*ids->ne[0]*ids->ne[1] + (i1)]
+@@ -1651,6 +1662,14 @@ static void lm_ggml_compute_forward_mul_mat_id(
+             continue;
+         }
+ 
++        // Kalsa patch (MoE streaming): tell the streamer this expert is about to be read.
++        // Placed AFTER the not-routed skip, so an expert no token routed to costs no wait,
++        // and BEFORE src0->data is dereferenced. The hook may block until the slice lands.
++        // A null check when nothing is registered, which is every non-streaming build.
++        if (g_expert_ready_hook) {
++            g_expert_ready_hook(src0, cur_a, g_expert_ready_hook_data);
++        }
++
+         const char * src0_cur = (const char *) src0->data + cur_a * nb02;
+         const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
+         const size_t row_size = lm_ggml_row_size(vec_dot_type, ne10);
 diff --git a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
-index 650349e..0594914 100644
+index 650349e..7ee1072 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
 +++ b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
 @@ -300,9 +300,11 @@ namespace rnllama_jsi {
@@ -40,7 +194,53 @@ index 650349e..0594914 100644
  
          std::string cpuMask = getPropertyAsString(runtime, params, "cpu_mask");
  #if defined(__ANDROID__)
-@@ -666,5 +671,9 @@ namespace rnllama_jsi {
+@@ -372,6 +377,45 @@ namespace rnllama_jsi {
+         }
+         cparams.no_extra_bufts = getPropertyAsBool(runtime, params, "no_extra_bufts", cparams.no_extra_bufts);
+ 
++        if (params.hasProperty(runtime, "moe_stream")) {
++            auto moeValue = params.getProperty(runtime, "moe_stream");
++            if (moeValue.isObject()) {
++                const auto moe = moeValue.asObject(runtime);
++                cparams.kalsa_moe.enabled = getPropertyAsBool(
++                    runtime, moe, "enabled", cparams.kalsa_moe.enabled);
++                cparams.kalsa_moe.cache_mb = getPropertyAsInt(
++                    runtime, moe, "cache_mb", cparams.kalsa_moe.cache_mb);
++                cparams.kalsa_moe.cache_auto = getPropertyAsBool(
++                    runtime, moe, "cache_auto", cparams.kalsa_moe.cache_auto);
++                cparams.kalsa_moe.cache_floor_mb = getPropertyAsInt(
++                    runtime, moe, "cache_floor_mb", cparams.kalsa_moe.cache_floor_mb);
++                cparams.kalsa_moe.cache_ceil_mb = getPropertyAsInt(
++                    runtime, moe, "cache_ceil_mb", cparams.kalsa_moe.cache_ceil_mb);
++                cparams.kalsa_moe.io_threads = getPropertyAsInt(
++                    runtime, moe, "io_threads", cparams.kalsa_moe.io_threads);
++                cparams.kalsa_moe.overlap = getPropertyAsBool(
++                    runtime, moe, "overlap", cparams.kalsa_moe.overlap);
++                const std::string denseWeights = getPropertyAsString(
++                    runtime, moe, "dense_weights", cparams.kalsa_moe.dense_weights);
++                const size_t denseWeightsLength = std::min(
++                    denseWeights.size(), sizeof(cparams.kalsa_moe.dense_weights) - 1);
++                std::fill(
++                    std::begin(cparams.kalsa_moe.dense_weights),
++                    std::end(cparams.kalsa_moe.dense_weights),
++                    '\0');
++                std::copy_n(
++                    denseWeights.data(),
++                    denseWeightsLength,
++                    cparams.kalsa_moe.dense_weights);
++                cparams.kalsa_moe.n_expert_used = getPropertyAsInt(
++                    runtime, moe, "n_expert_used", cparams.kalsa_moe.n_expert_used);
++                cparams.kalsa_moe.drop_cold_frac = getPropertyAsFloat(
++                    runtime, moe, "drop_cold_frac", cparams.kalsa_moe.drop_cold_frac);
++                cparams.kalsa_moe.drop_no_renorm = getPropertyAsBool(
++                    runtime, moe, "drop_no_renorm", cparams.kalsa_moe.drop_no_renorm);
++            }
++        }
++
+         if (params.hasProperty(runtime, "flash_attn")) {
+             bool fa = getPropertyAsBool(runtime, params, "flash_attn", false);
+             cparams.flash_attn_type = fa ? LLAMA_FLASH_ATTN_TYPE_ENABLED : LLAMA_FLASH_ATTN_TYPE_DISABLED;
+@@ -666,5 +710,9 @@ namespace rnllama_jsi {
              ctx->params.cpuparams.n_threads = nThreads > 0 ? nThreads : defaultNThreads;
          }
  #endif
@@ -240,13 +440,56 @@ index a60bd15..92002fd 100644
  
  void llama_rn_context_completion::resetSpeculative() {
 diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
-index 1126dec..22c9ef0 100644
+index 1126dec..6a75ac9 100644
 --- a/node_modules/llama.rn/cpp/rn-llama.cpp
 +++ b/node_modules/llama.rn/cpp/rn-llama.cpp
-@@ -488,8 +488,12 @@ bool llama_rn_context::loadModel(common_params &params_)
+@@ -1,4 +1,5 @@
+ #include "rn-llama.h"
++#include "bmoe_stream.h"
+ #include "ggml-cpu.h"
+ #include "rn-tts.h"
+ #include "rn-mtmd.hpp"
+@@ -443,6 +444,8 @@ bool llama_rn_context::attachThreadpoolsIfAvailable() {
+ }
+ 
+ llama_rn_context::~llama_rn_context() {
++    if (moe_stream) moe_stream->shutdown();
++
+     // Disable parallel mode first (cleans up slot_manager)
+     disableParallelMode();
+ 
+@@ -473,6 +476,20 @@ bool llama_rn_context::loadModel(common_params &params_)
+         LOG_INFO("Using n_parallel: %d (enables up to %d parallel slots)", params.n_parallel, params.n_parallel);
+     }
+ 
++    // Source buffers back the expert tensors: shut the streamer, then drop the old
++    // context, then the hook. Inverse of this order dangling-cb_eval or UAF on reload.
++    if (moe_stream) moe_stream->shutdown();
++    llama_init.reset();
++    model = nullptr;
++    ctx = nullptr;
++    moe_stream = std::make_unique<kalsa::MoeStream>();
++    {
++        std::string moe_err;
++        if (!moe_stream->arm(params, moe_err)) {
++            LOG_INFO("kalsa moe stream: %s", moe_err.c_str());
++        }
++    }
++
+     llama_init = common_init_from_params(params);
+     model = llama_init != nullptr ? llama_init->model() : nullptr;
+     ctx = llama_init != nullptr ? llama_init->context() : nullptr;
+@@ -488,8 +505,19 @@ bool llama_rn_context::loadModel(common_params &params_)
          return false;
      }
  
++    if (moe_stream->armed()) {
++        std::string moe_err;
++        if (!moe_stream->bind(ctx, moe_err)) {
++            LOG_INFO("kalsa moe stream: %s", moe_err.c_str());
++        }
++    }
++
 +    // Kalsa patch: DFlash needs the standalone draft model too — upstream gated
 +    // the loader on MTP only, so a pure ["draft-dflash"] config silently ran
 +    // without a draft (common_speculative_init requires ctx_dft for DFLASH).
@@ -257,7 +500,7 @@ index 1126dec..22c9ef0 100644
          const auto & draft_params = params.speculative.draft;
          common_params params_dft = params;
          params_dft.devices = draft_params.devices;
-@@ -559,7 +563,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
+@@ -559,7 +587,12 @@ llama_context * llama_rn_context::createMTPDraftContext(const common_params &par
      }
  
      auto cparams = common_context_params_to_llama(params_for_context);
@@ -271,6 +514,29 @@ index 1126dec..22c9ef0 100644
      cparams.n_rs_seq = 0;
      cparams.type_k = params_for_context.speculative.draft.cache_type_k;
      cparams.type_v = params_for_context.speculative.draft.cache_type_v;
+diff --git a/node_modules/llama.rn/cpp/rn-llama.h b/node_modules/llama.rn/cpp/rn-llama.h
+index 0b9865e..34727d4 100644
+--- a/node_modules/llama.rn/cpp/rn-llama.h
++++ b/node_modules/llama.rn/cpp/rn-llama.h
+@@ -22,6 +22,8 @@
+ 
+ using json = nlohmann::ordered_json;
+ 
++namespace kalsa { class MoeStream; }
++
+ namespace rnllama {
+ 
+ // Display form of a raw token piece: a lone high-bit byte is hex-escaped,
+@@ -111,6 +113,9 @@ struct llama_rn_context {
+     float loading_progress = 0;
+     bool is_load_interrupted = false;
+     common_params params;
++    // Declared before llama_init so it is destroyed after the context: the eval
++    // callback and rebound expert tensors must outlive llama_free.
++    std::unique_ptr<kalsa::MoeStream> moe_stream;
+     common_init_result_ptr llama_init;
+     llama_context *ctx = nullptr;
+     common_chat_templates_ptr templates;
 diff --git a/node_modules/llama.rn/cpp/rn-slot.cpp b/node_modules/llama.rn/cpp/rn-slot.cpp
 index 9debb77..4e62827 100644
 --- a/node_modules/llama.rn/cpp/rn-slot.cpp
@@ -288,3 +554,54 @@ index 9debb77..4e62827 100644
  }
  
  void llama_rn_slot::reset_speculative() {
+diff --git a/node_modules/llama.rn/lib/typescript/types.d.ts b/node_modules/llama.rn/lib/typescript/types.d.ts
+index 6bed6b8..e901367 100644
+--- a/node_modules/llama.rn/lib/typescript/types.d.ts
++++ b/node_modules/llama.rn/lib/typescript/types.d.ts
+@@ -110,6 +110,20 @@ export type NativeContextParams = {
+      * Default: false
+      */
+     no_extra_bufts?: boolean;
++    /** Optional Kalsa MoE expert streaming settings; omitted means disabled. */
++    moe_stream?: {
++        enabled?: boolean;
++        cache_mb?: number;
++        cache_auto?: boolean;
++        cache_floor_mb?: number;
++        cache_ceil_mb?: number;
++        io_threads?: number;
++        overlap?: boolean;
++        dense_weights?: string;
++        n_expert_used?: number;
++        drop_cold_frac?: number;
++        drop_no_renorm?: boolean;
++    };
+     /**
+      * Single LoRA adapter path
+      */
+diff --git a/node_modules/llama.rn/src/types.ts b/node_modules/llama.rn/src/types.ts
+index e461f36..175de90 100644
+--- a/node_modules/llama.rn/src/types.ts
++++ b/node_modules/llama.rn/src/types.ts
+@@ -133,6 +133,21 @@ export type NativeContextParams = {
+    */
+   no_extra_bufts?: boolean
+ 
++  /** Optional Kalsa MoE expert streaming settings; omitted means disabled. */
++  moe_stream?: {
++    enabled?: boolean
++    cache_mb?: number
++    cache_auto?: boolean
++    cache_floor_mb?: number
++    cache_ceil_mb?: number
++    io_threads?: number
++    overlap?: boolean
++    dense_weights?: string
++    n_expert_used?: number
++    drop_cold_frac?: number
++    drop_no_renorm?: boolean
++  }
++
+   /**
+    * Single LoRA adapter path
+    */
