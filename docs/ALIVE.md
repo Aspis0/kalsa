@@ -122,6 +122,15 @@ answer for streaming models: CPU + recipe, full stop. Open gap: Marco1c-
 KEXP is 6.4GB (LFM2.5-class) and MIGHT fit — a Marco A/B/C cell is the
 missing third row (queued).
 
+The streaming CPU/GPU evidence, honestly labeled (no clean table exists):
+full offload = impossible; decode partial-GPU (Mellum2, llama-bench mmap)
+0.22 t/s vs CPU+recipe 5.10 — **cross-harness caveat**: the 0.22 is
+recipe-less llama-bench, the 5.10 is bmoe+recipe, not a clean A/B; decode
+experts-GPU = no instrument datapoint (killed cell, ~0.15 class); prefill
+(K-G lane) honest 1.12×, hybrid 1.07× — lane killed, not worth the
+complexity. Missing piece for a same-harness decode row: one cheap
+Mellum2 `-ngl 0` llama-bench mmap cell (queued).
+
 Rules: want speed → pure CPU, always. Want cool on KEXP → all-GPU (−19%
 speed, −2.75°C). Half-offload is NEVER right — and that is the kernels'
 real product value: without our q2/q3 kernels, offloading a KEXP MoE
