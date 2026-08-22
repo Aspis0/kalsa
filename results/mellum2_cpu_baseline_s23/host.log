@@ -1,0 +1,21 @@
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+S23 serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+2026-08-22T12:16:21.3685719-04:00 M2 CPU BASELINE START serial=adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp PLUGGED_RUN=owner_instruction
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_cpu_baseline_s23\one_cell_m2cpu.sh: 1 file pushed, 0 skipped. 1.4 MB/s (891 bytes in 0.001s)
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_cpu_baseline_s23\launch_bg_m2cpu.sh: 1 file pushed, 0 skipped. 0.5 MB/s (236 bytes in 0.000s)
+2026-08-22T12:16:22.3849040-04:00 SHA impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 opencl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+2026-08-22T12:16:48.7661898-04:00 MELLUM2 GGUF b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7  /data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+2026-08-22T12:16:49.1721124-04:00 PLUGGED_DECLARE usb=false ac= wireless=false level=48 temp_c=28.7
+2026-08-22T12:16:51.0770935-04:00 PRE level=48 temp_c=28.7 MemAvailable=4324820 wake=mWakefulness=Awake
+2026-08-22T12:16:51.0980252-04:00 LAUNCH_DETACH sh /data/local/tmp/s3oracle/launch_bg_m2cpu.sh m2_ngl0_nr_n16
+2026-08-22T12:16:51.2136955-04:00 LAUNCH_DETACH wrapper=29198
+2026-08-22T12:18:20.9004606-04:00 RETURN stall=False wall_s=87.6542444 device_rc=0 over_cap=False
+/data/local/tmp/s3oracle/logs/m2_ngl0_nr_n16.out: 1 file pulled, 0 skipped. 0.1 MB/s (1021 bytes in 0.008s)
+/data/local/tmp/s3oracle/logs/m2_ngl0_nr_n16.err: 1 file pulled, 0 skipped. 0.0 MB/s (209 bytes in 0.012s)
+/data/local/tmp/s3oracle/logs/m2_ngl0_nr_n16.rc: 1 file pulled, 0 skipped. 0.0 MB/s (2 bytes in 0.010s)
+2026-08-22T12:18:21.1746066-04:00 DEVICE_RC rc=0
+2026-08-22T12:18:22.0103666-04:00 POST level=48 temp_c=33.8 MemAvailable=5360488 wake=mWakefulness=Awake
+2026-08-22T12:18:22.0300833-04:00 MemAvailable drop_kb=-1035668 cliff=2097152
+2026-08-22T12:18:22.1411229-04:00 RESULT tg=0.216388 wall_s=87.6542444 over_cap=False plugged=true
+2026-08-22T12:18:22.1673270-04:00 DONE tg=0.216388
+M2 CPU baseline done tg=0.216388. See C:\Users\gualt\Desktop\Kalsa\moe-experiments\results\mellum2_cpu_baseline_s23 and C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\m2-cpu-baseline\REPORT.md

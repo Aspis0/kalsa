@@ -1,0 +1,7 @@
+AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 1811250
+  status: 2
+  level: 48
+  temperature: 338

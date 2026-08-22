@@ -122,14 +122,17 @@ answer for streaming models: CPU + recipe, full stop. Open gap: Marco1c-
 KEXP is 6.4GB (LFM2.5-class) and MIGHT fit — a Marco A/B/C cell is the
 missing third row (queued).
 
-The streaming CPU/GPU evidence, honestly labeled (no clean table exists):
-full offload = impossible; decode partial-GPU (Mellum2, llama-bench mmap)
-0.22 t/s vs CPU+recipe 5.10 — **cross-harness caveat**: the 0.22 is
-recipe-less llama-bench, the 5.10 is bmoe+recipe, not a clean A/B; decode
-experts-GPU = no instrument datapoint (killed cell, ~0.15 class); prefill
-(K-G lane) honest 1.12×, hybrid 1.07× — lane killed, not worth the
-complexity. Missing piece for a same-harness decode row: one cheap
-Mellum2 `-ngl 0` llama-bench mmap cell (queued).
+The streaming CPU/GPU evidence (same-harness decode row completed
+2026-08-22, #23): Mellum2, llama-bench mmap, n=16: pure CPU `-ngl 0 -nr`
+**0.216** t/s (plugged, declared; level flat, no mem cliff) vs trunk-GPU
+partial `-ngl 2 -ncmoe 99` **0.223** (unplugged) — **GPU placement moves
+nothing in the streaming regime (±3%)**; experts-GPU has no instrument
+datapoint (killed cell, ~0.15 class, certainly not better). The 23×
+jump to the product's 5.10 t/s is the RECIPE (bmoe moe-stream + cache),
+different harness — never divide across harnesses. Prefill (K-G lane):
+honest 1.12×, hybrid 1.07× — killed, not worth the complexity. Streaming
+verdict, now same-harness-backed: the wall is flash bandwidth; GPU is
+irrelevant to it; the recipe is everything.
 
 Rules: want speed → pure CPU, always. Want cool on KEXP → all-GPU (−19%
 speed, −2.75°C). Half-offload is NEVER right — and that is the kernels'

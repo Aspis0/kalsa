@@ -1,0 +1,27 @@
+iso=2026-08-22T12:14:31.7874331-04:00
+=== adb devices ===
+List of devices attached
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:135
+=== battery ===
+AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Charge counter: 1815000
+  status: 2
+  level: 48
+  temperature: 283
+=== wake ===
+mWakefulness=Dozing
+=== mem ===
+MemTotal:        7243748 kB
+MemFree:          157836 kB
+MemAvailable:    4364840 kB
+=== llama-bench pids ===
+PIDOF_DONE
+=== sha binaries s3oracle ===
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d  libggml-opencl.so
+=== mellum2 listing ===
+-rw-r--r-- 1 shell shell 8071293600 2026-08-13 12:56 /data/local/tmp/_gguf_keep/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+
