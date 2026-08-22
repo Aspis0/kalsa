@@ -102,10 +102,10 @@ index 080bc20..8014f35 100644
  
      bool single_turn       = false; // single turn chat conversation
 diff --git a/node_modules/llama.rn/cpp/ggml-cpu.h b/node_modules/llama.rn/cpp/ggml-cpu.h
-index 1024e5f..8f505fc 100644
+index 1024e5f..3a367f4 100644
 --- a/node_modules/llama.rn/cpp/ggml-cpu.h
 +++ b/node_modules/llama.rn/cpp/ggml-cpu.h
-@@ -140,6 +140,35 @@ extern "C" {
+@@ -140,6 +140,38 @@ extern "C" {
  
      LM_GGML_BACKEND_API lm_ggml_backend_reg_t lm_ggml_backend_cpu_reg(void);
  
@@ -129,8 +129,11 @@ index 1024e5f..8f505fc 100644
 +    // The code here is character-identical to that fork modulo llama.rn's `lm_` symbol prefix.
 +    // To re-derive after a llama.rn bump, diff against those two files rather than editing this
 +    // by hand — a hand edit is how the app's copy silently drifts from the engine that is measured.
-+    // NOT a GPU kernel: this is the CPU backend only, and nothing here touches the Adreno OpenCL
-+    // work, which is a separate lineage and is not ported into the app.
++    // Scope note for whoever diffs this later: the hook lives in the CPU backend, so it is in
++    // every build and every CPU variant. Kalsa ships ONE kernel — device differences are settled
++    // at runtime by which backend loads, never by a per-phone source branch. Anything added to
++    // the OpenCL backend follows the same rule: it is inert on hardware that cannot run it, which
++    // is the backend's job and not a reason to fork the build.
 +    // Delete all of it the day upstream ships a residency callback.
 +    typedef void (*lm_ggml_cpu_expert_ready_hook_t)(const struct lm_ggml_tensor * src0, int expert, void * user_data);
 +
