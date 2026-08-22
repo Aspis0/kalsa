@@ -31,6 +31,16 @@
 #                  "flashAttn":"off"} — the FA escort is mandatory, see
 #                  validate_bench_ngl. Watch the log for KALSA_GPU_FALLBACK:
 #                  it means init refused offload and the arm ran on CPU)
+#   MOE            on|off (default off) → adds "moeStream" to kalsa.bench.engine.
+#                  Tuned by MOE_CACHE_MB (default 2000; 0 or >=1500), MOE_IO_THREADS
+#                  (1..8, default 4), MOE_OVERLAP (on|off, default on), MOE_DENSE
+#                  (mmap|warm|anon|ahwb|anon-gpu, default anon). Streaming forces
+#                  no_extra_bufts inside arm(), so a MOE arm always runs repack-OFF
+#                  whatever NOREPACK says — state that when comparing it to a
+#                  production arm. Success is SILENT: llama.rn logs "kalsa moe
+#                  stream:" only on failure, so confirm liveness from the process
+#                  (RssAnon high / RssFile low, read_bytes climbing), never from
+#                  the app having answered.
 #   MEMORY         1|0 → kalsa.memory.enabled (default 0; 1 enables memory extract/inject)
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
 #   MODEL_DIR/MODEL_FILE   as ci-e2e.sh
@@ -54,6 +64,11 @@ RANKING="${RANKING:-}"
 DIGESTCADENCE="${DIGESTCADENCE:-}"
 NOREPACK="${NOREPACK:-}"
 NGL="${NGL:-}"
+MOE="${MOE:-off}"
+MOE_CACHE_MB="${MOE_CACHE_MB:-2000}"
+MOE_IO_THREADS="${MOE_IO_THREADS:-4}"
+MOE_OVERLAP="${MOE_OVERLAP:-on}"
+MOE_DENSE="${MOE_DENSE:-anon}"
 MEMORY="${MEMORY:-0}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
@@ -143,12 +158,43 @@ esac
 # Pure validator lives in ci-lib (validate_bench_norepack) so unit tests cover it.
 validate_bench_norepack "$NOREPACK"
 validate_bench_ngl "$NGL"
+
+# MOE: Kalsa expert streaming, written into the same kalsa.bench.engine JSON.
+# Bounds mirror src/bench/benchConfig.ts, and they are enforced HERE because the
+# app's parser DROPS a value it does not accept and then loads without streaming
+# — silently. An arm labelled "streaming" that never streamed is a wrong number,
+# not a failed run, so a bad knob must kill the script instead.
+MOE_JSON=""
+case "$MOE" in
+  off) ;;
+  on)
+    case "$MOE_CACHE_MB" in
+      ''|*[!0-9]*) die "MOE_CACHE_MB must be an integer (got '$MOE_CACHE_MB')" ;;
+    esac
+    [ "$MOE_CACHE_MB" -eq 0 ] || [ "$MOE_CACHE_MB" -ge 1500 ] \
+      || die "MOE_CACHE_MB must be 0 or >= 1500 (benchConfig isValidMoeCacheMb); got $MOE_CACHE_MB"
+    case "$MOE_IO_THREADS" in
+      ''|*[!0-9]*) die "MOE_IO_THREADS must be an integer (got '$MOE_IO_THREADS')" ;;
+    esac
+    [ "$MOE_IO_THREADS" -ge 1 ] && [ "$MOE_IO_THREADS" -le 8 ] \
+      || die "MOE_IO_THREADS must be 1..8 (got $MOE_IO_THREADS)"
+    case "$MOE_OVERLAP" in on|off) ;; *) die "MOE_OVERLAP must be on|off (got '$MOE_OVERLAP')" ;; esac
+    case "$MOE_DENSE" in
+      mmap|warm|anon|ahwb|anon-gpu) ;;
+      *) die "MOE_DENSE must be mmap|warm|anon|ahwb|anon-gpu (got '$MOE_DENSE')" ;;
+    esac
+    MOE_OVERLAP_JSON=false; [ "$MOE_OVERLAP" = "on" ] && MOE_OVERLAP_JSON=true
+    MOE_JSON=$(printf '{"enabled":true,"cache_mb":%s,"cache_auto":false,"io_threads":%s,"overlap":%s,"dense_weights":"%s"}' \
+      "$MOE_CACHE_MB" "$MOE_IO_THREADS" "$MOE_OVERLAP_JSON" "$MOE_DENSE")
+    ;;
+  *) die "MOE must be on|off (got '$MOE')" ;;
+esac
 case "$MEMORY" in
   0|1) ;;
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
 
-log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL moe=$MOE moeJson=$MOE_JSON memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
 # LFM2.5 is always-on reasoning: its chat template has preserve_thinking only.
 # Record THINKING for the matrix; the model does not expose a separate switch
 # for this axis.
@@ -284,8 +330,8 @@ set_prefs() {
   # Empty must DELETE the key, and that branch matters more here than for the
   # other knobs: AppShell reads this key on the PRODUCTION path too, so a
   # leftover from one arm would silently arm offload for the next one.
-  if [ -n "$NGL" ]; then
-    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.engine','$(bench_engine_json "$NGL")');" "kalsa.bench.engine" "$(bench_engine_json "$NGL")"
+  if [ -n "$NGL" ] || [ -n "$MOE_JSON" ]; then
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.engine','$(bench_engine_json "$NGL" "$MOE_JSON")');" "kalsa.bench.engine" "$(bench_engine_json "$NGL" "$MOE_JSON")"
   else
     sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" "kalsa.bench.engine" "__ABSENT__"
   fi
@@ -374,12 +420,12 @@ else
     || die "norepack pref on device is '$NOREPACK_PREF_RAW', expected absent (NOREPACK empty = production repack)"
 fi
 NGL_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" | head -1 | tr -d '[:space:]')
-if [ -n "$NGL" ]; then
-  [ "$NGL_PREF_RAW" = "$(bench_engine_json "$NGL")" ] \
-    || die "engine pref on device is '$NGL_PREF_RAW', expected '$(bench_engine_json "$NGL")'"
+if [ -n "$NGL" ] || [ -n "$MOE_JSON" ]; then
+  [ "$NGL_PREF_RAW" = "$(bench_engine_json "$NGL" "$MOE_JSON")" ] \
+    || die "engine pref on device is '$NGL_PREF_RAW', expected '$(bench_engine_json "$NGL" "$MOE_JSON")'"
 else
   [ -z "$NGL_PREF_RAW" ] \
-    || die "engine pref on device is '$NGL_PREF_RAW', expected absent (NGL empty = cpu-only; this key is read on the production path too)"
+    || die "engine pref on device is '$NGL_PREF_RAW', expected absent (NGL and MOE both off = production; this key is read on the production path too)"
 fi
 # Memory is always written (default 0, never deleted) — simple equality assert.
 MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.memory.enabled';" | head -1 | tr -d '[:space:]')

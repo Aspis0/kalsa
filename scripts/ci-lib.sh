@@ -838,8 +838,20 @@ validate_bench_ngl() {
 # bench_engine_json <ngl>
 #   The exact string ci-bench writes to kalsa.bench.engine, and the exact
 #   string it asserts back. One function so the two can never drift.
+# bench_engine_json <ngl> [moe_stream_json]
+#   Both parts optional; with only <ngl> the output is byte-identical to what
+#   this emitted before MoE streaming existed (test_sideload_guards.sh asserts
+#   the flashAttn escort against that exact string).
 bench_engine_json() {
-  printf '{"nGpuLayers":%s,"flashAttn":"off"}' "$1"
+  local ngl="${1:-}" moe="${2:-}" parts=""
+  if [ -n "$ngl" ]; then
+    parts=$(printf '"nGpuLayers":%s,"flashAttn":"off"' "$ngl")
+  fi
+  if [ -n "$moe" ]; then
+    [ -n "$parts" ] && parts="$parts,"
+    parts="$parts$(printf '"moeStream":%s' "$moe")"
+  fi
+  printf '{%s}' "$parts"
 }
 
 # ── Multi-conversation storage keys ─────────────────────────────────
