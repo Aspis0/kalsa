@@ -102,10 +102,10 @@ index 080bc20..8014f35 100644
  
      bool single_turn       = false; // single turn chat conversation
 diff --git a/node_modules/llama.rn/cpp/ggml-cpu.h b/node_modules/llama.rn/cpp/ggml-cpu.h
-index 1024e5f..22427bb 100644
+index 1024e5f..66aafcb 100644
 --- a/node_modules/llama.rn/cpp/ggml-cpu.h
 +++ b/node_modules/llama.rn/cpp/ggml-cpu.h
-@@ -140,6 +140,40 @@ extern "C" {
+@@ -140,6 +140,54 @@ extern "C" {
  
      LM_GGML_BACKEND_API lm_ggml_backend_reg_t lm_ggml_backend_cpu_reg(void);
  
@@ -120,17 +120,31 @@ index 1024e5f..22427bb 100644
 +    // before a layer's expert matmuls run and cannot pause partway through them, which is exactly
 +    // what overlapping reads with compute needs.
 +    //
-+    // PROVENANCE — this is NOT a hand-written edit. Source of truth is the fork repo
-+    // **Aspis0/kalsallama** (private), files:
-+    //     ggml/include/ggml-cpu.h            (this declaration)
-+    //     ggml/src/ggml-cpu/ggml-cpu.c       (the globals, the setter, the call site in mul_mat_id)
-+    // A repo is named here rather than a checkout path on purpose: paths moved once already and
-+    // an earlier version of this comment cited one that did not resolve.
-+    // The code here is character-identical to that fork modulo llama.rn's `lm_` symbol prefix.
-+    // To re-derive after a llama.rn bump, diff against those two files rather than editing this
-+    // by hand — a hand edit is how the app's copy silently drifts from the engine that is measured.
-+    // The streaming engine vendored under native/bmoe/ has a DIFFERENT home, Aspis0/kalsa-engine;
-+    // these two travel together but are not the same upstream.
++    // PROVENANCE — this is NOT a hand-written edit.
++    //   repo    Aspis0/kalsallama (private)
++    //   branch  kalsa/mmap-prefetch-opt @ e5605f3bd
++    //   files   ggml/src/ggml-cpu/ggml-cpu.c   (globals, setter, call site in mul_mat_id)
++    //           ggml/include/ggml-cpu.h        (this declaration)
++    //   commit  5236140e5 "ggml-cpu : add expert-ready hook for mul_mat_id (expert streaming)"
++    //           e5605f3bd also carries mmap_prefetch (206a8fe7f), which is NOT ported here.
++    // Every code line here matches that commit modulo the `lm_` prefix — compared line by line
++    // against the commit, not asserted. Only the comments are ours.
++    //
++    // The `#include "ggml-cpu.h"` that commit adds to ggml-cpu.c is part of the change and is
++    // load-bearing: without it this typedef reaches that file only through vec.h. That compiles
++    // today and breaks the day llama.rn reshuffles an include — and re-typing the hook by hand is
++    // exactly how such a line gets dropped. It was dropped here once, and only the diff caught it.
++    //
++    // Re-derive it, never re-type it. After a llama.rn bump the whole diff is:
++    //   git diff 22b69b6e9..e5605f3bd -- ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
++    // then apply llama.rn's `lm_` symbol prefix. 22b69b6e9 is the upstream base the branch sits on.
++    // A hand edit in node_modules is how the app's copy silently drifts from the engine the
++    // benchmarks measure, and the drift is invisible until a number is wrong.
++    //
++    // A repo and a commit are named here, not a checkout path: an earlier version of this comment
++    // cited a path and a branch that did not resolve. The streaming engine vendored under
++    // native/bmoe/ has a different home again — Aspis0/kalsa-engine — so the two travel together
++    // but are not one upstream.
 +    // Scope note for whoever diffs this later: the hook lives in the CPU backend, so it is in
 +    // every build and every CPU variant. Kalsa ships ONE kernel — device differences are settled
 +    // at runtime by which backend loads, never by a per-phone source branch. Anything added to
@@ -147,10 +161,18 @@ index 1024e5f..22427bb 100644
      LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_i32 (const float *,     int32_t *, int64_t);
      LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_fp16(const float *, lm_ggml_fp16_t *, int64_t);
 diff --git a/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c b/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
-index 5016976..8d8cb86 100644
+index 5016976..ab92ed7 100644
 --- a/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
 +++ b/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
-@@ -1451,6 +1451,17 @@ UseGgmlGemm2:;
+@@ -3,6 +3,7 @@
+ 
+ #include "ggml-backend-impl.h"
+ #include "ggml-backend.h"
++#include "ggml-cpu.h"
+ #include "traits.h"
+ #include "ggml-cpu-impl.h"
+ #include "ggml-impl.h"
+@@ -1451,6 +1452,17 @@ UseGgmlGemm2:;
      }
  }
  
@@ -168,7 +190,7 @@ index 5016976..8d8cb86 100644
  // lm_ggml_compute_forward_mul_mat_id
  
  #define MMID_MATRIX_ROW(row_id, i1) matrix_rows[(row_id)*ids->ne[0]*ids->ne[1] + (i1)]
-@@ -1651,6 +1662,14 @@ static void lm_ggml_compute_forward_mul_mat_id(
+@@ -1651,6 +1663,14 @@ static void lm_ggml_compute_forward_mul_mat_id(
              continue;
          }
  
