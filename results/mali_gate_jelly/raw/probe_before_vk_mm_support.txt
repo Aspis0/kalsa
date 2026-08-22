@@ -1,0 +1,8 @@
+PLUGGED
+  AC powered: true
+  USB powered: false
+  status: 2
+  level: 54
+  temperature: 360
+  mWakefulness=Awake
+Display Power: com.android.server.power.PowerManagerService$1@f352807

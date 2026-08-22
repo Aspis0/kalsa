@@ -1,0 +1,21 @@
+unsigned long vk::Device::getBufferAddress<vk::DispatchLoaderDynamic>(vk::BufferDeviceAddressInfo const&, vk::DispatchLoaderDynamic const&) const at C:/Users/gualt/Desktop/Kalsa/moe-experiments/deps/vulkan-android/Vulkan-Headers/include/vulkan/vulkan_funcs.hpp:6563:30
+ (inlined by) ggml_vk_create_buffer(std::__ndk1::shared_ptr<vk_device_struct>&, unsigned long, std::initializer_list<vk::Flags<vk::MemoryPropertyFlagBits>> const&, void*) at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp:3233:40
+
+ggml_vk_create_buffer_device(std::__ndk1::shared_ptr<vk_device_struct>&, unsigned long) at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp:3260:19
+
+ggml_backend_vk_buffer_type_alloc_buffer(ggml_backend_buffer_type*, unsigned long) at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-vulkan/ggml-vulkan.cpp:15314:22
+
+alloc_tensor_range at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-alloc.c:1131:36
+
+ggml_backend_alloc_ctx_tensors_from_buft_impl at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-alloc.c:1202:27
+
+ggml_backend_alloc_ctx_tensors_from_buft at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-alloc.c:1243:12
+ (inlined by) ggml_backend_alloc_ctx_tensors at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/ggml/src/ggml-alloc.c:1247:12
+
+test_case::eval(ggml_backend*, ggml_backend*, char const*, printer*) at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/tests/test-backend-ops.cpp:1401:37
+
+test_backend(ggml_backend*, ggml_backend_device*, test_mode, char const*, char const*, printer*, char const*, int)::$_5::operator()(ggml_backend*, ggml_backend*) const at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/tests/test-backend-ops.cpp:10075:50
+
+test_backend(ggml_backend*, ggml_backend_device*, test_mode, char const*, char const*, printer*, char const*, int) at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/tests/test-backend-ops.cpp:10094:13
+ (inlined by) main at C:/Users/gualt/Desktop/Kalsa/moe-experiments/BigMoeOnEdge/third_party/llama.cpp/tests/test-backend-ops.cpp:10434:19
+

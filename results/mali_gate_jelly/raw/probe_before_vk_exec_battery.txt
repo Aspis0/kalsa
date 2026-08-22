@@ -1,0 +1,6 @@
+PLUGGED
+  AC powered: true
+  USB powered: false
+  status: 2
+  level: 63
+  temperature: 370

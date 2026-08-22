@@ -1,0 +1,7 @@
+=== VK tag=mm_q4k PLUGGED ===
+Sat Aug 22 16:35:04 EDT 2026
+PWD=/data/local/tmp/kalsa26/vk
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/vk
+CMD=./test-backend-ops test -b Vulkan0 -o MUL_MAT -p type_a=q4_K
+=== rc=139 ===
+Sat Aug 22 16:35:05 EDT 2026

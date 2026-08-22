@@ -1,0 +1,25 @@
+=== deploy ocl 2026-08-22T16:35:41.1285039-04:00 serial=192.168.1.82:35785 ===
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-opencl.so -> /data/local/tmp/kalsa26/ocl/libggml-opencl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-opencl.so: 1 file pushed, 0 skipped. 71.5 MB/s (8376320 bytes in 0.112s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml.so -> /data/local/tmp/kalsa26/ocl/libggml.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml.so: 1 file pushed, 0 skipped. 92.2 MB/s (536880 bytes in 0.006s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-base.so -> /data/local/tmp/kalsa26/ocl/libggml-base.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-base.so: 1 file pushed, 0 skipped. 58.4 MB/s (6103496 bytes in 0.100s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-cpu.so -> /data/local/tmp/kalsa26/ocl/libggml-cpu.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-cpu.so: 1 file pushed, 0 skipped. 50.4 MB/s (5165056 bytes in 0.098s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\test-backend-ops -> /data/local/tmp/kalsa26/ocl/test-backend-ops
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\test-backend-ops: 1 file pushed, 0 skipped. 89.2 MB/s (10182432 bytes in 0.109s)
+
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so -> /data/local/tmp/kalsa26/ocl/libc++_shared.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so: 1 file pushed, 0 skipped. 55.9 MB/s (1794776 bytes in 0.031s)
+
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so -> /data/local/tmp/kalsa26/ocl/libomp.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so: 1 file pushed, 0 skipped. 70.3 MB/s (1229304 bytes in 0.017s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q26-mali-gate\run_ocl.sh -> /data/local/tmp/kalsa26/ocl/run_ocl.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q26-mali-gate\run_ocl.sh: 1 file pushed, 0 skipped. 1.0 MB/s (517 bytes in 0.000s)
+

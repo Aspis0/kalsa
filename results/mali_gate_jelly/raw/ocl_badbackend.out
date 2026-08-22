@@ -1,0 +1,7 @@
+=== OCL tag=badbackend PLUGGED ===
+Sat Aug 22 16:35:53 EDT 2026
+PWD=/data/local/tmp/kalsa26/ocl
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/ocl
+CMD=./test-backend-ops -b NOSUCHBACKEND
+=== rc=1 ===
+Sat Aug 22 16:35:53 EDT 2026

@@ -1,0 +1,8 @@
+-rw-rw-rw- 1 shell shell  5155564768 2026-08-20 22:43 /data/local/tmp/LFM2.5-8B-A1B-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell 10505424704 2026-08-22 15:13 /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell   730895168 2026-08-22 01:37 /data/local/tmp/llamabench/LFM2.5-1.2B-Instruct-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell  1674454848 2026-08-09 19:10 /data/local/tmp/llamabench/LFM2.5-2.6B-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell  1593894944 2026-08-22 01:38 /data/local/tmp/llamabench/LFM2.5-2.6B-QAD-Q4_0.gguf
+-rw-rw-rw- 1 shell shell  1214873856 2026-08-09 17:19 /data/local/tmp/llamabench/Qwen3.5-2B-Q4_0.gguf
+-rw-rw-rw- 1 shell shell  1280835840 2026-08-09 11:35 /data/local/tmp/llamabench/Qwen3.5-2B-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell  2834975040 2026-08-09 17:35 /data/local/tmp/llamabench/Qwen3.5-4B-Q4_K_M.gguf

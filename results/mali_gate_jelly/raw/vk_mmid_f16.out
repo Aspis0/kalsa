@@ -1,0 +1,7 @@
+=== VK tag=mmid_f16 PLUGGED ===
+Sat Aug 22 16:35:08 EDT 2026
+PWD=/data/local/tmp/kalsa26/vk
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/vk
+CMD=./test-backend-ops test -b Vulkan0 -o MUL_MAT_ID -p type_a=f16
+=== rc=139 ===
+Sat Aug 22 16:35:09 EDT 2026

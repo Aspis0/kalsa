@@ -1,0 +1,13 @@
+=== OCL tag=mm_f16 PLUGGED ===
+Sat Aug 22 16:36:53 EDT 2026
+PWD=/data/local/tmp/kalsa26/ocl
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/ocl
+CMD=./test-backend-ops test -o MUL_MAT -p type_a=f16
+Testing 1 devices
+
+Backend 1/1: CPU
+  Skipping CPU backend
+1/1 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Sat Aug 22 16:36:53 EDT 2026

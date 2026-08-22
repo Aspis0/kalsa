@@ -1,0 +1,43 @@
+# PC SHA256 Vulkan set  2026-08-22T16:29:39.5686039-04:00
+5ff2db3d669c51beb9a6a6d0dab99bdcccbbbdceaa49fd4bcc3a4a4d86aaf297    47011288  libggml-vulkan.so
+367ccf39e5d7be6193331aa82cb1401582cd993e00f97217e9df1ff86e7331bc      537112  libggml.so
+5b4685c9b4564907df918e1bf2cd71887c8ebfa8ad18cb2012f4f2f349f7c35d     6103488  libggml-base.so
+652e311c73597ee7cd74b0dbeef446567b337c07d25a5f05c942f8e2e86d8a3c     5165048  libggml-cpu.so
+a14dba6f891864ebc20c4eebe99a9f33131f73293dc52f0c40bea01f97e4123f    39807616  libllama.so
+66e68b1bc372860d1d93db298292a6c3395efcf9afaa546669ac9818c6b13212    78377224  libllama-common.so
+c24b311132021a968ab0669a60ed60dc3604ca47166d89e778f6ad77726c6178    10182432  test-backend-ops
+b4e9476ee03f270c85d0e9eb2dd578089756075d131dd058456bb039182c7b21        7592  llama-bench
+36b90cd131a2613d70f263f34a3721ffcdc86b6c9bbb5c9b5e103c9b0088fd35     4253152  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6     1794776  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0     1229304  libomp.so
+
+# llama-cli candidates
+ABSENT C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\llama-cli
+ABSENT C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\tools\cli\llama-cli
+ABSENT C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\llama-cli.exe
+
+# OpenCL bin listing
+   6103496  libggml-base.so
+   5165056  libggml-cpu.so
+   8376320  libggml-opencl.so
+    536880  libggml.so
+   4253160  libllama-bench-impl.so
+  78377240  libllama-common.so
+   1147576  libllama-completion-impl.so
+  39807624  libllama.so
+      7600  llama-bench
+      7608  llama-completion
+    120528  llama-gemma3-cli
+    120528  llama-llava-cli
+    120528  llama-minicpmv-cli
+    120528  llama-qwen2vl-cli
+  10182432  test-backend-ops
+    183616  test-gbnf-validator
+    572056  test-grammar-parser
+    661376  test-llama-archs
+    144536  test-opencl-moe-roundtrip
+    287816  test-reasoning-budget
+    549104  test-sampling
+    528832  test-tokenizer-0
+    236776  test-tokenizer-1-bpe
+    228144  test-tokenizer-1-spm

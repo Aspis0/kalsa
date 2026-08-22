@@ -1,0 +1,5 @@
+ggml_opencl: selected platform: 'ARM Platform'
+
+ggml_opencl: device: 'Mali-G57 MC2 r0p1 (OpenCL 3.0 v1.r32p1-01eac0.394145956bc7cd8e697b330aba11e3d3)'
+ggml_opencl: unsupported GPU 'Mali-G57 MC2 r0p1'.
+ggml_opencl: drop unsupported device 'Mali-G57 MC2 r0p1'.

@@ -1,0 +1,1 @@
+CANNOT LINK EXECUTABLE "./test-backend-ops": library "libllama-common.so" not found: needed by main executable

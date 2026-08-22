@@ -1,0 +1,14 @@
+PLUGGED
+  AC powered: true
+  USB powered: false
+  status: 2
+  level: 69
+  temperature: 380
+=== vulkan props ===
+mali
+196610
+mt6789
+=== vulkan libs ===
+lrwxr-xr-x 1 root shell 22 2008-12-31 19:00 /vendor/lib64/egl/libGLES_mali.so -> mt6789/libGLES_mali.so
+lrwxr-xr-x 1 root shell 21 2008-12-31 19:00 /vendor/lib64/hw/vulkan.mali.so -> mt6789/vulkan.mali.so
+=== other adb ===

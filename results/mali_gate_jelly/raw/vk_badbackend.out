@@ -1,0 +1,15 @@
+=== VK tag=badbackend PLUGGED ===
+Sat Aug 22 16:31:39 EDT 2026
+PWD=/data/local/tmp/kalsa26/vk
+LD_LIBRARY_PATH=/data/local/tmp/kalsa26/vk
+CMD=./test-backend-ops -b NOSUCHBACKEND
+Testing 2 devices
+
+Backend 1/2: Vulkan0
+  Skipping
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Sat Aug 22 16:31:40 EDT 2026

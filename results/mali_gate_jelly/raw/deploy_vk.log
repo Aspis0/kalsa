@@ -1,0 +1,37 @@
+=== deploy vk 2026-08-22T16:30:53.9177128-04:00 serial=192.168.1.82:35785 ===
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-vulkan.so -> /data/local/tmp/kalsa26/vk/libggml-vulkan.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-vulkan.so: 1 file pushed, 0 skipped. 49.0 MB/s (47011288 bytes in 0.916s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml.so -> /data/local/tmp/kalsa26/vk/libggml.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml.so: 1 file pushed, 0 skipped. 49.9 MB/s (537112 bytes in 0.010s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-base.so -> /data/local/tmp/kalsa26/vk/libggml-base.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-base.so: 1 file pushed, 0 skipped. 47.0 MB/s (6103488 bytes in 0.124s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-cpu.so -> /data/local/tmp/kalsa26/vk/libggml-cpu.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libggml-cpu.so: 1 file pushed, 0 skipped. 45.0 MB/s (5165048 bytes in 0.110s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama.so -> /data/local/tmp/kalsa26/vk/libllama.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama.so: 1 file pushed, 0 skipped. 42.0 MB/s (39807616 bytes in 0.905s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-common.so -> /data/local/tmp/kalsa26/vk/libllama-common.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-common.so: 1 file pushed, 0 skipped. 49.3 MB/s (78377224 bytes in 1.515s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\test-backend-ops -> /data/local/tmp/kalsa26/vk/test-backend-ops
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\test-backend-ops: 1 file pushed, 0 skipped. 77.6 MB/s (10182432 bytes in 0.125s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\llama-bench -> /data/local/tmp/kalsa26/vk/llama-bench
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\llama-bench: 1 file pushed, 0 skipped. 0.6 MB/s (7592 bytes in 0.012s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-bench-impl.so -> /data/local/tmp/kalsa26/vk/libllama-bench-impl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-vulkan-s15\bin\libllama-bench-impl.so: 1 file pushed, 0 skipped. 56.8 MB/s (4253152 bytes in 0.071s)
+
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so -> /data/local/tmp/kalsa26/vk/libc++_shared.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so: 1 file pushed, 0 skipped. 108.0 MB/s (1794776 bytes in 0.016s)
+
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so -> /data/local/tmp/kalsa26/vk/libomp.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so: 1 file pushed, 0 skipped. 43.6 MB/s (1229304 bytes in 0.027s)
+
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q26-mali-gate\run_vk.sh -> /data/local/tmp/kalsa26/vk/run_vk.sh
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q26-mali-gate\run_vk.sh: 1 file pushed, 0 skipped. 1.7 MB/s (696 bytes in 0.000s)
+
