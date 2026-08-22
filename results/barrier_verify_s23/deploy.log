@@ -1,0 +1,99 @@
+=== preserve GGUFs then recreate s3oracle ===
+time=2026-08-21T20:53:47.3162009-04:00
+MOVED_OLMOE
+MOVED_MELLUM
+total 11M
+drwxrwxrwx  2 shell shell 3.3K 2026-08-21 20:53 .
+drwxrwx--x 10 shell shell 3.3K 2026-08-21 20:53 ..
+-rw-rw-rw-  1 shell shell 7.5G 2026-08-13 12:56 Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+-rw-rw-rw-  1 shell shell 3.9G 2026-08-20 23:53 OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+
+total 3.9M
+drwxrwxrwx  3 shell shell 3.3K 2026-08-21 20:53 .
+drwxrwx--x 10 shell shell 3.3K 2026-08-21 20:53 ..
+-rw-rw-rw-  1 shell shell 3.9G 2026-08-20 23:53 OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+drwxrwxrwx  2 shell shell 3.3K 2026-08-21 20:53 logs
+---keep---
+total 7.5M
+drwxrwxrwx  2 shell shell 3.3K 2026-08-21 20:53 .
+drwxrwx--x 10 shell shell 3.3K 2026-08-21 20:53 ..
+-rw-rw-rw-  1 shell shell 7.5G 2026-08-13 12:56 Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+---tmp---
+LFM2.5-8B-A1B-KEXP.gguf
+_gguf_keep
+dalvik-cache
+decode-partition-ui.xml
+k22
+k2ref
+kalsa-preflight-ui.xml
+preflight_llama_isa.sh
+probe1.xml
+probe2.xml
+probe3.xml
+r1.xml
+r2.xml
+r3.xml
+r4.xml
+r5.xml
+r6.xml
+s3base
+s3fix
+s3oracle
+s3printf
+termux-api.apk
+termux-app.apk
+termux-boot.apk
+u6.xml
+u7.xml
+u8.xml
+u9.xml
+ui.xml
+ui2.xml
+ui3.xml
+ui4.xml
+ui5.xml
+z1.xml
+
+PRESERVE_RC=0
+
+=== adb push ===
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-opencl.so -> /data/local/tmp/s3oracle/libggml-opencl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-opencl.so: 1 file pushed, 0 skipped. 69.1 MB/s (8381304 bytes in 0.116s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml.so -> /data/local/tmp/s3oracle/libggml.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml.so: 1 file pushed, 0 skipped. 94.3 MB/s (536880 bytes in 0.005s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-base.so -> /data/local/tmp/s3oracle/libggml-base.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-base.so: 1 file pushed, 0 skipped. 58.6 MB/s (6103496 bytes in 0.099s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-cpu.so -> /data/local/tmp/s3oracle/libggml-cpu.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-cpu.so: 1 file pushed, 0 skipped. 67.8 MB/s (5165056 bytes in 0.073s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama.so -> /data/local/tmp/s3oracle/libllama.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama.so: 1 file pushed, 0 skipped. 75.5 MB/s (39807624 bytes in 0.503s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama-common.so -> /data/local/tmp/s3oracle/libllama-common.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama-common.so: 1 file pushed, 0 skipped. 89.1 MB/s (78377240 bytes in 0.839s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\test-backend-ops -> /data/local/tmp/s3oracle/test-backend-ops
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\test-backend-ops: 1 file pushed, 0 skipped. 102.8 MB/s (10182432 bytes in 0.094s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\llama-bench -> /data/local/tmp/s3oracle/llama-bench
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\llama-bench: 1 file pushed, 0 skipped. 10.1 MB/s (7600 bytes in 0.001s)
+PUSH C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama-bench-impl.so -> /data/local/tmp/s3oracle/libllama-bench-impl.so
+C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama-bench-impl.so: 1 file pushed, 0 skipped. 66.2 MB/s (4253160 bytes in 0.061s)
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so -> /data/local/tmp/s3oracle/libc++_shared.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so: 1 file pushed, 0 skipped. 54.5 MB/s (1794776 bytes in 0.031s)
+PUSH C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so -> /data/local/tmp/s3oracle/libomp.so
+C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so: 1 file pushed, 0 skipped. 91.4 MB/s (1229304 bytes in 0.013s)
+
+=== chmod/ls ===
+total 4.0M
+drwxrwxrwx  3 shell shell 3.3K 2026-08-21 20:54 .
+drwxrwx--x 10 shell shell 3.3K 2026-08-21 20:53 ..
+-rw-rw-rw-  1 shell shell 3.9G 2026-08-20 23:53 OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+-rw-rw-rw-  1 shell shell 1.7M 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw-  1 shell shell 5.8M 2026-08-21 20:30 libggml-base.so
+-rw-rw-rw-  1 shell shell 4.9M 2026-08-21 20:30 libggml-cpu.so
+-rw-rw-rw-  1 shell shell 7.9M 2026-08-21 20:31 libggml-opencl.so
+-rw-rw-rw-  1 shell shell 524K 2026-08-21 20:31 libggml.so
+-rw-rw-rw-  1 shell shell 4.0M 2026-08-21 20:33 libllama-bench-impl.so
+-rw-rw-rw-  1 shell shell  75M 2026-08-21 20:33 libllama-common.so
+-rw-rw-rw-  1 shell shell  38M 2026-08-21 20:32 libllama.so
+-rw-rw-rw-  1 shell shell 1.1M 2026-04-29 08:39 libomp.so
+-rwxr-xr-x  1 shell shell 7.4K 2026-08-21 20:33 llama-bench
+drwxrwxrwx  2 shell shell 3.3K 2026-08-21 20:53 logs
+-rwxr-xr-x  1 shell shell  10M 2026-08-21 20:33 test-backend-ops

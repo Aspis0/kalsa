@@ -1,0 +1,20 @@
+=== build bin ===
+bbd700de84e32c30c7ea68725e6ed553c5ac25d842f7d0d9b4271917f79f81ea       8381304  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27        536880  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml.so
+2e16b95119208c7bb70cf3be444670611259a050480e9923f2790541d3e489a8       6103496  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da       5165056  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libggml-cpu.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d      39807624  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama.so
+7547a07298165871f415b835bc66852713ca02afcc43c0d3e3abcb2eca8be2c8      78377240  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama-common.so
+9a3fd4b07dd2edce2723ce2d17503f76d2b6bea0d254d616e3de199456b587bc      10182432  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\test-backend-ops
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c          7600  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807       4253160  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libllama-bench-impl.so
+MISSING  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libc++_shared.so
+MISSING  C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-opencl-s3oracle\bin\libomp.so
+=== ndk libc++_shared.so ===
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6       1794776  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\sysroot\usr\lib\aarch64-linux-android\libc++_shared.so
+=== ndk libomp.so ===
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0       1229304  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\aarch64\libomp.so
+69dc7ca04dd1366bba3dd85f24885cfe505bc05c8f053482a3942089b2a2fa04        989084  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\arm\libomp.so
+ec1b15f038ad8dca4c9256112df70d3786a84cd740a9c698c152140b4d9dea2e       1266624  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\i386\libomp.so
+5e95e4ca34caee9bf711b291ced519adfd01639c69e1639e5eb267a6abdea58f       1143840  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\riscv64\libomp.so
+0c3ff168618a9ffbbcd63a928d858b22eec4fa1b43080ceb62653b96d54480c6       1158008  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\lib\clang\18\lib\linux\x86_64\libomp.so

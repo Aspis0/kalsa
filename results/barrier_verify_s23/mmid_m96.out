@@ -1,0 +1,48 @@
+=== BARRIER VERIFY tag=mmid_m96 ===
+Fri Aug 21 20:58:49 EDT 2026
+PWD=/data/local/tmp/s3oracle
+LD_LIBRARY_PATH=/data/local/tmp/s3oracle
+GGML_OPENCL_LOG_KERNELS=1
+GGML_OPENCL_HOST_REPACK=<unset>
+GGML_OPENCL_DUMP_Q=<unset>
+GGML_OPENCL_ORACLE=<unset>
+GGML_OPENCL_CVT_OPTS=<unset>
+GGML_OPENCL_MOE_OPTS=<unset>
+GGML_OPENCL_CVT_VARIANT=<unset>
+CMD=./test-backend-ops -o MUL_MAT_ID -p m=96
+=== sha256 before run ===
+bbd700de84e32c30c7ea68725e6ed553c5ac25d842f7d0d9b4271917f79f81ea  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+2e16b95119208c7bb70cf3be444670611259a050480e9923f2790541d3e489a8  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+7547a07298165871f415b835bc66852713ca02afcc43c0d3e3abcb2eca8be2c8  libllama-common.so
+9a3fd4b07dd2edce2723ce2d17503f76d2b6bea0d254d616e3de199456b587bc  test-backend-ops
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Device description: QUALCOMM Adreno(TM)
+  Device memory: 3536 MB (2512 MB free)
+
+  MUL_MAT_ID(type_a=q2_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q3_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q2_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q3_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q5_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q4_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q5_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256): [1;32mOK[0m
+  MUL_MAT_ID(type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256): [1;32mOK[0m
+  10/10 tests passed
+  Backend OpenCL: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping CPU backend
+2/2 backends passed
+[1;32mOK[0m
+=== rc=0 ===
+Fri Aug 21 20:59:14 EDT 2026

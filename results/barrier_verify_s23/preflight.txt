@@ -1,0 +1,98 @@
+List of devices attached
+adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:135
+
+
+=== get-state ===
+device
+
+=== dumpsys battery (first 20) ===
+Current Battery Service state:
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Max charging current: 0
+ Time when the latest updated value of the Max charging current was sent via battery changed broadcast: 0
+  Max charging voltage: 0
+  Charge counter: 2040000
+  status: 2
+  health: 2
+  present: true
+  level: 54
+  scale: 100
+  voltage: 3958
+ Time when the latest updated value of the voltage was sent via battery changed broadcast: 0
+ The last voltage value sent via the battery changed broadcast: 3956
+  temperature: 273
+  technology: Li-ion
+  Charging state: 0
+  Charging policy: 0
+  Capacity level: -1
+  batteryMiscEvent: 65536
+  batteryCurrentEvent: 1073774592
+  mSecPlugTypeSummary: 1
+
+=== MemAvailable / data ===
+MemAvailable:    4053568 kB
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-60 104G  95G  8.8G  92% /data/user/0
+/dev/block/dm-60 104G  95G  8.8G  92% /data/user/0
+
+=== s3oracle listing ===
+total 12M
+drwxrwxrwx 3 shell shell 3.3K 2026-08-21 18:24 .
+drwxrwx--x 9 shell shell 3.3K 2026-08-21 15:13 ..
+-rw-rw-rw- 1 shell shell 7.5G 2026-08-13 12:56 Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell 3.9G 2026-08-20 23:53 OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell 1.7M 2026-04-29 08:39 libc++_shared.so
+-rw-rw-rw- 1 shell shell 5.8M 2026-08-21 15:11 libggml-base.so
+-rw-rw-rw- 1 shell shell 4.9M 2026-08-21 15:11 libggml-cpu.so
+-rw-rw-rw- 1 shell shell 7.9M 2026-08-21 15:11 libggml-opencl.so
+-rw-rw-rw- 1 shell shell 524K 2026-08-21 15:11 libggml.so
+-rw-rw-rw- 1 shell shell 4.0M 2026-08-21 00:21 libllama-bench-impl.so
+-rw-rw-rw- 1 shell shell  75M 2026-08-21 15:11 libllama-common.so
+-rw-rw-rw- 1 shell shell  38M 2026-08-21 15:11 libllama.so
+-rw-rw-rw- 1 shell shell 1.1M 2026-04-29 08:39 libomp.so
+-rwxr-xr-x 1 shell shell 7.4K 2026-08-21 00:21 llama-bench
+drwxrwxrwx 2 shell shell 3.3K 2026-08-21 18:34 logs
+-rwxr-xr-x 1 shell shell  586 2026-08-21 08:27 one_cell.sh
+-rwxr-xr-x 1 shell shell  619 2026-08-21 16:15 one_cell_kexp.sh
+-rwxr-xr-x 1 shell shell  550 2026-08-21 16:14 one_cell_mellum2.sh
+-rwxr-xr-x 1 shell shell  10M 2026-08-21 15:11 test-backend-ops
+---
+total 3.1M
+drwxrwx--x 9 shell shell 3.3K 2026-08-21 15:13 .
+drwxr-x--x 6 root  root  3.3K 2022-12-17 23:53 ..
+-rw-rw-rw- 1 shell shell 3.0G 2026-08-19 12:21 LFM2.5-8B-A1B-KEXP.gguf
+drwxrwxrwx 3 shell shell 3.3K 2026-08-11 23:15 dalvik-cache
+-rw-rw-rw- 1 shell shell  39K 2026-08-20 10:09 decode-partition-ui.xml
+drwxrwxrwx 2 shell shell 3.3K 2026-08-18 18:24 k22
+drwxrwxrwx 2 shell shell 3.3K 2026-08-18 19:55 k2ref
+-rw-rw-rw- 1 shell shell  25K 2026-08-15 22:34 kalsa-preflight-ui.xml
+-rw-rw-rw- 1 shell shell  10K 2026-08-03 23:48 preflight_llama_isa.sh
+-rw-rw-rw- 1 shell shell  35K 2026-08-16 10:44 probe1.xml
+-rw-rw-rw- 1 shell shell  35K 2026-08-16 10:44 probe2.xml
+-rw-rw-rw- 1 shell shell  35K 2026-08-16 10:44 probe3.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-16 01:46 r1.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-16 01:47 r2.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-16 01:49 r3.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-16 01:52 r4.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-16 02:03 r5.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-16 02:04 r6.xml
+drwxrwxrwx 2 shell shell 3.3K 2026-08-18 20:02 s3base
+drwxrwxrwx 2 shell shell 3.3K 2026-08-18 19:48 s3fix
+drwxrwxrwx 3 shell shell 3.3K 2026-08-21 18:24 s3oracle
+drwxrwxrwx 2 shell shell 3.3K 2026-08-19 08:43 s3printf
+-rw-rw-rw- 1 shell shell 8.4M 2026-08-03 21:02 termux-api.apk
+-rw-rw-rw- 1 shell shell  33M 2026-08-03 21:02 termux-app.apk
+-rw-rw-rw- 1 shell shell 726K 2026-08-03 21:02 termux-boot.apk
+-rw-rw-rw- 1 shell shell  24K 2026-08-15 21:13 u6.xml
+-rw-rw-rw- 1 shell shell  25K 2026-08-15 22:13 u7.xml
+-rw-rw-rw- 1 shell shell  25K 2026-08-15 22:14 u8.xml
+-rw-rw-rw- 1 shell shell  32K 2026-08-15 23:47 u9.xml
+-rw-rw-rw- 1 shell shell  25K 2026-08-20 20:36 ui.xml
+-rw-rw-rw- 1 shell shell 6.7K 2026-08-15 20:54 ui2.xml
+-rw-rw-rw- 1 shell shell 5.3K 2026-08-15 20:55 ui3.xml
+-rw-rw-rw- 1 shell shell  36K 2026-08-15 20:55 ui4.xml
+-rw-rw-rw- 1 shell shell  35K 2026-08-15 21:09 ui5.xml
+-rw-rw-rw- 1 shell shell  43K 2026-08-16 12:40 z1.xml

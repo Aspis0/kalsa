@@ -1,0 +1,15 @@
+MEM
+MemAvailable:    4754704 kB
+---HELP---
+  -o, --output <csv|json|jsonl|md|sql>        output format printed to stdout (default: md)
+  -oe, --output-err <csv|json|jsonl|md|sql>   output format printed to stderr (default: none)
+  -v, --verbose                               verbose output
+  -nr, --no-repack                            (default: disabled)
+---MODEL---
+3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe  /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+---LFM---
+b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4  /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+---ls---
+-rw-rw-rw- 1 shell shell 4213513024 2026-08-20 23:53 /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell    4253160 2026-08-21 20:33 /data/local/tmp/s3oracle/libllama-bench-impl.so
+-rwxr-xr-x 1 shell shell       7600 2026-08-21 20:33 /data/local/tmp/s3oracle/llama-bench

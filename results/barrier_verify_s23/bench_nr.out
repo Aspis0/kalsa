@@ -1,0 +1,27 @@
+=== BARRIER VERIFY tag=bench_nr ===
+Fri Aug 21 21:07:07 EDT 2026
+PWD=/data/local/tmp/s3oracle
+LD_LIBRARY_PATH=/data/local/tmp/s3oracle
+GGML_OPENCL_LOG_KERNELS=1
+GGML_OPENCL_HOST_REPACK=<unset>
+GGML_OPENCL_DUMP_Q=<unset>
+GGML_OPENCL_ORACLE=<unset>
+GGML_OPENCL_CVT_OPTS=<unset>
+GGML_OPENCL_MOE_OPTS=<unset>
+GGML_OPENCL_CVT_VARIANT=<unset>
+CMD=./llama-bench -m OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf -ngl 0 -p 0 -n 8 -r 1 -nr -o jsonl
+=== sha256 before run ===
+bbd700de84e32c30c7ea68725e6ed553c5ac25d842f7d0d9b4271917f79f81ea  libggml-opencl.so
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so
+2e16b95119208c7bb70cf3be444670611259a050480e9923f2790541d3e489a8  libggml-base.so
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so
+7547a07298165871f415b835bc66852713ca02afcc43c0d3e3abcb2eca8be2c8  libllama-common.so
+9a3fd4b07dd2edce2723ce2d17503f76d2b6bea0d254d616e3de199456b587bc  test-backend-ops
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so
+e69496a4aeb51ebe61d0775ae9fefc76eee640f12317aa5174da67e5d4ec8fd6  libc++_shared.so
+ea27efff687f8359fabc728af9a4ea45766714399792344af94b09037d52d0b0  libomp.so
+{"build_commit": "c77fe1354", "build_number": 10007, "cpu_info": "CPU", "gpu_info": "QUALCOMM Adreno(TM)", "backends": "OpenCL", "model_filename": "OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf", "model_type": "olmoe A1.7B Q4_K - Medium", "model_size": 4211730432, "model_n_params": 6919161856, "n_batch": 2048, "n_ubatch": 512, "n_threads": 8, "cpu_mask": "0x0", "cpu_strict": false, "poll": 50, "type_k": "f16", "type_v": "f16", "n_gpu_layers": 0, "n_cpu_moe": 0, "split_mode": "layer", "main_gpu": 0, "no_kv_offload": false, "flash_attn": -1, "devices": "auto", "tensor_split": "0.00", "tensor_buft_overrides": "none", "use_mmap": true, "use_direct_io": false, "embeddings": false, "no_op_offload": 0, "no_host": false, "no_repack": true, "fit_target": 0, "fit_min_ctx": 0, "n_prompt": 0, "n_gen": 8, "n_depth": 0, "test_time": "2026-08-22T01:07:13Z", "avg_ns": 893327552, "stddev_ns": 0, "avg_ts": 8.955282, "stddev_ts": 0.000000, "samples_ns": [ 893327552 ],"samples_ts": [ 8.95528 ]}
+=== rc=0 ===
+Fri Aug 21 21:07:18 EDT 2026

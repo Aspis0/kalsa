@@ -1,0 +1,11 @@
+old cases: 796 OK=397 not_supported=399
+new cases: 802 OK=403 other=0
+old OK missing from new: 0
+old OK not OK in new (regressions): 0
+new cases not in old: 6
+ADDED type_a=q4_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256 -> OK
+ADDED type_a=q5_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256 -> OK
+ADDED type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=1,k=256 -> OK
+ADDED type_a=q4_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256 -> OK
+ADDED type_a=q5_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256 -> OK
+ADDED type_a=q6_K,type_b=f32,n_mats=4,n_used=2,b=0,m=96,n=4,k=256 -> OK
