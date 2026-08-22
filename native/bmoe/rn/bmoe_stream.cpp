@@ -9,6 +9,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -59,15 +60,41 @@ struct MoeStream::State {
     bmoe::GgufMeta meta;
     std::unique_ptr<bmoe::RouterHook> hook;
     std::unique_ptr<bmoe::ExpertStreamSource> source;
+
+    // False except while the streamer is actually driving a graph. See eval_trampoline.
+    bool hook_live = false;
+
+    // Every tensor ExpertStreamSource::init may repoint, with the mmap pointer it had before.
+    // init() rebinds layer by layer and returns false in the middle without unwinding, so a
+    // failure there leaves earlier layers pointing at reserved-but-never-filled memory: the model
+    // would keep running and compute on zeros, silently. The engine's own caller can ignore this
+    // because it aborts the whole session; ours declines and lets the app carry on, so ours has
+    // to put the pointers back.
+    std::vector<std::pair<ggml_tensor *, void *>> rebound;
 };
+
+bool MoeStream::eval_trampoline(lm_ggml_tensor * t, bool ask, void * user_data) {
+    auto * st = static_cast<MoeStream::State *>(user_data);
+    if (!st || !st->hook_live) return false;
+    return bmoe::RouterHook::c_eval(t, ask, st->hook.get());
+}
 
 MoeStream::MoeStream() : st_(std::make_unique<State>()) {}
 
 MoeStream::~MoeStream() { shutdown(); }
 
 void MoeStream::shutdown() {
-    if (st_ && st_->source) st_->source->shutdown();
-    if (st_ && st_->hook) st_->hook->set_source(nullptr);
+    if (st_) {
+        st_->hook_live = false; // first: no further callback can run against what we tear down
+        // Back onto the mmap before the buffers are freed. The mapping is still there — streaming
+        // stops reading from it, it never unmaps it — so this leaves a model that still decodes
+        // rather than one holding pointers into freed memory.
+        for (const auto & r : st_->rebound) r.first->data = r.second;
+        st_->rebound.clear();
+        if (st_->source) st_->source->shutdown();
+        st_->source.reset();
+        if (st_->hook) st_->hook->set_source(nullptr);
+    }
     armed_ = false;
     active_ = false;
 }
@@ -121,6 +148,35 @@ bool MoeStream::arm(common_params & params, std::string & err) {
               std::to_string(bmoe::MoeStreamConfig::cache_min_mb) + ")";
         return false;
     }
+    if (cfg.cache_mb < 0) {
+        err = "cache_mb must be >= 0";
+        return false;
+    }
+    if (cfg.cache_auto && cfg.cache_mb > 0) {
+        err = "cache_auto and an explicit cache_mb are mutually exclusive: choose auto-sizing "
+              "(cache_mb 0 + cache_auto) or a fixed budget (cache_mb > 0)";
+        return false;
+    }
+    if (!(cfg.drop_cold_frac >= 0.0f && cfg.drop_cold_frac <= 1.0f)) {
+        err = "drop_cold_frac must be in [0, 1] (0 = off)";
+        return false;
+    }
+    // Dropping decides from live cache state: with no cache every routed expert is a miss, so the
+    // policy would discard on a signal that means nothing. The engine's validator refuses it and
+    // so does this one — silently accepting it would degrade output for no I/O saved.
+    if (cfg.drop_cold_frac > 0.0f && cfg.cache_mb == 0 && !cfg.cache_auto) {
+        err = "drop_cold_frac requires the LRU cache (cache_mb > 0 or cache_auto)";
+        return false;
+    }
+    // Parsed end to end and applied by nobody: the top-k override lives on the engine's RunConfig,
+    // not on MoeStreamConfig, and reaches llama.cpp as a model KV override the glue does not build.
+    // Refusing beats ignoring — a lossy knob that silently does nothing is a wrong measurement
+    // waiting to be published.
+    if (in.n_expert_used != 0) {
+        err = "n_expert_used is not implemented in the app path (engine applies it via a model KV "
+              "override); leave it 0";
+        return false;
+    }
     if (cfg.io_threads < 1) cfg.io_threads = 1;
     if (cfg.io_threads > bmoe::MoeStreamConfig::io_threads_max)
         cfg.io_threads = bmoe::MoeStreamConfig::io_threads_max;
@@ -134,8 +190,8 @@ bool MoeStream::arm(common_params & params, std::string & err) {
     st_->cfg = cfg;
     st_->hook = std::make_unique<bmoe::RouterHook>(*st_->recipe, info.n_layer);
     st_->hook->set_drop_policy(cfg.drop_cold_frac, cfg.drop_renorm, cfg.drop_prefill);
-    params.cb_eval = &bmoe::RouterHook::c_eval;
-    params.cb_eval_user_data = st_->hook.get();
+    params.cb_eval = &MoeStream::eval_trampoline;
+    params.cb_eval_user_data = st_.get();
 
     // Repack is load-bearing, not a tuning knob: the streamer rebinds tensor->data to buffers
     // filled from the file's NATIVE byte layout, and repack would change that layout so the
@@ -159,25 +215,34 @@ bool MoeStream::bind(llama_context * ctx, std::string & err) {
         return false;
     }
 
-    // One mmap-resident BOS decode: the eval-callback harvests expert tensor pointers. KV wiped
-    // afterwards so this token never reaches the app.
+    // Every early return from here on goes through fail(), which is what puts the rebound
+    // tensors back and makes the callback inert again. Declared before the capture so the
+    // warm-up's own failure path cannot skip it — leaving the hook mid-capture would strand it
+    // there for the life of the context, harvesting tensors on every decode and isolating none.
+    auto fail = [&](std::string m) -> bool {
+        err = std::move(m);
+        st_->hook->end_capture(); // idempotent; the warm-up's own failure path lands here too
+        st_->hook_live = false;
+        for (const auto & r : st_->rebound) r.first->data = r.second;
+        st_->rebound.clear();
+        if (st_->source) st_->source->shutdown();
+        st_->source.reset(); // frees the buffers only after nothing points at them
+        st_->hook->set_source(nullptr);
+        if (llama_memory_t mem = llama_get_memory(ctx)) llama_memory_clear(mem, true);
+        return false;
+    };
+
+    // One mmap-resident BOS decode: the eval-callback harvests expert tensor pointers. KV is
+    // wiped afterwards so this token never reaches the app.
+    st_->hook_live = true;
     st_->hook->begin_capture();
     const llama_model * model = llama_get_model(ctx);
     const llama_vocab * vocab = model ? llama_model_get_vocab(model) : nullptr;
     llama_token warm_tok = vocab ? llama_vocab_bos(vocab) : 0;
     if (warm_tok < 0) warm_tok = 0;
     llama_batch warm = llama_batch_get_one(&warm_tok, 1);
-    if (llama_decode(ctx, warm) != 0) {
-        err = "capture warm-up decode failed";
-        return false;
-    }
+    if (llama_decode(ctx, warm) != 0) return fail("capture warm-up decode failed");
     st_->hook->end_capture();
-
-    auto fail = [&](std::string m) -> bool {
-        err = std::move(m);
-        if (llama_memory_t mem = llama_get_memory(ctx)) llama_memory_clear(mem, true);
-        return false;
-    };
 
     const bmoe::GgufOffsets & offs = st_->meta.offsets;
     if (!offs.ok) return fail("cannot read gguf offsets");
@@ -223,7 +288,14 @@ bool MoeStream::bind(llama_context * ctx, std::string & err) {
                 continue;
             dense.push_back({kv.second, off->second, sz->second, fi->second});
         }
+        for (const bmoe::DenseTensorRef & d : dense)
+            if (d.tensor) st_->rebound.emplace_back(d.tensor, d.tensor->data);
         st_->source->set_dense_tensors(std::move(dense));
+    }
+    for (const bmoe::LayerExperts & L : layers) {
+        if (!L.bound) continue;
+        for (int p = 0; p < bmoe::MoeRecipe::max_exps; ++p)
+            if (L.proj[p].tensor) st_->rebound.emplace_back(L.proj[p].tensor, L.proj[p].tensor->data);
     }
 
     if (!st_->source->init(offs.shard_paths, n_expert, std::move(layers), st_->cfg))

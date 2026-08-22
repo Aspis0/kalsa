@@ -62,6 +62,17 @@ public:
 
 private:
     struct State;
+
+    // llama.cpp's eval callback, installed instead of RouterHook::c_eval itself. The indirection
+    // buys one thing: a bind() that failed or declined must cost NOTHING afterwards. The router
+    // hook isolates every ffn_moe_topk node whenever it is installed — a graph split and a full
+    // compute-thread sync per MoE layer per token — and it does that whether or not a stream
+    // source was ever attached, because llama.cpp exposes no way to remove cb_eval once the
+    // context exists. This trampoline returns false while the stream is not live, which is the
+    // "grouped with its neighbours, no callback" answer, i.e. the graph llama.rn would have run
+    // if none of this were here.
+    static bool eval_trampoline(lm_ggml_tensor * t, bool ask, void * user_data);
+
     std::unique_ptr<State> st_;
     bool armed_ = false;
     bool active_ = false;
