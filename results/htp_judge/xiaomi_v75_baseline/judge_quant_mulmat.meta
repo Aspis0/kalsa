@@ -1,0 +1,7 @@
+start=Sat Aug 22 19:23:30 EDT 2026
+cmd=./test-backend-ops test -b HTP0 -o MUL_MAT -p type_a=(q4_0|q4_1|q8_0|mxfp4|iq4_nl)
+env LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64
+env ADSP_LIBRARY_PATH=/data/local/tmp/kalsahtp
+GGML_HEXAGON_NDEV=1 VERBOSE=1 HOSTBUF=1
+end=Sat Aug 22 19:23:34 EDT 2026
+rc=1
