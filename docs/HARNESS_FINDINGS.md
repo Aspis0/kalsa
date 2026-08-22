@@ -71,6 +71,18 @@ before repeating it.
 - **`tok/s` is tokenizer-blind.** On product-register Italian Qwen3.5-2B needs **6.9 % fewer tokens**
   than LFM2.5-2.6B, which moves the ranking (§7.34).
 
+**The 8B on 8 GB phones — the lane is now closed** (§7.39)
+- **Streaming the experts makes it easier to kill, not harder.** RSS halves (5065 → 2629 MiB) but
+  file pages become **anonymous** ones (4931 file → 2602 anon), so `MemAvailable` gets **worse**
+  (5797 → 3597 MiB) — the opposite of why it was tried. 3.44 tok/s against mmap's 9.37.
+- **Even with infinitely fast storage it loses**: compute alone is 0.219 s/token = 4.57 tok/s, under
+  KEXP's 7.0. **Do not port `--moe-stream`.**
+- ⛔ `RLIMIT_MEMLOCK` on the Jelly is **unlimited**, not the "≈ 64 KB" two files claimed, and mlock
+  really fires (`Mlocked` 4 912 → 215 932 kB) — but locks 211 MB, not the model, so it does **not**
+  explain the lmkd death. Both files corrected.
+- **Open:** why does the app hold 5.15 GB of file pages with 0.92 GB available when the CLI holds
+  the same pages with 5.8 GB available? Not mlock, not repack (that arm was `norepack=1`).
+
 **The phone**
 - The Jelly is **UFS** with **f2fs**, 137 GB free, coldest sequential read **984 MB/s** — so a cold
   KEXP load has a ~3.4 s floor (§7.32). Cores: 6×A55 (capacity 348) + 2×A76 (1024).
@@ -1611,6 +1623,78 @@ the wait. Proven on the device the same day:
 Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate costs minutes, not hours.
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
+
+### 7.39 MEASURED 2026-08-22: streaming the experts makes the 8B *easier* to kill, not harder — and the compute ceiling closes the door anyway
+
+The question, asked because the owner asked it: LFM2.5-8B-A1B does not fail slowly on the Jelly,
+it fails by being **killed** — 100 % resident, 5.15 GB `RssFile`, 0.92 GB `MemAvailable`, lmkd at
+turn 8 (§7.27). Streaming trades speed for memory, which is the failing constraint, so it was the
+one untried idea that addressed the actual failure.
+
+`--moe-stream`, `--drop-cold-experts` and `--dense-weights` exist in **no** llama.cpp we ship:
+zero matches in llama.rn's bundled cpp and in upstream 10360's `--help`. They live only in
+`kalsa-moe-experiments/kalsa-engine/cli/main.cpp`. So this needed the NDK, a cross-compile of that
+fork (armv8.2-a + dotprod + fp16, **no i8mm** — it SIGILLs the prefill GEMM on pre-2021 SoCs — and
+`GGML_CPU_ALL_VARIANTS`/`GGML_BACKEND_DL` **off**, or the statically-linked
+`ggml_cpu_set_expert_ready_hook` disappears and arm B silently measures something that is not
+streaming), and a device session. Delegated; numbers re-derived here from the raw `/proc` traces in
+`/tmp/bmoe-stream-out/`, not from the report.
+
+Jelly, unplugged, t=2, k=4 (native for this model — `run_g99_freetier_jelly.sh:222` reads
+`# Phase 3 k lever (speed only). Default K0=4`), ABBA, n=3:
+
+| arm | tok/s | peak RSS | **RssAnon** | **RssFile** | min `MemAvailable` |
+|---|---|---|---|---|---|
+| A — plain mmap | **9.37** | 5065 MiB | 133 | **4931** | **5797 MiB** |
+| B — CalaQwen streaming | **3.44** | 2629 MiB | **2602** | 30 | **3597 MiB** |
+
+**The memory result inverts the premise, and it is the finding.** Total RSS halves — and the *kind*
+of memory flips. mmap holds 4.9 GB of **file** pages, which the kernel can drop under pressure;
+streaming holds 2.6 GB of **anonymous** pages, which it cannot. `MemAvailable` is therefore
+**worse** with streaming, 5797 → 3597 MiB. lmkd kills on memory pressure, so streaming would make
+the 8B **easier** to kill per unit of RSS, not harder. It fails at the exact thing it was tried for.
+The anon is the cache (`moe-cache: resident 1997.3 MiB` against `--cache-mb 2000`), so it is
+tunable — but shrinking it costs the 87 % hit rate that is the only reason arm B is not far slower.
+
+**And a compute ceiling closes the door independently of storage.** `B1.log`:
+`decode 0.287 s/token (compute 0.219 + cache mgmt 0.007 + flash I/O 0.139 s/token, 265 MiB/s)`.
+Compute alone caps the path at **4.57 tok/s** — below KEXP's 7.0–7.3 in-app **even with infinitely
+fast flash** — and against mmap's 0.107 s/token the streaming path's compute is ~2× slower.
+
+⛔ **My prediction was right in the number and wrong in every reason**, which is worth more than the
+number. I predicted 3–5 tok/s from ~1030 MB/token of weight traffic, 984 MB/s sequential flash, and
+a 71.8 % byte cut. Measured: `moe-drop: 1517/11264 routed experts dropped (13.5%)` — not 71.8 %,
+because that figure belongs to a **different model's** table; flash delivering **265 MiB/s**, not
+984, because expert reads are not sequential; `moe-cache: 87.0% hit`; `read 4698.2 MiB
+(36.71 MiB/token)`. 3.44 landed inside my range through compensating errors. Also in the log and
+worth keeping: `1028 evictions, 711 re-reads (5.6/token) — bytes the cache had already paid for
+once`.
+
+**Verdict: do not port `--moe-stream` into Kalsa.** It is slower than what we ship, it is slower
+than what we ship even with perfect storage, and it makes the memory failure it was meant to fix
+worse. This closes the lane rather than parking it.
+
+#### The mlock side-quest: a documented reason that was wrong, and a hypothesis of mine that was too
+
+A review agent died mid-stream, but the fragment it had already emitted pointed at
+`use_mlock: true` (`LlamaService.ts:1211`). The signature fit alarmingly well: the app shows 5.15 GB
+`RssFile` with 0.92 GB `MemAvailable`, while the CLI on the same model and phone shows 4931 MiB
+`RssFile` with **5797 MiB still available** — the same pages counted in opposite ways, which is what
+locking would do.
+
+`KNOWN_ISSUES.md` and `engineLiveness.ts` both said mlock is fail-soft "(RLIMIT_MEMLOCK ≈ 64 KB)".
+**That reason is false here:** `/proc/self/limits` reports `Max locked memory: unlimited`, for the
+adb shell **and** for the app process under `run-as`. And mlock does take effect — system `Mlocked`
+goes 4 912 → **215 932 kB** under `--load-mode mlock`, three thousand times the claimed ceiling.
+
+**But it locks ~211 MB, not the 1.67 GB model, so it cannot starve an 8 GB phone and the hypothesis
+is dead.** Both files now carry the measurement instead of the folklore (`a093d89`). The first
+attempt at this measurement sampled `/proc` *after* the process had exited and showed no movement at
+all, which is why every arm now prints `alive pid=` next to its numbers.
+
+**Still not explained, and now the open question:** what does make the app hold 5.15 GB of file
+pages with only 0.92 GB available, when the CLI holds the same pages with 5.8 GB available? Not
+mlock. Not repack — §7.27's arm was `norepack=1`.
 
 ### 7.38 MEASURED 2026-08-21: the quality bake-off — LFM2.5-2.6B wins, the thinking budget was set backwards, and a one-line prompt change removes a 30 % language defect
 
@@ -4256,6 +4340,7 @@ cleaned text only by the four empty-block tokens, so there is nothing hidden to 
 
 | date | change |
 |---|---|
+| 2026-08-22 | **§7.39: the streaming lane is closed, and it closes for the opposite of the expected reason.** The 8B does not fail slowly on the Jelly, it fails by being killed, so streaming the experts was the one untried idea aimed at the real failure. Cross-compiled the custom fork (NDK 29, no i8mm, backend-DL off so the overlap hook survives) and measured ABBA n=3: mmap **9.37 tok/s**, streaming **3.44**. **RSS halves and the kind of memory flips** — 4931 MiB of reclaimable *file* pages become 2602 MiB of unreclaimable *anon* — so `MemAvailable` gets **worse**, 5797 → 3597 MiB, and streaming would make lmkd **more** likely to kill the app. A compute ceiling closes it anyway: 0.219 s/token of pure compute caps the path at **4.57 tok/s**, below KEXP's 7.0 even with infinitely fast flash. **My 3–5 tok/s prediction was right in the number and wrong in every reason** — 13.5 % experts dropped not 71.8 % (that figure was another model's), flash at 265 MiB/s not 984, and an 87 % cache hit doing the actual work. **Side-quest, from a review agent that died mid-stream but had already pointed at the right line:** `RLIMIT_MEMLOCK` is **unlimited** on this phone, for the shell and the app alike, not the ≈64 KB that `KNOWN_ISSUES.md` and `engineLiveness.ts` both asserted, and mlock genuinely fires (`Mlocked` 4 912 → 215 932 kB) — but locks 211 MB, not the model, so **my hypothesis that mlock caused the lmkd death is dead too**. Both files corrected (`a093d89`). Still unexplained and now the open question: the app holds 5.15 GB of file pages with 0.92 GB available where the CLI holds the same pages with 5.8 GB available. |
 | 2026-08-21 | **§7.38: model quality measured for the first time, and it argues against every 8B we were going to ship.** 24 cells, 11 questions written before any model ran, 4 languages, exact paired McNemar; every figure regenerated by `scripts/quality/analyse.mjs` rather than transcribed. **LFM2.5-2.6B beats KEXP** in three independent configurations (p = 0.006 / 0.021 / 0.039) and beats 8B-A1B in most but ties in one — `prod-8b-a1b` at 33/44 sits above that model's other five cells, which is what a lucky sample looks like at temp 0.7. **Qwen3.5-2B ties the 2.6B** (7–6, p = 1.000) but cannot run uncapped: 44 of 44 questions hit the 8192-token ceiling in a *semantic* loop that a repeat penalty cannot break. **The thinking budget was tuned backwards** — the ladder 64/128/256/512/∞ scores 30/32/34/**37**/36 on the 2.6B (512 vs 64: 8–1, p = 0.039) and is flat on KEXP, so raise the 2.6B to 512 (median tokens 306 → 309: latency does not move) and leave KEXP alone. **I had reported the opposite** — 'the budget buys nothing on any tier' — from adjacent steps that 44 binary items cannot resolve; retracted in §7.38. **Language drift is a 30 % defect on the 8B tiers and ~0 % on the 2.6B**, always into English, concentrated on questions the model cannot answer; one clause pinning the answer to the *question's* language (Kalsa pins to the *app locale*) removes it in 6 of 6 comparisons at no quality cost. **KV-cache quantization is free** on both 8B tiers — an axis moe-experiments never tested, since its `k` is `--n-expert-used`. **A KEXP for the 2.6B is impossible**: `llama-gguf` shows 0 `_exps` tensors against 8B-A1B's 264. Eight harness defects fixed along the way, all mine, four in the runner (2048-token cap, greedy decoding, no system prompt, an English prompt in front of non-English questions) and four in the judge — the judge's monolingual marker lookup alone manufactured the run's only significant KV result, which evaporated from p = 0.039 to p = 0.289 once fixed. Harness 37 → 54 assertions. Still unmeasured and blocking the tier decision: the 2.6B on an S23, and VL-3B's absence from `ModelRegistry.ts`. |
 | 2026-08-21 | **§7.37: the tool round no longer costs the whole cache — 15 of 16 — so the replay that was next to build is demoted before it was built.** Checked BEFORE building, because §7.35 had just cost a day on an `anchored` window aimed at a sliding window that no longer slides. §7.12 priced a tool round at **3.1-3.9 s on a hit against 195-405 s on a miss** and measured **zero of ten** tool-preceded turns surviving. In campaign `32503221846`, of the 16 seeds where a tool actually executed, **15 kept 0.90-0.98 of the cache on the next turn** (mean 0.956). ⭐ The single failure has a shape: it is the only seed whose tool turn recorded **`rounds: 1` with `executed: 1`** — tool ran, no synthesis round — and its next turn reused **nothing** and paid **128 167 ms**. The two other `rounds: 1` seeds had `executed: 0` and kept 0.994. So §7.12's mechanism survives as an edge case, not a rule: the cache dies when a tool result sits in the KV with no assistant answer in stored history accounting for it. ⚠️ **Not a retraction of §7.12**: these arms ran `thinking: "off"`, which switches off the *other* divergence source entirely (§7.9, §7.29), and §7.12's own thinking mode is unrecorded. Neither can be settled against the other until an arm runs with thinking on — which is now the top open item, ahead of the replay. |
 | 2026-08-21 | **§7.36: prefill scales with threads on the Jelly — §7.32's hypothesis refuted, and the repeat error is 0.1 %.** Measured on the prewarm (same prefix, hash `730983069` on all eight arms), decode fixed at 2, run **twice in opposite orders** because the first run had arm order confounded with page-cache warm-up and temperature. Mean `promptMs` at 2/4/6/8 prefill threads: **113 867 / 92 999 / 77 419 / 72 121** — monotonic. ⭐ Reversing the order returns the 2, 4 and 6 arms within **0.03 / 0.10 / 0.12 %** of themselves, the tightest repeat this project has ever got on a phone, which settles the confound: thread scaling, not page cache, and temperature rising 29 → 34 °C moved them not at all. ⚠️ **8 is NOT distinguishable from 6**: the 8-thread arm is the only one that failed to repeat (9.0 % spread, wider than its 7.3 % gap to the 6-thread mean), so do not quote it as better. Scaling is sublinear and healthy — 4× the threads buys 1.58×, per-thread throughput 5.7 → 2.3 tok/s, the same shape as §7.20's S23 result. ✅ `deviceTuning.ts`'s `helio-g99` preset needs no change; §7.32's open question closes negatively. ⛔ Product consequence: the prewarm costs **69-114 s on this phone and no thread setting fixes it**. Tuning is not the lever — §7.30's restored session turns a 120.8 s cold start into 1.8 s. The other untouched lever is the prefix itself: 3 203 chars of system prompt plus 3 tool schemas, ~1 300 tokens, and nobody has costed trimming it. Limits: one phone, one model, n=2, all arms on the charger at `thermal=0`; scaling on a 4 000-token chat prompt is unmeasured. |
