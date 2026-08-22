@@ -1,0 +1,1 @@
+GGML_OPENCL_LOG_ALLOC is unset

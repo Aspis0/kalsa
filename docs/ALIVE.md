@@ -342,6 +342,33 @@ app comments does not exist and must be corrected). `moe-experiments/kalsa-engin
 (no more Helldez third-party URL), and the fork's pre-push hook is an allow-list
 for `github.com/Aspis0/*` only. Full map: `docs/ENGINE.md`.
 
+## 5c. XIAOMI/750 VALIDATION (22/08 evening — #16 closed, audit BANK-w-corrections)
+
+**The MoE kernels transfer: MUL_MAT_ID 407/407 on Adreno 750** with a NEWER
+Qualcomm compiler (E031.45.02.25 vs the S23's E031.41.03.62) — the campaign's
+core result now holds on two devices and two compiler builds of the A7X family.
+Two more findings, both dossier-grade:
+
+- **The newer compiler breaks an upstream path the older one passed**: dense
+  MUL_MAT 905/925 — 20 deterministic FAILs, all f16/bf16×f32 batched with
+  nr≠[1,1] (k=1056/k_v=2112, ERR ~0.10-0.19); every nr=[1,1] and f32×f32 case
+  passes. Not our kernels: upstream f16 batched. "Every E031 build breaks
+  something different" is now a measured statement (compiler attribution =
+  strong hypothesis, not formally isolated).
+- **The 740 speed verdict does NOT generalize**: exploratory A/B/C (N=3, tg128,
+  cells in Doze) on the same KEXP gguf gives decode **A 24.47 ≈ C 24.28**
+  (A/C 1.008 vs 0.812 on S23) and **prefill A = 2.21× C**. B (trunk-GPU/
+  experts-CPU) is the worst arm on both devices. On 750-class, full-GPU with
+  our kernels is a candidate default — a preregistered confirmatory cell is
+  the follow-up. Dense prefill: GPU unchanged since August (181.5), but HEAD
+  CPU is ~4× faster → honest ratio 1.43× (CPU repack) / 2.62× (CPU -nr),
+  the historical 5.77× was a weak CPU baseline.
+
+Provenance gap on file: device-side gguf hash not recorded in phases b/c
+(binary pinning is per-cell and solid; model pinning is PC-side only) — future
+harnesses must hash the model on-device. Evidence
+`results/xiaomi750_validation/`, audit `scratchpad/agents/q16-xiaomi-audit/`.
+
 ## 6. OPEN QUEUE — what is left to finish
 
 | # | item | state / blocked on |
@@ -355,7 +382,7 @@ for `github.com/Aspis0/*` only. Full map: `docs/ENGINE.md`.
 | ~~2d-iii~~ | ~~KEXP N≥5 ship cell A/B/C~~ | **CLOSED 22/08 mixed (audit BANK): A/B 1.803 PASS, A/C 0.812 REFUTED** — pure CPU beats full GPU on LFM2.5-KEXP; package does not ship |
 | ~~2d-v~~ | ~~OLMoE arm C~~ | **CLOSED 22/08: yes, C wins every cell (A/C 0.724)** — "GPU default candidate" retired; near-thermal-parity on OLMoE, cool mode only on KEXP |
 | 5b | S23 cache sweep + binary-side cpuset-gate enforcement (detect-only today) | remaining half of the old #5; dedicated unplugged session |
-| 2d-iv | Xiaomi/750 validation | **session IN FLIGHT 22/08 evening** (device unplugged @98%; test-backend-ops + quick A/B/C + dense-prefill re-check) |
+| ~~2d-iv~~ | ~~Xiaomi/750 validation~~ | **CLOSED 22/08 evening (audit BANK-w-corrections)**: MUL_MAT_ID 407/407 on the newer E031.45 compiler; NEW upstream f16/bf16 batched defect (20 deterministic fails); exploratory A≈C decode + A=2.21× prefill on 750 — see block 5c |
 | ~~3~~ | ~~cvt.cl cosmetics~~ | **CLOSED 22/08 mixed**: comments fixed; uniformity port audit-REJECTED and dropped (spec on file) |
 | ~~4~~ | ~~LANE_MOD~~ | **CLOSED 22/08: BIASED by construction**; hint-only + raw dumps mandatory for session-2 |
 | 5 | S23 cache cells + absolute lineup | dedicated unplugged device session |

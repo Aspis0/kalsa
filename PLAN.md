@@ -247,6 +247,42 @@ in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
 - Evidenza: `results/olmoe_gpu_moe_s23/armC/`, `results/lineup_abs_s23/`,
   report+audit in `scratchpad/agents/{olmoe-armC,lineup-abs,armC-lineup-audit}/`.
 
+## Sessione #16 — Xiaomi 14 / Adreno 750 (22/08 sera, staccato 98→94%, audit Luna BANK-w-corrections)
+
+Compilatore 750: **E031.45.02.25** (S23: E031.41.03.62 — riferimento storico, non
+nei raw S23). Tre verdetti:
+
+1. **I kernel MoE TRASFERISCONO: MUL_MAT_ID 407/407** col compilatore nuovo
+   (q4_K 82, q5_K 6, q2/q3/q6_K 5 ciascuno, narrow+mxfp4 tutti OK, discriminatori
+   m=96 / n_mats=64+k=2304 PASS, rc=0). Il cuore della campagna vale su A7X
+   con DUE compiler diversi.
+2. **Il compilatore NUOVO rompe un path che il vecchio passava**: MUL_MAT dense
+   **905/925** — 20 FAIL tutti f16/bf16×f32 m=128 n=1 k=1056 k_v=2112, e la
+   correzione d'audit: falliscono i casi **nr≠[1,1]**, passano TUTTI gli
+   nr=[1,1] (ogni bs testato) e i f32×f32. Set di fail deterministico tra run
+   (ERR 0.10–0.19, valori non bit-identici per RNG dei tensori). È un difetto
+   inedito di E031.45 su path upstream (f16 batched), non tocca i nostri
+   kernel — oro per il dossier #8 ("ogni E031 rompe cose diverse").
+   Attribuzione al compilatore = ipotesi forte, non isolata formalmente.
+3. **A/B/C KEXP (ESPLORATIVA: N=3, tg128, celle in Doze — non confermativa)**:
+   A tg **24.47** / B **7.40** / C **24.28**; pp128 A **87.4** / B 40.6 / C 39.6.
+   **Sul 750 il verdetto S23 "C vince sempre" NON trasferisce**: decode
+   A/C = 1.008 (parità) e prefill A = 2.21× C. B peggiore: confermato ovunque.
+   Controllo Doze: C schermo-acceso 23.68 ≈ bag 24.28 (Doze non spiega la
+   parità; houji non tiene lo schermo sveglio, wake_post=Dozing su tutte).
+4. Prefill dense Qwen3.5-2B (head): GPU **invariata** (181.5 ≈ 181.7 storico);
+   è la CPU head a essere ~4× agosto → rapporti onesti **1.43×/1.73×**
+   (vs CPU repack) e **2.62×/3.18×** (vs CPU `-nr`). Il 5.77× storico era
+   una baseline CPU debole, non una GPU migliore.
+
+Gap di provenance a verbale (audit): hash gguf lato device NON registrato in
+fase b/c (pinning binari sì, per-cella; modello solo hash PC in fase b) — i
+prossimi harness devono hashare il modello on-device. Evidenza
+`results/xiaomi750_validation/`, report `scratchpad/agents/q16-xiaomi/`,
+audit `scratchpad/agents/q16-xiaomi-audit/`. Follow-up naturali: cella
+confermativa prereg'd A/C sul 750 (schermo gestito via harness), #22-bis
+Marco-KEXP sul 750, segnalazione upstream del cluster f16.
+
 ## LA SPIEGAZIONE SEMPLICE (per non fraintendersi mai più, 22/08)
 
 Tre configurazioni sul KEXP (S23, misurate):
@@ -266,9 +302,14 @@ Tre configurazioni sul KEXP (S23, misurate):
   fresco (parità termica): solo più lenta.
 - **Streaming (modelli che non stanno in RAM)**: la GPU è irrilevante
   (0.216 vs 0.223 same-harness); conta solo la ricetta (5.10).
-- **Prefill dense**: su 750-class vince forte (3.2–7×); su 740 misurato
-  1.12× (lane K-G, non vale) — ri-verificabile a costo basso nella
-  sessione Xiaomi (#16) ora che i kernel sono a posto.
+- **Prefill dense**: su 750 ri-misurato 22/08 coi kernel a posto: GPU
+  invariata ma CPU head 4× più veloce di agosto → onesto **1.43×** (vs CPU
+  repack) / **2.62×** (vs CPU -nr) a pp128, cresce a pp512. Su 740 il
+  misurato resta 1.12× (lane K-G, non vale).
+- **⚠️ La regola "velocità → CPU pura" è del 740/S23**: sul **750** la
+  sessione #16 (esplorativa N=3) dà **A≈C in decode e A=2.21× in prefill**
+  sul KEXP — sul 750-class la GPU piena coi nostri kernel è candidata
+  default, serve la cella confermativa.
 - **NPU (HTP)**: bocciata con evidenza (carica 0.67 MiB di pesi = non
   carica il modello; PowerInfer-2 chiuso). Fisica: il decode è
   DRAM-bound, l'NPU non ha banda sua. Termometro `nspss-*` già leggibile
@@ -324,7 +365,7 @@ Tre configurazioni sul KEXP (S23, misurate):
 | ~~13~~ | ~~barrier-safe port q4/q5/q6~~ → **CHIUSO 22/08 notte: device-VERIFIED** — MUL_MAT_ID **407/407** (baseline 401 sottoinsieme passante + 6 discriminatori m=96), controllo positivo 10/10 coi kernel nuovi in dispatch (no `_ila`, no fallback CPU), dense 925/925 invariato, residuo ILA **risolto** (bin kernels compilati out, guardia host inattiva), smoke `-nr`/alias PASS (run (a) repack-on SKIPpata per headroom: 4.53GiB vs 3.92+2). Unico residuo: edge `ne01==0` (condiviso coi q2/q3, non ammissibile nei test %32 — annotato in #17). Evidenza `results/barrier_verify_s23/` | fatto |
 | ~~14~~ | ~~Cella velocità KEXP-su-GPU~~ → **CHIUSO 21/08 sera (esplorativa): 1.81×** A/B su LFM2.5-KEXP (vedi sezione sessione device); per la ship serve #18 | fatto |
 | ~~15~~ | ~~Vulkan vs OpenCL su S23~~ → **CHIUSO 22/08 notte (plugged-exploratory): RAPPORTO NON STIMABILE — Vulkan non esegue NESSUN K-quant su A740.** Il backend si alza (fp16=1, warp=64, shmem 32K, no matrix cores), f16 242/242, ma OGNI pipeline K-quant (mul_mat q4_K, matmul_id subgroup q2/q3/q4_K) muore in `createComputePipeline ErrorUnknown` → eccezione vk::SystemError non catturata → SIGABRT; `supports_op` dichiara SUPPORTED (mente: nessun check filtra questi shader sul driver Qualcomm). llama-bench OLMoE -ngl 99 abort in llama_decode. Speed cell V/O impossibile: un arm è morto. **Asimmetria da dossier: sullo stesso device/head, OpenCL coi NOSTRI kernel fa 407/407.** Doppia classe upstream-worthy: supports_op bugiardo + crash non gestito (stessa famiglia del nostro fix FA map::at). Evidenza `results/vulkan_vs_opencl_s23/` | fatto |
-| 16 | **Validazione Xiaomi/Adreno 750** (stessa famiglia A7X, compiler più recente: o conferma i 4+1 difetti o dimostra che il gate upstream è troppo largo — entrambi utili al dossier). **Xiaomi in arrivo STACCATO (22/08 sera)** — scope sessione: (a) test-backend-ops MUL_MAT_ID+MUL_MAT col build head, (b) A/B/C veloce su un modello che sta in RAM, (c) ri-check prefill dense su 740-vs-750 coi kernel a posto (il K-G 1.12× sul 740 predata i fix) | sessione imminente |
+| ~~16~~ | ~~Validazione Xiaomi/Adreno 750~~ → **CHIUSO 22/08 sera (audit Luna BANK-w-corrections)**: **MUL_MAT_ID 407/407 col compilatore nuovo E031.45.02.25** (i kernel MoE trasferiscono su tutta la famiglia A7X) MA **MUL_MAT dense 905/925**: 20 FAIL f16/bf16 batched nr≠[1,1] (k=1056/k_v=2112, set deterministico) = difetto inedito di E031.45 su path upstream. A/B/C esplorativa: **sul 750 A≈C decode (1.008) + A=2.21× prefill** — "C vince sempre" era un fatto del 740, non della famiglia; B peggiore ovunque. Prefill dense: 5.77× storico → onesto 1.43×/2.62× (CPU head 4× più veloce, GPU invariata). Vedi capitolo | fatto |
 | 24 | **Governor termico CPU↔GPU (design study)** — direttiva prodotto gualt: partire CPU (veloce), se la skin temp sfonda T1 passare a GPU cool-mode (−19% ma −2.75°C su KEXP); llama.cpp non migra i tensori a runtime → switch = reload (mmap, secondi): serve isteresi + misura del costo switch + celle J/token vere (charge_counter delta su run lunghe — l'ipotesi race-to-idle "CPU veloce ≈ stessa energia della GPU lenta" va misurata, oggi è solo un ricordo di test limitati). Prima il design su carta, poi il prototipo | architettura, dopo #16 |
 | ~~17~~ | ~~guardia gpu_family + parser + ne01==0~~ → **CHIUSO 22/08**: commit `dc3870579` (guardia ADRENO sul gate q6, parità coi gate q4_0, prova d'ordinamento init→build-opts→dispatch), `8e0063d2a` (fallback `UNKNOWN_COMPILER` esplicito; E17 NON classificato — nessuna semantica documentata in-tree, scelta onesta; rename obbligato per collisione enum), `7686ca6fc` (guard `ne01==0` al choke point `ggml_cl_mul_mat_id`, copre tutti i 10+ kernel). Audit: codice pulito, BLOCK solo su igiene storia → filter-branch, alberi ripuliti, diff finale vuoto. **Regressione device PASS**: 407/407 + 925/925, gate ancora TRUE su E031 (canary #26476 verdi), err bit-identici a barrier-verify. Evidenza `results/q17_verify_s23/` | fatto |
 | ~~18~~ | ~~Cella ship KEXP~~ → **CHIUSO 22/08 notte, verdetto misto (audit BANK)**: **A/B 1.803 PASS** (replica prereg'd dell'1.81, A più fredda) ma **A/C 0.812 REFUTED** — la CPU pura batte la GPU piena su LFM2.5-KEXP (17.55 vs 14.25 t/s): pacchetto NON shippa, refute a verbale. Vedi capitolo sessione #18 | fatto |

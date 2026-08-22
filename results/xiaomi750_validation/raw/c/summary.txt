@@ -1,0 +1,8 @@
+c_gpu_pp128 n_prompt=128 ngl=99 nr=False avg_ts=181.500604 median_samples=181.046000 samples=[180.979, 182.477, 181.046] stddev_ts=0.846447
+c_cpu_pp128 n_prompt=128 ngl=0 nr=False avg_ts=126.656097 median_samples=122.963000 samples=[122.014, 134.991, 122.963] stddev_ts=7.233803
+c_gpu_pp512 n_prompt=512 ngl=99 nr=False avg_ts=212.111029 median_samples=214.370000 samples=[206.892, 214.37, 215.072] stddev_ts=4.533618
+c_cpu_pp512 n_prompt=512 ngl=0 nr=False avg_ts=122.496133 median_samples=122.675000 samples=[118.119, 126.695, 122.675] stddev_ts=4.290551
+ratio_avg_pp128=1.433019  hist=5.77
+ratio_avg_pp512=1.731573  hist=5.97
+gpu_pp128 vs hist 181.652: 0.999167
+gpu_pp512 vs hist 214.485: 0.988932

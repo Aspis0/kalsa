@@ -1,0 +1,12 @@
+engine_head=1882bf8cd99659246f4ddecb99c268669d7bb3c9
+ggml_commit_cmake=1882bf8cd
+build_note=full ninja failed on unrelated test-chat.cpp missing mtmd.h; targeted ninja test-backend-ops llama-bench succeeded (7/7)
+9a3fd4b07dd2edce2723ce2d17503f76d2b6bea0d254d616e3de199456b587bc  test-backend-ops  size=10182432  mtime=2026-08-22T13:17:31
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  llama-bench  size=7600  mtime=2026-08-22T13:17:31
+8aa74499f1fea39bfbcb32f729f7904a2b1b98622af2c628f4a6cc017238ba59  libggml-base.so  size=6103496  mtime=2026-08-22T13:16:16
+fd9cb4b1f49c60a64eea964a4c19200c2878b74df450bc287cbbe6fdf8dcb0da  libggml-cpu.so  size=5165056  mtime=2026-08-22T13:16:18
+0154b01db52b48bc7d75da55e9949ac13131972c97fbfc78158e5c489f116083  libggml-opencl.so  size=8376320  mtime=2026-08-22T13:17:24
+3f07bb31e79da8698635286a1a39dd2f21836e32dff9bdf578a1cce01351fb27  libggml.so  size=536880  mtime=2026-08-22T13:17:25
+f8b11fc34be81291c01cc77a657d267eaf7f102ed6cb6ef708bbaab7730a667d  libllama.so  size=39807624  mtime=2026-08-22T13:17:29
+5370b18b8354aa45af1b8bdf7dc67a98c17768bfb8d89c5d3bab8cd41161e270  libllama-common.so  size=78377240  mtime=2026-08-22T13:17:30
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  libllama-bench-impl.so  size=4253160  mtime=2026-08-22T13:17:31
