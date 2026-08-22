@@ -6,13 +6,13 @@
  *   /bench thinking <default|budget256|budget512>
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
- *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|clear>
+ *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|moe=on,...|clear>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking default
  *   bench:format user-note
  *   bench:speculative none
- *   bench:engine gpu=20,threads=5,threadsPrefill=8,ubatch=256
+ *   bench:engine moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon
  *   bench:show
  *
  * Speculative applies at ENGINE INIT — force-stop + relaunch the app for the
@@ -24,7 +24,7 @@
  * - kalsa.bench.thinking: "default" | "budget256" | "budget512"
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
- * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nThreadsPrefill?, nUbatch?, flashAttn? } (CI A/B only)
+ * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nThreadsPrefill?, nUbatch?, flashAttn?, moeStream? } (CI A/B only)
  * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
@@ -34,7 +34,10 @@
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getThreadCountSource } from "../engine/threadProfile";
-import type { FlashAttnMode } from "../engine/engineParams";
+import type {
+  EngineOverrideFields,
+  FlashAttnMode,
+} from "../engine/engineParams";
 import { parseBenchNCtx } from "../engine/contextProfile";
 import {
   parseBenchWindowBudget,
@@ -82,13 +85,146 @@ export type EngineOverride = {
   nUbatch?: number;
   /** Android needs "off" alongside nGpuLayers — see applyEngineOverride. */
   flashAttn?: FlashAttnMode;
+  moeStream?: EngineOverrideFields["moeStream"];
 };
+
+type MoeStreamOverride = NonNullable<EngineOverride["moeStream"]>;
 
 type EngineNumericKey =
   | "nGpuLayers"
   | "nThreads"
   | "nThreadsPrefill"
   | "nUbatch";
+
+const DENSE_WEIGHT_MODES = new Set([
+  "mmap",
+  "warm",
+  "anon",
+  "ahwb",
+  "anon-gpu",
+]);
+const MOE_STREAM_KEYS = new Set([
+  "moe",
+  "cacheMb",
+  "cachemb",
+  "ioThreads",
+  "iothreads",
+  "overlap",
+  "dense",
+]);
+
+function parseUnsignedInteger(value: string): number | undefined {
+  if (!/^\d+$/.test(value)) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+function isValidMoeCacheMb(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    (value === 0 || value >= 1500)
+  );
+}
+
+function isValidMoeIoThreads(value: unknown): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isSafeInteger(value) &&
+    value >= 1 &&
+    value <= 8
+  );
+}
+
+function applyMoeStreamPair(
+  key: string,
+  value: string,
+  moeStream: MoeStreamOverride,
+): boolean {
+  if (key === "moe") {
+    if (value !== "on" && value !== "off") return false;
+    moeStream.enabled = value === "on";
+    return true;
+  }
+
+  if (key === "cacheMb" || key === "cachemb") {
+    const parsed = parseUnsignedInteger(value);
+    if (!isValidMoeCacheMb(parsed)) return false;
+    moeStream.cache_mb = parsed;
+    // An explicit budget and RAM-derived sizing are mutually exclusive.
+    moeStream.cache_auto = false;
+    return true;
+  }
+
+  if (key === "ioThreads" || key === "iothreads") {
+    const parsed = parseUnsignedInteger(value);
+    if (!isValidMoeIoThreads(parsed)) return false;
+    moeStream.io_threads = parsed;
+    return true;
+  }
+
+  if (key === "overlap") {
+    if (value !== "on" && value !== "off") return false;
+    moeStream.overlap = value === "on";
+    return true;
+  }
+
+  if (key === "dense") {
+    if (!DENSE_WEIGHT_MODES.has(value)) return false;
+    moeStream.dense_weights = value;
+    return true;
+  }
+
+  return false;
+}
+
+function readMoeStreamOverride(value: unknown): MoeStreamOverride | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+
+  const source = value as Record<string, unknown>;
+  const moeStream: MoeStreamOverride = {};
+
+  if ("enabled" in source) {
+    if (typeof source.enabled !== "boolean") return undefined;
+    moeStream.enabled = source.enabled;
+  }
+
+  if ("cache_mb" in source) {
+    if (!isValidMoeCacheMb(source.cache_mb)) return undefined;
+    if (source.cache_auto !== undefined && source.cache_auto !== false) {
+      return undefined;
+    }
+    moeStream.cache_mb = source.cache_mb;
+    moeStream.cache_auto = false;
+  } else if ("cache_auto" in source) {
+    if (typeof source.cache_auto !== "boolean") return undefined;
+    moeStream.cache_auto = source.cache_auto;
+  }
+
+  if ("io_threads" in source) {
+    if (!isValidMoeIoThreads(source.io_threads)) return undefined;
+    moeStream.io_threads = source.io_threads;
+  }
+
+  if ("overlap" in source) {
+    if (typeof source.overlap !== "boolean") return undefined;
+    moeStream.overlap = source.overlap;
+  }
+
+  if ("dense_weights" in source) {
+    if (
+      typeof source.dense_weights !== "string" ||
+      !DENSE_WEIGHT_MODES.has(source.dense_weights)
+    ) {
+      return undefined;
+    }
+    moeStream.dense_weights = source.dense_weights;
+  }
+
+  return Object.keys(moeStream).length > 0 ? moeStream : undefined;
+}
 
 /** GPU zero means CPU-only; thread and batch counts must be positive. */
 function isValidEngineOverrideNumber(
@@ -125,6 +261,23 @@ function formatEngineLabel(engine: EngineOverride | undefined): string {
   }
   if (engine.nUbatch !== undefined) parts.push(`ubatch:${engine.nUbatch}`);
   if (engine.flashAttn !== undefined) parts.push(`fa:${engine.flashAttn}`);
+  if (engine.moeStream !== undefined) {
+    const moe = engine.moeStream;
+    if (moe.enabled !== undefined) {
+      parts.push(`moe:${moe.enabled ? "on" : "off"}`);
+    }
+    if (moe.cache_mb !== undefined) parts.push(`cacheMb:${moe.cache_mb}`);
+    else if (moe.cache_auto !== undefined) {
+      parts.push(`cacheAuto:${moe.cache_auto ? "on" : "off"}`);
+    }
+    if (moe.io_threads !== undefined) {
+      parts.push(`ioThreads:${moe.io_threads}`);
+    }
+    if (moe.overlap !== undefined) {
+      parts.push(`overlap:${moe.overlap ? "on" : "off"}`);
+    }
+    if (moe.dense_weights !== undefined) parts.push(`dense:${moe.dense_weights}`);
+  }
   return parts.length > 0 ? parts.join(",") : "default";
 }
 
@@ -152,6 +305,12 @@ function activeEngineLabel(): string {
         engine[key] = n;
       }
     }
+    const fa = o.flashAttn;
+    if (fa === "auto" || fa === "on" || fa === "off") {
+      engine.flashAttn = fa;
+    }
+    const moeStream = readMoeStreamOverride(o.moeStream);
+    if (moeStream) engine.moeStream = moeStream;
     return formatEngineLabel(
       Object.keys(engine).length > 0 ? engine : undefined,
     );
@@ -457,8 +616,10 @@ export async function setSpeculativeOverride(mode: string): Promise<boolean> {
 
 /**
  * Pure parse of a `/bench engine <arg>` token.
- * Comma-separated k=v pairs: gpu, threads, threadsPrefill, ubatch
- * (non-negative integers; threads/threadsPrefill/ubatch must be > 0).
+ * Comma-separated k=v pairs: gpu, threads, threadsPrefill, ubatch, fa, moe,
+ * cacheMb, ioThreads, overlap, dense. Numeric values are safe integers;
+ * threads/threadsPrefill/ubatch must be > 0, ioThreads is 1..8, and cacheMb
+ * is 0 or at least 1500.
  * `"clear"` / `"default"` remove the key. Thread counts above the core count
  * are retained for intentional oversubscription; unsafe integers are rejected.
  * Returns EngineOverride, `"clear"`, or null if invalid.
@@ -469,6 +630,8 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
   if (trimmed === "clear" || trimmed === "default") return "clear";
 
   const out: EngineOverride = {};
+  const moeStream: MoeStreamOverride = {};
+  let hasMoeStream = false;
   let any = false;
   for (const pair of trimmed.split(",")) {
     const p = pair.trim();
@@ -481,6 +644,12 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
     if (key === "fa") {
       if (valStr !== "auto" && valStr !== "on" && valStr !== "off") return null;
       out.flashAttn = valStr;
+      any = true;
+      continue;
+    }
+    if (MOE_STREAM_KEYS.has(key)) {
+      if (!applyMoeStreamPair(key, valStr, moeStream)) return null;
+      hasMoeStream = true;
       any = true;
       continue;
     }
@@ -500,14 +669,15 @@ export function parseEngineArg(arg: string): EngineOverride | "clear" | null {
     out[outputKey] = n;
     any = true;
   }
+  if (hasMoeStream) out.moeStream = moeStream;
   return any ? out : null;
 }
 
 /**
  * Bench-only init-time engine param override (GPU layers / decode threads /
- * prefill threads / ubatch).
+ * prefill threads / ubatch / MoE streaming).
  * AsyncStorage key `kalsa.bench.engine` = JSON
- *   { "nGpuLayers"?, "nThreads"?, "nThreadsPrefill"?, "nUbatch"?: number, "flashAttn"?: "auto"|"on"|"off" }
+ *   { "nGpuLayers"?, "nThreads"?, "nThreadsPrefill"?, "nUbatch"?: number, "flashAttn"?: "auto"|"on"|"off", "moeStream"?: object }
  * absent/invalid → undefined (production defaults).
  * Applies at ENGINE INIT — force-stop + relaunch after writing.
  */
@@ -534,6 +704,8 @@ export async function getEngineOverride(): Promise<EngineOverride | undefined> {
     if (fa === "auto" || fa === "on" || fa === "off") {
       out.flashAttn = fa;
     }
+    const moeStream = readMoeStreamOverride(o.moeStream);
+    if (moeStream) out.moeStream = moeStream;
     return Object.keys(out).length > 0 ? out : undefined;
   } catch {
     return undefined;
@@ -583,7 +755,7 @@ export async function formatBenchStatus(): Promise<string> {
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {

@@ -21,6 +21,7 @@ import {
   getToolChoiceMode,
   getToolGateEnabled,
   parseEngineArg,
+  registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
   tryHandleBenchCommand,
 } from "./benchConfig";
@@ -182,6 +183,60 @@ describe("engine override persistence", () => {
     expect(parseEngineArg("fa=")).toBeNull();
   });
 
+  test("parseEngineArg accepts the measured MoE streaming recipe", () => {
+    const expected = {
+      moeStream: {
+        enabled: true,
+        cache_mb: 2000,
+        cache_auto: false,
+        io_threads: 4,
+        overlap: true,
+        dense_weights: "anon",
+      },
+    };
+    const command = "moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon";
+    expect(parseEngineArg(command)).toEqual(expected);
+    // tryHandleBenchCommand lowercases its argument before parsing.
+    expect(parseEngineArg(command.toLowerCase())).toEqual(expected);
+  });
+
+  test("parseEngineArg accepts cacheMb=0, 1500, and 2000", () => {
+    for (const value of [0, 1500, 2000]) {
+      expect(parseEngineArg(`cacheMb=${value}`)).toEqual({
+        moeStream: { cache_mb: value, cache_auto: false },
+      });
+    }
+  });
+
+  test("parseEngineArg rejects cacheMb values from 1 through 1499", () => {
+    for (const value of [1, 1499]) {
+      expect(parseEngineArg(`cacheMb=${value}`)).toBeNull();
+    }
+  });
+
+  test("parseEngineArg accepts ioThreads at both bounds", () => {
+    expect(parseEngineArg("ioThreads=1")).toEqual({
+      moeStream: { io_threads: 1 },
+    });
+    expect(parseEngineArg("ioThreads=8")).toEqual({
+      moeStream: { io_threads: 8 },
+    });
+  });
+
+  test("parseEngineArg rejects out-of-range ioThreads", () => {
+    expect(parseEngineArg("ioThreads=0")).toBeNull();
+    expect(parseEngineArg("ioThreads=9")).toBeNull();
+  });
+
+  test("parseEngineArg validates all non-numeric MoE values", () => {
+    expect(parseEngineArg("dense=anon-gpu")).toEqual({
+      moeStream: { dense_weights: "anon-gpu" },
+    });
+    expect(parseEngineArg("dense=bogus")).toBeNull();
+    expect(parseEngineArg("moe=maybe")).toBeNull();
+    expect(parseEngineArg("overlap=maybe")).toBeNull();
+  });
+
   test("parseEngineArg accepts independent prefill threads", () => {
     expect(parseEngineArg("threads=2,threadsPrefill=4")).toEqual({
       nThreads: 2,
@@ -214,5 +269,45 @@ describe("engine override persistence", () => {
       if (previous) getItem.mockImplementation(previous);
       else getItem.mockReset();
     }
+  });
+
+  test("a full parsed MoE override survives the storage round trip", async () => {
+    const command = "moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon";
+    const parsed = parseEngineArg(command);
+    if (!parsed || parsed === "clear") {
+      throw new Error("expected a parsed override");
+    }
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify(parsed),
+    );
+    await expect(getEngineOverride()).resolves.toEqual(parsed);
+  });
+
+  test("pending and active labels both show the MoE override", async () => {
+    const command = "moe=on,cacheMb=2000,ioThreads=4,overlap=on,dense=anon";
+    const parsed = parseEngineArg(command);
+    if (!parsed || parsed === "clear") {
+      throw new Error("expected a parsed override");
+    }
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify(parsed),
+    );
+    registerActiveEngineKnobGetter(
+      () => JSON.stringify({ moeStream: { enabled: false } }),
+    );
+    try {
+      await expect(formatBenchStatus()).resolves.toContain(
+        "engine=moe:on,cacheMb:2000,ioThreads:4,overlap:on,dense:anon (ACTIVE: moe:off",
+      );
+    } finally {
+      registerActiveEngineKnobGetter(() => undefined);
+    }
+  });
+
+  test("stored invalid MoE values are not passed to native", async () => {
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
+      JSON.stringify({ moeStream: { cache_mb: 1499 } }),
+    );
+    await expect(getEngineOverride()).resolves.toBeUndefined();
   });
 });
