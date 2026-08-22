@@ -76,7 +76,10 @@ before repeating it.
   file pages become **anonymous** ones (4931 file → 2602 anon), so `MemAvailable` gets **worse**
   (5797 → 3597 MiB) — the opposite of why it was tried. 3.44 tok/s against mmap's 9.37.
 - **Even with infinitely fast storage it loses**: compute alone is 0.219 s/token = 4.57 tok/s, under
-  KEXP's 7.0. **Do not port `--moe-stream`.**
+  KEXP's 7.0. **So: do not stream a model that fits.** ⛔ That is NOT "do not port `--moe-stream`",
+  which is what this line said first and got wrong: the port exists for **CalaQwen 35B-A3B, Marco1c,
+  Mellum2** — MoEs that do not fit in RAM at all, where streaming is the only way they run. CalaQwen
+  35B measures **5.86 tok/s on an S23**, a model class Kalsa cannot reach otherwise.
 - ⛔ `RLIMIT_MEMLOCK` on the Jelly is **unlimited**, not the "≈ 64 KB" two files claimed, and mlock
   really fires (`Mlocked` 4 912 → 215 932 kB) — but locks 211 MB, not the model, so it does **not**
   explain the lmkd death. Both files corrected.
@@ -1670,9 +1673,33 @@ because that figure belongs to a **different model's** table; flash delivering *
 worth keeping: `1028 evictions, 711 re-reads (5.6/token) — bytes the cache had already paid for
 once`.
 
-**Verdict: do not port `--moe-stream` into Kalsa.** It is slower than what we ship, it is slower
-than what we ship even with perfect storage, and it makes the memory failure it was meant to fix
-worse. This closes the lane rather than parking it.
+**Verdict, and it is narrower than the first version of this line:** do not stream a model that
+**fits**. Everything above is measured against plain mmap of a 5.15 GB model on an 8 GB phone, where
+mmap is available — and there streaming is slower, capped below KEXP even with perfect storage, and
+actively worse for the memory failure it was meant to fix.
+
+⛔ **I first wrote "do not port `--moe-stream` into Kalsa" and that was wrong, because it answered
+the wrong question.** The owner's reason for wanting the port is not the 8B: it is **CalaQwen
+35B-A3B, Marco1c and Mellum2 12B/A2.5B — MoEs that do not fit in RAM at all**, where streaming is
+not competing with mmap, it is the only thing that makes them run. Their measured product-card
+numbers (`kalsa-moe-experiments/docs/ALIVE.md`, section 5, at `0a48896`):
+
+| model | S23 (8 GB) | Xiaomi 14 (11.4 GB) | Jelly (G99, 8 GB) |
+|---|---|---|---|
+| **CalaQwen 35B-A3B KEXP** | **5.86 t/s** (t4, k6d065) | 4.75 (t6) | — |
+| **Marco1c** | 8.82 (t4) | 10.57 (t4) | 3.64 (t2) |
+| Mellum2 12B/A2.5B | 5.151 (t2, k6d1.0) | — | — |
+
+A **35B** at 5.86 tok/s on an 8 GB phone is a model class Kalsa cannot reach by any other route.
+That is the case for porting, and this experiment neither made nor refuted it — it measured the one
+configuration where streaming was always going to lose.
+
+Two caveats to carry into that decision, both stated by the source: those two figures (CalaQwen S23
+5.86, Marco1c Jelly 3.64) "match the speed grid but lack a reopenable `runs.csv` + analysis pair",
+and consecutive-run variance on that rig reached **±50 %** (3.99 → 8.27 t/s), so speed claims there
+need ABBA pairs. What this experiment *does* contribute to the port decision is the memory shape:
+streaming's footprint is **anonymous and unreclaimable**, so on a phone that is already tight, the
+cache size is not a free knob — it trades directly against lmkd risk.
 
 #### The mlock side-quest: a documented reason that was wrong, and a hypothesis of mine that was too
 
