@@ -33,8 +33,15 @@ produce **zero** ReactNativeJS logcat output, composer still accepts text.
 Force-stop + relaunch recovers.
 
 **RSS collapse is not a death signal.** llama.rn memory-maps the GGUF
-(`LLAMA_LOAD_MODE_MMAP`) and `use_mlock: true` is fail-soft on Android
-(RLIMIT_MEMLOCK ≈ 64 KB). Under pressure the kernel evicts file-backed pages;
+(`LLAMA_LOAD_MODE_MMAP`) and `use_mlock: true` does not pin the model on Android
+— but **not because the limit is small**, which is what this file said until
+2026-08-22. Measured on the Jelly: `RLIMIT_MEMLOCK` is **unlimited**, for the
+shell and for the app process, not the ≈64 KB claimed. mlock does take effect
+(system `Mlocked` 4 912 → 215 932 kB under `--load-mode mlock`) and locks ~211 MB
+— 3 000× the supposed ceiling, and still far short of the 1.67 GB model. The
+conclusion survives; the reason for it was wrong, and it was load-bearing enough
+that it made mlock look like a candidate cause of the 8B's lmkd death. It is not.
+Under pressure the kernel evicts file-backed pages;
 a live engine shows a large RSS drop by design. An RSS-vs-baseline probe
 false-positives on that healthy-cold state, then a naked JS-wrapper null leaks
 the still-live native context (llama.rn has no GC finalizer) and the recovery
