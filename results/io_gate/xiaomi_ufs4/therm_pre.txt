@@ -1,0 +1,3 @@
+thermal_zone32 gpuss-0 35100
+thermal_zone64 quiet_therm 34152
+thermal_zone75 battery 32700

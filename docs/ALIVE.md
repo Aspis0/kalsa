@@ -398,6 +398,7 @@ in phase d, mandatory for future harnesses. Evidence
 | ~~4~~ | ~~LANE_MOD~~ | **CLOSED 22/08: BIASED by construction**; hint-only + raw dumps mandatory for session-2 |
 | 5 | S23 cache cells + absolute lineup | dedicated unplugged device session |
 | 6 | gap ~70 % kernel_kf vs lineup binary | investigate (diagnosis is plugged-OK; PC recon first) |
+| 8 | Expert-packing gate (q25 shortlist #14) | first datum 22/08 Xiaomi/UFS 4.0: seq/random **1.33×** @0.94MB blocks — below the 2× threshold; decision gate = same measure on S23/UFS 3.1 (~30 min, tool ready) |
 | 7 | **Publish the Adreno MoE OpenCL fix** | dossier at max strength: 4 bit-characterized miscompiles + 5th fixed&verified + repack-killer + novel q2/q3 kernels + pre-registered 1.553× + Vulkan-dead-on-K-quants context; owner decision |
 
 ---

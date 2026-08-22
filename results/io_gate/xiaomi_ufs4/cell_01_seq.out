@@ -1,0 +1,1 @@
+mode=seq nblocks=2000 bsz=983040 bytes=1966080000 sec=1.382139 MB_s=1422.490 MiB_s=1356.593 seed=14 file=/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf odirect=1

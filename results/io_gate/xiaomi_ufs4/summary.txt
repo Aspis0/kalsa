@@ -1,0 +1,7 @@
+seq_MB_s=1422.490,2046.336,2137.251
+rand_MB_s=1498.825,1542.932,1563.520
+seq_median=2046.336
+rand_median=1542.932
+ratio=1.326
+threshold=2.0
+clears_2x=NO
