@@ -1627,6 +1627,66 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.40 MEASURED 2026-08-22: on a model that does NOT fit, streaming is 19.5x — and the drop policy is worth another 1.38-1.83x
+
+§7.39 measured streaming on an 8B that **fits** in 8 GB and found it loses. That result stands and
+is not the port's case. This is the port's case: `Marco-Mini-Instruct.i1-Q4_K_M.gguf`,
+**10,505,424,704 B** (9.78 GiB) against `MemTotal` of 7.24 GB (S23) and 7.97 GB (Jelly). The byte
+count matches the sibling repo's own record, so this is that artifact and not a lookalike.
+
+One binary for both phones — `bmoe-cli` and its `.so` set pulled off the Jelly and pushed to the
+S23 unchanged — so the device is the only thing that differs. Raw CSVs and logs:
+`results/moe-stream-2026-08-22/`.
+
+**Why streaming exists.** Same binary, same device (S23), same prompt, `-n 32`:
+
+| arm | tok/s | s/token | major faults/token |
+|---|---:|---:|---:|
+| streaming, lossless | **2.971** | 0.337 | 0.00 |
+| plain mmap | **0.152** | 6.562 | **17,478** |
+
+**19.5x.** The mechanism is in the fault count: without streaming the page cache thrashes ~17.5k
+pages (~68 MB) back in per token. The model technically runs; at 6.5 s/token it is not a product.
+
+**The drop policy is regime-dependent, and the regime is the cache hit rate.** Both arms stream;
+A adds `--n-expert-used 6 --drop-cold-experts 1.0 --drop-no-renorm`, B is lossless top-8. ABBA per
+block, medians of n=6/arm, exact two-sided Mann-Whitney:
+
+| device | A | B | A/B | U | p |
+|---|---:|---:|---:|---:|---:|
+| Jelly (G99, t2) | **2.962** | 2.144 | **1.381x** | 36/36 | 0.0022 |
+| S23 (8Gen2, t4) | **5.792** | 3.175 | **1.825x** | 31/36 | 0.0411 |
+
+Bytes are identical across devices (deterministic at temp 0): **197.01 -> 53.61 MiB/token, -72.8%**;
+re-reads **93.4 -> 15.7 per token**; hit 28.3% -> 39.5%. The sibling repo records -27% time / -68%
+bytes for this policy on Marco; measured here, -29.8% and -72.8%. Independently reproduced.
+
+**This corrects a generalisation of mine.** I had excluded both knobs from the app's bench arm on
+the grounds that "every measured LFM2.5 drop level was a net loss" — true, and true *only there*.
+Where the expert set nearly fits the cache there is nothing cold to drop (LFM2.5: 93.5% hit, drops
+capped at 3.6%); where half the reads are re-purchases of bytes already paid for, dropping IS the
+recipe (Marco: ~50% hit). The rule is the hit rate, never the model name.
+
+**Two things this does not prove.**
+
+*The S23 ratio is directional.* Two runs collapsed (`3,3,B` 1.357, `3,4,A` 2.467). Flash I/O barely
+moved across the collapse (0.213 -> 0.231 s/token) while **CPU occupancy halved, 61% -> 30%**,
+per-token compute nearly tripled and model load went 7.3 -> 13.5 s. The process lost cores: `nproc`
+reports **6** with 8 online, and the sibling repo has seen `nproc=3` on this device and tracks it as
+open item #5b. Medians survive it; the ratio is not proven.
+
+*The cooldown gate watched the wrong signal.* It gates on battery temperature, which sat flat at
+28.4-28.5 dC straight through both collapses. A gate that works records per-run **core
+availability**, not degrees. The Jelly needs none: 12 runs, 30 -> 33 dC, A-arm spread 2.2% — the
+phone with no thermal headroom to boost is the better measuring instrument.
+
+**Do not divide these tok/s by the sibling repo's cards.** Different harness, and its default drop
+changed (d065 -> d1.0 no-renorm), so its older absolute numbers describe neither this config nor
+this bench. Only the A/B ratio within one device on one binary is comparable.
+
+**Not measured here: the app.** Every number above is `bmoe-cli`, the engine. The llama.rn glue
+(`native/bmoe/rn/bmoe_stream.cpp`) has never run on a phone — it needs a CI build.
+
 ### 7.39 MEASURED 2026-08-22: streaming the experts makes the 8B *easier* to kill, not harder — and the compute ceiling closes the door anyway
 
 The question, asked because the owner asked it: LFM2.5-8B-A1B does not fail slowly on the Jelly,

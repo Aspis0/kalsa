@@ -1,0 +1,4 @@
+Explain in one short paragraph why a mixture-of-experts model is large on disk but cheap per token.bmoe: placement n_gpu_layers=0 flash_attn=off moe_cpu_experts=off pin_ffn_exps=0 extra_ot=0
+generation: 32 tokens, 6.562 s/token (0.152 tok/s)
+compute: 46.2% CPU occupancy (12.1288 cpu-s/token over 4 threads), 17478.03 major faults/token
+prefill: 22 tokens, 10.630 s (2.1 tok/s) | model load 11.113 s | TTFT 21.743 s
