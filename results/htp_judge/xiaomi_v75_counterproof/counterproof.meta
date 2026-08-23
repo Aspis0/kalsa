@@ -1,0 +1,5 @@
+start=Sun Aug 23 07:17:29 EDT 2026
+env=MM_SELECT=2 PLAIN_HOST=1 HOSTBUF=1 VERBOSE=1 NDEV=1
+cmd=./test-backend-ops-judge test -b HTP0 -o MUL_MAT -p q4_0_n8
+end=Sun Aug 23 07:17:30 EDT 2026
+rc=0

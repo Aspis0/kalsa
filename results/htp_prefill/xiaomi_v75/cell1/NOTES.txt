@@ -1,0 +1,48 @@
+xiaomi_v75 bankable pp512 prefill cell1
+serial: adb-625689a2-9xEOfw._adb-tls-connect._tcp  (houji / 23127PN0CG)
+S23 (dm1q, present on adb) and Jelly: NOT touched. no reboot.
+
+PLUG STATE: UNPLUGGED for every rep (AC=USB=Wireless=Dock=false, status=3 discharging)
+battery stayed 100% the whole cell
+temp C: htp1 32.9  htp2 33.3  htp3 33.3  cpu 33.3  end 34.2
+see battery_*.txt and battery_series.csv
+
+MODEL
+  /data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf  2583221408 B
+  sha256 298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb
+
+BINARIES (device sha256)
+  5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507  llama-bench  (q28 MANIFEST MATCH)
+  5c744d726e76b03c03e2b7821915ab21b8794bdbe1d32d6092169f78d0183915  libllama-bench-impl.so
+  1ff3a30644cb9b3c227900f36f803277cc894c9aaa92b2f5df0cb9de74d8cb6a  libllama-common.so  (on-device copy, not overwritten)
+  1538010abebf249ddaccfa44e1c1d22b995c6174c5b62d434e471daa80a291ab  libllama.so
+  f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448  libggml-hexagon.so
+  46d3ac923988f20b75d6d3489eea0e1432aa275aaff61c39253e170c17729182  libggml-htp-v75.so
+
+PROTOCOL
+  llama-bench -m Qwen3.5-4B-Q4_0.gguf -p 512 -n 0 -r 1 --load-mode none -fa on --ubatch-size 1024
+  HTP: -ngl 99 -dev HTP0 --no-host 1
+  CPU: -ngl 0  (no -dev HTP0, no --no-host)  — q31 protocol; table still prints backend=HTP because the binary is NEEDED-linked to hexagon
+  env: LD_LIBRARY_PATH=workdir:/vendor/lib64:...  ADSP/CDSP_LIBRARY_PATH=workdir  GGML_HEXAGON_NDEV=1 HOSTBUF=1
+  nseq=1 (llama-bench default; confirmed n_seqs=1 in -v log)
+  3 process-level HTP reps, 60s cooldown between, then 1 CPU rep
+  -v + GGML_HEXAGON_VERBOSE=1 on HTP rep 1 only
+  hang kill 120s: not triggered
+
+HTP pp512 t/s  (rc=0 all)  UNPLUGGED
+  rep1  170.34   (with -v; err 4.55 MB)
+  rep2  150.26
+  rep3  165.42
+  median 165.42
+  mean   162.01
+
+HTP proof (rep1 -v):
+  load_tensors HTP0-REPACK model buffer = 1787.12 MiB
+  execute-op MUL_MAT q4_0 |HTP0-REPACK x HTP0 -> HTP0|hmx-tiled   (blk.0.attn_qkv / ffn_gate / ffn_up ...)
+
+CPU same-harness baseline  (rc=0)  UNPLUGGED  ngl=0
+  51.90 t/s
+  HTP median / CPU = 165.42 / 51.90 = 3.19x
+
+files: htp_rep{1,2,3}.{out,err,rc,meta}  cpu_rep.{out,err,rc,meta}
+       htp_rep1.err is the only -v stderr
