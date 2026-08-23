@@ -1,0 +1,406 @@
+diff --git a/tests/test-backend-ops.cpp b/tests/test-backend-ops.cpp
+index 8e3b273a..e03a9781 100644
+--- a/tests/test-backend-ops.cpp
++++ b/tests/test-backend-ops.cpp
+@@ -451,6 +451,312 @@ static bool ggml_is_view_op(enum ggml_op op) {
+     return op == GGML_OP_VIEW || op == GGML_OP_RESHAPE || op == GGML_OP_PERMUTE || op == GGML_OP_TRANSPOSE;
+ }
+ 
++// Judge experiment #1 (GGML_TEST_PLAIN_HOST): log CPU-reference buffer types and
++// optionally recopy through get/set so extra/repack/host-tiled layouts cannot
++// poison the reference. Reversible: env off restores stock compare path.
++static bool ggml_test_env_on(const char * name) {
++    const char * e = getenv(name);
++    return e && e[0] != '\0' && strcmp(e, "0") != 0;
++}
++
++static bool ggml_test_plain_host(void) {
++    return ggml_test_env_on("GGML_TEST_PLAIN_HOST");
++}
++
++static std::mutex g_ref_buf_mutex;
++
++static const char * tensor_buf_name(const struct ggml_tensor * t) {
++    if (!t || !t->buffer) {
++        return "(null-buffer)";
++    }
++    const char * n = ggml_backend_buffer_name(t->buffer);
++    return n ? n : "(null-name)";
++}
++
++static const char * tensor_buft_name(const struct ggml_tensor * t) {
++    if (!t || !t->buffer) {
++        return "(null-buffer)";
++    }
++    ggml_backend_buffer_type_t buft = ggml_backend_buffer_get_type(t->buffer);
++    const char * n = buft ? ggml_backend_buft_name(buft) : nullptr;
++    return n ? n : "(null-buft)";
++}
++
++static bool half_is_nan(uint16_t h) {
++    return (h & 0x7C00) == 0x7C00 && (h & 0x03FF) != 0;
++}
++
++static bool half_is_inf(uint16_t h) {
++    return (h & 0x7C00) == 0x7C00 && (h & 0x03FF) == 0;
++}
++
++static int quant_fp16_scale_count(enum ggml_type type) {
++    switch (type) {
++        case GGML_TYPE_Q4_0:
++        case GGML_TYPE_Q5_0:
++        case GGML_TYPE_Q8_0:
++        case GGML_TYPE_IQ4_NL:
++            return 1;
++        case GGML_TYPE_Q4_1:
++        case GGML_TYPE_Q5_1:
++            return 2; // d and m
++        default:
++            return 0;
++    }
++}
++
++static bool type_is_mxfp4(enum ggml_type type) {
++    return type == GGML_TYPE_MXFP4;
++}
++
++static bool tensor_is_plain_cpu(const struct ggml_tensor * t) {
++    if (!t || !t->buffer) {
++        return false;
++    }
++    return ggml_backend_buffer_get_type(t->buffer) == ggml_backend_cpu_buffer_type();
++}
++
++static void scan_quant_fp16_scales(const struct ggml_tensor * t, size_t * n_blocks, size_t * n_nan, size_t * n_inf) {
++    *n_blocks = 0;
++    *n_nan = 0;
++    *n_inf = 0;
++    // Canonical-block scan is only meaningful on plain CPU host bytes.
++    // HTP tiled (is_host) payload is not block_q4_0; scanning it counts nibbles as fp16.
++    if (!t || !tensor_is_plain_cpu(t)) {
++        return;
++    }
++    const int n_scales = quant_fp16_scale_count(t->type);
++    const bool mxfp4 = type_is_mxfp4(t->type);
++    if (n_scales == 0 && !mxfp4) {
++        return;
++    }
++    const size_t nbytes = ggml_nbytes(t);
++    const size_t bsize = ggml_type_size(t->type);
++    if (bsize < 1 || nbytes < 1) {
++        return;
++    }
++    std::vector<uint8_t> tmp;
++    const uint8_t * p = nullptr;
++    if (t->data && ggml_backend_buffer_is_host(t->buffer)) {
++        p = (const uint8_t *) t->data;
++    } else {
++        tmp.resize(nbytes);
++        ggml_backend_tensor_get(t, tmp.data(), 0, nbytes);
++        p = tmp.data();
++    }
++    *n_blocks = nbytes / bsize;
++    for (size_t i = 0; i < *n_blocks; i++) {
++        const uint8_t * blk = p + i * bsize;
++        if (mxfp4) {
++            // E8M0 exponent: 0xFF is NaN. Count in n_nan.
++            if (blk[0] == 0xFF) {
++                (*n_nan)++;
++            }
++            continue;
++        }
++        for (int s = 0; s < n_scales; s++) {
++            uint16_t h;
++            memcpy(&h, blk + (size_t) s * sizeof(h), sizeof(h));
++            if (half_is_nan(h)) {
++                (*n_nan)++;
++            } else if (half_is_inf(h)) {
++                (*n_inf)++;
++            }
++        }
++    }
++}
++
++static void log_tensor_ref_buf(const char * side, const struct ggml_tensor * t) {
++    if (!t) {
++        return;
++    }
++    size_t n_blocks = 0, n_nan = 0, n_inf = 0;
++    const bool quant = ggml_is_quantized(t->type);
++    if (quant) {
++        scan_quant_fp16_scales(t, &n_blocks, &n_nan, &n_inf);
++    }
++    fprintf(stderr,
++            "[ref-buf] %s name=%s type=%s op=%s buf=\"%s\" buft=\"%s\" host=%d",
++            side,
++            t->name[0] ? t->name : "(unnamed)",
++            ggml_type_name(t->type),
++            ggml_op_name(t->op),
++            tensor_buf_name(t),
++            tensor_buft_name(t),
++            t->buffer ? (int) ggml_backend_buffer_is_host(t->buffer) : -1);
++    if (quant && tensor_is_plain_cpu(t) && (quant_fp16_scale_count(t->type) > 0 || type_is_mxfp4(t->type))) {
++        fprintf(stderr, " blocks=%zu nan_scales=%zu inf_scales=%zu", n_blocks, n_nan, n_inf);
++    }
++    fprintf(stderr, "\n");
++}
++
++static void log_op_ref_buffers(const struct ggml_tensor * t1, const struct ggml_tensor * t2) {
++    log_tensor_ref_buf("dev-out", t1);
++    log_tensor_ref_buf("cpu-out", t2);
++    for (int i = 0; i < GGML_MAX_SRC; i++) {
++        if (t1 && t1->src[i]) {
++            char tag[32];
++            snprintf(tag, sizeof(tag), "dev-src%d", i);
++            log_tensor_ref_buf(tag, t1->src[i]);
++        }
++        if (t2 && t2->src[i]) {
++            char tag[32];
++            snprintf(tag, sizeof(tag), "cpu-src%d", i);
++            log_tensor_ref_buf(tag, t2->src[i]);
++        }
++    }
++}
++
++static bool graph_has_quantized_src(struct ggml_cgraph * g) {
++    const int n = ggml_graph_n_nodes(g);
++    for (int i = 0; i < n; i++) {
++        const struct ggml_tensor * t = ggml_graph_node(g, i);
++        if (!t || ggml_is_view_op(t->op) || t->op == GGML_OP_NONE) {
++            continue;
++        }
++        for (int s = 0; s < GGML_MAX_SRC; s++) {
++            if (t->src[s] && ggml_is_quantized(t->src[s]->type)) {
++                return true;
++            }
++        }
++    }
++    return false;
++}
++
++static void log_graph_ref_buffers(struct ggml_cgraph * g1, struct ggml_cgraph * g2) {
++    if (!g1 || !g2 || !graph_has_quantized_src(g2)) {
++        return;
++    }
++    const int n = std::min(ggml_graph_n_nodes(g1), ggml_graph_n_nodes(g2));
++    for (int i = 0; i < n; i++) {
++        const struct ggml_tensor * t1 = ggml_graph_node(g1, i);
++        const struct ggml_tensor * t2 = ggml_graph_node(g2, i);
++        if (!t1 || !t2 || ggml_is_view_op(t1->op) || t1->op == GGML_OP_NONE) {
++            continue;
++        }
++        bool quant = ggml_is_quantized(t1->type) || ggml_is_quantized(t2->type);
++        for (int s = 0; s < GGML_MAX_SRC; s++) {
++            if ((t1->src[s] && ggml_is_quantized(t1->src[s]->type)) ||
++                (t2->src[s] && ggml_is_quantized(t2->src[s]->type))) {
++                quant = true;
++            }
++        }
++        if (quant) {
++            log_op_ref_buffers(t1, t2);
++        }
++    }
++}
++
++static void recopy_via_get_set(struct ggml_cgraph * g1, struct ggml_cgraph * g2) {
++    struct tensor_pair {
++        struct ggml_tensor * s;
++        struct ggml_tensor * d;
++    };
++    std::vector<tensor_pair> stack;
++    std::set<struct ggml_tensor *> seen;
++    const int n_nodes = ggml_graph_n_nodes(g1);
++    stack.reserve((size_t) n_nodes * 4);
++    for (int i = 0; i < n_nodes; i++) {
++        stack.push_back({ggml_graph_node(g1, i), ggml_graph_node(g2, i)});
++    }
++    while (!stack.empty()) {
++        tensor_pair p = stack.back();
++        stack.pop_back();
++        if (!p.s || !p.d || !seen.insert(p.s).second) {
++            continue;
++        }
++        if (p.d->view_src) {
++            stack.push_back({p.s->view_src, p.d->view_src});
++        } else {
++            const size_t n = ggml_nbytes(p.s);
++            std::vector<uint8_t> tmp(n);
++            ggml_backend_tensor_get(p.s, tmp.data(), 0, n);
++            ggml_backend_tensor_set(p.d, tmp.data(), 0, n);
++        }
++        for (int i = 0; i < GGML_MAX_SRC; i++) {
++            if (p.s->src[i]) {
++                stack.push_back({p.s->src[i], p.d->src[i]});
++            }
++        }
++    }
++}
++
++static bool compare_graph_backend_judge(
++        ggml_backend_t backend1,
++        ggml_backend_t backend2,
++        struct ggml_cgraph * graph,
++        ggml_backend_eval_callback callback,
++        void * user_data,
++        struct ggml_tensor const * const * test_nodes,
++        size_t num_test_nodes) {
++    const bool plain_host = ggml_test_plain_host();
++
++    if (!plain_host) {
++        // Stock compare path. Buffer-type logging happens in the eval callback on fail.
++        return ggml_backend_compare_graph_backend(backend1, backend2, graph, callback, user_data,
++                                                    test_nodes, num_test_nodes);
++    }
++
++    // graph_copy uses backend2's default buft. CPU default is already
++    // ggml_backend_cpu_buffer_type(); we recopy through get/set so a
++    // host-marked packed source cannot memcpy tiled bytes into the reference.
++    struct ggml_backend_graph_copy copy = ggml_backend_graph_copy(backend2, graph);
++    if (copy.buffer == NULL) {
++        return false;
++    }
++    recopy_via_get_set(graph, copy.graph);
++    GGML_ASSERT(ggml_backend_buffer_get_type(copy.buffer) == ggml_backend_cpu_buffer_type());
++    {
++        const char * got = ggml_backend_buffer_name(copy.buffer);
++        const char * want = ggml_backend_buft_name(ggml_backend_cpu_buffer_type());
++        std::lock_guard<std::mutex> guard(g_ref_buf_mutex);
++        fprintf(stderr, "[ref-buf] PLAIN_HOST=1 copy-buffer=\"%s\" cpu_buft=\"%s\" recopy=get/set\n",
++                got ? got : "(null)", want ? want : "(null)");
++    }
++
++    struct ggml_cgraph * g1 = graph;
++    struct ggml_cgraph * g2 = copy.graph;
++    const int n_nodes = ggml_graph_n_nodes(g1);
++    GGML_ASSERT(n_nodes == ggml_graph_n_nodes(g2));
++
++    {
++        std::lock_guard<std::mutex> guard(g_ref_buf_mutex);
++        log_graph_ref_buffers(g1, g2);
++    }
++
++    // Whole-graph compute (public API only; avoids ggml_graph_view from ggml-impl.h).
++    ggml_backend_graph_compute(backend1, g1);
++    ggml_backend_graph_compute(backend2, g2);
++
++    if (num_test_nodes != 0) {
++        GGML_ASSERT(test_nodes);
++        bool verified = false;
++        for (int i = 0; i < n_nodes; i++) {
++            for (size_t j = 0; j < num_test_nodes; ++j) {
++                if (ggml_graph_node(g1, i) == test_nodes[j]) {
++                    callback(i, ggml_graph_node(g1, i), ggml_graph_node(g2, i), user_data);
++                    verified = true;
++                }
++            }
++        }
++        GGML_ASSERT(verified);
++    } else {
++        for (int i = 0; i < n_nodes; i++) {
++            struct ggml_tensor * t1 = ggml_graph_node(g1, i);
++            struct ggml_tensor * t2 = ggml_graph_node(g2, i);
++            if (ggml_is_view_op(t1->op)) {
++                continue;
++            }
++            if (!callback(i, t1, t2, user_data)) {
++                break;
++            }
++        }
++    }
++
++    ggml_backend_graph_copy_free(copy);
++    return true;
++}
++
+ static bool backend_has_feature(ggml_backend_t backend, const char * feature_name) {
+     ggml_backend_dev_t dev = ggml_backend_get_device(backend);
+     ggml_backend_reg_t reg = ggml_backend_dev_backend_reg(dev);
+@@ -1451,7 +1757,13 @@ struct test_case {
+             for (size_t i = 0; i < f1.size(); i++) {
+                 // check for nans
+                 if (std::isnan(f1[i]) || std::isnan(f2[i])) {
+-                    printf("[%s] NaN at index %zu (%s=%f %s=%f) ", ggml_op_desc(t1), i, bn1, f1[i], bn2, f2[i]);
++                    printf("[%s] NaN at index %zu (%s=%f %s=%f) cpu_buf=\"%s\" cpu_buft=\"%s\" ",
++                           ggml_op_desc(t1), i, bn1, f1[i], bn2, f2[i],
++                           tensor_buf_name(t2), tensor_buft_name(t2));
++                    {
++                        std::lock_guard<std::mutex> guard(g_ref_buf_mutex);
++                        log_op_ref_buffers(t1, t2);
++                    }
+                     ud->ok = false;
+                     return true;
+                 }
+@@ -1459,12 +1771,24 @@ struct test_case {
+                 if (isinf_or_max(f1[i]) || isinf_or_max(f2[i])) {
+                     if (isinf_or_max(f1[i]) && isinf_or_max(f2[i])) {
+                         if (std::signbit(f1[i]) != std::signbit(f2[i])) {
+-                            printf("[%s] inf sign mismatch: %s=%f %s=%f ", ggml_op_desc(t1), bn1, f1[i], bn2, f2[i]);
++                            printf("[%s] inf sign mismatch: %s=%f %s=%f cpu_buf=\"%s\" cpu_buft=\"%s\" ",
++                                   ggml_op_desc(t1), bn1, f1[i], bn2, f2[i],
++                                   tensor_buf_name(t2), tensor_buft_name(t2));
++                            {
++                                std::lock_guard<std::mutex> guard(g_ref_buf_mutex);
++                                log_op_ref_buffers(t1, t2);
++                            }
+                             ud->ok = false;
+                             return true;
+                         }
+                     } else {
+-                        printf("[%s] inf mismatch: %s=%f %s=%f ", ggml_op_desc(t1), bn1, f1[i], bn2, f2[i]);
++                        printf("[%s] inf mismatch: %s=%f %s=%f cpu_buf=\"%s\" cpu_buft=\"%s\" ",
++                               ggml_op_desc(t1), bn1, f1[i], bn2, f2[i],
++                               tensor_buf_name(t2), tensor_buft_name(t2));
++                        {
++                            std::lock_guard<std::mutex> guard(g_ref_buf_mutex);
++                            log_op_ref_buffers(t1, t2);
++                        }
+                         ud->ok = false;
+                         return true;
+                     }
+@@ -1473,7 +1797,13 @@ struct test_case {
+ 
+             double err = ud->tc->err(f1.data(), f2.data(), f1.size());
+             if (err > ud->tc->max_err(ud->backend1)) {
+-                printf("[%s] ERR = %.9f > %.9f ", ggml_op_desc(t1), err, ud->tc->max_err(ud->backend1));
++                printf("[%s] ERR = %.9f > %.9f cpu_buf=\"%s\" cpu_buft=\"%s\" ",
++                       ggml_op_desc(t1), err, ud->tc->max_err(ud->backend1),
++                       tensor_buf_name(t2), tensor_buft_name(t2));
++                {
++                    std::lock_guard<std::mutex> guard(g_ref_buf_mutex);
++                    log_op_ref_buffers(t1, t2);
++                }
+                 //for (int i = 0; i < (int) f1.size(); i++) {
+                 //    printf("%5d %9.6f %9.6f, diff = %9.6f\n", i, f1[i], f2[i], f1[i] - f2[i]);
+                 //}
+@@ -1490,7 +1820,7 @@ struct test_case {
+         if (fused_nodes_to_verify.size() == 0 && run_whole_graph()) {
+             fused_nodes_to_verify.push_back(out);
+         }
+-        const bool cmp_ok = ggml_backend_compare_graph_backend(backend1, backend2, gf, callback, &ud,
++        const bool cmp_ok = compare_graph_backend_judge(backend1, backend2, gf, callback, &ud,
+                                                                run_whole_graph() ? fused_nodes_to_verify.data() : nullptr,
+                                                                fused_nodes_to_verify.size());
+ 
+@@ -10871,6 +11201,8 @@ static void usage(char ** argv) {
+     printf("    --show-coverage shows test coverage\n");
+     printf("    --test-file reads test operators from a test file generated by test-export-graph-ops\n");
+     printf("    -j <n> runs tests using <n> parallel worker threads (default: 1, test mode only)\n");
++    printf("    env GGML_TEST_PLAIN_HOST=1 recopies the CPU reference through get/set\n");
++    printf("        (unpacks host-tiled extra layouts into the plain CPU buffer)\n");
+ }
+ 
+ int main(int argc, char ** argv) {
+@@ -10955,6 +11287,13 @@ int main(int argc, char ** argv) {
+     // load and enumerate backends
+     ggml_backend_load_all();
+ 
++    if (mode == MODE_TEST) {
++        fprintf(stderr,
++                "[ref-buf] exp1 GGML_TEST_PLAIN_HOST=%d cpu_buft=\"%s\"\n",
++                (int) ggml_test_plain_host(),
++                ggml_backend_buft_name(ggml_backend_cpu_buffer_type()));
++    }
++
+     // Create printer for output format
+     std::unique_ptr<printer> output_printer = create_printer(output_format);
+     if (output_printer) {
