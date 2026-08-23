@@ -1,0 +1,69 @@
+Jelly Star CPU discriminator ROUND 2 (v8.2 / no i8mm)
+window: 2026-08-22 20:10-20:16 EDT (on-device ~6 min; no hang, no kill)
+adb: 192.168.1.82:35785 only. S23 listed, never addressed. Xiaomi not connected.
+workdir: /data/local/tmp/kalsajudge   (kalsa26 NOT touched)
+round1 v8.7 SIGILL binary+libs OVERWRITTEN with v82 tree (no mix).
+
+VERDICT: ALL PASS both runs → q32 HTP-tiled-memcpy theory STANDS
+  (Hexagon-only mechanism). Qwen CPU_REPACK theory does not gain.
+  No NaN, no ERR, no FAIL, no cpu_buft="CPU_REPACK" on either run.
+
+DEVICE
+  serial:  JELLYS0000053795
+  product/model/device: Jelly_Star
+  soc: MT6789  abi: arm64-v8a
+  plugged: UNPLUGGED
+    AC=false USB=false Wireless=false
+    status=3 discharging  level=95% start and end  temp=27.0C
+  KEYCODE_WAKEUP before each run
+
+BINARY + LIBS (PC sha256 == device sha256, all 7 files)
+  src: build-android-hexagon-judge-v82/bin/
+  945523136cee98061ab7f6ab7d7d05cd28c016519e3b0964d63a63b92109c607  10640080  test-backend-ops
+  3f4472fc2f8e0e5fe952792af7bbb9e22dc538c52addec3c651b979cecc9c724    601576  libggml.so
+  04c7dbc6bd281000620ccf7f39b667b216f9656feae043a04a626da14d3be40b   6144232  libggml-base.so
+  2a3a28c710e6575536b14d72a5f1deb28f52cda05fe6436d2097a6b56905b096   4116864  libggml-cpu.so
+  4d7dd4c52162ac26e242f7455ccddb0481f018c08407cf7786e45f1d98964d98   3391968  libggml-hexagon.so
+  850a45eb3e72eb612cea9466eb0dd2fc069359dbaff3142896df1415bc91d039  37429120  libllama.so
+  f28e0635b9c7900c49c9cb3c3ca1da4aa94172b0a27b66d10cd9d91866593622  68158464  libllama-common.so
+  libggml-hexagon.so pushed because DT_NEEDED; NO HTP skel.
+  Runtime: dlopen libcdsprpc.so failed; HTP did not register.
+  "Testing 1 devices" / Backend 1/1: CPU only.
+
+RUN 1 stock  (GGML_TEST_PLAIN_HOST unset)
+  cmd: cd /data/local/tmp/kalsajudge && LD_LIBRARY_PATH=. \
+       ./test-backend-ops test -b CPU -o MUL_MAT \
+       -p 'type_a=(q4_0|q4_1|q8_0|mxfp4|iq4_nl)'
+  wall: 20:16:05 -> 20:16:14 EDT (~9s)
+  rc: 0
+  banner: [ref-buf] exp1 GGML_TEST_PLAIN_HOST=0 cpu_buft="CPU"
+  194/194 tests passed ; 0 FAIL ; 0 NaN ; 0 ERR
+  132 skipped "not supported [CPU, CPU]" (mostly type_b=f16, e.g. mxfp4/q8_0 x f16)
+  cpu_buft="CPU" once (banner). no CPU_REPACK.
+
+RUN 2  GGML_TEST_PLAIN_HOST=1
+  same cmd + env. wall: 20:16:24 -> 20:16:34 EDT (~10s)
+  rc: 0
+  banner: [ref-buf] exp1 GGML_TEST_PLAIN_HOST=1 cpu_buft="CPU"
+  PLAIN_HOST recopy: copy-buffer="CPU" cpu_buft="CPU" recopy=get/set
+  194/194 tests passed ; 0 FAIL ; 0 NaN-at-index ; 0 ERR
+  132 skipped "not supported" (same set)
+  cpu_buft="CPU" on every dump (195 occurrences). never CPU_REPACK.
+  nan_scales=0 inf_scales=0 on every scanned quant src (388 scan lines, none nonzero).
+
+READING
+  CPU-only aarch64 MediaTek, same judge harness, same quant MUL_MAT filter
+  that failed 70/70 on Xiaomi HTP0: all 194 executed cases pass vs CPU ref.
+  Mechanism that produces CPU=nan on Hexagon devices is not generic aarch64
+  CPU_REPACK extra-buft poisoning. Consistent with HTP is_host tiled memcpy
+  (cannot fire here: no HTP, default buft is plain CPU).
+
+NO hang>120s. no kill. no reboot. no install. nothing deleted.
+S23/Xiaomi not used.
+
+PC ARTIFACTS  results/htp_judge/jelly_cpu_discriminator/round2/
+  NOTES.txt
+  r2_run1.log / .rc / _meta.txt
+  r2_run2.log / .rc / _meta.txt
+  r2_battery_start.txt / r2_battery_end.txt
+  r2_sha256_device.txt  r2_serial.txt

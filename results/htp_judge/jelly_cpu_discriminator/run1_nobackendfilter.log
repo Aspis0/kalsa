@@ -1,0 +1,9 @@
+ggml-hex: Loading driver libcdsprpc.so
+ggml-hex: failed to load libcdsprpc.so: dlopen failed: library "libcdsprpc.so" not found
+[ref-buf] exp1 GGML_TEST_PLAIN_HOST=0 cpu_buft="CPU"
+Testing 1 devices
+
+Backend 1/1: CPU
+  Skipping CPU backend
+1/1 backends passed
+[1;32mOK[0m

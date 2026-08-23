@@ -1,0 +1,4 @@
+ggml-hex: Loading driver libcdsprpc.so
+ggml-hex: failed to load libcdsprpc.so: dlopen failed: library "libcdsprpc.so" not found
+[ref-buf] exp1 GGML_TEST_PLAIN_HOST=0 cpu_buft="CPU"
+Illegal instruction 

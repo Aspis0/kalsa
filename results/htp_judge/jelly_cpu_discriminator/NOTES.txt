@@ -1,0 +1,97 @@
+Jelly Star CPU discriminator (judge-exp1 binary vs MediaTek, no HTP)
+window: 2026-08-22 ~20:01-20:05 EDT (owner ~10 min; used ~4 min on-device)
+adb: 192.168.1.82:35785 only. S23 (adb-R3CW406P8CV-*) listed but never addressed. Xiaomi not connected.
+workdir: /data/local/tmp/kalsajudge   (kalsa26 NOT touched)
+
+GOAL: CPU-only MUL_MAT quant on aarch64 MediaTek to discriminate
+  (A) Qwen: aarch64 CPU_REPACK extra-buffer poisoning (any aarch64, CPU-only)
+  (B) q32: HTP is_host tiled memcpy (cannot reproduce without HTP)
+
+VERDICT: INCONCLUSIVE — SIGILL before any pass/fail compare.
+  Not "all pass" (theory B not confirmed).
+  Not "NaN/fails" (no theory A evidence from completed cases).
+  0 tests completed. 0 NaN lines. 0 ERR lines.
+
+DEVICE
+  serial:  JELLYS0000053795
+  product/model/device: Jelly_Star
+  soc: MT6789 (Dimensity 7020)  abi: arm64-v8a
+  CPU part: 6x 0xd05 Cortex-A55 + 2x 0xd0b Cortex-A78
+  Features: fp asimd fphp asimdhp asimddp  (fp16 + dotprod)
+            NO i8mm, NO sve, NO bf16
+  plugged: UNPLUGGED  (declare: mechanism run, not a speed cell)
+    AC=false USB=false Wireless=false
+    status=3 discharging  start level=97%  end=96%  temp=27.0C
+  screen_off_timeout already 7200000; KEYCODE_WAKEUP before each run
+
+BINARY
+  PC sha256:  92511f27a8f199ac51e628a16592be464abeb763c0c1a2cc76cf2a208ef2a494
+  device sha256 (sha256sum): same
+  size: 10640072
+  src: build-android-hexagon-judge/bin/test-backend-ops
+  NEEDED: libllama-common.so libllama.so libggml.so libggml-cpu.so
+          libggml-hexagon.so libggml-base.so
+  DEVIATION: libggml-hexagon.so WAS pushed (DT_NEEDED; loader cannot start without it).
+             NO HTP skel pushed (no libggml-htp-v73/v75.so).
+             Runtime: ggml-hex failed dlopen libcdsprpc.so; HTP did not register.
+             "Testing 1 devices" / Backend 1/1: CPU only.
+
+PUSH (kalsajudge)
+  test-backend-ops, libggml.so, libggml-base.so, libggml-cpu.so,
+  libllama.so, libllama-common.so, libggml-hexagon.so
+  no scripts (no CRLF issue). no /data/local/tmp/kalsa26.
+
+RUNS
+  1 stock:
+    cd /data/local/tmp/kalsajudge && LD_LIBRARY_PATH=. \
+      ./test-backend-ops test -b CPU -o MUL_MAT \
+      -p 'type_a=(q4_0|q4_1|q8_0|mxfp4|iq4_nl)'
+    wall: 20:03:52 -> 20:04:05 EDT (~13s)
+    rc: 132 (SIGILL)   log: run1_stock.log
+    banner: [ref-buf] exp1 GGML_TEST_PLAIN_HOST=0 cpu_buft="CPU"
+    then "Illegal instruction". no pass/fail counts. no nan_scales dump.
+
+  1b without -b (harness skip path; user asked retry if -b CPU yields zero tests):
+    same filter, no -b. rc: 0
+    "Skipping CPU backend" / 1/1 backends passed / OK
+    ZERO MUL_MAT cases run. log: run1_nobackendfilter.log
+    Note: -b CPU did NOT yield zero tests; it entered CPU path and SIGILL'd.
+          without -b is the skip path, not a discriminator.
+
+  2 GGML_TEST_PLAIN_HOST=1:
+    same as run 1 + env. wall: 20:05:04 -> 20:05:05 (~1s)
+    rc: 132 (SIGILL)   log: run2_plain.log
+    banner: [ref-buf] exp1 GGML_TEST_PLAIN_HOST=1 cpu_buft="CPU"
+    [ref-buf] PLAIN_HOST=1 copy-buffer="CPU" cpu_buft="CPU" recopy=get/set
+    first case dumped BEFORE compute (PLAIN_HOST always logs graph buffers):
+      cpu-src0 type=q4_0 buf="CPU" buft="CPU" host=1 blocks=128 nan_scales=0 inf_scales=0
+      cpu-src1 type=f32  buf="CPU" buft="CPU" host=1
+      (NOT CPU_REPACK / HTP0-REPACK)
+    then SIGILL in ggml_backend_graph_compute. no [MUL_MAT] NaN/ERR line.
+
+  diag (extra, not in protocol): -b CPU -o MUL_MAT -p 'type_a=f32'
+    rc: 132 SIGILL in ~1s. crash is not quant-kernel-only; likely
+    -march=armv8.7a+fp16+dotprod+i8mm baked into ggml-cpu.so / binary
+    (q28 flags). A78/A55 have dotprod+fp16, not i8mm.
+
+WHAT THIS DOES / DOES NOT SAY
+  Does: HTP absent (theory B's memcpy path cannot run here).
+  Does: default cpu_buft name is "CPU" (harness default buft; extra-buft
+        CPU_REPACK cannot appear — matches q32 desk note).
+  Does: first q4_0 reference tensor had nan_scales=0 before compute.
+  Does not: execute CPU MUL_MAT compare, so cannot confirm or reject
+        theory A via pass/fail. Need a Jelly-march binary (no i8mm
+        baseline) with the same patch, or run this binary on a CPU
+        that has i8mm but no HTP (none of our three phones).
+
+NO hang>120s. no kill. no reboot. no install. nothing deleted.
+S23/Xiaomi not used.
+
+PC ARTIFACTS  results/htp_judge/jelly_cpu_discriminator/
+  NOTES.txt
+  run1_stock.log / .rc / _meta.txt
+  run2_plain.log / .rc / _meta.txt
+  run1_nobackendfilter.log / .rc
+  diag_f32.log / .rc
+  battery_start.txt / battery_end.txt
+  sha256_device.txt  cpuinfo.txt  serial.txt
