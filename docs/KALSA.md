@@ -168,7 +168,8 @@ Nothing was killed on either phone. What ends a run is one of three other things
 | C — 2.6B-QAD, production | Jelly | 16/16 | plan complete, `MemAvailable` 2.35 GB, flat |
 | B — KEXP, production (mmap) | S23 | 16/16 but **bimodal 0.4–21.1**, collapsed from turn 11 | plan complete; 535 k majflt, battery 99 → 75 % |
 | B — KEXP, **`use_mmap=false`** | S23 | 16/16, **21.3 → 15.7, −26 %, no bimodality** | plan complete; 1 222 k majflt, battery 56 → 47 % |
-| D — Qwen3.5-2B, production | S23 | 16/16, **the most stable arm** (−11 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
+| D — Qwen3.5-2B, production (hot start 40.7 °C) | S23 | 16/16, **the most stable arm** (−10.8 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
+| D — Qwen3.5-2B, **cold start 33.9 °C** | S23 | 16/16, **−11.4 %**, median 17.31 | plan complete; **747 majflt**, battery 45 → 34 % |
 | E — 8B-A1B + streaming | S23 | **could not be run** | the gate refuses the model for a repack cost that streaming removes |
 
 ⭐ **The KEXP was never too big for the phone — it was evictable (§7.45).** The same recipe, same
@@ -192,10 +193,14 @@ failure modes are the same model under two load configs, not two models.
 turns: **Qwen3.5-2B −11 % · 2.6B-QAD −26 % · KEXP −96 %**. The KEXP is the designated fast tier and
 §2.1 records 19.97–22.26 tok/s for it here — but that is `norepack=1` on a fresh chat. In the config
 that ships, on a real conversation, it is the worst of the three and 15–35× slower than the 2.6B
-over the last four turns. **The two "small" models are the stable ones.** ⚠️ Arm D started hot
-(40.6 °C, arm B had just run) so its stability is understated and its absolute rate is not
-like-for-like with arm C's cold start — a cold-start rerun is owed before the 2.6B-vs-Qwen ordering
-is called.
+over the last four turns. **The two "small" models are the stable ones.** ⭐ **The cold rerun landed (§7.46) and it settles both halves.** Heat cost the Qwen ~12 % of its
+**absolute rate** and left its **decay unchanged** (−10.8 % hot, −11.4 % cold): its stability is the
+model, not a throttled phone. ⛔ **And the 2.6B-vs-Qwen ordering does not exist — they tie.** Mean
+over sixteen turns: **17.16 against 17.18**, 0.1 % apart. The 2.6B leads turns 1–9, the Qwen leads
+10–16, crossover durable from **turn 10**. A turn-1 headline picks the 2.6B, a turn-16 headline picks
+the Qwen, and across a real conversation neither is faster. Read it as **"no measurable
+difference"**, never as "the Qwen won" — n=1 each, not interleaved. What survives is the **decay**
+gap, which is internal to each run: **−26.3 % against −11.4 %**.
 
 The cost that is real, and that nothing was recording until this campaign: **the 8B draws ~1205 mA
 sustained against the 2.6B's ~690 mA** — 5.7 points of battery per turn, ~45 minutes of runway on a

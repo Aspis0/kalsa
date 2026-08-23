@@ -1627,6 +1627,50 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.46 MEASURED 2026-08-23: the cold rerun discharges the heat caveat — and the 2.6B-vs-Qwen ordering is a TIE that crosses over at turn 10
+
+§7.43 owed a cold-start rerun: arm D began at **40.7 °C with `thermal_status=2`** because arm B had
+just heated the phone, so its stability could have been throttling rather than the model. Rerun as
+`killD-qwen35-2b-cold` on the **same APK `073c489`** as arms C and D — deliberately not the newer
+one — with the phone cooled to `thermal_status=0`, unplugged. Start 33.9 °C against arm C's 32.2 °C,
+so the pair is now comparable to within 1.7 °C. 16/16 turns, all 16 measured.
+
+**What the heat cost, and what it did not.**
+
+| Qwen3.5-2B | turn 1 | turn 16 | decay | median |
+|---|---|---|---|---|
+| hot start (40.7 °C) | 16.83 | 15.02 | **−10.8 %** | 15.41 |
+| cold start (33.9 °C) | 18.07 | 16.01 | **−11.4 %** | 17.31 |
+
+Heat cost ~12 % of the **absolute rate** and left the **decay unchanged**. So §7.43's reading was
+right for the wrong reason to doubt it: **arm D's stability is a property of the model, not of a
+throttled phone.** It also means the hot arm's *rate* was understated by about a tenth, which is the
+part §7.43 flagged and could not quantify. Major faults over the whole cold run: **747** (5 498 →
+6 245). Battery 45 → 34 %.
+
+**And the ordering the campaign was actually asking about does not exist — they are tied.**
+
+| turn | 1 | 3 | 6 | **7** | 9 | **10** | 12 | 14 | 16 | **mean** |
+|---|---|---|---|---|---|---|---|---|---|---|
+| LFM2.5-2.6B-QAD | **19.17** | **19.19** | **18.73** | 17.84 | **17.61** | 16.79 | 15.74 | 14.61 | 14.12 | **17.16** |
+| Qwen3.5-2B | 18.07 | 16.70 | 18.40 | **18.87** | 17.14 | **17.91** | **15.84** | **15.94** | **16.01** | **17.18** |
+
+**17.16 against 17.18 — 0.1 % apart over sixteen turns.** The 2.6B wins turns 1–9, the Qwen wins
+10–16, and the crossover is durable from **turn 10** (turn 7 is a single blip). Which model is
+"faster" depends entirely on which turn is quoted: at turn 1 the 2.6B leads by 6 %, at turn 16 the
+Qwen leads by 13 %, and across the conversation neither leads at all. This is §7.36's
+measure-the-plateau lesson with a crossover attached, and it is the cleanest example the project has
+produced: **a turn-1 headline here would have picked the wrong model, and a turn-16 headline would
+have picked the other wrong model.**
+
+⚠️ Limits. n=1 per arm. The two models are compared across two separate runs, not in an interleaved
+ABBA, so a 0.1 % gap is far inside the noise this design can resolve — **read it as "no measurable difference", never as "the Qwen won"**.
+Decay is the robust quantity here (−26.3 % vs −11.4 %, a 2.3x gap), because it is internal to each
+run; the absolute rates are not. ⚠️ **Arm C's battery is unknown** — `battery_level_pct` only entered
+the sysprobe on 2026-08-23, after arm C had already run — so the two runs cannot even be placed in
+the same SoC region, let alone corrected to it. The cold arm D ran 45 → 34 %. Nothing here speaks to quality, where §7.38 puts the 2.6B ahead on
+language adherence.
+
 ### 7.45 MECHANISM 2026-08-23: the KEXP was never too big — it was EVICTABLE. `use_mmap=false` turns 0.41 tok/s into 15.7, while taking 2.3x MORE major faults
 
 The engine team asked for a `use_mlock=true` A/B. **It is not runnable on this hardware, and it would
