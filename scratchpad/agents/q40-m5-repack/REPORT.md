@@ -1,6 +1,6 @@
 # Q40 M5 — v1 integration (backend-ops, real KEXP, pre-device evidence)
 
-Status: M4 audit fixes applied. M5 done. Host PASS. Jelly Star PASS. v1 closed. No v2/cache.
+Status: M5 done. Max-recall NIT 1–3 + pass-3 FIX A–D landed. Host PASS. Jelly Star PASS. v1 closed. STOP. No v2/cache.
 
 Fork: `kalsa/repack-q23k` (see commits below). Base pin `1882bf8cd`.
 Remote: `origin` = `https://github.com/Aspis0/kalsallama.git`
@@ -64,7 +64,7 @@ gemv_q2_8x4_us=6  id_3x_gemv_us=19  rss_kb=5844
 graph_native_gemv_us=34 graph_repack_gemv_us=51
 ```
 
-The graph-repack number is **not** a speedup claim: the v1 kernel is correctness-first (per-column sdot), the graph path pays q8 quantize + extra buft, and the shape is tiny. Native 34 µs vs repack 51 µs on this micro is expected and **not** a residency result.
+Those 34 vs 51 µs numbers were **mislabeled** (alloc + `set_tensor` inside the timed loop). Replaced by the three-number bench in `maxrecall-fixes` below. No speed claims.
 
 ## M2/M3/M4 rerun
 
@@ -86,3 +86,69 @@ v1 is closed at M5. Owner integration decision next. No v2/cache work started.
 ## Commits
 
 See git log on `kalsa/repack-q23k`. Artifacts: `results/repack_q23k/m5_jelly/`.
+
+## maxrecall-fixes
+
+Pass 1–2 NITs + cold-eyes pass 3 (2 CONFIRMED HIGH + MED). Applied, host+Jelly rerun, pushed. Then STOP.
+
+### NIT 1 — three labeled numbers (not a speed claim)
+
+Old `graph_native_gemv_us=34 graph_repack_gemv_us=51` included alloc + `set_tensor` inside the timed loop (full repack every iter). Harness now hoists pack/alloc into `graph_job` and prints:
+
+Jelly A76 (shape n=64 k=256, GEMV M=1):
+
+```
+  (a) kernel-compute-only native_us=3 repack_us=5
+  (b) one-time packing_us=43 (set_tensor on CPU_REPACK, n=64 k=256)
+  (c) repack is not faster per call at this shape; value is residency only
+```
+
+(a) is compute-only per call. (b) is the eviction/repack cost in production. (c) is `packing_us/(native_us-repack_us)` only if repack is faster per call; here it is not. Host skips this block (`neon=0`).
+
+### NIT 2 — K match + src1 ne[3]
+
+`forward_mul_mat_q23k` asserts `src0->ne[0]==src1->ne[0]`. `supports_op` MUL_MAT_ID (q23k inner branch) and `compute_forward` both require `src1->ne[3]==1`. Confirmed: the ne[3] check is in `supports_op`, not only a forward assert.
+
+### NIT 3 — phrasing
+
+M5 does **not** run host model logits. It packs the first 8 experts of real Marco KEXP tensors and runs expert0 GEMV vs native `to_float` · q8. Host: gate Q2, up Q2, down Q3 all PASS. Full-model `--no-repack` A/B is still an honest gap (host cannot select 8x4; Jelly does not have the GGUF).
+
+### FIX A (HIGH) — n_as==1 shape gate
+
+`ggml_n_dims(src0)==3` is 2 for `[K,N,1]`. A single-expert MoE was packed at load then declined at dispatch → fence abort. Both `supports_op` and `compute_forward` now gate `src0->ne[2] >= 1 && src0->ne[3] == 1`. Dropped `GGML_ASSERT(ggml_n_dims(src0)==3)` in `forward_mul_mat_id_q23k`.
+
+M4 kernel + graph grids include `n_as==1`. Jelly graph: `ok graph q2_K nas=1 tok={1,2,7,16}` (and q3_K) all three id modes. Host kernel `nas=1` PASS; graph skipped (no neon).
+
+### FIX B (HIGH) — pointer equality, not `name()`
+
+`ggml_repack_is_q23k_8x4` used to `static_cast` any `tensor_traits*` to `repack::tensor_traits_base` and call `name()`. KleidiAI/AMX/SpaceMIT extras share `tensor->extra` and do not have that vtable slot. The fence in `traits.cpp` calls this on **every** op with `src0->extra` set → UB/crash on `GGML_USE_CPU_KLEIDIAI` builds.
+
+Fix: hoist `q2_K_8x4_q8_K` / `q3_K_8x4_q8_K` to file-static instances; identify by **pointer equality** against those two addresses. `ggml_cpu_repack_extra_name` uses the same compare (no virtual call). No test here can exercise KleidiAI — the pointer-eq rewrite is the proof.
+
+### FIX C (MED) — decline null src1/src2
+
+`supports_op` MUL_MAT_ID now returns false when `src[1]==null` or `src[2]==null` (previously null src2 passed, then `forward` asserted). src2 must be I32. Combined with NIT 2 `src1->ne[3]==1` in the same `supports_op` branch.
+
+### FIX D (MED) — decline views
+
+Views over 8x4-tiled tensors keep native `nb[0]/nb[1]` and can point into a misaligned packed offset (Q3 tile 912 vs native 880 + 64 B pad). `init_tensor` `GGML_ABORT`s if `tensor->view_src != nullptr` on a q23k-traited tensor.
+
+**ggml_nbytes hybrid (known contract wart):** packed Q3 uses native `nb[0]/nb[1]` (880 B/row) plus packed `nb[2]` (912 B/tile × groups). `ggml_nbytes` therefore does not equal the packed allocation. `set_tensor` is special-cased to the native source size; `get_alloc_size` uses the packed stride. Do not use `ggml_nbytes` as the packed buffer size.
+
+### Noted, no code change
+
+- Expert-id `GGML_ASSERT(expert_id >= 0 && expert_id < n_as)` is DoS-not-OOB on a corrupt GGUF (acceptable for v1).
+- Non-`MUL_MAT` / non-`MUL_MAT_ID` ops on a tiled extra abort by design. This is a **CPU-only-v1** limitation: it blocks a multi-backend weight copy that would otherwise fall through to native. v2 if a second backend must read the same buffer.
+- q8_K float `d` matches upstream (auditor REFUTED the divergence worry).
+
+### M0 test update
+
+M0 still asserted `supports_op` false ("must decline until M4" / "M0 has no kernels"). On Jelly, 8x4 is selected and M2/M4 dispatch is true — those two checks now expect `supports_op` true. Host still skips (extra=null).
+
+### Rerun
+
+Host x86 (8x4 never selected): M0–M5 RESULT: PASS. Marco expert0 GEMV PASS.
+
+Jelly Star `192.168.1.82:35785` (A76, neon+dotprod). SHA256 host==device for m0–m5 + `libomp.so`. `LD_LIBRARY_PATH=.`. KEYCODE_WAKEUP. M0–M5 RESULT: PASS. Extra names `Q2_K_8x4` / `Q3_K_8x4` via pointer-eq. Graph `nas=1` PASS.
+
+v1 complete. No further work until the owner integration decision.

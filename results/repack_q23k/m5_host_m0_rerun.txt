@@ -1,0 +1,113 @@
+host: neon=0 dotprod=0 avx512=0
+repack buft: CPU_REPACK
+
+== selection + sizing ==
+type     ne0   ne1   ne2      extra   expect    tiles    pad     helper       hand alloc
+Q2_K     256     8     1       null       no        1     32        704        704 672
+Q2_K     256     8     2       null       no        1     32       1408       1408 1344
+Q2_K     256     8     3       null       no        1     32       2112       2112 2016
+Q2_K     256    16     1       null       no        2      0       1344       1344 1344
+Q2_K     256    16     2       null       no        2      0       2688       2688 2688
+Q2_K     256    16     3       null       no        2      0       4032       4032 4032
+Q2_K     256    24     1       null       no        3     32       2048       2048 2016
+Q2_K     256    24     2       null       no        3     32       4096       4096 4032
+Q2_K     256    24     3       null       no        3     32       6144       6144 6048
+Q2_K     256    32     1       null       no        4      0       2688       2688 2688
+Q2_K     256    32     2       null       no        4      0       5376       5376 5376
+Q2_K     256    32     3       null       no        4      0       8064       8064 8064
+Q2_K     512     8     1       null       no        2      0       1344       1344 1344
+Q2_K     512     8     2       null       no        2      0       2688       2688 2688
+Q2_K     512     8     3       null       no        2      0       4032       4032 4032
+Q2_K     512    16     1       null       no        4      0       2688       2688 2688
+Q2_K     512    16     2       null       no        4      0       5376       5376 5376
+Q2_K     512    16     3       null       no        4      0       8064       8064 8064
+Q2_K     512    24     1       null       no        6      0       4032       4032 4032
+Q2_K     512    24     2       null       no        6      0       8064       8064 8064
+Q2_K     512    24     3       null       no        6      0      12096      12096 12096
+Q2_K     512    32     1       null       no        8      0       5376       5376 5376
+Q2_K     512    32     2       null       no        8      0      10752      10752 10752
+Q2_K     512    32     3       null       no        8      0      16128      16128 16128
+Q2_K    1024     8     1       null       no        4      0       2688       2688 2688
+Q2_K    1024     8     2       null       no        4      0       5376       5376 5376
+Q2_K    1024     8     3       null       no        4      0       8064       8064 8064
+Q2_K    1024    16     1       null       no        8      0       5376       5376 5376
+Q2_K    1024    16     2       null       no        8      0      10752      10752 10752
+Q2_K    1024    16     3       null       no        8      0      16128      16128 16128
+Q2_K    1024    24     1       null       no       12      0       8064       8064 8064
+Q2_K    1024    24     2       null       no       12      0      16128      16128 16128
+Q2_K    1024    24     3       null       no       12      0      24192      24192 24192
+Q2_K    1024    32     1       null       no       16      0      10752      10752 10752
+Q2_K    1024    32     2       null       no       16      0      21504      21504 21504
+Q2_K    1024    32     3       null       no       16      0      32256      32256 32256
+Q3_K     256     8     1       null       no        1     48        960        960 880
+Q3_K     256     8     2       null       no        1     48       1920       1920 1760
+Q3_K     256     8     3       null       no        1     48       2880       2880 2640
+Q3_K     256    16     1       null       no        2     32       1856       1856 1760
+Q3_K     256    16     2       null       no        2     32       3712       3712 3520
+Q3_K     256    16     3       null       no        2     32       5568       5568 5280
+Q3_K     256    24     1       null       no        3     16       2752       2752 2640
+Q3_K     256    24     2       null       no        3     16       5504       5504 5280
+Q3_K     256    24     3       null       no        3     16       8256       8256 7920
+Q3_K     256    32     1       null       no        4      0       3648       3648 3520
+Q3_K     256    32     2       null       no        4      0       7296       7296 7040
+Q3_K     256    32     3       null       no        4      0      10944      10944 10560
+Q3_K     512     8     1       null       no        2     32       1856       1856 1760
+Q3_K     512     8     2       null       no        2     32       3712       3712 3520
+Q3_K     512     8     3       null       no        2     32       5568       5568 5280
+Q3_K     512    16     1       null       no        4      0       3648       3648 3520
+Q3_K     512    16     2       null       no        4      0       7296       7296 7040
+Q3_K     512    16     3       null       no        4      0      10944      10944 10560
+Q3_K     512    24     1       null       no        6     32       5504       5504 5280
+Q3_K     512    24     2       null       no        6     32      11008      11008 10560
+Q3_K     512    24     3       null       no        6     32      16512      16512 15840
+Q3_K     512    32     1       null       no        8      0       7296       7296 7040
+Q3_K     512    32     2       null       no        8      0      14592      14592 14080
+Q3_K     512    32     3       null       no        8      0      21888      21888 21120
+Q3_K    1024     8     1       null       no        4      0       3648       3648 3520
+Q3_K    1024     8     2       null       no        4      0       7296       7296 7040
+Q3_K    1024     8     3       null       no        4      0      10944      10944 10560
+Q3_K    1024    16     1       null       no        8      0       7296       7296 7040
+Q3_K    1024    16     2       null       no        8      0      14592      14592 14080
+Q3_K    1024    16     3       null       no        8      0      21888      21888 21120
+Q3_K    1024    24     1       null       no       12      0      10944      10944 10560
+Q3_K    1024    24     2       null       no       12      0      21888      21888 21120
+Q3_K    1024    24     3       null       no       12      0      32832      32832 31680
+Q3_K    1024    32     1       null       no       16      0      14592      14592 14080
+Q3_K    1024    32     2       null       no       16      0      29184      29184 28160
+Q3_K    1024    32     3       null       no       16      0      43776      43776 42240
+hand checks: Q2 256x8x1=704 256x8x2=1408 256x16x1=1344; Q3 256x8x1=960 256x8x2=1920 256x32x1=3648
+
+== negative selection ==
+  ok not-8x4 Q2_K 128x8x1 extra=null
+  ok not-8x4 Q2_K 256x7x1 extra=null
+  ok not-8x4 Q2_K 256x4x1 extra=null
+  ok not-8x4 Q2_K 255x8x1 extra=null
+  ok not-8x4 Q2_K 256x9x2 extra=null
+  ok not-8x4 Q3_K 128x8x1 extra=null
+  ok not-8x4 Q3_K 256x7x1 extra=null
+  ok not-8x4 Q3_K 256x4x1 extra=null
+  ok not-8x4 Q3_K 255x8x1 extra=null
+  ok not-8x4 Q3_K 256x9x2 extra=null
+
+== pack + zero padding ==
+  pack Q2_K 256x8x1 rc=0 nb2=704 pad=zero
+  pack Q2_K 256x8x2 rc=0 nb2=704 pad=zero
+  pack Q2_K 256x16x1 rc=0 nb2=1344 pad=zero
+  pack Q2_K 256x24x1 rc=0 nb2=2048 pad=zero
+  pack Q2_K 512x8x1 rc=0 nb2=1344 pad=zero
+  pack Q3_K 256x8x1 rc=0 nb2=960 pad=zero
+  pack Q3_K 256x8x2 rc=0 nb2=960 pad=zero
+  pack Q3_K 256x16x1 rc=0 nb2=1856 pad=zero
+  pack Q3_K 256x24x1 rc=0 nb2=2752 pad=zero
+  pack Q3_K 512x8x1 rc=0 nb2=1856 pad=zero
+
+== extra lifecycle ==
+  Q2_K extra0=null reinit/restore/reset+init clean
+  Q3_K extra0=null reinit/restore/reset+init clean
+
+== supports_op 8x4 decline ==
+  skip 3-D 8x4 guard on this host (Q2 extra=null, not 8x4)
+  skip 2-D 8x4 kernel guard on this host (Q3 extra=null, not 8x4)
+
+RESULT: PASS
+RC=0

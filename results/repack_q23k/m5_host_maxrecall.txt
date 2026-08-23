@@ -1,0 +1,746 @@
+
+======== HOST test-repack-q23k-m0 ========
+
+host: neon=0 dotprod=0 avx512=0
+repack buft: CPU_REPACK
+
+== selection + sizing ==
+type     ne0   ne1   ne2      extra   expect    tiles    pad     helper       hand alloc
+Q2_K     256     8     1       null       no        1     32        704        704 672
+Q2_K     256     8     2       null       no        1     32       1408       1408 1344
+Q2_K     256     8     3       null       no        1     32       2112       2112 2016
+Q2_K     256    16     1       null       no        2      0       1344       1344 1344
+Q2_K     256    16     2       null       no        2      0       2688       2688 2688
+Q2_K     256    16     3       null       no        2      0       4032       4032 4032
+Q2_K     256    24     1       null       no        3     32       2048       2048 2016
+Q2_K     256    24     2       null       no        3     32       4096       4096 4032
+Q2_K     256    24     3       null       no        3     32       6144       6144 6048
+Q2_K     256    32     1       null       no        4      0       2688       2688 2688
+Q2_K     256    32     2       null       no        4      0       5376       5376 5376
+Q2_K     256    32     3       null       no        4      0       8064       8064 8064
+Q2_K     512     8     1       null       no        2      0       1344       1344 1344
+Q2_K     512     8     2       null       no        2      0       2688       2688 2688
+Q2_K     512     8     3       null       no        2      0       4032       4032 4032
+Q2_K     512    16     1       null       no        4      0       2688       2688 2688
+Q2_K     512    16     2       null       no        4      0       5376       5376 5376
+Q2_K     512    16     3       null       no        4      0       8064       8064 8064
+Q2_K     512    24     1       null       no        6      0       4032       4032 4032
+Q2_K     512    24     2       null       no        6      0       8064       8064 8064
+Q2_K     512    24     3       null       no        6      0      12096      12096 12096
+Q2_K     512    32     1       null       no        8      0       5376       5376 5376
+Q2_K     512    32     2       null       no        8      0      10752      10752 10752
+Q2_K     512    32     3       null       no        8      0      16128      16128 16128
+Q2_K    1024     8     1       null       no        4      0       2688       2688 2688
+Q2_K    1024     8     2       null       no        4      0       5376       5376 5376
+Q2_K    1024     8     3       null       no        4      0       8064       8064 8064
+Q2_K    1024    16     1       null       no        8      0       5376       5376 5376
+Q2_K    1024    16     2       null       no        8      0      10752      10752 10752
+Q2_K    1024    16     3       null       no        8      0      16128      16128 16128
+Q2_K    1024    24     1       null       no       12      0       8064       8064 8064
+Q2_K    1024    24     2       null       no       12      0      16128      16128 16128
+Q2_K    1024    24     3       null       no       12      0      24192      24192 24192
+Q2_K    1024    32     1       null       no       16      0      10752      10752 10752
+Q2_K    1024    32     2       null       no       16      0      21504      21504 21504
+Q2_K    1024    32     3       null       no       16      0      32256      32256 32256
+Q3_K     256     8     1       null       no        1     48        960        960 880
+Q3_K     256     8     2       null       no        1     48       1920       1920 1760
+Q3_K     256     8     3       null       no        1     48       2880       2880 2640
+Q3_K     256    16     1       null       no        2     32       1856       1856 1760
+Q3_K     256    16     2       null       no        2     32       3712       3712 3520
+Q3_K     256    16     3       null       no        2     32       5568       5568 5280
+Q3_K     256    24     1       null       no        3     16       2752       2752 2640
+Q3_K     256    24     2       null       no        3     16       5504       5504 5280
+Q3_K     256    24     3       null       no        3     16       8256       8256 7920
+Q3_K     256    32     1       null       no        4      0       3648       3648 3520
+Q3_K     256    32     2       null       no        4      0       7296       7296 7040
+Q3_K     256    32     3       null       no        4      0      10944      10944 10560
+Q3_K     512     8     1       null       no        2     32       1856       1856 1760
+Q3_K     512     8     2       null       no        2     32       3712       3712 3520
+Q3_K     512     8     3       null       no        2     32       5568       5568 5280
+Q3_K     512    16     1       null       no        4      0       3648       3648 3520
+Q3_K     512    16     2       null       no        4      0       7296       7296 7040
+Q3_K     512    16     3       null       no        4      0      10944      10944 10560
+Q3_K     512    24     1       null       no        6     32       5504       5504 5280
+Q3_K     512    24     2       null       no        6     32      11008      11008 10560
+Q3_K     512    24     3       null       no        6     32      16512      16512 15840
+Q3_K     512    32     1       null       no        8      0       7296       7296 7040
+Q3_K     512    32     2       null       no        8      0      14592      14592 14080
+Q3_K     512    32     3       null       no        8      0      21888      21888 21120
+Q3_K    1024     8     1       null       no        4      0       3648       3648 3520
+Q3_K    1024     8     2       null       no        4      0       7296       7296 7040
+Q3_K    1024     8     3       null       no        4      0      10944      10944 10560
+Q3_K    1024    16     1       null       no        8      0       7296       7296 7040
+Q3_K    1024    16     2       null       no        8      0      14592      14592 14080
+Q3_K    1024    16     3       null       no        8      0      21888      21888 21120
+Q3_K    1024    24     1       null       no       12      0      10944      10944 10560
+Q3_K    1024    24     2       null       no       12      0      21888      21888 21120
+Q3_K    1024    24     3       null       no       12      0      32832      32832 31680
+Q3_K    1024    32     1       null       no       16      0      14592      14592 14080
+Q3_K    1024    32     2       null       no       16      0      29184      29184 28160
+Q3_K    1024    32     3       null       no       16      0      43776      43776 42240
+hand checks: Q2 256x8x1=704 256x8x2=1408 256x16x1=1344; Q3 256x8x1=960 256x8x2=1920 256x32x1=3648
+
+== negative selection ==
+  ok not-8x4 Q2_K 128x8x1 extra=null
+  ok not-8x4 Q2_K 256x7x1 extra=null
+  ok not-8x4 Q2_K 256x4x1 extra=null
+  ok not-8x4 Q2_K 255x8x1 extra=null
+  ok not-8x4 Q2_K 256x9x2 extra=null
+  ok not-8x4 Q3_K 128x8x1 extra=null
+  ok not-8x4 Q3_K 256x7x1 extra=null
+  ok not-8x4 Q3_K 256x4x1 extra=null
+  ok not-8x4 Q3_K 255x8x1 extra=null
+  ok not-8x4 Q3_K 256x9x2 extra=null
+
+== pack + zero padding ==
+  pack Q2_K 256x8x1 rc=0 nb2=704 pad=zero
+  pack Q2_K 256x8x2 rc=0 nb2=704 pad=zero
+  pack Q2_K 256x16x1 rc=0 nb2=1344 pad=zero
+  pack Q2_K 256x24x1 rc=0 nb2=2048 pad=zero
+  pack Q2_K 512x8x1 rc=0 nb2=1344 pad=zero
+  pack Q3_K 256x8x1 rc=0 nb2=960 pad=zero
+  pack Q3_K 256x8x2 rc=0 nb2=960 pad=zero
+  pack Q3_K 256x16x1 rc=0 nb2=1856 pad=zero
+  pack Q3_K 256x24x1 rc=0 nb2=2752 pad=zero
+  pack Q3_K 512x8x1 rc=0 nb2=1856 pad=zero
+
+== extra lifecycle ==
+  Q2_K extra0=null reinit/restore/reset+init clean
+  Q3_K extra0=null reinit/restore/reset+init clean
+
+== supports_op 8x4 decline ==
+  skip 3-D 8x4 guard on this host (Q2 extra=null, not 8x4)
+  skip 2-D 8x4 kernel guard on this host (Q3 extra=null, not 8x4)
+
+RESULT: PASS
+RC=0
+
+======== HOST test-repack-q23k-m1 ========
+
+M1 identity: fp32 compare is bit-identical; d/dmin use the same ggml_fp16_to_fp32 as dequantize_row_q2_K/q3_K.
+== targeted layout ==
+  ok Q2 scale=low nibble min=high nibble (sm=0x5A)
+  ok Q3 6-bit scale_code round-trip (0,4,..60) and s=code-32
+  ok Q3 low-plane order (sb=5 unique 0..3 pattern)
+  ok Q3 hmask bit order (single high bit at sb=3 lane=7 -> q=5)
+== edge patterns ==
+  ok Q2_K all-zero
+  ok Q3_K all-zero
+  ok Q2_K all-max q/scale/min
+  ok Q3_K all-max q/scale_code
+  ok Q3_K hmask all-clear (q=0..3)
+  ok Q3_K hmask all-set (q=4..7)
+== patterned identity ==
+  ok pattern q2_K 256x8x1
+  ok pattern q2_K 256x8x2
+  ok pattern q2_K 256x8x3
+  ok pattern q2_K 256x16x1
+  ok pattern q2_K 256x16x2
+  ok pattern q2_K 256x16x3
+  ok pattern q2_K 256x24x1
+  ok pattern q2_K 256x24x2
+  ok pattern q2_K 256x24x3
+  ok pattern q2_K 256x32x1
+  ok pattern q2_K 256x32x2
+  ok pattern q2_K 256x32x3
+  ok pattern q2_K 512x8x1
+  ok pattern q2_K 512x8x2
+  ok pattern q2_K 512x8x3
+  ok pattern q2_K 512x16x1
+  ok pattern q2_K 512x16x2
+  ok pattern q2_K 512x16x3
+  ok pattern q2_K 512x24x1
+  ok pattern q2_K 512x24x2
+  ok pattern q2_K 512x24x3
+  ok pattern q2_K 512x32x1
+  ok pattern q2_K 512x32x2
+  ok pattern q2_K 512x32x3
+  ok pattern q2_K 1024x8x1
+  ok pattern q2_K 1024x8x2
+  ok pattern q2_K 1024x8x3
+  ok pattern q2_K 1024x16x1
+  ok pattern q2_K 1024x16x2
+  ok pattern q2_K 1024x16x3
+  ok pattern q2_K 1024x24x1
+  ok pattern q2_K 1024x24x2
+  ok pattern q2_K 1024x24x3
+  ok pattern q2_K 1024x32x1
+  ok pattern q2_K 1024x32x2
+  ok pattern q2_K 1024x32x3
+  ok pattern q3_K 256x8x1
+  ok pattern q3_K 256x8x2
+  ok pattern q3_K 256x8x3
+  ok pattern q3_K 256x16x1
+  ok pattern q3_K 256x16x2
+  ok pattern q3_K 256x16x3
+  ok pattern q3_K 256x24x1
+  ok pattern q3_K 256x24x2
+  ok pattern q3_K 256x24x3
+  ok pattern q3_K 256x32x1
+  ok pattern q3_K 256x32x2
+  ok pattern q3_K 256x32x3
+  ok pattern q3_K 512x8x1
+  ok pattern q3_K 512x8x2
+  ok pattern q3_K 512x8x3
+  ok pattern q3_K 512x16x1
+  ok pattern q3_K 512x16x2
+  ok pattern q3_K 512x16x3
+  ok pattern q3_K 512x24x1
+  ok pattern q3_K 512x24x2
+  ok pattern q3_K 512x24x3
+  ok pattern q3_K 512x32x1
+  ok pattern q3_K 512x32x2
+  ok pattern q3_K 512x32x3
+  ok pattern q3_K 1024x8x1
+  ok pattern q3_K 1024x8x2
+  ok pattern q3_K 1024x8x3
+  ok pattern q3_K 1024x16x1
+  ok pattern q3_K 1024x16x2
+  ok pattern q3_K 1024x16x3
+  ok pattern q3_K 1024x24x1
+  ok pattern q3_K 1024x24x2
+  ok pattern q3_K 1024x24x3
+  ok pattern q3_K 1024x32x1
+  ok pattern q3_K 1024x32x2
+  ok pattern q3_K 1024x32x3
+== random identity ==
+  q2_K seed=0x00000001 36/36 shapes bit-identical
+  q2_K seed=0x00c0ffee 36/36 shapes bit-identical
+  q2_K seed=0xdeadbeef 36/36 shapes bit-identical
+  q3_K seed=0x00000001 36/36 shapes bit-identical
+  q3_K seed=0x00c0ffee 36/36 shapes bit-identical
+  q3_K seed=0xdeadbeef 36/36 shapes bit-identical
+
+RESULT: PASS
+RC=0
+
+======== HOST test-repack-q23k-m2 ========
+
+M2 GEMV starting
+M2 GEMV host neon=0 dotprod=0
+kernel vs dequant-fp32(W)*dequant-fp32(q8_K(A)); tol = 1e-4*(1+max|ref|)
+== geometry pin ==
+  ok Q2 e=2 t=1 offset=3360 (stride=1344 tile=672)
+== GEMV vs fp32 dequant-dot ==
+  ok pattern q2_K 256x8x1
+  ok neg-bsum q2_K 256x8x1
+  ok random q2_K 256x8x1
+  ok pattern q2_K 256x8x3
+  ok neg-bsum q2_K 256x8x3
+  ok random q2_K 256x8x3
+  ok pattern q2_K 256x16x1
+  ok neg-bsum q2_K 256x16x1
+  ok random q2_K 256x16x1
+  ok pattern q2_K 256x16x3
+  ok neg-bsum q2_K 256x16x3
+  ok random q2_K 256x16x3
+  ok pattern q2_K 256x32x1
+  ok neg-bsum q2_K 256x32x1
+  ok random q2_K 256x32x1
+  ok pattern q2_K 256x32x3
+  ok neg-bsum q2_K 256x32x3
+  ok random q2_K 256x32x3
+  ok pattern q2_K 512x8x1
+  ok neg-bsum q2_K 512x8x1
+  ok random q2_K 512x8x1
+  ok pattern q2_K 512x8x3
+  ok neg-bsum q2_K 512x8x3
+  ok random q2_K 512x8x3
+  ok pattern q2_K 512x16x1
+  ok neg-bsum q2_K 512x16x1
+  ok random q2_K 512x16x1
+  ok pattern q2_K 512x16x3
+  ok neg-bsum q2_K 512x16x3
+  ok random q2_K 512x16x3
+  ok pattern q2_K 512x32x1
+  ok neg-bsum q2_K 512x32x1
+  ok random q2_K 512x32x1
+  ok pattern q2_K 512x32x3
+  ok neg-bsum q2_K 512x32x3
+  ok random q2_K 512x32x3
+  ok pattern q2_K 1024x8x1
+  ok neg-bsum q2_K 1024x8x1
+  ok random q2_K 1024x8x1
+  ok pattern q2_K 1024x8x3
+  ok neg-bsum q2_K 1024x8x3
+  ok random q2_K 1024x8x3
+  ok pattern q2_K 1024x16x1
+  ok neg-bsum q2_K 1024x16x1
+  ok random q2_K 1024x16x1
+  ok pattern q2_K 1024x16x3
+  ok neg-bsum q2_K 1024x16x3
+  ok random q2_K 1024x16x3
+  ok pattern q2_K 1024x32x1
+  ok neg-bsum q2_K 1024x32x1
+  ok random q2_K 1024x32x1
+  ok pattern q2_K 1024x32x3
+  ok neg-bsum q2_K 1024x32x3
+  ok random q2_K 1024x32x3
+  ok pattern q3_K 256x8x1
+  ok neg-bsum q3_K 256x8x1
+  ok random q3_K 256x8x1
+  ok pattern q3_K 256x8x3
+  ok neg-bsum q3_K 256x8x3
+  ok random q3_K 256x8x3
+  ok pattern q3_K 256x16x1
+  ok neg-bsum q3_K 256x16x1
+  ok random q3_K 256x16x1
+  ok pattern q3_K 256x16x3
+  ok neg-bsum q3_K 256x16x3
+  ok random q3_K 256x16x3
+  ok pattern q3_K 256x32x1
+  ok neg-bsum q3_K 256x32x1
+  ok random q3_K 256x32x1
+  ok pattern q3_K 256x32x3
+  ok neg-bsum q3_K 256x32x3
+  ok random q3_K 256x32x3
+  ok pattern q3_K 512x8x1
+  ok neg-bsum q3_K 512x8x1
+  ok random q3_K 512x8x1
+  ok pattern q3_K 512x8x3
+  ok neg-bsum q3_K 512x8x3
+  ok random q3_K 512x8x3
+  ok pattern q3_K 512x16x1
+  ok neg-bsum q3_K 512x16x1
+  ok random q3_K 512x16x1
+  ok pattern q3_K 512x16x3
+  ok neg-bsum q3_K 512x16x3
+  ok random q3_K 512x16x3
+  ok pattern q3_K 512x32x1
+  ok neg-bsum q3_K 512x32x1
+  ok random q3_K 512x32x1
+  ok pattern q3_K 512x32x3
+  ok neg-bsum q3_K 512x32x3
+  ok random q3_K 512x32x3
+  ok pattern q3_K 1024x8x1
+  ok neg-bsum q3_K 1024x8x1
+  ok random q3_K 1024x8x1
+  ok pattern q3_K 1024x8x3
+  ok neg-bsum q3_K 1024x8x3
+  ok random q3_K 1024x8x3
+  ok pattern q3_K 1024x16x1
+  ok neg-bsum q3_K 1024x16x1
+  ok random q3_K 1024x16x1
+  ok pattern q3_K 1024x16x3
+  ok neg-bsum q3_K 1024x16x3
+  ok random q3_K 1024x16x3
+  ok pattern q3_K 1024x32x1
+  ok neg-bsum q3_K 1024x32x1
+  ok random q3_K 1024x32x1
+  ok pattern q3_K 1024x32x3
+  ok neg-bsum q3_K 1024x32x3
+  ok random q3_K 1024x32x3
+== thread identity (ggml graph M==1) ==
+  skip: host has no neon+dotprod (8x4 not selected)
+== declined op on q23k extra must abort (not native garbage) ==
+  ok helper: nullptr extra is not q23k
+  skip: host has no neon+dotprod (8x4 extra never attached)
+== batched 3-D src1 on 2-D q23k MUL_MAT must decline ==
+  skip: host has no neon+dotprod (8x4 extra never attached)
+
+RESULT: PASS
+RC=0
+
+======== HOST test-repack-q23k-m3 ========
+
+M3 GEMM starting
+M3 GEMM host neon=0 dotprod=0
+M%4==0 GEMM; tails GEMV; M==1 GEMV; tol = 1e-4*(1+max|ref|)
+== GEMM/GEMV kernel vs fp32 dequant-dot ==
+  ok pattern q2_K 256x8x1 M=1
+  ok pattern q2_K 256x8x1 M=2
+  ok pattern q2_K 256x8x1 M=3
+  ok pattern q2_K 256x8x1 M=4
+  ok pattern q2_K 256x8x1 M=5
+  ok pattern q2_K 256x8x1 M=8
+  ok pattern q2_K 256x8x1 M=9
+  ok pattern q2_K 256x8x3 M=1
+  ok pattern q2_K 256x8x3 M=2
+  ok pattern q2_K 256x8x3 M=3
+  ok pattern q2_K 256x8x3 M=4
+  ok pattern q2_K 256x8x3 M=5
+  ok pattern q2_K 256x8x3 M=8
+  ok pattern q2_K 256x8x3 M=9
+  ok pattern q2_K 256x16x1 M=1
+  ok pattern q2_K 256x16x1 M=2
+  ok pattern q2_K 256x16x1 M=3
+  ok pattern q2_K 256x16x1 M=4
+  ok pattern q2_K 256x16x1 M=5
+  ok pattern q2_K 256x16x1 M=8
+  ok pattern q2_K 256x16x1 M=9
+  ok pattern q2_K 256x16x3 M=1
+  ok pattern q2_K 256x16x3 M=2
+  ok pattern q2_K 256x16x3 M=3
+  ok pattern q2_K 256x16x3 M=4
+  ok pattern q2_K 256x16x3 M=5
+  ok pattern q2_K 256x16x3 M=8
+  ok pattern q2_K 256x16x3 M=9
+  ok pattern q2_K 256x32x1 M=1
+  ok pattern q2_K 256x32x1 M=2
+  ok pattern q2_K 256x32x1 M=3
+  ok pattern q2_K 256x32x1 M=4
+  ok pattern q2_K 256x32x1 M=5
+  ok pattern q2_K 256x32x1 M=8
+  ok pattern q2_K 256x32x1 M=9
+  ok pattern q2_K 256x32x3 M=1
+  ok pattern q2_K 256x32x3 M=2
+  ok pattern q2_K 256x32x3 M=3
+  ok pattern q2_K 256x32x3 M=4
+  ok pattern q2_K 256x32x3 M=5
+  ok pattern q2_K 256x32x3 M=8
+  ok pattern q2_K 256x32x3 M=9
+  ok pattern q2_K 512x8x1 M=1
+  ok pattern q2_K 512x8x1 M=2
+  ok pattern q2_K 512x8x1 M=3
+  ok pattern q2_K 512x8x1 M=4
+  ok pattern q2_K 512x8x1 M=5
+  ok pattern q2_K 512x8x1 M=8
+  ok pattern q2_K 512x8x1 M=9
+  ok pattern q2_K 512x8x3 M=1
+  ok pattern q2_K 512x8x3 M=2
+  ok pattern q2_K 512x8x3 M=3
+  ok pattern q2_K 512x8x3 M=4
+  ok pattern q2_K 512x8x3 M=5
+  ok pattern q2_K 512x8x3 M=8
+  ok pattern q2_K 512x8x3 M=9
+  ok pattern q2_K 512x16x1 M=1
+  ok pattern q2_K 512x16x1 M=2
+  ok pattern q2_K 512x16x1 M=3
+  ok pattern q2_K 512x16x1 M=4
+  ok pattern q2_K 512x16x1 M=5
+  ok pattern q2_K 512x16x1 M=8
+  ok pattern q2_K 512x16x1 M=9
+  ok pattern q2_K 512x16x3 M=1
+  ok pattern q2_K 512x16x3 M=2
+  ok pattern q2_K 512x16x3 M=3
+  ok pattern q2_K 512x16x3 M=4
+  ok pattern q2_K 512x16x3 M=5
+  ok pattern q2_K 512x16x3 M=8
+  ok pattern q2_K 512x16x3 M=9
+  ok pattern q2_K 512x32x1 M=1
+  ok pattern q2_K 512x32x1 M=2
+  ok pattern q2_K 512x32x1 M=3
+  ok pattern q2_K 512x32x1 M=4
+  ok pattern q2_K 512x32x1 M=5
+  ok pattern q2_K 512x32x1 M=8
+  ok pattern q2_K 512x32x1 M=9
+  ok pattern q2_K 512x32x3 M=1
+  ok pattern q2_K 512x32x3 M=2
+  ok pattern q2_K 512x32x3 M=3
+  ok pattern q2_K 512x32x3 M=4
+  ok pattern q2_K 512x32x3 M=5
+  ok pattern q2_K 512x32x3 M=8
+  ok pattern q2_K 512x32x3 M=9
+  ok pattern q2_K 1024x8x1 M=1
+  ok pattern q2_K 1024x8x1 M=2
+  ok pattern q2_K 1024x8x1 M=3
+  ok pattern q2_K 1024x8x1 M=4
+  ok pattern q2_K 1024x8x1 M=5
+  ok pattern q2_K 1024x8x1 M=8
+  ok pattern q2_K 1024x8x1 M=9
+  ok pattern q2_K 1024x8x3 M=1
+  ok pattern q2_K 1024x8x3 M=2
+  ok pattern q2_K 1024x8x3 M=3
+  ok pattern q2_K 1024x8x3 M=4
+  ok pattern q2_K 1024x8x3 M=5
+  ok pattern q2_K 1024x8x3 M=8
+  ok pattern q2_K 1024x8x3 M=9
+  ok pattern q2_K 1024x16x1 M=1
+  ok pattern q2_K 1024x16x1 M=2
+  ok pattern q2_K 1024x16x1 M=3
+  ok pattern q2_K 1024x16x1 M=4
+  ok pattern q2_K 1024x16x1 M=5
+  ok pattern q2_K 1024x16x1 M=8
+  ok pattern q2_K 1024x16x1 M=9
+  ok pattern q2_K 1024x16x3 M=1
+  ok pattern q2_K 1024x16x3 M=2
+  ok pattern q2_K 1024x16x3 M=3
+  ok pattern q2_K 1024x16x3 M=4
+  ok pattern q2_K 1024x16x3 M=5
+  ok pattern q2_K 1024x16x3 M=8
+  ok pattern q2_K 1024x16x3 M=9
+  ok pattern q2_K 1024x32x1 M=1
+  ok pattern q2_K 1024x32x1 M=2
+  ok pattern q2_K 1024x32x1 M=3
+  ok pattern q2_K 1024x32x1 M=4
+  ok pattern q2_K 1024x32x1 M=5
+  ok pattern q2_K 1024x32x1 M=8
+  ok pattern q2_K 1024x32x1 M=9
+  ok pattern q2_K 1024x32x3 M=1
+  ok pattern q2_K 1024x32x3 M=2
+  ok pattern q2_K 1024x32x3 M=3
+  ok pattern q2_K 1024x32x3 M=4
+  ok pattern q2_K 1024x32x3 M=5
+  ok pattern q2_K 1024x32x3 M=8
+  ok pattern q2_K 1024x32x3 M=9
+  ok pattern q3_K 256x8x1 M=1
+  ok pattern q3_K 256x8x1 M=2
+  ok pattern q3_K 256x8x1 M=3
+  ok pattern q3_K 256x8x1 M=4
+  ok pattern q3_K 256x8x1 M=5
+  ok pattern q3_K 256x8x1 M=8
+  ok pattern q3_K 256x8x1 M=9
+  ok pattern q3_K 256x8x3 M=1
+  ok pattern q3_K 256x8x3 M=2
+  ok pattern q3_K 256x8x3 M=3
+  ok pattern q3_K 256x8x3 M=4
+  ok pattern q3_K 256x8x3 M=5
+  ok pattern q3_K 256x8x3 M=8
+  ok pattern q3_K 256x8x3 M=9
+  ok pattern q3_K 256x16x1 M=1
+  ok pattern q3_K 256x16x1 M=2
+  ok pattern q3_K 256x16x1 M=3
+  ok pattern q3_K 256x16x1 M=4
+  ok pattern q3_K 256x16x1 M=5
+  ok pattern q3_K 256x16x1 M=8
+  ok pattern q3_K 256x16x1 M=9
+  ok pattern q3_K 256x16x3 M=1
+  ok pattern q3_K 256x16x3 M=2
+  ok pattern q3_K 256x16x3 M=3
+  ok pattern q3_K 256x16x3 M=4
+  ok pattern q3_K 256x16x3 M=5
+  ok pattern q3_K 256x16x3 M=8
+  ok pattern q3_K 256x16x3 M=9
+  ok pattern q3_K 256x32x1 M=1
+  ok pattern q3_K 256x32x1 M=2
+  ok pattern q3_K 256x32x1 M=3
+  ok pattern q3_K 256x32x1 M=4
+  ok pattern q3_K 256x32x1 M=5
+  ok pattern q3_K 256x32x1 M=8
+  ok pattern q3_K 256x32x1 M=9
+  ok pattern q3_K 256x32x3 M=1
+  ok pattern q3_K 256x32x3 M=2
+  ok pattern q3_K 256x32x3 M=3
+  ok pattern q3_K 256x32x3 M=4
+  ok pattern q3_K 256x32x3 M=5
+  ok pattern q3_K 256x32x3 M=8
+  ok pattern q3_K 256x32x3 M=9
+  ok pattern q3_K 512x8x1 M=1
+  ok pattern q3_K 512x8x1 M=2
+  ok pattern q3_K 512x8x1 M=3
+  ok pattern q3_K 512x8x1 M=4
+  ok pattern q3_K 512x8x1 M=5
+  ok pattern q3_K 512x8x1 M=8
+  ok pattern q3_K 512x8x1 M=9
+  ok pattern q3_K 512x8x3 M=1
+  ok pattern q3_K 512x8x3 M=2
+  ok pattern q3_K 512x8x3 M=3
+  ok pattern q3_K 512x8x3 M=4
+  ok pattern q3_K 512x8x3 M=5
+  ok pattern q3_K 512x8x3 M=8
+  ok pattern q3_K 512x8x3 M=9
+  ok pattern q3_K 512x16x1 M=1
+  ok pattern q3_K 512x16x1 M=2
+  ok pattern q3_K 512x16x1 M=3
+  ok pattern q3_K 512x16x1 M=4
+  ok pattern q3_K 512x16x1 M=5
+  ok pattern q3_K 512x16x1 M=8
+  ok pattern q3_K 512x16x1 M=9
+  ok pattern q3_K 512x16x3 M=1
+  ok pattern q3_K 512x16x3 M=2
+  ok pattern q3_K 512x16x3 M=3
+  ok pattern q3_K 512x16x3 M=4
+  ok pattern q3_K 512x16x3 M=5
+  ok pattern q3_K 512x16x3 M=8
+  ok pattern q3_K 512x16x3 M=9
+  ok pattern q3_K 512x32x1 M=1
+  ok pattern q3_K 512x32x1 M=2
+  ok pattern q3_K 512x32x1 M=3
+  ok pattern q3_K 512x32x1 M=4
+  ok pattern q3_K 512x32x1 M=5
+  ok pattern q3_K 512x32x1 M=8
+  ok pattern q3_K 512x32x1 M=9
+  ok pattern q3_K 512x32x3 M=1
+  ok pattern q3_K 512x32x3 M=2
+  ok pattern q3_K 512x32x3 M=3
+  ok pattern q3_K 512x32x3 M=4
+  ok pattern q3_K 512x32x3 M=5
+  ok pattern q3_K 512x32x3 M=8
+  ok pattern q3_K 512x32x3 M=9
+  ok pattern q3_K 1024x8x1 M=1
+  ok pattern q3_K 1024x8x1 M=2
+  ok pattern q3_K 1024x8x1 M=3
+  ok pattern q3_K 1024x8x1 M=4
+  ok pattern q3_K 1024x8x1 M=5
+  ok pattern q3_K 1024x8x1 M=8
+  ok pattern q3_K 1024x8x1 M=9
+  ok pattern q3_K 1024x8x3 M=1
+  ok pattern q3_K 1024x8x3 M=2
+  ok pattern q3_K 1024x8x3 M=3
+  ok pattern q3_K 1024x8x3 M=4
+  ok pattern q3_K 1024x8x3 M=5
+  ok pattern q3_K 1024x8x3 M=8
+  ok pattern q3_K 1024x8x3 M=9
+  ok pattern q3_K 1024x16x1 M=1
+  ok pattern q3_K 1024x16x1 M=2
+  ok pattern q3_K 1024x16x1 M=3
+  ok pattern q3_K 1024x16x1 M=4
+  ok pattern q3_K 1024x16x1 M=5
+  ok pattern q3_K 1024x16x1 M=8
+  ok pattern q3_K 1024x16x1 M=9
+  ok pattern q3_K 1024x16x3 M=1
+  ok pattern q3_K 1024x16x3 M=2
+  ok pattern q3_K 1024x16x3 M=3
+  ok pattern q3_K 1024x16x3 M=4
+  ok pattern q3_K 1024x16x3 M=5
+  ok pattern q3_K 1024x16x3 M=8
+  ok pattern q3_K 1024x16x3 M=9
+  ok pattern q3_K 1024x32x1 M=1
+  ok pattern q3_K 1024x32x1 M=2
+  ok pattern q3_K 1024x32x1 M=3
+  ok pattern q3_K 1024x32x1 M=4
+  ok pattern q3_K 1024x32x1 M=5
+  ok pattern q3_K 1024x32x1 M=8
+  ok pattern q3_K 1024x32x1 M=9
+  ok pattern q3_K 1024x32x3 M=1
+  ok pattern q3_K 1024x32x3 M=2
+  ok pattern q3_K 1024x32x3 M=3
+  ok pattern q3_K 1024x32x3 M=4
+  ok pattern q3_K 1024x32x3 M=5
+  ok pattern q3_K 1024x32x3 M=8
+  ok pattern q3_K 1024x32x3 M=9
+== ggml graph GEMM (neon+dotprod) ==
+  skip: host has no neon+dotprod (8x4 not selected)
+
+RESULT: PASS
+RC=0
+
+======== HOST test-repack-q23k-m4 ========
+
+M4 MUL_MAT_ID starting
+M4 host neon=0 dotprod=0
+== MUL_MAT_ID kernel vs expert-by-expert 2-D oracle ==
+  ok id modes distinct (repeated=n_as-1, unused sparse)
+  ok pattern q2_K nas=1 tok=1 used=1 random
+  ok pattern q2_K nas=1 tok=1 used=1 repeated
+  ok pattern q2_K nas=1 tok=1 used=1 unused
+  ok pattern q2_K nas=1 tok=2 used=1 random
+  ok pattern q2_K nas=1 tok=2 used=1 repeated
+  ok pattern q2_K nas=1 tok=2 used=1 unused
+  ok pattern q2_K nas=1 tok=7 used=1 random
+  ok pattern q2_K nas=1 tok=7 used=1 repeated
+  ok pattern q2_K nas=1 tok=7 used=1 unused
+  ok pattern q2_K nas=1 tok=16 used=1 random
+  ok pattern q2_K nas=1 tok=16 used=1 repeated
+  ok pattern q2_K nas=1 tok=16 used=1 unused
+  ok pattern q2_K nas=2 tok=1 used=2 random
+  ok pattern q2_K nas=2 tok=1 used=2 repeated
+  ok pattern q2_K nas=2 tok=1 used=2 unused
+  ok pattern q2_K nas=2 tok=2 used=2 random
+  ok pattern q2_K nas=2 tok=2 used=2 repeated
+  ok pattern q2_K nas=2 tok=2 used=2 unused
+  ok pattern q2_K nas=2 tok=7 used=2 random
+  ok pattern q2_K nas=2 tok=7 used=2 repeated
+  ok pattern q2_K nas=2 tok=7 used=2 unused
+  ok pattern q2_K nas=2 tok=16 used=2 random
+  ok pattern q2_K nas=2 tok=16 used=2 repeated
+  ok pattern q2_K nas=2 tok=16 used=2 unused
+  ok pattern q2_K nas=3 tok=1 used=2 random
+  ok pattern q2_K nas=3 tok=1 used=2 repeated
+  ok pattern q2_K nas=3 tok=1 used=2 unused
+  ok pattern q2_K nas=3 tok=2 used=2 random
+  ok pattern q2_K nas=3 tok=2 used=2 repeated
+  ok pattern q2_K nas=3 tok=2 used=2 unused
+  ok pattern q2_K nas=3 tok=7 used=2 random
+  ok pattern q2_K nas=3 tok=7 used=2 repeated
+  ok pattern q2_K nas=3 tok=7 used=2 unused
+  ok pattern q2_K nas=3 tok=16 used=2 random
+  ok pattern q2_K nas=3 tok=16 used=2 repeated
+  ok pattern q2_K nas=3 tok=16 used=2 unused
+  ok pattern q2_K nas=5 tok=1 used=2 random
+  ok pattern q2_K nas=5 tok=1 used=2 repeated
+  ok pattern q2_K nas=5 tok=1 used=2 unused
+  ok pattern q2_K nas=5 tok=2 used=2 random
+  ok pattern q2_K nas=5 tok=2 used=2 repeated
+  ok pattern q2_K nas=5 tok=2 used=2 unused
+  ok pattern q2_K nas=5 tok=7 used=2 random
+  ok pattern q2_K nas=5 tok=7 used=2 repeated
+  ok pattern q2_K nas=5 tok=7 used=2 unused
+  ok pattern q2_K nas=5 tok=16 used=2 random
+  ok pattern q2_K nas=5 tok=16 used=2 repeated
+  ok pattern q2_K nas=5 tok=16 used=2 unused
+  ok pattern q3_K nas=1 tok=1 used=1 random
+  ok pattern q3_K nas=1 tok=1 used=1 repeated
+  ok pattern q3_K nas=1 tok=1 used=1 unused
+  ok pattern q3_K nas=1 tok=2 used=1 random
+  ok pattern q3_K nas=1 tok=2 used=1 repeated
+  ok pattern q3_K nas=1 tok=2 used=1 unused
+  ok pattern q3_K nas=1 tok=7 used=1 random
+  ok pattern q3_K nas=1 tok=7 used=1 repeated
+  ok pattern q3_K nas=1 tok=7 used=1 unused
+  ok pattern q3_K nas=1 tok=16 used=1 random
+  ok pattern q3_K nas=1 tok=16 used=1 repeated
+  ok pattern q3_K nas=1 tok=16 used=1 unused
+  ok pattern q3_K nas=2 tok=1 used=2 random
+  ok pattern q3_K nas=2 tok=1 used=2 repeated
+  ok pattern q3_K nas=2 tok=1 used=2 unused
+  ok pattern q3_K nas=2 tok=2 used=2 random
+  ok pattern q3_K nas=2 tok=2 used=2 repeated
+  ok pattern q3_K nas=2 tok=2 used=2 unused
+  ok pattern q3_K nas=2 tok=7 used=2 random
+  ok pattern q3_K nas=2 tok=7 used=2 repeated
+  ok pattern q3_K nas=2 tok=7 used=2 unused
+  ok pattern q3_K nas=2 tok=16 used=2 random
+  ok pattern q3_K nas=2 tok=16 used=2 repeated
+  ok pattern q3_K nas=2 tok=16 used=2 unused
+  ok pattern q3_K nas=3 tok=1 used=2 random
+  ok pattern q3_K nas=3 tok=1 used=2 repeated
+  ok pattern q3_K nas=3 tok=1 used=2 unused
+  ok pattern q3_K nas=3 tok=2 used=2 random
+  ok pattern q3_K nas=3 tok=2 used=2 repeated
+  ok pattern q3_K nas=3 tok=2 used=2 unused
+  ok pattern q3_K nas=3 tok=7 used=2 random
+  ok pattern q3_K nas=3 tok=7 used=2 repeated
+  ok pattern q3_K nas=3 tok=7 used=2 unused
+  ok pattern q3_K nas=3 tok=16 used=2 random
+  ok pattern q3_K nas=3 tok=16 used=2 repeated
+  ok pattern q3_K nas=3 tok=16 used=2 unused
+  ok pattern q3_K nas=5 tok=1 used=2 random
+  ok pattern q3_K nas=5 tok=1 used=2 repeated
+  ok pattern q3_K nas=5 tok=1 used=2 unused
+  ok pattern q3_K nas=5 tok=2 used=2 random
+  ok pattern q3_K nas=5 tok=2 used=2 repeated
+  ok pattern q3_K nas=5 tok=2 used=2 unused
+  ok pattern q3_K nas=5 tok=7 used=2 random
+  ok pattern q3_K nas=5 tok=7 used=2 repeated
+  ok pattern q3_K nas=5 tok=7 used=2 unused
+  ok pattern q3_K nas=5 tok=16 used=2 random
+  ok pattern q3_K nas=5 tok=16 used=2 repeated
+  ok pattern q3_K nas=5 tok=16 used=2 unused
+== activation reuse (n_used_b=1, n_used=2) ==
+  ok bcast q2_K 512x16 nas=5 tok=7 used=2 used_b=1
+  ok bcast q3_K 512x16 nas=5 tok=7 used=2 used_b=1
+== ggml graph MUL_MAT_ID (neon+dotprod) ==
+  skip: host has no neon+dotprod (8x4 not selected)
+
+RESULT: PASS
+RC=0
+
+======== HOST test-repack-q23k-m5 ========
+
+M5 integration starting
+M5 host neon=0 dotprod=0 rss_kb=0
+== extra-path engagement (CPU_REPACK extra name) ==
+  skip: host has no neon+dotprod; 8x4 is not selected (x86 cannot A/B the v1 kernel)
+== Marco KEXP real tensors (read-only GGUF) ==
+  gguf C:/Users/gualt/Desktop/Kalsa/moe-experiments/models/Marco-Mini-Instruct-KEXP.gguf
+  Q2 gate blk.0.ffn_gate_exps.weight type=q2_K ne=[1024,768,256] native_bytes=66060288
+  alloc native_slice=258048 packed_stride=258048 n_as=8 rss_kb=0
+  ok marco Q2 gate expert0 GEMV
+  Q2 up blk.0.ffn_up_exps.weight type=q2_K ne=[1024,768,256] native_bytes=66060288
+  alloc native_slice=258048 packed_stride=258048 n_as=8 rss_kb=0
+  ok marco Q2 up expert0 GEMV
+  Q3 down blk.0.ffn_down_exps.weight type=q3_K ne=[768,1024,256] native_bytes=86507520
+  alloc native_slice=337920 packed_stride=350208 n_as=8 rss_kb=0
+  ok marco Q3 down expert0 GEMV
+== micro-bench GEMV/GEMM/ID (exploratory, not a cell) ==
+  plugged=unknown (adb harness, no battery protocol here)
+  shape k=256 n=64 n_as=3 reps=50
+  gemv_q2_8x4_us=27  id_3x_gemv_us=48  rss_kb=0
+  packed_bytes=16128 native_bytes=16128
+  graph timing skipped (no neon+dotprod)
+
+RESULT: PASS
+RC=0
+
+DONE host suite

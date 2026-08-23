@@ -1,0 +1,789 @@
+{
+  "source_dump": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q42-calaqwen-readability\\dump.json",
+  "gguf": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Qwen3.6-35B-A3B-KEXP.gguf",
+  "bytes_on_disk": 13416430592,
+  "n_tensors": 733,
+  "types": {
+    "Q4_K": 1,
+    "F32": 361,
+    "Q5_K": 181,
+    "Q3_K": 40,
+    "Q6_K": 70,
+    "Q2_K": 80
+  },
+  "roles": {
+    "trunk": {
+      "count": 72,
+      "bytes": 1169162240,
+      "types": {
+        "Q4_K": 1,
+        "Q5_K": 71
+      }
+    },
+    "other": {
+      "count": 541,
+      "bytes": 576113152,
+      "types": {
+        "F32": 361,
+        "Q5_K": 110,
+        "Q6_K": 70
+      }
+    },
+    "expert": {
+      "count": 120,
+      "bytes": 11660165120,
+      "types": {
+        "Q3_K": 40,
+        "Q2_K": 80
+      }
+    }
+  },
+  "meta": {
+    "general.architecture": "qwen35moe",
+    "qwen35moe.block_count": "40",
+    "qwen35moe.embedding_length": "2048",
+    "qwen35moe.expert_count": "256",
+    "qwen35moe.expert_used_count": "8",
+    "qwen35moe.expert_feed_forward_length": "512",
+    "qwen35moe.expert_shared_feed_forward_length": "512"
+  },
+  "vocab_from_embd": 248320,
+  "embd": 2048,
+  "experts": {
+    "n": 120,
+    "bytes": 11660165120,
+    "share": 0.8690959223500748,
+    "types": {
+      "Q3_K": 40,
+      "Q2_K": 80
+    },
+    "geometries": {
+      "('ffn_down_exps.weight', 'Q3_K', (512, 2048, 256))": 40,
+      "('ffn_gate_exps.weight', 'Q2_K', (2048, 512, 256))": 40,
+      "('ffn_up_exps.weight', 'Q2_K', (2048, 512, 256))": 40
+    },
+    "fail_n": 0,
+    "fail_bytes": 0,
+    "fail_share_of_expert_bytes": 0.0,
+    "fail_tensors": [],
+    "n_layers_with_experts": 40,
+    "layers_missing_experts": [],
+    "expert_layout_unique": true,
+    "first_last": {
+      "0": [
+        {
+          "name": "blk.0.ffn_down_exps.weight",
+          "type": "Q3_K",
+          "shape": [
+            512,
+            2048,
+            256
+          ]
+        },
+        {
+          "name": "blk.0.ffn_gate_exps.weight",
+          "type": "Q2_K",
+          "shape": [
+            2048,
+            512,
+            256
+          ]
+        },
+        {
+          "name": "blk.0.ffn_up_exps.weight",
+          "type": "Q2_K",
+          "shape": [
+            2048,
+            512,
+            256
+          ]
+        }
+      ],
+      "39": [
+        {
+          "name": "blk.39.ffn_down_exps.weight",
+          "type": "Q3_K",
+          "shape": [
+            512,
+            2048,
+            256
+          ]
+        },
+        {
+          "name": "blk.39.ffn_gate_exps.weight",
+          "type": "Q2_K",
+          "shape": [
+            2048,
+            512,
+            256
+          ]
+        },
+        {
+          "name": "blk.39.ffn_up_exps.weight",
+          "type": "Q2_K",
+          "shape": [
+            2048,
+            512,
+            256
+          ]
+        }
+      ]
+    }
+  },
+  "hybrid": {
+    "gdn_layers": [
+      0,
+      1,
+      2,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      12,
+      13,
+      14,
+      16,
+      17,
+      18,
+      20,
+      21,
+      22,
+      24,
+      25,
+      26,
+      28,
+      29,
+      30,
+      32,
+      33,
+      34,
+      36,
+      37,
+      38
+    ],
+    "full_attn_layers": [
+      3,
+      7,
+      11,
+      15,
+      19,
+      23,
+      27,
+      31,
+      35,
+      39
+    ],
+    "n_gdn": 30,
+    "n_full_attn": 10
+  },
+  "recipe_fail": [],
+  "attn_classes": {
+    "output.weight": {
+      "n": 1,
+      "bytes": 286064640,
+      "type": "Q4_K",
+      "shape": [
+        2048,
+        248320
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "FAIL_DIM",
+      "ne0_mod32": 0,
+      "ne1": 248320
+    },
+    "token_embd.weight": {
+      "n": 1,
+      "bytes": 349634560,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        248320
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "FAIL_DIM",
+      "ne0_mod32": 0,
+      "ne1": 248320
+    },
+    "attn_gate.weight": {
+      "n": 30,
+      "bytes": 173015040,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        4096
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0_mod32": 0,
+      "ne1": 4096
+    },
+    "attn_qkv.weight": {
+      "n": 30,
+      "bytes": 346030080,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        8192
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0_mod32": 0,
+      "ne1": 8192
+    },
+    "attn_k.weight": {
+      "n": 10,
+      "bytes": 7208960,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        512
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0_mod32": 0,
+      "ne1": 512
+    },
+    "attn_output.weight": {
+      "n": 10,
+      "bytes": 57671680,
+      "type": "Q5_K",
+      "shape": [
+        4096,
+        2048
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0_mod32": 0,
+      "ne1": 2048
+    },
+    "attn_q.weight": {
+      "n": 10,
+      "bytes": 115343360,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        8192
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0_mod32": 0,
+      "ne1": 8192
+    },
+    "attn_v.weight": {
+      "n": 10,
+      "bytes": 7208960,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        512
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0_mod32": 0,
+      "ne1": 512
+    }
+  },
+  "extra_trunk": {
+    "ffn_down_shexp.weight": {
+      "n": 40,
+      "bytes": 34406400,
+      "type": "Q6_K",
+      "shape": [
+        512,
+        2048
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    "ffn_gate_shexp.weight": {
+      "n": 40,
+      "bytes": 28835840,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        512
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    "ffn_up_shexp.weight": {
+      "n": 40,
+      "bytes": 28835840,
+      "type": "Q5_K",
+      "shape": [
+        2048,
+        512
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    "ssm_out.weight": {
+      "n": 30,
+      "bytes": 206438400,
+      "type": "Q6_K",
+      "shape": [
+        4096,
+        2048
+      ],
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    }
+  },
+  "class_table": [
+    {
+      "class": "attn_gate.weight",
+      "n": 30,
+      "types": {
+        "Q5_K": 30
+      },
+      "shapes": {
+        "[2048, 4096]": 30
+      },
+      "nbytes": 173015040,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_k.weight",
+      "n": 10,
+      "types": {
+        "Q5_K": 10
+      },
+      "shapes": {
+        "[2048, 512]": 10
+      },
+      "nbytes": 7208960,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_k_norm.weight",
+      "n": 10,
+      "types": {
+        "F32": 10
+      },
+      "shapes": {
+        "[256]": 10
+      },
+      "nbytes": 10240,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_norm.weight",
+      "n": 40,
+      "types": {
+        "F32": 40
+      },
+      "shapes": {
+        "[2048]": 40
+      },
+      "nbytes": 327680,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_output.weight",
+      "n": 10,
+      "types": {
+        "Q5_K": 10
+      },
+      "shapes": {
+        "[4096, 2048]": 10
+      },
+      "nbytes": 57671680,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_q.weight",
+      "n": 10,
+      "types": {
+        "Q5_K": 10
+      },
+      "shapes": {
+        "[2048, 8192]": 10
+      },
+      "nbytes": 115343360,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_q_norm.weight",
+      "n": 10,
+      "types": {
+        "F32": 10
+      },
+      "shapes": {
+        "[256]": 10
+      },
+      "nbytes": 10240,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_qkv.weight",
+      "n": 30,
+      "types": {
+        "Q5_K": 30
+      },
+      "shapes": {
+        "[2048, 8192]": 30
+      },
+      "nbytes": 346030080,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "attn_v.weight",
+      "n": 10,
+      "types": {
+        "Q5_K": 10
+      },
+      "shapes": {
+        "[2048, 512]": 10
+      },
+      "nbytes": 7208960,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ffn_down_exps.weight",
+      "n": 40,
+      "types": {
+        "Q3_K": 40
+      },
+      "shapes": {
+        "[512, 2048, 256]": 40
+      },
+      "nbytes": 4613734400,
+      "dump_role": "expert",
+      "repack_gate": "PASS",
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0": 512,
+      "ne1": 2048,
+      "n_exp": 256,
+      "ne0_mod256": 0,
+      "ne1_mod8": 0
+    },
+    {
+      "class": "ffn_down_shexp.weight",
+      "n": 40,
+      "types": {
+        "Q6_K": 40
+      },
+      "shapes": {
+        "[512, 2048]": 40
+      },
+      "nbytes": 34406400,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ffn_gate_exps.weight",
+      "n": 40,
+      "types": {
+        "Q2_K": 40
+      },
+      "shapes": {
+        "[2048, 512, 256]": 40
+      },
+      "nbytes": 3523215360,
+      "dump_role": "expert",
+      "repack_gate": "PASS",
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0": 2048,
+      "ne1": 512,
+      "n_exp": 256,
+      "ne0_mod256": 0,
+      "ne1_mod8": 0
+    },
+    {
+      "class": "ffn_gate_inp.weight",
+      "n": 40,
+      "types": {
+        "F32": 40
+      },
+      "shapes": {
+        "[2048, 256]": 40
+      },
+      "nbytes": 83886080,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ffn_gate_inp_shexp.weight",
+      "n": 40,
+      "types": {
+        "F32": 40
+      },
+      "shapes": {
+        "[2048]": 40
+      },
+      "nbytes": 327680,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ffn_gate_shexp.weight",
+      "n": 40,
+      "types": {
+        "Q5_K": 40
+      },
+      "shapes": {
+        "[2048, 512]": 40
+      },
+      "nbytes": 28835840,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ffn_up_exps.weight",
+      "n": 40,
+      "types": {
+        "Q2_K": 40
+      },
+      "shapes": {
+        "[2048, 512, 256]": 40
+      },
+      "nbytes": 3523215360,
+      "dump_role": "expert",
+      "repack_gate": "PASS",
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS",
+      "ne0": 2048,
+      "ne1": 512,
+      "n_exp": 256,
+      "ne0_mod256": 0,
+      "ne1_mod8": 0
+    },
+    {
+      "class": "ffn_up_shexp.weight",
+      "n": 40,
+      "types": {
+        "Q5_K": 40
+      },
+      "shapes": {
+        "[2048, 512]": 40
+      },
+      "nbytes": 28835840,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "output.weight",
+      "n": 1,
+      "types": {
+        "Q4_K": 1
+      },
+      "shapes": {
+        "[2048, 248320]": 1
+      },
+      "nbytes": 286064640,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "FAIL_DIM"
+    },
+    {
+      "class": "output_norm.weight",
+      "n": 1,
+      "types": {
+        "F32": 1
+      },
+      "shapes": {
+        "[2048]": 1
+      },
+      "nbytes": 8192,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "post_attention_norm.weight",
+      "n": 40,
+      "types": {
+        "F32": 40
+      },
+      "shapes": {
+        "[2048]": 40
+      },
+      "nbytes": 327680,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ssm_a",
+      "n": 30,
+      "types": {
+        "F32": 30
+      },
+      "shapes": {
+        "[32]": 30
+      },
+      "nbytes": 3840,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ssm_alpha.weight",
+      "n": 30,
+      "types": {
+        "F32": 30
+      },
+      "shapes": {
+        "[2048, 32]": 30
+      },
+      "nbytes": 7864320,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ssm_beta.weight",
+      "n": 30,
+      "types": {
+        "F32": 30
+      },
+      "shapes": {
+        "[2048, 32]": 30
+      },
+      "nbytes": 7864320,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ssm_conv1d.weight",
+      "n": 30,
+      "types": {
+        "F32": 30
+      },
+      "shapes": {
+        "[4, 8192]": 30
+      },
+      "nbytes": 3932160,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "FAIL_ALIGN"
+    },
+    {
+      "class": "ssm_dt.bias",
+      "n": 30,
+      "types": {
+        "F32": 30
+      },
+      "shapes": {
+        "[32]": 30
+      },
+      "nbytes": 3840,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ssm_norm.weight",
+      "n": 30,
+      "types": {
+        "F32": 30
+      },
+      "shapes": {
+        "[128]": 30
+      },
+      "nbytes": 15360,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "PASS_F32",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "ssm_out.weight",
+      "n": 30,
+      "types": {
+        "Q6_K": 30
+      },
+      "shapes": {
+        "[4096, 2048]": 30
+      },
+      "nbytes": 206438400,
+      "dump_role": "other",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "PASS"
+    },
+    {
+      "class": "token_embd.weight",
+      "n": 1,
+      "types": {
+        "Q5_K": 1
+      },
+      "shapes": {
+        "[2048, 248320]": 1
+      },
+      "nbytes": 349634560,
+      "dump_role": "trunk",
+      "repack_gate": null,
+      "npu_now": "FAIL_TYPE",
+      "npu_iq4_nl": "FAIL_DIM"
+    }
+  ],
+  "lm_head": {
+    "name": "output.weight",
+    "type": "Q4_K",
+    "shape": [
+      2048,
+      248320
+    ],
+    "nbytes": 286064640
+  },
+  "token_embd": {
+    "name": "token_embd.weight",
+    "type": "Q5_K",
+    "shape": [
+      2048,
+      248320
+    ],
+    "nbytes": 349634560
+  }
+}

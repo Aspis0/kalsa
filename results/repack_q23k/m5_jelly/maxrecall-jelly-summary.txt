@@ -1,0 +1,61 @@
+JELLY maxrecall 2026-08-23T16:52:51.4784368-04:00
+
+==== test-repack-q23k-m0 ====
+== extra lifecycle ==
+  Q2_K extra0=Q2_K_8x4 reinit/restore/reset+init clean
+  Q3_K extra0=Q3_K_8x4 reinit/restore/reset+init clean
+
+== supports_op 8x4 decline ==
+
+RESULT: 2 FAIL
+RC=1
+
+==== test-repack-q23k-m1 ====
+  q2_K seed=0x00c0ffee 36/36 shapes bit-identical
+  q2_K seed=0xdeadbeef 36/36 shapes bit-identical
+  q3_K seed=0x00000001 36/36 shapes bit-identical
+  q3_K seed=0x00c0ffee 36/36 shapes bit-identical
+  q3_K seed=0xdeadbeef 36/36 shapes bit-identical
+
+RESULT: PASS
+RC=0
+
+==== test-repack-q23k-m2 ====
+  ok helper: nullptr extra is not q23k
+  ok abort on declined F16-RHS MUL_MAT_ID: C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-repack-q23k/ggml/src/ggml-cpu/traits.cpp:26: q23k_8x4 extra declined op=MUL_MAT_ID; refusing native fallthrough on tiled layout
+== batched 3-D src1 on 2-D q23k MUL_MAT must decline ==
+  ok supports_op false for 2-D q23k x batched src1
+  ok abort on batched src1 MUL_MAT: C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-repack-q23k/ggml/src/ggml-cpu/traits.cpp:26: q23k_8x4 extra declined op=MUL_MAT; refusing native fallthrough on tiled layout
+
+RESULT: PASS
+RC=0
+
+==== test-repack-q23k-m3 ====
+  ok q2_K threads 1/2/4/8 bit-identical
+  ok q3_K threads 1/2/4/8 bit-identical
+== #19561-style stack stress M=33 N=64 K=512 ==
+  ok stress q2_K 512x64 M=33
+  ok stress q3_K 512x64 M=33
+
+RESULT: PASS
+RC=0
+
+==== test-repack-q23k-m4 ====
+  ok q2_K threads 1/2/4/8 bit-identical
+  ok q3_K threads 1/2/4/8 bit-identical
+== supports_op negatives ==
+  ok supports_op false for F16 RHS
+  ok supports_op true for F32 3-D MUL_MAT_ID
+
+RESULT: PASS
+RC=0
+
+==== test-repack-q23k-m5 ====
+  gemv_q2_8x4_us=3  id_3x_gemv_us=11  rss_kb=5900
+  packed_bytes=16128 native_bytes=16128
+  (a) kernel-compute-only native_us=3 repack_us=5
+  (b) one-time packing_us=43 (set_tensor on CPU_REPACK, n=64 k=256)
+  (c) repack is not faster per call at this shape; value is residency only
+
+RESULT: PASS
+RC=0
