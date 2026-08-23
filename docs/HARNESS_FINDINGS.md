@@ -1815,7 +1815,7 @@ the sysprobe on 2026-08-23, after arm C had already run — so the two runs cann
 the same SoC region, let alone corrected to it. The cold arm D ran 45 → 34 %. Nothing here speaks to quality, where §7.38 puts the 2.6B ahead on
 language adherence.
 
-### 7.45 MECHANISM 2026-08-23: the KEXP was never too big — it was EVICTABLE. `use_mmap=false` turns 0.41 tok/s into 15.7, while taking 2.3x MORE major faults
+### 7.45 MECHANISM 2026-08-23: the KEXP was never too big — it was EVICTABLE. `use_mmap=false` turns a collapsed arm into a steady one, while taking 2.3x more major faults (see §7.47-§7.49 for the two-phone control and the corrections this section needed)
 
 The engine team asked for a `use_mlock=true` A/B. **It is not runnable on this hardware, and it would
 have looked like a run.** `/proc/<pid>/limits` on the retail S23 reports `Max locked memory
