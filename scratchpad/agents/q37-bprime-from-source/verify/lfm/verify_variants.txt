@@ -1,0 +1,23 @@
+model=lfm
+control bytes=3326160384 types={'Q5_K': 47, 'F32': 123, 'Q6_K': 20, 'Q3_K': 22, 'Q2_K': 44}
+control trunk_bytes=505577472 share=0.1520
+control expert_bytes=2805727232
+control expert_sha256=00ef935a4653e9e5086f8ff6d806ad7bae7b89f0148f95834c995df92198a946
+
+== q8_0 ok=True ==
+  disk=3580407296 delta=254246912 (7.644%)
+  trunk=759824384 share=0.2122 trunk_delta=254246912
+  types={'Q8_0': 67, 'F32': 123, 'Q3_K': 22, 'Q2_K': 44}
+  expert_sha_match=True
+
+== iq4_nl ok=True ==
+  disk=3222842880 delta=-103317504 (-3.106%)
+  trunk=402259968 share=0.1248 trunk_delta=-103317504
+  types={'IQ4_NL': 67, 'F32': 123, 'Q3_K': 22, 'Q2_K': 44}
+  expert_sha_match=True
+
+== q4_0 ok=True ==
+  disk=3222842880 delta=-103317504 (-3.106%)
+  trunk=402259968 share=0.1248 trunk_delta=-103317504
+  types={'Q4_0': 67, 'F32': 123, 'Q3_K': 22, 'Q2_K': 44}
+  expert_sha_match=True

@@ -1,0 +1,14 @@
+Ciao collega,
+
+Spero che questo messaggio ti abbia dato l'onore di essere il testanteci dell'app di chat on-device di Samsung S23. Ti scrivo in modo professionale ma diretto, perché ti chiedo di testare un modello MOE quantizzato a circa 2.4 bit per peso, con una velocità attesa intorno a 5 token al secondo, e che lo schermo dovrebbe rimanere acceso per mantenere il processo in foreground.
+
+Per annotare alcune informazioni importanti, ti invito a notare la seguente riga:
+
+* Temperatura: attualmente la temperatura del dispositivo è di circa 35°C
+* Batteria: attualmente la batteria è di circa 80% di capacità
+* Tok/s: attualmente lo schermo resta acceso a circa 10 token al secondo
+
+Ti invito a testare l'app con attenzione, e a fornirti i feedback necessari per migliorare l'esperienza dell'utente. Grazie per l'onore di essere il testanteci dell'app di chat on-device di Samsung S23.
+
+Saluti,
+[Il tuo nome]

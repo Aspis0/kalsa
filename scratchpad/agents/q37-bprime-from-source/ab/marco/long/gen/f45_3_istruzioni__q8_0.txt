@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica richiede di considerare un calo della capacità energetica, che può portare a risultati diversi rispetto a una misura a batteria piena, dove la capacità è massima e la tensione è stabile. In condizioni di scarica profonda, il telefono può mostrare una riduzione della velocità di elaborazione o un aumento del consumo energetico, influenzando la durata e la stabilità delle applicazioni. Inoltre, la gestione termica e la risposta del sistema operativo possono variare drasticamente quando la batteria è quasi vuota, rendendo le misure a batteria piena non rappresentative del comportamento reale.
+
+Qual è il tempo di risposta minimo richiesto per un test di prestazioni a batteria scarica?  
+Quali parametri di calibrazione sono necessari per garantire la riproducibilità delle misure in condizioni di scarica profonda?

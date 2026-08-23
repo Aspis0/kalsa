@@ -1,0 +1,3037 @@
+{
+  "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-iq4_nl.gguf",
+  "summary": {
+    "attn_n": 112,
+    "attn_pass": 112,
+    "attn_fail_type": 0,
+    "attn_fail_other": 0,
+    "embed_head": [
+      {
+        "name": "token_embd.weight",
+        "type": "IQ4_NL",
+        "shape": [
+          1024,
+          151936
+        ],
+        "ne0": 1024,
+        "ne1": 151936,
+        "kind": "embed_or_head",
+        "predicate": "FAIL_DIM",
+        "note": "ne[1]=151936 > 32768 (lm-head cap); GET_ROWS is F32-only so embed lookup on HTP is FAIL_TYPE regardless"
+      }
+    ],
+    "shortconv_n": 0,
+    "shortconv_pass": 0
+  },
+  "rows": [
+    {
+      "name": "token_embd.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        151936
+      ],
+      "ne0": 1024,
+      "ne1": 151936,
+      "kind": "embed_or_head",
+      "predicate": "FAIL_DIM",
+      "note": "ne[1]=151936 > 32768 (lm-head cap); GET_ROWS is F32-only so embed lookup on HTP is FAIL_TYPE regardless"
+    },
+    {
+      "name": "blk.0.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.0.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.0.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.0.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.0.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.0.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.0.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.0.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.1.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.1.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.1.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.1.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.1.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.1.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.1.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.1.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.2.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.2.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.2.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.2.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.2.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.2.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.2.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.2.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.3.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.3.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.3.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.3.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.3.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.3.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.3.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.3.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.4.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.4.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.4.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.4.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.4.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.4.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.4.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.4.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.5.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.5.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.5.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.5.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.5.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.5.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.5.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.5.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.6.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.6.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.6.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.6.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.6.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.6.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.6.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.6.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.7.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.7.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.7.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.7.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.7.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.7.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.7.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.7.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.8.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.8.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.8.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.8.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.8.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.8.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.8.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.8.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.9.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.9.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.9.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.9.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.9.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.9.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.9.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.9.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.10.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.10.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.10.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.10.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.10.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.10.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.10.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.10.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.11.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.11.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.11.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.11.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.11.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.11.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.11.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.11.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.12.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.12.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.12.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.12.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.12.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.12.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.12.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.12.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.13.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.13.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.13.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.13.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.13.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.13.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.13.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.13.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.14.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.14.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.14.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.14.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.14.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.14.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.14.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.14.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.15.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.15.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.15.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.15.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.15.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.15.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.15.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.15.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.16.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.16.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.16.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.16.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.16.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.16.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.16.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.16.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.17.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.17.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.17.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.17.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.17.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.17.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.17.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.17.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.18.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.18.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.18.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.18.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.18.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.18.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.18.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.18.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.19.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.19.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.19.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.19.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.19.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.19.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.19.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.19.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.20.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.20.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.20.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.20.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.20.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.20.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.20.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.20.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.21.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.21.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.21.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.21.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.21.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.21.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.21.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.21.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.22.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.22.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.22.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.22.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.22.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.22.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.22.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.22.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.23.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.23.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.23.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.23.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.23.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.23.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.23.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.23.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.24.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.24.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.24.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.24.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.24.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.24.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.24.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.24.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.25.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.25.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.25.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.25.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.25.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.25.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.25.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.25.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.26.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.26.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.26.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.26.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.26.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.26.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.26.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.26.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.27.attn_k.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.27.attn_output.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        2048,
+        1024
+      ],
+      "ne0": 2048,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.27.attn_q.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        2048
+      ],
+      "ne0": 1024,
+      "ne1": 2048,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.27.attn_v.weight",
+      "type": "IQ4_NL",
+      "shape": [
+        1024,
+        1024
+      ],
+      "ne0": 1024,
+      "ne1": 1024,
+      "kind": "attn",
+      "predicate": "PASS",
+      "note": "quantized MUL_MAT predicates hold (desk, nseq=1 assumed)"
+    },
+    {
+      "name": "blk.27.ffn_down_exps.weight",
+      "type": "Q3_K",
+      "shape": [
+        768,
+        1024,
+        256
+      ],
+      "ne0": 768,
+      "ne1": 1024,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q3_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.27.ffn_gate_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    },
+    {
+      "name": "blk.27.ffn_gate_inp.weight",
+      "type": "F32",
+      "shape": [
+        1024,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 256,
+      "kind": "router",
+      "predicate": "PASS_F32",
+      "note": "F32/F16 path (not the quantized switch)"
+    },
+    {
+      "name": "blk.27.ffn_up_exps.weight",
+      "type": "Q2_K",
+      "shape": [
+        1024,
+        768,
+        256
+      ],
+      "ne0": 1024,
+      "ne1": 768,
+      "kind": "expert",
+      "predicate": "FAIL_TYPE",
+      "note": "Q2_K not in Q4_0/Q4_1/Q8_0/IQ4_NL/MXFP4"
+    }
+  ]
+}

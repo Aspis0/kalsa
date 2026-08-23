@@ -1,0 +1,23 @@
+model=olmoe
+control bytes=2668941792 types={'Q5_K': 66, 'F32': 81, 'Q3_K': 16, 'Q2_K': 32}
+control trunk_bytes=326205440 share=0.1222
+control expert_bytes=2332033024
+control expert_sha256=5109661dfa5e849ae6a3ea754a1543f5ce09d6450b1fa372241852b8f0cf527a
+
+== q8_0 ok=True ==
+  disk=2846872032 delta=177930240 (6.667%)
+  trunk=504135680 share=0.1771 trunk_delta=177930240
+  types={'Q8_0': 66, 'F32': 81, 'Q3_K': 16, 'Q2_K': 32}
+  expert_sha_match=True
+
+== iq4_nl ok=True ==
+  disk=2609631712 delta=-59310080 (-2.222%)
+  trunk=266895360 share=0.1023 trunk_delta=-59310080
+  types={'IQ4_NL': 66, 'F32': 81, 'Q3_K': 16, 'Q2_K': 32}
+  expert_sha_match=True
+
+== q4_0 ok=True ==
+  disk=2609631712 delta=-59310080 (-2.222%)
+  trunk=266895360 share=0.1023 trunk_delta=-59310080
+  types={'Q4_0': 66, 'F32': 81, 'Q3_K': 16, 'Q2_K': 32}
+  expert_sha_match=True

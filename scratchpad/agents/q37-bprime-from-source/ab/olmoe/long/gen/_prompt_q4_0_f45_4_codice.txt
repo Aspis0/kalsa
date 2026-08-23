@@ -1,0 +1,4 @@
+You are a careful coding assistant. Prefer small, correct programs over clever ones.
+
+Task:
+Write a single-file Python 3 function (no classes) named `median_eval_tok_s(rows)` that takes a list of dicts, each with keys "eval_tok_s" (float or None) and "nproc" (int or None), and returns the median of eval_tok_s for rows where nproc is not None and nproc >= 6. Ignore rows with missing eval_tok_s. If fewer than 1 valid value remains, return None. Include a 4-line usage example under `if __name__ == "__main__":`. No markdown fences.

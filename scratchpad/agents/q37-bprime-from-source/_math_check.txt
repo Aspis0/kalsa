@@ -1,0 +1,7 @@
+marco q8_delta=124403712 pct=1.948 iq_delta=-41467904 pct=-0.649 trunk_share=3.57 iq_eq_q4=True
+olmoe q8_delta=177930240 pct=6.667 iq_delta=-59310080 pct=-2.222 trunk_share=12.22 iq_eq_q4=True
+lfm q8_delta=254246912 pct=7.644 iq_delta=-103317504 pct=-3.106 trunk_share=15.20 iq_eq_q4=True
+marco_vs_shipped=64
+lfm_vs_shipped=0
+marco_q8_vs_q36=64
+marco_iq_vs_q36=64

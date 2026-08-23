@@ -1,0 +1,33 @@
+
+
+Loading model... 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b9967-e5605f3bd
+model      : C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\gguf\olmoe\OLMoE-1B-7B-0924-Instruct-KEXP-fromsrc-trunk-control.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Chi ha vinto il Gran Premio di Formula 1 di Spa nel 2000?
+Il Gran Premio di Formula 1 di Spa nel 2000 è stato vinto dal pilota britannico Michael Schumacher, che guidò il suo team Ferrari alla victoria. Schumacher ha vinto l'incarico più volte alla FIA Formula 1 World Championship, ma questo è stato
+
+[ Prompt: 20.5 t/s | Generation: 27.5 t/s ]
+
+
+Exiting...

@@ -1,0 +1,94 @@
+{
+  "model": "marco",
+  "baseline": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-control.gguf",
+    "bytes_on_disk": 6385238912,
+    "n_tensors": 338,
+    "types": {
+      "F32": 141,
+      "Q5_K": 113,
+      "Q3_K": 28,
+      "Q2_K": 56
+    },
+    "trunk_bytes": 228073472,
+    "expert_bytes": 6121586688,
+    "other_bytes": 29622272,
+    "trunk_share": 0.035718862699306936,
+    "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d"
+  },
+  "variants": {
+    "q8_0": {
+      "ok": true,
+      "bytes_on_disk": 6509642624,
+      "delta_vs_control": 124403712,
+      "delta_pct": 1.9483016017803783,
+      "trunk_bytes": 352477184,
+      "trunk_share": 0.054146933151210726,
+      "trunk_delta": 124403712,
+      "expert_bytes": 6121586688,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "expert_sha_match": true,
+      "types": {
+        "F32": 141,
+        "Q8_0": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "missing": [],
+      "extra": [],
+      "expert_type_mismatch": [],
+      "expert_nbytes_mismatch": [],
+      "trunk_type_bad": [],
+      "leftover_kquant_on_trunk": []
+    },
+    "iq4_nl": {
+      "ok": true,
+      "bytes_on_disk": 6343771008,
+      "delta_vs_control": -41467904,
+      "delta_pct": -0.6494338672601261,
+      "trunk_bytes": 186605568,
+      "trunk_share": 0.029415558626671032,
+      "trunk_delta": -41467904,
+      "expert_bytes": 6121586688,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "expert_sha_match": true,
+      "types": {
+        "F32": 141,
+        "IQ4_NL": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "missing": [],
+      "extra": [],
+      "expert_type_mismatch": [],
+      "expert_nbytes_mismatch": [],
+      "trunk_type_bad": [],
+      "leftover_kquant_on_trunk": []
+    },
+    "q4_0": {
+      "ok": true,
+      "bytes_on_disk": 6343771008,
+      "delta_vs_control": -41467904,
+      "delta_pct": -0.6494338672601261,
+      "trunk_bytes": 186605568,
+      "trunk_share": 0.029415558626671032,
+      "trunk_delta": -41467904,
+      "expert_bytes": 6121586688,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "expert_sha_match": true,
+      "types": {
+        "F32": 141,
+        "Q4_0": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "missing": [],
+      "extra": [],
+      "expert_type_mismatch": [],
+      "expert_nbytes_mismatch": [],
+      "trunk_type_bad": [],
+      "leftover_kquant_on_trunk": []
+    }
+  },
+  "all_ok": true
+}

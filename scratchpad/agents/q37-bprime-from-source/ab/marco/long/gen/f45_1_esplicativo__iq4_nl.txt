@@ -1,0 +1,5 @@
+Un modello Mixture-of-Experts (MoE) è composto da molti "esperti" (sottoreti) che gestiscono parti diverse del linguaggio. Solo alcuni esperti sono attivi per ogni token, riducendo il numero di parametri attivi (es. 3B su 35B totali). Questo rende il modello molto più efficiente in memoria e calcolo, specialmente su dispositivi con pochi GB di RAM.  
+
+Su uno smartphone da 8 GB, un modello denso da 7B richiede 7 GB di memoria, lasciando poco spazio per altri processi. Un MoE da 35B con solo 3B attivi usa solo 3 GB per la parte attiva, lasciando 5 GB per il sistema e altre app.  
+
+Il routing degli esperti (tramite un “gate” che sceglie gli esperti attivi) è leggero e veloce. Inoltre, lo streaming da Flash (memoria a lungo termine) permette di caricare solo gli esperti necessari per ogni token, evitando di caricare l’intero modello. Questo rende il MoE pratico su smartphone, dove la memoria è limitata, pur mantenendo alta precisione.

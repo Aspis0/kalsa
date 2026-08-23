@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica richiede di considerare un comportamento diverso rispetto alla batteria piena, poiché la tensione e la capacità residua influenzano direttamente l'efficienza dei componenti e la risposta del sistema. A batteria scarica, il telefono tende a ridurre il consumo energetico per preservare la carica, il che può portare a un'esperienza utente più lenta o meno reattiva, a differenza della batteria piena dove l'energia è disponibile in abbondanza. Inoltre, la temperatura e la stabilità della batteria diventano fattori critici, rendendo la misura a batteria scarica più sensibile a variazioni di stato di carica e a fattori ambientali.
+
+Qual è l'effetto della temperatura sulla stabilità della batteria durante la misura a batteria scarica?  
+Come si può garantire la ripetibilità delle misure quando si confrontano risultati a batteria piena e scarica?

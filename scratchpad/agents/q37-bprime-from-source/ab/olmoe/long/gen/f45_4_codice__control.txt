@@ -1,0 +1,32 @@
+Here's the single-file Python 3 function `median_eval_tok_s` that fulfills the given requirements:
+
+```python
+import statistics
+
+def median_eval_tok_s(rows):
+    valid_rows = [row for row in rows if "eval_tok_s" in row and row["nproc"] is not None and row["nproc"] >= 6]
+    if not valid_rows:
+        return None
+    
+    eval_tok_s_count = [row["eval_tok_s"] for row in valid_rows]
+    if len(eval_tok_s_count) < 1:
+        return None
+    
+    return statistics.median(eval_tok_s_count)
+
+if __name__ == "__main__":
+    # Example usage
+    rows = [
+        {"eval_tok_s": 1.5, "nproc": None},
+        {"eval_tok_s": None, "nproc": None},
+        {"eval_tok_s": 2.5, "nproc": 5},
+        {"eval_tok_s": None, "nproc": None},
+        {"eval_tok_s": 3.5, "nproc": 6},
+        {"eval_tok_s": None, "nproc": None},
+    ]
+    
+    median_eval_tok_s_value = median_eval_tok_s(rows)
+    print(f"Median eval_tok_s: {median_eval_tok_s_value}")
+```
+
+This function first filters out rows with missing `eval_tok_s` or `nproc` values, and then calculates the median of the remaining `eval_tok_s` values. If no valid rows remain, the function returns `None`. The usage example demonstrates how to use the function with a list of dictionaries.

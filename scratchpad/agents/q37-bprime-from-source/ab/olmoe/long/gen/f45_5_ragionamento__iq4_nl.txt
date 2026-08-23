@@ -1,0 +1,10 @@
+Problema: su un telefono, un benchmark MoE ha dato 5.0 tok/s con 8 core disponibili e 1.2 tok/s in un run successivo. Quale spiegazione è più plausibile tra: (A) throttle termico della CPU, (B) il processo è finito in un cpuset con solo 3 core little, o (C) la quantizzazione del modello è cambiata?
+
+Opzione A:
+La opzione A è più plausibile rispetto alle altre opzioni poiché il benchmark MoE dimostra che l'CPU è in grado di raggiungere il rendimento massimo. In questo caso, il throttle termico della CPU sembra essere l'esclusivo fattore responsabile della riduzione del rendimento.
+
+Controllo:
+Per verificare se il throttle termico della CPU è l'unica causa del cambiamento del rendimento, è possibile leggere il file di sistema "dietilammonio" (in Linux) o "registro di sistema" (in Windows) per raccertare l'impedenza del processo. Inoltre, è possibile eseguire un benchmark più rigoroso, ad esempio un benchmark di stress CPU, in modo da verificare se il rendimento è rimasto oggi stesso.
+
+Esempio di controllo:
+Per verificare se il throttle termico della CPU è l'unica causa del cambiamento del rendimento, è possibile leggere il file di sistema "dietilammonio" (in Linux) o "registro di sistema" (in Windows) per raccertare l'impedenza del processo. Inoltre, è possibile eseguire un benchmark più rigoroso, ad esempio

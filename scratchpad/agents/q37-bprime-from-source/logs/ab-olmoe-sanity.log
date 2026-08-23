@@ -1,0 +1,10 @@
+[2026-08-23T14:18:45-0400] q37 A/B model=olmoe suite=sanity tags=['control', 'q8_0', 'iq4_nl', 'q4_0'] ngen=300 k=8 drop=0.0
+[2026-08-23T14:18:45-0400] START olmoe/control file=OLMoE-1B-7B-0924-Instruct-KEXP-fromsrc-trunk-control.gguf n=4 ngen=300
+[2026-08-23T14:18:45-0400]   ERROR q1_f1_spa2000/control: no MoE recipe for architecture 'olmoe' — add one in core/src/moe/arch_registry.cpp (see docs/adding-a-model.md)
+[2026-08-23T14:18:45-0400] START olmoe/q8_0 file=OLMoE-1B-7B-0924-Instruct-KEXP-fromsrc-trunk-q8_0.gguf n=4 ngen=300
+[2026-08-23T14:18:45-0400]   ERROR q1_f1_spa2000/q8_0: no MoE recipe for architecture 'olmoe' — add one in core/src/moe/arch_registry.cpp (see docs/adding-a-model.md)
+[2026-08-23T14:18:45-0400] START olmoe/iq4_nl file=OLMoE-1B-7B-0924-Instruct-KEXP-fromsrc-trunk-iq4_nl.gguf n=4 ngen=300
+[2026-08-23T14:18:45-0400]   ERROR q1_f1_spa2000/iq4_nl: no MoE recipe for architecture 'olmoe' — add one in core/src/moe/arch_registry.cpp (see docs/adding-a-model.md)
+[2026-08-23T14:18:45-0400] START olmoe/q4_0 file=OLMoE-1B-7B-0924-Instruct-KEXP-fromsrc-trunk-q4_0.gguf n=4 ngen=300
+[2026-08-23T14:18:46-0400]   ERROR q1_f1_spa2000/q4_0: no MoE recipe for architecture 'olmoe' — add one in core/src/moe/arch_registry.cpp (see docs/adding-a-model.md)
+[2026-08-23T14:18:46-0400] ANSWERS.md written C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\ab\olmoe\sanity\ANSWERS.md

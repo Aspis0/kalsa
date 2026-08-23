@@ -1,0 +1,15 @@
+Problema: su un telefono, un benchmark MoE ha dato 5.0 tok/s con 8 core disponibili e 1.2 tok/s in un run successivo. La temperatura batteria era simile (circa 30°C). Quale spiegazione è più plausibile tra:
+
+(A) throttle termico della CPU, (B) il processo è finito in un cpuset con solo 3 core little, o (C) la quantizzazione del modello è cambiata?
+
+La soluzione più plausibile è (A) throttle termico della CPU.
+
+La reasone è che il benchmark MoE ha dato 5.0 tok/s con 8 core disponibili, ma in un run successivo ha dato solo 5.0 tok/s con 8 core disponibili e 1.2 tok/s. Questo suggerisce che il problema riguarda il throttle termico della CPU, poiché l'efficienza della CPU è stata ridotta.
+
+Per verificare questa soluzione, si dovrebbe controllare l'interprete del benchmark MoE e verificare se l'efficienza della CPU è stata riduta in un run successivo. Ci sono diversi file o comandi che possono essere utilizzati per controllare l'efficienza della CPU, ad esempio:
+
+* "top" o "htop" per controllare l'utilizzo CPU.
+* "perf" o "perfmon" per controllare l'utilizzo CPU e l'efficienza.
+* "powertop" o "powerstat" per controllare l'efficienza della CPU in modo più dettagliato.
+
+Inoltre, si potrebbe utilizzare un software di analisi di benchmarking per verificare se l'e

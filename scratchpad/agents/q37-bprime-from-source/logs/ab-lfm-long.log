@@ -1,0 +1,30 @@
+[2026-08-23T15:11:14-0400] q37 A/B model=lfm suite=long tags=['control', 'q8_0', 'iq4_nl', 'q4_0'] ngen=420 k=4 drop=0.0
+[2026-08-23T15:11:14-0400] START lfm/control file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-control.gguf n=6 ngen=420
+[2026-08-23T15:11:44-0400]   OK f45_1_esplicativo/control chars=0 tokens=420 tok_s=16.883 wall=30.2s
+[2026-08-23T15:12:14-0400]   OK f45_3_istruzioni/control chars=0 tokens=420 tok_s=15.866 wall=29.0s
+[2026-08-23T15:12:40-0400]   OK f45_4_codice/control chars=0 tokens=420 tok_s=17.518 wall=26.9s
+[2026-08-23T15:13:07-0400]   OK f45_5_ragionamento/control chars=0 tokens=420 tok_s=18.159 wall=26.3s
+[2026-08-23T15:13:36-0400]   OK f45_2_scrittura/control chars=0 tokens=420 tok_s=16.002 wall=28.7s
+[2026-08-23T15:14:01-0400]   OK long_conversational_it/control chars=401 tokens=420 tok_s=18.26 wall=25.8s
+[2026-08-23T15:14:02-0400] START lfm/q8_0 file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf n=6 ngen=420
+[2026-08-23T15:15:27-0400]   OK f45_1_esplicativo/q8_0 chars=0 tokens=420 tok_s=5.224 wall=85.3s
+[2026-08-23T15:16:14-0400]   OK f45_3_istruzioni/q8_0 chars=0 tokens=420 tok_s=9.667 wall=46.9s
+[2026-08-23T15:16:54-0400]   OK f45_4_codice/q8_0 chars=0 tokens=420 tok_s=12.432 wall=39.9s
+[2026-08-23T15:17:33-0400]   OK f45_5_ragionamento/q8_0 chars=0 tokens=420 tok_s=11.674 wall=39.3s
+[2026-08-23T15:18:06-0400]   OK f45_2_scrittura/q8_0 chars=0 tokens=420 tok_s=14.095 wall=32.9s
+[2026-08-23T15:18:35-0400]   OK long_conversational_it/q8_0 chars=497 tokens=420 tok_s=16.6 wall=28.4s
+[2026-08-23T15:18:35-0400] START lfm/iq4_nl file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-iq4_nl.gguf n=6 ngen=420
+[2026-08-23T15:19:05-0400]   OK f45_1_esplicativo/iq4_nl chars=0 tokens=420 tok_s=16.723 wall=29.7s
+[2026-08-23T15:19:35-0400]   OK f45_3_istruzioni/iq4_nl chars=0 tokens=420 tok_s=15.153 wall=30.6s
+[2026-08-23T15:20:02-0400]   OK f45_4_codice/iq4_nl chars=0 tokens=420 tok_s=18.123 wall=26.3s
+[2026-08-23T15:20:28-0400]   OK f45_5_ragionamento/iq4_nl chars=0 tokens=420 tok_s=17.912 wall=26.5s
+[2026-08-23T15:20:57-0400]   OK f45_2_scrittura/iq4_nl chars=0 tokens=420 tok_s=16.246 wall=28.7s
+[2026-08-23T15:21:24-0400]   OK long_conversational_it/iq4_nl chars=0 tokens=420 tok_s=17.914 wall=26.5s
+[2026-08-23T15:21:24-0400] START lfm/q4_0 file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q4_0.gguf n=6 ngen=420
+[2026-08-23T15:21:48-0400]   OK f45_1_esplicativo/q4_0 chars=0 tokens=420 tok_s=21.207 wall=24.4s
+[2026-08-23T15:22:12-0400]   OK f45_3_istruzioni/q4_0 chars=0 tokens=420 tok_s=19.647 wall=23.9s
+[2026-08-23T15:22:37-0400]   OK f45_4_codice/q4_0 chars=0 tokens=420 tok_s=19.369 wall=24.5s
+[2026-08-23T15:23:14-0400]   OK f45_5_ragionamento/q4_0 chars=0 tokens=420 tok_s=12.274 wall=37.0s
+[2026-08-23T15:23:44-0400]   OK f45_2_scrittura/q4_0 chars=0 tokens=420 tok_s=15.229 wall=30.4s
+[2026-08-23T15:24:12-0400]   OK long_conversational_it/q4_0 chars=0 tokens=420 tok_s=17.075 wall=27.6s
+[2026-08-23T15:24:12-0400] ANSWERS.md written C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\ab\lfm\long\ANSWERS.md

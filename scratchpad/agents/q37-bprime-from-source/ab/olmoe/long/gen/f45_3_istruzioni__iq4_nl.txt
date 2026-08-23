@@ -1,0 +1,10 @@
+1. Perché misurare le prestazioni a batteria scarica è diverso dal misurarle a batteria piena:
+* La misurazione delle prestazioni a batteria scarica non è un'attività regolare, ma si concentra sull'esecuzione di un determinato script o scriptlet.
+* La misurazione delle prestazioni a batteria piena, invece, è un'attività regolare che si concentra sull'esecuzione di un determinato script o scriptlet, ma senza l'aggiunta di alcune prestazioni specifiche.
+* La misurazione delle prestazioni a batteria scarica è più complessa rispetto alla misurazione delle prestazioni a batteria piena, poiché richiede l'esecuzione di più script o scriptlet e l'aggiunta di alcune prestazioni specifiche.
+* La misurazione delle prestazioni a batteria scarica è più accurate rispetto alla misurazione delle prestazioni a batteria piena, poiché l'esecuzione di più script o scriptlet può essere più controllata.
+2. Alcune domande utili per un protocollo di misura su telefono per la misurazione delle prestazioni a batteria scarica:
+* Quali script o scriptlet verranno eseguiti durante la misurazione delle prestazioni a batteria scarica?
+* Quali prestazioni specifiche verranno aggiuntive durante la misurazione delle prestazioni a batteria scarica?
+* Quali script o scriptlet verranno eseguiti durante la misurazione delle prestazioni a batteria piena?
+* Quali prestazioni specifiche verranno aggiuntive durante la misurazione delle prestazioni a batteria piena?

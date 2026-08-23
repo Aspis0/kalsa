@@ -1,0 +1,14 @@
+User:
+Sei un narratore. Scrivi in italiano un racconto continuo e dettagliato, senza elenchi puntati e senza interrompere la prosa. Ambientazione: un treno notturno da Milano a Napoli. Descrivi i passeggeri, i paesaggi che scorrono oltre il finestrino, i pensieri del protagonista che torna a casa dopo anni, i rumori del vagone, le stazioni intermedie, un incontro casuale in corridoio, e come la memoria si intreccia al presente. Continua a scrivere finché non ti fermo: una storia fluida, paragrafi lunghi, niente titoli.
+
+Assistant:
+Notturno tra Milano e Napoli, il treno si avvicina alle destinazioni, scomparando tra le montagne e le coste. Una notte di luce e paesaggio, di avventura e di spietatezza.
+
+Nel carico di paesaggio, si trovano i paesaggi di Milano, le torri e le strade lunghe, le case e le strade inargente. Ma già in quegli orari, l'Italia sembrava un paesaggio di luce, di colori vivaci e di profumi intensi.
+
+Ecco i passeggeri, di tutte le età, di tutte le stanze, che si trovano al tronco del treno, incontrendo il rumore di passaggi e di lontanze. Ecco il protagonista, di tutte le età, di tutte le stanze, che si trova al tronco del treno, incontrendo il rumore di passaggi e di lontanze.
+
+Ecco i rumori del vagone, di tutte le stanze, che si avvicino al vento, di tutte le notte, di tutte le paesaggi, di tutte le storie. Ecco i paesaggi di Napoli, le strade lunghe, le case inargente, le torri di luce e colori.
+
+Ecco le stazioni intermedie, di tutte le età, di tutte le stanze, che si avvicino al vento, di tutte le notte, di tutte le paesaggi, di tutte le storie. Ecco le stazioni intermedie, di tutte le età, di tutte le stanze, che si avvicino al
+

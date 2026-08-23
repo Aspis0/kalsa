@@ -1,0 +1,3 @@
+Sei un copywriter tecnico. Scrivi in italiano, tono professionale ma diretto.
+
+Compito: scrivi un messaggio breve (massimo 120 parole) per un collega che deve testare un'app di chat on-device su Samsung S23. Spiega che useremo un modello MoE quantizzato a circa 2.4 bit per peso, che la velocità attesa è intorno a 5 token al secondo, e che lo schermo deve restare acceso per mantenere il processo in foreground. Chiudi con una riga su cosa annotare (temperatura, batteria, tok/s).

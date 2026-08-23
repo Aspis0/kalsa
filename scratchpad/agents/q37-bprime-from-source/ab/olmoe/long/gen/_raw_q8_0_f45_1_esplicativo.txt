@@ -1,0 +1,18 @@
+User:
+Sei un assistente tecnico per sviluppatori italiani. Rispondi in italiano, in modo chiaro e concreto.
+
+Domanda: cos'è un modello Mixture-of-Experts (MoE) e perché, su uno smartphone con 8 GB di RAM, un MoE da 35B parametri con circa 3B attivi per token può essere più pratico di un modello denso da 7B? Spiega memoria, routing degli esperti e il ruolo dello streaming da flash. Non superare le 180 parole.
+
+Assistant:
+Ciao! E' un piacere aiutarti con la tua domanda. In questo caso, parliamo di un modello di Machine Learning chiamato Mixture-of-Experts o MoE.
+
+Un MoE è un tipo di modello di deep learning che combina l'approccio di un modello denso (con molte layer) con l'approccio di un modello più semplice (con pochi layer). Questo tipo di modello è utile per gestire problemi di comprensione del linguaggio naturale, perché può gestire grandi quantità di informazione senza soffocare le risorse di memoria.
+
+Nel caso di un modello denso di 7B parametri, ogni parola del testo viene associata a un'espertessa che lo elabora in modo che l'espertessa possa identificare la parola corrente. Questo modello è molto complesso e richiede molta memoria per elaborare tutte le possibili combinazioni di parole.
+
+Un MoE, invece, utilizza un numero inferiore di parametri, ma può gestire grandi quantità di informazioni. Ad esempio, può gestire una grande quantità di parole senza soffocare le risorse di memoria.
+
+Inoltre, un MoE utilizza un routing degli esperti, che è un'algoritmo di routing degli esperti che decide come distribuire le informazioni tra le diverse espertesse. Questo routing degli esperti è molto importante per l'esecuzione del training del modello, poiché decide come ogni espertessa elabora ogni parola.
+
+Infine, l'uso di un MoE può essere più pratico di un modello denso di 7
+

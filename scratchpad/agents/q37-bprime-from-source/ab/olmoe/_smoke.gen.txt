@@ -1,0 +1,7 @@
+User:
+Chi ha vinto il Gran Premio di Formula 1 di Spa nel 2000?
+
+Assistant:
+Il Gran Premio di Formula 1 di Spa nel 2000 è stato vinto dal pilota britannico Michael Schumacher, che guidò il suo team Ferrari alla victoria. Schumacher ha vinto l'incarico più volte alla FIA Formula 1 World Championship, ma questo è stato il suo primo vincita al circuito della Spagna.
+
+

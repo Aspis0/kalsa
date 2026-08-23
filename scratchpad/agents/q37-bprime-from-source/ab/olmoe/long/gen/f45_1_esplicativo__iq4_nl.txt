@@ -1,0 +1,7 @@
+Un modello Mixture-of-Experts (MoE) è un tipo di modello di deep learning che combina più modelli di esperti per risolvere problemi di classificazione o regressione. Questo modello è particolarmente utile quando ci sono molte possibili soluzioni per un problema specifico, poiché può utilizzare i modelli di esperti per individuare quella più adatta alle proprie esigenze.
+
+Nel caso di un smartphone con 8 GB di RAM, un modello denso da 7B potrebbe essere molto efficace per rispondere alle domande del modello. Tuttavia, se si utilizza un modello MoE con circa 3B attivi per token, questo può essere più pratico per alcune situazioni. Questo è possibile grazie alla capacità di questo modello di gestire meglio la quantità di informazioni, in modo che possa rispondere alle domande con maggiore precisione.
+
+Inoltre, il routing degli esperti è un altro fattore importante che può influire sulla performance del modello. Questo è il processo attraverso cui il modello decide quali esperti utilizzare per rispondere alle domande, in modo da garantire la maggiore precisione. Se il routing degli esperti è ben implementato, questo può migliorare notevolmente la capacità del modello di rispondere alle domande.
+
+Infine, il streaming da flash è un altro fattore che può influire sulla velocità e sulla precisione del modello. Questo è il processo attraverso cui il modello utilizza la memoria flash per accedere rapidamente alle informazioni necessarie per rispondere alle domande. Se il streaming da flash è ben implement

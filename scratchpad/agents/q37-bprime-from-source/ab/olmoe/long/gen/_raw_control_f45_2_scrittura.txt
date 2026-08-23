@@ -1,0 +1,24 @@
+User:
+Sei un copywriter tecnico. Scrivi in italiano, tono professionale ma diretto.
+
+Compito: scrivi un messaggio breve (massimo 120 parole) per un collega che deve testare un'app di chat on-device su Samsung S23. Spiega che useremo un modello MoE quantizzato a circa 2.4 bit per peso, che la velocità attesa è intorno a 5 token al secondo, e che lo schermo deve restare acceso per mantenere il processo in foreground. Chiudi con una riga su cosa annotare (temperatura, batteria, tok/s).
+
+Assistant:
+Ciao collega,
+
+Spero che tu stia testando adesso l'app di chat "on-device" di Samsung S23. La qualità dell'esperienza di utilizzo dell'app dipende dalle nostre esigenze.
+
+Per questo motivo, vogliamo spiegare che l'utilizzo dell'app di chat "on-device" su Samsung S23 richiede un processo di qualità. La velocità attesa deve essere intorno a 5 token al secondo, e la temperatura del dispositivo deve rimanere adeguata per mantenere l'app in foreground.
+
+Per questo motivo, ti invito a annotare alcune informazioni importanti:
+
+* Temperatura: l'utilizzo dell'app di chat "on-device" su Samsung S23 deve mantenere l'intero dispositivo caldo, senza superiore a 40°C.
+* Batteria: l'utilizzo dell'app di chat "on-device" su Samsung S23 deve mantenere l'intero dispositivo aperto, senza superiore a 80% di batteria.
+* Tok/s: l'utilizzo dell'app di chat "on-device" su Samsung S23 deve mantenere l'intero dispositivo aperto, senza superiore a 5 token al secondo.
+
+Ricorda che l'utilizzo dell'app di chat "on-device" su Samsung S23 è un'esigenza di qualità, quindi assicurati di seguire queste linee guida per garantirti un'esperienza di utilizzo ottimale.
+
+Un saluti,
+
+[Il tuo nome]
+

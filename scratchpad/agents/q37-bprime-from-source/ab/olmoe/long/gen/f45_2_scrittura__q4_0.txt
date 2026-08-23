@@ -1,0 +1,10 @@
+Ciao collega,
+
+Spero che tu abbia avuto l'opportunità di testare l'app di chat on-device di Samsung S23. Ti ho scritto per informarti che utilizzeremo un modello MoE quantizzato a circa 2.4 bit per peso, con una velocità attesa intorno a 5 token al secondo. Inoltre, ti invierò un riporto sul schermo, per mantenere il processo in foreground, e ti invierò una riga su cosa annotare (temperatura, batteria e tok/s).
+
+Ricorda che l'utilizzo dell'app di chat on-device di questo tipo ti garantirà un'esperienza di navigazione semplice e efficiente, che ti consentirà di interagire con gli altri utenti in modo rapido e semplice. Ti invierò anche una guida dettagliata su come utilizzare l'app di chat on-device di questo tipo, in modo che tu possa scegliere l'opzione giusta per te.
+
+Grazie per avermi scritto, e buon lavoro con la tua esperienza di test!
+
+Un saluti,
+[Il tuo nome]

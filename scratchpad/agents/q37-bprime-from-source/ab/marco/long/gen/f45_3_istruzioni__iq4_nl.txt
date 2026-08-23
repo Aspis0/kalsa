@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica richiede di considerare un consumo energetico molto più elevato rispetto a una batteria piena, poiché il sistema operativo e i componenti hardware devono lavorare più intensamente per mantenere la funzionalità. A batteria piena, il telefono ha un margine di sicurezza e di riserva, che permette di ottenere risultati più stabili e prevedibili, mentre a batteria scarica la durata della batteria è spesso il fattore limitante. Inoltre, le app possono essere più inclini a crash o a un comportamento anomalo, rendendo le misurazioni meno affidabili se non si tiene conto del contesto di scarica.
+
+Quali parametri tecnici sono essenziali per garantire la riproducibilità delle misurazioni a batteria scarica?  
+Come si può garantire che il sistema operativo non interviene in modo imprevedibile durante le misurazioni a bassa carica?

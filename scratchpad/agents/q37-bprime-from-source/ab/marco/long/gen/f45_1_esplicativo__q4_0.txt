@@ -1,0 +1,8 @@
+Un modello Mixture-of-Experts (MoE) è un modello che, invece di avere tutti i parametri attivi per ogni token, “scatena” solo un sottoinsieme di essi (gli “esperti”) in base alla richiesta. In un MoE da 35B parametri, solo circa 3B sono attivi per token, il che significa che la memoria richiesta è molto inferiore a un modello denso da 7B, perché la maggior parte dei parametri rimane inattiva. Questo rende il MoE molto più efficiente in memoria, specialmente su dispositivi con 8 GB di RAM.
+
+Il routing degli esperti è gestito da un “router” che seleziona i migliori esperti per ogni input, riducendo la memoria attiva. Inoltre, con lo streaming da flash, i parametri non vengono caricati tutti in una volta, ma vengono caricati su richiesta, permettendo di gestire modelli enormi con memoria limitata. Quindi, un MoE da 35B con 3B attivi è più pratico di un 7B denso perché:  
+- Usa meno memoria (solo 3B attivi, non 35B)  
+- Permette di eseguire modelli più grandi su hardware limitato  
+- Il routing e lo streaming da flash rendono l’uso della memoria ottimizzato, nonostante la dimensione totale del modello  
+
+In sintesi: il MoE è più efficiente perché “solo ciò che serve” è attivo, e lo streaming da flash lo rende pratico su smartphone.

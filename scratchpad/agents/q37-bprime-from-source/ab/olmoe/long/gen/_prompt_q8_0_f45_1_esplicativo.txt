@@ -1,0 +1,3 @@
+Sei un assistente tecnico per sviluppatori italiani. Rispondi in italiano, in modo chiaro e concreto.
+
+Domanda: cos'è un modello Mixture-of-Experts (MoE) e perché, su uno smartphone con 8 GB di RAM, un MoE da 35B parametri con circa 3B attivi per token può essere più pratico di un modello denso da 7B? Spiega memoria, routing degli esperti e il ruolo dello streaming da flash. Non superare le 180 parole.

@@ -1,0 +1,22 @@
+[2026-08-23T15:04:50-0400] q37 A/B model=lfm suite=sanity tags=['control', 'q8_0', 'iq4_nl', 'q4_0'] ngen=300 k=4 drop=0.0
+[2026-08-23T15:04:50-0400] START lfm/control file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-control.gguf n=4 ngen=300
+[2026-08-23T15:05:18-0400]   OK q1_f1_spa2000/control chars=0 tokens=300 tok_s=13.337 wall=28.4s
+[2026-08-23T15:05:59-0400]   OK q2_tabellina9/control chars=0 tokens=300 tok_s=7.483 wall=40.9s
+[2026-08-23T15:06:25-0400]   OK q3_regalo/control chars=0 tokens=300 tok_s=12.441 wall=25.5s
+[2026-08-23T15:06:45-0400]   OK q4_vocali/control chars=76 tokens=253 tok_s=13.101 wall=20.2s
+[2026-08-23T15:06:45-0400] START lfm/q8_0 file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf n=4 ngen=300
+[2026-08-23T15:07:08-0400]   OK q1_f1_spa2000/q8_0 chars=0 tokens=300 tok_s=17.318 wall=22.8s
+[2026-08-23T15:07:29-0400]   OK q2_tabellina9/q8_0 chars=23 tokens=300 tok_s=14.938 wall=21.0s
+[2026-08-23T15:07:47-0400]   OK q3_regalo/q8_0 chars=0 tokens=300 tok_s=18.524 wall=17.4s
+[2026-08-23T15:08:07-0400]   OK q4_vocali/q8_0 chars=52 tokens=252 tok_s=13.167 wall=20.1s
+[2026-08-23T15:08:07-0400] START lfm/iq4_nl file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-iq4_nl.gguf n=4 ngen=300
+[2026-08-23T15:08:54-0400]   OK q1_f1_spa2000/iq4_nl chars=0 tokens=300 tok_s=8.017 wall=46.3s
+[2026-08-23T15:09:14-0400]   OK q2_tabellina9/iq4_nl chars=160 tokens=257 tok_s=13.066 wall=20.7s
+[2026-08-23T15:09:38-0400]   OK q3_regalo/iq4_nl chars=0 tokens=300 tok_s=13.628 wall=23.2s
+[2026-08-23T15:10:03-0400]   OK q4_vocali/iq4_nl chars=231 tokens=243 tok_s=9.793 wall=25.7s
+[2026-08-23T15:10:04-0400] START lfm/q4_0 file=LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q4_0.gguf n=4 ngen=300
+[2026-08-23T15:10:24-0400]   OK q1_f1_spa2000/q4_0 chars=45 tokens=300 tok_s=17.857 wall=20.0s
+[2026-08-23T15:10:41-0400]   OK q2_tabellina9/q4_0 chars=0 tokens=300 tok_s=18.747 wall=16.7s
+[2026-08-23T15:10:55-0400]   OK q3_regalo/q4_0 chars=0 tokens=300 tok_s=22.316 wall=14.5s
+[2026-08-23T15:11:14-0400]   OK q4_vocali/q4_0 chars=54 tokens=259 tok_s=14.649 wall=18.6s
+[2026-08-23T15:11:14-0400] ANSWERS.md written C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\ab\lfm\sanity\ANSWERS.md

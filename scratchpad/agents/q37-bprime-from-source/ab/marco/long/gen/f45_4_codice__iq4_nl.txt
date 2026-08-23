@@ -1,0 +1,31 @@
+def median_eval_tok_s(rows):
+    valid_values = []
+    for row in rows:
+        if row.get("nproc") is not None and row.get("eval_tok_s") is not None:
+            valid_values.append(row["eval_tok_s"])
+    if not valid_values:
+        return None
+    valid_values.sort()
+    n = len(valid_values)
+    mid = n // 2
+    if n % 2 == 0:
+        return (valid_values[mid - 1] + valid_values[mid]) / 2
+    else:
+        return valid_values[mid]
+
+
+if __name__ == "__main__":
+    # Example 1: All rows have nproc >= 6 and eval_tok_s values
+    data1 = [{"eval_tok_s": 1.0, "nproc": 6}, {"eval_tok_s": 2.0, "nproc": 7}, {"eval_tok_s": 3.0, "nproc": 8}]
+    print(median_eval_tok_s(data1))  # Expected: 2.0
+
+    # Example 2: One row with nproc < 6
+    data2 = [{"eval_tok_s": 1.5, "nproc": 5}, {"eval_tok_s": 2.5, "nproc": 6}]
+    print(median_eval_tok_s(data2))  # Expected: 2.5
+
+    # Example 3: No valid rows
+    data3 = [{"eval_tok_s": 1.0, "nproc": 6}, {"eval_tok_s": 2.0, "nproc": 5}]
+    print(median_eval_tok_s(data3))  # Expected: None
+
+    # Example 4: Empty list
+    print(median_eval_tok_s([]))  # Expected: None

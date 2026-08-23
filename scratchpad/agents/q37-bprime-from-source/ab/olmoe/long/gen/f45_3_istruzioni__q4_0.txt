@@ -1,0 +1,14 @@
+1. Misurare le prestazioni a batteria scarica e a batteria piena hanno un significato diverso perché le prestazioni a batteria scarica sono misurate in un ambiente di utilizzo più intenso, mentre le prestazioni a batteria piena sono misurate in uno ambiente più tranquillo.
+
+2. Esempio di domande utili per un protocollo di misura su telefono:
+* Qual è l'utilizzo più intenso su cui sono progettati le prestazioni a batteria?
+* Qual è l'ambiente di utilizzo più tranquillo in cui sono progettate le prestazioni a batteria?
+
+3. Non scrivo in inglese.
+
+4. Scritto in italiano:
+* Misurare le prestazioni a batteria scarica e a batteria piena hanno un significato diverso perché le prestazioni a batteria scarica sono misurate in un ambiente di utilizzo più intenso, mentre le prestazioni a batteria piena sono misurate in uno ambiente più tranquillo.
+* Esempio di domande utili per un protocollo di misura su telefono:
+* Qual è l'utilizzo più intenso su cui sono progettati le prestazioni a batteria?
+* Qual è l'ambiente di utilizzo più tranquillo in cui sono progettate le prestazioni a batteria?
+* Scritto in italiano.

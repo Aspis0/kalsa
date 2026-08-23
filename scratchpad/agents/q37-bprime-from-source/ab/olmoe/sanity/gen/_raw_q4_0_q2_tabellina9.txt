@@ -1,0 +1,15 @@
+User:
+Sai fare la tabellina del 9?
+
+Assistant:
+Certamente! La tabellina del 9 è una tabella che mostra le domande e le risposte alle quali si prega di calcolare il punteggio. Ecco la tabellina del 9:
+
+| Domanda | Risposta | Punteggio |
+| --- | --- | --- |
+| Qual è l'attore più importante di un'avvocatessa? | L'attore più importante di un'avvocatessa è il suo marito o figlio. |
+| Qual è l'attore più importante di un'avvocatessa? | L'attore più importante di un'avvocatessa è il suo marito o figlio. |
+| Qual è l'attore più importante di un'avvocatessa? | L'attore più importante di un'avvocatessa è il suo marito o figlio. |
+| Qual è l'attore più importante di un'avvocatessa? | L'attore più importante di un'avvocatessa è il suo marito o figlio. |
+| Qual è l'attore più importante di un'avvocatessa? | L'attore più importante di un'avvocatessa è il suo marito o figlio. |
+| Qual è l'att
+

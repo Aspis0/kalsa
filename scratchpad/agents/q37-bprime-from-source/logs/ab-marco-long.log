@@ -1,0 +1,30 @@
+[2026-08-23T13:32:59-0400] q37 A/B model=marco suite=long tags=['control', 'q8_0', 'iq4_nl', 'q4_0'] ngen=420 k=6 drop=0.0
+[2026-08-23T13:32:59-0400] START marco/control file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-control.gguf n=6 ngen=420
+[2026-08-23T13:34:04-0400]   OK f45_1_esplicativo/control chars=972 tokens=293 tok_s=5.652 wall=65.2s
+[2026-08-23T13:34:50-0400]   OK f45_3_istruzioni/control chars=891 tokens=220 tok_s=6.108 wall=45.3s
+[2026-08-23T13:35:41-0400]   OK f45_4_codice/control chars=806 tokens=259 tok_s=6.278 wall=51.4s
+[2026-08-23T13:36:49-0400]   OK f45_5_ragionamento/control chars=1010 tokens=316 tok_s=5.511 wall=67.6s
+[2026-08-23T13:37:30-0400]   OK f45_2_scrittura/control chars=624 tokens=173 tok_s=5.513 wall=41.3s
+[2026-08-23T13:39:04-0400]   OK long_conversational_it/control chars=1317 tokens=420 tok_s=5.0 wall=94.2s
+[2026-08-23T13:39:05-0400] START marco/q8_0 file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf n=6 ngen=420
+[2026-08-23T13:40:19-0400]   OK f45_1_esplicativo/q8_0 chars=1148 tokens=338 tok_s=5.536 wall=73.8s
+[2026-08-23T13:41:06-0400]   OK f45_3_istruzioni/q8_0 chars=862 tokens=216 tok_s=5.835 wall=47.1s
+[2026-08-23T13:42:34-0400]   OK f45_4_codice/q8_0 chars=880 tokens=286 tok_s=4.182 wall=88.2s
+[2026-08-23T13:43:56-0400]   OK f45_5_ragionamento/q8_0 chars=1201 tokens=347 tok_s=4.981 wall=81.8s
+[2026-08-23T13:44:34-0400]   OK f45_2_scrittura/q8_0 chars=524 tokens=148 tok_s=5.379 wall=38.0s
+[2026-08-23T13:45:59-0400]   OK long_conversational_it/q8_0 chars=1335 tokens=420 tok_s=5.605 wall=85.3s
+[2026-08-23T13:46:00-0400] START marco/iq4_nl file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-iq4_nl.gguf n=6 ngen=420
+[2026-08-23T13:47:09-0400]   OK f45_1_esplicativo/iq4_nl chars=944 tokens=281 tok_s=4.925 wall=69.4s
+[2026-08-23T13:47:56-0400]   OK f45_3_istruzioni/iq4_nl chars=873 tokens=227 tok_s=6.012 wall=47.0s
+[2026-08-23T13:49:30-0400]   OK f45_4_codice/iq4_nl chars=1114 tokens=380 tok_s=4.498 wall=93.9s
+[2026-08-23T13:51:03-0400]   OK f45_5_ragionamento/iq4_nl chars=1162 tokens=381 tok_s=4.789 wall=92.9s
+[2026-08-23T13:51:57-0400]   OK f45_2_scrittura/iq4_nl chars=660 tokens=188 tok_s=4.226 wall=53.9s
+[2026-08-23T13:53:17-0400]   OK long_conversational_it/iq4_nl chars=1347 tokens=420 tok_s=6.269 wall=79.8s
+[2026-08-23T13:53:17-0400] START marco/q4_0 file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-q4_0.gguf n=6 ngen=420
+[2026-08-23T13:54:29-0400]   OK f45_1_esplicativo/q4_0 chars=1247 tokens=360 tok_s=5.998 wall=71.6s
+[2026-08-23T13:55:16-0400]   OK f45_3_istruzioni/q4_0 chars=892 tokens=235 tok_s=6.153 wall=47.7s
+[2026-08-23T13:56:03-0400]   OK f45_4_codice/q4_0 chars=828 tokens=274 tok_s=7.47 wall=46.7s
+[2026-08-23T13:57:23-0400]   OK f45_5_ragionamento/q4_0 chars=1303 tokens=420 tok_s=6.021 wall=79.9s
+[2026-08-23T13:57:57-0400]   OK f45_2_scrittura/q4_0 chars=524 tokens=146 tok_s=5.884 wall=34.4s
+[2026-08-23T13:59:24-0400]   OK long_conversational_it/q4_0 chars=1387 tokens=420 tok_s=5.515 wall=86.1s
+[2026-08-23T13:59:24-0400] ANSWERS.md written C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\ab\marco\long\ANSWERS.md

@@ -1,0 +1,10 @@
+User:
+Quante vocali ci sono nella parola armadio?
+
+Assistant:
+La parola "armadio" contiene 7 parole vocali:
+
+a, e, i, o, u, i
+
+Quindi, la parola "armadio" ha 7 parole vocali.
+

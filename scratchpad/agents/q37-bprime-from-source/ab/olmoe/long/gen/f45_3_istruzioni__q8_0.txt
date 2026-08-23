@@ -1,0 +1,11 @@
+1. Perché misurare le prestazioni a batteria scarica è diverso dal misurare a batteria piena:
+* La misurazione delle prestazioni a batteria scarica non è basata sul consumo di energia totale, ma sul consumo di energia a livello di attività.
+* La misurazione delle prestazioni a batteria piena considera il consumo di energia totale, ma non valuta l'utilizzo di altre funzionalità del dispositivo.
+* La misurazione delle prestazioni a batteria scarica è più indicativa della capacità di trasferimento di energia, mentre la misurazione delle prestazioni a batteria piena è più indicativa della capacità di trasferimento di energia a livello di attività.
+2. Le domande utili per un protocollo di misura su telefono sono:
+* Qual è l'utilizzo più comune della telefonia a batteria?
+* Qual è l'utilizzo più comune della telefonia a batteria piena?
+* Qual è l'utilizzo più comune della telefonia a batteria scarica?
+3. Non scrivo in inglese, ma posso fornirti le frasi in italiano:
+* Perché misurare le prestazioni a batteria scarica è diverso dal misurare a batteria piena: la misurazione delle prestazioni a batteria scarica non valuta l'utilizzo di altre funzionalità del dispositivo, ma la misurazione delle prestazioni a batteria piena considera il consumo totale di energia.
+* La misurazione delle prestazioni a batteria scarica è più indicativa della capacità di trasferimento di energia, mentre la misurazione delle

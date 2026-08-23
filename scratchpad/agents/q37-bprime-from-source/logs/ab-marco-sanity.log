@@ -1,0 +1,22 @@
+[2026-08-23T13:19:15-0400] q37 A/B model=marco suite=sanity tags=['control', 'q8_0', 'iq4_nl', 'q4_0'] ngen=300 k=6 drop=0.0
+[2026-08-23T13:19:15-0400] START marco/control file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-control.gguf n=4 ngen=300
+[2026-08-23T13:20:06-0400]   OK q1_f1_spa2000/control chars=860 tokens=287 tok_s=6.68 wall=50.8s
+[2026-08-23T13:20:57-0400]   OK q2_tabellina9/control chars=621 tokens=300 tok_s=6.135 wall=51.4s
+[2026-08-23T13:21:52-0400]   OK q3_regalo/control chars=1008 tokens=300 tok_s=5.918 wall=55.1s
+[2026-08-23T13:22:26-0400]   OK q4_vocali/control chars=344 tokens=138 tok_s=4.601 wall=33.1s
+[2026-08-23T13:22:26-0400] START marco/q8_0 file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf n=4 ngen=300
+[2026-08-23T13:23:34-0400]   OK q1_f1_spa2000/q8_0 chars=899 tokens=300 tok_s=5.076 wall=68.3s
+[2026-08-23T13:24:24-0400]   OK q2_tabellina9/q8_0 chars=473 tokens=300 tok_s=6.583 wall=49.1s
+[2026-08-23T13:25:23-0400]   OK q3_regalo/q8_0 chars=1010 tokens=300 tok_s=5.571 wall=59.4s
+[2026-08-23T13:26:16-0400]   OK q4_vocali/q8_0 chars=732 tokens=300 tok_s=6.092 wall=52.9s
+[2026-08-23T13:26:16-0400] START marco/iq4_nl file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-iq4_nl.gguf n=4 ngen=300
+[2026-08-23T13:27:20-0400]   OK q1_f1_spa2000/iq4_nl chars=883 tokens=300 tok_s=5.312 wall=63.2s
+[2026-08-23T13:28:15-0400]   OK q2_tabellina9/iq4_nl chars=591 tokens=300 tok_s=5.663 wall=55.7s
+[2026-08-23T13:29:15-0400]   OK q3_regalo/iq4_nl chars=1075 tokens=300 tok_s=5.523 wall=59.5s
+[2026-08-23T13:29:45-0400]   OK q4_vocali/iq4_nl chars=340 tokens=146 tok_s=5.627 wall=30.0s
+[2026-08-23T13:29:45-0400] START marco/q4_0 file=Marco-Mini-Instruct-KEXP-fromsrc-trunk-q4_0.gguf n=4 ngen=300
+[2026-08-23T13:30:17-0400]   OK q1_f1_spa2000/q4_0 chars=406 tokens=134 tok_s=5.441 wall=31.9s
+[2026-08-23T13:31:12-0400]   OK q2_tabellina9/q4_0 chars=578 tokens=300 tok_s=5.889 wall=54.3s
+[2026-08-23T13:32:12-0400]   OK q3_regalo/q4_0 chars=993 tokens=281 tok_s=5.185 wall=60.0s
+[2026-08-23T13:32:58-0400]   OK q4_vocali/q4_0 chars=744 tokens=300 tok_s=6.918 wall=46.8s
+[2026-08-23T13:32:59-0400] ANSWERS.md written C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\ab\marco\sanity\ANSWERS.md

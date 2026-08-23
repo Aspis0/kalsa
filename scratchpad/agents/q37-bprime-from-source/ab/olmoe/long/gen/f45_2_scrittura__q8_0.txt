@@ -1,0 +1,15 @@
+Ciao collega,
+
+Spero che tu abbia già avuto l'opportunità di testare l'app di chat on-device di Samsung S23. Ti ho scritto per te perché ho notato che hai bisogno di qualcosa di semplice e semplice utilizzare, senza dover preoccuparti troppo del processo.
+
+Ecco i punti che ti spiego:
+
+* Il modello MoE quantizzato a circa 2.4 bit per peso, che garantisce una velocità attesa intorno a 5 token al secondo.
+* Lo schermo deve rimanere acceso per mantenere il processo in foreground.
+
+Per quanto riguarda l'annotazione, ti consiglio di notare la temperatura, la batteria e il token/s. Questi dati ti permetteranno di assicurarti di avere un'esperienza di utilizzo senza interruzioni, e di avere un'app che funziona al meglio.
+
+Ricorda che l'utilizzo dell'app di chat on-device di Samsung S23 è un'opportunità unica, che ti permette di avere un'esperienza di utilizzo senza interruzioni. Ti invito a testarla con attenzione, e a utilizzarla con cura.
+
+Un saluti,
+[Il tuo nome]

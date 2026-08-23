@@ -1,0 +1,19 @@
+Per fare la tabellina del 9, puoi usare un trucco semplice:
+
+**Moltiplica 9 per un numero da 1 a 10 e controlla la somma delle cifre del risultato.**
+
+Ecco la tabellina completa:
+
+- 9 × 1 = 9 → 9  
+- 9 × 2 = 18 → 1 + 8 = 9  
+- 9 × 3 = 27 → 2 + 7 = 9  
+- 9 × 4 = 36 → 3 + 6 = 9  
+- 9 × 5 = 45 → 4 + 5 = 9  
+- 9 × 6 = 54 → 5 + 4 = 9  
+- 9 × 7 = 63 → 6 + 3 = 9  
+- 9 × 8 = 72 → 7 + 2 = 9  
+- 9 × 9 = 81 → 8 + 1 = 9  
+- 9 × 10 = 90 → 9 + 0 = 9  
+
+**Tutti i risultati hanno la somma delle cifre uguale a 9!**  
+Ecco un altro trucco: **la somma delle cifre di ogni prodotto è sempre 9

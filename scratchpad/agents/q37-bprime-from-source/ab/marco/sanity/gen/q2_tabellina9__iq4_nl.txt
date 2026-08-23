@@ -1,0 +1,21 @@
+Ecco la tabellina del 9, da 1 a 10:
+
+9 × 1 = 9  
+9 × 2 = 18  
+9 × 3 = 27  
+9 × 4 = 36  
+9 × 5 = 45  
+9 × 6 = 54  
+9 × 7 = 63  
+9 × 8 = 72  
+9 × 9 = 81  
+9 × 10 = 90  
+
+**Curiosità:**  
+La tabellina del 9 ha un bel trucco: se sommi i numeri da 1 a 9, ottieni 45, e 4 + 5 = 9.  
+E se scrivi i numeri da 1 a 9 e li sommi, otterrai 45, e 4 + 5 = 9.  
+Inoltre, i prodotti del 9 hanno la proprietà che la somma delle cifre è sempre 9 (es. 18 → 1+8=9, 27 → 2+7=9, ecc.).  
+
+Ecco un altro trucco:  
+**La tabellina del 9 è la stessa di quella del 10, ma con un zero in meno.**  
+Esempio: 9×3 = 27, e 

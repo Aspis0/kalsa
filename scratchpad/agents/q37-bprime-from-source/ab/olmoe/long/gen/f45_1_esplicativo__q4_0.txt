@@ -1,0 +1,13 @@
+Un modello Mixture-of-Experts (MoE) è un tipo di modello di deep learning che combina l'approccio di un modello di expertise (MOE) con l'approccio di un modello di neuroni (MNN). In questo modo, il modello Moe utilizza più di una rete neurale per rappresentare le informazioni e le relazioni tra di loro, e ogni neurone rappresenta un'area di conoscenza specifica.
+
+Nel caso di un modello denso da 7B, ogni neurone rappresenta una area di conoscenza specifica, ma questo può essere molto spesso, quindi l'esempio che hai fornito di 35B parametri con circa 3B attivi per token può essere più pratico di un modello denso da 7B.
+
+La memoria in questo caso non è l'attuale memoria del smartphone, ma la memoria di attivazione dei token, che è la quantità di memoria necessaria per memorizzare i parametri di un token.
+
+Il routing degli esperti è un processo che consente di associare le informazioni o le attività di un'espert con le informazioni o le attività di un'altro espert, in modo da creare un modello di conoscenza più completo e preciso.
+
+Il routing degli esperti può essere implementato in modo che gli attività di un espert vengano eseguite in modo successivo, in modo da utilizzare le informazioni di un espert precedente per informare un'attività successiva.
+
+Il streaming da flash è un processo di streaming di dati in memoria, in modo da utilizzare la memoria di attivazione dei token in modo più efficace.
+
+In

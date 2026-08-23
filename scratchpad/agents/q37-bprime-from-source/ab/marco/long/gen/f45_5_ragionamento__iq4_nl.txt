@@ -1,0 +1,7 @@
+La spiegazione più plausibile è la **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+Infatti, il benchmark MoE ha mostrato un calo drastico da 5.0 a 1.2 tok/s, e la temperatura era simile, escludendo un throttling termico (A). La quantizzazione (C) non è supportata da evidenze, poiché non si menziona alcun cambiamento di versione o di quantizzazione. La chiave è che il sistema ha 8 core disponibili, ma se il processo è stato eseguito su un cpuset con solo 3 core little, la capacità di elaborazione è limitata, spiegando la riduzione di prestazioni.
+
+**Controllo concreto**: eseguire `cat /sys/devices/system/cpu/cpuset/mems` e `cat /sys/devices/system/cpu/cpuset/mems` per verificare se il processo è stato avviato su un cpuset con solo 3 core (es. `0:0:0:0:0:0:0:0` o `0:0:0:0:0:0:0:0` con 3 core attivi). Inoltre, controllare `cat /sys/devices/system/cpu/cpuset/mems` e verificare che il processo è stato avviato su un cpuset con `0:0:0:0:0:0:0:0` (3 core) e non su tutti e 8. Se il cpuset è limitato, il processo sarà limitato a 3 core, spiegando la riduzione di throughput.
+
+**Risultato finale**: la spiegazione più plausibile è la (B).

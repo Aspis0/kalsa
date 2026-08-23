@@ -1,0 +1,36 @@
+Here's the implementation of the `median_eval_tok_s` function that meets the given requirements:
+
+```python
+import math
+
+def median_eval_tok_s(rows):
+    """
+    This function takes a list of dictionaries, each containing "eval_tok_s" and "nproc" keys, and returns the median of eval_tok_s for rows where nproc is not None and nproc >= 6.
+    It ignores rows with missing eval_tok_s. If fewer than 1 valid value remains, it returns None.
+
+    Args:
+    rows (list of dicts): List of dictionaries, each containing "eval_tok_s" and "nproc" keys.
+
+    Returns:
+    float or None: The median of eval_tok_s for rows where nproc is not None and nproc >= 6, or None if fewer than 1 valid value remains.
+    """
+    valid_rows = [row for row in rows if "eval_tok_s" in row and row.get("nproc") >= 6]
+    if not valid_rows:
+        return None
+
+    sorted_rows = sorted(valid_rows, key=lambda row: row.get("eval_tok_s"))
+    n_values = len(sorted_rows)
+    if n_values % 2 == 1:
+        median = sorted_rows[n_values // 2]
+    else:
+        median = (sorted_rows[n_values // 2 - 1] + sorted_rows[n_values // 2]) / 2.0
+
+    return median
+
+# Usage examples
+if __name__ == "__main__":
+    # Example 1:
+    rows = [
+        {"eval_tok_s": None, "nproc": None},
+        {"eval_tok_s": 1.5, "nproc": 2},
+        {"eval_

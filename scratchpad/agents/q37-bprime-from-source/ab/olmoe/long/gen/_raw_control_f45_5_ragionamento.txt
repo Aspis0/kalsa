@@ -1,0 +1,18 @@
+User:
+Ragiona passo per passo in italiano, in modo breve e ordinato.
+
+Problema: su un telefono, un benchmark MoE ha dato 5.0 tok/s con 8 core disponibili e 1.2 tok/s in un run successivo. La temperatura batteria era simile (circa 30°C). Quale spiegazione è più plausibile tra: (A) throttle termico della CPU, (B) il processo è finito in un cpuset con solo 3 core little, (C) la quantizzazione del modello è cambiata? Scegli una sola opzione, motiva in al massimo 5 frasi, e indica un controllo concreto da fare (quale file o comando leggere) per verificarla.
+
+Assistant:
+Problema: un benchmark MoE (benchmark di velocità dell'esecuzione) di un telefono mostra i valori di tok/s (throughput per core) di 5.0 tok/s con 8 core disponibili e 1.2 tok/s in un run successivo. La temperatura batteria era simile (circa 30°C). Quale spiegazione è più plausibile tra:
+
+(A) throttle termico della CPU (il processo è stato interrotto e ripreso, causando un cambiamento nella velocità di esecuzione)
+(B) il processo è stato eseguito in un cpuset con solo 3 core little (il processo è stato limitato a 3 core, causando un cambiamento nella velocità di esecuzione)
+(C) la quantizzazione del modello è cambiata (non è veramente verificabile, poiché la quantizzazione del modello non è una causa comune per il cambiamento di velocità di esecuzione)
+
+Per verificare la soluzione, seguire questi controlli:
+
+1. Eseguire un benchmark di velocità dell'esecuzione con un algoritmo diverso, ad esempio un algoritmo che non utilizza l'interrottazione del processo. Se il risultato è simile o uguale a quello di MoE, la soluzione (A) è più plausibile.
+2. Eseguire il benchmark in un cpuset con solo 3 core little e verificare se il risultato è simile o uguale a quello di MoE. Se la soluzione (B) è più plausibile, verificare se il processo è stato limitato a 3 core.
+3. Eseguire il benchmark con un al
+
