@@ -1646,7 +1646,23 @@ arm A, the same model in the shipping load path on the same phone.
 | battery | 51 → 11 % in 7 turns (5.7/turn) | 97 → 85 % in 16 turns (**0.75/turn**) |
 | outcome | **died at turn 7**, battery | **16/16 completed** |
 
-**~21x, and it is not a generation-length artifact** (§7.47's caveat, checked): arm A's turn 1
+⭐ **The matched control ran, and the ratio survives: 22.0x.** Arm `killE-control-8b-nostream` —
+same model, **same APK**, same plan and seed, streaming OFF — was stopped on purpose at turn 6 once
+unambiguous, reaching the same depth as arm A. Comparing only uninterrupted turns present in both
+arms (2, 3, 5): **streaming 6.11 / 6.04 / 5.70, mean 5.95** against **control 0.2729 / 0.2701 /
+0.2670, mean 0.2700**. Battery 84 % → 48 % over five turns, never on AC; `RssFile` 2.74 GB against
+`RssAnon` 39 MB throughout, so streaming was genuinely off. This retires the coarse arm-A comparison
+below as the headline; arm A remains the evidence that the run *dies*, which the control was stopped
+before demonstrating.
+
+⛔ **Two traps this control set, both recorded because both nearly landed.** (1) `bench-out/turn6..8`
+still held the STREAMING arm's sidecars at ~5.7–6.0 tok/s; one of two agents given the identical
+brief reported them as the control's, which would have inverted the result. The other checked file
+mtimes and caught it. Verified on disk here: this run wrote 16:56–18:11, those three are 16:07–16:11,
+before this run installed its APK. (2) `turn4/telemetry.jsonl` is empty and engine turn 4 landed in
+`turn5/` — §7.49's attribution defect, **third occurrence**.
+
+**~21x against arm A, and it is not a generation-length artifact** (§7.47's caveat, checked): arm A's turn 1
 predicted 283 tokens at 0.271, arm E's predicted 191 at 5.89 — overlapping lengths, a ratio two
 orders of magnitude beyond anything length explains. Streaming was confirmed live **from the kernel,
 not from the app answering** — `RssAnon` 2.70 GB against `RssFile` 98 MB, and `kalsa moe stream:`
@@ -1662,11 +1678,17 @@ failure.
    model that fits; it is §7.45's thrash, which is precisely streaming's case. The gate is right that
    the 8B cannot be RESIDENT; it is wrong to conclude the model cannot be loaded.
 
+⚠️ **Provenance, stated because it frayed once already.** Two different numbers describe this arm's
+footprint and both are real: **`RssAnon` 2 698 576 kB at turn 1** (what this section's prose and the
+commit message quote as "2.70 GB") and **2 750 692 kB at turn 16**, the **peak**. The registry
+constant `streamingResidentBytes` uses the **peak**, because a gate must price the worst moment, not
+the first. Neither figure was labelled when first written.
+
 **The constant this unlocks.** §7.48 left the conditional gate blocked because
 `estimateModelNonEvictableMiB({repack:false})` returns **249 MiB** for this model — literally
 `COMPUTE_MIB_AT_UBATCH_256`, weights excluded — against a measured 2.70 GB, wrong by 11x in the
-direction that says "fits" when it does not. Arm E replaces that estimate with a measurement: **peak
-`RssAnon` 2 750 692 kB at `engineCtx` 8192**, covering weights, KV and compute buffers. That is the
+direction that says "fits" when it does not. Arm E replaces that estimate with a measurement: **peak `RssAnon` 2 750 692 kB
+(2 816 708 608 B) at `engineCtx` 8192**, covering weights, KV and compute buffers. That is the
 honest number for a gate to decide on, and it is per-model and per-context, not a formula.
 
 ⚠️ **It is not fast, and the two facts must travel together.** 5.91 tok/s against the small models'

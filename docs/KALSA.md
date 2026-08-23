@@ -172,7 +172,8 @@ Nothing was killed on either phone. What ends a run is one of three other things
 | B — KEXP, **`use_mmap=false`** | S23 | 16/16, **21.3 → 15.7, −26 %, no bimodality** | plan complete; 1 222 k majflt, battery 56 → 47 % |
 | D — Qwen3.5-2B, production (hot start 40.7 °C) | S23 | 16/16, **the most stable arm** (−10.8 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
 | D — Qwen3.5-2B, **cold start 33.9 °C** | S23 | 16/16, **−11.4 %**, median 17.31 | plan complete; **747 majflt**, battery 45 → 34 % |
-| E — 8B-A1B + **streaming** | S23 | 16/16, **5.91 tok/s mean — 21x arm A**, decay only −4 % | plan complete; **6 189 majflt**, RssAnon 2.70 GB, battery 99 → 85 % |
+| E — 8B-A1B + **streaming** | S23 | 16/16, **5.91 tok/s mean**, decay only −4 % | plan complete; **6 189 majflt**, RssAnon 2.70 GB, battery 99 → 85 % |
+| E — control, **streaming OFF**, same APK | S23 | stopped at turn 6 on purpose, **0.270 tok/s** | **22.0x slower** on matched turns; 1 220 635 majflt, battery 84 → 48 % |
 
 ⭐ **Arm E ran, and it reverses the read on the 8B (§7.50).** Expert streaming takes the same
 8B-A1B from arm A's **0.27 tok/s and death by battery at turn 7** to **5.91 tok/s, 16/16 turns, on

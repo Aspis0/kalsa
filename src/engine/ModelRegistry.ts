@@ -116,6 +116,27 @@ export type ModelInfo = {
    * is not known from a tensor map; a GGUF file size is not this quantity.
    */
   weightsBytesPerToken?: ModelWeightBytesPerToken;
+  /**
+   * Measured peak RssAnon when this model runs with expert streaming at
+   * `measuredAtContextTokens`. Covers weights + KV + compute buffers. The
+   * gate and load path refuse to stream unless the load context equals that
+   * n_ctx — there is nothing honest to scale by. Absent → never stream.
+   */
+  streamingResident?: {
+    bytes: number;
+    measuredAtContextTokens: number;
+  };
+  /**
+   * True only for mixture-of-experts models, whose routed experts can be read
+   * from the file per token instead of held resident. This flag is capability,
+   * not permission: streaming still requires `streamingResident` at the load
+   * context. Streaming forces `no_extra_bufts`, so it removes exactly the
+   * repack term the gate refuses on — which is why the GATE owns the decision
+   * and there is no setting: HARNESS_FINDINGS §7.48 measured a remedy of this
+   * shape at 6.6x on a phone without headroom and 1.006x on one with it. A
+   * dense model has no routed experts and must never carry this.
+   */
+  canStreamExperts?: boolean;
   default?: boolean;
 };
 
@@ -280,12 +301,20 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     sizeBytes: 5_155_564_768,
     // text-only: no mmproj in the HF repo
     contextLength: 131072,
-    engineCtx: 8192, // consistent with lfm2.5-2.6b and other large models; 8B MoE needs all weights resident
+    engineCtx: 8192, // consistent with lfm2.5-2.6b and other large models
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
     // Budget caps the think block but cannot disable it (template has no off switch).
     thinking: { short: 256, extended: 512 },
     preserveThinking: true,
+    canStreamExperts: true,
+    // Peak RssAnon with expert streaming (arm killE-8b-a1b-moestream,
+    // Samsung S23, 2026-08-23, engineCtx 8192): 2 750 692 kB × 1024.
+    // Covers weights + KV + compute. Do not scale; refuse on ctx mismatch.
+    streamingResident: {
+      bytes: 2_816_708_608,
+      measuredAtContextTokens: 8192,
+    },
     descriptionKey: "models.lfm258b.description",
   },
   {
@@ -325,6 +354,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     },
     thinking: { short: 256, extended: 512 },
     preserveThinking: true,
+    // Capability only. No streamingResident: no in-app measurement, so the
+    // gate will not stream this build. The missing measurement is the guard,
+    // not the flag.
+    canStreamExperts: true,
     descriptionKey: "models.lfm258b.description",
   },
 ];

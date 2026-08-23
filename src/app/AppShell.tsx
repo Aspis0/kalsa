@@ -93,13 +93,13 @@ import {
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
-  estimateModelNonEvictableMiB,
   evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
   modelGateVerdict,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import { gateNonEvictableMiB } from "../engine/modelGateRAM";
 import {
   deviceBandwidthForModel,
   mergeDeviceBandwidthCalibrations,
@@ -371,13 +371,20 @@ function gateForModel(
   deviceBandwidth: DeviceBandwidthCalibration = {},
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
-  const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
   const resolvedContextTokens = resolveContextProfile({
     hybrid: model.hybrid,
     kvCache: model.kvCache,
     catalogCtx: model.engineCtx,
     totalMemoryBytes: profile.totalMemoryBytes,
   }).nCtx;
+
+  // One responsibility: what the gate should charge this model for RAM. Measured
+  // streamed footprint when expert streaming is loaded, else the repack estimate
+  // (unchanged by this change). `repack` stays the bench norepack knob. Settings
+  // also calls gateNonEvictableMiB, but passes checkVolatileMemory:false today,
+  // so modelNonEvictableMiB is unused there. The shared helper guarantees they
+  // will agree on the RAM axis IF Settings ever consults it (as
+  // diskRequirementBytes already keeps them from drifting on disk).
   return modelGateVerdict(
     {
       totalMemoryBytes: profile.totalMemoryBytes,
@@ -385,10 +392,10 @@ function gateForModel(
       freeDiskBytes,
       ramTier: profile.ramTier,
       modelMinRamTier: model.minRamTier,
-      modelNonEvictableMiB: estimateModelNonEvictableMiB({
-        sizeBytes: bundleBytes,
+      modelNonEvictableMiB: gateNonEvictableMiB({
+        model,
         contextTokens: resolvedContextTokens,
-        kvBytesPerToken: model.kvBytesPerToken,
+        availableMemoryBytes: profile.availableMemoryBytes,
         repack,
       }),
       modelWeightsBytesPerToken: model.weightsBytesPerToken,

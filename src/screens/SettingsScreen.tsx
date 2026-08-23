@@ -47,7 +47,6 @@ import {
 } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
-  estimateModelNonEvictableMiB,
   evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
@@ -55,6 +54,7 @@ import {
   type DeviceProfile,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import { gateNonEvictableMiB } from "../engine/modelGateRAM";
 import {
   deviceBandwidthForModel,
   type DeviceBandwidthCalibration,
@@ -1877,16 +1877,15 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     freeDiskBytes,
                     ramTier: deviceProfile.ramTier,
                     modelMinRamTier: entry.minRamTier,
-                    modelNonEvictableMiB: estimateModelNonEvictableMiB({
-                      sizeBytes:
-                        entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
+                    modelNonEvictableMiB: gateNonEvictableMiB({
+                      model: entry,
                       contextTokens: resolveContextProfile({
                         hybrid: entry.hybrid,
                         kvCache: entry.kvCache,
                         catalogCtx: entry.engineCtx,
                         totalMemoryBytes: deviceProfile.totalMemoryBytes,
                       }).nCtx,
-                      kvBytesPerToken: entry.kvBytesPerToken,
+                      availableMemoryBytes: deviceProfile.availableMemoryBytes,
                     }),
                     modelWeightsBytesPerToken: entry.weightsBytesPerToken,
                     deviceBandwidthBytesPerSecond: deviceBandwidthForModel(

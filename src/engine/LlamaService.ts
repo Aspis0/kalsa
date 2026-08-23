@@ -60,6 +60,7 @@ import {
   applyPrefillThreadOverride,
 } from "./engineParams";
 import type { EngineOverrideFields } from "./engineParams";
+import { shouldStreamModel } from "./modelGateRAM";
 import {
   createToolCallDeltaStripper,
   LFM_TOOL_CALL_START,
@@ -200,6 +201,8 @@ let activeSpeculativeOverrideKey: string | null = null;
 let activeEngineOverrideKey: string | null = null;
 /** Resolved no_extra_bufts for the loaded engine; part of the skip-reload key. */
 let activeNoExtraBufts: boolean | null = null;
+/** Production expert-streaming decision; part of the skip-reload key. */
+let activeStreamExperts: boolean | null = null;
 /** JSON of engine override for session meta; undefined when production defaults. */
 let activeEngineKnob: string | undefined;
 /** Speculative knobs for session meta (save/load match). Cleared on dispose. */
@@ -1154,6 +1157,15 @@ export function initEngine(
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
     const noExtraBufts = await getBenchNoRepack();
+    // Same predicate the RAM gate uses. Production writes params.moe_stream
+    // below, BEFORE applyEngineOverride, so a bench A/B still wins.
+    const streamExperts =
+      modelInfo != null &&
+      shouldStreamModel({
+        model: modelInfo,
+        contextTokens: engineCtx,
+        availableMemoryBytes: deviceProfile.availableMemoryBytes,
+      });
     const tuning = await resolveEngineTuning({
       model: modelInfo,
       profile: deviceProfile,
@@ -1180,7 +1192,8 @@ export function initEngine(
       activeCacheTypeV === cacheTypeV &&
       activeSpeculativeOverrideKey === speculativeOverrideKey &&
       activeEngineOverrideKey === engineOverrideKey &&
-      activeNoExtraBufts === noExtraBufts
+      activeNoExtraBufts === noExtraBufts &&
+      activeStreamExperts === streamExperts
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
@@ -1229,22 +1242,34 @@ export function initEngine(
       ctx_shift: isMultimodal ? false : true,
     };
 
+    // Production expert streaming — same shouldStreamModel the RAM gate used.
+    // Not engineOverride: that field is bench-only. Written before the override
+    // so an explicit bench arm still wins.
+    if (streamExperts) {
+      params.moe_stream = { enabled: true };
+      params.no_extra_bufts = true;
+    }
+
+    // Bench-only engineOverride: apply after production defaults; absent fields keep production.
+    // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
+    applyEngineOverride(params, options.engineOverride, Platform.OS);
+    // Streaming forces no_extra_bufts. If a bench arm disabled moe_stream,
+    // fall back to the norepack knob so production streaming cannot leak.
+    params.no_extra_bufts =
+      params.moe_stream?.enabled === true ? true : noExtraBufts;
+
     // Once per load: arm evidence must name the repack mode it ran under.
     // Number (0|1), same KALSA_SESSION shape as save/load (op + extras).
     try {
       console.log(
         `KALSA_SESSION ${JSON.stringify({
           op: "init",
-          no_extra_bufts: noExtraBufts ? 1 : 0,
+          no_extra_bufts: params.no_extra_bufts ? 1 : 0,
         })}`,
       );
     } catch {
       /* telemetry never throws into engine path */
     }
-
-    // Bench-only engineOverride: apply after production defaults; absent fields keep production.
-    // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
-    applyEngineOverride(params, options.engineOverride, Platform.OS);
 
     // Invariant: n_threads_batch present ONLY when final decode != prefill.
     // The helper compares post-override params.n_threads, not pre-override
@@ -1377,6 +1402,7 @@ export function initEngine(
     activeSpeculativeOverrideKey = speculativeOverrideKey;
     activeEngineOverrideKey = engineOverrideKey;
     activeNoExtraBufts = noExtraBufts;
+    activeStreamExperts = streamExperts;
     activeEngineKnob =
       options.engineOverride !== undefined
         ? JSON.stringify(options.engineOverride)
@@ -1496,6 +1522,7 @@ async function disposeEngineLocked(opts?: {
     activeSpeculativeOverrideKey = null;
     activeEngineOverrideKey = null;
     activeNoExtraBufts = null;
+    activeStreamExperts = null;
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;
