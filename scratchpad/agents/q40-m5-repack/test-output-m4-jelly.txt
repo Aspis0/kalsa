@@ -1,0 +1,246 @@
+M4 MUL_MAT_ID starting
+M4 host neon=1 dotprod=1
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+== MUL_MAT_ID kernel vs expert-by-expert 2-D oracle ==
+  ok id modes distinct (repeated=n_as-1, unused sparse)
+  ok pattern q2_K nas=2 tok=1 used=2 random
+  ok pattern q2_K nas=2 tok=1 used=2 repeated
+  ok pattern q2_K nas=2 tok=1 used=2 unused
+  ok pattern q2_K nas=2 tok=2 used=2 random
+  ok pattern q2_K nas=2 tok=2 used=2 repeated
+  ok pattern q2_K nas=2 tok=2 used=2 unused
+  ok pattern q2_K nas=2 tok=7 used=2 random
+  ok pattern q2_K nas=2 tok=7 used=2 repeated
+  ok pattern q2_K nas=2 tok=7 used=2 unused
+  ok pattern q2_K nas=2 tok=16 used=2 random
+  ok pattern q2_K nas=2 tok=16 used=2 repeated
+  ok pattern q2_K nas=2 tok=16 used=2 unused
+  ok pattern q2_K nas=3 tok=1 used=2 random
+  ok pattern q2_K nas=3 tok=1 used=2 repeated
+  ok pattern q2_K nas=3 tok=1 used=2 unused
+  ok pattern q2_K nas=3 tok=2 used=2 random
+  ok pattern q2_K nas=3 tok=2 used=2 repeated
+  ok pattern q2_K nas=3 tok=2 used=2 unused
+  ok pattern q2_K nas=3 tok=7 used=2 random
+  ok pattern q2_K nas=3 tok=7 used=2 repeated
+  ok pattern q2_K nas=3 tok=7 used=2 unused
+  ok pattern q2_K nas=3 tok=16 used=2 random
+  ok pattern q2_K nas=3 tok=16 used=2 repeated
+  ok pattern q2_K nas=3 tok=16 used=2 unused
+  ok pattern q2_K nas=5 tok=1 used=2 random
+  ok pattern q2_K nas=5 tok=1 used=2 repeated
+  ok pattern q2_K nas=5 tok=1 used=2 unused
+  ok pattern q2_K nas=5 tok=2 used=2 random
+  ok pattern q2_K nas=5 tok=2 used=2 repeated
+  ok pattern q2_K nas=5 tok=2 used=2 unused
+  ok pattern q2_K nas=5 tok=7 used=2 random
+  ok pattern q2_K nas=5 tok=7 used=2 repeated
+  ok pattern q2_K nas=5 tok=7 used=2 unused
+  ok pattern q2_K nas=5 tok=16 used=2 random
+  ok pattern q2_K nas=5 tok=16 used=2 repeated
+  ok pattern q2_K nas=5 tok=16 used=2 unused
+  ok pattern q3_K nas=2 tok=1 used=2 random
+  ok pattern q3_K nas=2 tok=1 used=2 repeated
+  ok pattern q3_K nas=2 tok=1 used=2 unused
+  ok pattern q3_K nas=2 tok=2 used=2 random
+  ok pattern q3_K nas=2 tok=2 used=2 repeated
+  ok pattern q3_K nas=2 tok=2 used=2 unused
+  ok pattern q3_K nas=2 tok=7 used=2 random
+  ok pattern q3_K nas=2 tok=7 used=2 repeated
+  ok pattern q3_K nas=2 tok=7 used=2 unused
+  ok pattern q3_K nas=2 tok=16 used=2 random
+  ok pattern q3_K nas=2 tok=16 used=2 repeated
+  ok pattern q3_K nas=2 tok=16 used=2 unused
+  ok pattern q3_K nas=3 tok=1 used=2 random
+  ok pattern q3_K nas=3 tok=1 used=2 repeated
+  ok pattern q3_K nas=3 tok=1 used=2 unused
+  ok pattern q3_K nas=3 tok=2 used=2 random
+  ok pattern q3_K nas=3 tok=2 used=2 repeated
+  ok pattern q3_K nas=3 tok=2 used=2 unused
+  ok pattern q3_K nas=3 tok=7 used=2 random
+  ok pattern q3_K nas=3 tok=7 used=2 repeated
+  ok pattern q3_K nas=3 tok=7 used=2 unused
+  ok pattern q3_K nas=3 tok=16 used=2 random
+  ok pattern q3_K nas=3 tok=16 used=2 repeated
+  ok pattern q3_K nas=3 tok=16 used=2 unused
+  ok pattern q3_K nas=5 tok=1 used=2 random
+  ok pattern q3_K nas=5 tok=1 used=2 repeated
+  ok pattern q3_K nas=5 tok=1 used=2 unused
+  ok pattern q3_K nas=5 tok=2 used=2 random
+  ok pattern q3_K nas=5 tok=2 used=2 repeated
+  ok pattern q3_K nas=5 tok=2 used=2 unused
+  ok pattern q3_K nas=5 tok=7 used=2 random
+  ok pattern q3_K nas=5 tok=7 used=2 repeated
+  ok pattern q3_K nas=5 tok=7 used=2 unused
+  ok pattern q3_K nas=5 tok=16 used=2 random
+  ok pattern q3_K nas=5 tok=16 used=2 repeated
+  ok pattern q3_K nas=5 tok=16 used=2 unused
+== activation reuse (n_used_b=1, n_used=2) ==
+  ok bcast q2_K 512x16 nas=5 tok=7 used=2 used_b=1
+  ok bcast q3_K 512x16 nas=5 tok=7 used=2 used_b=1
+== ggml graph MUL_MAT_ID (neon+dotprod) ==
+  ok graph q2_K nas=2 tok=1 random
+  ok graph q2_K nas=2 tok=1 repeated
+  ok graph q2_K nas=2 tok=1 unused
+  ok graph q2_K nas=2 tok=2 random
+  ok graph q2_K nas=2 tok=2 repeated
+  ok graph q2_K nas=2 tok=2 unused
+  ok graph q2_K nas=2 tok=7 random
+  ok graph q2_K nas=2 tok=7 repeated
+  ok graph q2_K nas=2 tok=7 unused
+  ok graph q2_K nas=2 tok=16 random
+  ok graph q2_K nas=2 tok=16 repeated
+  ok graph q2_K nas=2 tok=16 unused
+  ok graph q2_K nas=3 tok=1 random
+  ok graph q2_K nas=3 tok=1 repeated
+  ok graph q2_K nas=3 tok=1 unused
+  ok graph q2_K nas=3 repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+tok=2 random
+  ok graph q2_K nas=3 tok=2 repeated
+  ok graph q2_K nas=3 tok=2 unused
+  ok graph q2_K nas=3 tok=7 random
+  ok graph q2_K nas=3 tok=7 repeated
+  ok graph q2_K nas=3 tok=7 unused
+  ok graph q2_K nas=3 tok=16 random
+  ok graph q2_K nas=3 tok=16 repeated
+  ok graph q2_K nas=3 tok=16 unused
+  ok graph q2_K nas=5 tok=1 random
+  ok graph q2_K nas=5 tok=1 repeated
+  ok graph q2_K nas=5 tok=1 unused
+  ok graph q2_K nas=5 tok=2 random
+  ok graph q2_K nas=5 tok=2 repeated
+  ok graph q2_K nas=5 tok=2 unused
+  ok graph q2_K nas=5 tok=7 random
+  ok graph q2_K nas=5 tok=7 repeated
+  ok graph q2_K nas=5 tok=7 unused
+  ok graph q2_K nas=5 tok=16 random
+  ok graph q2_K nas=5 tok=16 repeated
+  ok graph q2_K nas=5 tok=16 unused
+  ok graph q3_K nas=2 tok=1 random
+  ok graph q3_K nas=2 tok=1 repeated
+  ok graph q3_K nas=2 tok=1 unused
+  ok graph q3_K nas=2 tok=2 random
+  ok graph q3_K nas=2 tok=2 repeated
+  ok graph q3_K nas=2 tok=2 unused
+  ok graph q3_K nas=2 tok=7 random
+  ok graph q3_K nas=2 tok=7 repeated
+  ok graph q3_K nas=2 tok=7 unused
+  ok graph q3_K nas=2 tok=16 random
+  ok graph q3_K nas=2 tok=16 repeated
+  ok graph q3_K nas=2 tok=16 unused
+  ok graph q3_K nas=3 tok=1 random
+  ok graph q3_K nas=3 tok=1 repeated
+  ok graph q3_K nas=3 tok=1 unused
+  ok graph q3_K nas=3 tok=2 random
+  ok graph q3_K nas=3 tok=2 repeated
+  ok graph q3_K nas=3 tok=2 unused
+  ok graph q3_K nas=3 tok=7 random
+  ok graph q3_K nas=3 tok=7 repeated
+  ok graph q3_K nas=3 tok=7 unused
+  ok graph q3_K nas=3 tok=16 random
+  ok graph q3_K nas=3 tok=16 repeated
+  ok graph q3_K nas=3 tok=16 unused
+  ok graph q3_K nas=5 tok=1 random
+  ok graph q3_K nas=5 tok=1 repeated
+  ok graph q3_K nas=5 tok=1 unused
+  ok graph q3_K nas=5 tok=2 random
+  ok graph q3_K nas=5 tok=2 repeated
+  ok graph q3_K nas=5 tok=2 unused
+  ok graph q3_K nas=5 tok=7 random
+  ok graph q3_K nas=5 tok=7 repeated
+  ok graph q3_K nas=5 tok=7 unused
+  ok graph q3_K nas=5 tok=16 random
+  ok graph q3_K nas=5 tok=16 repeated
+  ok graph q3_K nas=5 tok=16 unused
+== graph broadcast n_used_b=1 ==
+  ok graph-bcast q2_K
+  ok graph-bcast q3_K
+== thread identity MUL_MAT_ID ==
+  ok q2_K threads 1/2/4/8 bit-identical
+  ok q3_K threads 1/2/4/8 bit-identical
+== supports_op negatives ==
+  ok supports_op false for F16 RHS
+  ok supports_op true for F32 3-D MUL_MAT_ID
+
+RESULT: PASS
+RC=0

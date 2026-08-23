@@ -1,0 +1,11 @@
+device=192.168.1.82:35785
+dir=/data/local/tmp/kalsarepack
+march=armv8.2-a+dotprod+fp16
+m2_result=PASS rc=0
+m3_result=PASS rc=0
+m4_result=PASS rc=0
+m5_result=PASS rc=0
+extra_engaged=Q2_K_8x4 Q3_K_8x4
+marco_on_device=skip (gguf not on Jelly)
+graph_native_gemv_us=34 graph_repack_gemv_us=51
+plugged=unknown

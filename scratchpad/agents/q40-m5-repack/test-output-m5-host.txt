@@ -1,0 +1,23 @@
+M5 integration starting
+M5 host neon=0 dotprod=0 rss_kb=0
+== extra-path engagement (CPU_REPACK extra name) ==
+  skip: host has no neon+dotprod; 8x4 is not selected (x86 cannot A/B the v1 kernel)
+== Marco KEXP real tensors (read-only GGUF) ==
+  gguf C:/Users/gualt/Desktop/Kalsa/moe-experiments/models/Marco-Mini-Instruct-KEXP.gguf
+  Q2 gate blk.0.ffn_gate_exps.weight type=q2_K ne=[1024,768,256] native_bytes=66060288
+  alloc native_slice=258048 packed_stride=258048 n_as=8 rss_kb=0
+  ok marco Q2 gate expert0 GEMV
+  Q2 up blk.0.ffn_up_exps.weight type=q2_K ne=[1024,768,256] native_bytes=66060288
+  alloc native_slice=258048 packed_stride=258048 n_as=8 rss_kb=0
+  ok marco Q2 up expert0 GEMV
+  Q3 down blk.0.ffn_down_exps.weight type=q3_K ne=[768,1024,256] native_bytes=86507520
+  alloc native_slice=337920 packed_stride=350208 n_as=8 rss_kb=0
+  ok marco Q3 down expert0 GEMV
+== micro-bench GEMV/GEMM/ID (exploratory, not a cell) ==
+  plugged=unknown (adb harness, no battery protocol here)
+  shape k=256 n=64 n_as=3 reps=50
+  gemv_q2_8x4_us=9  id_3x_gemv_us=30  rss_kb=0
+  packed_bytes=16128 native_bytes=16128
+  graph timing skipped (no neon+dotprod)
+
+RESULT: PASS

@@ -120,4 +120,29 @@ RC=0
 
 v1 does **not** regroup tokens that share an expert into a GEMM. Decode (one RHS row per selected id) is GEMV. Ordinary 2-D `MUL_MAT` still covers GEMM (M3).
 
-M5 (backend-ops + real KEXP) not started.
+## M4 audit-fixes (DeepSeek PASS-with-fixes)
+
+### FIX 1 — batched 2-D MUL_MAT (silent-wrong class)
+
+`supports_op` for 2-D MUL_MAT on q23k accepted any F32 host RHS. `forward_mul_mat_q23k` only quantizes `src1->ne[1]` rows and writes batch 0, so a legal `ggml_mul_mat` with 3-D src1 `[k,M,B]` was silently wrong for batches ≥ 1.
+
+Fix: require `src1->ne[2]==1 && src1->ne[3]==1` and dense `nb[0]/nb[1]` in `supports_op`. `compute_forward` returns false on batched src1 so the extra fence `GGML_ABORT`s if compute is forced (`n_threads=1`).
+
+Jelly:
+
+```
+== batched 3-D src1 on 2-D q23k MUL_MAT must decline ==
+  ok supports_op false for 2-D q23k x batched src1
+  ok abort on batched src1 MUL_MAT: ... extra declined op=MUL_MAT; refusing native fallthrough on tiled layout
+```
+
+### FIX 2 — id-mode hygiene + e=2 slice content
+
+- `ID_REPEATED` = constant expert `n_as-1` (non-zero when `n_as>1`).
+- `ID_UNUSED` = sparse `(e+t)%(n_as-1)`, never selects `n_as-1`, not all-zero.
+- Modes must differ from each other; test asserts this.
+- `run_id_case` for `n_as>=3` `memcmp`s packed 3-D slice `e=2` against a 2-D pack of expert 2 (payload bytes, not just size).
+
+Jelly + host: `ok id modes distinct (repeated=n_as-1, unused sparse)` and full M4 grid still PASS.
+
+Follow-up: M5.

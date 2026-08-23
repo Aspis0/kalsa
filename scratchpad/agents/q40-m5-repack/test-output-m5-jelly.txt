@@ -1,0 +1,70 @@
+M5 integration starting
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+M5 host neon=1 dotprod=1 rss_kb=4456
+== extra-path engagement (CPU_REPACK extra name) ==
+  ok A/B native-vs-repack q2_K GEMV extra=Q2_K_8x4
+  ok A/B native-vs-repack q3_K GEMV extra=Q3_K_8x4
+  ok A/B native-vs-repack q2_K GEMM M=4
+== Marco KEXP real tensors (read-only GGUF) ==
+  skip: Marco-Mini-Instruct-KEXP.gguf not found (ok on device)
+== micro-bench GEMV/GEMM/ID (exploratory, not a cell) ==
+  plugged=unknown (adb harness, no battery protocol here)
+  shape k=256 n=64 n_as=3 reps=50
+  gemv_q2_8x4_us=6  id_3x_gemv_us=19  rss_kb=5844
+  packed_bytes=16128 native_bytes=16128
+  graph_native_gemv_us=34 graph_repack_gemv_us=51
+
+RESULT: PASS
+RC=0
