@@ -1,0 +1,95 @@
+M1 identity: fp32 compare is bit-identical; d/dmin use the same ggml_fp16_to_fp32 as dequantize_row_q2_K/q3_K.
+== targeted layout ==
+  ok Q2 scale=low nibble min=high nibble (sm=0x5A)
+  ok Q3 6-bit scale_code round-trip (0,4,..60) and s=code-32
+  ok Q3 low-plane order (sb=5 unique 0..3 pattern)
+  ok Q3 hmask bit order (single high bit at sb=3 lane=7 -> q=5)
+== edge patterns ==
+  ok Q2_K all-zero
+  ok Q3_K all-zero
+  ok Q2_K all-max q/scale/min
+  ok Q3_K all-max q/scale_code
+  ok Q3_K hmask all-clear (q=0..3)
+  ok Q3_K hmask all-set (q=4..7)
+== patterned identity ==
+  ok pattern q2_K 256x8x1
+  ok pattern q2_K 256x8x2
+  ok pattern q2_K 256x8x3
+  ok pattern q2_K 256x16x1
+  ok pattern q2_K 256x16x2
+  ok pattern q2_K 256x16x3
+  ok pattern q2_K 256x24x1
+  ok pattern q2_K 256x24x2
+  ok pattern q2_K 256x24x3
+  ok pattern q2_K 256x32x1
+  ok pattern q2_K 256x32x2
+  ok pattern q2_K 256x32x3
+  ok pattern q2_K 512x8x1
+  ok pattern q2_K 512x8x2
+  ok pattern q2_K 512x8x3
+  ok pattern q2_K 512x16x1
+  ok pattern q2_K 512x16x2
+  ok pattern q2_K 512x16x3
+  ok pattern q2_K 512x24x1
+  ok pattern q2_K 512x24x2
+  ok pattern q2_K 512x24x3
+  ok pattern q2_K 512x32x1
+  ok pattern q2_K 512x32x2
+  ok pattern q2_K 512x32x3
+  ok pattern q2_K 1024x8x1
+  ok pattern q2_K 1024x8x2
+  ok pattern q2_K 1024x8x3
+  ok pattern q2_K 1024x16x1
+  ok pattern q2_K 1024x16x2
+  ok pattern q2_K 1024x16x3
+  ok pattern q2_K 1024x24x1
+  ok pattern q2_K 1024x24x2
+  ok pattern q2_K 1024x24x3
+  ok pattern q2_K 1024x32x1
+  ok pattern q2_K 1024x32x2
+  ok pattern q2_K 1024x32x3
+  ok pattern q3_K 256x8x1
+  ok pattern q3_K 256x8x2
+  ok pattern q3_K 256x8x3
+  ok pattern q3_K 256x16x1
+  ok pattern q3_K 256x16x2
+  ok pattern q3_K 256x16x3
+  ok pattern q3_K 256x24x1
+  ok pattern q3_K 256x24x2
+  ok pattern q3_K 256x24x3
+  ok pattern q3_K 256x32x1
+  ok pattern q3_K 256x32x2
+  ok pattern q3_K 256x32x3
+  ok pattern q3_K 512x8x1
+  ok pattern q3_K 512x8x2
+  ok pattern q3_K 512x8x3
+  ok pattern q3_K 512x16x1
+  ok pattern q3_K 512x16x2
+  ok pattern q3_K 512x16x3
+  ok pattern q3_K 512x24x1
+  ok pattern q3_K 512x24x2
+  ok pattern q3_K 512x24x3
+  ok pattern q3_K 512x32x1
+  ok pattern q3_K 512x32x2
+  ok pattern q3_K 512x32x3
+  ok pattern q3_K 1024x8x1
+  ok pattern q3_K 1024x8x2
+  ok pattern q3_K 1024x8x3
+  ok pattern q3_K 1024x16x1
+  ok pattern q3_K 1024x16x2
+  ok pattern q3_K 1024x16x3
+  ok pattern q3_K 1024x24x1
+  ok pattern q3_K 1024x24x2
+  ok pattern q3_K 1024x24x3
+  ok pattern q3_K 1024x32x1
+  ok pattern q3_K 1024x32x2
+  ok pattern q3_K 1024x32x3
+== random identity ==
+  q2_K seed=0x00000001 36/36 shapes bit-identical
+  q2_K seed=0x00c0ffee 36/36 shapes bit-identical
+  q2_K seed=0xdeadbeef 36/36 shapes bit-identical
+  q3_K seed=0x00000001 36/36 shapes bit-identical
+  q3_K seed=0x00c0ffee 36/36 shapes bit-identical
+  q3_K seed=0xdeadbeef 36/36 shapes bit-identical
+
+RESULT: PASS
