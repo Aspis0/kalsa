@@ -1034,6 +1034,58 @@ _device_timeout_restore_decision() {
 
 # Install the keep-awake settings and register the restore trap. Idempotent:
 # calling it twice (or on emulator) is a no-op beyond the first successful setup.
+# ── IME suspension (opt-in, device arms only) ───────────────────────
+# WHY: `input text` is not raw input — it reaches the app THROUGH the IME, and
+# a predictive keyboard rewrites it. Measured on the Jelly Star (Gboard,
+# 2026-08-23): typing "il colore e Zaffiro" landed as "Il colored e Zaffiro" —
+# autocapitalisation AND an English autocorrect on an Italian word. It is not
+# the space keyevent: typing the space as text garbles identically. With the
+# IME disabled the same call lands byte-exact.
+#
+# The S23 does not show it, which is why the type path looked sound: this is a
+# per-keyboard behaviour, not a per-Android-version one, so it will reappear on
+# whatever phone happens to run a predictive IME.
+#
+# Opt-in (IME_SUSPEND=1) rather than default: an arm already measured with a
+# keyboard attached must stay comparable to itself, and a suspended IME changes
+# what covers the screen. Saved and restored through the same EXIT trap as
+# keep-awake, so a killed run never leaves a phone without a keyboard.
+device_ime_suspend() {
+  [ "$BENCH_TARGET" = "device" ] || return 0
+  [ "${IME_SUSPEND:-0}" = "1" ] || return 0
+  [ "${_IME_SUSPENDED:-0}" = "1" ] && return 0
+
+  _IME_SAVED=$(adb shell "settings get secure default_input_method" 2>/dev/null | tr -d '\r' || true)
+  case "${_IME_SAVED:-}" in
+    ''|null) log "ime: no default_input_method to suspend (skipping)"; return 0 ;;
+  esac
+  _IME_SUSPENDED=1
+  if adb shell "ime disable $_IME_SAVED" >/dev/null 2>&1; then
+    log "ime: suspended $_IME_SAVED (restored on exit)"
+  else
+    _IME_SUSPENDED=0
+    log "ime: WARNING could not disable $_IME_SAVED — typed text may be autocorrected"
+  fi
+}
+
+device_ime_restore() {
+  [ "${_IME_SUSPENDED:-0}" = "1" ] || return 0
+  _IME_SUSPENDED=0
+  if adb shell "ime enable ${_IME_SAVED}" >/dev/null 2>&1 \
+     && adb shell "ime set ${_IME_SAVED}" >/dev/null 2>&1; then
+    log "ime: restored ${_IME_SAVED}"
+  else
+    log "ime: WARNING failed to restore ${_IME_SAVED} — the phone may have no keyboard; re-enable it in Settings"
+  fi
+}
+
+# One EXIT trap, two things to put back. Adding a second `trap ... EXIT` would
+# REPLACE the first and silently leak whichever was armed earlier.
+_device_session_restore() {
+  device_ime_restore
+  device_keepawake_restore
+}
+
 device_keepawake_setup() {
   [ "$BENCH_TARGET" = "device" ] || return 0
   [ "${_KA_SETUP_DONE:-0}" = "1" ] && return 0
@@ -1048,7 +1100,7 @@ device_keepawake_setup() {
   _KA_SETUP_DONE=1
   # Restore on success, failure (die), and interrupt (the EXIT trap also fires
   # on signal-induced exit). Idempotent + no-op when never set up.
-  trap device_keepawake_restore EXIT
+  trap _device_session_restore EXIT
 
   # 1) screen_off_timeout — raise to KA_SCREEN_TIMEOUT_MS (saved above).
   if adb shell "settings put system screen_off_timeout $KA_SCREEN_TIMEOUT_MS" >/dev/null 2>&1; then
@@ -1062,6 +1114,9 @@ device_keepawake_setup() {
   else
     log "keep-awake: WARNING 'dumpsys deviceidle whitelist +$PKG' failed/unavailable on this build (Doze exemption skipped; timeout still applies)"
   fi
+
+  # 3) Suspend a predictive IME when asked (see device_ime_suspend).
+  device_ime_suspend
 
   # 3) Wake the display once so the arm never begins against a dozing device.
   adb shell "input keyevent KEYCODE_WAKEUP" >/dev/null 2>&1 || true
