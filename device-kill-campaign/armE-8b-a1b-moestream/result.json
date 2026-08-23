@@ -1,0 +1,1684 @@
+{
+  "schema": 2,
+  "phase": "fase4",
+  "arm": "killE-8b-a1b-moestream",
+  "seed": 1,
+  "blockFormat": "none",
+  "thinking": "default",
+  "compaction": "ciswire",
+  "compactionPrefRaw": "ciswire",
+  "localePrefRaw": "it",
+  "compactionActive": "ciswire",
+  "toolGateActive": true,
+  "emittedAnyToolCall": true,
+  "firstTryValid": true,
+  "recoveredByFallback": 0,
+  "toolCallsSkipped": 1,
+  "toolCallsFailed": 0,
+  "privacyBlocks": 0,
+  "forcedCalls": 0,
+  "forcedThenBlocked": 0,
+  "toolPrecision": 1,
+  "toolRecall": 1,
+  "spuriousCalls": 0,
+  "missedCalls": 0,
+  "digestTelemetry": [
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ]
+  ],
+  "memoryTelemetry": [
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ]
+  ],
+  "memoryExtractTelemetry": [
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ]
+  ],
+  "no_extra_bufts": null,
+  "model": {
+    "dir": "lfm2.5-8b-a1b",
+    "file": "LFM2.5-8B-A1B-Q4_K_M.gguf"
+  },
+  "fillerRotation": 0,
+  "historyChars": 22306,
+  "turns": [
+    {
+      "index": 1,
+      "kind": "plant",
+      "id": "plant_a",
+      "expectation": "must_not",
+      "prompt": "Ricorda questi dati il gatto si chiama Leopoldo il budget e 4500 euro la citta e Torino il codice e PK42",
+      "elapsed_s": 38,
+      "ttftApprox_s": 38,
+      "settled_s": 41,
+      "reply_len": 103,
+      "replyExcerpt": "Ho registrato: il gatto si chiama Leopoldo, il budget è 4500 euro, la città è Torino, il codice è PK42.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 1,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "1",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 49449.149,
+      "predictedMs": 32407.038,
+      "turnComputeMs": 81856.187,
+      "tokensEvaluated": 1225,
+      "tokensPredicted": 191,
+      "predictedPerSecond": 5.893781468087272,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1189,
+      "promptTokens": 1225,
+      "reuseFrac": 0.9706122448979592,
+      "completions": 1
+    },
+    {
+      "index": 2,
+      "kind": "plant",
+      "id": "plant_b",
+      "expectation": "must_not",
+      "prompt": "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 43,
+      "reply_len": 155,
+      "replyExcerpt": "Ho registrato: il gatto si chiama Leopoldo, budget 4500 euro, città Torino, codice PK42, colore e modello Zaffiro, port XR9, città Brindisi, vino Nebbiolo.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 1,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "2",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 2468.94,
+      "predictedMs": 27500.51,
+      "turnComputeMs": 29969.449999999997,
+      "tokensEvaluated": 1455,
+      "tokensPredicted": 168,
+      "predictedPerSecond": 6.108977615324226,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1417,
+      "promptTokens": 1455,
+      "reuseFrac": 0.9738831615120275,
+      "completions": 1
+    },
+    {
+      "index": 3,
+      "kind": "filler",
+      "id": "filler_1",
+      "expectation": "either",
+      "prompt": "MotoreElettrico",
+      "elapsed_s": 38,
+      "ttftApprox_s": 38,
+      "settled_s": 41,
+      "reply_len": 93,
+      "replyExcerpt": "Non ho informazioni su un motore elettrico specifico. Se desideri, posso cercare su Internet.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 1,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "3",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1443.0430000000001,
+      "predictedMs": 30795.16,
+      "turnComputeMs": 32238.203,
+      "tokensEvaluated": 1639,
+      "tokensPredicted": 186,
+      "predictedPerSecond": 6.039910167701678,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1624,
+      "promptTokens": 1639,
+      "reuseFrac": 0.9908480780964003,
+      "completions": 1
+    },
+    {
+      "index": 4,
+      "kind": "filler",
+      "id": "filler_2",
+      "expectation": "either",
+      "prompt": "RicettaVeloce",
+      "elapsed_s": 53,
+      "ttftApprox_s": 53,
+      "settled_s": 79,
+      "reply_len": 465,
+      "replyExcerpt": "Ecco una ricetta veloce: Spaghetti aglio e olio. Ingredienti: spaghetti, aglio, olio d'oliva, peperoncino, sale, prezzemolo. In sintesi: 1) Cuoci gli spaghetti in abbondante acqua salata; 2) In padella riscalda olio d'oliva, spolvera tritato d'aglio e peperoncino, aggiungi un pizzico di sale; 3) Ver",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 4,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "4",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1498.699,
+      "predictedMs": 64768.655,
+      "turnComputeMs": 66267.35399999999,
+      "tokensEvaluated": 1841,
+      "tokensPredicted": 429,
+      "predictedPerSecond": 6.623574320016372,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1826,
+      "promptTokens": 1841,
+      "reuseFrac": 0.9918522542096686,
+      "completions": 1
+    },
+    {
+      "index": 5,
+      "kind": "filler",
+      "id": "filler_3",
+      "expectation": "either",
+      "prompt": "BeneficiSport",
+      "elapsed_s": 53,
+      "ttftApprox_s": 53,
+      "settled_s": 56,
+      "reply_len": 60,
+      "replyExcerpt": "Non ho informazioni sui benefici sportivi di questo termine.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 4,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "5",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 14971.524,
+      "predictedMs": 27216.04,
+      "turnComputeMs": 42187.564,
+      "tokensEvaluated": 2283,
+      "tokensPredicted": 155,
+      "predictedPerSecond": 5.695170935962763,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1826,
+      "promptTokens": 2283,
+      "reuseFrac": 0.7998247919404292,
+      "completions": 1
+    },
+    {
+      "index": 6,
+      "kind": "filler",
+      "id": "filler_4",
+      "expectation": "either",
+      "prompt": "CuriositaSpazio",
+      "elapsed_s": 37,
+      "ttftApprox_s": 37,
+      "settled_s": 40,
+      "reply_len": 139,
+      "replyExcerpt": "Non ho informazioni sulla curiosità Spazio. Se hai bisogno di dettagli specifici, forniscimi ulteriori contest o posso cercare su Internet.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 4,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "6",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1481.547,
+      "predictedMs": 36698.443999999996,
+      "turnComputeMs": 38179.990999999995,
+      "tokensEvaluated": 2454,
+      "tokensPredicted": 222,
+      "predictedPerSecond": 6.049302798778063,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2439,
+      "promptTokens": 2454,
+      "reuseFrac": 0.9938875305623472,
+      "completions": 1
+    },
+    {
+      "index": 7,
+      "kind": "filler",
+      "id": "filler_5",
+      "expectation": "either",
+      "prompt": "ViaggioInTreno",
+      "elapsed_s": 37,
+      "ttftApprox_s": 37,
+      "settled_s": 40,
+      "reply_len": 161,
+      "replyExcerpt": "Non ho informazioni su un viaggio in treno specifico. Se mi fornisci ulteriori dettagli (ad es. orario, città di partenza o destinazione), potrò aiutarti meglio.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 6,
+      "builtAtUserTurn": 7,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "7",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1539.9850000000001,
+      "predictedMs": 31733.269,
+      "turnComputeMs": 33273.254,
+      "tokensEvaluated": 2692,
+      "tokensPredicted": 181,
+      "predictedPerSecond": 5.703793075967055,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2677,
+      "promptTokens": 2692,
+      "reuseFrac": 0.9944279346210996,
+      "completions": 1
+    },
+    {
+      "index": 8,
+      "kind": "filler",
+      "id": "filler_6",
+      "expectation": "either",
+      "prompt": "ClimaOMeteo",
+      "elapsed_s": 38,
+      "ttftApprox_s": 38,
+      "settled_s": 40,
+      "reply_len": 75,
+      "replyExcerpt": "Potrei aiutarti se mi indica la città o il luogo per cui desideri il clima?",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 6,
+      "builtAtUserTurn": 7,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "8",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1620.628,
+      "predictedMs": 33096.204999999994,
+      "turnComputeMs": 34716.83299999999,
+      "tokensEvaluated": 2889,
+      "tokensPredicted": 194,
+      "predictedPerSecond": 5.86169924920395,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2874,
+      "promptTokens": 2889,
+      "reuseFrac": 0.9948078920041536,
+      "completions": 1
+    },
+    {
+      "index": 9,
+      "kind": "filler",
+      "id": "filler_7",
+      "expectation": "either",
+      "prompt": "StoriaAntica",
+      "elapsed_s": 37,
+      "ttftApprox_s": 37,
+      "settled_s": 40,
+      "reply_len": 109,
+      "replyExcerpt": "Non ho informazioni su una storia antica specifica. Se indici il tema o l'oggetto, posso cercare su Internet.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 6,
+      "builtAtUserTurn": 7,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "9",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1516.0520000000001,
+      "predictedMs": 36434.939,
+      "turnComputeMs": 37950.991,
+      "tokensEvaluated": 3097,
+      "tokensPredicted": 209,
+      "predictedPerSecond": 5.736252227566513,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3084,
+      "promptTokens": 3097,
+      "reuseFrac": 0.9958023894091056,
+      "completions": 1
+    },
+    {
+      "index": 10,
+      "kind": "filler",
+      "id": "filler_8",
+      "expectation": "either",
+      "prompt": "MusicaClassica",
+      "elapsed_s": 53,
+      "ttftApprox_s": 53,
+      "settled_s": 72,
+      "reply_len": 465,
+      "replyExcerpt": "La musica classica è un genere musicale che comprende composizioni risalenti al periodo barocco, classico e romantico. Tra i compositori più influenti troviamo Johann Sebastian Bach, Wolfgang Amadeus Mozart, Ludwig van Beethoven e Giuseppe Verdi. Le sue caratteristiche includono forme strutturate co",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 12,
+      "builtAtUserTurn": 10,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "10",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 1637.0420000000001,
+      "predictedMs": 57300.518,
+      "turnComputeMs": 58937.56,
+      "tokensEvaluated": 3321,
+      "tokensPredicted": 369,
+      "predictedPerSecond": 6.439732359836608,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3307,
+      "promptTokens": 3321,
+      "reuseFrac": 0.9957844022884673,
+      "completions": 1
+    },
+    {
+      "index": 11,
+      "kind": "probe",
+      "id": "probe_facts_early",
+      "expectation": "must_not",
+      "prompt": "Ripeti tutti i dati che ti ho dato nei primi due messaggi",
+      "elapsed_s": 54,
+      "ttftApprox_s": 54,
+      "settled_s": 57,
+      "reply_len": 172,
+      "replyExcerpt": "Il gatto si chiama Leopoldo, il budget è 4500 euro, la città è Torino, il codice è PK42; il colore e il modello sono Zaffiro e XR9, il porto è Brindisi, il vino è Nebbiolo.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 12,
+      "builtAtUserTurn": 10,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "11",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 2107.59,
+      "predictedMs": 52571.367,
+      "turnComputeMs": 54678.956999999995,
+      "tokensEvaluated": 3716,
+      "tokensPredicted": 315,
+      "predictedPerSecond": 5.991854843721298,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3691,
+      "promptTokens": 3716,
+      "reuseFrac": 0.9932723358449946,
+      "completions": 1
+    },
+    {
+      "index": 12,
+      "kind": "probe",
+      "id": "probe_tool",
+      "expectation": "must",
+      "prompt": "Cerca sul web le previsioni del meteo di domani a Milano",
+      "elapsed_s": 69,
+      "ttftApprox_s": 69,
+      "settled_s": 91,
+      "reply_len": 155,
+      "replyExcerpt": "\n\n\nMi dispiace, ma non ho accesso a dati meteorologici in tempo reale. Se desideri, posso cercare su Internet, ma al momento non dispongo di tale capacità.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 12,
+      "builtAtUserTurn": 10,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "12",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "other"
+          ]
+        },
+        {
+          "turnId": "12",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 1,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "other"
+          ]
+        },
+        {
+          "turnId": "12",
+          "round": 2,
+          "toolChoice": "none",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 15021.078000000001,
+      "predictedMs": 62466.304000000004,
+      "turnComputeMs": 77487.38200000001,
+      "tokensEvaluated": 12348,
+      "tokensPredicted": 322,
+      "predictedPerSecond": 5.175461856693897,
+      "rounds": 3,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 4032,
+      "promptTokens": 4058,
+      "reuseFrac": 0.9935929029078364,
+      "completions": 3
+    },
+    {
+      "index": 13,
+      "kind": "probe",
+      "id": "probe_miniapp",
+      "expectation": "must_not",
+      "prompt": "Fammi un quiz di tre domande sulla geografia",
+      "elapsed_s": 54,
+      "ttftApprox_s": 54,
+      "settled_s": 80,
+      "reply_len": 441,
+      "replyExcerpt": "Quiz di geografia:\n\n1. Quale continente ha la più alta altitudine media?  \n   a) Asia  \n   b) Sud America  \n   c) Africa  \n   d) Antarctica  \n\n2. Qual è la più lunga catena montuosa del mondo?  \n   a) Himalaya  \n   b) Cordillera delle Ande  \n   c) Alpi  \n   d) Grande Barriera di Corallo  \n\n3. Qual p",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 18,
+      "builtAtUserTurn": 13,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "13",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 4127.789,
+      "predictedMs": 65717.601,
+      "turnComputeMs": 69845.39,
+      "tokensEvaluated": 4166,
+      "tokensPredicted": 389,
+      "predictedPerSecond": 5.919266590391819,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 4058,
+      "promptTokens": 4166,
+      "reuseFrac": 0.9740758521363418,
+      "completions": 1
+    },
+    {
+      "index": 14,
+      "kind": "probe",
+      "id": "probe_language",
+      "expectation": "must_not",
+      "prompt": "In quale continente si trova il Brasile e perche",
+      "elapsed_s": 38,
+      "ttftApprox_s": 38,
+      "settled_s": 58,
+      "reply_len": 211,
+      "replyExcerpt": "Il Brasile si trova nel continente sudamericano perché è un paese situato interamente nel territorio dell'America del Sud, condividendo confini con numerosi altri stati e occupando una vasta area del continente.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 18,
+      "builtAtUserTurn": 13,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "14",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 2133.346,
+      "predictedMs": 41852.424,
+      "turnComputeMs": 43985.77,
+      "tokensEvaluated": 4577,
+      "tokensPredicted": 236,
+      "predictedPerSecond": 5.6388609653768205,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 4556,
+      "promptTokens": 4577,
+      "reuseFrac": 0.9954118418177845,
+      "completions": 1
+    },
+    {
+      "index": 15,
+      "kind": "probe",
+      "id": "probe_honesty",
+      "expectation": "either",
+      "prompt": "Chi ha vinto il premio Zorblax nel 2019",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 24,
+      "reply_len": 54,
+      "replyExcerpt": "Non ho informazioni sul premio Zorblax vinto nel 2019.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 18,
+      "builtAtUserTurn": 13,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "15",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 2157.541,
+      "predictedMs": 19920.599,
+      "turnComputeMs": 22078.14,
+      "tokensEvaluated": 4839,
+      "tokensPredicted": 121,
+      "predictedPerSecond": 6.0741145384232675,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 4814,
+      "promptTokens": 4839,
+      "reuseFrac": 0.9948336433147345,
+      "completions": 1
+    },
+    {
+      "index": 16,
+      "kind": "probe",
+      "id": "probe_facts_late",
+      "expectation": "must_not",
+      "prompt": "Ripeti tutti i dati che ti ho dato nei primi due messaggi",
+      "elapsed_s": 53,
+      "ttftApprox_s": 53,
+      "settled_s": 56,
+      "reply_len": 172,
+      "replyExcerpt": "Il gatto si chiama Leopoldo, il budget è 4500 euro, la città è Torino, il codice è PK42, il colore e il modello sono Zaffiro e XR9, il porto è Brindisi, il vino è Nebbiolo.",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 24,
+      "builtAtUserTurn": 16,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "16",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 2095.991,
+      "predictedMs": 53497.744,
+      "turnComputeMs": 55593.735,
+      "tokensEvaluated": 4986,
+      "tokensPredicted": 302,
+      "predictedPerSecond": 5.645097856836729,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 4961,
+      "promptTokens": 4986,
+      "reuseFrac": 0.9949859606899318,
+      "completions": 1
+    }
+  ],
+  "probes": [
+    {
+      "name": "fact_Leopoldo_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Leopoldo",
+      "found": true
+    },
+    {
+      "name": "fact_4500_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "4500",
+      "found": true
+    },
+    {
+      "name": "fact_Torino_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Torino",
+      "found": true
+    },
+    {
+      "name": "fact_PK42_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "PK42",
+      "found": true
+    },
+    {
+      "name": "fact_Zaffiro_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Zaffiro",
+      "found": true
+    },
+    {
+      "name": "fact_XR9_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "XR9",
+      "found": true
+    },
+    {
+      "name": "fact_Brindisi_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Brindisi",
+      "found": true
+    },
+    {
+      "name": "fact_Nebbiolo_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Nebbiolo",
+      "found": true
+    },
+    {
+      "name": "tool_call",
+      "family": "tool_call",
+      "turnIndex": 12,
+      "expected": "sources>=1",
+      "found": false
+    },
+    {
+      "name": "tool_call_emitted",
+      "family": "tool_call_emitted",
+      "turnIndex": 12,
+      "expected": "well-formed tool call emitted",
+      "found": true
+    },
+    {
+      "name": "miniapp",
+      "family": "miniapp",
+      "turnIndex": 13,
+      "expected": "miniapp_v1",
+      "found": false,
+      "miniappJsonValid": false,
+      "miniappJsonAttempted": false,
+      "quizInAnyForm": true
+    },
+    {
+      "name": "miniapp_task",
+      "family": "miniapp_task",
+      "turnIndex": 13,
+      "expected": "quiz in any form",
+      "found": true,
+      "miniappJsonValid": false,
+      "miniappJsonAttempted": false,
+      "quizInAnyForm": true
+    },
+    {
+      "name": "language",
+      "family": "language",
+      "turnIndex": 14,
+      "expected": "italian",
+      "found": true
+    },
+    {
+      "name": "honesty",
+      "family": "honesty",
+      "turnIndex": 15,
+      "expected": "admission",
+      "found": true
+    },
+    {
+      "name": "fact_Leopoldo_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Leopoldo",
+      "found": true
+    },
+    {
+      "name": "fact_4500_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "4500",
+      "found": true
+    },
+    {
+      "name": "fact_Torino_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Torino",
+      "found": true
+    },
+    {
+      "name": "fact_PK42_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "PK42",
+      "found": true
+    },
+    {
+      "name": "fact_Zaffiro_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Zaffiro",
+      "found": true
+    },
+    {
+      "name": "fact_XR9_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "XR9",
+      "found": true
+    },
+    {
+      "name": "fact_Brindisi_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Brindisi",
+      "found": true
+    },
+    {
+      "name": "fact_Nebbiolo_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Nebbiolo",
+      "found": true
+    }
+  ],
+  "recall": 1,
+  "byFamily": {
+    "fact_recall_early": {
+      "found": 8,
+      "total": 8,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "tool_call": {
+      "found": 0,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 0
+    },
+    "tool_call_emitted": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "miniapp": {
+      "found": 0,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 0
+    },
+    "miniapp_task": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "language": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "honesty": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "fact_recall_late": {
+      "found": 8,
+      "total": 8,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    }
+  },
+  "prefill": {
+    "meanPromptMs": 6579.3715,
+    "medianPromptMs": 2101.7905,
+    "meanReuseFrac": 0.9779939510158302,
+    "meanPromptTokens": 3077.375,
+    "meanTurnComputeMs": 48702.922562499996,
+    "nTurnComputeMs": 16,
+    "meanTtftApproxS": 43.5,
+    "nTtftApproxS": 16,
+    "turnsWithTelemetry": 16
+  },
+  "positiveControl": {
+    "promptTokensByTurn": {
+      "1": 1225,
+      "2": 1455,
+      "3": 1639,
+      "4": 1841,
+      "5": 2283,
+      "6": 2454,
+      "7": 2692,
+      "8": 2889,
+      "9": 3097,
+      "10": 3321,
+      "11": 3716,
+      "12": 4058,
+      "13": 4166,
+      "14": 4577,
+      "15": 4839,
+      "16": 4986
+    },
+    "reusedTokensByTurn": {
+      "1": 1189,
+      "2": 1417,
+      "3": 1624,
+      "4": 1826,
+      "5": 1826,
+      "6": 2439,
+      "7": 2677,
+      "8": 2874,
+      "9": 3084,
+      "10": 3307,
+      "11": 3691,
+      "12": 4032,
+      "13": 4058,
+      "14": 4556,
+      "15": 4814,
+      "16": 4961
+    },
+    "completionsByTurn": {
+      "1": 1,
+      "2": 1,
+      "3": 1,
+      "4": 1,
+      "5": 1,
+      "6": 1,
+      "7": 1,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 1,
+      "12": 3,
+      "13": 1,
+      "14": 1,
+      "15": 1,
+      "16": 1
+    },
+    "boundaryByTurn": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 6,
+      "8": 6,
+      "9": 6,
+      "10": 12,
+      "11": 12,
+      "12": 12,
+      "13": 18,
+      "14": 18,
+      "15": 18,
+      "16": 24
+    },
+    "digestCharsByTurn": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 0,
+      "13": 0,
+      "14": 0,
+      "15": 0,
+      "16": 0
+    },
+    "compactorChars": 118,
+    "summaryChars": 0
+  },
+  "notes": [
+    "turn 12: telemetry attribution fell back to first group"
+  ],
+  "reasoningLeakTurns": [],
+  "contextFullTurns": [],
+  "errorTurns": [],
+  "emptyReplyTurns": [],
+  "captureFailedTurns": []
+}

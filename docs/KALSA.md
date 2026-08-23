@@ -172,7 +172,18 @@ Nothing was killed on either phone. What ends a run is one of three other things
 | B — KEXP, **`use_mmap=false`** | S23 | 16/16, **21.3 → 15.7, −26 %, no bimodality** | plan complete; 1 222 k majflt, battery 56 → 47 % |
 | D — Qwen3.5-2B, production (hot start 40.7 °C) | S23 | 16/16, **the most stable arm** (−10.8 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
 | D — Qwen3.5-2B, **cold start 33.9 °C** | S23 | 16/16, **−11.4 %**, median 17.31 | plan complete; **747 majflt**, battery 45 → 34 % |
-| E — 8B-A1B + streaming | S23 | **could not be run** | the gate refuses the model for a repack cost that streaming removes |
+| E — 8B-A1B + **streaming** | S23 | 16/16, **5.91 tok/s mean — 21x arm A**, decay only −4 % | plan complete; **6 189 majflt**, RssAnon 2.70 GB, battery 99 → 85 % |
+
+⭐ **Arm E ran, and it reverses the read on the 8B (§7.50).** Expert streaming takes the same
+8B-A1B from arm A's **0.27 tok/s and death by battery at turn 7** to **5.91 tok/s, 16/16 turns, on
+0.75 battery points per turn instead of 5.7** — and from **1 738 800** major faults to **6 189**. The
+gate is right that the 8B cannot be RESIDENT; it was wrong to conclude the model cannot be loaded.
+⛔ **I had predicted the opposite in writing**, citing a `bmoe-cli` result to forecast an in-app arm —
+a cross-harness citation this project forbids — and on the false premise that the 8B "fits". Arm A's
+`RssFile` climbing to 2.43 GB under 1.74 M faults is not a model that fits. ⚠️ **But 5.91 tok/s is
+not fast**: the small models end the same plan at 14–16, so streaming makes the 8B **possible**, ~2.5x
+slower than the 2.6B and far under the 20 tok/s bar. It also hands the gate the constant it lacked —
+a **measured** 2.70 GB resident footprint, against the estimator's 249 MiB.
 
 ⭐ **A second phone turned the finding into a controlled test (§7.47, §7.48).** The Jelly runs the
 same KEXP arm and **never evicts** — `RssFile` flat at 3.396 GB, **117 major faults in the whole

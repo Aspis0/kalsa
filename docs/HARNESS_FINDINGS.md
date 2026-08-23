@@ -1627,6 +1627,64 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.50 MEASURED 2026-08-23: expert streaming is 21x on the 8B IN THE APP — and it kills a hypothesis I had pre-registered against it
+
+I predicted this arm would fail, in writing, on the strength of §7.40's opening line (*"§7.39 measured
+streaming on an 8B that **fits** in 8 GB and found it loses"*) and told the engine team the gate was
+probably right to refuse the 8B. **Both halves of that were wrong**, and the errors are worth more
+than the result.
+
+Arm `killE-8b-a1b-moestream`: S23, unplugged from 99 %, 26.6 °C, `LFM2.5-8B-A1B-Q4_K_M.gguf`
+(5 155 564 768 B), `MOE=on`, `NOREPACK=1`, APK `b5e88cf`, 16/16 turns, probes 20/22. Compared against
+arm A, the same model in the shipping load path on the same phone.
+
+| | arm A — mmap, no repack | arm E — **streaming** |
+|---|---|---|
+| tok/s | **0.261 – 0.294** | **5.18 – 6.62, mean 5.91** |
+| `RssAnon` / `RssFile` | 0.068 / **2.06 GB** | **2.70 GB** / 0.098 |
+| major faults | **1 738 800** over 7 turns | **6 189** over 16 turns |
+| battery | 51 → 11 % in 7 turns (5.7/turn) | 97 → 85 % in 16 turns (**0.75/turn**) |
+| outcome | **died at turn 7**, battery | **16/16 completed** |
+
+**~21x, and it is not a generation-length artifact** (§7.47's caveat, checked): arm A's turn 1
+predicted 283 tokens at 0.271, arm E's predicted 191 at 5.89 — overlapping lengths, a ratio two
+orders of magnitude beyond anything length explains. Streaming was confirmed live **from the kernel,
+not from the app answering** — `RssAnon` 2.70 GB against `RssFile` 98 MB, and `kalsa moe stream:`
+appears **0** times, which is the only signal there is, since llama.rn logs that line solely on
+failure.
+
+**Why the prediction failed, twice over.**
+1. ⛔ **I cited across harnesses to predict my own result.** §7.39/§7.40 are `bmoe-cli` measurements;
+   arm E is in-app. This file's standing rule is never to mix the two, and I broke it to forecast an
+   arm I was about to run.
+2. ⛔ **"The 8B fits in 8 GB" is false on this phone in the shipping configuration.** Arm A shows
+   `RssFile` climbing to 2.43 GB against **1.74 million** major faults at 0.27 tok/s. That is not a
+   model that fits; it is §7.45's thrash, which is precisely streaming's case. The gate is right that
+   the 8B cannot be RESIDENT; it is wrong to conclude the model cannot be loaded.
+
+**The constant this unlocks.** §7.48 left the conditional gate blocked because
+`estimateModelNonEvictableMiB({repack:false})` returns **249 MiB** for this model — literally
+`COMPUTE_MIB_AT_UBATCH_256`, weights excluded — against a measured 2.70 GB, wrong by 11x in the
+direction that says "fits" when it does not. Arm E replaces that estimate with a measurement: **peak
+`RssAnon` 2 750 692 kB at `engineCtx` 8192**, covering weights, KV and compute buffers. That is the
+honest number for a gate to decide on, and it is per-model and per-context, not a formula.
+
+⚠️ **It is not fast, and the two facts must travel together.** 5.91 tok/s against the small models'
+14–16 at the end of the same 16-turn plan: streaming makes the 8B **possible**, roughly 2.5x slower
+than the 2.6B, and far under the owner's stated 20 tok/s bar for an 8B. Whether that ships is a
+product judgement about the 8B's quality, not a measurement.
+
+⭐ **Flattest arm this project has measured: −4 %** (5.89 → 5.65). Every other arm decays 11–48 %.
+The plausible reason is that streaming's per-token cost is file I/O that does not grow with the
+context, so KV growth is a smaller share of each token — plausible, **not measured**, and stated as
+a hypothesis.
+
+⚠️ Limits. n=1. Arm A ran on an **older APK**, stopped at turn 7 and has no `result.json` (its
+figures here are read from `turn<N>/telemetry.jsonl` directly), so the pair is a coarse comparison
+and not a matched A/B. The clean control — the same 8B, same APK, streaming OFF, 16 turns — has not
+been run and is owed before "21x" is quoted as a like-for-like number. Arm A's directory `turn5`
+also holds engine turns 4 and 5 with `turn4` absent, the same attribution defect §7.49 documents.
+
 ### 7.49 INSTRUMENT 2026-08-23: `result.json` told us it had dropped two turns and misattributed a third, in a field nobody read
 
 While checking §7.45 after a hostile audit, `device-kill-campaign/armB-kexp-production/result.json`

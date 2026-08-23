@@ -1,0 +1,578 @@
+08-23 13:14:13.554  2862  6030 I ActivityManager: Killing 31140:com.samsung.android.rubin.app/u0a108 (adj 985): empty #33
+08-23 13:14:13.563  2862  5676 I ActivityManager: Killing 31097:com.sec.android.daemonapp/u0a221 (adj 985): empty #33
+08-23 13:27:24.519  2862  6035 I ActivityManager: Killing 31382:com.android.keychain/1000 (adj 985): empty #33
+08-23 13:27:24.731  2862  6030 I ActivityManager: Killing 31394:com.verizon.mips.services/u0a296 (adj 975): empty #33
+08-23 13:30:25.397  2862  4241 I ActivityManager: Process com.samsung.euicc (pid 13434) has died: fg  SVC (153,1740)
+08-23 13:33:00.021  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506380019, getTime():Sun Aug 23 13:33:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:33:00.927  2862  4241 I ActivityManager: Killing 31600:com.samsung.android.provider.filterprovider/1000 (adj 905): empty #33
+08-23 13:33:01.222 13568 13568 W GWT:SessionManager: [daemonapp] Update Requested on MAIN THREAD!! Use Dispatchers.Default instead Main. If DO NOT, it will cause ANR and update cancelled frequently
+08-23 13:33:01.753  2862  6033 I ActivityManager: Killing 31442:com.samsung.android.app.routines/u0a49 (adj 975): empty #33
+08-23 13:33:02.122 13568 13568 W GWT:SessionManager: [daemonapp] Update Requested on MAIN THREAD!! Use Dispatchers.Default instead Main. If DO NOT, it will cause ANR and update cancelled frequently
+08-23 13:33:02.501  2862  6486 I ActivityManager: Killing 32751:com.samsung.SMT/1000 (adj 905): empty #33
+08-23 13:35:59.707  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506559707, getTime():Sun Aug 23 13:35:59 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:36:00.290 24871 24937 D nativeloader: Load /data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/split_CronetDynamite_installtime.apk!/lib/arm64-v8a/libcronet.151.0.7922.83.so using isolated ns clns-14 (caller=/data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/split_CronetDynamite_installtime.apk!classes2.dex): ok
+08-23 13:36:03.651 18409 18409 W TimedProcessReaper: onTrimMemory=40. Killing process to refresh configuration
+08-23 13:36:03.694  2862  4180 I ActivityManager: Process com.google.android.googlequicksearchbox:search (pid 18409) has died: cch+5 CEM (112,1721)
+08-23 13:36:04.506  2862  4952 I ActivityManager: Killing 467:com.samsung.android.samsungpassautofill/u0a213 (adj 965): empty #33
+08-23 13:36:04.569  2862  6486 I ActivityManager: Killing 14152:com.samsung.android.mobileservice/u0a121 (adj 965): empty #33
+08-23 13:36:04.631  5917 21299 E oneway spamming:   #22 pc 00000000000b8c20  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+184) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 13:36:04.631  5917 21299 E oneway spamming:   #23 pc 00000000000ab420  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 13:36:04.631  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506564630, getTime():Sun Aug 23 13:36:04 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:36:08.427 14256 14275 W GoogleRestoreMemoryUsageCapture: 	at libcore.io.IoBridge.open(IoBridge.java:574)
+08-23 13:36:08.427 14256 14275 W GoogleRestoreMemoryUsageCapture: 	at libcore.io.Linux.open(Native Method)
+08-23 13:36:08.427 14256 14275 W GoogleRestoreMemoryUsageCapture: 	at libcore.io.ForwardingOs.open(ForwardingOs.java:568)
+08-23 13:36:08.427 14256 14275 W GoogleRestoreMemoryUsageCapture: 	at libcore.io.BlockGuardOs.open(BlockGuardOs.java:274)
+08-23 13:36:08.427 14256 14275 W GoogleRestoreMemoryUsageCapture: 	at libcore.io.ForwardingOs.open(ForwardingOs.java:568)
+08-23 13:36:08.427 14256 14275 W GoogleRestoreMemoryUsageCapture: 	at libcore.io.IoBridge.open(IoBridge.java:560)
+08-23 13:36:08.484 14026 14035 D nativeloader: Load /data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/split_CronetDynamite_installtime.apk!/lib/arm64-v8a/libcronet.151.0.7922.83.so using isolated ns clns-14 (caller=/data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/split_CronetDynamite_installtime.apk!classes2.dex): ok
+08-23 13:36:23.508  2862  6037 I ActivityManager: Killing 8145:com.samsung.android.privacydashboard/u0a107 (adj 955): empty #33
+08-23 13:36:32.390  2862  6025 I ActivityManager: Killing 9035:com.samsung.android.app.reminder/u0a232 (adj 955): empty #33
+08-23 13:36:59.364  2862  6486 I ActivityManager: Killing 9034:com.sec.android.gallery3d/u0a126 (adj 945): empty #33
+08-23 13:37:00.668  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506620665, getTime():Sun Aug 23 13:37:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:37:13.604  2862  4180 I ActivityManager: Killing 9072:com.samsung.cmh/5004 (adj 945): empty #33
+08-23 13:38:00.679  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506680677, getTime():Sun Aug 23 13:38:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:39:00.700  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506740699, getTime():Sun Aug 23 13:39:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:40:00.727  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506800726, getTime():Sun Aug 23 13:40:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:40:47.049  2862  3221 I ActivityManager: Killing 9144:com.samsung.faceservice/5004 (adj 945): empty #33
+08-23 13:41:00.740  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506860739, getTime():Sun Aug 23 13:41:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:41:51.692  2862  3221 I ActivityManager: Killing 31350:com.samsung.android.game.gos/u0a79 (adj 935): empty #33
+08-23 13:41:51.696  2862  3221 I ActivityManager: Killing 9036:com.android.providers.calendar/u0a114 (adj 945): empty #34
+08-23 13:42:00.748  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506920747, getTime():Sun Aug 23 13:42:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:43:00.758  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787506980757, getTime():Sun Aug 23 13:43:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:44:00.782  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507040780, getTime():Sun Aug 23 13:44:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:45:00.792  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507100791, getTime():Sun Aug 23 13:45:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:46:00.807  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507160806, getTime():Sun Aug 23 13:46:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:47:00.826  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507220823, getTime():Sun Aug 23 13:47:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:48:00.845  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507280839, getTime():Sun Aug 23 13:48:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:49:00.855  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507340853, getTime():Sun Aug 23 13:49:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:50:00.883  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507400882, getTime():Sun Aug 23 13:50:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:51:00.904  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507460902, getTime():Sun Aug 23 13:51:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:51:11.401 15277 15277 D nativeloader:   com_android_tethering: libandroid_net_connectivity_com_android_net_module_util_jni.so:libframework-connectivity-jni.so:libframework-connectivity-tiramisu-jni.so:libmainlinecronet.136.0.7091.2.so:libservice-connectivity.so:libservice-thread-jni.so:stable_cronet_libcrypto.so:stable_cronet_libssl.so
+08-23 13:51:12.522 14026 14239 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+08-23 13:51:12.524 14026 14239 W libc    : Access denied finding property "service.adb.tls.port"
+08-23 13:51:12.653  2862  4241 I ActivityManager: Killing 8906:com.samsung.android.scpm/5009 (adj 935): empty #33
+08-23 13:51:12.747  2862  4952 I ActivityManager: Killing 21388:com.osp.app.signin/u0a118 (adj 935): empty #33
+08-23 13:51:12.775  2862  6486 I ActivityManager: Killing 30974:com.samsung.android.sm.provider/1000 (adj 905): empty #33
+08-23 13:51:13.071  2862  6486 I ActivityManager: Killing 21549:com.samsung.android.dqagent/1000 (adj 905): empty #33
+08-23 13:51:13.684  2862  4124 I ActivityManager: Killing 12873:com.google.android.partnersetup/u0a255 (adj 915): empty #33
+08-23 13:51:13.781 14026 14035 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+08-23 13:51:13.782 14026 14035 W libc    : Access denied finding property "service.adb.tls.port"
+08-23 13:51:15.218 14026 14034 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+08-23 13:51:15.219 14026 14034 W libc    : Access denied finding property "service.adb.tls.port"
+08-23 13:51:16.340 14026 14239 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+08-23 13:51:16.341 14026 14239 W libc    : Access denied finding property "service.adb.tls.port"
+08-23 13:51:16.748  2862  2917 I ActivityManager: Killing 13285:com.google.android.apps.tachyon/u0a266 (adj 905): empty #33
+08-23 13:51:16.753  2862  2917 I ActivityManager: Killing 9187:.vpnservice/u0a298 (adj 915): empty #34
+08-23 13:51:19.516  2862  3581 I ActivityManager: Killing 13368:com.samsung.android.app.telephonyui/1001 (adj 905): empty #33
+08-23 13:51:20.158  2862  6035 I ActivityManager: Killing 31654:com.android.vending/u0a261 (adj 905): empty #33
+08-23 13:51:36.245  2862  3221 I ActivityManager: Killing 13607:com.samsung.android.rubin.app/u0a108 (adj 905): empty #33
+08-23 13:52:00.941  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507520937, getTime():Sun Aug 23 13:52:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:53:00.940  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507580939, getTime():Sun Aug 23 13:53:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:54:00.951  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507640949, getTime():Sun Aug 23 13:54:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:54:06.742  2862  6031 I ActivityManager: Killing 13568:com.sec.android.daemonapp/u0a221 (adj 905): empty #33
+08-23 13:54:08.334  2862  2917 I ActivityManager: Killing 13657:com.sec.android.daemonapp:weather_content_provider/u0a221 (adj 905): empty #33
+08-23 13:54:08.534  2862  4469 I ActivityManager: Killing 13656:com.samsung.android.wallpaper.live/u0a145 (adj 905): empty #33
+08-23 13:54:08.584 15828 15828 W GWT:SessionManager: [daemonapp] Update Requested on MAIN THREAD!! Use Dispatchers.Default instead Main. If DO NOT, it will cause ANR and update cancelled frequently
+08-23 13:54:34.604  2862  3221 I ActivityManager: Killing 13695:com.samsung.android.app.dressroom/1000 (adj 905): empty #33
+08-23 13:55:00.985  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507700983, getTime():Sun Aug 23 13:55:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:56:01.004  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507761002, getTime():Sun Aug 23 13:56:01 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:57:01.024  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507821022, getTime():Sun Aug 23 13:57:01 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:58:00.036  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507880032, getTime():Sun Aug 23 13:58:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 13:59:00.041  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787507940038, getTime():Sun Aug 23 13:59:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:00:00.059  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508000058, getTime():Sun Aug 23 14:00:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:00:00.954  2862  6029 I ActivityManager: Killing 13781:com.verizon.mips.services/u0a296 (adj 905): empty #33
+08-23 14:00:00.989  2862  4469 I ActivityManager: Killing 13962:com.samsung.aasaservice/1000 (adj 905): empty #33
+08-23 14:00:01.035  2862  4469 I ActivityManager: Killing 14125:com.samsung.android.app.sharelive/5026 (adj 905): empty #33
+08-23 14:01:00.074  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508060072, getTime():Sun Aug 23 14:01:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:02:00.087  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508120084, getTime():Sun Aug 23 14:02:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:03:00.140  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508180139, getTime():Sun Aug 23 14:03:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:03:24.292  5545  6128 E MDD     : 	at libcore.io.IoBridge.open(IoBridge.java:574)
+08-23 14:03:24.292  5545  6128 E MDD     : 	at libcore.io.IoBridge.open(IoBridge.java:564)
+08-23 14:03:24.504 16612 16640 E LogUtil : 	at libcore.io.IoBridge.open(IoBridge.java:574)
+08-23 14:03:24.504 16612 16640 E LogUtil : 	at libcore.io.IoBridge.open(IoBridge.java:564)
+08-23 14:03:24.534  2862  6031 I ActivityManager: Killing 14186:com.samsung.android.mdx.kit/5025 (adj 905): empty #33
+08-23 14:03:24.686 16565 16565 D nativeloader: Configuring clns-9 for other apk /data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/base.apk:/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/split_config.arm64_v8a.apk:/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/split_config.en.apk:/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/split_config.xxhdpi.apk. target_sdk_version=37, uses_libraries=libOpenCL.so:libcdsprpc.so, library_path=/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/lib/arm64:/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/base.apk!/lib/arm64-v8a:/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/split_config.arm64_v8a.apk!/lib/arm64-v8a:/data/app/~~gL1vFm9_FJRmmq_qLOmbFg==/com.google.android.apps.tachyon-tKB5aaD_BTSvhSRyKqDClw==/sp
+08-23 14:03:26.232 14026 14239 W libc    : Access denied finding property "persist.adb.tls_server.enable"
+08-23 14:03:26.233 14026 14239 W libc    : Access denied finding property "service.adb.tls.port"
+08-23 14:03:26.804  1068  1089 E lowmemorykiller: process_mrelease 24799 failed: No such process
+08-23 14:03:26.837  2862  4952 I ActivityManager: Process com.LogiaGroup.LogiaDeck (pid 24799) has died: cch+85 SVC (17,1801)
+08-23 14:03:26.858  2862  4465 I ActivityManager: Process com.samsung.android.spay (pid 24797) has died: cch+85 SVC (18,1806)
+08-23 14:03:26.908  2862  3580 I ActivityManager: Process com.samsung.android.kmxservice:AiPrivacy (pid 22460) has died: cch+5 SVC (20,1812)
+08-23 14:03:26.951  2862  5676 I ActivityManager: Killing 31380:com.google.android.webview:webview_service/u0a277 (adj 905): empty #33
+08-23 14:03:27.251  1068  1088 E lowmemorykiller: process_mrelease 31432 failed: No such process
+08-23 14:03:27.268  2862  5676 I ActivityManager: Process com.google.android.permissioncontroller (pid 31432) has died: cch+5 CEM (16,1768)
+08-23 14:03:27.291  2862  4180 I ActivityManager: Process com.samsung.euicc (pid 13963) has died: cch+5 CEM (18,1769)
+08-23 14:03:27.315  2862  6025 I ActivityManager: Process com.samsung.android.kmxservice (pid 31585) has died: cch+5 CEM (19,1772)
+08-23 14:03:27.319  1068  1089 E lowmemorykiller: process_mrelease 14509 failed: No such process
+08-23 14:03:27.345  2862  6025 I ActivityManager: Process com.samsung.android.privacydashboard (pid 14509) has died: cch+5 CEM (23,1777)
+08-23 14:03:27.350  1068  1088 E lowmemorykiller: process_mrelease 12874 failed: No such process
+08-23 14:03:27.375  2862  3580 I ActivityManager: Process com.google.android.apps.turbo:aab (pid 12874) has died: cch+5 CEM (23,1786)
+08-23 14:03:27.396  2862  3580 I ActivityManager: Process com.samsung.faceservice (pid 15371) has died: cch+5 CEM (25,1793)
+08-23 14:03:27.406  1068  1088 E lowmemorykiller: process_mrelease 15426 failed: No such process
+08-23 14:03:27.418  2862  3580 I ActivityManager: Process com.samsung.cmh (pid 15426) has died: cch+5 CEM (34,1798)
+08-23 14:03:27.423  1068  1089 E lowmemorykiller: process_mrelease 15425 failed: No such process
+08-23 14:03:27.441  2862  6031 I ActivityManager: Process com.samsung.videoscan (pid 15425) has died: cch+5 CEM (39,1804)
+08-23 14:03:27.449  1068  1088 E lowmemorykiller: process_mrelease 15119 failed: No such process
+08-23 14:03:27.472  2862  6034 I ActivityManager: Process com.samsung.android.app.contacts (pid 15119) has died: cch+5 CEM (49,1814)
+08-23 14:03:27.479  1068  1089 E lowmemorykiller: process_mrelease 15559 failed: No such process
+08-23 14:03:27.501  2862  6034 I ActivityManager: Process com.samsung.android.scpm (pid 15559) has died: cch+5 CEM (59,1822)
+08-23 14:03:27.518  1068  1088 E lowmemorykiller: process_mrelease 15761 failed: No such process
+08-23 14:03:27.534  2862  6034 I ActivityManager: Process com.google.android.setupwizard (pid 15761) has died: cch+5 CEM (67,1824)
+08-23 14:03:27.952  2862  6030 I ActivityManager: Process com.google.android.googlequicksearchbox:googleapp (pid 14069) has died: cch+5 CEM (98,1759)
+08-23 14:03:36.162  2862  3305 W libc    : Access denied finding property "pm.dexopt.dm.require_manifest"
+08-23 14:03:42.837  2862  3221 I ActivityManager: Killing 15800:com.google.ar.core/u0a163 (adj 905): stop com.google.ar.core due to installPackageLI
+08-23 14:03:42.987  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:43.018  1068  1088 E lowmemorykiller: process_mrelease 15828 failed: No such process
+08-23 14:03:43.073 17316 17316 D nativeloader:   com_android_tethering: libandroid_net_connectivity_com_android_net_module_util_jni.so:libframework-connectivity-jni.so:libframework-connectivity-tiramisu-jni.so:libmainlinecronet.136.0.7091.2.so:libservice-connectivity.so:libservice-thread-jni.so:stable_cronet_libcrypto.so:stable_cronet_libssl.so
+08-23 14:03:43.100  2862  4124 I ActivityManager: Process com.sec.android.daemonapp (pid 15828) has died: cch+75 CEM (88,2075)
+08-23 14:03:43.182  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:43.281  2862  3305 W libc    : Access denied finding property "pm.dexopt.dm.require_manifest"
+08-23 14:03:43.567  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:43.616  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:45.179  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:45.244  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:46.703  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:03:46.764  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 14:04:00.170  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508240168, getTime():Sun Aug 23 14:04:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:04:11.806  2862  3221 I ActivityManager: Killing 15399:com.samsung.mfcontents/u0a96 (adj 975): empty #33
+08-23 14:04:30.444  2862  6029 I ActivityManager: Killing 15398:com.samsung.mediasearch/u0a97 (adj 975): empty #33
+08-23 14:04:44.317  2862  6023 I ActivityManager: Process com.samsung.euicc (pid 17310) has died: fg  SVC (101,1922)
+08-23 14:05:00.222  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508300220, getTime():Sun Aug 23 14:05:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:05:03.694  2862  4952 I ActivityManager: Killing 16194:com.samsung.android.mdx/u0a93 (adj 965): empty #33
+08-23 14:05:58.481  2862  6035 I ActivityManager: Killing 16151:com.microsoft.appmanager/u0a161 (adj 965): empty #33
+08-23 14:06:00.207  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508360206, getTime():Sun Aug 23 14:06:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:07:00.237  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508420234, getTime():Sun Aug 23 14:07:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:07:00.631  2862  4469 I ActivityManager: Killing 16669:com.google.android.projection.gearhead:provider/u0a249 (adj 905): empty #33
+08-23 14:07:15.699  2862  3581 I ActivityManager: Killing 15277:com.google.android.rkpdapp/u0a314 (adj 955): empty #33
+08-23 14:08:00.249  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508480247, getTime():Sun Aug 23 14:08:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:09:00.276  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508540274, getTime():Sun Aug 23 14:09:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:10:00.284  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508600280, getTime():Sun Aug 23 14:10:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:10:47.758  2862  3221 I ActivityManager: Killing 16565:com.google.android.apps.tachyon/u0a266 (adj 955): empty #33
+08-23 14:11:00.298  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508660297, getTime():Sun Aug 23 14:11:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:12:00.331  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508720324, getTime():Sun Aug 23 14:12:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:13:00.364  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508780363, getTime():Sun Aug 23 14:13:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:13:00.512  2862  3581 I ActivityManager: Killing 16572:com.samsung.android.providers.trash/u0a67 (adj 945): empty #33
+08-23 14:13:00.515  2862  6023 I ActivityManager: Killing 14987:android.process.media/u0a67 (adj 945): empty #33
+08-23 14:13:00.536  2862  3581 I ActivityManager: Killing 16774:com.android.providers.calendar/u0a114 (adj 945): empty #33
+08-23 14:13:00.545  2862  6023 I ActivityManager: Killing 16458:com.google.android.as.oss/u0a259 (adj 935): empty #33
+08-23 14:13:00.888 18401 18507 D nativeloader: Load /data/app/~~z0Pv2UU_Eg4cEUSKJiKsGw==/com.securityandprivacy.android.verizon.vms-fyOyGIsfUK3g47HNsP9Omw==/base.apk!/lib/arm64-v8a/libcryptohelper-openssl.so using class loader ns clns-9 (caller=/data/app/~~z0Pv2UU_Eg4cEUSKJiKsGw==/com.securityandprivacy.android.verizon.vms-fyOyGIsfUK3g47HNsP9Omw==/base.apk!classes5.dex): ok
+08-23 14:13:01.179  2862  6035 I ActivityManager: Killing 16845:com.osp.app.signin/u0a118 (adj 935): empty #33
+08-23 14:14:00.392  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508840390, getTime():Sun Aug 23 14:14:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:15:00.402  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508900402, getTime():Sun Aug 23 14:15:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:16:00.420  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787508960419, getTime():Sun Aug 23 14:16:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:16:00.496 18647 18647 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libapexsupport.so:libavf.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-aarch64-android.so:libclang_rt.asan-arm-android.so:libclang_rt.hwasan-aarch64-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvendorsupport.so:libvndksupport.so:libvulkan.so
+08-23 14:16:00.817 18647 18664 W libc    : Access denied finding property "ro.mediatek.platform"
+08-23 14:16:00.817 18647 18664 W libc    : Access denied finding property "ro.chipname"
+08-23 14:16:00.874  2862  3580 I ActivityManager: Killing 15868:com.samsung.android.rubin.app/u0a108 (adj 925): empty #33
+08-23 14:17:00.434  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509020433, getTime():Sun Aug 23 14:17:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:18:00.446  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509080445, getTime():Sun Aug 23 14:18:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:19:00.464  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509140462, getTime():Sun Aug 23 14:19:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:20:00.489  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509200487, getTime():Sun Aug 23 14:20:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:21:00.500  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509260499, getTime():Sun Aug 23 14:21:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:22:00.530  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509320530, getTime():Sun Aug 23 14:22:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:22:00.837 18060 18937 W libc    : Access denied finding property "persist.vendor.fl.debug"
+08-23 14:22:00.866 18060 18937 I com.samsung.faceservice: vendor/qcom/proprietary/adsprpc/src/fastrpc_apps_user.c:3917: multidsplib_env_init: libcdsprpc.so loaded
+08-23 14:22:00.985 18060 18937 W libc    : Access denied finding property "vendor.fl.dump"
+08-23 14:22:03.515  1068  1089 E lowmemorykiller: process_mrelease 14026 failed: No such process
+08-23 14:22:03.560  2862  6027 I ActivityManager: Process com.google.android.gms.unstable (pid 14026) has died: cch+25 CEM (63,1693)
+08-23 14:22:04.755  1068  1088 E lowmemorykiller: process_mrelease 17298 failed: No such process
+08-23 14:22:04.777  2862  6028 I ActivityManager: Process com.verizon.mips.services (pid 17298) has died: cch+15 CEM (52,1708)
+08-23 14:22:04.799  2862  3581 I ActivityManager: Process com.samsung.android.forest (pid 16807) has died: cch+5 CEM (64,1708)
+08-23 14:22:06.016 18060 18978 W libc    : Access denied finding property "persist.vendor.fl.debug"
+08-23 14:22:06.108 18060 18978 W libc    : Access denied finding property "persist.vendor.fl.test"
+08-23 14:22:06.108 18060 18978 W libc    : Access denied finding property "vendor.fl.dump"
+08-23 14:22:07.019 18060 18992 W libc    : Access denied finding property "persist.vendor.fl.debug"
+08-23 14:22:07.074 18060 18992 W libc    : Access denied finding property "persist.vendor.fl.test"
+08-23 14:22:07.074 18060 18992 W libc    : Access denied finding property "vendor.fl.dump"
+08-23 14:22:07.923  1068  1088 E lowmemorykiller: process_mrelease 17578 failed: No such process
+08-23 14:22:07.934  2862  6026 I ActivityManager: Process com.samsung.android.scpm (pid 17578) has died: cch+5 CEM (57,1434)
+08-23 14:23:00.553  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509380552, getTime():Sun Aug 23 14:23:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:24:00.565  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509440564, getTime():Sun Aug 23 14:24:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:25:00.592  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509500590, getTime():Sun Aug 23 14:25:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:26:00.604  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509560602, getTime():Sun Aug 23 14:26:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:27:00.633  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509620632, getTime():Sun Aug 23 14:27:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:28:00.633  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509680631, getTime():Sun Aug 23 14:28:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:29:00.661  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509740660, getTime():Sun Aug 23 14:29:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:29:04.704  2862  6035 I ActivityManager: Killing 17300:com.android.keychain/1000 (adj 905): empty #33
+08-23 14:30:00.683  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509800682, getTime():Sun Aug 23 14:30:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:31:00.694  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509860690, getTime():Sun Aug 23 14:31:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:32:00.714  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509920713, getTime():Sun Aug 23 14:32:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:33:00.729  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787509980727, getTime():Sun Aug 23 14:33:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:34:00.748  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787510040746, getTime():Sun Aug 23 14:34:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:35:00.791  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787510100790, getTime():Sun Aug 23 14:35:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:36:00.789  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787510160787, getTime():Sun Aug 23 14:36:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:36:09.856  2862  6026 I ActivityManager: Killing 17433:com.samsung.android.provider.filterprovider/1000 (adj 905): empty #33
+08-23 14:36:10.354  2862  6026 I ActivityManager: Killing 16211:com.samsung.android.app.routines/u0a49 (adj 905): empty #33
+08-23 14:37:00.116  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787510220114, getTime():Sun Aug 23 14:37:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 14:51:13.474  2862  6478 I ActivityManager: Killing 17316:com.google.android.permissioncontroller/u0a321 (adj 905): empty #33
+08-23 14:51:16.955  2862  4180 I ActivityManager: Killing 17712:com.google.android.setupwizard/u0a291 (adj 905): empty #33
+08-23 14:57:17.987 18060 18992 W libc    : Access denied finding property "persist.vendor.fl.debug"
+08-23 14:57:17.999 18060 18992 W libc    : Access denied finding property "vendor.fl.dump"
+08-23 14:57:19.508 18060 18937 W libc    : Access denied finding property "persist.vendor.fl.debug"
+08-23 14:57:19.563 18060 18937 W libc    : Access denied finding property "persist.vendor.fl.test"
+08-23 14:57:19.563 18060 18937 W libc    : Access denied finding property "vendor.fl.dump"
+08-23 15:01:48.387  4571  4571 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:01:48.392  4571  4571 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:01:48.399  4049  4485 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:01:48.469  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511708469, getTime():Sun Aug 23 15:01:48 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:01:48.491 32657 32657 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:01:48.492 32657 32657 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:01:48.592  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511708591, getTime():Sun Aug 23 15:01:48 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:01:48.734  2862  6025 I ActivityManager: Process com.samsung.android.kmxservice:AiPrivacy (pid 17076) has died: cch+85 SVC (25,1852)
+08-23 15:01:48.760  4049  4485 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:01:48.767  2862  4180 I ActivityManager: Process com.LogiaGroup.LogiaDeck (pid 16999) has died: cch+85 SVC (75,1824)
+08-23 15:01:49.256 20162 20162 W GWT:SessionManager: [daemonapp] Update Requested on MAIN THREAD!! Use Dispatchers.Default instead Main. If DO NOT, it will cause ANR and update cancelled frequently
+08-23 15:01:49.761  2862  6486 I ActivityManager: Process com.samsung.android.spay (pid 17075) has died: cch+85 SVC (70,1722)
+08-23 15:01:50.076 20162 20162 W GWT:SessionManager: [daemonapp] Update Requested on MAIN THREAD!! Use Dispatchers.Default instead Main. If DO NOT, it will cause ANR and update cancelled frequently
+08-23 15:01:50.387  2862  6486 I ActivityManager: Killing 17739:com.google.ar.core/u0a163 (adj 975): empty #33
+08-23 15:01:50.652  2862  6486 I ActivityManager: Killing 17540:com.google.android.partnersetup/u0a255 (adj 975): empty #33
+08-23 15:02:00.010  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511720008, getTime():Sun Aug 23 15:02:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:02:03.460  2862  3581 I ActivityManager: Killing 14256:com.google.android.apps.restore/u0a258 (adj 975): empty #33
+08-23 15:02:07.055  2862  6026 I ActivityManager: Process com.samsung.android.kmxservice (pid 17494) has died: cch+75 CEM (55,1821)
+08-23 15:02:08.163  2862  6026 I ActivityManager: Process com.samsung.android.game.gos (pid 17219) has died: cch+65 CEM (50,1861)
+08-23 15:02:09.528  2862  2914 I ActivityManager: Process com.sec.android.app.samsungapps (pid 17839) has died: cch+65 CEM (51,1934)
+08-23 15:02:36.953 20634 20634 I llama-bench: vendor/qcom/proprietary/adsprpc/src/fastrpc_apps_user.c:3917: multidsplib_env_init: libcdsprpc.so loaded
+08-23 15:02:36.959 20634 20634 W libc    : Access denied finding property "persist.vendor.fastrpc.process.attrs"
+08-23 15:02:37.627  1068  1089 E lowmemorykiller: process_mrelease 31783 failed: No such process
+08-23 15:02:37.651  2862  6486 I ActivityManager: Process com.android.vending:background (pid 31783) has died: cch+65 CEM (20,1505)
+08-23 15:02:37.659  1068  1088 E lowmemorykiller: process_mrelease 16637 failed: No such process
+08-23 15:02:37.710  2862  6027 I ActivityManager: Process com.android.vending (pid 16637) has died: cch+5 CEM (29,1439)
+08-23 15:02:37.726  2862  6027 I ActivityManager: Process com.samsung.android.sdk.ocr (pid 19030) has died: cch+55 CEM (30,1407)
+08-23 15:02:37.747  2862  6027 I ActivityManager: Process com.google.android.apps.turbo:aab (pid 18647) has died: cch+55 CEM (31,1359)
+08-23 15:02:37.750  1068  1089 E lowmemorykiller: process_mrelease 18401 failed: No such process
+08-23 15:02:37.790  2862  4241 I ActivityManager: Process .vpnservice (pid 18401) has died: cch+55 CEM (33,1228)
+08-23 15:02:37.793  1068  1088 E lowmemorykiller: process_mrelease 18404 failed: No such process
+08-23 15:02:37.805  2862  4241 I ActivityManager: Process com.samsung.aasaservice (pid 18404) has died: cch+55 CEM (37,1188)
+08-23 15:02:37.808  1068  1089 E lowmemorykiller: process_mrelease 19377 failed: No such process
+08-23 15:02:37.820  2862  4241 I ActivityManager: Process com.sec.android.gallery3d (pid 19377) has died: cch+45 CEM (36,1155)
+08-23 15:02:37.852  2862  4241 I ActivityManager: Process com.samsung.android.scs (pid 31715) has died: cch+45 CEM (41,1103)
+08-23 15:02:37.867  1068  1089 E lowmemorykiller: process_mrelease 18948 failed: No such process
+08-23 15:02:37.879  2862  6027 I ActivityManager: Process com.samsung.petservice (pid 18948) has died: cch+45 CEM (46,1033)
+08-23 15:02:37.910  2862  6027 I ActivityManager: Process com.samsung.android.scs:text (pid 19117) has died: cch+45 CEM (92,1008)
+08-23 15:02:37.946  2862  6039 I ActivityManager: Process com.samsung.sait.sohservice (pid 13842) has died: cch+35 CEM (50,989)
+08-23 15:02:37.975  2862  4124 I ActivityManager: Process com.google.android.googlequicksearchbox:search (pid 15047) has died: cch+35 CEM (53,989)
+08-23 15:02:37.978  1068  1089 E lowmemorykiller: process_mrelease 17773 failed: No such process
+08-23 15:02:37.996  2862  4124 I ActivityManager: Process com.google.android.googlequicksearchbox:googleapp (pid 17773) has died: cch+35 CEM (53,989)
+08-23 15:02:37.999  1068  1088 E lowmemorykiller: process_mrelease 19890 failed: No such process
+08-23 15:02:38.028  2862  4207 I ActivityManager: Process com.samsung.android.ce (pid 19890) has died: cch+25 CEM (54,988)
+08-23 15:02:38.030  1068  1089 E lowmemorykiller: process_mrelease 18418 failed: No such process
+08-23 15:02:38.051  2862  4465 I ActivityManager: Process com.samsung.videoscan (pid 18418) has died: cch+25 CEM (53,988)
+08-23 15:02:38.070  2862  4465 I ActivityManager: Process com.samsung.android.privacydashboard (pid 18251) has died: cch+25 CEM (51,988)
+08-23 15:02:38.076  1068  1089 E lowmemorykiller: process_mrelease 18428 failed: No such process
+08-23 15:02:38.086  2862  4465 I ActivityManager: Process com.samsung.mfcontents (pid 18428) has died: cch+15 CEM (49,988)
+08-23 15:02:38.088  1068  1088 E lowmemorykiller: process_mrelease 18925 failed: No such process
+08-23 15:02:38.124  2862  4465 I ActivityManager: Process com.samsung.ipservice (pid 18925) has died: cch+15 CEM (54,988)
+08-23 15:02:38.127  1068  1089 E lowmemorykiller: process_mrelease 19867 failed: No such process
+08-23 15:02:38.137  2862  4465 I ActivityManager: Process com.samsung.storyservice (pid 19867) has died: cch+15 CEM (51,988)
+08-23 15:02:38.139  1068  1088 E lowmemorykiller: process_mrelease 18060 failed: No such process
+08-23 15:02:38.169  2862  4249 I ActivityManager: Process com.samsung.faceservice (pid 18060) has died: cch+5 CEM (72,988)
+08-23 15:02:38.170  1068  1089 E lowmemorykiller: process_mrelease 18006 failed: No such process
+08-23 15:02:38.198  2862  4207 I ActivityManager: Process com.samsung.cmh (pid 18006) has died: cch+5 CEM (70,988)
+08-23 15:02:38.204  1068  1088 E lowmemorykiller: process_mrelease 18436 failed: No such process
+08-23 15:02:38.228  2862  2914 I ActivityManager: Process com.samsung.mediasearch (pid 18436) has died: cch+5 CEM (64,988)
+08-23 15:02:38.246  2862  2914 I ActivityManager: Process com.samsung.android.privateaccesstokens (pid 20284) has died: cch+5 CEM (64,988)
+08-23 15:02:38.251  1068  1088 E lowmemorykiller: process_mrelease 25165 failed: No such process
+08-23 15:02:38.262  2862  2914 I ActivityManager: Process com.google.android.apps.turbo (pid 25165) has died: cch+5 CEM (59,988)
+08-23 15:02:38.286  2862  2914 I ActivityManager: Process com.verizon.mips.services (pid 20353) has died: cch+5 CEM (52,988)
+08-23 15:02:38.309  2862  6031 I ActivityManager: Process com.samsung.android.dqagent (pid 19590) has died: cch+5 CEM (49,962)
+08-23 15:02:38.327  2862  3580 I ActivityManager: Process com.samsung.android.wallpaper.live (pid 20402) has died: cch+5 CEM (54,938)
+08-23 15:02:38.348  2862  3580 I ActivityManager: Process com.samsung.android.app.dressroom (pid 20440) has died: cch+5 CEM (55,904)
+08-23 15:02:38.355  1068  1089 E lowmemorykiller: process_mrelease 24871 failed: No such process
+08-23 15:02:38.379  2862  6031 I ActivityManager: Process com.google.android.gms (pid 24871) has died: cch+5 CEM (65,857)
+08-23 15:02:38.384  1068  1088 E lowmemorykiller: process_mrelease 20300 failed: No such process
+08-23 15:02:38.408  2862  6031 I ActivityManager: Process com.samsung.android.rubin.app (pid 20300) has died: cch+5 CEM (66,818)
+08-23 15:02:38.511  1068  1088 E lowmemorykiller: process_mrelease 6273 failed: No such process
+08-23 15:02:38.536  2862  5676 I ActivityManager: Process android.process.acore (pid 6273) has died: picked CEM (78,786)
+08-23 15:02:38.538  2862  4244 I ActivityManager: Process com.google.android.apps.messaging (pid 26088) has died: cch+5 CEM (74,788)
+08-23 15:02:38.556  2862  6486 I ActivityManager: Process com.LogiaGroup.LogiaDeck (pid 20465) has died: svc SVC (82,802)
+08-23 15:02:38.558  1068  1088 E lowmemorykiller: process_mrelease 20491 failed: No such process
+08-23 15:02:38.569  2862  3581 I ActivityManager: Process com.samsung.android.spay (pid 20491) has died: svc SVC (70,812)
+08-23 15:02:38.585  2862  3581 I ActivityManager: Process com.samsung.android.kmxservice:AiPrivacy (pid 20463) has died: svc SVC (58,822)
+08-23 15:02:38.771  1068  1088 E lowmemorykiller: process_mrelease 10991 failed: No such process
+08-23 15:02:38.784  2862  3580 I ActivityManager: Process com.samsung.android.providers.media (pid 10991) has died: picked CEM (52,726)
+08-23 15:02:39.618  1068  1089 E lowmemorykiller: process_mrelease 11993 failed: No such process
+08-23 15:02:39.651  2862  6025 I ActivityManager: Process com.termux (pid 11993) has died: prcp FGS (14,546)
+08-23 15:02:39.682  2862  3223 I ActivityManager: Process PhantomProcessRecord {eb6f68d 15109:11993:bash/u0a344} died
+08-23 15:02:39.700  2862  3223 I ActivityManager: Process PhantomProcessRecord {1142042 12054:11993:sshd/u0a344} died
+08-23 15:02:39.763  2862  6037 I ActivityManager: Process com.samsung.android.beaconmanager (pid 11485) has died: prcp TRNB(23,563)
+08-23 15:02:39.768  2862  5676 I ActivityManager: Process com.google.android.apps.messaging:rcs (pid 5566) has died: prcp BFGS(16,564)
+08-23 15:02:39.811  1068  1088 W lowmemorykiller: Failed to get t_pid for '0' of pid(4571)
+08-23 15:02:39.815  2862  4180 I ActivityManager: Process com.sec.android.daemonapp (pid 20162) has died: vis BFGS(14,560)
+08-23 15:02:40.254  2862  4241 I ActivityManager: Process com.samsung.android.honeyboard (pid 6547) has died: vis IMPB(18,537)
+08-23 15:02:40.327  2862  6027 I ActivityManager: Process com.sec.android.app.launcher (pid 4571) has died: vis BFGS(23,555)
+08-23 15:02:40.380  2862  4207 I ActivityManager: Process com.google.android.adservices.api (pid 12875) has died: vis BFGS(38,574)
+08-23 15:02:40.407  2862  6486 I ActivityManager: Process com.google.android.gms.persistent (pid 5917) has died: vis BFGS(38,587)
+08-23 15:02:40.424  2862  4249 I ActivityManager: Process com.sec.location.nsflp2 (pid 5125) has died: vis BFGS(34,598)
+08-23 15:02:40.426  2862  4952 I ActivityManager: Process com.samsung.android.app.aodservice (pid 5832) has died: vis IMPF(31,599)
+08-23 15:02:40.429  2862  4465 I ActivityManager: Process com.samsung.android.mcfserver (pid 6390) has died: vis IMPF(29,601)
+08-23 15:02:40.450  2862  4469 I ActivityManager: Process com.google.android.googlequicksearchbox:interactor (pid 5478) has died: vis BFGS(22,599)
+08-23 15:02:40.458  2862  3580 I ActivityManager: Process com.samsung.android.wifi.ai (pid 12322) has died: vis IMPF(26,593)
+08-23 15:02:40.464  2862  6039 I ActivityManager: Process com.google.android.ext.services (pid 5030) has died: vis BFGS(30,590)
+08-23 15:02:40.528  2862  2862 W AutofillManagerServiceImpl: remote service died: RemoteInlineSuggestionRenderService[ComponentInfo{com.google.android.ext.services/android.ext.services.autofill.InlineSuggestionRenderServiceImpl} 137805419 (unbound)]
+08-23 15:02:40.785  2862  3580 D LocationManagerService: network provider registration 10252/com.google.android.as/4DBE2599 died
+08-23 15:02:40.786  2862  5676 I ActivityManager: Process com.google.android.as (pid 5545) has died: vis BFGS(16,583)
+08-23 15:02:40.821  2862  6028 I ActivityManager: Process com.samsung.android.smartsuggestions (pid 5459) has died: vis BFGS(39,548)
+08-23 15:02:40.823  2862  2862 W ContentCapturePerUserService: remote service died: RemoteContentCaptureService[ComponentInfo{com.samsung.android.smartsuggestions/com.samsung.android.smartsuggestions.extservice.services.ContentCaptureService} 107562698 (unbound)]
+08-23 15:02:40.872  2862  3934 I ActivityManager: Process com.sec.epdg (pid 4395) has died: vis IMPF(18,565)
+08-23 15:02:40.882  1068  1088 E lowmemorykiller: process_mrelease 16612 failed: No such process
+08-23 15:02:40.917  2862  3581 I ActivityManager: Process com.google.android.tts (pid 16612) has died: vis BFGS(17,584)
+08-23 15:02:40.935  1068  1089 E lowmemorykiller: process_mrelease 32657 failed: No such process
+08-23 15:02:41.465  2862  4465 I ActivityManager: Process com.kalsa.app (pid 32657) has died: fg  TOP (865,867)
+08-23 15:02:41.472  2862  4465 W ActivityTaskManager: Force removing ActivityRecord{264545965 u0 com.kalsa.app/.MainActivity t184}: app died, no saved state
+08-23 15:02:41.514 20777 20777 I libc    : SetHeapTaggingLevel: tag level set to 0
+08-23 15:02:41.741  4049  4155 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:41.749  4049  4155 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:41.924 20664 20664 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:41.925 20664 20664 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:41.988 20664 20664 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:41.988 20664 20664 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:42.048 20777 20777 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:42.049 20777 20777 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:42.237 20663 20840 D nativeloader: Load /data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/base.apk!/lib/arm64-v8a/libconscrypt_gmscore_jni.so using class loader ns clns-12 (caller=/data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/base.apk): ok
+08-23 15:02:42.256 20777 20777 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:42.256 20777 20777 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:43.772 21108 21144 W libc    : Unable to set property "log.tag.ContactsProvider" to "": connection failed: Permission denied
+08-23 15:02:43.772 21108 21144 W libc    : Unable to set property "log.tag.ContactsProvider" to "": connection failed: Permission denied
+08-23 15:02:43.772 21108 21144 W libc    : Unable to set property "log.tag.ContactsProvider" to "": connection failed: Permission denied
+08-23 15:02:43.772 21108 21144 W libc    : Unable to set property "db.log.slow_query_threshold" to "-1": connection failed: Permission denied
+08-23 15:02:43.772 21108 21144 W libc    : Unable to set property "db.log.slow_query_threshold" to "-1": connection failed: Permission denied
+08-23 15:02:43.772 21108 21144 W libc    : Unable to set property "db.log.slow_query_threshold" to "-1": connection failed: Permission denied
+08-23 15:02:44.009 20854 21146 D nativeloader: Load /data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/split_CronetDynamite_installtime.apk!/lib/arm64-v8a/libcronet.151.0.7922.83.so using isolated ns clns-14 (caller=/data/app/~~L_ugwr4nbe3TFWLhnurV6Q==/com.google.android.gms-9yEeDib79z6H6x8A07oTLA==/split_CronetDynamite_installtime.apk!classes2.dex): ok
+08-23 15:02:44.191  1068  1088 E lowmemorykiller: process_mrelease 21005 failed: No such process
+08-23 15:02:44.208  2862  3581 I ActivityManager: Process com.samsung.android.app.sharelive (pid 21005) has died: cch+5 CEM (72,1765)
+08-23 15:02:47.951 21261 21261 D nativeloader:   com_android_tethering: libandroid_net_connectivity_com_android_net_module_util_jni.so:libframework-connectivity-jni.so:libframework-connectivity-tiramisu-jni.so:libmainlinecronet.136.0.7091.2.so:libservice-connectivity.so:libservice-thread-jni.so:stable_cronet_libcrypto.so:stable_cronet_libssl.so
+08-23 15:02:48.182 21283 21419 D nativeloader: Load /data/app/~~JPysrnj5l8KCL1vISIfY8g==/com.google.android.as-7B8h2dHqyBo8KBphfoem4A==/lib/arm64/libcpuutils.so using class loader ns clns-9 (caller=/data/app/~~JPysrnj5l8KCL1vISIfY8g==/com.google.android.as-7B8h2dHqyBo8KBphfoem4A==/base.apk!classes2.dex): ok
+08-23 15:02:48.944 21550 21637 D nativeloader: Load /data/app/~~JPysrnj5l8KCL1vISIfY8g==/com.google.android.as-7B8h2dHqyBo8KBphfoem4A==/lib/arm64/libcpuutils.so using class loader ns clns-9 (caller=/data/app/~~JPysrnj5l8KCL1vISIfY8g==/com.google.android.as-7B8h2dHqyBo8KBphfoem4A==/base.apk!classes2.dex): ok
+08-23 15:02:49.099 21368 21368 E [-0400]oneconnect[1.8.47.24_01][BEACON_MANAGER_CONTROL_SERVICE]: UserProfileRepository.getUserCountryIso3 - It might cause ANR. Please use suspend api
+08-23 15:02:49.796 21204 21204 W GWT:SessionManager: [daemonapp] Update Requested on MAIN THREAD!! Use Dispatchers.Default instead Main. If DO NOT, it will cause ANR and update cancelled frequently
+08-23 15:02:49.872 21858 21858 D nativeloader:   com_android_tethering: libandroid_net_connectivity_com_android_net_module_util_jni.so:libframework-connectivity-jni.so:libframework-connectivity-tiramisu-jni.so:libmainlinecronet.136.0.7091.2.so:libservice-connectivity.so:libservice-thread-jni.so:stable_cronet_libcrypto.so:stable_cronet_libssl.so
+08-23 15:02:50.364  2862  6027 I ActivityManager: Process com.samsung.android.mdx.kit (pid 21065) has died: cch+5 CEM (33,1085)
+08-23 15:02:50.405  2862  6027 I ActivityManager: Process com.samsung.android.dqagent (pid 21075) has died: cch+5 CEM (35,1085)
+08-23 15:02:50.409  1068  1089 E lowmemorykiller: process_mrelease 21550 failed: No such process
+08-23 15:02:50.428  2862  6486 I ActivityManager: Process com.google.android.as:captions (pid 21550) has died: cch+5 CEM (45,1087)
+08-23 15:02:50.764 21211 21211 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:50.766 21211 21211 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:02:51.407 20663 20851 E oneway spamming:   #22 pc 00000000000b8c20  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+184) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 15:02:51.407 20663 20851 E oneway spamming:   #23 pc 00000000000ab420  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 15:02:55.187 20634 20634 I llama-bench: vendor/qcom/proprietary/adsprpc/src/fastrpc_apps_user.c:3519: close_dev: unloading library libcdsprpc.so
+08-23 15:02:55.691 22304 22304 I llama-bench: vendor/qcom/proprietary/adsprpc/src/fastrpc_apps_user.c:3917: multidsplib_env_init: libcdsprpc.so loaded
+08-23 15:02:55.694 22304 22304 W libc    : Access denied finding property "persist.vendor.fastrpc.process.attrs"
+08-23 15:02:57.848  1068  1088 E lowmemorykiller: process_mrelease 22255 failed: No such process
+08-23 15:02:57.858  2862  6031 I ActivityManager: Process com.samsung.android.app.contacts (pid 22255) has died: cch+5 CEM (14,1010)
+08-23 15:02:57.862  1068  1089 E lowmemorykiller: process_mrelease 21680 failed: No such process
+08-23 15:02:57.881  2862  6027 I ActivityManager: Process com.samsung.android.intellivoiceservice (pid 21680) has died: cch+5 CEM (13,1004)
+08-23 15:02:59.418  1068  1088 E lowmemorykiller: process_mrelease 21704 failed: No such process
+08-23 15:02:59.437  2862  4207 I ActivityManager: Process com.google.android.apps.messaging (pid 21704) has died: prev LAST(49,1568)
+08-23 15:03:00.043  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511780029, getTime():Sun Aug 23 15:03:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:03:01.802  1068  1089 E lowmemorykiller: process_mrelease 21858 failed: No such process
+08-23 15:03:01.811  2862  4207 I ActivityManager: Process com.google.android.permissioncontroller (pid 21858) has died: cch+5 CEM (39,1509)
+08-23 15:03:10.039 22304 22304 I llama-bench: vendor/qcom/proprietary/adsprpc/src/fastrpc_apps_user.c:3519: close_dev: unloading library libcdsprpc.so
+08-23 15:03:13.675 20663 20835 E oneway spamming:   #22 pc 00000000000b8c20  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+184) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 15:03:13.675 20663 20835 E oneway spamming:   #23 pc 00000000000ab420  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 15:03:28.877 20663 20851 E oneway spamming:   #22 pc 00000000000b8c20  /apex/com.android.runtime/lib64/bionic/libc.so (__pthread_start(void*)+184) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 15:03:28.877 20663 20851 E oneway spamming:   #23 pc 00000000000ab420  /apex/com.android.runtime/lib64/bionic/libc.so (__start_thread+68) (BuildId: 661196ed39afcd22918f775f9b562bb4)
+08-23 15:03:51.452  2862  6027 I ActivityManager: Process com.samsung.euicc (pid 21925) has died: fg  SVC (1037,1607)
+08-23 15:04:00.012  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511840010, getTime():Sun Aug 23 15:04:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:04:17.534  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 15:04:17.643 22459 22459 D nativeloader:   com_android_tethering: libandroid_net_connectivity_com_android_net_module_util_jni.so:libframework-connectivity-jni.so:libframework-connectivity-tiramisu-jni.so:libmainlinecronet.136.0.7091.2.so:libservice-connectivity.so:libservice-thread-jni.so:stable_cronet_libcrypto.so:stable_cronet_libssl.so
+08-23 15:04:17.747  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 15:05:00.012  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511900009, getTime():Sun Aug 23 15:05:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:05:18.627  2862  6027 I ActivityManager: Process com.samsung.euicc (pid 22461) has died: fg  SVC (667,1860)
+08-23 15:05:49.652  2862  3580 I ActivityManager: Process com.samsung.android.easysetup:IcControlService (pid 21367) has died: fg  SVC (652,1874)
+08-23 15:06:00.009  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787511960006, getTime():Sun Aug 23 15:06:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:07:00.008  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512020006, getTime():Sun Aug 23 15:07:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:08:00.009  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512080007, getTime():Sun Aug 23 15:08:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:09:00.009  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512140007, getTime():Sun Aug 23 15:09:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:10:00.010  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512200008, getTime():Sun Aug 23 15:10:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:11:00.012  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512260011, getTime():Sun Aug 23 15:11:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:12:00.011  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512320008, getTime():Sun Aug 23 15:12:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:13:00.010  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512380008, getTime():Sun Aug 23 15:13:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:14:00.010  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512440008, getTime():Sun Aug 23 15:14:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:14:01.481 23035 23035 D nativeloader:   com_android_tethering: libandroid_net_connectivity_com_android_net_module_util_jni.so:libframework-connectivity-jni.so:libframework-connectivity-tiramisu-jni.so:libmainlinecronet.136.0.7091.2.so:libservice-connectivity.so:libservice-thread-jni.so:stable_cronet_libcrypto.so:stable_cronet_libssl.so
+08-23 15:14:01.951 23033 23123 D nativeloader: Load /data/app/~~z0Pv2UU_Eg4cEUSKJiKsGw==/com.securityandprivacy.android.verizon.vms-fyOyGIsfUK3g47HNsP9Omw==/base.apk!/lib/arm64-v8a/libcryptohelper-openssl.so using class loader ns clns-9 (caller=/data/app/~~z0Pv2UU_Eg4cEUSKJiKsGw==/com.securityandprivacy.android.verizon.vms-fyOyGIsfUK3g47HNsP9Omw==/base.apk!classes5.dex): ok
+08-23 15:15:00.011  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512500009, getTime():Sun Aug 23 15:15:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:16:00.012  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512560009, getTime():Sun Aug 23 15:16:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:17:00.009  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512620007, getTime():Sun Aug 23 15:17:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:17:30.628 23189 23189 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libapexsupport.so:libavf.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-aarch64-android.so:libclang_rt.asan-arm-android.so:libclang_rt.hwasan-aarch64-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvendorsupport.so:libvndksupport.so:libvulkan.so
+08-23 15:17:31.053 23189 23206 W libc    : Access denied finding property "ro.mediatek.platform"
+08-23 15:17:31.053 23189 23206 W libc    : Access denied finding property "ro.chipname"
+08-23 15:17:44.893  4049  4485 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:17:45.513  4049  4049 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:17:45.514  4049  4049 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+08-23 15:17:47.284  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:18:00.062  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:18:09.626  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:18:25.618  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:18:42.412  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:18:57.971  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:19:12.930  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:19:28.603  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:19:37.202  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512777200, getTime():Sun Aug 23 15:19:37 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:19:37.256  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 15:19:37.327  2862  5561 W libc    : Access denied finding property "ro.bootimage.build.fingerprint"
+08-23 15:19:43.624  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:20:00.237  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:20:03.526  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:20:18.227  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:20:30.653  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:20:46.831  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:21:02.402  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:21:16.809  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:21:32.396  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:21:48.694  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:22:02.480  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:22:19.219  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:22:25.835  2862  4465 I ActivityManager: Process com.samsung.euicc (pid 23297) has died: fg  SVC (119,2249)
+08-23 15:22:29.842  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:22:45.836  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:23:00.781  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787512980779, getTime():Sun Aug 23 15:23:00 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:23:01.993  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:23:05.475  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:23:21.456  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:23:36.717  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:23:52.280  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:24:07.136  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:24:21.259  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:24:30.682  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:24:46.048  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:24:56.895  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:25:14.204  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:25:26.785  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:25:31.258  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787513131251, getTime():Sun Aug 23 15:25:31 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:25:43.589  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:25:57.111  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:26:13.080  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:26:29.050  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:26:32.538  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:26:48.509  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:26:59.575  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:27:00.803  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:27:15.132  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:27:24.771  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:27:40.527  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:27:56.506  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:27:58.654  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:28:14.629  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:28:30.095  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:28:45.876  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:28:57.813  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:29:14.429  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:29:26.317  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:29:43.214  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:29:56.728  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:30:10.821  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:30:26.813  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:30:41.073 23516 23516 D nativeloader: InitLlndkLibrariesProduct: libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libRS.so:libandroid_net.so:libapexsupport.so:libavf.so:libbinder_ndk.so:libc.so:libcgrouprc.so:libclang_rt.asan-aarch64-android.so:libclang_rt.asan-arm-android.so:libclang_rt.hwasan-aarch64-android.so:libcom.android.tethering.connectivity_native.so:libdl.so:libft2.so:liblog.so:libm.so:libmediandk.so:libnativewindow.so:libneuralnetworks.so:libselinux.so:libsync.so:libvendorsupport.so:libvndksupport.so:libvulkan.so
+08-23 15:30:44.236  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:30:58.785  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:31:14.760  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:31:30.941  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:31:35.451  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:31:51.736  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:32:06.014  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:32:22.554  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:32:31.559  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:32:46.180  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:32:59.106  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:33:14.469  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:33:22.770  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:33:38.760  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:33:54.707  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:33:57.580  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:34:13.556  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:34:24.513  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:34:39.641  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:34:45.918  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:35:02.498  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:35:18.039  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787513718037, getTime():Sun Aug 23 15:35:18 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:35:24.211  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:35:31.805  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:35:47.449  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:36:01.479  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:36:16.925  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:36:33.233  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:36:46.031  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:37:02.620  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:37:18.049  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787513838045, getTime():Sun Aug 23 15:37:18 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:37:19.721  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:37:33.243  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:37:48.300  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:38:04.469  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:38:17.275  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:38:34.294  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:38:45.015  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:39:00.991  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:39:16.761  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:39:21.677  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:39:36.419  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:39:43.813  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:39:58.140  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:40:03.863  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:40:20.667  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:40:31.773  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787514031768, getTime():Sun Aug 23 15:40:31 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:40:34.091  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:40:48.287  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:40:55.991  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:41:12.271  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:41:24.563  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:41:40.453  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:41:56.205  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:42:12.093  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:42:23.751  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:42:38.837  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:42:51.321  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:43:08.192  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:43:19.880  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:43:35.656  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:43:51.401  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:43:53.862  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:44:09.844  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:44:24.374  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:44:41.172  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:44:55.866  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:44:57.368  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787514297363, getTime():Sun Aug 23 15:44:57 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:45:12.204  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:45:20.498  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:45:38.113  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:45:52.035  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:46:06.377  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:46:22.453  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:46:39.246  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:46:54.815  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:47:06.693  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:47:22.678  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:47:37.821  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:47:53.384  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:48:05.675  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:48:21.434  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:48:37.411  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:48:45.541  4049  4049 D QSClockBellTower: Everyone heard the bell. run(currentTime:1787514525536, getTime():Sun Aug 23 15:48:45 EDT 2026, getTimeZone():libcore.util.ZoneInfo[mDstSavings=3600000,mUseDst=true,mDelegate=[id="America/New_York",mRawOffset=-18000000,mEarliestRawOffset=-17762000,transitions=360]])
+08-23 15:48:52.992  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:48:57.897  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:49:13.865  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:49:26.971  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:49:42.542  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:49:49.906  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:50:04.414  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:50:14.077  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:50:29.656  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:50:46.037  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:51:01.605  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:51:16.755  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:51:32.316  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:51:43.379  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:51:59.350  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:52:11.642  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:52:27.615  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:52:42.783  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:52:45.231  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:53:01.008  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:53:11.848  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:53:26.352  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:53:36.221  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:53:53.425  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:54:08.787  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
+08-23 15:54:13.340 23841 23841 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+08-23 15:54:15.791 23841 23841 I AconfigPackage: com.android.libcore is mapped to com.android.art
+08-23 15:54:15.817 23841 23841 I AconfigPackage: com.android.libcore.readonly is mapped to system
+08-23 15:54:24.758  1341 32712 W libc    : Access denied finding property "suspend.debug.wakestats_log.enabled"
