@@ -19,7 +19,7 @@
  * Usage:
  *   node scripts/benchGrade.mjs bench-out/raw.json > bench-out/result.json
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -1202,9 +1202,22 @@ function main() {
   }
 }
 
+// realpath BOTH sides: node resolves symlinks for import.meta.url but
+// path.resolve does not, so invoking this through a symlinked `scripts/`
+// (a second working copy driving a second phone) made isMain false — main()
+// never ran, the process exited 0, and result.json was written empty. The
+// caller's `if ! node …` cannot see that, and the next guard reported the arm
+// as "measured nothing" while every turn had in fact been measured.
+const _realpath = (p) => {
+  try {
+    return realpathSync(p);
+  } catch {
+    return path.resolve(p);
+  }
+};
 const isMain =
   process.argv[1] &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  _realpath(process.argv[1]) === _realpath(fileURLToPath(import.meta.url));
 
 if (isMain) {
   main();

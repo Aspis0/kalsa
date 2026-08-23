@@ -1774,6 +1774,12 @@ with open(out_path, "w", encoding="utf-8") as out:
 if ! node scripts/benchGrade.mjs "$OUT/raw.json" > "$OUT/result.json"; then
   die "benchGrade.mjs failed — raw.json cannot be graded (see raw.json + grader stderr)"
 fi
+# A grader that exits 0 having written nothing is NOT a graded arm. It happened:
+# benchGrade's isMain guard compared a symlinked argv[0] against a realpathed
+# import.meta.url, main() never ran, and the empty file then made the guard below
+# report a fully measured arm as "measured nothing".
+[ -s "$OUT/result.json" ] \
+  || die "benchGrade.mjs exited 0 but wrote an EMPTY $OUT/result.json — the arm is ungraded, not bad"
 
 # WHY: a green arm that measured nothing is worse than a failed one — the
 # aggregate would treat it as data (run 31420693167 would have reported
@@ -1782,8 +1788,14 @@ fi
 # change the grader. Threshold: more than half of plan turns error or empty.
 _bad_arm_msg=$(python3 -c '
 import json, sys
-r = json.load(open(sys.argv[1], encoding="utf-8"))
-raw = json.load(open(sys.argv[2], encoding="utf-8"))
+def _die_internal(msg):
+    print(msg, file=sys.stderr)
+    sys.exit(2)
+try:
+    r = json.load(open(sys.argv[1], encoding="utf-8"))
+    raw = json.load(open(sys.argv[2], encoding="utf-8"))
+except Exception as e:
+    _die_internal("cannot read result.json/raw.json: %s" % e)
 err = set(r.get("errorTurns") or [])
 empty = set(r.get("emptyReplyTurns") or [])
 bad = err | empty
@@ -1804,7 +1816,15 @@ print(
     % (len(bad), n, first_idx, reply[:300])
 )
 sys.exit(1)
-' "$OUT/result.json" "$OUT/raw.json" 2>/dev/null) || die "${_bad_arm_msg:-arm measured nothing (error/empty turns > half)}"
+' "$OUT/result.json" "$OUT/raw.json" 2>"$OUT/bad_arm_guard.err")
+_bad_arm_rc=$?
+case "$_bad_arm_rc" in
+  0) ;;
+  1) die "${_bad_arm_msg:-arm measured nothing (error/empty turns > half)}" ;;
+  # Anything else is the GUARD failing, not the arm. Saying "measured nothing"
+  # here throws away good data: distinguish it and name the stderr file.
+  *) die "the measured-nothing guard itself failed (exit $_bad_arm_rc) — the arm is NOT judged; see $OUT/bad_arm_guard.err" ;;
+esac
 
 # RESULT.txt: arm/seed/compaction + probes=found/total read back from result.json.
 python3 -c '
