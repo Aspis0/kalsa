@@ -1,0 +1,2 @@
+08-23 08:52:24.170  2687  2788 I RNLlama : loadPrompt:659 [DEBUG] Input processed: n_past=2748, embd.size=3520, num_prompt_tokens=3520, has_media=0
+08-23 08:52:24.170  2687  2788 I RNLlama : loadPrompt:524 restored state checkpoint: reusing 2748/3520 prompt tokens

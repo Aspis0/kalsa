@@ -1627,6 +1627,47 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.43 MEASURED 2026-08-23: in production the KEXP is the WORST of the three, and the dense small models are the stable ones
+
+Arms B and D, S23, same APK (`073c489`) / harness / plan / **production config** as arm C in §7.41.
+Sixteen turns each, unplugged. This completes the campaign except arm E, which cannot run (§7.41).
+
+| arm | model | turn 1 | turn 16 | decay | total majflt | probes |
+|---|---|---|---|---|---|---|
+| C | LFM2.5-2.6B-QAD-Q4_0 | 19.2 | **14.1** | −26 % | 12 901 | 11/22 |
+| D | Qwen3.5-2B Q4_K_M | 16.8 | **15.0** | **−11 %** | **10 675** | **20/22** |
+| B | LFM2.5-8B-A1B-KEXP | 11.1 | **0.4** | −96 % | **534 715** | 16/22 |
+
+**The KEXP does not degrade — it breaks.** Turn by turn: 11.1 · 11.0 · **21.1** · 10.6 · 8.8 · 18.2 ·
+19.4 · 8.4 · 19.0 · 18.8 · **0.9** · 15.6 · — · 1.0 · **0.4** · —. Reporting a mean here would be a
+lie: the distribution is bimodal (≈18–21 when it works, ≈0.4–1.0 when it does not), not scattered
+around a centre. This reproduces §7.21's "unstable: 0.45 – 19.96" over a full 16-turn plan.
+
+**And the cause separates, which §7.23 could not do.** Major faults go 81 k → 100 k over the first
+twelve turns, then **164 k → 233 k → 448 k → 535 k**. Thermal throttling does not produce page
+faults. Prefill at turns 14–15 is **212 s and 222 s**. This collapse is I/O, not heat — the phone
+was at 41.6 °C, below the harness's own 44 °C pause, and arm D ran *hotter on average* while staying
+flat. §7.23 and §7.24 recorded the same collapse with thermal and memory pressure confounded; the
+fault counter separates them.
+
+⛔ **Nothing here was short of memory either.** KEXP `MemAvailable` never drops below 3.19 GB while
+it is taking half a million major faults. The kernel evicts this model's file pages and re-reads
+them with gigabytes free. That is the same shape as arm A's 8B (§7.41), two model sizes apart.
+
+**What this means for the lineup, and it is uncomfortable.** The KEXP is the designated fast tier —
+§2.1 records 19.97–22.26 tok/s for it on this phone with `norepack=1`. In **production**, on a real
+16-turn conversation, it is the worst of the three: slower than both dense small models from turn 11
+onward, and 15–35× slower than the 2.6B over the last four turns. The two "small" models are the
+stable ones.
+
+⚠️ **One caveat that cuts the other way, stated because it is not small.** Arm D started at
+**40.6 °C** — arm B had just heated the phone — against arm C's 33.6 °C cold start. Arm D's
+stability is therefore *understated* relative to a cold run, but its absolute tok/s is not
+comparable like-for-like with arm C's. A cold-start arm D is owed before the 2.6B-vs-Qwen ordering
+is called.
+
+Battery, now measured per turn rather than reconstructed: arm B **99 % → 75 %**, arm D **73 % → 62 %**.
+
 ### 7.42 MEASURED 2026-08-23: the in-session decay is not a phone — it reproduces at 2.8x lower speed on the Jelly
 
 First arm ever run on the Jelly Star from the **mainline** build. Until today `minSdk 35` made the

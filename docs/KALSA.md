@@ -140,6 +140,7 @@ model separates the two, which is the whole of KEXP's 848.
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | S23 | `norepack=1`, **real 16-turn conversation** | 18–20 early · 14–17 mid · **0.7–4.4 late** (§7.23) | — |
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | S23 | `norepack=1`, **second arm after a long session** | **0.3 – 4.1 on every one of 9 turns** (§7.24) | — |
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | S23 | **production (repack)** | **unstable: 0.45 – 19.96 across 13 turns** (§7.21) | trunk repack costs ~0.5 GB anon |
+| **LFM2.5-8B-A1B-KEXP** | same | 3.33 GB | ~848 | **S23** | **in-app, production, unplugged, 16 turns** | **11.1 → 0.4, BIMODAL not decaying** (≈18–21 working, ≈0.4–1.0 broken); collapse from turn 13 (§7.43) | **majflt 81 k → 535 k**, prefill 212 s and 222 s at turns 14–15, `MemAvailable` never below 3.19 GB. Battery 99 % → 75 % |
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | ~848 | Jelly (G99) | CLI, `k=4` | 8.83 — **slower than Q4_K_M on this SoC** | — |
 | **LFM2.5-8B-A1B-KEXP** | same | 3.33 GB | ~848 | **Jelly (G99)** | **in-app, `norepack=1`, unplugged, 4 turns** | **7.31 · 7.14 · 6.95 · 6.80** — **1.6× faster than Q4_K_M in the app** (§7.27) | **100 %** (`RssFile` 3.42 GB), `io_read` frozen at 3 389 177 856 — **zero flash re-reads**, 2.37 GB headroom |
 | LFM2.5-8B-A1B-KEXP | same | 3.33 GB | 848 | Jelly (G99) | **in-app, `norepack=1`, ON THE CHARGER, 5 restore cycles** | **7.43 · 7.04 · 7.12 · 7.10 · 7.26** (§7.30) — reproduces the unplugged row above, so charging is not inflating decode on this phone | — |
@@ -151,7 +152,7 @@ model separates the two, which is the whole of KEXP's 848.
 | **LFM2.5-2.6B-QAD-Q4_0** | QAD-Q4_0 | 1.59 GB | ~1586 | **Jelly (G99)** | **in-app, production, unplugged, 16 turns** | **7.2 → 5.5, mean 6.2 (−24 % in-session)** (§7.42) | **first mainline-build arm on this phone** (minSdk floor lowered the same day). `MemAvailable` flat 2.35 GB, battery 72 → 62 %. Prefill **never below 1661 ms** — none of the S23's sub-second cache hits |
 | LFM2.5-1.2B-Instruct | Q4_K_M | 0.73 GB | ~731 | Jelly (G99) | **CLI `llama-bench`, t=2, tg128, r=3, unplugged** | **18.39 ± 0.01** → **~12.5 in-app** (§7.38) | fastest thing measured on this phone by 2.3×, and **the weakest: 25/44 against the 2.6B's 34** (p=0.035), with no `<think>` block in any of its 44 answers |
 | Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **6.61 · 5.73 · 4.94 · 6.70** (§7.28) | **prefill never drops: 80.7 · 101.3 · 127.7 · 85.2 s — KV never reused** |
-| Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map) | S23 | — | **~17.2 predicted, unmeasured** | S23 unavailable 2026-08-21 |
+| Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map) | S23 | **in-app, production, unplugged, 16 turns** | **16.8 → 15.0, mean 15.1 (−11 %)** (§7.43) — the ~17.2 prediction was close | **the most stable arm measured**: majflt **10 675** total, `RssAnon` 1.52 → 1.67 GB, battery 73 % → 62 %. ⚠️ started at 40.6 °C (arm B had just heated the phone), so a cold-start rerun is owed |
 | LFM2.5-VL-3B | Q4_K_M | 1.67 GB + 583 MB mmproj | **1666** (its backbone's tensor map, §7.31) | S23 | — | **13.1 predicted, unmeasured** | **tier-1 pick.** Language backbone *is* LFM2.5-2.6B, so the Jelly row above is its text behaviour |
 
 ### 2.1.1 Kill campaign — who dies, when, and with how much RAM (2026-08-23)
@@ -165,14 +166,24 @@ Nothing was killed on either phone. What ends a run is one of three other things
 | A — 8B-A1B Q4_K_M, `norepack=1` | S23 | 7 turns at 0.26–0.29 tok/s | **the battery** (51 % → 11 %), then Android dozed the phone |
 | C — 2.6B-QAD, production | S23 | 16/16 | plan complete, `MemAvailable` 2.03 GB left |
 | C — 2.6B-QAD, production | Jelly | 16/16 | plan complete, `MemAvailable` 2.35 GB, flat |
+| B — KEXP, production | S23 | 16/16 but **bimodal 0.4–21.1**, collapsed from turn 13 | plan complete; 535 k majflt, battery 99 → 75 % |
+| D — Qwen3.5-2B, production | S23 | 16/16, **the most stable arm** (−11 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
 | E — 8B-A1B + streaming | S23 | **could not be run** | the gate refuses the model for a repack cost that streaming removes |
-| B — KEXP, D — Qwen3.5-2B | — | not run | S23 battery exhausted |
 
 ⛔ **`MemAvailable` never moved on any arm that ran.** The campaign was designed around §7.27's lmkd
 kill at turn 8, and that regime did not reproduce: with repack off the weights are file-backed and
 therefore evictable, so the kernel thrashes them instead of the killer taking the process. **Repack
 turns a thrash into a kill, and the gate refuses exactly the models where it would.** The two
 failure modes are the same model under two load configs, not two models.
+
+⛔ **The lineup's ordering does not survive production.** On the S23, in production, over sixteen
+turns: **Qwen3.5-2B −11 % · 2.6B-QAD −26 % · KEXP −96 %**. The KEXP is the designated fast tier and
+§2.1 records 19.97–22.26 tok/s for it here — but that is `norepack=1` on a fresh chat. In the config
+that ships, on a real conversation, it is the worst of the three and 15–35× slower than the 2.6B
+over the last four turns. **The two "small" models are the stable ones.** ⚠️ Arm D started hot
+(40.6 °C, arm B had just run) so its stability is understated and its absolute rate is not
+like-for-like with arm C's cold start — a cold-start rerun is owed before the 2.6B-vs-Qwen ordering
+is called.
 
 The cost that is real, and that nothing was recording until this campaign: **the 8B draws ~1205 mA
 sustained against the 2.6B's ~690 mA** — 5.7 points of battery per turn, ~45 minutes of runway on a
