@@ -1627,6 +1627,48 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.42 MEASURED 2026-08-23: the in-session decay is not a phone — it reproduces at 2.8x lower speed on the Jelly
+
+First arm ever run on the Jelly Star from the **mainline** build. Until today `minSdk 35` made the
+shipping APK uninstallable there (`INSTALL_FAILED_OLDER_SDK`), so the Jelly was benched off a
+never-merged branch; the floor was lowered to 33 the same day. Same APK, same harness, same model
+and same config as the S23 arm in §7.41 — the first genuinely comparable pair we have.
+
+LFM2.5-2.6B-QAD-Q4_0, `PHASE=fase4`, 16 turns, production config, both unplugged.
+
+| turn | S23 tok/s | Jelly tok/s | S23 promptMs | Jelly promptMs |
+|---|---|---|---|---|
+| 1 | 19.2 | 7.2 | 34 563 | 44 159 |
+| 4 | 19.1 | 6.5 | 240 | 1 728 |
+| 8 | 17.8 | 6.2 | 277 | 2 752 |
+| 12 | 15.7 | 6.0 | 3 068 | 2 863 |
+| 16 | **14.1** | **5.5** | 6 122 | 3 424 |
+| mean | 17.2 | 6.2 | | |
+| decay | **−26 %** | **−24 %** | | |
+
+**The decay is the finding.** −26 % and −24 % across sixteen turns, on silicon a factor 2.8 apart,
+with the Jelly running 4–6 °C cooler and never approaching a thermal trip. Whatever causes the
+in-session slide, it is not one phone's throttling curve. A turn-1 number is wrong by about a
+quarter on both, which is the concrete cost of the rule in §7.23.
+
+**The Jelly does not get the prompt-state cache the S23 gets.** The S23 falls to 232–553 ms for
+turns 2–11 (§7.41); the Jelly never goes below 1661 ms and sits at 2–3 s throughout. Same model,
+same 160 MB budget, same code — so the cache is either evicting or costing more to restore here.
+Unexplained, and worth a look before any conclusion about "prefill is solved".
+
+**Memory was never the constraint on either.** Jelly `MemAvailable` is flat at ~2.35 G for all
+sixteen turns (the S23 declined 2.31 → 2.03 G). Battery 72 % → 62 % for the arm.
+
+At 6.2 tok/s mean the Jelly remains below the 10 tok/s floor KALSA.md sets, now measured on the
+build that ships rather than on a bench branch. That confirms the "testbed, not a target" call —
+but it is worth stating that the phone was excluded by an INSTALL failure, not by this number,
+until today.
+
+⚠️ **This arm was first reported as `arm measured nothing (error/empty turns > half)` and it was
+none of those things** — see the commit that fixed benchGrade's isMain symlink guard and the
+measured-nothing check. Any earlier arm dismissed with that sentence deserves re-reading before
+it is trusted as a null result.
+
 ### 7.41 MEASURED 2026-08-23: the 8B does not get killed — it gets thrashed, and it is the battery that ends the run
 
 First in-app kill-campaign arms on the S23 (Android 16, APK `073c489`, unplugged, disk 79 % — see
