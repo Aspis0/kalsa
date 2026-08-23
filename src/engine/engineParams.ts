@@ -29,6 +29,15 @@ export type EngineOverrideFields = {
   nUbatch?: number;
   flashAttn?: FlashAttnMode;
   moeStream?: MoeStreamParams;
+  /**
+   * Bench-only residency probe. false loads the weights into ANONYMOUS memory
+   * instead of mapping the file, which is the only way an unprivileged Android
+   * app can keep them off the reclaim path: RLIMIT_MEMLOCK on a retail S23 is
+   * 64 MB soft AND hard (measured 2026-08-23), so `use_mlock` cannot hold a
+   * multi-GB model and llama.cpp only warns when mlock fails — it would look
+   * like a run rather than a refusal.
+   */
+  useMmap?: boolean;
 };
 
 /** Minimal ContextParams slice the override touches. */
@@ -39,6 +48,7 @@ export type EngineParamsSlice = {
   n_ubatch?: number;
   n_batch?: number;
   flash_attn_type?: FlashAttnMode;
+  use_mmap?: boolean;
   /** Forced to f16 when flash attention is off — see applyEngineOverride. */
   cache_type_v?: string;
   moe_stream?: MoeStreamParams;
@@ -52,6 +62,7 @@ export type EngineParamsSlice = {
  * - nThreadsPrefill: consumed by applyPrefillThreadOverride after this call.
  * - nUbatch: clamped to params.n_batch ?? 512.
  * - moeStream: forwarded only when explicitly present; production omits it.
+ * - useMmap: same rule — bench-only residency probe, never defaulted.
  * Absent fields leave params untouched. Empty/undefined override is a no-op.
  */
 export function applyEngineOverride<T extends EngineParamsSlice>(
@@ -108,6 +119,13 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
 
   if (override.moeStream !== undefined) {
     params.moe_stream = override.moeStream;
+  }
+
+  // Only when explicitly present: absent must stay absent, because llama.rn
+  // derives load_mode from the pair and a defaulted false would silently turn
+  // every production load into a non-mmap one.
+  if (override.useMmap !== undefined) {
+    params.use_mmap = override.useMmap;
   }
 
   return params;

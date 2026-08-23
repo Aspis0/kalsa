@@ -1627,6 +1627,58 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.44 MECHANISM 2026-08-23: what decides thrashing is the quant's repackability, not the kernel — and MemAvailable was lying to us all night
+
+Two things were wrong in §7.41 and §7.43 as first written, and correcting them turns three separate
+puzzles into one mechanism.
+
+**1. `MemAvailable` is the wrong number, and it flattered every arm.** Across all five arms on both
+phones, `MemFree` is **0.08–0.53 GB** — the phones are always full, as Android intends. Meanwhile
+`MemAvailable` reads 2.0–4.3 GB, because it counts reclaimable page cache, **and a mmapped model's
+resident weights ARE that cache**. It was reporting each model's own residency back to us as
+headroom. Every "nothing was short of memory" statement written earlier tonight rests on it and is
+withdrawn.
+
+**2. What actually decides the outcome is where the weights live, and that is set by the quant.**
+End of run, production config:
+
+| arm | model file | `RssAnon` | `RssFile` | outcome |
+|---|---|---|---|---|
+| C — 2.6B-QAD | 1.59 GB | **1.80 GB** | 0.67 GB | stable, −26 % |
+| D — Qwen3.5-2B | 1.28 GB | **1.67 GB** | 0.37 GB | stable, −11 % |
+| B — KEXP | 3.33 GB | **0.61 GB** | **2.50 GB** | bimodal, collapses |
+
+The two dense small models are **repacked into anonymous memory**, which the kernel does not evict to
+flash. The KEXP build is not: its weights stay **file-backed and therefore evictable**, because
+repack does not apply to its quant types — `RssAnon` 0.61 GB against a 3.33 GB file says so directly.
+
+⭐ **State this as a property of the RECIPE, because that is what it is.** KEXP is a requantization
+recipe — q2_K on routed gate/up, q3_K on routed down, q5_K/q6_K on the leading dense blocks — and
+`LFM2.5-8B-A1B-KEXP` is one artefact built from it. Repack's coverage is decided by the quant TYPE,
+so **every** artefact this recipe produces puts its experts in evictable page cache. Dropping this
+file does not retire the finding: a future KEXP build of any MoE inherits it unless the recipe stops
+emitting q2_K/q3_K for the tensors that carry the bulk. The recipe buys bytes on disk and pays for
+them in residency, and until now only the first half of that trade was measured.
+
+**That is also the mechanism of the bimodality.** The KEXP needs 3.33 GB and the phone concedes
+2.50–3.18 GB: it sits exactly on the boundary. Holding ~3.2 GB it runs 18–21 tok/s; pushed to
+2.5 GB it runs 0.4–1.0. Not a decay curve — a threshold being crossed back and forth. The 8B is the
+same story with the boundary on the wrong side permanently: 4.9 GB needed against a ~4.25 GB
+ceiling.
+
+**Consequences, and the reason this is not a llama.cpp question.** It was checked first: the app's
+cgroup (`/apps/uid_10347/pid_<pid>`, cgroup v2) has **no memory controller at all** — no
+`memory.max`, no `memory.high` — so there is no per-app cap doing this and nothing for a kernel or
+engine change to relax. The lever is ours:
+
+- **The quant choice decides evictability.** A quant that repacks lands in anon and is safe; one that
+  does not stays in page cache and is exposed. This is a property of the recipe, not of the phone,
+  and it was never in the model-selection criteria.
+- **A model that does not repack must fit with margin, not just fit** — the KEXP "fits" 3.33 GB in a
+  7.24 GB phone and still thrashes.
+- **Explicitly bounding the working set is the other answer**, which is exactly what the streaming
+  path's LRU cache does — and arm E, which would have measured it, is blocked by the gate (§7.41).
+
 ### 7.43 MEASURED 2026-08-23: in production the KEXP is the WORST of the three, and the dense small models are the stable ones
 
 Arms B and D, S23, same APK (`073c489`) / harness / plan / **production config** as arm C in §7.41.
@@ -1650,9 +1702,10 @@ was at 41.6 °C, below the harness's own 44 °C pause, and arm D ran *hotter on 
 flat. §7.23 and §7.24 recorded the same collapse with thermal and memory pressure confounded; the
 fault counter separates them.
 
-⛔ **Nothing here was short of memory either.** KEXP `MemAvailable` never drops below 3.19 GB while
-it is taking half a million major faults. The kernel evicts this model's file pages and re-reads
-them with gigabytes free. That is the same shape as arm A's 8B (§7.41), two model sizes apart.
+⛔ **CORRECTED — the first version of this paragraph said the kernel evicts with "gigabytes free",
+and there were none.** KEXP `MemAvailable` never drops below 3.19 GB, but `MemFree` on those same
+turns is **0.09–0.17 GB**. See §7.44: `MemAvailable` includes the model's own mapped weights, so it
+cannot be read as headroom. The eviction is not mysterious — the phone is full.
 
 **What this means for the lineup, and it is uncomfortable.** The KEXP is the designated fast tier —
 §2.1 records 19.97–22.26 tok/s for it on this phone with `norepack=1`. In **production**, on a real
@@ -1746,9 +1799,15 @@ The model does run. It is unusable.
 
 Three things this table says that the plan did not predict:
 
-1. **Nothing is ever short of memory.** `MemAvailable` is flat at ~4.25 GB from first turn to last.
-   No lmkd, no kill. §7.27's "lmkd at turn 8" is a different regime — that one had 0.92 GB available
-   and, by inference, repack ON making the footprint anonymous and unreclaimable.
+1. **No lmkd, no kill** — `MemAvailable` is flat at ~4.25 GB from first turn to last. §7.27's "lmkd
+   at turn 8" is a different regime: 0.92 GB available and, by inference, repack ON making the
+   footprint anonymous and unreclaimable.
+   ⛔ **CORRECTED 2026-08-23, later the same day — the first version of this line said "nothing is
+   ever short of memory", and that was wrong.** `MemFree` on the same turns is **0.09–0.18 GB**.
+   `MemAvailable` counts reclaimable page cache, and this model's own mapped weights ARE that cache,
+   so it was reporting the model's own residency back as headroom. The 8B needs 4.9 GB and the
+   ceiling here is ~4.25 GB including what it already holds: **it does not fit, and never did.**
+   See §7.44 — `MemAvailable` is the wrong number for this question.
 2. **Throughput does not decay** (0.26–0.29 across seven turns, against the 2.6B's −26 % over
    sixteen). This is not thermal throttling; it is I/O. Major faults grow linearly at ~200 000 per
    turn to 1.74 M. Of 4917 MiB of weights the kernel keeps only ~2.3 GB resident and re-reads the

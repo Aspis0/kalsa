@@ -310,15 +310,31 @@ async function main() {
     assert(calibration.q4_k_m === 2000, JSON.stringify(calibration));
   });
 
-  await test("registry has one tensor-map weight-read value", () => {
-    const measured = MODEL_REGISTRY.filter((entry) => entry.weightsBytesPerToken);
-    assert(measured.length === 1, `measured models=${measured.length}`);
-    assert(measured[0].id === "lfm2.5-8b-a1b-kexp", measured[0].id);
-    assert(measured[0].weightsBytesPerToken.bytes === 848_000_000, "848 MB/token");
+  // Was "registry has ONE tensor-map value", which asserted the defect rather
+  // than the rule: only the KEXP carried it, so the speed advisory answered
+  // "unknown" for every other model. 2026-08-23 computed the rest with
+  // scripts/ggufWeightBytes.mjs. The invariant now protects the property that
+  // matters — a model added without its per-token bytes is a model the gate
+  // cannot reason about, and that must fail here rather than ship silently.
+  await test("every dense model carries a tensor-map weight-read value", () => {
+    const missing = MODEL_REGISTRY.filter((entry) => !entry.weightsBytesPerToken);
+    // LFM2.5-8B-A1B is MoE: per-token bytes depend on how many experts route,
+    // which the tensor index cannot say, so ggufWeightBytes.mjs REFUSES it.
+    // Absent is the honest state; a guessed constant here would feed the gate.
     assert(
-      measured[0].weightsBytesPerToken.source === "tensor-map",
-      measured[0].weightsBytesPerToken.source,
+      missing.every((entry) => entry.id === "lfm2.5-8b-a1b"),
+      `missing per-token bytes: ${missing.map((e) => e.id).join(", ")}`,
     );
+    for (const entry of MODEL_REGISTRY.filter((e) => e.weightsBytesPerToken)) {
+      assert(
+        entry.weightsBytesPerToken.source === "tensor-map",
+        `${entry.id} source=${entry.weightsBytesPerToken.source}`,
+      );
+      assert(
+        entry.weightsBytesPerToken.bytes > 0,
+        `${entry.id} bytes=${entry.weightsBytesPerToken.bytes}`,
+      );
+    }
   });
 
   await test("throughput keeps quant families separate", () => {

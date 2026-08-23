@@ -27,7 +27,15 @@ import {
 } from "./ModelDownloader";
 
 const model = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!;
-const kexp = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-8b-a1b-kexp")!;
+// Fixture, not a catalogue entry. These tests are about the unpublished-artifact
+// path, and binding them to whichever model carried hfArtifactRepo broke all
+// four the day the KEXP was dropped (2026-08-23). No shipped model is our own
+// artifact today, so the rule needs a subject that does not depend on that.
+const owned = {
+  ...model,
+  hfArtifactRepo: "SOME-OWN-REQUANT-GGUF",
+  file: "SOME-OWN-REQUANT.gguf",
+};
 
 describe("ModelDownloader artifact hosting", () => {
   beforeEach(() => jest.clearAllMocks());
@@ -39,7 +47,7 @@ describe("ModelDownloader artifact hosting", () => {
   });
 
   test("refuses an unpublished artifact before creating a network task", async () => {
-    await expect(downloadModelBundle(kexp, { locale: "en" })).rejects.toMatchObject({
+    await expect(downloadModelBundle(owned, { locale: "en" })).rejects.toMatchObject({
       name: "UnpublishedArtifactError",
     });
     expect(FileSystem.createDownloadResumable).not.toHaveBeenCalled();
@@ -48,7 +56,7 @@ describe("ModelDownloader artifact hosting", () => {
   test("localizes an unpublished artifact without a network diagnosis", async () => {
     let failure: unknown;
     try {
-      await downloadModelBundle(kexp, { locale: "en" });
+      await downloadModelBundle(owned, { locale: "en" });
     } catch (error) {
       failure = error;
     }
@@ -66,6 +74,6 @@ describe("ModelDownloader artifact hosting", () => {
   });
 
   test("does not create a URL for an unpublished artifact", () => {
-    expect(() => hfFileUrl(kexp, kexp.file)).toThrow("Kalsa artifact is unpublished");
+    expect(() => hfFileUrl(owned, owned.file)).toThrow("Kalsa artifact is unpublished");
   });
 });

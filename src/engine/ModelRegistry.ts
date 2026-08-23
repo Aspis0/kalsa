@@ -129,6 +129,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "86835bf9949e4d14d6860f7910b1340ad4f271a9",
     file: "Qwen3.5-4B-Q4_K_M.gguf",
     sizeBytes: 2_834_975_040,
+    weightsBytesPerToken: {
+      bytes: 2_810_038_272,
+      source: "tensor-map",
+    },
     // Il repo MTP-GGUF non contiene il mmproj: punta al repo base.
     mmproj: {
       file: "mmproj-F16.gguf",
@@ -163,6 +167,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "86835bf9949e4d14d6860f7910b1340ad4f271a9",
     file: "Qwen3.5-4B-Q3_K_M.gguf",
     sizeBytes: 2_374_564_160,
+    weightsBytesPerToken: {
+      bytes: 2_349_627_392,
+      source: "tensor-map",
+    },
     mmproj: {
       file: "mmproj-F16.gguf",
       sizeBytes: 672_423_616,
@@ -194,6 +202,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "0314792d7f1f7e229411f620751375812bb9faf2",
     file: "gemma-4-E2B-it-Q4_K_M.gguf",
     sizeBytes: 3_106_738_272,
+    weightsBytesPerToken: {
+      bytes: 1_448_577_164,
+      source: "tensor-map",
+    },
     mmproj: { file: "mmproj-F16.gguf", sizeBytes: 985_654_080 },
     contextLength: 131072,
     engineCtx: 8192,
@@ -209,6 +221,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "f6d5376be1edb4d416d56da11e5397a961aca8ae",
     file: "Qwen3.5-2B-Q4_K_M.gguf",
     sizeBytes: 1_280_835_840,
+    weightsBytesPerToken: {
+      bytes: 1_269_865_728,
+      source: "tensor-map",
+    },
     contextLength: 262144,
     // Catalog-authoritative: resolveContextProfile never downgrades this (16k on all devices).
     engineCtx: 16384,
@@ -239,6 +255,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "f4a289c8a200a5ca71005ba7abc2dad33058a450",
     file: "LFM2.5-2.6B-QAD-Q4_0.gguf",
     sizeBytes: 1_593_894_944,
+    weightsBytesPerToken: {
+      bytes: 1_585_647_616,
+      source: "tensor-map",
+    },
     // text-only: no mmproj in the HF repo
     contextLength: 131072,
     engineCtx: 8192,

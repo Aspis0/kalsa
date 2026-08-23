@@ -86,6 +86,8 @@ export type EngineOverride = {
   /** Android needs "off" alongside nGpuLayers — see applyEngineOverride. */
   flashAttn?: FlashAttnMode;
   moeStream?: EngineOverrideFields["moeStream"];
+  /** Bench-only residency probe; see engineParams.useMmap. */
+  useMmap?: boolean;
 };
 
 type MoeStreamOverride = NonNullable<EngineOverride["moeStream"]>;
@@ -277,6 +279,9 @@ function formatEngineLabel(engine: EngineOverride | undefined): string {
       parts.push(`overlap:${moe.overlap ? "on" : "off"}`);
     }
     if (moe.dense_weights !== undefined) parts.push(`dense:${moe.dense_weights}`);
+  }
+  if (engine.useMmap !== undefined) {
+    parts.push(`mmap:${engine.useMmap ? "on" : "off"}`);
   }
   return parts.length > 0 ? parts.join(",") : "default";
 }
@@ -706,6 +711,9 @@ export async function getEngineOverride(): Promise<EngineOverride | undefined> {
     }
     const moeStream = readMoeStreamOverride(o.moeStream);
     if (moeStream) out.moeStream = moeStream;
+    // Boolean-only on purpose: any other value must leave the field ABSENT, so
+    // a malformed pref cannot turn a production load into a non-mmap one.
+    if (typeof o.useMmap === "boolean") out.useMmap = o.useMmap;
     return Object.keys(out).length > 0 ? out : undefined;
   } catch {
     return undefined;

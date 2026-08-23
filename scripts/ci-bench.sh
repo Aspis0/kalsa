@@ -65,6 +65,7 @@ DIGESTCADENCE="${DIGESTCADENCE:-}"
 NOREPACK="${NOREPACK:-}"
 NGL="${NGL:-}"
 MOE="${MOE:-off}"
+USE_MMAP="${USE_MMAP:-}"
 MOE_CACHE_MB="${MOE_CACHE_MB:-2000}"
 MOE_IO_THREADS="${MOE_IO_THREADS:-4}"
 MOE_OVERLAP="${MOE_OVERLAP:-on}"
@@ -164,6 +165,16 @@ validate_bench_ngl "$NGL"
 # app's parser DROPS a value it does not accept and then loads without streaming
 # — silently. An arm labelled "streaming" that never streamed is a wrong number,
 # not a failed run, so a bad knob must kill the script instead.
+# USE_MMAP: residency probe. Empty = absent = production. "false" loads weights
+# into ANONYMOUS memory instead of mapping the file — the only lever an
+# unprivileged Android app has, because RLIMIT_MEMLOCK on a retail S23 is 64 MB
+# soft AND hard, so use_mlock cannot hold a multi-GB model and llama.cpp merely
+# WARNS when mlock fails. An mlock arm would look like a run and measure nothing.
+case "$USE_MMAP" in
+  ''|true|false) ;;
+  *) die "USE_MMAP must be empty, true or false (got '$USE_MMAP')" ;;
+esac
+
 MOE_JSON=""
 case "$MOE" in
   off) ;;
@@ -194,7 +205,7 @@ case "$MEMORY" in
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
 
-log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL moe=$MOE moeJson=$MOE_JSON memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL moe=$MOE moeJson=$MOE_JSON useMmap=$USE_MMAP memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
 # LFM2.5 is always-on reasoning: its chat template has preserve_thinking only.
 # Record THINKING for the matrix; the model does not expose a separate switch
 # for this axis.
@@ -330,8 +341,8 @@ set_prefs() {
   # Empty must DELETE the key, and that branch matters more here than for the
   # other knobs: AppShell reads this key on the PRODUCTION path too, so a
   # leftover from one arm would silently arm offload for the next one.
-  if [ -n "$NGL" ] || [ -n "$MOE_JSON" ]; then
-    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.engine','$(bench_engine_json "$NGL" "$MOE_JSON")');" "kalsa.bench.engine" "$(bench_engine_json "$NGL" "$MOE_JSON")"
+  if [ -n "$NGL" ] || [ -n "$MOE_JSON" ] || [ -n "$USE_MMAP" ]; then
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.bench.engine','$(bench_engine_json "$NGL" "$MOE_JSON" "$USE_MMAP")');" "kalsa.bench.engine" "$(bench_engine_json "$NGL" "$MOE_JSON" "$USE_MMAP")"
   else
     sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" "kalsa.bench.engine" "__ABSENT__"
   fi
@@ -420,9 +431,9 @@ else
     || die "norepack pref on device is '$NOREPACK_PREF_RAW', expected absent (NOREPACK empty = production repack)"
 fi
 NGL_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.engine';" | head -1 | tr -d '[:space:]')
-if [ -n "$NGL" ] || [ -n "$MOE_JSON" ]; then
-  [ "$NGL_PREF_RAW" = "$(bench_engine_json "$NGL" "$MOE_JSON")" ] \
-    || die "engine pref on device is '$NGL_PREF_RAW', expected '$(bench_engine_json "$NGL" "$MOE_JSON")'"
+if [ -n "$NGL" ] || [ -n "$MOE_JSON" ] || [ -n "$USE_MMAP" ]; then
+  [ "$NGL_PREF_RAW" = "$(bench_engine_json "$NGL" "$MOE_JSON" "$USE_MMAP")" ] \
+    || die "engine pref on device is '$NGL_PREF_RAW', expected '$(bench_engine_json "$NGL" "$MOE_JSON" "$USE_MMAP")'"
 else
   [ -z "$NGL_PREF_RAW" ] \
     || die "engine pref on device is '$NGL_PREF_RAW', expected absent (NGL and MOE both off = production; this key is read on the production path too)"

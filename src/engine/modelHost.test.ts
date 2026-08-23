@@ -22,12 +22,19 @@ describe("resolveModelArtifact", () => {
     });
   });
 
+  // Fixture, not a catalogue entry: this asserts the OWNED-ARTIFACT rule, and
+  // pinning it to whichever model happens to carry hfArtifactRepo made it fail
+  // the day the KEXP was dropped (2026-08-23) — a catalogue decision breaking a
+  // test about resolver logic. Today no shipped model is our own artifact.
   test("declares an owned artifact unpublished while the org is unset", () => {
-    const model = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-8b-a1b-kexp");
-    expect(model).toBeDefined();
-    expect(resolveModelArtifact(model!)).toEqual({
+    const owned = {
+      ...MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b")!,
+      hfArtifactRepo: "SOME-OWN-REQUANT-GGUF",
+      file: "SOME-OWN-REQUANT.gguf",
+    };
+    expect(resolveModelArtifact(owned)).toEqual({
       status: "unpublished",
-      artifact: "LFM2.5-8B-A1B-KEXP.gguf",
+      artifact: "SOME-OWN-REQUANT.gguf",
       owner: "kalsa",
     });
   });
