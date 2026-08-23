@@ -1,0 +1,38 @@
+xiaomi_v75 NPU DECODE cell  tg128  Qwen3.5-4B-Q4_0
+serial: adb-625689a2-9xEOfw._adb-tls-connect._tcp  (houji)
+S23 / Jelly (cleanup-only this round): S23 not touched.
+
+PLUG: UNPLUGGED entire cell (AC=USB=Wireless=Dock=false, status=3)  BANKABLE
+battery: 68% -> 66%
+temp C: htp1 32.3  htp2 34.2  cpu1 35.2  cpu2 35.2  end 36.1
+see battery_*.txt battery_series.csv
+
+SHA (same as prefill cell1)
+  llama-bench 5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507
+  model      298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb
+  libggml-htp-v75.so 46d3ac923988f20b75d6d3489eea0e1432aa275aaff61c39253e170c17729182
+
+CMD (cell1 flags, tg instead of pp)
+  HTP: llama-bench -m Qwen3.5-4B-Q4_0.gguf -p 0 -n 128 -r 1 --load-mode none -fa on --ubatch-size 1024 -ngl 99 -dev HTP0 --no-host 1
+  CPU: same, -ngl 0, no -dev, no --no-host
+  env: NDEV=1 HOSTBUF=1 ADSP/CDSP=workdir
+  2 HTP + 2 CPU process-level reps, 30s cooldown, -v on HTP1 only
+  hang 120s: not triggered. rc=0 all four.
+
+tg128 t/s  UNPLUGGED
+  HTP1  4.09   (with -v; stderr 55.3 MB)
+  HTP2  4.85
+  HTP mean 4.47
+  CPU1 11.94
+  CPU2  1.69   (outlier: wall ~102s vs cpu1 ~21s; possible throttle after HTP decode. do not average blindly)
+  HTP mean / CPU1 = 4.47 / 11.94 = 0.37x
+
+HTP proof (htp1.err): decode MATMUL DOES run on HTP0, n=1, hvx-tiled (not hmx):
+  execute-op MUL_MAT|blk.0.attn_qkv.weight ... |2560:8192 x 2560:1 -> 8192:1|q4_0 x f32|HTP0-REPACK x HTP0 -> HTP0|hvx-tiled
+
+VERDICT: NPU decode is real (execute-op on HTP0) but NOT competitive.
+  prefill cell1 median 165.42 t/s vs CPU 51.90 = 3.19x
+  decode HTP ~4.5 t/s vs CPU ~12 t/s = 0.37x
+  prefill-only story CONFIRMED on houji v75 Qwen3.5-4B-Q4_0.
+
+files: htp1.{out,err,rc,meta} htp2.* cpu1.* cpu2.*

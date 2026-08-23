@@ -1,0 +1,15 @@
+Jelly_Star 192.168.1.82:35785  round 4 phase 1
+wake: dumpsys showed mWakefulness=Awake mScreenState=ON; sent KEYCODE_WAKEUP anyway.
+plug: AC=true status=2 charging 100% 31.0C
+
+REMOVED: /data/local/tmp/kalsajudge only
+  du before: 127860 KB (~125 MiB)
+  ls after: "No such file or directory"
+kalsa26 LEFT IN PLACE: 491265 KB still present
+
+df /data Available 1K-blocks:
+  before 123444560
+  after  123572548
+  freed  127988 KB (~125 MiB)
+
+S23 not touched. Xiaomi not touched in this phase.

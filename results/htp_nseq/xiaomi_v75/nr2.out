@@ -1,0 +1,12 @@
+Testing 2 devices
+
+Backend 1/2: HTP0
+  Device description: Hexagon
+  Device memory: 0 MB (0 MB free)
+
+  0/0 tests passed
+  Backend HTP0: [1;32mOK[0m
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m

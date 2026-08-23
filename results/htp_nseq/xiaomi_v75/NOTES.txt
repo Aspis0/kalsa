@@ -1,0 +1,31 @@
+xiaomi_v75 nseq>1 probe
+serial: adb-625689a2-9xEOfw._adb-tls-connect._tcp  (houji)
+plug: UNPLUGGED  66%  37.2C  (after decode cell)
+
+QUESTION: pp512 nseq=2 and nseq=4, --no-host 1, does quantized MUL_MAT still execute on HTP0
+          or silently fall back to CPU (upstream #26094)?
+
+LLAMA-BENCH FLAG: ABSENT on this build (3f545bec / llama-bench sha 5db18906…)
+  --help lists no -np / --n-parallel / --n-seq / -nseq
+  live probe: ./llama-bench ... -np 2  -> rc=1
+    stderr: "error: invalid parameter for argument: -np"
+  captured: np_probe.{out,err,rc}  llama-bench-help.txt
+  llama-bench.cpp @ 3f545be uses llama_batch_get_one() only (always n_seq=1).
+  CANNOT run the requested pp512 nseq=2/4 cell with this binary. Did not invent a substitute bench.
+
+KERNEL / HARNESS EVIDENCE (why #26094 is still the expected outcome if nseq were set):
+  ggml-hexagon.cpp supports MUL_MAT quantized:
+    if (src1->ne[2] != 1 || src1->ne[3] != 1) {
+        return false;  // no broadcasting (for now)
+    }
+  Device harness (q31/sentence_B, same HTP0 v75):
+    MUL_MAT(type_a=q4_0,...,nr=[2,1],...): not supported [HTP0]
+  nseq>1 would make src1->ne[2] != 1 -> HTP refuses the op -> llama scheduler
+  must run that MUL_MAT on CPU. That is the silent-fallback mechanism, not measured
+  here as a pp512 t/s because llama-bench cannot create n_seqs=2.
+
+VERDICT: llama-bench nseq probe NOT RUN (no flag). Expected: HTP reject + CPU fallback
+  if nseq>1 were possible. Not a measured t/s either way.
+
+rc: np_probe=1 (invalid -np). no hang.
+S23 not touched.
