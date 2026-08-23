@@ -1,0 +1,4 @@
+start=Sun Aug 23 01:17:47 EDT 2026
+cmd=PLAIN_HOST=1 ./test-backend-ops-judge test -b HTP0 -o MUL_MAT -p type_a=quants
+end=Sun Aug 23 01:17:50 EDT 2026
+rc=1

@@ -1,0 +1,71 @@
+xiaomi_v75 HTP silent-CPU-fallback A/B proof + deploy
+serial: adb-625689a2-9xEOfw._adb-tls-connect._tcp  (houji / 23127PN0CG)
+workdir: /data/local/tmp/kalsahtp
+S23 / Jelly: not touched. no reboot. no install. nothing deleted.
+
+==============================================================================
+PHASE 2 — DEPLOY  DONE
+==============================================================================
+df /data before: 312G free (>>6G). after: 310G.
+plugged: AC=true USB=false Wireless=false Dock=false  status=2 charging
+battery: 48% -> 50%   temp 35.8C -> 36.7C
+
+Model
+  PC: models/draft/Qwen3.5-4B-Q4_0.gguf
+  device: /data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf
+  size: 2583221408 B
+  sha256 PC = device: 298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb
+  push: 21.6 MB/s, 114 s
+
+llama-bench trio
+  llama-bench               7536 B  (user note said 7568; on-disk/MANIFEST is 7536)
+    sha256 5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507
+    q28 MANIFEST: MATCH
+  libllama-bench-impl.so    4215304 B  PUSHED
+    sha256 5c744d726e76b03c03e2b7821915ab21b8794bdbe1d32d6092169f78d0183915
+    q28 MANIFEST: NOT LISTED (recorded anyway)
+  libllama-common.so        68158328 B  ALREADY ON DEVICE, not overwritten
+    device sha256 1ff3a30644cb9b3c227900f36f803277cc894c9aaa92b2f5df0cb9de74d8cb6a
+    PC build-android-hexagon/bin sha256 4498ab32a2c236aeba9af0849e58fd9d0eaf80036ef6136379ae2058f73d7499
+    q28 MANIFEST: NOT LISTED
+    llama-bench ran rc=0 against the on-device copy
+
+==============================================================================
+PHASE 3 — FALLBACK A/B  DONE
+==============================================================================
+plugged: AC=true (any plug state allowed)  50% -> 51%  temp 36.8C -> 37.6C
+env: LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64
+     ADSP_LIBRARY_PATH=CDSP_LIBRARY_PATH=/data/local/tmp/kalsahtp
+     GGML_HEXAGON_NDEV=1 GGML_HEXAGON_VERBOSE=1 GGML_HEXAGON_HOSTBUF=1
+cmd (q31 flags): llama-bench -m Qwen3.5-4B-Q4_0.gguf -p 512 -n 0 -r 1
+                 --load-mode none -fa on --ubatch-size 1024 -ngl 99 -dev HTP0
+nseq: llama-bench has no --n-seq; sched_reserve n_seqs=1 confirmed in -v logs
+hang kill 120s: not triggered. no kill.
+
+CLEAN t/s  (no -v)   rc=0 both
+  A WITH    --no-host 1 :  116.84 t/s   noh=1   wall ~20s   runA_nohost.{out,err,rc,meta}
+  B WITHOUT --no-host   :  109.51 t/s           wall ~16s   runB_host.{out,err,rc,meta}
+  stderr without -v is session-init only (~757 B) — not enough for REPACK/execute-op
+
+VERBOSE proof  (-v + GGML_HEXAGON_VERBOSE=1)   rc=0 both
+  A WITH    --no-host 1 :  114.37 t/s   runA_nohost_v.{out,err,rc,meta}  err 4.55 MB
+  B WITHOUT --no-host   :  117.68 t/s   runB_host_v.{out,err,rc,meta}    err 4.55 MB
+
+  BOTH A and B:
+    load_tensors: CPU 497.31 MiB, CPU_REPACK 662.31, HTP0 3.67, HTP0-REPACK 1787.12 MiB
+    sched_reserve: n_tokens=512 n_seqs=1 ; graph splits=51
+    execute-op MUL_MAT q4_0 ... |HTP0-REPACK x HTP0 -> HTP0|hmx-tiled
+    session v75 _dom=cdsp PD granted, hwinfo 4/4/1 / 8MB VTCM
+
+HEADLINE: trap NOT reproduced on houji v75 with this build.
+  Expected: A ~80+ t/s HTP with execute-op; B silent CPU ~24 t/s, no execute-op, no error.
+  Observed: A 116.84 vs B 109.51 (both HTP-class); B also has HTP0-REPACK + execute-op; no error either side.
+  HOSTBUF=1 was set (same as q30/q31 test-backend-ops env). --no-host is not required for HTP
+  execution on this v75 retail session.
+
+==============================================================================
+PHASE 4 — PREFILL CELL  SKIPPED
+==============================================================================
+Rule: ONLY if UNPLUGGED and battery >=40%.
+Observed at skip decision: AC powered=true, status=2 charging, level=52%, temp=38.3C.
+See results/htp_prefill/xiaomi_v75/SKIP.txt

@@ -1,0 +1,17 @@
+PHASE 4 SKIPPED
+
+Rule: run the 3-rep pp512 --no-host 1 cell ONLY if the device is UNPLUGGED with battery >= 40%.
+
+dumpsys battery at skip decision (see battery_phase4_skip.txt):
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 2 (charging)
+  level: 52
+  temperature: 383  (38.3 C)
+
+Serial: adb-625689a2-9xEOfw._adb-tls-connect._tcp (houji)
+S23 / Jelly not touched.
+
+Phase 3 A/B already captured one-shot pp512 with --no-host 1 at 116.84 t/s (plugged, not a bankable unplugged cell).

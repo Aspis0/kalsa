@@ -1,0 +1,5 @@
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-55 482G 169G  312G  36% /data/user/0
+/dev/block/dm-55 482G 169G  312G  36% /data/user/0
+Filesystem       1K-blocks      Used Available Use% Mounted on
+/dev/block/dm-55 505068524 177461968 327475484  36% /data/user/0

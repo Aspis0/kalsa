@@ -1,0 +1,2 @@
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-55 482G 172G  310G  36% /data/user/0

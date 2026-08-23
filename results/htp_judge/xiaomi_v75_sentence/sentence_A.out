@@ -1,0 +1,410 @@
+Testing 2 devices
+
+Backend 1/2: HTP0
+  Device description: Hexagon
+  Device memory: 0 MB (0 MB free)
+
+[MUL_MAT] NaN at index 6 (HTP0=-7.166355 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 5 (HTP0=3.304100 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=-6.300215 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 3343058527.639835358 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=-0.047310 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 2 (HTP0=0.098986 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 8 (HTP0=0.331550 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 7 (HTP0=0.268986 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=0.853371 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=-0.876455 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=2.999127 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 12 (HTP0=-4.028813 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 2 (HTP0=-3.248124 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=0.492744 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=0.514956 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=0.517792 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=-0.308378 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 6 (HTP0=-0.575882 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=1.497103 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 15 (HTP0=2.267742 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 2 (HTP0=4.217993 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=1.421111 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=-0.747306 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 3 (HTP0=-0.056215 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 3 (HTP0=-0.755268 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 2 (HTP0=-0.814092 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 6 (HTP0=-0.034799 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=-8.857503 CPU=inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = inf > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=0.870566 CPU=inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=6.343400 CPU=-inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=0.572113 CPU=inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=-0.985495 CPU=inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=-0.752318 CPU=-inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=0.049234 CPU=inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=0.089582 CPU=-inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 4 (HTP0=-8.365230 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=4.529151 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 2 (HTP0=3.795356 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=7.682228 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 9 (HTP0=0.200345 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=0.004335 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 37108142948567.320312500 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=-0.886527 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 10 (HTP0=0.979614 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=45.968754 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 0 (HTP0=-42.500004 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] inf mismatch: HTP0=-5.398438 CPU=-inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 8 (HTP0=-3.460637 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+[MUL_MAT] ERR = 17969450758766.656250000 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q8_0,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+[MUL_MAT] NaN at index 6 (HTP0=-5.948743 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+[MUL_MAT] NaN at index 6 (HTP0=-0.768810 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_0,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+[MUL_MAT] NaN at index 0 (HTP0=5.452064 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+[MUL_MAT] NaN at index 5 (HTP0=0.710588 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=q4_1,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+[MUL_MAT] inf mismatch: HTP0=-1.601325 CPU=-inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+[MUL_MAT] inf mismatch: HTP0=-0.163838 CPU=-inf cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=4,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[1,1],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,1],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[1,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[3,2],nr=[2,2],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=4,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,2,1,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,1,3,2],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=256,bs=[2,3],nr=[1,1],per=[0,3,2,1],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=1,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=16,k=1024,bs=[3,2],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+  MUL_MAT(type_a=mxfp4,type_b=f16,m=16,n=8,k=256,bs=[1536,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): not supported [HTP0, CPU] 
+[MUL_MAT] ERR = 20381155.477464873 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 6 (HTP0=2.240795 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 3369786747328.513183594 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 2 (HTP0=5.872174 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 3207199702.934066772 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 9 (HTP0=-7.932096 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 4 (HTP0=-6.457032 CPU=-nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=576,n=512,k=576,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 1.001244900 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=1,n=2048,k=8192,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 0.999800208 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 1.000000000 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_1,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 1.000000000 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 1.000000000 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=mxfp4,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] ERR = 1.008271773 > 0.000500000 cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=iq4_nl,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+[MUL_MAT] NaN at index 1 (HTP0=-0.453683 CPU=nan) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q8_0,type_b=f32,m=6,n=4096,k=5120,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0): [1;31mFAIL[0m
+  0/70 tests passed
+
+Failing tests:
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=2,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=3,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=4,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=5,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=6,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=7,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=8,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=9,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=16,n=16,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=32,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=16,n=1,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=576,n=512,k=576,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=1,n=2048,k=8192,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q4_1,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=mxfp4,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=iq4_nl,type_b=f32,m=1,n=64,k=256,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  MUL_MAT(type_a=q8_0,type_b=f32,m=6,n=4096,k=5120,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1,src_overlap=0)
+  Backend HTP0: [1;31mFAIL[0m
+Backend 2/2: CPU
+  Skipping
+1/2 backends passed
+[1;31mFAIL[0m

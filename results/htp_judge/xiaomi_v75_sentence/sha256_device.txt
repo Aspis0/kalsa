@@ -1,0 +1,10 @@
+-rwxr-xr-x 1 shell shell 10513672 2026-08-22 17:19 /data/local/tmp/kalsahtp/test-backend-ops
+-rwxr-xr-x 1 shell shell 10640072 2026-08-22 19:57 /data/local/tmp/kalsahtp/test-backend-ops-judge
+===SHA===
+a254c6be99c5d9807b46091f53fc408023dfac5cb9aaf79305d457f1218ea6f4  /data/local/tmp/kalsahtp/test-backend-ops
+92511f27a8f199ac51e628a16592be464abeb763c0c1a2cc76cf2a208ef2a494  /data/local/tmp/kalsahtp/test-backend-ops-judge
+2c7e4fe18df856f136dc6f899b50f33f3ea7103c563bb0aab0d587fe75a57ded  /data/local/tmp/kalsahtp/libggml.so
+f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448  /data/local/tmp/kalsahtp/libggml-hexagon.so
+46d3ac923988f20b75d6d3489eea0e1432aa275aaff61c39253e170c17729182  /data/local/tmp/kalsahtp/libggml-htp-v75.so
+65faaee251cdf01660427e1204df020eef827023f31998d45c9d6256fb0598af  /data/local/tmp/kalsahtp/libggml-cpu.so
+e5565847e40a510ea5a1b47ba713344d0d8a97e60f2f0b3f0278fe1a6dc9e5b4  /data/local/tmp/kalsahtp/libggml-base.so
