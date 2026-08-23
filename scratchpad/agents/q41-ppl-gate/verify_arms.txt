@@ -1,0 +1,11 @@
+control bytes=6385238912 types={'F32': 141, 'Q5_K': 113, 'Q3_K': 28, 'Q2_K': 56}
+control trunk=228073472 expert=6121586688
+control expert_sha256=d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d
+
+== iq4_nl ok=True ==
+  disk=6343771008 delta=-41467904 (-0.649%)
+  types={'F32': 141, 'IQ4_NL': 113, 'Q3_K': 28, 'Q2_K': 56} expert_sha_match=True
+
+== q4_0 ok=True ==
+  disk=6343771008 delta=-41467904 (-0.649%)
+  types={'F32': 141, 'Q4_0': 113, 'Q3_K': 28, 'Q2_K': 56} expert_sha_match=True

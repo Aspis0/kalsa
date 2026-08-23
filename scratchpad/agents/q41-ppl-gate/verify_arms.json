@@ -1,0 +1,50 @@
+{
+  "control": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-control.gguf",
+    "bytes_on_disk": 6385238912,
+    "types": {
+      "F32": 141,
+      "Q5_K": 113,
+      "Q3_K": 28,
+      "Q2_K": 56
+    },
+    "trunk_bytes": 228073472,
+    "expert_bytes": 6121586688,
+    "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d"
+  },
+  "variants": {
+    "iq4_nl": {
+      "ok": true,
+      "bytes_on_disk": 6343771008,
+      "delta": -41467904,
+      "delta_pct": -0.6494338672601261,
+      "trunk_bytes": 186605568,
+      "types": {
+        "F32": 141,
+        "IQ4_NL": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "expert_sha_match": true,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "trunk_type_bad": []
+    },
+    "q4_0": {
+      "ok": true,
+      "bytes_on_disk": 6343771008,
+      "delta": -41467904,
+      "delta_pct": -0.6494338672601261,
+      "trunk_bytes": 186605568,
+      "types": {
+        "F32": 141,
+        "Q4_0": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "expert_sha_match": true,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "trunk_type_bad": []
+    }
+  },
+  "all_ok": true
+}

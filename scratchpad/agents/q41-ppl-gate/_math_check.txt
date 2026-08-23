@@ -1,0 +1,8 @@
+wiki_d_iq4=4.272533
+wiki_d_q40=8.060262
+wiki_pass_thr=9.639457
+wiki_grey_thr=9.687415
+wiki_iq4_minus_pass=0.361843
+it_d_iq4=3.419350
+it_d_q40=7.006471
+gate_iq4_fail=True

@@ -1,0 +1,14 @@
+CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\bin\llama-perplexity.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\gguf\marco\Marco-Mini-Instruct-KEXP-fromsrc-trunk-control.gguf -f C:\Users\gualt\Desktop\Kalsa\moe-experiments\corpus\multi5\it.txt -c 512 -b 512 -ub 512 -t 16 -ngl 0 --chunks -1 --ppl-stride 0
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.01.028.345 W load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+0.07.803.350 I 
+0.07.803.420 I system_info: n_threads = 16 (n_threads_batch = 16) / 22 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.07.803.434 I perplexity: tokenizing the input ..
+0.07.860.512 I perplexity: tokenization took 57.033 ms
+0.07.860.643 I perplexity: calculating perplexity over 26 chunks, n_ctx=512, batch_size=512, n_seq=1
+0.19.056.670 I perplexity: 11.20 seconds per pass - ETA 4.85 minutes
+[1]11.3686,[2]8.8154,[3]8.5640,[4]7.9965,[5]7.3214,[6]7.0390,[7]6.7002,[8]6.4109,[9]6.3389,[10]6.1909,[11]6.2371,[12]6.1363,[13]6.2708,[14]6.1813,[15]6.2324,[16]6.3149,[17]6.1676,[18]6.1941,[19]6.1412,[20]6.2011,[21]6.1230,[22]6.1231,[23]6.1225,[24]6.0892,[25]6.1268,[26]6.2585,
+2.53.402.966 I Final estimate: PPL = 6.2585 +/- 0.19285
+
