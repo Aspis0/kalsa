@@ -1676,6 +1676,37 @@ page cache — this is 3.35 GB the kernel cannot take back under pressure, which
 and exactly the risk. Nothing here says an unprivileged app *should* ship this way; it says the
 weights' residency, not their size, is what the KEXP regime turns on.
 
+**Third confirmation, from the arms that did NOT collapse: what matters is not how much page cache
+you lose, it is whether those pages are the live weights or a redundant copy.** Same campaign, same
+phone, `RssFile` turn 1 -> turn 16 against the decay:
+
+| arm | RssFile 1 -> 16 | lost | decay |
+|---|---|---:|---|
+| D — Qwen3.5-2B | 1.33 -> 0.39 GB | **-71 %** | **-11 %** |
+| C — 2.6B-QAD | 1.46 -> 0.70 GB | **-52 %** | -26 % |
+| B — KEXP mmap | 2.78 -> 2.62 GB | **-6 %** | **-96 %** |
+
+The two models that lost the **most** page cache were the least affected, and the one that lost
+almost none collapsed. Both dense models repack into anonymous buffers (`RssAnon` 1.75-1.88 GB
+against files of 1.28 and 1.67 GB), so their mapped file pages are a **duplicate** the kernel can
+drop for free — which is exactly what it did. The KEXP's unrepackable experts have no anonymous
+copy, so every dropped page is a UFS round-trip on the next token that routes to it.
+
+⛔ **This narrows what `use_mmap=false` is good for, and it is narrower than it looks.** For every
+quant we actually ship — Q4_K_M, Q4_0/QAD — repack has already put the weights in anonymous memory,
+so the flag buys nothing and costs ~25 s of load. It is a fix **only** for the sub-4-bpw types that
+have no repack path, i.e. exactly the recipes chosen because a phone was short of memory — and the
+fix demands 3.35 GB of unreclaimable anonymous RAM, which is the memory of a phone that was not
+short. Untested on the Jelly, and that tension is the reason to prefer the repack kernel over the
+flag as a shipping answer.
+
+⛔ **Do not gate a fit check on `MemFree`.** §7.44's correction was that `MemAvailable` is invalid as
+headroom **while an mmapped model is already resident**, because it counts that model's own pages.
+Before a load it is the intended metric and remains so; `MemFree` is deliberately kept near zero by
+the kernel (0.08-0.53 GB on every arm here, healthy and busy) and gating on it would refuse
+everything. Use `MemFree`/`RssAnon`/`RssFile`/`majflt` to **diagnose a running process**, and the
+pre-load availability estimate to **decide a load**.
+
 **Consequence for the recipe.** The KEXP quantization recipe is **recoverable, and the block is
 named**: q2_K/q3_K have no ARM repack path, so llama.cpp leaves those tensors mapped from the file
 and the kernel treats the working set as disposable cache. A NEON repack kernel for q2_K/q3_K — the
