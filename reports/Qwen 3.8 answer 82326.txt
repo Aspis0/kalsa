@@ -1,0 +1,1957 @@
+## Bottom line
+
+1. **Start with `8x4` dotprod repack types for both Q2_K and Q3_K**, not i8mm `8x8`.
+   - `8x4` covers every target you listed: A76/A77/A78/G99-class big cores all have dotprod.
+   - MoE decode is heavily GEMV-like; dotprod `8x4` is the right first target.
+   - i8mm `8x8` is a later optimization and may not be worth it for sub-4-bit K-quants unless large-M prefill GEMM becomes compute-bound.
+
+2. **For Q2_K, keep the 2-bit weights packed.** Repack the 4-bit scale/min pairs into a tile-major packed byte array and unpack them in-register. Do **not** pre-unpack scale/min into separate planar arrays in the production layout.
+
+3. **For Q3_K, do not materialize `q - 4` int8 weights as the default Android repack.** That makes the inner loop simple, but it expands Q3_K from ~3.44 bpw to ~8.4–8.6 bpw and can destroy the residency win.
+   - Default should be a size-preserving or near-size-preserving 3-bit interleaved layout with the high-bit plane handled in-register.
+   - If in-register hmask expansion later proves too slow, the better fallback is folding hmask into **4-bit nibbles**, not full int8.
+
+4. **Use q8_K `bsums` for offsets.**
+   - Q2_K: subtract per-subblock mins using `bsums * mins`.
+   - Q3_K: either materialize `q - 4` in-register, or better for packed layouts compute raw `q·x` and correct with `4 * scale * bsums`.
+
+5. **Flush integer accumulators every 256-element K-quants superblock and accumulate outputs in fp32.** Do not accumulate scaled integer values across q8_K blocks; activation scale `d` changes per 256 block.
+
+I am explicitly uncertain about live upstream PR status and current maintainer posture; I cannot do a live web search from this environment. The strategic section below says what to verify and how.
+
+---
+
+# Q1 — Layout and kernel design
+
+## Q1(a) — 8x4 dotprod first, i8mm later
+
+Use **`8x4` dotprod first** for both Q2_K and Q3_K.
+
+Reasons:
+
+- Your target devices all have `dotprod`.
+- Many target devices do not have `i8mm`, or only newer big cores have it.
+- Expert execution in MoE decode is often effectively GEMV or very skinny GEMM. `8x4` is more natural there.
+- The existing llama.cpp NEON repack pattern already has:
+  - `8x4` for `neon && dotprod`
+  - `8x8` for `neon && matmul_int8`
+  
+  Matching that progression keeps the change reviewable.
+- For sub-4-bit quants, i8mm is not automatically a win because the weights still need expansion from packed 2/3-bit form unless you pay a large memory expansion penalty.
+
+Concrete recommendation:
+
+```text
+GGML_TYPE_Q2_K_8x4   // dotprod
+GGML_TYPE_Q3_K_8x4   // dotprod
+```
+
+Gate them with:
+
+```cpp
+ggml_cpu_has_dotprod()
+&& tensor->ne[0] % QK_K == 0
+&& tensor->ne[1] % 8 == 0
+```
+
+Do not add `8x8` i8mm until:
+
+1. `8x4` is correct in GEMV, GEMM, and MUL_MAT_ID.
+2. Real-device profiling shows compute-bound large-M GEMM where i8mm helps.
+3. You have decided whether i8mm uses packed-weight expansion or an int8-expanded layout. For Android residency, I would avoid int8-expanded Q3_K by default.
+
+---
+
+## Q1(b) — Q2_K scale/min handling
+
+### Recommended layout
+
+For Q2_K, use an 8-row tile per 256-element superblock. Keep the 2-bit quants packed, but rearrange them so each 16-value subblock for the 8 rows is contiguous.
+
+Recommended logical tile:
+
+```cpp
+// One tile = 8 rows x 256 columns = one Q2_K superblock per row.
+struct q2_k_8x4_tile {
+    // 16 subblocks of 16 values.
+    // For each subblock j, store 8 rows x 4 bytes.
+    // Each 4-byte chunk is 16 2-bit weights for one row.
+    uint8_t qs[16][8][4];
+
+    // For each subblock j, store 8 packed scale/min bytes.
+    // byte = scale | (min << 4)
+    uint8_t sm[16][8];
+
+    // Per-row superblock scales.
+    ggml_half d[8];
+    ggml_half dmin[8];
+};
+```
+
+Byte count per tile:
+
+```text
+qs:   16 * 8 * 4 = 512 bytes
+sm:   16 * 8     = 128 bytes
+d:    8 * 2      =  16 bytes
+dmin: 8 * 2      =  16 bytes
+total            = 672 bytes
+```
+
+This is exactly the same byte count as eight native Q2_K blocks:
+
+```text
+8 * 84 = 672 bytes
+```
+
+So Q2_K repack can be **size-neutral**, ignoring alignment padding.
+
+### Do not use separate planar scale/min arrays in production
+
+If you pre-unpack into:
+
+```cpp
+uint8_t scales[16][8];
+uint8_t mins[16][8];
+```
+
+then the tile becomes:
+
+```text
+qs:     512
+scales: 128
+mins:   128
+d/dmin:  32
+total:  800 bytes
+```
+
+That is:
+
+```text
+800 / 2048 = 3.125 bpw
+```
+
+versus native Q2_K:
+
+```text
+672 / 2048 = 2.625 bpw
+```
+
+So planar scale/min costs **+0.5 bpw**, or **+19%** for Q2_K experts. That is not huge, but it is unnecessary. The scale/min bytes are loaded once per subblock, not once per weight. In-register nibble unpacking is cheap.
+
+Recommended inner-loop scale/min decode:
+
+```cpp
+uint8x8_t sm = vld1_u8(&tile.sm[j][0]);
+uint8x8_t s  = vand_u8(sm, vdup_n_u8(0x0F));
+uint8x8_t m  = vshr_u8(sm, 4);
+```
+
+Then widen to `int16`/`int32` before multiplying.
+
+If you process two subblocks at once, you can load 16 bytes:
+
+```cpp
+uint8x16_t sm16 = vld1q_u8(&tile.sm[j][0]);
+uint8x16_t s16  = vandq_u8(sm16, vdupq_n_u8(0x0F));
+uint8x16_t m16  = vshrq_n_u8(sm16, 4);
+```
+
+### What to copy from the AVX-512 Q2_K path
+
+Copy the **mathematical structure**, not the SIMD micro-architecture.
+
+Copy:
+
+- The Q2_K block decomposition:
+  - 256 elements per superblock
+  - 16 subblocks of 16
+  - 2-bit weights
+  - 4-bit scale/min per subblock
+  - fp16 `d` and `dmin`
+- The dot-product decomposition:
+
+  For row `r`, activation row `c`, superblock `b`:
+
+  ```text
+  sum = dx[c,b] * (
+          d[r,b]   * Σ_j s[r,b,j] * dot(q[r,b,j], x[c,b,j])
+        - dmin[r,b] * Σ_j m[r,b,j] * bsum[c,b,j]
+      )
+  ```
+
+  where:
+  - `q` is 0..3
+  - `x` is q8_K int8
+  - `dot(q,x)` is over 16 elements
+  - `bsum` is the q8_K 16-element activation sum
+
+- The exact scale/min nibble decode order from the scalar/reference Q2_K code.
+- The idea of grouping rows for SIMD matmul.
+
+Do **not** copy:
+
+- 512-bit tile assumptions.
+- 8x8 AVX-512 register blocking.
+- AVX-512 VBMI/VBMI2 bit-unpack sequences.
+- AVX-512 mask-register tail handling.
+- Any assumption that `vpdpbusd` mixed unsigned/signed semantics map directly to NEON.
+- Any assumption that the activation side has been repacked into an AVX-specific q8_K layout.
+
+NEON `sdot` is signed × signed. For Q2_K, weights 0..3 are positive, so treating them as signed int8 is fine. But if the AVX path used an unsigned-dot instruction or a different zero-point correction scheme, you must adapt the math.
+
+---
+
+## Q1(c) — Q3_K high-bit plane
+
+### Short answer
+
+For your Android MoE residency goal:
+
+> **Do not materialize Q3_K `q - 4` as int8 in the default repack layout.**
+
+It simplifies the kernel, but it costs too much memory.
+
+### Why int8 Q3_K is expensive
+
+Native Q3_K block size is 110 bytes per 256 values:
+
+```text
+hmask:  32 bytes
+qs:     64 bytes
+scales: 12 bytes
+d:       2 bytes
+total: 110 bytes
+```
+
+That is:
+
+```text
+110 * 8 / 256 = 3.4375 bpw
+```
+
+If you materialize `q - 4` as int8 in an 8-row tile:
+
+```cpp
+struct q3_k_8x4_tile_int8 {
+    int8_t  q[16][8][16];   // 2048 bytes
+    uint8_t scale[16][8];   //  128 bytes, unpacked scales
+    ggml_half d[8];         //   16 bytes
+};
+```
+
+Byte count:
+
+```text
+q:      2048
+scale:   128
+d:        16
+total:  2192 bytes
+```
+
+Per weight:
+
+```text
+2192 * 8 / 2048 = 8.5625 bpw
+```
+
+Compared to native Q3_K:
+
+```text
+3.4375 bpw -> 8.5625 bpw
+```
+
+That is about **2.49× the original Q3_K byte size**.
+
+If you keep scales packed instead of unpacked, you get roughly 8.44 bpw, but the conclusion is the same: **int8 materialization is a large memory expansion**.
+
+For experts that are currently file-backed and causing eviction problems, this can easily remove the residency benefit.
+
+### Recommended default Q3_K layout
+
+Use a near-size-preserving 3-bit interleaved layout:
+
+```cpp
+struct q3_k_8x4_tile {
+    // Low 2-bit plane.
+    // 16 subblocks, 8 rows, 4 bytes per row = 16 2-bit values.
+    uint8_t qs[16][8][4];
+
+    // High bit plane.
+    // 16 subblocks, 8 rows, 2 bytes per row = 16 high bits.
+    uint8_t hmask[16][8][2];
+
+    // Unpacked 6-bit scales, one per subblock per row.
+    // Stored as uint8_t 0..63 for simplicity.
+    uint8_t scale[16][8];
+
+    ggml_half d[8];
+};
+```
+
+Byte count:
+
+```text
+qs:     16 * 8 * 4 = 512
+hmask:  16 * 8 * 2 = 256
+scale:  16 * 8     = 128
+d:       8 * 2     =  16
+total              = 912 bytes
+```
+
+Per weight:
+
+```text
+912 * 8 / 2048 = 3.5625 bpw
+```
+
+Native Q3_K is 3.4375 bpw, so this is only **+0.125 bpw** if you unpack the 6-bit scales to bytes. That is a good trade for simpler kernel scale handling.
+
+If you are desperate for bytes, you can keep the 6-bit scales packed and get closer to 880 bytes per tile, but I would not start there. The +32 bytes per tile is small compared to the debugging cost of fiddly 6-bit scale unpacking in the inner loop.
+
+### How to handle the `-4` offset
+
+Q3_K dequant is effectively:
+
+```text
+y = d * scale * (q - 4)
+```
+
+where `q` is 0..7.
+
+For a packed NEON kernel, I recommend computing:
+
+```text
+Σ scale * (q - 4) * x
+= scale * (Σ q*x - 4*Σ x)
+```
+
+So per subblock:
+
+```text
+acc += scale[r,j] * dot(q[r,j], x[j])
+     - scale[r,j] * 4 * bsum[j]
+```
+
+This uses the q8_K `bsums` again and avoids materializing signed weights.
+
+This is usually better than subtracting 4 from every weight lane in-register, because the correction happens once per subblock per activation column, not once per weight.
+
+### If hmask unpack is too slow: use 4-bit folding, not int8
+
+If profiling later shows that combining the high-bit plane in-register is too expensive, the right intermediate layout is:
+
+```text
+fold hmask into 4-bit nibbles: q = low2 | (high << 2)
+```
+
+Store Q3_K as 4-bit values 0..7, then reuse Q4_K-style 4-bit-to-int8 expansion.
+
+Byte count for 4-bit folded Q3_K:
+
+```text
+q4 nibbles: 16 * 8 * 8 = 1024 bytes
+scale:      16 * 8     =  128 bytes
+d:           8 * 2     =   16 bytes
+total                  = 1168 bytes
+```
+
+Per weight:
+
+```text
+1168 * 8 / 2048 = 4.5625 bpw
+```
+
+That is **+1.125 bpw** over native Q3_K, not +5.125 bpw. It may be a reasonable performance compromise, but I would not make it the first default unless Q3_K kernel performance is disappointing.
+
+Concrete recommendation:
+
+```text
+Default Q3_K: 3-bit packed + hmask in-register.
+Fallback if too slow: 4-bit folded q values.
+Do not use int8 q-4 materialization for default Android expert repack.
+```
+
+---
+
+## Q1(d) — Activation side: q8_K and bsums
+
+Yes: for Q2_K, using q8_K `bsums` to handle mins is the right structure.
+
+For Q2_K:
+
+```text
+y = d * scale * q - dmin * min
+x = dx * qx
+```
+
+For one 16-element subblock:
+
+```text
+Σ y*x
+= dx * d * scale * Σ(q*qx)
+- dx * dmin * min * Σ(qx)
+```
+
+The second term is exactly where q8_K `bsums` belongs.
+
+For Q3_K, if you do not materialize `q - 4`, use the same idea:
+
+```text
+Σ scale * (q - 4) * x
+= scale * Σ(q*x)
+- scale * 4 * Σ(x)
+```
+
+Again, `Σ(x)` over 16 elements comes from q8_K `bsums`.
+
+### Numerical-range rules
+
+Use these rules to avoid overflow and precision bugs:
+
+1. **Use `sdot` into int32.**
+   - `vdotq_s32_s8` is the right primitive.
+   - Do not try to accumulate dot products in int16.
+
+2. **Widen scale/min before multiplying.**
+   - Q2 scale/min are 0..15.
+   - Q3 scale is 0..63.
+   - Multiply after widening to at least int16, preferably int32.
+
+3. **Use int32 for per-superblock integer accumulation.**
+   - For one 256-element superblock, int32 is safe.
+   - For Q3_K raw-q correction, values can get large enough that accumulating scaled integers across many superblocks can approach or exceed int32.
+
+4. **Do not accumulate scaled integer values across q8_K blocks.**
+   - q8_K has a separate activation scale `d` per 256-block.
+   - Q2_K/Q3_K have separate weight `d`/`dmin` per 256-block.
+   - Therefore, fold each 256-block into fp32 output accumulators.
+
+Recommended structure:
+
+```text
+for each 256-block:
+    int32 acc_q[...]
+    int32 acc_min_or_correction[...]
+
+    for each 16-element subblock:
+        dot = sdot(...)
+        acc_q += scale * dot
+        acc_min += min * bsum        // Q2_K
+        or
+        acc_corr += scale * 4 * bsum // Q3_K raw-q method
+
+    out_fp32 += dx_block * (
+        d_weight * acc_q - dmin_weight * acc_min
+    )
+```
+
+For Q3_K:
+
+```text
+out_fp32 += dx_block * d_weight * acc_scaled
+```
+
+where `acc_scaled` is:
+
+```text
+Σ_j scale[j] * (dot_q[j] - 4*bsum[j])
+```
+
+### Sign trap
+
+For Q2_K:
+
+```text
+- dmin * min * bsum
+```
+
+must preserve the sign of `bsum`. If `bsum` is negative, the correction becomes positive. Do not take absolute values anywhere.
+
+### Signedness trap
+
+NEON `sdot` is signed × signed.
+
+For Q2_K:
+
+```text
+q = 0..3
+```
+
+These are valid positive signed int8 values.
+
+For Q3_K raw-q method:
+
+```text
+q = 0..7
+```
+
+Also valid positive signed int8 values.
+
+If you materialize Q3_K `q - 4`:
+
+```text
+q = -4..3
+```
+
+Also valid signed int8 values.
+
+What you must not do is mix unsigned-weight semantics from AVX `vpdpbusd`-style code with NEON `sdot` without adjusting the math.
+
+---
+
+# Q2 — Correctness traps and milestone ordering
+
+## Trap list
+
+### 1. Type/trait registration is the first silent-failure source
+
+When adding Q2_K/Q3_K repack types, you need to touch every place that knows about repack types. In practice this includes:
+
+- `ggml_repack_get_optimal_repack_type()`
+- repack support / predicate checks
+- repack buffer size / row size calculation
+- actual pack function dispatch
+- GEMV dispatch
+- GEMM dispatch
+- MUL_MAT_ID dispatch
+- any init/extra-buffer registration path that allocates repack scratch
+- any `supports_op` or backend op-support checks
+- type traits such as:
+  - quantized flag
+  - block size / interleaved row count
+  - byte size
+  - vector dot type, if used
+
+The classic bug is:
+
+```text
+ggml_repack_get_optimal_repack_type() returns Q2_K_8x4,
+but pack/kernel dispatch does not know Q2_K_8x4,
+so the tensor is silently left unpacked or hits a fallback.
+```
+
+Another classic bug is:
+
+```text
+ggml_nbytes() / row stride is computed from the original quant type,
+not the repacked tile type,
+causing over-reads or expert-stride corruption.
+```
+
+Concrete recommendation:
+
+Make the new type follow the existing Q4_K/Q5_K/Q6_K `8x4` trait pattern exactly. Do not invent a new stride convention unless you are forced to.
+
+---
+
+### 2. `nrows_interleaved` and `ne[1] % 8` gates
+
+For an 8-row interleaved layout:
+
+```cpp
+nrows_interleaved = 8;
+```
+
+Gate on the weight output rows, i.e. `src0->ne[1]`, not the activation batch size.
+
+For first version:
+
+```cpp
+require(src0->ne[1] % 8 == 0);
+```
+
+Do not try to support ragged tails until the main path is verified.
+
+Important 3D trap:
+
+For MUL_MAT_ID expert tensors:
+
+```text
+ne[0] = K
+ne[1] = N rows per expert
+ne[2] = n_experts
+```
+
+The `% 8` check applies to `ne[1]` **per expert**, not `ne[1] * ne[2]`.
+
+Do not accidentally interleave across experts. Each expert slice must be packed independently.
+
+---
+
+### 3. Do not confuse weight rows with RHS columns
+
+For a matmul:
+
+```text
+src0: weights, [K, N]
+src1: activations, [K, M]
+dst:  [N, M]
+```
+
+The 8-row interleave applies to `N`, the weight rows.
+
+The `8x4` GEMM tile applies to:
+
+```text
+8 weight rows × 4 activation columns / RHS columns
+```
+
+Do not gate repack on RHS columns being a multiple of 8.
+
+RHS columns should be handled like this:
+
+```text
+M == 1        -> GEMV kernel
+M % 4 == 0    -> 8x4 GEMM chunks
+M % 4 != 0    -> 8x4 chunks + scalar/GEMV tail
+```
+
+For first correctness, you can simply fall back to scalar for the RHS tail. Optimize later.
+
+---
+
+### 4. GEMV and GEMM must be separate paths
+
+Do not use the 8x4 GEMM kernel with fake zero RHS columns unless you are absolutely sure the activation buffer is padded and the kernel does not read past the end.
+
+Recommended split:
+
+```text
+if (rhs_cols == 1)
+    use dedicated GEMV kernel
+else
+    use 8x4 GEMM kernel with tail handling
+```
+
+For MoE decode, GEMV is the critical path. Give it a clean, non-padded implementation.
+
+---
+
+### 5. MUL_MAT_ID 3D indexing into interleaved layouts
+
+This is one of the easiest places to get wrong.
+
+For expert tensors:
+
+```text
+expert_stride = byte size of one repacked 2D expert slice
+```
+
+Do not compute expert offset as:
+
+```text
+expert_id * original_row_size * ne[1]
+```
+
+unless you are certain the original and repacked sizes match and no padding was added.
+
+Use the repacked type’s own slice size.
+
+For each selected expert:
+
+```cpp
+const void* expert_w = base_w + expert_id * expert_stride;
+```
+
+Then run GEMV/GEMM against that expert slice.
+
+Traps:
+
+- Using `expert_id * ne[1] * nb[1]` where `nb[1]` is wrong for interleaved layout.
+- Treating `ne[2]` as another row dimension and interleaving across experts.
+- Forgetting that `ids` may select the same expert multiple times.
+- Forgetting that multiple tokens may be routed to the same expert and can be batched.
+- Assuming `MUL_MAT_ID` has the same indexing as a normal 2D `MUL_MAT`.
+
+For first correctness, implement the simple loop:
+
+```text
+for each token / output row:
+    expert = ids[...]
+    run GEMV/GEMM for that expert
+```
+
+Then optimize later by grouping tokens by expert.
+
+---
+
+### 6. q8_K activation quantization must be reused across experts
+
+For MoE, the same activation row can be sent to multiple experts. Quantize it once.
+
+Do not do:
+
+```text
+for each expert:
+    quantize activation to q8_K
+```
+
+Do:
+
+```text
+quantize activation row(s) to q8_K once
+for each selected expert:
+    use the same q8_K activation row
+```
+
+Traps:
+
+- Overwriting the q8_K activation buffer inside expert loop scratch.
+- Using the wrong q8_K block stride when `K > 256`.
+- Using the wrong `bsums` offset for each 256-block.
+- Quantizing with a different q8 type that lacks `bsums`.
+- Assuming one q8_K block per activation row when there are actually `ne0 / 256` blocks.
+
+For `K` multiple of 256, each activation row has:
+
+```text
+num_q8_K_blocks = ne0 / 256
+```
+
+Each q8_K block has:
+
+```text
+qs:    256 int8 values
+bsums: 16 int16 sums, one per 16-value subblock
+d:     activation scale for that 256-block
+```
+
+The kernel must advance `qs`, `bsums`, and `d` together per 256-block.
+
+---
+
+### 7. Scale/min/scale decode must match scalar reference exactly
+
+For Q2_K:
+
+- Verify the nibble order for scale/min.
+- Verify which nibble is scale and which is min.
+- Verify any subblock index remapping.
+
+For Q3_K:
+
+- Verify low 2-bit plane order.
+- Verify hmask bit order.
+- Verify 6-bit scale unpacking.
+- Verify whether your code treats the 6-bit scale as unsigned 0..63 or something else. Use the scalar reference as source of truth.
+
+Do not hand-derive these from comments. Copy the logic from the scalar/dequant/reference dot functions and adapt it to repack.
+
+---
+
+### 8. Use fp32 output accumulation, not fp16 accumulation
+
+Store `d` and `dmin` as fp16 to match K-quants, but convert them to fp32 once per tile/block and accumulate outputs in fp32.
+
+Do not accumulate final outputs in fp16. It will cause test failures and model-quality issues, especially for long K reductions.
+
+---
+
+### 9. Alignment and buffer padding
+
+NEON can do unaligned loads, but aligned loads are better and some kernel patterns assume alignment.
+
+Recommendations:
+
+- Align each expert slice to at least 16 bytes.
+- Avoid per-tile padding unless necessary.
+- If you pad expert slices to 64 bytes, include that padding in `expert_stride` and total buffer size.
+- Make sure `ggml_nbytes()` and your manual size calculation agree.
+
+For Android memory, avoid unnecessary per-tile padding. Padding per expert slice is usually fine; padding per 8-row tile can add up.
+
+---
+
+### 10. `test-backend-ops` may not exercise repack automatically
+
+`test-backend-ops` is necessary but may not be sufficient.
+
+It may not trigger the repack path unless the graph construction, backend, and op type match the exact conditions used in real models. In particular, MUL_MAT_ID and repack interact through graph support checks and CPU backend dispatch.
+
+You need explicit tests that verify:
+
+```text
+original Q2_K/Q3_K tensor
+-> repack selected
+-> repack buffer size correct
+-> repack pack function executed
+-> repacked GEMV/GEMM/MUL_MAT_ID result matches reference
+```
+
+Do not rely only on generic backend op tests.
+
+---
+
+## Recommended milestone order
+
+Use this order so each step is independently verifiable.
+
+### Milestone 0 — Static registration and size sanity
+
+Implement:
+
+- New repack type enums or internal type descriptors.
+- Trait table entries.
+- `ggml_repack_get_optimal_repack_type()` support.
+- Buffer size calculation.
+- Pack function stubs.
+- Init/extra-buffer registration.
+
+Verify:
+
+```text
+For Q2_K/Q3_K tensors with:
+  ne0 % 256 == 0
+  ne1 % 8 == 0
+  ne2 = 1 and >1
+
+the repack type is selected exactly when expected.
+```
+
+Check:
+
+```text
+computed repack bytes == manually computed tile bytes * tiles * experts
+```
+
+Run under ASan if possible.
+
+---
+
+### Milestone 1 — Repack identity / dequant equivalence
+
+Implement pack only.
+
+Then write a debug/reference function that walks the repacked layout and dequantizes to fp32.
+
+Compare against scalar dequant of the original Q2_K/Q3_K tensor.
+
+Test shapes:
+
+```text
+ne0 = 256, 512, 1024
+ne1 = 8, 16, 24, 32
+ne2 = 1, 2, 3
+```
+
+Use patterned weights, for example:
+
+```text
+weight value encodes expert id, row id, block id, subblock id
+```
+
+This catches:
+
+- Wrong bit order.
+- Wrong scale/min decode.
+- Wrong row interleaving.
+- Wrong expert stride.
+- Wrong K-block ordering.
+
+Pass criterion:
+
+```text
+Repacked dequant matches scalar dequant exactly or within very small fp16 conversion tolerance.
+```
+
+---
+
+### Milestone 2 — GEMV against scalar reference
+
+Implement the GEMV kernel.
+
+Compare against:
+
+- scalar `vec_dot` reference, if available for Q2_K/Q3_K + q8_K
+- or float dequant dot product reference
+- or existing scalar ggml reference path
+
+Test:
+
+```text
+M = 1
+ne0 = 256, 512, 1024
+ne1 = 8, 16, 32
+ne2 = 1, 3
+```
+
+Use both random and patterned activations. Include activations with negative sums to verify min correction signs.
+
+Pass criterion:
+
+```text
+GEMV result matches reference within tolerance.
+```
+
+For Q2_K, this is the milestone where `bsums * mins` bugs show up immediately.
+
+For Q3_K, this is where hmask bit-order and `-4` correction bugs show up.
+
+---
+
+### Milestone 3 — GEMM with multiple RHS columns
+
+Implement 8x4 GEMM.
+
+Test:
+
+```text
+M = 1, 2, 3, 4, 5, 8, 9
+```
+
+If your kernel only handles multiples of 4, verify that the tail path is correct.
+
+Test:
+
+```text
+ne0 = 256, 512, 1024
+ne1 = 8, 16, 32
+ne2 = 1, 2
+```
+
+Pass criterion:
+
+```text
+Results match reference for all RHS columns, including tails.
+```
+
+This milestone catches:
+
+- Wrong RHS stride.
+- Wrong q8_K activation block reuse.
+- Wrong tail handling.
+- Wrong register accumulator reuse.
+
+---
+
+### Milestone 4 — MUL_MAT_ID correctness
+
+Implement or enable MUL_MAT_ID dispatch.
+
+Test:
+
+```text
+n_experts = 2, 3, 5
+tokens = 1, 2, 7, 16
+top-k style id patterns if applicable
+some experts unused
+some experts selected multiple times
+```
+
+Use expert-patterned weights:
+
+```text
+expert 0 weights produce known output pattern 0
+expert 1 weights produce known output pattern 1
+...
+```
+
+Verify:
+
+```text
+Each output row used the correct expert slice.
+No cross-expert interleaving occurred.
+Repeated expert selection works.
+Multiple tokens routed to the same expert produce correct independent outputs.
+```
+
+Pass criterion:
+
+```text
+MUL_MAT_ID output matches scalar expert-by-expert reference.
+```
+
+This is the most important milestone for your actual MoE Android case.
+
+---
+
+### Milestone 5 — test-backend-ops, sanitizers, real model
+
+Once the above passes:
+
+1. Add or enable backend op tests for the relevant MUL_MAT/MUL_MAT_ID cases.
+2. Run with ASan/UBSan if possible.
+3. Run real models:
+   - Q2_K gate/up
+   - Q3_K down
+   - MoE with MUL_MAT_ID
+4. Check:
+   - tok/s
+   - majflt/minflt
+   - RSS
+   - energy
+   - thermal behavior if available
+   - output quality / perplexity or logits comparison
+
+For your Android memory issue, the important test is not just average tok/s. You need a long multi-turn conversation under memory pressure to verify that the collapse from file-backed eviction is gone.
+
+---
+
+# Q3 — Strategic / ecosystem
+
+## Existing NEON work to read
+
+Read these first:
+
+1. **Existing llama.cpp Q4_K/Q5_K/Q6_K NEON repack code in `ggml-cpu/repack.cpp`.**
+   - This is your primary template.
+   - Copy the dispatch structure, tile strategy, and trait registration pattern.
+
+2. **llama.cpp scalar Q2_K/Q3_K dequant and vec_dot code.**
+   - Source of truth for bit packing.
+   - Source of truth for scale/min and hmask decoding.
+   - Use this to validate every repack decision.
+
+3. **AVX-512 Q2_K path.**
+   - Useful for math decomposition.
+   - Not useful for NEON intrinsics or tile size.
+
+4. **RISC-V vector Q2_K repack path, if present.**
+   - May be useful as another non-x86 viewpoint.
+   - Still verify against scalar reference.
+
+5. **ik_llama.cpp**, if accessible.
+   - It may contain row-interleaved or dotprod-style CPU kernels.
+   - I am not certain whether it has directly reusable Q2_K/Q3_K NEON repack layouts.
+   - Treat it as inspiration, not necessarily drop-in code.
+
+6. **KleidiAI / Arm microkernels.**
+   - Arm has been investing in optimized CPU matmul kernels.
+   - I do not have confident knowledge that KleidiAI currently provides public, reusable Q2_K/Q3_K K-quant repack kernels equivalent to what you need.
+   - If KleidiAI already has or is adding sub-4-bit K-quant microkernels, upstream may prefer that path over expanding `repack.cpp`.
+   - This is worth checking directly with Arm/llama.cpp PR history.
+
+I cannot perform a live web search here. To verify current work, I would search GitHub and llama.cpp PRs for:
+
+```text
+Q2_K NEON repack
+Q3_K NEON repack
+Q2_K 8x4
+Q3_K 8x4
+ggml-cpu/repack.cpp Q2_K
+ggml-cpu/repack.cpp Q3_K
+KleidiAI Q2_K
+KleidiAI Q3_K
+ik_llama.cpp Q2_K dotprod
+ik_llama.cpp Q3_K interleaved
+```
+
+## Would upstream accept Q2_K/Q3_K NEON repack?
+
+I think upstream acceptance is plausible, but it depends heavily on memory behavior.
+
+### Likely acceptable
+
+A contribution is much more likely to be accepted if:
+
+- It only enables on `neon && dotprod`.
+- It uses `8x4` first.
+- It does not expand Q3_K to int8 by default.
+- It passes existing tests and adds new tests.
+- It shows large real-device Android wins.
+- It does not regress non-NEON builds.
+- It does not add large amounts of arch-specific spaghetti outside the existing repack structure.
+- It reuses the existing Q4_K/Q5_K/Q6_K repack patterns.
+
+Your Android data is compelling:
+
+```text
+file-backed experts -> eviction collapse
+use_mmap=false -> stable much faster behavior
+```
+
+If Q2_K/Q3_K repack gives both:
+
+```text
+anonymous resident repacked experts
++
+faster kernels
+```
+
+that is a strong upstream argument.
+
+### Likely problematic
+
+Upstream is likely to resist if:
+
+- Q3_K repack expands to ~8.5 bpw by default.
+- Memory usage increases substantially.
+- The benefit depends on device-local tuning.
+- The patch adds many special cases for MUL_MAT_ID.
+- It requires awkward changes to public type enums or graph logic.
+- It lacks tests beyond “real model is faster”.
+
+The biggest strategic risk is memory expansion. For Q2_K, you can keep it size-neutral. For Q3_K, keep it near-native size. That makes the contribution much easier to defend.
+
+## Maintainer posture
+
+I have not seen explicit evidence that repack.cpp expansion is unwelcome, but I also cannot verify current maintainer posture without live search.
+
+Practical approach:
+
+1. Open a small design issue or draft PR description first.
+2. Include:
+   - Android eviction data.
+   - `use_mmap=false` control data.
+   - Proposed size-neutral Q2_K layout.
+   - Proposed near-size Q3_K layout.
+   - Explicit statement that Q3_K will not default to int8 expansion.
+3. Ask whether Arm/KleidiAI efforts already cover this.
+
+That reduces the chance of spending time on a direction that conflicts with ongoing CPU backend work.
+
+---
+
+# Concrete recommended implementation plan
+
+## Phase 1 — Q2_K 8x4 dotprod
+
+Implement:
+
+```text
+GGML_TYPE_Q2_K_8x4
+```
+
+Layout:
+
+```text
+qs[16][8][4]
+sm[16][8]
+d[8]
+dmin[8]
+```
+
+Kernel math:
+
+```text
+acc_q += scale * dot(q, x)
+acc_m += min * bsum
+out += dx * (d * acc_q - dmin * acc_m)
+```
+
+Targets:
+
+```text
+GEMV first, then 8x4 GEMM, then MUL_MAT_ID.
+```
+
+Expected repack size:
+
+```text
+2.625 bpw, same as native Q2_K.
+```
+
+This is the highest-confidence win.
+
+---
+
+## Phase 2 — Q3_K 8x4 dotprod, packed 3-bit
+
+Implement:
+
+```text
+GGML_TYPE_Q3_K_8x4
+```
+
+Layout:
+
+```text
+qs[16][8][4]
+hmask[16][8][2]
+scale[16][8]
+d[8]
+```
+
+Kernel math:
+
+```text
+q = low2 | (high << 2)      // 0..7
+dot = sdot(q, x)
+acc += scale * dot - scale * 4 * bsum
+out += dx * d * acc
+```
+
+Expected repack size:
+
+```text
+~3.5625 bpw with unpacked byte scales.
+```
+
+This is close enough to native Q3_K to preserve the residency advantage.
+
+---
+
+## Phase 3 — Optimization, not correctness
+
+Only after correctness and device validation:
+
+1. Optimize Q3_K hmask expansion.
+2. Consider folding Q3_K hmask into 4-bit nibbles if hmask expansion is a measured bottleneck and memory headroom exists.
+3. Consider i8mm `8x8` only if large-M GEMM is measurably compute-bound.
+4. Consider grouping tokens by expert in MUL_MAT_ID to improve cache reuse and allow larger RHS tiles.
+
+Do not start with int8-expanded Q3_K.
+
+---
+
+# Final checklist before writing code
+
+Verify these decisions before coding:
+
+- [ ] Use `8x4` dotprod first.
+- [ ] Require `ne[0] % QK_K == 0`.
+- [ ] Require `ne[1] % 8 == 0` for first version.
+- [ ] Treat `ne[2]` as expert dimension; do not interleave across it.
+- [ ] Q2_K repack layout is size-neutral.
+- [ ] Q2_K scale/min stays packed in tile-major `sm[16][8]`.
+- [ ] Q2_K uses q8_K `bsums` for min correction.
+- [ ] Q3_K default layout does not materialize int8.
+- [ ] Q3_K uses hmask in-register or, later, 4-bit folding.
+- [ ] Q3_K uses `scale * (dot - 4*bsum)` if not materializing `q - 4`.
+- [ ] Integer accumulation is per 256-block.
+- [ ] fp32 output accumulation.
+- [ ] Activation q8_K is quantized once and reused across experts.
+- [ ] GEMV path is separate from GEMM path.
+- [ ] MUL_MAT_ID expert stride uses repacked slice size.
+- [ ] Test plan includes repack identity, GEMV, GEMM, MUL_MAT_ID, then real model.
+
+
+Two additions: (1) at current master, `supports_op` accepts MUL\_MAT\_ID with 3-D weights for repacked types but `compute_forward` asserts n\_dims==2 (see issue #26537) — for a MoE-experts use case, would you support 3-D end-to-end or decline 3-D in supports\_op and handle experts as 2-D views? (2) Repack materializes a second weight-shaped anon buffer — for large expert sets, how would you structure SELECTIVE repack of hot experts only within the extra-buffer-type mechanism?”
+
+
+
+
+## 1) 3-D `MUL_MAT_ID`: support it end-to-end; do not build the MoE path on 2-D views
+
+For a real MoE-experts path, I would **support 3-D end-to-end**.
+
+The immediate caveat: on current master, if `supports_op` accepts 3-D repacked weights but `compute_forward` asserts `n_dims == 2`, that is an inconsistent bug. Until the 3-D compute path exists, `supports_op` should **decline** 3-D repacked types. But the right long-term MoE design is not “pretend experts are 2-D”; the right design is a 3-D-aware `MUL_MAT_ID` dispatch that calls 2-D expert-slice kernels internally.
+
+### Why not 2-D views?
+
+Handling experts as separate 2-D views is attractive because the existing matmul kernels are 2-D, but it is the wrong upstream shape for MoE:
+
+- `MUL_MAT_ID` exists precisely because expert selection is dynamic at runtime.
+- Creating/expanding per-expert 2-D views either explodes the graph or pushes routing logic into graph construction.
+- Runtime routing cannot be cleanly expressed as a static set of 2-D matmuls unless you add custom control-flow/scatter/gather machinery.
+- Expert stride and repack stride become fragile if views are manually constructed.
+- Testing becomes harder: you now test both the view construction and the kernel, instead of testing the actual op semantics.
+
+2-D views are useful as a **reference implementation** for testing, but not as the production representation.
+
+### Recommended 3-D design
+
+Keep the expert tensor logically 3-D:
+
+```text
+src0->ne[0] = K
+src0->ne[1] = N rows per expert
+src0->ne[2] = n_experts
+```
+
+Repack each expert slice independently. Do **not** interleave rows across experts.
+
+For a repacked 3-D tensor:
+
+```text
+expert_stride = aligned byte size of one repacked 2-D expert slice
+src0->nb[2]   = expert_stride
+```
+
+The 3-D compute path should do this conceptually:
+
+```cpp
+if (src0->n_dims == 2) {
+    existing_2d_repack_path();
+} else if (src0->n_dims == 3) {
+    for each selected expert group:
+        const void* expert_ptr = base_ptr + expert_id * src0->nb[2];
+        call the same 2-D GEMV/GEMM kernel on that expert slice;
+}
+```
+
+The important point:
+
+> The SIMD kernels can remain 2-D. The `MUL_MAT_ID` dispatch becomes 3-D-aware and feeds each expert slice to the 2-D kernel.
+
+That is the clean fix for issue #26537.
+
+### What `supports_op` should do
+
+For repacked types, `supports_op` should accept 3-D `MUL_MAT_ID` only when all of these are true:
+
+```text
+op is MUL_MAT_ID
+src0->n_dims == 2 or 3
+src0->ne[0] % QK_K == 0
+src0->ne[1] % nrows_interleaved == 0
+repack type has a working compute_forward path for that n_dims
+```
+
+For current master, where `compute_forward` still asserts `n_dims == 2`, the safe immediate fix is:
+
+```text
+supports_op must return false for repacked 3-D MUL_MAT_ID.
+```
+
+But for your Q2_K/Q3_K MoE work, I would include the 3-D `compute_forward` fix as part of the same contribution, or at least as the immediate follow-up. Otherwise the experts cannot be repacked, which defeats the purpose.
+
+### Recommended implementation sequence
+
+1. **Immediate correctness guard**
+   - Make `supports_op` stop accepting 3-D repacked tensors if `compute_forward` cannot handle them.
+   - This prevents asserts/crashes.
+
+2. **Real MoE fix**
+   - Add 3-D `MUL_MAT_ID` dispatch for repacked types.
+   - Keep the actual Q2_K/Q3_K kernels 2-D.
+   - Dispatch per expert slice using `nb[2]`.
+
+3. **Performance improvement**
+   - First implement correct per-token/per-selection dispatch.
+   - Later group tokens by expert so that multiple RHS columns routed to the same expert can use the 8x4 GEMM path.
+
+### Testing for 3-D
+
+You need explicit tests like:
+
+```text
+n_experts = 3
+ne1 = 8, 16
+ids selects experts in random order
+some experts unused
+some experts selected multiple times
+```
+
+Compare against a reference that manually runs the 2-D kernel on each expert view. That is where 2-D views are useful: as a test oracle, not as the main execution model.
+
+---
+
+## 2) Selective repack of hot experts: make it a cache, not a second full weight buffer
+
+For large expert sets, do **not** structure selective repack as “allocate a second full expert tensor and fill some of it.” That still creates the memory accounting and lifecycle problems of a full repack buffer.
+
+Instead:
+
+> Treat repacked expert slices as a derived, read-only, evictable cache backed by the original file-backed Q2_K/Q3_K expert tensor.
+
+The original tensor remains authoritative. Repacked expert slices are anonymous cache entries. They can be dropped at any time because they can be regenerated from the original packed weights.
+
+This fits Android much better: hot experts become resident and fast; cold experts remain file-backed and rarely fault; under memory pressure the repack cache can shrink.
+
+---
+
+# Recommended selective-repack architecture
+
+## High-level structure
+
+Add a CPU extra-buffer type whose purpose is not to store a full repacked tensor, but to own a **repack cache pool**.
+
+Conceptually:
+
+```cpp
+struct ggml_backend_cpu_repack_cache_buffer {
+    void*  pool_base;
+    size_t pool_budget_bytes;
+
+    // slab allocator / size-class allocator
+    // registry of expert tensors
+    // global hotness state
+};
+```
+
+The original expert tensor stays as:
+
+```text
+type: GGML_TYPE_Q2_K or GGML_TYPE_Q3_K
+data: original file-backed or original buffer pointer
+ne:   [K, N, n_experts]
+```
+
+The cache is attached to that tensor through backend-private state, not by replacing the tensor type.
+
+Avoid making the graph think that a full repacked expert tensor exists. The graph still sees the original expert tensor. The CPU backend internally knows that some expert slices have optimized repacked copies.
+
+---
+
+## Per-expert-tensor cache metadata
+
+For each MoE expert tensor that is eligible for selective repack, create a descriptor like:
+
+```cpp
+struct expert_repack_cache {
+    const ggml_tensor* src;         // original Q2_K/Q3_K expert tensor
+
+    uint32_t n_experts;
+    size_t   original_expert_stride;
+    size_t   repacked_expert_bytes; // aligned
+
+    std::vector<expert_slot_state> experts;
+};
+
+struct expert_slot_state {
+    std::atomic<state_t> state;     // COLD, PACKING, PACKED
+    void*                repacked_ptr;
+    float                score;
+    uint64_t             last_used_step;
+    uint32_t             use_count;
+};
+```
+
+State machine:
+
+```text
+COLD    -> original weights only
+PACKING -> repack in progress
+PACKED  -> repacked slice valid in cache pool
+```
+
+Because the original tensor is the source of truth, eviction is trivial:
+
+```text
+PACKED -> COLD
+free or madvise the slot
+```
+
+No writeback is ever needed.
+
+---
+
+## Compute path
+
+Inside the 3-D `MUL_MAT_ID` CPU compute path, do this per selected expert:
+
+```cpp
+expert_slice_handle h = get_expert_slice(cache, expert_id);
+
+if (h.state == PACKED) {
+    run repacked Q2_K_8x4 / Q3_K_8x4 kernel on h.repacked_ptr;
+} else {
+    run original Q2_K/Q3_K kernel on original_ptr + expert_id * original_stride;
+}
+```
+
+The handle should carry the layout:
+
+```cpp
+struct expert_slice_handle {
+    const void* data;
+    enum layout {
+        ORIGINAL_Q2_K,
+        ORIGINAL_Q3_K,
+        REPACKED_Q2_K_8x4,
+        REPACKED_Q3_K_8x4,
+    } layout;
+};
+```
+
+This lets a single batch contain mixed hot/cold experts:
+
+```text
+token 0 -> expert 17: PACKED, use repacked kernel
+token 1 -> expert 42: COLD, use original kernel
+token 2 -> expert 17: PACKED, use repacked kernel
+token 3 -> expert 88: COLD, use original kernel
+```
+
+For performance, group RHS columns by expert before dispatch:
+
+```text
+for each expert used in this batch:
+    collect the RHS columns routed to that expert
+    if expert is PACKED:
+        call repacked 8x4 GEMM
+    else:
+        call original/reference path for those RHS columns
+```
+
+Do not start with grouping; correctness first. But grouping is the right performance structure.
+
+---
+
+## Where the extra-buffer-type mechanism fits
+
+Implement the cache pool as a custom CPU extra buffer type.
+
+The buffer type should own:
+
+```text
+anonymous memory pool
+slab allocator
+global cache registry
+hotness counters
+eviction policy
+```
+
+Important design rule:
+
+> The extra buffer’s size is the cache budget, not the logical size of the expert tensor.
+
+Do not make `ggml_nbytes()` or graph memory planning believe that the full repacked expert tensor exists. That would reintroduce the same memory problem.
+
+Instead:
+
+```text
+graph tensor: original Q2_K/Q3_K expert tensor
+extra buffer: fixed-budget anonymous repack cache
+backend state: mapping from expert tensor to cache descriptor
+```
+
+If the extra-buffer API requires tensor initialization hooks, use them only for small descriptor objects or backend registry registration. Do not allocate a fake full-weight tensor unless you are deliberately implementing a sparse container type, which is more invasive.
+
+---
+
+## Budgeting and allocation
+
+For large MoE models, you need a hard budget.
+
+Expose something like:
+
+```text
+GGML_CPU_REPACK_EXPERT_BUDGET_MB=512
+```
+
+or a proper API:
+
+```cpp
+ggml_backend_cpu_set_repack_cache_budget(size_t bytes);
+```
+
+Default should be conservative. For Android, I would not enable a large dynamic cache by default without device-specific limits.
+
+### Slot allocation
+
+Each expert slice has a fixed repacked size:
+
+```text
+slot_bytes = align_up(repacked_expert_bytes, page_size)
+```
+
+Use page alignment if you want to return memory to the OS:
+
+```text
+madvise(ptr, slot_bytes, MADV_DONTNEED)
+```
+
+For Q2_K/Q3_K expert slices, the slice size is often large enough that page alignment is fine.
+
+If you have multiple expert tensors with different slice sizes, use size classes:
+
+```text
+class A: gate/up Q2_K expert slice size
+class B: down Q3_K expert slice size
+```
+
+Avoid a single generic allocator if it causes fragmentation. A simple size-class arena is better.
+
+---
+
+## Hotness policy
+
+Use the `ids` tensor in `MUL_MAT_ID` as the hotness source.
+
+Every time an expert is selected:
+
+```cpp
+on_expert_selected(cache, expert_id, step_id);
+```
+
+Do not use raw lifetime counts only. MoE hotness changes with conversation, prompt, and task. Use a decayed score:
+
+```cpp
+score = decay * score + selections_in_this_window;
+last_used = step_id;
+```
+
+A reasonable starting policy:
+
+```text
+decay = 0.90 to 0.98 per step or per batch
+promote_threshold = 3 to 10 weighted selections
+min_residency_steps = 50 to 200 before eviction considered
+```
+
+Promote only if:
+
+```text
+score > promote_threshold
+cache has space OR candidate utility beats victim utility
+```
+
+Because Q2_K and Q3_K expert slices can have different byte costs, compare utility, not raw score:
+
+```text
+utility = score / repacked_slice_bytes
+```
+
+Evict the packed expert with the lowest utility, but use hysteresis:
+
+```text
+promote candidate only if:
+    candidate_utility > victim_utility * 1.25
+```
+
+This avoids repack thrash when two experts have similar usage.
+
+---
+
+## Promotion and eviction timing
+
+Do not repack inside the inner matmul loop.
+
+Repacking an expert can be expensive and can cause a burst of major faults while reading the original file-backed slice. For Android latency and energy, promotion should be throttled.
+
+Recommended policy:
+
+1. During `MUL_MAT_ID`, only update cheap hotness counters.
+2. At step boundaries, evaluate candidates.
+3. Repack at most one or a few experts per step.
+4. Prefer repacking during:
+   - model load warmup,
+   - prompt processing,
+   - idle between user turns,
+   - explicit “prepare experts” phase.
+
+State transitions should be safe:
+
+```text
+COLD -> PACKING: compare-exchange, one thread only
+PACKING -> PACKED: release store after repack completes
+PACKED -> COLD: only when not actively used by a running batch
+```
+
+The simplest safe model is:
+
+- Do not evict during graph execution.
+- Do promotion/eviction only between inference steps.
+- Pin all experts used by the current batch until the step ends.
+
+If you later add background repack threads, you will need pin counts or RCU-like protection. For the first version, step-boundary transitions are much easier to make correct.
+
+---
+
+## Interaction with mmap and Android memory pressure
+
+This cache design is specifically good for the Android problem you described.
+
+Original behavior:
+
+```text
+large expert tensor is file-backed
+Android evicts file pages under memory pressure
+expert access becomes major-fault heavy
+tok/s collapses
+```
+
+Selective repack behavior:
+
+```text
+hot experts are copied into anonymous cache
+hot experts stay resident
+cold experts remain file-backed
+cache can be trimmed under pressure
+```
+
+You should also expose a trim hook:
+
+```cpp
+ggml_backend_cpu_repack_cache_trim(size_t target_bytes);
+```
+
+or:
+
+```cpp
+ggml_backend_cpu_repack_cache_on_memory_pressure();
+```
+
+On trim:
+
+1. Evict coldest packed experts first.
+2. For each evicted slot:
+
+```cpp
+state = COLD;
+madvise(slot_ptr, slot_bytes, MADV_DONTNEED);
+free_slot(slot_ptr);
+```
+
+Because the original packed weights still exist, this is always safe.
+
+---
+
+## Relationship to the 3-D `MUL_MAT_ID` problem
+
+Selective repack actually becomes cleaner if you do not expose a new 3-D repacked tensor type.
+
+Recommended separation:
+
+### Full repack mode
+
+```text
+Tensor type becomes Q2_K_8x4 / Q3_K_8x4.
+Requires proper 3-D supports_op + compute_forward.
+Allocates full repacked expert tensor.
+Best when expert set fits comfortably in memory.
+```
+
+### Sparse hot-expert cache mode
+
+```text
+Tensor type remains Q2_K / Q3_K.
+CPU backend attaches a private repack cache.
+MUL_MAT_ID compute queries cache per expert.
+Hot experts use repacked kernels.
+Cold experts use original kernels.
+Best for huge expert sets and Android memory constraints.
+```
+
+For your large-expert Android case, I would implement the sparse cache mode as the primary selective mechanism.
+
+This also avoids the worst part of issue #26537: you are not claiming that a repacked 3-D tensor type is supported by `supports_op`. The graph tensor remains original. The CPU backend internally uses optimized kernels when a cached repacked slice exists.
+
+You still need a 3-D-aware `MUL_MAT_ID` compute path, but that is needed anyway for MoE.
+
+---
+
+## Concrete milestone plan for selective repack
+
+### Milestone S1 — Full 3-D original path
+
+Make `MUL_MAT_ID` work correctly for 3-D Q2_K/Q3_K experts using the original scalar/NEON dot path.
+
+Verify:
+
+```text
+ids -> correct expert slice
+output matches per-expert 2-D reference
+```
+
+This is the baseline.
+
+---
+
+### Milestone S2 — Cache infrastructure with manual hot list
+
+Implement the extra-buffer cache pool and per-expert state.
+
+Do not add dynamic hotness yet. Instead allow a forced list:
+
+```text
+repack experts: [3, 7, 19, 42]
+```
+
+Verify:
+
+```text
+forced experts use repacked kernel
+other experts use original kernel
+results match full-repack reference within tolerance
+budget accounting is correct
+no memory growth beyond budget
+```
+
+This makes the mechanism testable without policy noise.
+
+---
+
+### Milestone S3 — Dynamic promotion
+
+Add hotness counters and promotion.
+
+Test with synthetic routing patterns:
+
+```text
+expert 5 used 80% of the time
+expert 9 used 15%
+others used rarely
+```
+
+Verify:
+
+```text
+expert 5 promotes
+expert 9 may promote if budget allows
+cold experts remain cold
+promotion does not corrupt in-flight batches
+```
+
+---
+
+### Milestone S4 — Eviction and memory pressure
+
+Add eviction and trim.
+
+Test:
+
+```text
+budget can hold only N experts
+route traffic through N+10 hot experts over time
+trigger memory-pressure trim
+```
+
+Verify:
+
+```text
+coldest experts evict
+RSS decreases after madvise
+no use-after-free
+no incorrect result after eviction
+```
+
+---
+
+### Milestone S5 — Device validation
+
+On Android, measure:
+
+```text
+tok/s over long conversation
+majflt/minflt
+RSS
+energy
+LMK kills
+```
+
+The target behavior is:
+
+```text
+hot experts resident in anon cache
+cold experts file-backed but rarely touched
+bounded RSS
+no collapse under memory pressure
+```
+
+---
+
+## Important traps for selective repack
+
+### Trap 1: Do not let the graph allocate the full logical repack size
+
+The whole point is to avoid a second full weight-shaped buffer.
+
+If the graph allocator thinks the sparse repacked tensor is full-size, you have lost.
+
+Use backend-private cache allocation, or a descriptor whose allocated size is tiny.
+
+---
+
+### Trap 2: Do not evict an expert while a batch is using it
+
+Simplest rule:
+
+```text
+Evict only between inference steps.
+Pin experts used by the current step.
+```
+
+If you allow asynchronous repack/eviction during execution, you need explicit pinning:
+
+```cpp
+pin(expert_id);
+use slice;
+unpin(expert_id);
+```
+
+Do not add that in the first version.
+
+---
+
+### Trap 3: Do not repack synchronously in the decode hot path
+
+Repacking during token generation can cause visible jank.
+
+Use promotion queues and repack between steps or during warmup.
+
+For the first version, it is acceptable to delay promotion until the end of a prompt or user turn.
+
+---
+
+### Trap 4: Hotness counters must be cheap
+
+`MUL_MAT_ID` may be called frequently. Do not take a mutex per expert selection.
+
+Use:
+
+```text
+per-thread counters aggregated at step boundary
+or relaxed atomics
+```
+
+Exact counts are not required. The policy should tolerate approximate hotness.
+
+---
+
+### Trap 5: Tensor identity must be stable
+
+If the graph is rebuilt every step, tensor pointers may or may not be stable.
+
+For model weights, pointers are usually stable, but do not assume it.
+
+Use a stable key if necessary:
+
+```text
+tensor name
+model tensor index
+backend buffer + offset
+```
+
+The cache should survive graph rebuilds if the underlying expert tensor is the same.
+
+---
+
+### Trap 6: Mixed repacked/cold batches must be numerically sane
+
+The repacked kernel and original kernel should match within tolerance, but they may not be bit-identical.
+
+If an expert promotes mid-conversation, tiny logits differences can appear.
+
+For CI:
+
+```text
+test with cache disabled
+test with forced cold
+test with forced hot
+test with dynamic cache but bounded tolerance
+```
+
+For debugging, log promotions/evictions:
+
+```text
+repack cache: promote expert 17 score=8.2 bytes=12.3MB
+repack cache: evict expert 42 score=1.1 bytes=12.3MB
+```
+
+---
+
+## My concrete recommendation
+
+For the MoE expert case:
+
+1. **Fix 3-D `MUL_MAT_ID` end-to-end.**
+   - Do not rely on 2-D views except as a test reference.
+   - Keep kernels 2-D.
+   - Make the dispatch loop over expert slices using `nb[2]`.
+
+2. **Until 3-D compute exists, make `supports_op` decline 3-D repacked types.**
+   - Do not ship an op that is accepted by `supports_op` but asserts in `compute_forward`.
+
+3. **For large expert sets, implement selective repack as a cache, not as a full repacked tensor.**
+   - Original Q2_K/Q3_K tensor remains authoritative.
+   - Extra buffer owns a fixed anonymous budget.
+   - Hot expert slices are repacked into cache slots.
+   - Cold experts use the original path.
+   - Eviction is lossless and can happen anytime.
+
+4. **Use LFU/LRU-style utility scoring, not static all-or-nothing repack.**
+   - Score experts from `MUL_MAT_ID` ids.
+   - Compare `score / repacked_bytes`.
+   - Promote with hysteresis.
+   - Evict coldest utility under budget pressure.
+
+5. **Make the cache trimmable.**
+   - Page-align slots.
+   - Use `madvise(..., MADV_DONTNEED)` on eviction if you need to drop RSS.
+   - Expose a memory-pressure hook for Android.
+
+That structure gives you the actual prize: hot experts become resident and fast, while the total anonymous memory stays bounded.
