@@ -131,7 +131,9 @@ model separates the two, which is the whole of KEXP's 848.
 | model | quant | file | MB/tok (computed) | phone | load config | decode tok/s | resident |
 |---|---|---:|---:|---|---|---:|---|
 | LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | S23 | **production (repack)** | **does not load** — gate refuses, 4650 MiB non-evictable vs 4030 available (§7.11) | — |
+| LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | S23 | **in-app, production, 16-turn plan** | **refused at turn 1** — §7.11's verdict reached through the user path, UI said "Memoria libera insufficiente per eseguirlo" (§7.41) | `RssAnon` 126 MB — no allocation attempted; `MemAvailable` 4022 MiB against a 4401 MiB repack term |
 | LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | S23 | `norepack=1` | **0.26 · 0.31 · 0.36 · 0.36** (4 runs) | **51 %** — 58–93 GiB re-read per turn (§7.13, §7.14, §7.20) |
+| LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | S23 | **in-app, `norepack=1`, unplugged, 7 turns then Android dozed** | **0.27 · 0.28 · 0.26 · — · 0.27 · 0.29 · 0.28** (§7.41) | **never memory-starved**: `MemAvailable` flat 4.25 GB, `RssFile` 2.3 GB, `RssAnon` 60 MB, **1.74 M majflt**, battery **51 % → 11 %** (~1205 mA) |
 | LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | Jelly (G99) | CLI, `k=4` | 10.60 · `k=3` 12.28 · `k=2` 14.38 | RSS ~5 GiB, no thrash |
 | LFM2.5-8B-A1B | Q4_K_M | 5.15 GB | ~1030 | Jelly (G99) | **in-app, `norepack=1`, unplugged** | **4.23** (turn 1; turn 2 never finished inside 420 s) | **100 %** (`RssFile` 5.15 GB) but only **0.92 GB `MemAvailable`** — lmkd killed the app at turn 8 in a second run (§7.27) |
 | **LFM2.5-8B-A1B-KEXP** | q2_K/q3_K experts, q5_K/q6_K trunk | **3.33 GB** | **~848** | **S23** | **`norepack=1`, fresh chat, 4 turns** | **19.97 · 21.81 · 22.26 · 21.98** (§7.20) | **96 %**, `majflt` 14–55/turn |
@@ -145,10 +147,37 @@ model separates the two, which is the whole of KEXP's 848.
 | LFM2.5-2.6B | Q4_K_M | 1.67 GB | **1666** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **5.68 · 5.53 · 5.40 · 5.27** (§7.28) | `RssAnon` 1.95 GB (repack), `MemAvailable` 2.27 GB — prefill 190 s → **2.7-3.2 s, KV reused** |
 | LFM2.5-2.6B | Q4_K_M | 1.67 GB | 1666 | Jelly (G99) | **CLI `llama-bench`, t=2, tg128, r=3, unplugged — CONTROL** | **8.07 ± 0.00** (§7.38) | the arm that calibrates the two rows below: the app reads **5.47** for this same model, so **app = 0.678 × CLI**. Not called overhead — the CLI decodes with no context, the app above ~1300 tokens |
 | **LFM2.5-2.6B-QAD-Q4_0** | QAD-Q4_0 | **1.59 GB** | ~1586 | **Jelly (G99)** | **CLI `llama-bench`, t=2, tg128, r=3, unplugged** | **8.63 ± 0.08** → **~5.85 in-app** (§7.38) | **+6.9 % over Q4_K_M at identical quality** (34/44 either way, p=1.000) and 80 MB smaller. Quantization-aware distilled. A free upgrade, measured not predicted |
+| **LFM2.5-2.6B-QAD-Q4_0** | QAD-Q4_0 | 1.59 GB | ~1586 | **S23** | **in-app, production, unplugged, 16 turns** | **19.2 → 14.1, mean 17.2 (−26 % in-session)** (§7.41) | `RssAnon` flat ~1.8 GB, `MemAvailable` 2.31 → 2.03 GB. Prefill 34.6 s cold → **232–553 ms** on the state cache (turns 2–11) → 3–17 s from turn 12 |
+| **LFM2.5-2.6B-QAD-Q4_0** | QAD-Q4_0 | 1.59 GB | ~1586 | **Jelly (G99)** | **in-app, production, unplugged, 16 turns** | **7.2 → 5.5, mean 6.2 (−24 % in-session)** (§7.42) | **first mainline-build arm on this phone** (minSdk floor lowered the same day). `MemAvailable` flat 2.35 GB, battery 72 → 62 %. Prefill **never below 1661 ms** — none of the S23's sub-second cache hits |
 | LFM2.5-1.2B-Instruct | Q4_K_M | 0.73 GB | ~731 | Jelly (G99) | **CLI `llama-bench`, t=2, tg128, r=3, unplugged** | **18.39 ± 0.01** → **~12.5 in-app** (§7.38) | fastest thing measured on this phone by 2.3×, and **the weakest: 25/44 against the 2.6B's 34** (p=0.035), with no `<think>` block in any of its 44 answers |
 | Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map, §7.31) | Jelly (G99) | **in-app, production, unplugged, 4 turns** | **6.61 · 5.73 · 4.94 · 6.70** (§7.28) | **prefill never drops: 80.7 · 101.3 · 127.7 · 85.2 s — KV never reused** |
 | Qwen3.5-2B | Q4_K_M | 1.28 GB | **1270** (tensor map) | S23 | — | **~17.2 predicted, unmeasured** | S23 unavailable 2026-08-21 |
 | LFM2.5-VL-3B | Q4_K_M | 1.67 GB + 583 MB mmproj | **1666** (its backbone's tensor map, §7.31) | S23 | — | **13.1 predicted, unmeasured** | **tier-1 pick.** Language backbone *is* LFM2.5-2.6B, so the Jelly row above is its text behaviour |
+
+### 2.1.1 Kill campaign — who dies, when, and with how much RAM (2026-08-23)
+
+The plan asked for a `killed at turn N` column. **The column is empty, and that is the result.**
+Nothing was killed on either phone. What ends a run is one of three other things.
+
+| arm | phone | outcome | ended by |
+|---|---|---|---|
+| A — 8B-A1B Q4_K_M, production | S23 | never loaded | **the gate refused it**, before any allocation |
+| A — 8B-A1B Q4_K_M, `norepack=1` | S23 | 7 turns at 0.26–0.29 tok/s | **the battery** (51 % → 11 %), then Android dozed the phone |
+| C — 2.6B-QAD, production | S23 | 16/16 | plan complete, `MemAvailable` 2.03 GB left |
+| C — 2.6B-QAD, production | Jelly | 16/16 | plan complete, `MemAvailable` 2.35 GB, flat |
+| E — 8B-A1B + streaming | S23 | **could not be run** | the gate refuses the model for a repack cost that streaming removes |
+| B — KEXP, D — Qwen3.5-2B | — | not run | S23 battery exhausted |
+
+⛔ **`MemAvailable` never moved on any arm that ran.** The campaign was designed around §7.27's lmkd
+kill at turn 8, and that regime did not reproduce: with repack off the weights are file-backed and
+therefore evictable, so the kernel thrashes them instead of the killer taking the process. **Repack
+turns a thrash into a kill, and the gate refuses exactly the models where it would.** The two
+failure modes are the same model under two load configs, not two models.
+
+The cost that is real, and that nothing was recording until this campaign: **the 8B draws ~1205 mA
+sustained against the 2.6B's ~690 mA** — 5.7 points of battery per turn, ~45 minutes of runway on a
+full charge. `battery_charge_uah` / `battery_level_pct` / `battery_ac_powered` are in the per-turn
+sysprobe from 2026-08-23; every number above them is reconstructed from logcat and coarser.
 
 **Quality and tools — properties of the model+quant, not of the phone:**
 
@@ -384,16 +413,28 @@ What that branch established still stands as evidence the floor was safe to lowe
 2026-08-20 on this phone: installs, launches on Android 13 with no crash, `run-as` works.
 Build with `apk.yml -f debuggable=true`; `adb install -r` updates in place and preserves app data.
 
-⛔ **The UI-driven campaign path does NOT work on this screen.** `type_into_composer` garbles: the
-text interleaves and duplicates (`[Ricorda anche il coloRicorda anche il colored e Zaffiro…]`), 3
-attempts out of 3, arm dead at turn 2. **Cause found 2026-08-21 and fixed:** the composer was
-cleared with a fixed 60 backspaces against prompts longer than that — 89 chars typed, 81 landed, 60
-deleted, 21 left, and the retype concatenated onto them. `clear_composer` now deletes the field's
-actual length. ⚠️ **The fix is not yet confirmed on this screen**; until a graded arm completes here,
-assume the Jelly takes **single messages, not multi-turn conversations**, and drive it with
-`kalsa://share?text=`.
+✅ **The UI-driven campaign path DOES work on this screen — as of 2026-08-23, with `IME_SUSPEND=1`.**
+A 16/16 `fase4` arm completed here (§7.42). There were two separate bugs stacked, and only the first
+was known:
 
-**Models present in the app** (updated 2026-08-21): `qwen3.5-2b`, `lfm2.5-8b-a1b` (Q4_K_M),
+1. **Fixed 2026-08-21:** the composer was cleared with a fixed 60 backspaces against longer prompts,
+   so the retype concatenated onto the remainder (`[…coloRicorda anche il colored…]`).
+   `clear_composer` now deletes the field's actual length. That fix works: the concatenation is gone.
+2. **Found 2026-08-23, underneath it:** `adb shell input text` reaches the app **through the IME**,
+   and Gboard rewrites it — `il colore e Zaffiro` lands as `Il colored e Zaffiro`, an English
+   autocorrect on an Italian word plus an autocapitalisation. Not the space keyevent: sending the
+   space as text garbles identically. With the IME disabled the same call lands byte-exact.
+
+`IME_SUSPEND=1` suspends the keyboard for the arm and restores it through the same EXIT trap as
+keep-awake. It is **opt-in**, so an arm already measured with a keyboard attached stays comparable
+to itself. The S23 never showed this, because it is a property of the *keyboard*, not of the Android
+version — so it can appear on any phone running a predictive IME, and when the harness does not
+verify the composer the result is a conversation measured on prompts nobody sent.
+
+`kalsa://share?text=` remains the fallback, but it is **not** a substitute for measurement: `am
+start` backgrounds RN and `disposeEngine()`s, so the engine reloads every turn.
+
+**Models present in the app** (updated 2026-08-23; `lfm2.5-2.6b` now holds **both** the old Q4_K_M and the QAD-Q4_0 the registry declares): `qwen3.5-2b`, `lfm2.5-8b-a1b` (Q4_K_M),
 `lfm2.5-8b-a1b-kexp`, `lfm2.5-2.6b`, plus the `multilingual-e5-small` embedder. The 8B Q4_K_M and
 the 2.6B were sideloaded with md5 verified Mac → `/data/local/tmp` → app storage. So the model we
 ship **can** now be measured here; §7.27 and §7.28 are those measurements.

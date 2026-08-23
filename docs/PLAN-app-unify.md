@@ -93,9 +93,8 @@ runs to core loss that battery temperature could not see.
 | E | arm A + streaming | does bounding RAM stop the kill? §7.39 says footprint becomes *anon* and unreclaimable, so this may make it **worse** — that prediction is the test |
 
 ⛔ **Two arms violate this phase's own "no new features" rule, and the audit caught both.**
-*Arm C* names LFM2.5-2.6B-QAD-Q4_0, which has **no registry entry** — it needs one plus a download
-source before it can be selected at all (that entry is now in flight; until it lands, arm C is
-blocked). It also substitutes the QAD quant for the Q4_K_M that §9's starred gap is actually about,
+*Arm C* named LFM2.5-2.6B-QAD-Q4_0, which had **no registry entry** — ~~it needs one plus a download
+source before it can be selected at all~~ **(landed; arm C ran on both phones 2026-08-23)**. It also substitutes the QAD quant for the Q4_K_M that §9's starred gap is actually about,
 so it answers a neighbouring question, not that one. *Arm E* needs streaming **in the app**, and
 §7.40's own caveat says the glue has never executed on a phone — a prerequisite with no owner in
 any phase. Given that commit `44f6035` found a live bug in that glue (a failed init unwinding into
@@ -107,6 +106,38 @@ different configuration from the finding it is meant to test.
 
 Run to the plateau, not turn 1 — §7.23 shows the achieved rate decays *within* a session, and
 three wrong headlines in one day came from two-turn numbers.
+
+---
+
+**STATUS 2026-08-23 — phase 1 ran. Results in KALSA.md §2.1.1 and HARNESS_FINDINGS §7.41–§7.42.**
+
+| arm | outcome |
+|---|---|
+| A production | **refused before loading** (`blocked_ram`) — §7.11 confirmed through the user path |
+| A `norepack=1` | 7 turns at **0.26–0.29 tok/s**, 1.74 M majflt, battery 51 % → 11 %, then doze |
+| C, S23 | **16/16**, 19.2 → 14.1 tok/s (−26 %) |
+| C, Jelly | **16/16**, 7.2 → 5.5 tok/s (−24 %) — first mainline-build arm on that phone |
+| B, D | not run — S23 battery exhausted |
+| E | **not runnable, see below** |
+
+⛔ **The `killed at turn N` column this phase asked for is empty, and that is the answer.** Nothing
+was killed. `MemAvailable` never moved on any arm that ran. §7.27's lmkd-at-turn-8 regime needs
+repack ON to make the footprint anonymous — and with repack ON the gate refuses the model, so the
+two states are mutually exclusive through the app. What ends a run is the gate, the battery, or the
+plan finishing.
+
+⛔ **Arm E could not run at all, and the reason was not in this plan.** `MoeStream::arm()` forces
+`no_extra_bufts = true` — streaming *disables* repack, because repack would change the byte layout
+the file offsets describe. The gate reads the `norepack` pref, not `moeStream`, so it charges the 8B
+4401 MiB for a repack that streaming would have removed and refuses before the engine is reached.
+The plan named "no streaming awareness in the gate" as a gap; this is that gap blocking its own
+measurement. **Arm E needs the gate to know about streaming — that is a code change, not a run.**
+
+✅ **The prerequisite this phase listed with no owner is done:** the streaming glue executed on a
+phone for the first time (S23, KEXP), armed, bound, and produced a coherent reply. Evidence is from
+the kernel, because success is silent by design.
+
+Two arms remain: **B (KEXP)** and **D (Qwen3.5-2B)**, both blocked only on a charged S23.
 
 **E is the one that can surprise.** §7.39 predicts streaming makes the 8B easier to kill; §7.40
 shows streaming is the only way a >RAM model runs at all. Both can be true, and the boundary
