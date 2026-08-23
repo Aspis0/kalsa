@@ -1631,8 +1631,14 @@ Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the 
 
 First arm ever run on the Jelly Star from the **mainline** build. Until today `minSdk 35` made the
 shipping APK uninstallable there (`INSTALL_FAILED_OLDER_SDK`), so the Jelly was benched off a
-never-merged branch; the floor was lowered to 33 the same day. Same APK, same harness, same model
-and same config as the S23 arm in §7.41 — the first genuinely comparable pair we have.
+never-merged branch; the floor was lowered to 33 the same day.
+
+⚠️ **Precisely: not the same APK — the same application code.** The S23 arm ran build `073c489` and
+the Jelly `1f16e13`; `git diff` between them touches only `app.config.js` (minSdkVersion 35 → 33),
+CI workflow comments, docs and harness scripts. No `src/` or `native/` change, so the two APKs carry
+identical JS and identical native libraries and differ only in a manifest floor, which is inert on
+both devices' API levels. Same harness, same model, same config. It is the closest pair we have had,
+and the caveat is stated rather than rounded away.
 
 LFM2.5-2.6B-QAD-Q4_0, `PHASE=fase4`, 16 turns, production config, both unplugged.
 
