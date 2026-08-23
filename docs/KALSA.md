@@ -20,7 +20,7 @@ Last updated: **2026-08-22**
 | What | On-device chat. No server inference: the model runs on the phone. |
 | Stack | React Native / Expo, engine `llama.rn` (llama.cpp), models pulled from Hugging Face into app-private storage |
 | Version | `0.1.0` (`app.config.js`) |
-| Android floor | **minSdk 35** (Android 15+) — owner ship policy 2026-08-07, `7123f9e`, `app.config.js:105`. A Jelly Star on Android 13 cannot install the app; that is the policy, not a bug |
+| Android floor | **minSdk 33** (Android 13+) — owner ship policy 2026-08-22, reversing the 2026-08-07 `minSdk 35` decision (`7123f9e`). `app.config.js`. The 15+ floor made the app uninstallable on the Jelly Star, i.e. on half the measurement lab; below API 35 edge-to-edge is not mandatory and the nav-bar shortfall class is back in scope, as defects to fix rather than installs to refuse |
 | APK | built by `.github/workflows/apk.yml`. `-f debuggable=true` produces the bench instrument (needed for `run-as`); the input defaults to `"false"` and forgetting it costs a full rebuild |
 | Test gate | `npx tsc --noEmit`, `npx jest` (7 suites / 73 tests), plus `scripts/*Harness.mjs`. Jest green ≠ CI green |
 
@@ -376,11 +376,13 @@ adb mdns services          # → adb-JELLYS0000053795-…  _adb-tls-connect._tcp
 adb connect 192.168.1.82:39591
 ```
 
-**It needs its own build.** Kalsa ships `minSdk 35`; the Jelly is API 33, so the standard APK will
-not install. Branch **`bench/jelly-minsdk33`** carries the single-line lowering and is **NOT FOR
-MERGE** (minSdk 35 is owner ship policy, `7123f9e`). Build it with `apk.yml -f debuggable=true`;
-`adb install -r` updates in place and preserves app data. Verified 2026-08-20: installs, launches on
-Android 13 with no crash, `run-as` works, so the campaign machinery can reach it.
+**It no longer needs its own build.** Until 2026-08-22 Kalsa shipped `minSdk 35` and the standard
+APK refused to install here (`INSTALL_FAILED_OLDER_SDK: Requires newer sdk version #35 (current
+version is #33)`), so the Jelly ran off branch `bench/jelly-minsdk33`, marked NOT FOR MERGE. The
+owner reversed the floor to 33 that day and the branch is now redundant: the mainline APK installs.
+What that branch established still stands as evidence the floor was safe to lower — verified
+2026-08-20 on this phone: installs, launches on Android 13 with no crash, `run-as` works.
+Build with `apk.yml -f debuggable=true`; `adb install -r` updates in place and preserves app data.
 
 ⛔ **The UI-driven campaign path does NOT work on this screen.** `type_into_composer` garbles: the
 text interleaves and duplicates (`[Ricorda anche il coloRicorda anche il colored e Zaffiro…]`), 3
@@ -523,7 +525,8 @@ twice mid-campaign and took an APK and a runner with it.
 
 | date | decision |
 |---|---|
-| 2026-08-07 | Android 15+ only (`minSdk 35`) |
+| 2026-08-07 | Android 15+ only (`minSdk 35`) — **reversed 2026-08-22** |
+| 2026-08-22 | **Android 13+ (`minSdk 33`)**. The 15+ floor locked the app out of the Jelly Star, so half the lab could not run the shipping build at all |
 | 2026-08-18 | **Thinking is never off and never budget 0.** Small models need reasoning to be usable |
 | 2026-08-18 | **Cache beats context budget** when they conflict |
 | 2026-08-18 | The shipping model is **LFM2.5-8B-A1B** |

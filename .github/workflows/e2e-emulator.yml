@@ -133,8 +133,9 @@ jobs:
       - name: Run E2E on emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          # API 35: minSdkVersion 35 (Android 15+ ship policy) — API 34 emulators
-          # fail install with INSTALL_FAILED_OLDER_SDK (run 31223190695).
+          # API 35: the newest image these jobs are proven on. NOT a floor —
+          # minSdkVersion is 33 since 2026-08-22 (app.config.js), so an API 33
+          # device is supported and is NOT covered here.
           api-level: 35
           target: google_apis
           arch: x86_64
