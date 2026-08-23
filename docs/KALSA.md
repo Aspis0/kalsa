@@ -166,7 +166,8 @@ Nothing was killed on either phone. What ends a run is one of three other things
 | A — 8B-A1B Q4_K_M, `norepack=1` | S23 | 7 turns at 0.26–0.29 tok/s | **the battery** (51 % → 11 %), then Android dozed the phone |
 | C — 2.6B-QAD, production | S23 | 16/16 | plan complete, `MemAvailable` 2.03 GB left |
 | C — 2.6B-QAD, production | Jelly | 16/16 | plan complete, `MemAvailable` 2.35 GB, flat |
-| B — KEXP, production (mmap) | S23 | 16/16 but **bimodal 0.4–21.1**, collapsed from turn 11 | plan complete; 535 k majflt, battery 99 → 75 % |
+| B — KEXP, production (mmap) | S23 | 16/16, **collapsed to 0.4–1.0 from turn 11** | plan complete; 535 k majflt, battery 99 → 75 % |
+| B — KEXP, production (mmap) | **Jelly** | 16/16, **8.16 → 4.22, never collapsed** | plan complete; **117 majflt**, RssFile flat, battery 97 → 84 % |
 | B — KEXP, **`use_mmap=false`** | S23 | 16/16, **21.3 → 15.7, −26 %, no bimodality** | plan complete; 1 222 k majflt, battery 56 → 47 % |
 | D — Qwen3.5-2B, production (hot start 40.7 °C) | S23 | 16/16, **the most stable arm** (−10.8 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
 | D — Qwen3.5-2B, **cold start 33.9 °C** | S23 | 16/16, **−11.4 %**, median 17.31 | plan complete; **747 majflt**, battery 45 → 34 % |

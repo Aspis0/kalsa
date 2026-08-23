@@ -1627,6 +1627,67 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.47 MECHANISM 2026-08-23: the second phone confirms eviction BY NOT DOING IT — and separates two degradations that were being reported as one
+
+Arm `jellyB-kexp-production`: the Jelly Star, KEXP, production config, unplugged from 97 %, 16/16
+turns, **the same APK `b5e88cf`** and the same plan and seed as the S23 pair. The question was
+whether §7.45's collapse reproduces on other silicon. **It does not, and the reason is the finding.**
+
+| | S23 (mmap) | Jelly (mmap) |
+|---|---|---|
+| `MemTotal` | 7 243 748 kB | **7 968 548 kB** |
+| `RssFile` turn 1 → 16 | 2.78 → 2.62 GB | **3.396 → 3.395 GB — flat** |
+| major faults, whole run | **534 715** | **117** (2 917 → 3 034) |
+| tok/s turn 1 → last measured | 11.06 → **0.41** | 8.16 → **4.22** |
+| collapse to ≈0.4–1.0 | **yes, from turn 11** | **never** |
+| killed | no | no |
+
+**The Jelly never evicted a page.** Its `RssFile` does not move by even 2 MB across sixteen turns and
+it takes **117 major faults in the entire run**, against the S23's half a million. It has ~0.7 GB
+more RAM and the whole 3.33 GB model simply stays resident. Remove the eviction and the collapse
+disappears — which is the cleanest confirmation of §7.45 available, because it is the *absence* of
+the mechanism producing the *absence* of the effect, on hardware that is otherwise slower in every
+respect.
+
+⛔ **But the Jelly still lost 48 % of its rate with zero eviction, and that is a SECOND mechanism
+this file has been folding into the first.** Controlled for generation length — turn 10 at 341
+predicted tokens against turn 13 at 346 — the fall is **7.02 → 4.65, −33.8 %**. No faults, no
+eviction, no swap (`VmSwap` flat at 20.6 MB), and still a third of the throughput gone. So:
+
+| degradation | driver | magnitude | who shows it |
+|---|---|---|---|
+| **in-session decay** | context growth, no memory involvement | −11 % to −48 % | **every arm ever run here** |
+| **eviction collapse** | file-backed weights + tight RAM | **−96 %** | S23 KEXP with mmap, only |
+
+They are different phenomena and only the second one `use_mmap=false` can fix. Reporting a single
+"decay %" per arm mixes them.
+
+⛔ **And "bimodal" was the wrong word for the pre-collapse regime — it was generation length.** In
+the S23 mmap arm's turns 1–10 the split is *perfect*, with zero overlap:
+
+| | tok/s | predicted tokens |
+|---|---|---|
+| "fast" turns 3, 6, 7, 9, 10 | 18.2–21.1 | **153–194** |
+| "slow" turns 1, 2, 4, 5, 8 | 8.4–11.1 | **224–451** |
+
+`corr(tok/s, tokensPredicted)` is negative in **every** arm measured: −0.38 (S23 mmap), −0.35 (S23
+no-mmap), −0.69 (Qwen cold), −0.70 (2.6B). A longer generation averages its rate over a larger and
+growing KV cache, so it reports a lower per-turn number. **This retires §7.43's "bimodal ≈18–21 or
+≈0.4–1.0" and §7.44's "holding ~3.2 GB it runs 18–21, pushed to 2.5 GB it runs 0.4–1.0"** — the
+18–21 against 8–11 band was never a memory regime. ⭐ **The collapse itself is NOT length**: turn 15
+generated 169 tokens, squarely inside the "fast" band, and ran at **0.41**. §7.45 stands.
+
+⚠️ **Methodological consequence, and it is not local to this section: a per-turn tok/s in this
+project is not comparable to another per-turn tok/s unless the generation lengths are close.**
+Every number of that shape in this file inherits the caveat. Prefer matched-length pairs, as the
+−33.8 % above is.
+
+⚠️ Limits. n=1 per phone. The two phones differ in RAM (0.7 GB), SoC, storage and thermal envelope,
+so "more RAM" is the *plausible* reason the Jelly does not evict, not a measured one — an arm that
+shrinks the Jelly's available memory to the S23's would test it and has not been run. The Jelly's
+own −48 % raw figure is inflated by length (turn 16 generated 441 tokens); −33.8 % matched is the
+number to quote.
+
 ### 7.46 MEASURED 2026-08-23: the cold rerun discharges the heat caveat — and the 2.6B-vs-Qwen ordering is a TIE that crosses over at turn 10
 
 §7.43 owed a cold-start rerun: arm D began at **40.7 °C with `thermal_status=2`** because arm B had
@@ -1709,7 +1770,7 @@ forwarded only when explicitly present, so for this arm the one runtime delta is
 |---|---|---|
 | tok/s turn 1 | 11.06 | **21.27** |
 | last measured tok/s | **0.41 — at turn 15** ⚠️ | **15.67** — turn 16 |
-| shape | bimodal 8.4–21.1, first collapse **turn 11**, recovery at 12 | **no bimodality**, −26.3 % end to end |
+| shape | 8.4–21.1 (⚠️ length, not regime — §7.47), first collapse **turn 11**, recovery at 12 | steady, −26.3 % end to end |
 | RssAnon / RssFile @16 | 0.60 / **2.62 GB** | **3.35** / 0.07 GB |
 | VmSwap 1 → 16 | 121 → **811 MB** (6.7x) | 430 → **368 MB** (flat) |
 | majflt @16 | 534 715 | **1 221 925** |
@@ -1854,9 +1915,14 @@ file does not retire the finding: a future KEXP build of any MoE inherits it unl
 emitting q2_K/q3_K for the tensors that carry the bulk. The recipe buys bytes on disk and pays for
 them in residency, and until now only the first half of that trade was measured.
 
-**That is also the mechanism of the bimodality.** The KEXP needs 3.33 GB and the phone concedes
-2.50–3.18 GB: it sits exactly on the boundary. Holding ~3.2 GB it runs 18–21 tok/s; pushed to
-2.5 GB it runs 0.4–1.0. Not a decay curve — a threshold being crossed back and forth. The 8B is the
+⛔ **CORRECTED 2026-08-23 by §7.47 — this paragraph is withdrawn.** It read: *"That is also the
+mechanism of the bimodality. The KEXP needs 3.33 GB and the phone concedes 2.50–3.18 GB: it sits
+exactly on the boundary. Holding ~3.2 GB it runs 18–21 tok/s; pushed to 2.5 GB it runs 0.4–1.0. Not
+a decay curve — a threshold being crossed back and forth."* Per turn, that is not what the data
+shows: the only turn holding ~3.2 GiB ran **0.61**, the fastest surviving turn held 2.53 GiB, and
+the whole 8.4–21.1 spread happens at a flat ~2.6 GiB. **The 18–21 against 8–11 band is generation
+length, not residency** (§7.47: perfect separation, zero overlap, 153–194 predicted tokens against
+224–451). The *collapse* to 0.4–1.0 is real and is eviction; the band above it never was. The 8B is the
 same story with the boundary on the wrong side permanently: 4.9 GB needed against a ~4.25 GB
 ceiling.
 
@@ -1886,8 +1952,12 @@ Sixteen turns each, unplugged. This completes the campaign except arm E, which c
 
 **The KEXP does not degrade — it breaks.** Turn by turn: 11.1 · 11.0 · **21.1** · 10.6 · 8.8 · 18.2 ·
 19.4 · 8.4 · 19.0 · 18.8 · **0.9** · 15.6 · — · 1.0 · **0.4** · —. Reporting a mean here would be a
-lie: the distribution is bimodal (≈18–21 when it works, ≈0.4–1.0 when it does not), not scattered
-around a centre. This reproduces §7.21's "unstable: 0.45 – 19.96" over a full 16-turn plan.
+lie. ⛔ **CORRECTED 2026-08-23 (§7.47): "bimodal ≈18–21 or ≈0.4–1.0" conflated two things.** The
+≈18–21 against ≈8–11 split is **generation length** — those turns predicted 153–194 tokens against
+224–451, with zero overlap, and `corr(tok/s, tokensPredicted)` is negative in every arm this project
+has measured. What is genuinely bimodal is only the **collapse**: ≈0.4–1.0 against everything else,
+and that part is eviction and survives (turn 15 generated 169 tokens, inside the "fast" band, and
+ran at 0.41). This reproduces §7.21's "unstable: 0.45 – 19.96" over a full 16-turn plan.
 
 **And the cause separates, which §7.23 could not do.** Major faults go 81 k → 100 k over the first
 twelve turns, then **164 k → 233 k → 448 k → 535 k**. Thermal throttling does not produce page
