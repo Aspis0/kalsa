@@ -1697,8 +1697,12 @@ quant we actually ship — Q4_K_M, Q4_0/QAD — repack has already put the weigh
 so the flag buys nothing and costs ~25 s of load. It is a fix **only** for the sub-4-bpw types that
 have no repack path, i.e. exactly the recipes chosen because a phone was short of memory — and the
 fix demands 3.35 GB of unreclaimable anonymous RAM, which is the memory of a phone that was not
-short. Untested on the Jelly, and that tension is the reason to prefer the repack kernel over the
-flag as a shipping answer.
+short. That tension is the reason to prefer the repack kernel over the flag as a shipping answer.
+⛔ **Correction, same day: the Jelly cannot test that tension.** `MemTotal` is **7 968 548 kB on the
+Jelly against 7 243 748 kB on the S23** — the Jelly has *more* RAM. It is the slow phone (§7.27:
+dequant-bound, 2.8x lower decode), not the small one. **This lab has no memory-constrained device**,
+so every RAM claim here is about an ~8 GB phone and nothing in this file has ever measured a 4 GB or
+6 GB one. Do not let "the Jelly is the small phone" enter a brief; it was never true.
 
 ⛔ **Do not gate a fit check on `MemFree`.** §7.44's correction was that `MemAvailable` is invalid as
 headroom **while an mmapped model is already resident**, because it counts that model's own pages.
