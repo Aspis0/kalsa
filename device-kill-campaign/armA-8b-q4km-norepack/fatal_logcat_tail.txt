@@ -1,0 +1,500 @@
+08-22 22:12:19.109  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:19.109  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:19.109  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:19.109  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:19.110  2636  3823 E BatteryStatsService: Invalid uid for waking network packet: -1
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage(): Output of /proc/2209/stat/ : 2209 (shsusrd0) S 1 2209 0 0 -1 1077936384 5323 0 14668 0 500 4140 0 0 20 0 7 0 871 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 0 0 0 17 3 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.813  2209  2221 I shsusrd : 
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage(): utime 500 stime 4140 cpu_time_last 4639
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage(): user time = 500 | system time = 4140 | total = 4640 | cpu_time_delta = 1, clk_tck 100
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage(): time_cur 1787451139 time_last 1787451129
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage(): shsusrd is using 0 pct of CPU - time_delta 10
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage(): shsusrd usage 0
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): time_delta for combined : 10 time_cur 1787451139 time_last_combined 1787451129
+08-22 22:12:19.813  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2209/stat: 2209 (shsusrd0) S 1 2209 0 0 -1 1077936384 1195 0 9 0 1 1 0 0 20 0 7 0 871 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 1 0 0 17 3 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.813  2209  2221 I shsusrd : 
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2209 utime 1 stime 1 time_delta 10 clk_tck 100, usage 0
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2218/stat: 2218 (shsusrd9) S 1 2209 0 0 -1 4194368 4 0 0 0 12 657 0 0 20 0 7 0 874 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 1 0 0 -1 1 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.814  2209  2221 I shsusrd : 
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2218 utime 12 stime 657 time_delta 10 clk_tck 100, usage 0
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2219/stat: 2219 (shsusrd2) S 1 2209 0 0 -1 4194368 8 0 0 0 10 644 0 0 20 0 7 0 874 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 1 0 0 -1 2 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.814  2209  2221 I shsusrd : 
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2219 utime 10 stime 644 time_delta 10 clk_tck 100, usage 0
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2220/stat: 2220 (shsusrd13) S 1 2209 0 0 -1 1077936192 1 0 0 0 0 0 0 0 20 0 7 0 874 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 1 0 0 -1 3 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.814  2209  2221 I shsusrd : 
+08-22 22:12:19.814  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2220 utime 0 stime 0 time_delta 10 clk_tck 100, usage 0
+08-22 22:12:19.815  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2221/stat: 2221 (shsusrd42) R 1 2209 0 0 -1 4194368 4109 0 14636 0 441 1558 0 0 20 0 7 0 874 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 0 0 0 -1 0 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.815  2209  2221 I shsusrd : 
+08-22 22:12:19.816  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2221 utime 441 stime 1558 time_delta 10 clk_tck 100, usage 100
+08-22 22:12:19.816  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2222/stat: 2222 (shsusrd4) S 1 2209 0 0 -1 4194368 0 0 0 0 7 615 0 0 20 0 7 0 874 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 1 0 0 -1 4 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.816  2209  2221 I shsusrd : 
+08-22 22:12:19.816  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2222 utime 7 stime 615 time_delta 10 clk_tck 100, usage 0
+08-22 22:12:19.817  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Output of /proc/2209/task/2224/stat: 2224 (shsusrd14) S 1 2209 0 0 -1 4194368 6 0 23 0 7 683 0 0 20 0 7 0 874 2533212160 336 18446744073709551615 418166300672 418166559128 549632913952 0 0 0 0 0 1073794810 1 0 0 -1 5 0 0 0 0 0 418166582208 418166583144 418419236864 549632915639 549632915682 549632915682 549632921565 0
+08-22 22:12:19.817  2209  2221 I shsusrd : 
+08-22 22:12:19.817  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): tid 2224 utime 7 stime 683 time_delta 10 clk_tck 100, usage 0
+08-22 22:12:19.817  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Combined CPU usage: total_utime 478 total_stime 4158 total_cpu_time_seconds 0.00, clk_tck 100
+08-22 22:12:19.817  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Combined shsusrd usage 0
+08-22 22:12:19.817  2209  2221 I shsusrd : shsusr_check_cpu_usage_combined(): Combined shsusrd usage FINAL 0
+08-22 22:12:20.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451140
+08-22 22:12:20.108  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:20.108  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 407 
+08-22 22:12:20.108  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:20.108  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:20.108  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:20.108  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:20.109  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:20.838  1144  1144 D io_stats: !@   8,0 r 22234367 3590854718 w 3450114 81898016 d 146386 94339216 f 354645 868343 iot 8119036 0 th 0 0 0 pt 0 inp 0 0 82585.309
+08-22 22:12:20.839  1144  1144 D io_stats: !@ Read_top(KB): kworker/u16:3(26777) 204 mdnsd(4992) 144 system_server(2636) 88
+08-22 22:12:20.839  1144  1144 D io_stats: !@ Write_top(KB): kworker/u16:3(26777) 1232 kworker/u16:0(30486) 4
+08-22 22:12:21.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451141
+08-22 22:12:21.107  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:21.107  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 407 
+08-22 22:12:21.107  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:21.107  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:21.108  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:21.108  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:21.108  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:22.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451142
+08-22 22:12:22.107  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:22.108  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 407 
+08-22 22:12:22.108  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:22.108  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:22.108  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:22.108  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:22.108  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:22.295  2636  3696 I SemWifiServiceDetector: NSD results: [0, 1, 2, 0, 0, 0, 2, 1, 0] Traff. type 2 Thr 188
+08-22 22:12:22.433 30820 30820 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: power
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: Write failure
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: java.io.IOException: write failed: EPIPE (Broken pipe)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at libcore.io.IoBridge.write(IoBridge.java:651)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at java.io.FileOutputStream.write(FileOutputStream.java:436)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.internal.util.FastPrintWriter.flushBytesLocked(FastPrintWriter.java:355)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.internal.util.FastPrintWriter.flushLocked(FastPrintWriter.java:378)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.internal.util.FastPrintWriter.appendLocked(FastPrintWriter.java:323)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.internal.util.FastPrintWriter.print(FastPrintWriter.java:500)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at java.io.PrintWriter.println(PrintWriter.java:822)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.server.power.SuspendBlockerMonitor.dump(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:14)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.server.power.PowerManagerService.dumpInternal(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:4004)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at com.android.server.power.PowerManagerService$BinderService.dump(qb/104115509 642a260238a2a37c6836dc7bea3a53f201826650740aa1b0d2e7de37fbd312b0:64)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at android.os.Binder.doDump(Binder.java:1108)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at android.os.Binder.dump(Binder.java:1098)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at android.os.Binder.onTransact(Binder.java:958)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at android.os.IPowerManager$Stub.onTransact(IPowerManager.java:1750)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at android.os.Binder.execTransactInternal(Binder.java:1462)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at android.os.Binder.execTransact(Binder.java:1401)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: Caused by: android.system.ErrnoException: write failed: EPIPE (Broken pipe)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at libcore.io.Linux.writeBytes(Native Method)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at libcore.io.Linux.write(Linux.java:336)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at libcore.io.ForwardingOs.write(ForwardingOs.java:948)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at libcore.io.BlockGuardOs.write(BlockGuardOs.java:448)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	at libcore.io.IoBridge.write(IoBridge.java:646)
+08-22 22:12:22.451  2636  6612 W FastPrintWriter: 	... 15 more
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: IO errors occurred ...
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: java.io.FileNotFoundException: /proc/30820/cmdline: open failed: ENOENT (No such file or directory)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at libcore.io.IoBridge.open(IoBridge.java:574)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at java.io.FileInputStream.<init>(FileInputStream.java:179)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at java.io.FileInputStream.<init>(FileInputStream.java:133)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at java.io.FileReader.<init>(FileReader.java:103)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at com.android.internal.os.BinderCallsStats.getPackageName(BinderCallsStats.java:1157)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at com.android.internal.os.BinderCallsStats.processCallEnded(BinderCallsStats.java:386)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at com.android.internal.os.BinderCallsStats.callEnded(BinderCallsStats.java:339)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at android.os.Binder.execTransactInternal(Binder.java:1498)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at android.os.Binder.execTransact(Binder.java:1401)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: Caused by: android.system.ErrnoException: open failed: ENOENT (No such file or directory)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at libcore.io.Linux.open(Native Method)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at libcore.io.ForwardingOs.open(ForwardingOs.java:568)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at libcore.io.BlockGuardOs.open(BlockGuardOs.java:274)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	at libcore.io.IoBridge.open(IoBridge.java:560)
+08-22 22:12:22.476  2636  6612 E BinderCallsStats: 	... 8 more
+08-22 22:12:22.786  1717  9965 I sensors-hal: handle_sns_std_sensor_event:137, [SSC_LIGHT] A: 16(16),m:0,c:0,b:0,c0:784,l:16,r:82,bl:100,j:-1
+08-22 22:12:22.840  1144  1144 D io_stats: !@   8,0 r 22234842 3590863962 w 3450114 81898016 d 146386 94339216 f 354645 868343 iot 8119384 0 th 0 0 0 pt 0 inp 0 0 82587.311
+08-22 22:12:23.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451143
+08-22 22:12:23.107  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:23.107  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 407 
+08-22 22:12:23.107  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:23.107  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:23.107  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:23.107  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:23.107  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:23.297 30823 30823 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+08-22 22:12:23.328 30823 30823 I app_process: MMAP_TRYLOCK is supported in uffd errno:2 addr:0x7cacf78000 size:4096
+08-22 22:12:23.336 30823 30823 I AndroidRuntime: Using default boot image
+08-22 22:12:23.336 30823 30823 I AndroidRuntime: Leaving lock profiling enabled
+08-22 22:12:23.345 30823 30823 I app_process: Using CollectorTypeCMC GC.
+08-22 22:12:23.609 30823 30823 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+08-22 22:12:23.647 30823 30823 D nativeloader: Load libicu_jni.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+08-22 22:12:23.647 30823 30823 D app_process: u_setTimeZoneFilesDirectory("/apex/com.android.tzdata/etc/tz/versioned/9/icu") succeeded. 
+08-22 22:12:23.648 30823 30823 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt76l.dat
+08-22 22:12:23.656 30823 30823 D nativeloader: Load libjavacore.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+08-22 22:12:23.660 30823 30823 D nativeloader: Load libopenjdk.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+08-22 22:12:23.678 30823 30823 W app_process: ClassLoaderContext shared library size mismatch. Expected=2, found=0 (PCL[]{PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[])
+08-22 22:12:23.682 30823 30823 W app_process: ClassLoaderContext classpath size mismatch. expected=0, found=1 (PCL[]{PCL[/system/framework/android.test.runner.jar*1555405057]#PCL[/system/framework/android.test.base.jar*2890637452]#PCL[/system/framework/android.test.mock.jar*2961880753]} | PCL[/system/framework/android.test.runner.jar*1555405057])
+08-22 22:12:23.733 30823 30823 E SemDvfsManager_JNI: SemDvfsManager: registerfunction enter
+08-22 22:12:23.733 30823 30823 E SemAffinityControl: SemAffinityControl: registerfunction enter
+08-22 22:12:23.759 30823 30823 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+08-22 22:12:23.760 30823 30823 D AndroidRuntime: Calling main entry com.android.commands.uiautomator.Launcher
+08-22 22:12:23.770 30823 30823 I AconfigPackage: com.android.org.conscrypt.flags is mapped to com.android.conscrypt
+08-22 22:12:23.771 30823 30823 I AconfigPackage: com.android.os.statsd.flags is mapped to com.android.os.statsd
+08-22 22:12:23.772 30823 30823 I AconfigPackage: com.android.wifi.flags is mapped to com.android.wifi
+08-22 22:12:23.773 30823 30823 I AconfigPackage: com.android.system.virtualmachine.flags is mapped to com.android.virt
+08-22 22:12:23.773 30823 30823 I AconfigPackage: com.android.art.flags is mapped to com.android.art
+08-22 22:12:23.773 30823 30823 I AconfigPackage: com.android.libcore is mapped to com.android.art
+08-22 22:12:23.775 30823 30823 I AconfigPackage: com.android.appsearch.flags is mapped to com.android.appsearch
+08-22 22:12:23.775 30823 30823 I AconfigPackage: com.android.healthfitness.flags is mapped to com.android.healthfitness
+08-22 22:12:23.776 30823 30823 I AconfigPackage: com.android.ipsec.flags is mapped to com.android.ipsec
+08-22 22:12:23.777 30823 30823 I AconfigPackage: com.android.icu is mapped to com.android.i18n
+08-22 22:12:23.778 30823 30823 I AconfigPackage: com.android.uwb.flags is mapped to com.android.uwb
+08-22 22:12:23.778 30823 30823 I AconfigPackage: com.android.ranging.flags is mapped to com.android.uwb
+08-22 22:12:23.779 30823 30823 I AconfigPackage: android.provider.flags is mapped to com.android.configinfrastructure
+08-22 22:12:23.779 30823 30823 I AconfigPackage: com.android.server.deviceconfig is mapped to com.android.configinfrastructure
+08-22 22:12:23.780 30823 30823 I AconfigPackage: android.media.swcodec.flags is mapped to com.android.media.swcodec
+08-22 22:12:23.781 30823 30823 I AconfigPackage: com.android.bluetooth.flags is mapped to com.android.bt
+08-22 22:12:23.782 30823 30823 I AconfigPackage: com.android.settings.flags is mapped to system_ext
+08-22 22:12:23.782 30823 30823 I AconfigPackage: com.android.launcher3 is mapped to system_ext
+08-22 22:12:23.782 30823 30823 I AconfigPackage: com.android.server.policy.feature.flags is mapped to system_ext
+08-22 22:12:23.783 30823 30823 I AconfigPackage: com.android.media.extractor.flags is mapped to com.android.media
+08-22 22:12:23.783 30823 30823 I AconfigPackage: com.android.media.mainline.flags is mapped to com.android.media
+08-22 22:12:23.784 30823 30823 I AconfigPackage: com.android.permission.flags is mapped to com.android.permission
+08-22 22:12:23.785 30823 30823 I AconfigPackage: com.android.adservices.flags is mapped to com.android.adservices
+08-22 22:12:23.785 30823 30823 I AconfigPackage: com.android.sdksandbox.flags is mapped to com.android.adservices
+08-22 22:12:23.786 30823 30823 I AconfigPackage: android.os.profiling is mapped to com.android.profiling
+08-22 22:12:23.787 30823 30823 I AconfigPackage: android.uprobestats.mainline.flags is mapped to com.android.uprobestats
+08-22 22:12:23.788 30823 30823 I AconfigPackage: com.android.devicelock.flags is mapped to com.android.devicelock
+08-22 22:12:23.789 30823 30823 I AconfigPackage: android.graphics.pdf.flags is mapped to com.android.mediaprovider
+08-22 22:12:23.789 30823 30823 I AconfigPackage: com.android.providers.media.flags is mapped to com.android.mediaprovider
+08-22 22:12:23.789 30823 30823 I AconfigPackage: android.graphics.pdf.flags.readonly is mapped to com.android.mediaprovider
+08-22 22:12:23.791 30823 30823 I AconfigPackage: com.android.net.ct.flags is mapped to com.android.tethering
+08-22 22:12:23.791 30823 30823 I AconfigPackage: com.android.net.flags is mapped to com.android.tethering
+08-22 22:12:23.791 30823 30823 I AconfigPackage: android.net.vcn is mapped to com.android.tethering
+08-22 22:12:23.791 30823 30823 I AconfigPackage: com.android.nearby.flags is mapped to com.android.tethering
+08-22 22:12:23.791 30823 30823 I AconfigPackage: android.net.http is mapped to com.android.tethering
+08-22 22:12:23.791 30823 30823 I AconfigPackage: com.android.net.thread.flags is mapped to com.android.tethering
+08-22 22:12:23.792 30823 30823 I AconfigPackage: com.android.rkpd.flags is mapped to com.android.rkpd
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.nfc.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.app.admin.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.database.sqlite is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.server.power.feature.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.media.performance.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.app.contextualsearch.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.app.ondeviceintelligence.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.media.projection.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.companion is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.service.controls.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.text.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.providers.contactkeys.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.intentresolver is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.companion.virtualdevice.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.uprobestats.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.net.thread.platform.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.view.contentprotection.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.server.dreams is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.graphics.surfaceflinger.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.hardware.input is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.sdk is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.input.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.tracing is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: com.android.server.biometrics is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.view.contentcapture.flags is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.app.job is mapped to system
+08-22 22:12:23.793 30823 30823 I AconfigPackage: android.content.res is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.net.platform.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.aconfig.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.graphics.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.server.app is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.speech.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.stats is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.hardware.biometrics is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.car.feature is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.adpf is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.location.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.settingslib.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.managedprovisioning.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.assist.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.net is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.settingslib.widget.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.camera.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.hardware.libsensor.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.jank is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.providers.settings is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.multiuser is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.power.optimization is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.calllogbackup is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.graphics.libvulkan.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.appfunctions.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.smartspace.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.shell.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.aaudio is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.hardware.radio is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: suspend_service.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.media.midi is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.libcore.readonly is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.settingslib.widget.selectorwithwidgetpreference.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.service.notification is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.systemui.shared is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.jank is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.wearable is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.audio is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.service.chooser is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.compat is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.alarm is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.apex.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.service.quickaccesswallet is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.usage is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.accessibility is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app.supervision.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.utils is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.chre.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.content.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.media.codec is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.os is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.nfc.nci.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.app is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.security.keystore2 is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.tradeinmode.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.hardware.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.telecom.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.settingslib.media.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.policy is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.media.audiopolicy is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.egg.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.compat.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.security is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.service.autofill is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.example.android.aconfig.demo.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.view.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.companion.virtual.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.aconfig_new_storage is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.feature.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.systemui is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.power.batterysaver is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.widget.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.editing.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.codec.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.powerstats is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.graphics.egl.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.audioserver is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.deviceidle is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.nfc is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.permission.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.service.voice.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.content.pm is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.power.hint is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.os is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.service.dreams is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.graphics.libgui.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.hardware.usb.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.provider is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.job is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.foldables.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.telephony.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.webkit is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.credentials.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.display.feature.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.notification is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.appwidget.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.frameworks.sensorservice.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.printspooler.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.window.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.adaptiveauth is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.net.wifi.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.media.tv.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.usb.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.os.vibrator is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.hardware.devicestate.feature.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.usage is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.server is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.wm.shell is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.view.inputmethod is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.graphics.hwui.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.backup is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.internal.pm.pkg.component.flags is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.view.accessibility is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: android.media.audio is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.server.am is mapped to system
+08-22 22:12:23.794 30823 30823 I AconfigPackage: com.android.media.playback.flags is mapped to system
+08-22 22:12:23.795 30823 30823 I AconfigPackage: com.android.cellbroadcastreceiver.flags is mapped to com.android.cellbroadcast
+08-22 22:12:23.796 30823 30823 I AconfigPackage: com.android.adservices.ondevicepersonalization.flags is mapped to com.android.ondevicepersonalization
+08-22 22:12:23.796 30823 30823 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+08-22 22:12:23.801 30823 30823 D UiAutomationConnection: Created on user UserHandle{0}
+08-22 22:12:23.801 30823 30823 I UiAutomation: Initialized for user 0 on display 0
+08-22 22:12:23.801 30823 30823 W UiAutomation: Created with deprecatead constructor, assumes DEFAULT_DISPLAY
+08-22 22:12:23.804  2636  6612 D AccessibilityManagerService: changeCurrentUserForTestAutomationIfNeededLocked(0): ignoring because device doesn't support visible background users
+08-22 22:12:23.804  2636  6612 I UiAutomationManager: Registering UiTestAutomationService (id=com.android.server.accessibility/UiAutomation, flags=0x0) when called by user 0
+08-22 22:12:23.805  2636  6612 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+08-22 22:12:23.805  2636  6612 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+08-22 22:12:23.806  2636  6612 D SettingsProvider: PUT_ret(/secure/accessibility_enabled), callingPackage:android
+08-22 22:12:23.806  2636  6612 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+08-22 22:12:23.806  2636  6612 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+08-22 22:12:23.815  4389 25837 I HoneySpace.GlobalSettingDataSourceImpl: Setting accessibility_enabled changed to 1
+08-22 22:12:23.819  1870  2137 I SurfaceFlinger: id=1197 createSurf, flag=84004, WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197
+08-22 22:12:23.825  1870  1870 I SurfaceFlinger: SFWD update time=82588296372920
+08-22 22:12:23.825  2636  6612 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+08-22 22:12:23.826  2636  6612 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+08-22 22:12:23.826  2636  6612 D SettingsProvider: PUT_ret(/secure/accessibility_enabled), callingPackage:android
+08-22 22:12:23.826  2636  6612 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+08-22 22:12:23.826  2636  6612 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+08-22 22:12:23.831  2636  2636 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+08-22 22:12:23.831  2636  2636 I AccessibilityManagerService: accessibilityService is null
+08-22 22:12:23.831  2636  2636 I AccessibilityManagerService: semIsAccessibilityServiceEnabled()
+08-22 22:12:23.831  2636  2636 I AccessibilityManagerService: accessibilityService is null
+08-22 22:12:23.832  2636  2636 D AS.AudioService: Accessibility volume enabled = false
+08-22 22:12:23.832  2636  2636 D BatterySaverPolicy: accessibility changed to true, updating policy.
+08-22 22:12:23.832  2636  6612 W WindowManager: Cannot find window which accessibility connection is added to
+08-22 22:12:23.842  1870  1870 I SurfaceFlinger: RequestedLayer [WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197] hidden!! flag  from(1) --> to(0)
+08-22 22:12:23.842  1870  1870 I SurfaceFlinger: [WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197] attach to parent LayerHierarchy{RequestedLayerState{Leaf:26:31#38 parentId=37} 2 children}
+08-22 22:12:23.843  2636  5827 W WindowManager: Cannot find window which accessibility connection is added to
+08-22 22:12:24.051  3850  3963 D SRotationLockTile:  mRotationLocked: false handleUpdateState: true orientation = true
+08-22 22:12:24.054  3850  3963 D SRotationLockTile:  mRotationLocked: false handleUpdateState: true orientation = true
+08-22 22:12:24.056  3850  3963 D SRotationLockTile:  mRotationLocked: false handleUpdateState: true orientation = true
+08-22 22:12:24.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451144
+08-22 22:12:24.108  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:24.108  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 407 
+08-22 22:12:24.108  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:24.108  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:24.109  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:24.109  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:24.109  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:24.243  5441  5441 I wpa_supplicant: Heartbeat 13238
+08-22 22:12:24.686  4389  6075 I id.app.launcher: Explicit concurrent mark compact GC freed 4403KB AllocSpace bytes, 10(480KB) LOS objects, 66% free, 13MB/41MB, paused 2.257ms,10.559ms total 406.631ms
+08-22 22:12:24.686  4389  6075 W id.app.launcher: Reducing the number of considered missed Gc histogram windows from 769 to 100
+08-22 22:12:24.842  1144  1144 D io_stats: !@   8,0 r 22236118 3590907302 w 3450125 81899720 d 146386 94339216 f 354647 868345 iot 8120336 0 th 0 0 0 pt 0 inp 0 0 82589.312
+08-22 22:12:24.843  1144  1144 D io_stats: !@ Read_top(KB): sh(30823) 42720 kworker/u16:0(30486) 2612 kworker/u16:2(23631) 2136
+08-22 22:12:24.843  1144  1144 D io_stats: !@ Write_top(KB): kworker/u16:2(23631) 1616 system_server(2636) 88
+08-22 22:12:24.881 30823 30823 D SemCscFeature: Encoded
+08-22 22:12:24.898 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@1b0fc; boundsInParent: Rect(0, 0 - 432, 72); boundsInScreen: Rect(648, 0 - 1080, 0); boundsInWindow: Rect(648, 0 - 1080, 0); packageName: com.android.systemui; className: android.widget.ImageView; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.android.systemui:id/sec_quick_panel_affordance_glow; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.899 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@105362; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(540, 0 - 540, 0); boundsInWindow: Rect(540, 0 - 540, 0); packageName: com.android.systemui; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.samsung.android.app.aodservice:id/keyguard_aod_pin_container; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.929 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@10084e; boundsInParent: Rect(0, 0 - 1080, 0); boundsInScreen: Rect(0, 797 - 1080, 797); boundsInWindow: Rect(0, 797 - 1080, 797); packageName: com.android.systemui; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.samsung.android.app.aodservice:id/keyguard_aod_ui_container; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.935 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@10cb82; boundsInParent: Rect(0, 0 - 0, 56); boundsInScreen: Rect(127, 115 - 127, 171); boundsInWindow: Rect(127, 115 - 127, 171); packageName: com.android.systemui; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.samsung.android.app.aodservice:id/notification_icononly_area; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.947 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@1e1c9; boundsInParent: Rect(0, 0 - 0, 0); boundsInScreen: Rect(540, 0 - 540, 0); boundsInWindow: Rect(540, 0 - 540, 0); packageName: com.android.systemui; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.android.systemui:id/qs_new_blur_view; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.949 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@1d2c5; boundsInParent: Rect(0, 0 - 1080, 354); boundsInScreen: Rect(0, 0 - 1080, 354); boundsInWindow: Rect(0, 0 - 1080, 354); packageName: com.android.systemui; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.android.systemui:id/qs_gradation_view; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.957 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@cf3fc; boundsInParent: Rect(0, 0 - 1080, 0); boundsInScreen: Rect(0, 0 - 1080, 0); boundsInWindow: Rect(0, 0 - 1080, 0); packageName: com.android.systemui; className: android.widget.LinearLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.android.systemui:id/keyguard_slice_view; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.971 30823 30823 I AccessibilityNodeInfoDumper: Skipping invisible child: android.view.accessibility.AccessibilityNodeInfo@fcfff; boundsInParent: Rect(0, 0 - 0, 81); boundsInScreen: Rect(619, 2259 - 619, 2322); boundsInWindow: Rect(619, 2259 - 619, 2322); packageName: com.android.systemui; className: android.widget.FrameLayout; text: null; error: null; maxTextLength: -1; stateDescription: null; contentDescription: null; tooltipText: null; containerTitle: null; viewIdResName: com.samsung.android.app.aodservice:id/now_bar_parent_container; uniqueId: null; checkable: false; checked: false; focusable: false; focused: false; selected: false; clickable: false; longClickable: false; contextClickable: false; enabled: true; password: false; scrollable: false; granularScrollingSupported: false; importantForAccessibility: false; visible: false; actions: [AccessibilityAction: ACTION_SELECT - null, AccessibilityAction: ACTION_CLEAR_SELECTION - null, AccessibilityAction: ACTION_ACCESSIBILITY_FOCUS - null, AccessibilityAction: ACTION_SHOW_ON_SCREEN - null]; isTextSelectable: false
+08-22 22:12:24.972 30823 30823 W AccessibilityNodeInfoDumper: Fetch time: 82ms
+08-22 22:12:24.974  2636  5824 V AccessibilityManagerService: onUserStateChangedLocked for userId: 0, forceUpdate: false
+08-22 22:12:24.975  2636  5824 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accessibility_enabled
+08-22 22:12:24.976  2636  5824 D SettingsProvider: PUT_ret(/secure/accessibility_enabled), callingPackage:android
+08-22 22:12:24.976  2636  5824 D MagnificationConnectionManager: requestConnection :false mConnectionState : 3
+08-22 22:12:24.976  2636  5824 W MagnificationConnectionManager: requestConnection duplicated request: connect=false, mConnectionState=DISCONNECTED
+08-22 22:12:24.976  2636  5824 D AccessibilityManagerService: restoreCurrentUserForTestAutomationIfNeededLocked(): ignoring because device doesn't support visible background users
+08-22 22:12:24.978  2636  4016 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = accelerometer_rotation
+08-22 22:12:24.978  2636  4016 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = user_rotation
+08-22 22:12:24.979  2636  4016 V WindowManager: Computed rotation=ROTATION_0 (0) for display id=0 based on lastOrientation=SCREEN_ORIENTATION_NOSENSOR (5) and oldRotation=ROTATION_0 (0), caller=com.android.server.wm.WindowManagerService.updateRotationUnchecked:72 com.android.server.wm.WindowManagerService.thawDisplayRotation:113 com.android.server.wm.WindowManagerService.thawRotation:2 android.view.IWindowManager$Stub.onTransact:3013 com.android.server.wm.WindowManagerService.onTransact:1 android.os.Binder.execTransactInternal:1457 
+08-22 22:12:24.980  2636  2636 D BatterySaverPolicy: accessibility changed to false, updating policy.
+08-22 22:12:24.981  4389 25837 I HoneySpace.GlobalSettingDataSourceImpl: Setting accessibility_enabled changed to 0
+08-22 22:12:24.981 30823 30845 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+08-22 22:12:24.981 30823 30850 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+08-22 22:12:24.981 30823 30863 W IPCThreadState: call to talkWithDriver in joinThreadPool returned error: -9 (Bad file descriptor), FD: -1
+08-22 22:12:24.981 30823 30823 D AndroidRuntime: Shutting down VM
+08-22 22:12:24.986  2636  5827 W WindowManager: Cannot find window which accessibility connection is added to
+08-22 22:12:24.990  2636  4016 W WindowManager: Cannot find window which accessibility connection is added to
+08-22 22:12:24.993  1870  1870 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197 z=1} no children}] reparent to OffscreenRoot
+08-22 22:12:24.993  1870  1870 I SurfaceFlinger: [LayerHierarchy{RequestedLayerState{WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197 z=1} no children}] RelativeParent to null
+08-22 22:12:24.994  1870  1870 I SurfaceFlinger: id=1197 Removed WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197 (120)
+08-22 22:12:25.009  1870  1870 I SurfaceFlinger: destroyed WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197 form LifecycleManager
+08-22 22:12:25.009  1870  1870 I SurfaceFlinger: id=1197 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197 !handle z=1})
+08-22 22:12:25.010  1870  1870 I Layer   : id=1197 Destroyed WindowToken{aca2049 type=2032 android.os.Binder@c9a6650}#1197
+08-22 22:12:25.012  1815  1832 E BatteryDump: !@new_battery_dump : 3489,-213,100,100,5,399,362,404,399,0,399,444,0,Discharging,NO_CHARGING,None,Good,NONE,0,Normal,0,0,9300,0x40000000,0x10000,0x0,0,0,0000,0000,00000000,0,0,0,0,251,3478,503,980,0,
+08-22 22:12:25.018  2636  5804 D BatteryService: [processValuesLocked]batteryLevel:5 ,LastbatteryLevel:5 ,mPlugType:0 ,batteryStatus:3
+08-22 22:12:25.018  2636  5804 D BatteryService: [countBatteryChangedConditions]mBatteryChangedConditionCounts:[12, 1, 1, 334, 11, 405, 269, 0, 0, 10, 12, 0, 5, 0, 0, 1, 19, 11, 0, 0, 0, 1]
+08-22 22:12:25.018  2636  5804 D BatteryService: Sending ACTION_BATTERY_CHANGED: level:5, status:3, health:2, remain:0, ac:false, usb:false, wireless:false, pogo:false, misc:0x10000, charge_type:0, charger_type:0, voltage:3489, temperature:399, online:1, charging_status:0, cycle_count:0, current_avg:-242, ps:false, hvc:false, current_event:0x40000000, mcc:0, mcv:0, cc:195000, present:true, scale:100, technology:Li-ion, protection:0
+08-22 22:12:25.018  1815  1815 I sehhealth-service: updateLrpSysfs: write: 394
+08-22 22:12:25.019  2636  5804 D [SS]BattUtils: [readNode]path:/efs/FactoryApp/bsoh ,value:100.00
+08-22 22:12:25.022  3850  3850 I AODBatteryManager: updateBatteryData: ACTION_BATTERY_CHANGED: true, isSleepModeChanged:false ,isRemainingTimeChanged: false, isUSBRestriction: false
+08-22 22:12:25.022  3850  3850 I AODBatteryManager: getChargeEstimateTime: not charging
+08-22 22:12:25.022  3850  3850 I AODBatteryManager: saveBatteryData : AOD BatteryData [mBatteryLevel=5, mBatteryStatus=DISCHARGING, mBatteryPlugType=NOT_DEFINED, mBatteryPlugged=false, mRemainingChargeTime=0, mBatteryChargingType=0, mBatteryChargerType=NORMAL, mBatteryOnline=NONE, mBatterySwellingMode=NONE, mBatteryProtectMode=false, mBatteryProtectModeType=0, mSleepChargingEvent=null, mSleepChargingEventFinishTime=null, mBatteryHealth=2, mIsDirectPowerMode=false, mIsUsbRestriction=false]
+08-22 22:12:25.022  3850  3850 I PowerUI : mBootCompleted = true |  mFullyConnected = true
+08-22 22:12:25.022  3850  3850 I PowerUI : BATTERY_HEALTH_CHECK / batteryHealth : 2 / wirelessOverheat : false
+08-22 22:12:25.023  2636  3782 I DeviceBatteryInfoService: action: android.intent.action.BATTERY_CHANGED
+08-22 22:12:25.023  2636  3782 I DeviceBatteryInfoService: phone battery level: 5
+08-22 22:12:25.023  2636  3782 I DeviceBatteryInfoService: phone battery status: 3
+08-22 22:12:25.024  2636  5804 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = key_sleep_charging
+08-22 22:12:25.024  2636  5804 D KNOX_MDM_SettingsProvider: edmUri: content://com.sec.knox.provider/RestrictionPolicy3
+08-22 22:12:25.024  2636  5804 D KNOX_MDM_SettingsProvider: projectionArgs: isSettingsChangesAllowed
+08-22 22:12:25.024  2636  5804 D KNOX_MDM_SettingsProvider: selectionArgs: false
+08-22 22:12:25.024  2636  5804 D KNOX_MDM_SettingsProvider: selectionArgs: 10049
+08-22 22:12:25.024  2636  5804 D SecContentProvider: query(), uri = 17 selection = isSettingsChangesAllowed
+08-22 22:12:25.025  2636  5804 D SecContentProvider: called from android.uid.systemui:10049
+08-22 22:12:25.025  2636  5804 D RestrictionPolicy: isSettingsChangesAllowedAsUser, userId 0 : true
+08-22 22:12:25.025  2636  3508 D MotionRecognitionService: [SAR]  onReceive : ACTION_BATTERY_CHANGED, Plugged: 0
+08-22 22:12:25.025  2636  5804 D KNOX_MDM_SettingsProvider: ret = 1
+08-22 22:12:25.026  2636  5804 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = sleep_charging_finish_time
+08-22 22:12:25.026  2636  5804 D KNOX_MDM_SettingsProvider: edmUri: content://com.sec.knox.provider/RestrictionPolicy3
+08-22 22:12:25.026  2636  2636 D AdaptiveBrightnessLongtermModelBuilder[0]: Received android.intent.action.BATTERY_CHANGED
+08-22 22:12:25.026  2636  5804 D KNOX_MDM_SettingsProvider: projectionArgs: isSettingsChangesAllowed
+08-22 22:12:25.026  2636  5804 D KNOX_MDM_SettingsProvider: selectionArgs: false
+08-22 22:12:25.026  2636  5804 D KNOX_MDM_SettingsProvider: selectionArgs: 10049
+08-22 22:12:25.026  2636  5804 D SecContentProvider: query(), uri = 17 selection = isSettingsChangesAllowed
+08-22 22:12:25.026  2636  5804 D SecContentProvider: called from android.uid.systemui:10049
+08-22 22:12:25.027  2636  5804 D RestrictionPolicy: isSettingsChangesAllowedAsUser, userId 0 : true
+08-22 22:12:25.027  2636  5804 D KNOX_MDM_SettingsProvider: ret = 1
+08-22 22:12:25.027  3850  3850 D PowerUI : Skip charging animation - by Plug reason
+08-22 22:12:25.027  3850  3850 D PowerUI : Skip charging sound & vibrate - by Plug reason
+08-22 22:12:25.027  3850  3850 D PowerUI : oldMisalign : false, curMisalign : false
+08-22 22:12:25.028  2636  5804 D KNOX_MDM_SettingsProvider: isChangeAllowed() : name = ltc_highsoc_exceed_time
+08-22 22:12:25.028  2636  5804 D KNOX_MDM_SettingsProvider: edmUri: content://com.sec.knox.provider/RestrictionPolicy3
+08-22 22:12:25.028  2636  5804 D KNOX_MDM_SettingsProvider: projectionArgs: isSettingsChangesAllowed
+08-22 22:12:25.028  2636  5804 D KNOX_MDM_SettingsProvider: selectionArgs: false
+08-22 22:12:25.028  2636  5804 D KNOX_MDM_SettingsProvider: selectionArgs: 10049
+08-22 22:12:25.029  2636  5804 D SecContentProvider: query(), uri = 17 selection = isSettingsChangesAllowed
+08-22 22:12:25.029  2636  5804 D SecContentProvider: called from android.uid.systemui:10049
+08-22 22:12:25.029  2636  5804 D RestrictionPolicy: isSettingsChangesAllowedAsUser, userId 0 : true
+08-22 22:12:25.030  2636  5804 D KNOX_MDM_SettingsProvider: ret = 1
+08-22 22:12:25.031  3825  3825 D SemBigDataInfoController: Intent: android.intent.action.BATTERY_CHANGED
+08-22 22:12:25.032  3825  3825 D SemBigDataInfoController: Intent: android.intent.action.BATTERY_CHANGED
+08-22 22:12:25.033  3850  3850 D KeyguardUpdateMonitor: handleBatteryUpdate
+08-22 22:12:25.033  3850  3850 D SamsungBatteryMeterDrawable: onBatteryLevelChanged isSomethingChanged: false
+08-22 22:12:25.036  3850  3850 D SamsungBatteryMeterDrawable: onBatteryLevelChanged isSomethingChanged: false
+08-22 22:12:25.036  3850  3850 D SamsungBatteryMeterDrawable: onBatteryLevelChanged isSomethingChanged: false
+08-22 22:12:25.036  3850  3850 D SamsungBatteryMeterDrawable: onBatteryLevelChanged isSomethingChanged: false
+08-22 22:12:25.058  3850  3850 I SecKeyguardClockPositionAlgorithm: prepareClockContainerHeightChanging:
+08-22 22:12:25.059  3850  3850 I PluginFaceWidgetManager: isEditMode = false
+08-22 22:12:25.059  3850  3850 I NowBarItemManager: getVisibleList isScreenTurnedOn = false / aodShowState false shouldControlScreenOff false visibleList size = 0
+08-22 22:12:25.062  3850  3850 I SecKeyguardClockPositionAlgorithm: prepareClockContainerHeightChanging:
+08-22 22:12:25.062  3850  3850 I PluginFaceWidgetManager: isEditMode = false
+08-22 22:12:25.063  3850  3850 I NowBarItemManager: getVisibleList isScreenTurnedOn = false / aodShowState false shouldControlScreenOff false visibleList size = 0
+08-22 22:12:25.064  3850  3850 W View    : requestLayout() improperly called by com.android.systemui.qs.SecQSGradationDrawableView{cc1d3f6 V.E...... ......I. 0,0-1080,354 #7f0a0a16 app:id/qs_gradation_view} during layout: running second layout pass
+08-22 22:12:25.064  3850  3850 W View    : requestLayout() improperly called by android.widget.FrameLayout{36063f7 V.E...... ......I. 0,0-1080,2340 #2} during layout: running second layout pass
+08-22 22:12:25.064  3850  3850 W View    : requestLayout() improperly called by android.widget.FrameLayout{68a0264 V.E...... ......I. 0,153-1080,2196 #7f0a0a14 app:id/qs_frame} during layout: running second layout pass
+08-22 22:12:25.066  3850  3850 I SecKeyguardClockPositionAlgorithm: prepareClockContainerHeightChanging:
+08-22 22:12:25.067  3850  3850 I PluginFaceWidgetManager: isEditMode = false
+08-22 22:12:25.067  3850  3850 I NowBarItemManager: getVisibleList isScreenTurnedOn = false / aodShowState false shouldControlScreenOff false visibleList size = 0
+08-22 22:12:25.068  3850  3850 I SecKeyguardClockPositionAlgorithm: prepareClockContainerHeightChanging:
+08-22 22:12:25.069  3850  3850 I PluginFaceWidgetManager: isEditMode = false
+08-22 22:12:25.069  3850  3850 I NowBarItemManager: getVisibleList isScreenTurnedOn = false / aodShowState false shouldControlScreenOff false visibleList size = 0
+08-22 22:12:25.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451145
+08-22 22:12:25.107  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:25.107  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 399 
+08-22 22:12:25.107  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:25.107  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:25.107  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:25.107  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:25.107  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:25.306  2636  3696 I SemWifiServiceDetector: NSD results: [0, 1, 2, 0, 0, 1, 2, 0, 0] Traff. type 2 Thr 62
+08-22 22:12:25.710  4389  6075 I HoneySpace.Memory-Monitor: calTrimLevel propValue: 0
+08-22 22:12:25.711  4389  6075 I HoneySpace.Memory-Monitor: time diff = 10128
+08-22 22:12:25.711  4389  6075 I HoneySpace.MemoryAwait:  awaitJob is null, no need to proceed..
+08-22 22:12:25.712  4389 30283 I HoneySpace.Memory-Monitor: trimMemory 20
+08-22 22:12:25.954  5557  6039 I SDHMS:x : SIOP:: AP:412 BAT:399 USB:362 CHG:403 PA:406 CP:409 WIFI:416 CF:399 BLK:0 SUBBAT:0 SKIN:389 SKINF:386 SKINB:389 LRP:389 LRP2:389 LRF2:386 LRB2:389 AP2:389 CHG2:386 WIFI2:389 UANT2:387 RCV2:389 SPK2:359 FCAM:365 UPSPK:411 DNSPK:366 VAP02:458 VWIFI:439 AMB:374 AMB2:293 AVGCUR:-272 POWER:-949
+08-22 22:12:25.965  5557  5690 I M0      : limitCPUFreq:: freq = 2841600
+08-22 22:12:25.965  5557  5690 I SemDvfsHyPerManager: acquire hyper - SIOP_ARM_MAX/5557@3, type = 301993986
+08-22 22:12:25.965  1751  1812 I HYPER-HAL: [RequestManager.cpp]acquire(): Acquired ID : 15459583  [5557 / 3]    HINT :      list : [CPUMaxFreq / 2841600] 
+08-22 22:12:26.103  1861  1867 E HeatmapThread: ECT Thread time in milliseconds: 1787451146
+08-22 22:12:26.107  1861  1867 D HeatmapThread: !@ batteryplugType : 0
+08-22 22:12:26.107  1861  1867 D HeatmapThread: !@ batteryLevel : 5  batteryTemperature : 399 
+08-22 22:12:26.107  1861  1867 D HeatmapThread: !@ Heatmap currtime: 29790852
+08-22 22:12:26.107  1861  1867 D HeatmapThread: !@ Heatmap prevtime: 29790827
+08-22 22:12:26.107  1861  1867 D HeatmapThread: !@ Heatmap plugstarttime: 35791394
+08-22 22:12:26.107  1861  1867 D HeatmapThread: !@ Heatmap prevv_dsoh_update_time: 29790368
+08-22 22:12:26.108  1861  1867 E HeatmapThread: !@ CAM New BSOH: 100
+08-22 22:12:26.186 30871 30871 W screencap: Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: SurfaceFlingerAIDL
+08-22 22:12:26.186 30871 30871 W BpBinder: Linking to death on android.gui.ISurfaceComposer but there are no threads (yet?) listening to incoming transactions. See ProcessState::startThreadPool and ProcessState::setThreadPoolMaxThreadCount. Generally you should setup the binder threadpool before other initialization steps.
+08-22 22:12:26.187 30871 30871 W screencap: Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: edmnativehelper
+08-22 22:12:26.188  2636  5804 I EDMNativeHelperService: isScreenCaptureEnabled
+08-22 22:12:26.192  2636  5804 D RestrictionPolicy: isScreenCaptureEnabled : ret=true userId=0
+08-22 22:12:26.192 30871 30871 W ProcessState: Extra binder thread started, but 0 threads requested. Do not use *startThreadPool when zero threads are requested.
+08-22 22:12:26.192 30871 30871 I SurfaceComposerClient: captureDisplay:Display-4630947059332006275
+08-22 22:12:26.195  1870  2138 E HWComposer: getLuts: getLuts failed for display 4630947059332006275: UNSUPPORTED (8)
+08-22 22:12:26.196  1870  1965 D RenderEngine: [SEC_SF_EFFECTS] drawLayersInternal,1483, Rendering layer ScreenCaptureFillLayer at index 0
+08-22 22:12:26.267 30871 30872 I AdrenoUtils: <ReadGpuID:407>: Reading chip ID through GSL

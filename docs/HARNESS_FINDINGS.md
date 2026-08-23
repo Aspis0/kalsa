@@ -1627,6 +1627,90 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.41 MEASURED 2026-08-23: the 8B does not get killed — it gets thrashed, and it is the battery that ends the run
+
+First in-app kill-campaign arms on the S23 (Android 16, APK `073c489`, unplugged, disk 79 % — see
+the caveat at the end). Harness: `ci-bench.sh PHASE=fase4`, 16 turns, `COMPACTION=ciswire`.
+
+**Arm A, production config: the app refused, exactly as §7.11 predicted.** `modelGateVerdict`
+returned `blocked_ram` and the UI said "Memoria libera insufficiente per eseguirlo". §7.11 derived
+this on 2026-08-19 from the constants; this is the same verdict reached through the normal user
+path, with the engine never invoked. Measured at the refusal: `MemAvailable` 4022 MiB against a
+repack term of 4401 MiB, `RssAnon` 128 MB — no allocation was attempted.
+
+**§7.11 left one question open, and this answers it.** It flagged that `REPACK_FRACTION` is
+calibrated on a DENSE 2B, that an MoE with ~1B active may allocate far less, and that the gate
+would then be a **false negative** — refusing a model it could have run — invisible because a
+blocked load produces nothing to compare against. Setting `kalsa.bench.norepack=1` (repack term
+→ 0, non-evictable → 249 MiB) admits the model, so the counterfactual is now measurable.
+
+The model does run. It is unusable.
+
+| turn | tok/s | promptMs | RssFile | RssAnon | MemAvailable | majflt | battery |
+|---|---|---|---|---|---|---|---|
+| 1 | 0.27 | 33 916 | 1.96 G | 0.07 G | 4.24 G | 388 423 | 51 % |
+| 2 | 0.28 | 29 536 | 2.54 G | 0.05 G | 4.31 G | 622 584 | 44 % |
+| 3 | 0.26 | 6 499 | 2.35 G | 0.06 G | 4.26 G | 803 595 | 38 % |
+| 5 | 0.27 | **190 086** | 2.23 G | 0.06 G | 4.25 G | 1 400 146 | 23 % |
+| 6 | 0.29 | 4 777 | 2.31 G | 0.07 G | 4.29 G | 1 547 005 | 18 % |
+| 7 | 0.28 | 6 978 | 2.31 G | 0.07 G | 4.25 G | **1 738 800** | **11 %** |
+
+Three things this table says that the plan did not predict:
+
+1. **Nothing is ever short of memory.** `MemAvailable` is flat at ~4.25 GB from first turn to last.
+   No lmkd, no kill. §7.27's "lmkd at turn 8" is a different regime — that one had 0.92 GB available
+   and, by inference, repack ON making the footprint anonymous and unreclaimable.
+2. **Throughput does not decay** (0.26–0.29 across seven turns, against the 2.6B's −26 % over
+   sixteen). This is not thermal throttling; it is I/O. Major faults grow linearly at ~200 000 per
+   turn to 1.74 M. Of 4917 MiB of weights the kernel keeps only ~2.3 GB resident and re-reads the
+   rest, every token.
+3. **The cost is the battery: 51 % → 11 % in seven turns**, ~5.7 points per turn, ~1205 mA
+   sustained (against ~690 mA for the 2.6B). The arm ended when Android dozed the phone at 11 %,
+   and `ci-bench` refused to continue rather than time a sleeping device.
+
+So the gate's refusal is a false negative in the narrow sense §7.11 feared — the model *can* load —
+and substantively right anyway: what it refuses is 0.26 tok/s and a flat battery in an hour. **The
+right conclusion is not "loosen the gate". It is that the gate reaches a correct verdict through an
+arithmetic that does not describe this model**, and that stays true until `REPACK_FRACTION` is
+recalibrated on an MoE.
+
+**Arm C, LFM2.5-2.6B-QAD-Q4_0, first ever in-app measurement** (§9's starred gap is about the
+Q4_K_M, so this answers the neighbouring question, not that one). 16/16 turns, never in danger:
+`RssAnon` flat at ~1.8 G, `MemAvailable` 2.31 → 2.03 G.
+
+| turn | 1 | 5 | 9 | 12 | 16 |
+|---|---|---|---|---|---|
+| tok/s | 19.2 | 19.0 | 17.6 | 15.7 | **14.1** |
+| promptMs | 34 563 | 423 | 299 | 3 068 | 6 122 |
+| battery °C | 33.6 | 33.3 | 34.4 | 36.4 | 37.6 |
+
+**−26 % inside one session**, mean 17.2. Publishing turn 1 would have claimed 19.2, a rate the model
+does not hold. Two causes are confounded — growing context and 33.6 → 38.4 °C — and this data
+cannot separate them.
+
+The prefill row is its own lesson: 34.6 s cold, then **232–553 ms** for turns 2–11 because the
+recurrent prompt-state cache (160 MB, RAM, `rn-completion.h`) returns the prefix, then back to 3–17 s
+from turn 12 as the conversation outgrows it. Fast prefill here is work **skipped**, not work done
+quickly, and it stops being skipped.
+
+**Streaming glue: first execution on a phone, and it works.** Armed and bound on the KEXP, S23.
+Success is silent by design — llama.rn logs `kalsa moe stream:` only on failure — so the evidence is
+from the kernel: `RssAnon` 2.70 G against `RssFile` 72 MB (a mmap-resident model is the other way
+round: arm C ran at `RssFile` 942 MB), `read_bytes` climbing ~300 MB/s throughout decode, 16.7 GB
+read for a 3.33 GB model. The reply was coherent, which also rules out the decode-on-zeros path
+`44f6035` fixed by audit rather than by running it.
+
+⛔ **Arm E (8B + streaming) could not run, and the reason is structural.** `MoeStream::arm()` forces
+`no_extra_bufts = true` — streaming disables repack, because repack would change the byte layout the
+file offsets describe. The gate reads the `norepack` pref, not `moeStream`, so it charges the 8B
+4401 MiB for a repack that streaming would have removed, and refuses before the engine is reached.
+This is the "no streaming awareness in the gate" gap with a number on it.
+
+⚠️ **Two caveats on comparing these numbers to earlier ones.** The S23's disk went from 97 % to 79 %
+full between §7.27 and this run (21 GB of another line's models deleted), so this is a new series,
+not a continuation. And `kalsa.bench.norepack=1` was found already set on the phone at session
+start, left from an earlier run — every arm above states its own repack setting because of it.
+
 ### 7.40 MEASURED 2026-08-22: on a model that does NOT fit, streaming is 19.5x — and the drop policy is worth another 1.38-1.83x
 
 §7.39 measured streaming on an 8B that **fits** in 8 GB and found it loses. That result stands and
