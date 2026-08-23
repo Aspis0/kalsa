@@ -1,0 +1,6 @@
+sha256=D74D93B5B5FBA95A95018872B4CC7EB4058186B4A043CA3E92DA5C017FF133BA
+size=8730720
+device=192.168.1.82:35785
+dir=/data/local/tmp/kalsarepack
+march=armv8.2-a+dotprod+fp16
+result=PASS

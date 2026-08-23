@@ -1,0 +1,9 @@
+# Android arm64-v8a test-repack-q23k-m2 (NDK 27.1.12297006, platform 29, BUILD_SHARED_LIBS=OFF)
+# GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16  (no i8mm)
+# size=8730720
+D74D93B5B5FBA95A95018872B4CC7EB4058186B4A043CA3E92DA5C017FF133BA  test-repack-q23k-m2
+
+# Host Get-FileHash SHA256 (this file, 2026-08-23 15:01)
+# Device sha256sum /data/local/tmp/kalsarepack/test-repack-q23k-m2 (2026-08-23 post-run re-check)
+# Both sides: d74d93b5b5fba95a95018872b4cc7eb4058186b4a043ca3e92da5c017ff133ba
+# Device re-check rc=0
