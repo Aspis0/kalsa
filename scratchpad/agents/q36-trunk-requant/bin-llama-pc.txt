@@ -1,0 +1,14 @@
+ggml-base.dll`t645120`t8/21/2026 8:30:08 PM
+ggml-cpu.dll`t904192`t8/19/2026 3:05:41 PM
+ggml.dll`t67072`t8/14/2026 1:24:20 AM
+llama-bench-impl.dll`t867840`t8/21/2026 8:30:13 PM
+llama-bench.exe`t10752`t8/21/2026 8:30:13 PM
+llama-cli-impl.dll`t1678848`t8/10/2026 10:44:04 AM
+llama-cli.exe`t10752`t8/10/2026 10:44:04 AM
+llama-common.dll`t9255936`t8/21/2026 8:30:11 PM
+llama-server-impl.dll`t6822912`t8/10/2026 10:44:03 AM
+llama-server.exe`t10752`t8/10/2026 10:44:03 AM
+llama.dll`t2225152`t8/14/2026 1:24:52 AM
+mtmd.dll`t991744`t8/10/2026 10:38:31 AM
+test-backend-ops.exe`t920576`t8/14/2026 1:33:40 AM
+test-cpu-mmid-semantic.exe`t20480`t8/19/2026 3:05:44 PM

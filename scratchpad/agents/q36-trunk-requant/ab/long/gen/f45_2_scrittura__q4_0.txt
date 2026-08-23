@@ -1,0 +1,4 @@
+Ciao Marco,  
+Stiamo testando l’app di chat on-device su Samsung S23. Il modello utilizzato è un MoE quantizzato a circa 2.4 bit, con una velocità attesa di circa 5 token al secondo. Assicurati che lo schermo rimanga acceso durante il test: il processo rimane in foreground solo se lo schermo rimane attivo, altrimenti si arresta.  
+Annota: temperatura, consumo di batteria, e numero di token al secondo.  
+Grazie per la precisione.

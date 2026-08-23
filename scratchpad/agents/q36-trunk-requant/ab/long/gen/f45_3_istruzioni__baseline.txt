@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica richiede un approccio diverso rispetto a quella a batteria piena, poiché la tensione e la capacità disponibile sono significativamente inferiori, influenzando la stabilità e la durata delle operazioni. In condizioni di scarica profonda, i processori e i componenti hardware possono entrare in modalità di risparmio energetico, rallentando le operazioni e alterando i risultati di benchmark. Inoltre, la gestione termica e la capacità di risposta del sistema operativo cambiano drasticamente, rendendo i dati di prestazione non comparabili con quelli ottenuti in condizioni di carica completa.
+
+Quali parametri di calibrazione sono necessari per garantire la riproducibilità dei test in condizioni di bassa batteria?  
+Come si può mitigare l’effetto della variazione della tensione di alimentazione sulle misure di prestazione del sistema operativo?

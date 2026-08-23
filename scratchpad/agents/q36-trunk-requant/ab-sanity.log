@@ -1,0 +1,24 @@
+[2026-08-23T10:54:40-0400] q36 A/B suite=sanity tags=['baseline', 'q8_0', 'iq4_nl', 'q4_0'] prompts=['q1_f1_spa2000', 'q2_tabellina9', 'q3_regalo', 'q4_vocali'] ngen=300 k=6 drop=0.0
+[2026-08-23T10:54:40-0400] START baseline model=Marco-Mini-Instruct-KEXP.gguf n=4 ngen=300
+[2026-08-23T10:59:29-0400] q36 A/B suite=sanity tags=['baseline', 'q8_0', 'iq4_nl', 'q4_0'] prompts=['q1_f1_spa2000', 'q2_tabellina9', 'q3_regalo', 'q4_vocali'] ngen=300 k=6 drop=0.0
+[2026-08-23T10:59:29-0400] START baseline model=Marco-Mini-Instruct-KEXP.gguf n=4 ngen=300
+[2026-08-23T11:00:20-0400]   OK q1_f1_spa2000/baseline chars=860 tokens=287 tok_s=6.445 wall=50.9s
+[2026-08-23T11:01:04-0400]   OK q2_tabellina9/baseline chars=621 tokens=300 tok_s=7.241 wall=44.2s
+[2026-08-23T11:01:55-0400]   OK q3_regalo/baseline chars=1008 tokens=300 tok_s=6.42 wall=51.1s
+[2026-08-23T11:02:16-0400]   OK q4_vocali/baseline chars=344 tokens=138 tok_s=7.726 wall=20.8s
+[2026-08-23T11:02:17-0400] START q8_0 model=Marco-Mini-Instruct-KEXP-trunk-q8_0.gguf n=4 ngen=300
+[2026-08-23T11:03:13-0400]   OK q1_f1_spa2000/q8_0 chars=840 tokens=300 tok_s=6.02 wall=56.6s
+[2026-08-23T11:03:37-0400]   OK q2_tabellina9/q8_0 chars=305 tokens=153 tok_s=7.276 wall=23.7s
+[2026-08-23T11:04:27-0400]   OK q3_regalo/q8_0 chars=1059 tokens=300 tok_s=6.587 wall=49.7s
+[2026-08-23T11:04:48-0400]   OK q4_vocali/q8_0 chars=349 tokens=136 tok_s=7.415 wall=21.0s
+[2026-08-23T11:04:48-0400] START iq4_nl model=Marco-Mini-Instruct-KEXP-trunk-iq4_nl.gguf n=4 ngen=300
+[2026-08-23T11:05:40-0400]   OK q1_f1_spa2000/iq4_nl chars=893 tokens=300 tok_s=6.611 wall=51.6s
+[2026-08-23T11:06:25-0400]   OK q2_tabellina9/iq4_nl chars=613 tokens=300 tok_s=7.025 wall=45.5s
+[2026-08-23T11:07:13-0400]   OK q3_regalo/iq4_nl chars=1007 tokens=298 tok_s=6.865 wall=47.7s
+[2026-08-23T11:07:58-0400]   OK q4_vocali/iq4_nl chars=727 tokens=300 tok_s=7.141 wall=44.8s
+[2026-08-23T11:07:58-0400] START q4_0 model=Marco-Mini-Instruct-KEXP-trunk-q4_0.gguf n=4 ngen=300
+[2026-08-23T11:08:56-0400]   OK q1_f1_spa2000/q4_0 chars=871 tokens=300 tok_s=5.853 wall=57.4s
+[2026-08-23T11:09:40-0400]   OK q2_tabellina9/q4_0 chars=519 tokens=300 tok_s=7.184 wall=44.5s
+[2026-08-23T11:10:34-0400]   OK q3_regalo/q4_0 chars=1015 tokens=300 tok_s=6.066 wall=53.9s
+[2026-08-23T11:10:48-0400]   OK q4_vocali/q4_0 chars=194 tokens=81 tok_s=7.357 wall=13.8s
+[2026-08-23T11:10:49-0400] ANSWERS.md written C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q36-trunk-requant\ab\sanity\ANSWERS.md

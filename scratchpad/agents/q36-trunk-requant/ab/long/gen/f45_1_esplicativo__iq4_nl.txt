@@ -1,0 +1,5 @@
+Un modello Mixture-of-Experts (MoE) è composto da molti piccoli "esperti" che gestiscono parti diverse del linguaggio. Invece di avere un unico grande rete densa, MoE ha un "router" che seleziona gli esperti attivi per ogni token. Questo permette di avere un modello enorme (es. 35B parametri) ma di usare solo una frazione (es. 3B attivi per token), riducendo drasticamente la memoria richiesta.  
+
+Su uno smartphone da 8 GB RAM, un modello denso da 7B richiede circa 14 GB (perché 7B × 2 byte per parametro), superando la memoria disponibile. MoE, invece, usa solo 3B attivi → ~6 GB, lasciando spazio per altre app.  
+
+Il routing degli esperti è efficiente: il router è piccolo e leggero, e solo i token rilevanti vengono attivati. Lo streaming da flash è cruciale: i parametri non sono caricati tutti in memoria, ma caricati su richiesta, e i risultati vengono trasmessi in tempo reale, riducendo l’uso di RAM. Inoltre, i token non attivi non occupano memoria, rendendo MoE più pratico su dispositivi limitati.

@@ -1,0 +1,21 @@
+baseline bytes=6385238848 types={'F32': 141, 'Q5_K': 113, 'Q3_K': 28, 'Q2_K': 56}
+baseline trunk_bytes=228073472 expert_bytes=6121586688
+baseline expert_sha256=d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d
+
+== q8_0 ok=True ==
+  disk=6509642560 delta=124403712 (1.948%)
+  trunk=352477184 trunk_delta=124403712
+  types={'F32': 141, 'Q8_0': 113, 'Q3_K': 28, 'Q2_K': 56}
+  expert_sha_match=True
+
+== iq4_nl ok=True ==
+  disk=6343770944 delta=-41467904 (-0.649%)
+  trunk=186605568 trunk_delta=-41467904
+  types={'F32': 141, 'IQ4_NL': 113, 'Q3_K': 28, 'Q2_K': 56}
+  expert_sha_match=True
+
+== q4_0 ok=True ==
+  disk=6343770944 delta=-41467904 (-0.649%)
+  trunk=186605568 trunk_delta=-41467904
+  types={'F32': 141, 'Q4_0': 113, 'Q3_K': 28, 'Q2_K': 56}
+  expert_sha_match=True

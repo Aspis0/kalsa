@@ -1,0 +1,21 @@
+quantize_exe=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-quantize\bin\llama-quantize.exe exists=True size=10752 mtime=08/10/2026 10:24:50
+llama_cli=True 08/10/2026 10:44:04
+bmoe_cli=True size=349696 mtime=08/14/2026 01:58:57
+mellum_ppl_entry=bin
+mellum_ppl_entry=cli
+mellum_ppl_entry=CMakeFiles
+mellum_ppl_entry=core
+mellum_ppl_entry=third_party
+mellum_ppl_entry=.ninja_deps
+mellum_ppl_entry=.ninja_log
+mellum_ppl_entry=build.ninja
+mellum_ppl_entry=cmake_install.cmake
+mellum_ppl_entry=CMakeCache.txt
+mellum_ppl_entry=compile_commands.json
+exe=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\cli\bmoe-cli.exe size=349696 mtime=08/14/2026 01:58:57
+exe=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\CMakeFiles\3.31.6-msvc6\CompilerIdC\CMakeCCompilerId.exe size=108032 mtime=08/14/2026 01:57:25
+exe=C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-mellum-ppl\CMakeFiles\3.31.6-msvc6\CompilerIdCXX\CMakeCXXCompilerId.exe size=108032 mtime=08/14/2026 01:57:23
+---logs---
+answer-quality-ab.log size=6590 mtime=08/17/2026 23:49:01
+answer-sanity-ab.log size=2053 mtime=08/18/2026 00:07:56
+answer-sanity-marco-ab.log size=1591 mtime=08/18/2026 10:04:54

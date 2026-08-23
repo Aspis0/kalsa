@@ -1,0 +1,20 @@
+Ecco la tabellina del 9, completa di esempi e un po' di contesto:
+
+**9 × 1 = 9**  
+**9 × 2 = 18**  
+**9 × 3 = 27**  
+**9 × 4 = 36**  
+**9 × 5 = 45**  
+**9 × 6 = 54**  
+**9 × 7 = 63**  
+**9 × 8 = 72**  
+**9 × 9 = 81**  
+**9 × 10 = 90**
+
+### ✅ Esempi di utilizzo:
+- **9 × 4 = 36** → 36 è un numero che ha 3 e 6, e 3+6=9.  
+- **9 × 7 = 63** → 6+3=9, e 63 è un numero che si legge "63" come "6" e "3", e 6+3=9.  
+- **9 × 12 = 108** → 1+0+8=9, e 108 è un numero che ha 1, 0, 8, e 1+0+8=9.
+
+### 📌 Curiosità:
+- **9 × 10 = 90**

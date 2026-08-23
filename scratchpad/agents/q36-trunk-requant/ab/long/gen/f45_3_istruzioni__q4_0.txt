@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica è diverso dal misurarele a batteria piena perché la tensione di uscita e la capacità residua variano drasticamente, influenzando la precisione delle misure di corrente e potenza. A batteria scarica, la cella ha una resistenza interna più elevata, il che può portare a letture errate se non si considerano le condizioni di carica e la temperatura. Inoltre, la capacità effettiva misurata in condizioni di scarica profonda può essere inferiore rispetto a quella misurata a carica completa, rendendo la valutazione delle prestazioni più complessa.
+
+Quali parametri di misura sono più critici per valutare la salute della batteria in condizioni di scarica profonda?  
+Come si può garantire la ripetibilità delle misure quando si confrontano risultati a diversi livelli di carica?

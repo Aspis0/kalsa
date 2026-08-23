@@ -1,0 +1,4 @@
+Misurare le prestazioni a batteria scarica richiede un approccio diverso rispetto a quella piena, poiché la tensione e la capacità della batteria variano, influenzando la stabilità dei processori e la gestione dell’energia. In condizioni di scarica profonda, il sistema operativo può attivare meccanismi di risparmio energetico più aggressivi, riducendo le prestazioni per prolungare la vita della batteria. Inoltre, le applicazioni in background possono essere più attive, alterando i tempi di risposta e la latenza, che non si verificano a batteria piena.
+
+Qual è la durata media della batteria in condizioni di scarica profonda rispetto a quella piena?  
+Come si può garantire che le misure di prestazione siano ripetibili in condizioni di scarica profonda?

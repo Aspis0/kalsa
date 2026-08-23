@@ -1,0 +1,8 @@
+ffn_gate_exps=q2_k
+ffn_up_exps=q2_k
+ffn_down_exps=q3_k
+attn_q\.weight=iq4_nl
+attn_k\.weight=iq4_nl
+attn_v\.weight=iq4_nl
+attn_output\.weight=iq4_nl
+token_embd\.weight=iq4_nl

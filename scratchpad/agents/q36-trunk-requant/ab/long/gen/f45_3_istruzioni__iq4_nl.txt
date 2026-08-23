@@ -1,0 +1,3 @@
+Misurare le prestazioni a batteria scarica richiede di considerare un calo significativo della capacità effettiva, che può portare a risultati diversi rispetto a una misura a batteria piena, dove la capacità è massima e le condizioni di carico sono più stabili. La tensione di uscita e la temperatura possono variare drasticamente tra i due stati, influenzando la precisione delle misure. Inoltre, le applicazioni in uso a batteria scarica possono essere più stressanti per il sistema, alterando i parametri di prestazione come l’efficienza e la durata della batteria.  
+Qual è la differenza fondamentale tra le misure a batteria scarica e a batteria piena?  
+Come influisce la temperatura sulla misura delle prestazioni a batteria scarica?

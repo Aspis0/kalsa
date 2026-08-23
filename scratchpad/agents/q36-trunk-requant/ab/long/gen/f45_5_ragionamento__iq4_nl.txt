@@ -1,0 +1,7 @@
+La spiegazione più plausibile è **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+Infatti, il benchmark MoE ha mostrato un calo significativo di prestazioni (da 5.0 a 1.2 tok/s) senza variazioni di temperatura, il che esclude un throttling termico (A), che si manifesterebbe con un riscaldamento eccessivo o un calo di prestazioni legato a temperature elevate. Inoltre, la temperatura era simile, quindi non è un problema di riscaldamento.
+
+La quantizzazione del modello (C) potrebbe influenzare le prestazioni, ma il contesto non indica alcun cambiamento di configurazione, e un calo così drastico (da 5 a 1.2) è tipico di una riduzione del numero di core disponibili, non di un cambio di quantizzazione (che richiederebbe un'analisi dei pesi e un'ottimizzazione del modello).
+
+La soluzione più diretta è verificare se il processo è stato eseguito su un cpuset che ha solo 3 core little. Per farlo, si può controllare il file `/sys/devices/.../cpuset` o usare `cat /sys/devices/.../cpuset` e verificare la configurazione del nodo di esecuzione. In particolare, si può usare `cat /sys/devices/.../cpuset` e poi `cat /sys/devices/.../cpuset` per vedere se il processo è stato avviato su un nodo con solo 3 core little. In alternativa, si può usare `cat /sys/devices/.../cpuset` e verificare la configurazione del nodo di esecuzione tramite `cat /sys/devices/.../cpuset` o `cat /sys/devices/.../cpuset` e poi `cat /sys/devices/.../

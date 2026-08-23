@@ -1,0 +1,15 @@
+La parola **armadio** ha **5 vocali**:  
+**a, i, a, i, o**
+
+Ma attenzione: in italiano, le vocali sono **A, E, I, O, U** (e sometimes Y, ma non in questo caso).  
+Nella parola **armadio**, le vocali sono:
+
+- **a** (prima)
+- **i** (seconda)
+- **a** (terza)
+- **i** (quarta)
+- **o** (quinta)
+
+Quindi, ci sono **5 vocali**.
+
+> ✅ Risposta: **5 vocali**.

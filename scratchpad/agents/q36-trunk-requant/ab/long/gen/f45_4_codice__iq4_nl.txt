@@ -1,0 +1,26 @@
+def median_eval_tok_s(rows):
+    valid_values = []
+    for row in rows:
+        if row.get("nproc") is not None and row.get("nproc") >= 6:
+            if row.get("eval_tok_s") is not None:
+                valid_values.append(row["eval_tok_s"])
+    if not valid_values:
+        return None
+    valid_values.sort()
+    n = len(valid_values)
+    if n % 2 == 1:
+        return valid_values[n // 2]
+    else:
+        return (valid_values[n // 2 - 1] + valid_values[n // 2]) / 2
+
+if __name__ == "__main__":
+    data = [
+        {"eval_tok_s": 1.2, "nproc": 7},
+        {"eval_tok_s": 3.5, "nproc": 5},
+        {"eval_tok_s": 2.8, "nproc": 8},
+        {"eval_tok_s": 4.0, "nproc": 6},
+        {"eval_tok_s": None, "nproc": 9},
+        {"eval_tok_s": 5.0, "nproc": 10},
+    ]
+    result = median_eval_tok_s(data)
+    print(result)

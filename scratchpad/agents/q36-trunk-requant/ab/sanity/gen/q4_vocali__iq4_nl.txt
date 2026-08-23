@@ -1,0 +1,33 @@
+La parola **armadio** ha **5 vocali**: **a, i, o, i, o**.
+
+Ma attenzione: **le vocali sono A, I, O, I, O** → sono 5 vocali, ma **la lettera "i" è ripetuta** e **"o" è ripetuta**.
+
+Tuttavia, **la parola armadio ha 5 vocali** se contiamo le **lettere vocali** (A, I, O, I, O) → **5 vocali**.
+
+Ma in realtà, **la parola armadio ha 5 vocali?** Controlliamo:
+
+- A → sì  
+- R → consonante  
+- M → consonante  
+- A → sì  
+- I → sì  
+- D → consonante  
+- O → sì  
+
+Quindi: **A, A, I, O** → 4 vocali? Aspetta!
+
+**La parola è: A-R-M-A-I-D-O**
+
+Lettere:  
+A (vocale)  
+R (consonante)  
+M (consonante)  
+A (vocale)  
+I (vocale)  
+D (consonante)  
+O (vocale)
+
+Quindi vocali: **A, A, I, O** → **4 vocali**
+
+**Attenzione!**  
+La parola **"arm

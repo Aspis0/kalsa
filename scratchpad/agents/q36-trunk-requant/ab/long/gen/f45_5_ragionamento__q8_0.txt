@@ -1,0 +1,8 @@
+La spiegazione più plausibile è **(B) il processo è finito in un cpuset con solo 3 core little**.
+
+Infatti, il benchmark MoE ha mostrato un calo significativo da 5.0 a 1.2 tok/s, ma la temperatura è rimasta simile, escludendo un throttling termico (A). Inoltre, la quantizzazione del modello (C) non è stata menzionata come modificata, e non ci sono indizi di un cambiamento di configurazione del modello. La presenza di un cpuset con solo 3 core little (e non 8) spiega perfettamente la riduzione della capacità di elaborazione: se il processo è stato eseguito su un core set limitato, la CPU disponibile è inferiore, e quindi la throughput cala drasticamente, anche con temperatura costante.
+
+**Controllo concreto da fare**:  
+Controlla il cpuset attivo per il processo utilizzando `cat /sys/devices/system/cpu/cpuset/cpuset.mems` o `cat /sys/devices/system/cpu/cpuset/mems` e `cat /sys/devices/system/cpu/cpuset/cores` (o `cat /sys/devices/system/cpu/cpuset/cores` per il numero di core attivi). In particolare, usa `cat /sys/devices/system/cpu/cpuset/cores` e `cat /sys/devices/system/cpu/cpuset/mem` per verificare se il processo è stato eseguito su un cpuset con solo 3 core (es. `cores=3` o `mem=3`), e confronta con il valore attivo. Se il cpuset ha solo 3 core, allora il calo di throughput è spiegato da questa limitazione.
+
+In alternativa, usa `cat /sys/devices/system/cpu/cpuset/cores` e `cat /sys/devices/system/cpu/cpuset/cores` per verificare

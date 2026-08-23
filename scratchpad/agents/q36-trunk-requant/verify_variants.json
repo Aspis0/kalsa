@@ -1,0 +1,91 @@
+{
+  "baseline": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\models\\Marco-Mini-Instruct-KEXP.gguf",
+    "bytes_on_disk": 6385238848,
+    "n_tensors": 338,
+    "types": {
+      "F32": 141,
+      "Q5_K": 113,
+      "Q3_K": 28,
+      "Q2_K": 56
+    },
+    "trunk_bytes": 228073472,
+    "expert_bytes": 6121586688,
+    "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d"
+  },
+  "variants": {
+    "q8_0": {
+      "ok": true,
+      "bytes_on_disk": 6509642560,
+      "delta_vs_baseline": 124403712,
+      "delta_pct": 1.9483016213084343,
+      "trunk_bytes": 352477184,
+      "trunk_delta": 124403712,
+      "trunk_delta_pct_of_baseline_total": 1.9483016213084343,
+      "expert_bytes": 6121586688,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "expert_sha_match": true,
+      "types": {
+        "F32": 141,
+        "Q8_0": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "missing": [],
+      "extra": [],
+      "expert_type_mismatch": [],
+      "expert_nbytes_mismatch": [],
+      "trunk_type_bad": [],
+      "q5_k_remaining": []
+    },
+    "iq4_nl": {
+      "ok": true,
+      "bytes_on_disk": 6343770944,
+      "delta_vs_baseline": -41467904,
+      "delta_pct": -0.6494338737694781,
+      "trunk_bytes": 186605568,
+      "trunk_delta": -41467904,
+      "trunk_delta_pct_of_baseline_total": -0.6494338737694781,
+      "expert_bytes": 6121586688,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "expert_sha_match": true,
+      "types": {
+        "F32": 141,
+        "IQ4_NL": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "missing": [],
+      "extra": [],
+      "expert_type_mismatch": [],
+      "expert_nbytes_mismatch": [],
+      "trunk_type_bad": [],
+      "q5_k_remaining": []
+    },
+    "q4_0": {
+      "ok": true,
+      "bytes_on_disk": 6343770944,
+      "delta_vs_baseline": -41467904,
+      "delta_pct": -0.6494338737694781,
+      "trunk_bytes": 186605568,
+      "trunk_delta": -41467904,
+      "trunk_delta_pct_of_baseline_total": -0.6494338737694781,
+      "expert_bytes": 6121586688,
+      "expert_sha256": "d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d",
+      "expert_sha_match": true,
+      "types": {
+        "F32": 141,
+        "Q4_0": 113,
+        "Q3_K": 28,
+        "Q2_K": 56
+      },
+      "missing": [],
+      "extra": [],
+      "expert_type_mismatch": [],
+      "expert_nbytes_mismatch": [],
+      "trunk_type_bad": [],
+      "q5_k_remaining": []
+    }
+  },
+  "all_ok": true
+}

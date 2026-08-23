@@ -1,0 +1,16 @@
+Ecco la tabellina del 9, da 1 a 10:
+
+- 9 × 1 = 9  
+- 9 × 2 = 18  
+- 9 × 3 = 27  
+- 9 × 4 = 36  
+- 9 × 5 = 45  
+- 9 × 6 = 54  
+- 9 × 7 = 63  
+- 9 × 8 = 72  
+- 9 × 9 = 81  
+- 9 × 10 = 90  
+
+**Nota:** La tabellina del 9 ha un’altra curiosità: se scrivi i numeri da 1 a 9 e li sommi, il risultato è sempre 45, che è 9 × 5. Inoltre, se metti le dita di entrambe le mani e ti fai un “dito del 9” (cioè, se metti le dita a destra, le dita del 10 sono le dita delle mani), puoi contare i dita che sono a sinistra e a destra: 10 - 1 = 9, 10 - 2 = 8, ecc. — e così via. Ma non è necessario per la tabellina!  
+
+Se vuoi, pos

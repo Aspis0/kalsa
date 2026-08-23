@@ -1,0 +1,8 @@
+[2026-08-23T10:49:31] START real quantize 3 variants
+[2026-08-23T10:49:31] BEGIN q8_0 -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q36-trunk-requant\gguf\Marco-Mini-Instruct-KEXP-trunk-q8_0.gguf
+[2026-08-23T10:50:01] OK q8_0 rc=0 wall=29.4s bytes=6509642560 GiB=6.063
+[2026-08-23T10:50:01] BEGIN iq4_nl -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q36-trunk-requant\gguf\Marco-Mini-Instruct-KEXP-trunk-iq4_nl.gguf
+[2026-08-23T10:50:59] OK iq4_nl rc=0 wall=58.1s bytes=6343770944 GiB=5.908
+[2026-08-23T10:50:59] BEGIN q4_0 -> C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q36-trunk-requant\gguf\Marco-Mini-Instruct-KEXP-trunk-q4_0.gguf
+[2026-08-23T10:51:44] OK q4_0 rc=0 wall=45.0s bytes=6343770944 GiB=5.908
+[2026-08-23T10:51:44] DONE all 3 variants
