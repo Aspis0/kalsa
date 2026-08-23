@@ -1627,6 +1627,67 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.45 MECHANISM 2026-08-23: the KEXP was never too big — it was EVICTABLE. `use_mmap=false` turns 0.41 tok/s into 15.7, while taking 2.3x MORE major faults
+
+The engine team asked for a `use_mlock=true` A/B. **It is not runnable on this hardware, and it would
+have looked like a run.** `/proc/<pid>/limits` on the retail S23 reports `Max locked memory
+67108864` — 64 MB **soft AND hard**, so it cannot be raised without privilege — against a 3.33 GB
+model; and llama.cpp only *warns* when `mlock()` fails, then proceeds mmapped. That arm would have
+measured the mmap arm a second time and reported it as the locked one. `use_mmap=false` reaches the
+same property the request was really about — weights in **anonymous** memory, off the page-cache
+reclaim path — with no privilege. That is what ran.
+
+Arm `killB-kexp-nommap`: S23, unplugged, 16 turns, same model file, harness, plan, seed and
+production config as arm B in §7.43. ⚠️ **Not the same APK** — `b5e88cf` against §7.43's `073c489`.
+Diff scope, checked rather than assumed: `app.config.js` (minSdk 33), `weightsBytesPerToken` on five
+**dense** registry entries (the KEXP entry does not carry it), two artifact test files,
+`benchConfig.ts`, `engineParams.ts`. **No `native/`, no `patches/`, no `android/`.** `use_mmap` is
+forwarded only when explicitly present, so for this arm the one runtime delta is `use_mmap:false`.
+
+| | arm B mmap (§7.43) | arm B `use_mmap=false` |
+|---|---|---|
+| tok/s turn 1 | 11.06 | **21.27** |
+| tok/s turn 16 | **0.41** | **15.67** |
+| shape | bimodal 8.4–21.1, collapses from **turn 11** | monotone, **−26.3 %**, no bimodality |
+| RssAnon / RssFile @16 | 0.60 / **2.62 GB** | **3.35** / 0.07 GB |
+| VmSwap 1 → 16 | 121 → **811 MB** (6.7x) | 430 → **368 MB** (flat) |
+| majflt @16 | 534 715 | **1 221 925** |
+| wall clock, 16 turns | **3055 s** for 3744 tokens | **464 s** for 4528 tokens |
+| battery over the arm | 99→75 % (**904 mAh**) | 56→47 % (**338 mAh**) |
+| killed | no | no |
+
+**The verdict is eviction, not capacity.** The model fits: 3.35 GB resident anonymous plus 368 MB of
+zram on an 8 GB phone, sixteen turns, no lmkd kill, `MemFree` 0.10 GB throughout — the same
+uncomfortable floor as every other arm (§7.44). What broke the production arm was not that the
+weights were too many; it was that they were **file-backed and clean**, so the kernel was free to
+drop them and re-read them from UFS, over and over. Take that freedom away and the same recipe on the
+same phone answers **38x faster on the last turn** and burns **2.7x less battery** for **more**
+tokens.
+
+⛔ **`majflt` is NOT the thrashing metric, and §7.41/§7.43 leaned on it.** The fast arm took **2.29x
+more** major faults than the slow one. What differs is not the count but the **backing store**: an
+anonymous fault is a zram decompression, a file fault is a UFS random read. Thrash cost is
+count x per-fault latency, and the count alone gets the sign wrong. Read `majflt` next to
+`RssFile`/`VmSwap`, never on its own.
+
+**What it costs.** Turn-1 `promptMs` is 60 186 ms against 35 261 ms: `use_mmap=false` reads all
+3.33 GB up front, so the load pays ~25 s once. It also gives up the shared, instantly-reclaimable
+page cache — this is 3.35 GB the kernel cannot take back under pressure, which is exactly the point
+and exactly the risk. Nothing here says an unprivileged app *should* ship this way; it says the
+weights' residency, not their size, is what the KEXP regime turns on.
+
+**Consequence for the recipe.** The KEXP quantization recipe is **recoverable, and the block is
+named**: q2_K/q3_K have no ARM repack path, so llama.cpp leaves those tensors mapped from the file
+and the kernel treats the working set as disposable cache. A NEON repack kernel for q2_K/q3_K — the
+engine team's queued item #29 — moves them to anonymous repack buffers and reaches this arm's
+residency *without* surrendering mmap for the whole model. This arm is the evidence for ordering it.
+
+⚠️ Limits. n=1 per arm, one phone, one conversation plan. The two arms start at different SoC (99 %
+vs 56 %) and battery discharge is not linear in SoC, so the 2.7x energy figure is an order-of-
+magnitude claim, not a measurement of the same battery region. Probe recall was 20/22 against 16/22,
+but a collapsed arm truncates replies, so that is a symptom of the speed difference and not an
+independent quality result.
+
 ### 7.44 MECHANISM 2026-08-23: what decides thrashing is the quant's repackability, not the kernel — and MemAvailable was lying to us all night
 
 Two things were wrong in §7.41 and §7.43 as first written, and correcting them turns three separate
