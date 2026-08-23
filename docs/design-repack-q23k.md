@@ -103,6 +103,14 @@ Submit in this order: (1) generic pack/layout traits, identity oracle, exact sha
 
 Claim only measured facts: Q2 size neutrality, Q3 +0.125 bpw, exact supported shapes, reference equivalence, and device results with memory counters. Do not claim universal speedup, mmap preservation for full repack, int8-Q3 viability, i8mm benefit without data, or that `majflt` alone proves residency failure. Explain that PR #14373 accepted Q2 interleave only after architecture-specific evidence and restricted enablement because repack cost and mmap loss mattered; this ARM design addresses that economic objection explicitly rather than assuming the x86 result transfers.
 
+## 7b. Implementation addenda (v1 as built — decisions added during M3–M5, audited)
+
+1. **Batched 2-D `MUL_MAT` declined.** `supports_op` for 2-D `MUL_MAT` on the q23k traits additionally requires `src1->ne[2]==1 && src1->ne[3]==1` and dense `src1` `nb[0]/nb[1]`; a batched RHS falls back to the native path on native data (the weight is then not repacked for that graph). Added after the M4 audit found the compute only wrote batch 0.
+2. **Loud fence on declined ops.** If an op on a q23k-traited (tiled) tensor is reached by compute without an accepting `supports_op`, `traits.cpp` raises `GGML_ABORT("refusing native fallthrough on tiled layout")` instead of letting the native kernel read tiled bytes as canonical blocks (silent-wrong class, upstream issue #26537 family). Scoped by trait name; pre-existing traits (Q4_K…) keep upstream behavior.
+3. **`test-backend-ops` does not exercise the repack path** at this pin (cases allocate the default CPU buffer): the dedicated `test-repack-q23k-m5` harness is the engagement proof (asserts the tensor's extra name is `Q2_K_8x4`/`Q3_K_8x4` before compute).
+4. **M4 id-mode test semantics**: REPEATED = constant expert `n_as-1` across tokens; UNUSED = sparse selection that never picks `n_as-1`; RANDOM = seeded xorshift. Test constructs only.
+5. **M5 "model coverage" scope**: what ran is expert-level GEMV vs native dequant on real Marco KEXP tensors (gate/up Q2, down Q3, first 8 experts) — full-model logits A/B belongs to the device-validation phase.
+
 ## 8. Risks and mitigations
 
 1. **Q3 plane/scale corruption or signedness error.** Preserve `qs`, `hmask`, six-bit scale meaning, and bit order; use raw positive q with signed `sdot`; decode `s = scale_code - 32`; test `s * (dot(q,x)-4*bsum)` against dequant before benchmarking.
