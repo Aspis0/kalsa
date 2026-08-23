@@ -9,15 +9,31 @@ Decision by owner (gualt): **three repos, three roles** — no more vendored cop
 | llama.cpp fork | `Aspis0/kalsallama` (local: `BigMoeOnEdge\third_party\llama.cpp`) | The patched llama.cpp, marked "kalsallama". All lineages live here as real branches. |
 | Measurements | `Aspis0/kalsa-moe-experiments` (this repo) | Preregs, results, docs, PLAN/ALIVE, engine **bundles** as belt-and-braces backup (`backups/`). |
 
-## The two engine lineages (both in kalsallama)
+## ONE kernel, ONE branch: `main` (consolidated 2026-08-23, owner order)
 
-- **`kalsa/kernel-s3-repack`** — the Adreno OpenCL MoE kernel line (q2_K/q3_K MUL_MAT_ID,
-  the 4+1 E031 miscompile fixes, kalsakernel-v4). Everything GPU stacks on this branch.
-- **`kalsa/mmap-prefetch-opt`** — CPU-side line: the **expert-ready hook** for `mul_mat_id`
-  (introduced by `5236140e5`, 2026-07-11) + `mmap_prefetch` params (`206a8fe7f`, `e5605f3bd`).
-  This is the lineage the app's llama.rn patch mirrors (31 ggml lines, `lm_`-prefixed).
-  Note: the branch name `bmoe/expert-ready-hook` cited in early app-patch comments does
-  **not exist**; the real branch is this one.
+**`main` @ `9890d1054` is THE kernel.** Git proved the "two lineages" were in fact one
+linear chain — every historical branch tip was an ancestor of the same line:
+
+```
+mmap-prefetch-opt (expert-ready hook e5605f3bd, mirrored by the app's llama.rn patch)
+  → kernel-s1-expert-pack (CPU tall-GEMV fuse b8a78977d)
+  → kernel-s2-layer-fuse
+  → kernel-s3-repack (Adreno OpenCL q2_K/q3_K MoE kernels f700bf30c, 4+1 E031 fixes,
+    kalsakernel-v4) @ 1882bf8cd
+  → CPU repack q2_K/q3_K v1 (M0–M5, audited) @ 9890d1054 = main
+```
+
+The six redundant branch pointers (`kernel-s1/s2/s3`, `mmap-prefetch-opt`,
+`opencl-q6k-dispatch-fix`, `split-trunk-gpu`, plus the working branch `repack-q23k`)
+were **deleted** — all their commits remain reachable from `main`, zero loss.
+GitHub default branch is `main`.
+
+**Surviving branches:** `main` (the kernel — submodules point HERE), `master`
+(upstream mirror), `kalsa/mali-probe` (Mali probe, **never merge**),
+`kalsa/mld-gemv-m1` (unique content not in main — owner to decide keep/delete).
+
+Note: the branch name `bmoe/expert-ready-hook` cited in early app-patch comments never
+existed; the hook commits (`5236140e5`, `206a8fe7f`, `e5605f3bd`) are in `main`.
 
 ## What was removed
 
