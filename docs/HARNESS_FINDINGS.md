@@ -1637,22 +1637,39 @@ measured the mmap arm a second time and reported it as the locked one. `use_mmap
 same property the request was really about — weights in **anonymous** memory, off the page-cache
 reclaim path — with no privilege. That is what ran.
 
+⛔ **That 64 MB contradicted §7.39, which reports `Max locked memory: unlimited` on this project's
+other phone — and the resolution is that the limit is NOT a constant of Android.** Re-measured and
+this time **captured to a file** (`device-kill-campaign/evidence-limits/`), which the first reading
+was not:
+
+| | adb shell | `run-as` shell | the app process (zygote-spawned) |
+|---|---|---|---|
+| S23, SDK 33 | **67108864** | **67108864** | **67108864** (soft = hard) |
+| Jelly Star, SDK 33 | **unlimited** | **unlimited** | — |
+
+Both findings are true, for different hardware. ⚠️ But note what §7.39 actually sampled: the adb
+shell and a `run-as` shell, **never an app PID** — and `run-as` is spawned from the adb shell, so it
+inherits the shell's limits rather than reporting the app's. On the S23 that distinction happens not
+to matter (all three read 64 MB); on the Jelly it is untested and §7.39's "for the app process" is
+not supported by what it measured. **Consequence: an mlock strategy is per-phone, and any future
+mlock arm must read `/proc/<app-pid>/limits`, not `/proc/self/limits`.**
+
 Arm `killB-kexp-nommap`: S23, unplugged, 16 turns, same model file, harness, plan, seed and
 production config as arm B in §7.43. ⚠️ **Not the same APK** — `b5e88cf` against §7.43's `073c489`.
 Diff scope, checked rather than assumed: `app.config.js` (minSdk 33), `weightsBytesPerToken` on five
-**dense** registry entries (the KEXP entry does not carry it), two artifact test files,
+**dense** registry entries, two artifact test files,
 `benchConfig.ts`, `engineParams.ts`. **No `native/`, no `patches/`, no `android/`.** `use_mmap` is
 forwarded only when explicitly present, so for this arm the one runtime delta is `use_mmap:false`.
 
 | | arm B mmap (§7.43) | arm B `use_mmap=false` |
 |---|---|---|
 | tok/s turn 1 | 11.06 | **21.27** |
-| tok/s turn 16 | **0.41** | **15.67** |
-| shape | bimodal 8.4–21.1, collapses from **turn 11** | monotone, **−26.3 %**, no bimodality |
+| last measured tok/s | **0.41 — at turn 15** ⚠️ | **15.67** — turn 16 |
+| shape | bimodal 8.4–21.1, first collapse **turn 11**, recovery at 12 | **no bimodality**, −26.3 % end to end |
 | RssAnon / RssFile @16 | 0.60 / **2.62 GB** | **3.35** / 0.07 GB |
 | VmSwap 1 → 16 | 121 → **811 MB** (6.7x) | 430 → **368 MB** (flat) |
 | majflt @16 | 534 715 | **1 221 925** |
-| wall clock, 16 turns | **3055 s** for 3744 tokens | **464 s** for 4528 tokens |
+| wall clock, 16 turns | **3055 s** for 3744 tokens ⚠️ | **464 s** for 4528 tokens |
 | battery over the arm | 99→75 % (**904 mAh**) | 56→47 % (**338 mAh**) |
 | killed | no | no |
 
@@ -1661,14 +1678,36 @@ zram on an 8 GB phone, sixteen turns, no lmkd kill, `MemFree` 0.10 GB throughout
 uncomfortable floor as every other arm (§7.44). What broke the production arm was not that the
 weights were too many; it was that they were **file-backed and clean**, so the kernel was free to
 drop them and re-read them from UFS, over and over. Take that freedom away and the same recipe on the
-same phone answers **38x faster on the last turn** and burns **2.7x less battery** for **more**
-tokens.
+same phone answers **38x faster** on the slow arm's last *measured* turn and burns **2.7x less
+battery** for **more** tokens.
 
-⛔ **`majflt` is NOT the thrashing metric, and §7.41/§7.43 leaned on it.** The fast arm took **2.29x
-more** major faults than the slow one. What differs is not the count but the **backing store**: an
-anonymous fault is a zram decompression, a file fault is a UFS random read. Thrash cost is
-count x per-fault latency, and the count alone gets the sign wrong. Read `majflt` next to
-`RssFile`/`VmSwap`, never on its own.
+⚠️ **Two disclosures the table above needs, and did not carry when first written.** (1) **Turns 13
+and 16 of the mmap arm recorded no throughput at all** — no `predictedPerSecond`, no `promptMs`, no
+`tokensPredicted`, empty `telemetry.jsonl`. So its "turn 16" figure is turn **15**'s, its 3744-token
+total is the sum over the **14** turns that measured anything, and the 38x is 15.669/0.4136 —
+the fast arm's last turn against the slow arm's *second-to-last*. Both arms completed 16 turns; only
+one of them measured 16. (2) The mmap arm's telemetry stream holds a **turn-14 row that
+`result.json` dropped** (`promptMs 212 627.1`, `predictedPerSecond 1.0213`) — that orphan, not
+`result.json`, is where §7.43's and KALSA §2.1's "212 s prefill" comes from, while `result.json`'s
+own turn 14 says 5 619 ms. **The docs index turns by two different streams.** Neither disclosure
+changes the direction of the result; both change what the table may be quoted as saying.
+
+⛔ **`majflt` does not compare ACROSS backing stores — and §7.41/§7.43 compared cumulative counts
+across arms, which is the invalid direction.** The single sharpest pair, per turn:
+
+| | faults in that one turn | tok/s that turn |
+|---|---:|---|
+| no-mmap, turn 14 (**anonymous**) | **631 054** | **16.02 — healthy** |
+| mmap, turn 15 (**file-backed**) | 215 125 | **0.41 — destroyed** |
+
+Nearly three times the faults, no measurable harm. An anonymous fault is a zram decompression; a
+file fault is a UFS random read. **Within one arm the per-turn delta does track the collapse** — the
+mmap arm runs 388-5 843 faults per turn while healthy and 63 583 / 68 838 / 215 125 / 86 478 across
+turns 13-16 — so the metric is not useless, it is not *portable*. ⛔ The first version of this
+paragraph said "`majflt` is NOT the thrashing metric" and retired it outright. Too broad, and it was
+itself derived from a cumulative cross-arm comparison — the same error one level up. Use per-turn
+deltas within an arm; never rank two arms by fault count unless their weights are backed the
+same way.
 
 **What it costs.** Turn-1 `promptMs` is 60 186 ms against 35 261 ms: `use_mmap=false` reads all
 3.33 GB up front, so the load pays ~25 s once. It also gives up the shared, instantly-reclaimable
@@ -1688,7 +1727,7 @@ phone, `RssFile` turn 1 -> turn 16 against the decay:
 
 The two models that lost the **most** page cache were the least affected, and the one that lost
 almost none collapsed. Both dense models repack into anonymous buffers (`RssAnon` 1.75-1.88 GB
-against files of 1.28 and 1.67 GB), so their mapped file pages are a **duplicate** the kernel can
+against registry file sizes of **1.27 and 1.59 GB**), so their mapped file pages are a **duplicate** the kernel can
 drop for free — which is exactly what it did. The KEXP's unrepackable experts have no anonymous
 copy, so every dropped page is a UFS round-trip on the next token that routes to it.
 
@@ -1717,11 +1756,26 @@ and the kernel treats the working set as disposable cache. A NEON repack kernel 
 engine team's queued item #29 — moves them to anonymous repack buffers and reaches this arm's
 residency *without* surrendering mmap for the whole model. This arm is the evidence for ordering it.
 
+**Units, because this file is not consistent about them.** Every GB in §7.45 is **SI** — the kernel's
+`kB` (which is KiB) divided by 10^6. §7.44 and KALSA §2.1.1 print the *same* physical quantities in
+**GiB**: the identical turn-16 `RssFile` is "2.50 GB" in §7.44 and "2.62 GB" here, 4.9 % apart and
+both correct under their own convention. Every ratio in §7.45 is convention-invariant so nothing
+here changes — but **never compare a §7.45 GB figure against a §7.44 or KALSA one** without
+converting first.
+
 ⚠️ Limits. n=1 per arm, one phone, one conversation plan. The two arms start at different SoC (99 %
 vs 56 %) and battery discharge is not linear in SoC, so the 2.7x energy figure is an order-of-
 magnitude claim, not a measurement of the same battery region. Probe recall was 20/22 against 16/22,
 but a collapsed arm truncates replies, so that is a symptom of the speed difference and not an
-independent quality result.
+independent quality result. **Four more confounds, added after a hostile audit found the paragraph
+had not disclosed them:** (1) turns 13 and 16 of the mmap arm measured nothing, so "same 16 turns"
+is true of the plan and not of the data; (2) the two arms ran **3 h 47 min apart** (08:21 and 12:11)
+— different ambient, different phone state; (3) they started 2.4 °C apart (31.2 vs 33.6 °C) and
+ended 2.0 °C apart, too small to explain the result but not zero; (4) **the turn-1 gap is not
+explained by this mechanism at all** — at turn 1 both arms are fully resident, yet they read 11.06
+against 21.27, and the mmap arm itself reached 21.12 at turn 3. The flag demonstrably raised the
+**floor**; it is not established that it raised the **ceiling**, and something outside the flag
+separates the two runs before eviction can matter.
 
 ### 7.44 MECHANISM 2026-08-23: what decides thrashing is the quant's repackability, not the kernel — and MemAvailable was lying to us all night
 
@@ -2102,7 +2156,11 @@ locking would do.
 
 `KNOWN_ISSUES.md` and `engineLiveness.ts` both said mlock is fail-soft "(RLIMIT_MEMLOCK ≈ 64 KB)".
 **That reason is false here:** `/proc/self/limits` reports `Max locked memory: unlimited`, for the
-adb shell **and** for the app process under `run-as`. And mlock does take effect — system `Mlocked`
+adb shell **and** for the app process under `run-as`. ⛔ **CORRECTED 2026-08-23 (§7.45): this is a
+property of THIS phone, not of Android, and the sampling was wrong.** The S23 reports **67108864
+soft and hard** in all three contexts, captured to
+`device-kill-campaign/evidence-limits/`. And `run-as` is spawned from the adb shell, so it inherits
+the shell's limits — neither reading here ever sampled an app PID. Read `/proc/<app-pid>/limits`. And mlock does take effect — system `Mlocked`
 goes 4 912 → **215 932 kB** under `--load-mode mlock`, three thousand times the claimed ceiling.
 
 **But it locks ~211 MB, not the 1.67 GB model, so it cannot starve an 8 GB phone and the hypothesis
