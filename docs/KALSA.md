@@ -168,10 +168,22 @@ Nothing was killed on either phone. What ends a run is one of three other things
 | C — 2.6B-QAD, production | Jelly | 16/16 | plan complete, `MemAvailable` 2.35 GB, flat |
 | B — KEXP, production (mmap) | S23 | 16/16, **collapsed to 0.4–1.0 from turn 11** | plan complete; 535 k majflt, battery 99 → 75 % |
 | B — KEXP, production (mmap) | **Jelly** | 16/16, **8.16 → 4.22, never collapsed** | plan complete; **117 majflt**, RssFile flat, battery 97 → 84 % |
+| B — KEXP, **`use_mmap=false`** | **Jelly** | 16/16, **8.12 → 4.42 — the flag changed NOTHING** | plan complete; 903 s against mmap's 898 s, battery 81 → 68 % |
 | B — KEXP, **`use_mmap=false`** | S23 | 16/16, **21.3 → 15.7, −26 %, no bimodality** | plan complete; 1 222 k majflt, battery 56 → 47 % |
 | D — Qwen3.5-2B, production (hot start 40.7 °C) | S23 | 16/16, **the most stable arm** (−10.8 %) | plan complete; 10 675 majflt, battery 73 → 62 % |
 | D — Qwen3.5-2B, **cold start 33.9 °C** | S23 | 16/16, **−11.4 %**, median 17.31 | plan complete; **747 majflt**, battery 45 → 34 % |
 | E — 8B-A1B + streaming | S23 | **could not be run** | the gate refuses the model for a repack cost that streaming removes |
+
+⭐ **A second phone turned the finding into a controlled test (§7.47, §7.48).** The Jelly runs the
+same KEXP arm and **never evicts** — `RssFile` flat at 3.396 GB, **117 major faults in the whole
+run** against the S23's 534 715 — and it **never collapses**. Then `use_mmap=false` on the Jelly,
+predicted in advance to do nothing, **did nothing**: 903 s against mmap's 898 s, where the same flag
+on the S23 was 3055 s → 464 s. Same model, same binary, same plan: **6.6x on the phone that evicts,
+1.006x on the phone that does not.** ⛔ So the flag is **not a setting, it is a response to a
+measured condition** — shipping it unconditionally costs ~25 s of load and 3.3 GB of reclaimable
+cache on every phone that did not need it. ⛔ And a second degradation was being folded into the
+first: the Jelly lost a third of its rate (7.02 → 4.65 at matched generation length) with **zero**
+eviction. Context growth hits every arm; only the eviction collapse is the flag's business.
 
 ⭐ **The KEXP was never too big for the phone — it was evictable (§7.45).** The same recipe, same
 phone, same 16 turns, one flag changed: with the weights in **anonymous** memory instead of mapped

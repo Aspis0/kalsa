@@ -1627,6 +1627,89 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.49 INSTRUMENT 2026-08-23: `result.json` told us it had dropped two turns and misattributed a third, in a field nobody read
+
+While checking §7.45 after a hostile audit, `device-kill-campaign/armB-kexp-production/result.json`
+turned out to carry this, at top level, since the day it was written:
+
+```json
+"notes": ["no telemetry sidecar found for 2 turn(s)",
+          "turn 12: telemetry attribution fell back to first group",
+          "turn 14: telemetry attribution fell back to first group"]
+```
+
+**The harness was honest. §7.43 read `turns[]` and not `notes[]`, and §7.45 repeated the omission.**
+Mapping every `turn<N>/telemetry.jsonl` back against the graded rows:
+
+| dir | telemetry rows | `result.json` reports |
+|---|---|---|
+| 11 | `turnId 11` → 0.92 | 0.92 ✓ |
+| 12 | `turnId 12` → **0.99**, then 15.55 | 15.55 (last round of a 2-round tool turn) ✓ |
+| 13 | **empty** | `null` |
+| 14 | **`turnId 13` → 0.61**, `turnId 14` → **1.02** | **0.61 — that is engine turn 13** |
+| 15 | `turnId 15` → 0.41 | 0.41 ✓ |
+| 16 | **empty** | `null` |
+
+`benchGrade.mjs` takes the last round of the **first** turnId group and counts the rest in
+`extraCompletions` (1 on turn 14) plus a note. So the engine's turn 14 — **1.02 tok/s with a
+212 627 ms prefill** — exists on disk and appears in no graded row. §7.43's turn-by-turn list happens
+to show `1.0` in that slot because it was read from telemetry; `result.json` shows `0.61`. **Two
+documents in this repo disagreed about the same turn and both were quoting real data.**
+
+**Scope, measured rather than feared.** Across all seven saved arms, a directory containing rows for
+**two different engine turns happens exactly once** — this one. Empty sidecars: two, both here.
+Multi-round turns (several completions of the *same* turn) are common and normal — 0 to 7 per arm —
+but they mean a per-turn `predictedPerSecond` is the **last round's rate**, not the turn's aggregate,
+wherever `rounds > 1`.
+
+**Corrected engine-side series for the collapse region:** 0.92 · (0.99 → 15.55) · **0.61** · **1.02**
+· 0.41. The collapse is *more* consistent than the graded table showed, not less — the only recovery
+is one completion inside a two-round tool turn. §7.45's direction is unaffected and slightly
+strengthened; only the per-turn labels move.
+
+⭐ **The rule this earns: read `notes[]` before quoting `turns[]`.** Twice today the correct value
+was already on disk and the error was in the reading — once here, and once from sampling a
+`turn<N>/telemetry.jsonl` while turn N was still running, which returns the previous turn's row.
+Never read a per-turn sidecar mid-run; wait for the graded file.
+
+### 7.48 FALSIFIED-AND-SURVIVED 2026-08-23: `use_mmap=false` does NOTHING on the phone that never evicts — the prediction was written before the run
+
+§7.45 claims the flag works by keeping weights off the reclaim path. If that is the mechanism, then
+on the Jelly — which §7.47 showed never evicts a page — the flag must do **nothing**. That
+prediction was recorded before launching. Arm `jellyB-kexp-nommap`: same phone, same APK `b5e88cf`,
+same plan, same seed, cooled to 32 °C, unplugged from 81 %, `USE_MMAP=false` the only change.
+
+| | S23 | Jelly |
+|---|---|---|
+| does it evict? | **yes** — `RssFile` 2.78 → 2.62 GB, 534 715 majflt | **no** — flat 3.396 GB, 117 majflt |
+| whole plan, mmap | **3055 s** | 898 s |
+| whole plan, `use_mmap=false` | **464 s** | **903 s** |
+| effect of the flag | **6.6x faster** | **1.006x — nothing** |
+
+The flag did take effect: `RssAnon` 3.70 GB against `RssFile` 0.13 GB, so the weights really are
+anonymous. It simply bought nothing. Turn 6 generated **exactly 165 tokens in both arms** — the
+cleanest possible pair, no length confound — and reads **7.41 mmap against 7.23 no-mmap**, the flag
+2.4 % *behind*. Neither arm was killed; the Jelly held 3.70 GB of unreclaimable anonymous memory for
+sixteen turns without lmkd intervening.
+
+**Same intervention, same model, same binary: a 6.6x effect on the phone that evicts and no effect
+on the phone that does not.** That is as close to a controlled test of the mechanism as this lab can
+run, and §7.45 survives it. It also disposes of the obvious alternative explanations — the flag is
+not "faster because anonymous memory is faster", not a load-order artifact, not a code path that is
+simply better: on the Jelly all of those would still have shown up, and none did.
+
+⛔ **Corollary for shipping, sharper than §7.45's.** The flag is worth nothing on a phone with
+headroom and worth 6.6x on a phone without — so it is not a setting, it is a **response to a
+measured condition**. Shipping it unconditionally would buy ~25 s of load time on every device that
+did not need it, in exchange for surrendering 3.3 GB of reclaimable cache. And on this pair the
+condition that decides it is ~0.7 GB of `MemTotal`.
+
+⚠️ Limits. n=1 per arm. The two phones differ in more than RAM, so "0.7 GB decides it" is the
+plausible reading, not the measured one — the arm that would measure it shrinks the Jelly's
+available memory to the S23's and has not been run. Both Jelly arms carry one
+`telemetry attribution fell back to first group` note on turn 12 (§7.49); it is a two-round tool
+turn in both, so the comparison at that turn is like-for-like.
+
 ### 7.47 MECHANISM 2026-08-23: the second phone confirms eviction BY NOT DOING IT — and separates two degradations that were being reported as one
 
 Arm `jellyB-kexp-production`: the Jelly Star, KEXP, production config, unplugged from 97 %, 16/16
@@ -1791,10 +1874,10 @@ and 16 of the mmap arm recorded no throughput at all** — no `predictedPerSecon
 `tokensPredicted`, empty `telemetry.jsonl`. So its "turn 16" figure is turn **15**'s, its 3744-token
 total is the sum over the **14** turns that measured anything, and the 38x is 15.669/0.4136 —
 the fast arm's last turn against the slow arm's *second-to-last*. Both arms completed 16 turns; only
-one of them measured 16. (2) The mmap arm's telemetry stream holds a **turn-14 row that
-`result.json` dropped** (`promptMs 212 627.1`, `predictedPerSecond 1.0213`) — that orphan, not
-`result.json`, is where §7.43's and KALSA §2.1's "212 s prefill" comes from, while `result.json`'s
-own turn 14 says 5 619 ms. **The docs index turns by two different streams.** Neither disclosure
+one of them measured 16. (2) **`result.json`'s turn-14 row is engine turn 13**, and the
+engine's real turn 14 (1.02 tok/s, `promptMs` 212 627) appears in no graded row — the harness said so
+in a `notes[]` field neither §7.43 nor this section read. Full account and scope in **§7.49**;
+corrected engine-side series 0.92 · (0.99 → 15.55) · 0.61 · 1.02 · 0.41. Neither disclosure
 changes the direction of the result; both change what the table may be quoted as saying.
 
 ⛔ **`majflt` does not compare ACROSS backing stores — and §7.41/§7.43 compared cumulative counts
