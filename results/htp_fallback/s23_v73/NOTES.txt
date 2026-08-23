@@ -1,0 +1,50 @@
+s23_v73 silent-CPU-fallback re-test  (q31 flag set, HOSTBUF=1)
+serial: adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp  (dm1q / SM-S911U / v73)
+Xiaomi: not on adb this session. Jelly listed, NOT touched.
+
+PLUG (current dumpsys at run, not the event log):
+  UNPLUGGED  AC=USB=Wireless=Dock=false  status=3 discharging
+  level 100% start = 100% end
+  temp 28.5C -> 29.0C
+  (earlier in the session the phone had been AC=true/status=5 full; unplugged before this cell)
+
+SHA vs q28/q30/q31 MANIFEST  MATCH
+  llama-bench            5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507
+  libggml-hexagon.so     f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448
+  libggml-htp-v73.so     c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5
+  libllama.so            1538010abebf249ddaccfa44e1c1d22b995c6174c5b62d434e471daa80a291ab
+  model Qwen3.5-4B-Q4_0  298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb
+  workdir /data/local/tmp/kalsahtp  (model in workdir root, not models/)
+
+HOSTBUF: GGML_HEXAGON_HOSTBUF=1  (q31 phase-2/3 env, same as q30; MATCHED)
+also: NDEV=1 VERBOSE=1 ADSP/CDSP=workdir
+  LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64
+
+FLAGS (q31 llama-bench set, -r 1, both -v):
+  -m Qwen3.5-4B-Q4_0.gguf -p 512 -n 0 -r 1 --load-mode none -fa on --ubatch-size 1024
+  -ngl 99 -dev HTP0
+  A: --no-host 1
+  B: no --no-host
+  nseq=1 (llama-bench default)
+
+RESULTS  rc=0 both  no hang
+  A WITH    --no-host 1 :  117.07 t/s   noh=1   err 4.55 MB
+  B WITHOUT --no-host   :  128.42 t/s           err 4.55 MB
+
+  BOTH A and B:
+    load_tensors HTP0-REPACK model buffer = 1787.12 MiB
+    execute-op MUL_MAT|blk.0.attn_qkv.weight ... q4_0 ... |HTP0-REPACK x HTP0 -> HTP0|hmx-tiled
+  B is NOT CPU-class (~24). B is HTP-class (above q31 HTP median 84).
+
+q31 had claimed proof1/proof2 without --no-host had no execute-op and ~78-92 t/s
+  (discarded as silent CPU). This re-test with -v + HOSTBUF=1 shows execute-op present
+  in B and 128 t/s. 78-92 already overlapped HTP 84 more than CPU 24; likely a
+  logging/classification miss, not a v73-only trap.
+
+VERDICT: trap refuted-everywhere
+  houji v75 (round 3): A 116.84 / B 109.51, execute-op in both
+  s23  v73 (this)   : A 117.07 / B 128.42, execute-op in both
+  --no-host is not required for HTP0-REPACK + execute-op on either device
+  under the q31 env (HOSTBUF=1).
+
+files: runA.{out,err,rc,meta} runB.{out,err,rc,meta} sha256_device.txt battery_start.txt battery_end.txt
