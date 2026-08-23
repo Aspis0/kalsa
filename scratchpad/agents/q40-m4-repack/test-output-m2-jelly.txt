@@ -1,0 +1,132 @@
+M2 GEMV starting
+M2 GEMV host neon=1 dotprod=1
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+kernel vs dequant-fp32(W)*dequant-fp32(q8_K(A)); tol = 1e-4*(1+max|ref|)
+== geometry pin ==
+  ok Q2 e=2 t=1 offset=3360 (stride=1344 tile=672)
+== GEMV vs fp32 dequant-dot ==
+  ok pattern q2_K 256x8x1
+  ok neg-bsum q2_K 256x8x1
+  ok random q2_K 256x8x1
+  ok pattern q2_K 256x8x3
+  ok neg-bsum q2_K 256x8x3
+  ok random q2_K 256x8x3
+  ok pattern q2_K 256x16x1
+  ok neg-bsum q2_K 256x16x1
+  ok random q2_K 256x16x1
+  ok pattern q2_K 256x16x3
+  ok neg-bsum q2_K 256x16x3
+  ok random q2_K 256x16x3
+  ok pattern q2_K 256x32x1
+  ok neg-bsum q2_K 256x32x1
+  ok random q2_K 256x32x1
+  ok pattern q2_K 256x32x3
+  ok neg-bsum q2_K 256x32x3
+  ok random q2_K 256x32x3
+  ok pattern q2_K 512x8x1
+  ok neg-bsum q2_K 512x8x1
+  ok random q2_K 512x8x1
+  ok pattern q2_K 512x8x3
+  ok neg-bsum q2_K 512x8x3
+  ok random q2_K 512x8x3
+  ok pattern q2_K 512x16x1
+  ok neg-bsum q2_K 512x16x1
+  ok random q2_K 512x16x1
+  ok pattern q2_K 512x16x3
+  ok neg-bsum q2_K 512x16x3
+  ok random q2_K 512x16x3
+  ok pattern q2_K 512x32x1
+  ok neg-bsum q2_K 512x32x1
+  ok random q2_K 512x32x1
+  ok pattern q2_K 512x32x3
+  ok neg-bsum q2_K 512x32x3
+  ok random q2_K 512x32x3
+  ok pattern q2_K 1024x8x1
+  ok neg-bsum q2_K 1024x8x1
+  ok random q2_K 1024x8x1
+  ok pattern q2_K 1024x8x3
+  ok neg-bsum q2_K 1024x8x3
+  ok random q2_K 1024x8x3
+  ok pattern q2_K 1024x16x1
+  ok neg-bsum q2_K 1024x16x1
+  ok random q2_K 1024x16x1
+  ok pattern q2_K 1024x16x3
+  ok neg-bsum q2_K 1024x16x3
+  ok random q2_K 1024x16x3
+  ok pattern q2_K 1024x32x1
+  ok neg-bsum q2_K 1024x32x1
+  ok random q2_K 1024x32x1
+  ok pattern q2_K 1024x32x3
+  ok neg-bsum q2_K 1024x32x3
+  ok random q2_K 1024x32x3
+  ok pattern q3_K 256x8x1
+  ok neg-bsum q3_K 256x8x1
+  ok random q3_K 256x8x1
+  ok pattern q3_K 256x8x3
+  ok neg-bsum q3_K 256x8x3
+  ok random q3_K 256x8x3
+  ok pattern q3_K 256x16x1
+  ok neg-bsum q3_K 256x16x1
+  ok random q3_K 256x16x1
+  ok pattern q3_K 256x16x3
+  ok neg-bsum q3_K 256x16x3
+  ok random q3_K 256x16x3
+  ok pattern q3_K 256x32x1
+  ok neg-bsum q3_K 256x32x1
+  ok random q3_K 256x32x1
+  ok pattern q3_K 256x32x3
+  ok neg-bsum q3_K 256x32x3
+  ok random q3_K 256x32x3
+  ok pattern q3_K 512x8x1
+  ok neg-bsum q3_K 512x8x1
+  ok random q3_K 512x8x1
+  ok pattern q3_K 512x8x3
+  ok neg-bsum q3_K 512x8x3
+  ok random q3_K 512x8x3
+  ok pattern q3_K 512x16x1
+  ok neg-bsum q3_K 512x16x1
+  ok random q3_K 512x16x1
+  ok pattern q3_K 512x16x3
+  ok neg-bsum q3_K 512x16x3
+  ok random q3_K 512x16x3
+  ok pattern q3_K 512x32x1
+  ok neg-bsum q3_K 512x32x1
+  ok random q3_K 512x32x1
+  ok pattern q3_K 512x32x3
+  ok neg-bsum q3_K 512x32x3
+  ok random q3_K 512x32x3
+  ok pattern q3_K 1024x8x1
+  ok neg-bsum q3_K 1024x8x1
+  ok random q3_K 1024x8x1
+  ok pattern q3_K 1024x8x3
+  ok neg-bsum q3_K 1024x8x3
+  ok random q3_K 1024x8x3
+  ok pattern q3_K 1024x16x1
+  ok neg-bsum q3_K 1024x16x1
+  ok random q3_K 1024x16x1
+  ok pattern q3_K 1024x16x3
+  ok neg-bsum q3_K 1024x16x3
+  ok random q3_K 1024x16x3
+  ok pattern q3_K 1024x32x1
+  ok neg-bsum q3_K 1024x32x1
+  ok random q3_K 1024x32x1
+  ok pattern q3_K 1024x32x3
+  ok neg-bsum q3_K 1024x32x3
+  ok random q3_K 1024x32x3
+== thread identity (ggml graph M==1) ==
+  ok q2_K threads 1/2/4/8 bit-identical
+  ok q3_K threads 1/2/4/8 bit-identical
+== declined op on q23k extra must abort (not native garbage) ==
+  ok helper: nullptr extra is not q23k
+  ok abort on declined F16-RHS MUL_MAT_ID: C:/Users/gualt/Desktop/Kalsa/moe-experiments/worktree-repack-q23k/ggml/src/ggml-cpu/traits.cpp:26: q23k_8x4 extra declined op=MUL_MAT_ID; refusing native fallthrough on tiled layout
+
+RESULT: PASS
+RC=0

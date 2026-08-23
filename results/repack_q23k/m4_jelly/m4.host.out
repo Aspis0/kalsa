@@ -1,0 +1,82 @@
+M4 MUL_MAT_ID starting
+M4 host neon=0 dotprod=0
+== MUL_MAT_ID kernel vs expert-by-expert 2-D oracle ==
+  ok pattern q2_K nas=2 tok=1 used=2 random
+  ok pattern q2_K nas=2 tok=1 used=2 repeated
+  ok pattern q2_K nas=2 tok=1 used=2 unused
+  ok pattern q2_K nas=2 tok=2 used=2 random
+  ok pattern q2_K nas=2 tok=2 used=2 repeated
+  ok pattern q2_K nas=2 tok=2 used=2 unused
+  ok pattern q2_K nas=2 tok=7 used=2 random
+  ok pattern q2_K nas=2 tok=7 used=2 repeated
+  ok pattern q2_K nas=2 tok=7 used=2 unused
+  ok pattern q2_K nas=2 tok=16 used=2 random
+  ok pattern q2_K nas=2 tok=16 used=2 repeated
+  ok pattern q2_K nas=2 tok=16 used=2 unused
+  ok pattern q2_K nas=3 tok=1 used=2 random
+  ok pattern q2_K nas=3 tok=1 used=2 repeated
+  ok pattern q2_K nas=3 tok=1 used=2 unused
+  ok pattern q2_K nas=3 tok=2 used=2 random
+  ok pattern q2_K nas=3 tok=2 used=2 repeated
+  ok pattern q2_K nas=3 tok=2 used=2 unused
+  ok pattern q2_K nas=3 tok=7 used=2 random
+  ok pattern q2_K nas=3 tok=7 used=2 repeated
+  ok pattern q2_K nas=3 tok=7 used=2 unused
+  ok pattern q2_K nas=3 tok=16 used=2 random
+  ok pattern q2_K nas=3 tok=16 used=2 repeated
+  ok pattern q2_K nas=3 tok=16 used=2 unused
+  ok pattern q2_K nas=5 tok=1 used=2 random
+  ok pattern q2_K nas=5 tok=1 used=2 repeated
+  ok pattern q2_K nas=5 tok=1 used=2 unused
+  ok pattern q2_K nas=5 tok=2 used=2 random
+  ok pattern q2_K nas=5 tok=2 used=2 repeated
+  ok pattern q2_K nas=5 tok=2 used=2 unused
+  ok pattern q2_K nas=5 tok=7 used=2 random
+  ok pattern q2_K nas=5 tok=7 used=2 repeated
+  ok pattern q2_K nas=5 tok=7 used=2 unused
+  ok pattern q2_K nas=5 tok=16 used=2 random
+  ok pattern q2_K nas=5 tok=16 used=2 repeated
+  ok pattern q2_K nas=5 tok=16 used=2 unused
+  ok pattern q3_K nas=2 tok=1 used=2 random
+  ok pattern q3_K nas=2 tok=1 used=2 repeated
+  ok pattern q3_K nas=2 tok=1 used=2 unused
+  ok pattern q3_K nas=2 tok=2 used=2 random
+  ok pattern q3_K nas=2 tok=2 used=2 repeated
+  ok pattern q3_K nas=2 tok=2 used=2 unused
+  ok pattern q3_K nas=2 tok=7 used=2 random
+  ok pattern q3_K nas=2 tok=7 used=2 repeated
+  ok pattern q3_K nas=2 tok=7 used=2 unused
+  ok pattern q3_K nas=2 tok=16 used=2 random
+  ok pattern q3_K nas=2 tok=16 used=2 repeated
+  ok pattern q3_K nas=2 tok=16 used=2 unused
+  ok pattern q3_K nas=3 tok=1 used=2 random
+  ok pattern q3_K nas=3 tok=1 used=2 repeated
+  ok pattern q3_K nas=3 tok=1 used=2 unused
+  ok pattern q3_K nas=3 tok=2 used=2 random
+  ok pattern q3_K nas=3 tok=2 used=2 repeated
+  ok pattern q3_K nas=3 tok=2 used=2 unused
+  ok pattern q3_K nas=3 tok=7 used=2 random
+  ok pattern q3_K nas=3 tok=7 used=2 repeated
+  ok pattern q3_K nas=3 tok=7 used=2 unused
+  ok pattern q3_K nas=3 tok=16 used=2 random
+  ok pattern q3_K nas=3 tok=16 used=2 repeated
+  ok pattern q3_K nas=3 tok=16 used=2 unused
+  ok pattern q3_K nas=5 tok=1 used=2 random
+  ok pattern q3_K nas=5 tok=1 used=2 repeated
+  ok pattern q3_K nas=5 tok=1 used=2 unused
+  ok pattern q3_K nas=5 tok=2 used=2 random
+  ok pattern q3_K nas=5 tok=2 used=2 repeated
+  ok pattern q3_K nas=5 tok=2 used=2 unused
+  ok pattern q3_K nas=5 tok=7 used=2 random
+  ok pattern q3_K nas=5 tok=7 used=2 repeated
+  ok pattern q3_K nas=5 tok=7 used=2 unused
+  ok pattern q3_K nas=5 tok=16 used=2 random
+  ok pattern q3_K nas=5 tok=16 used=2 repeated
+  ok pattern q3_K nas=5 tok=16 used=2 unused
+== activation reuse (n_used_b=1, n_used=2) ==
+  ok bcast q2_K 512x16 nas=5 tok=7 used=2 used_b=1
+  ok bcast q3_K 512x16 nas=5 tok=7 used=2 used_b=1
+== ggml graph MUL_MAT_ID (neon+dotprod) ==
+  skip: host has no neon+dotprod (8x4 not selected)
+
+RESULT: PASS
