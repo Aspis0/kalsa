@@ -1,0 +1,20 @@
+== olmoe_s23 n_batches=2
+  n-ops min/max/first=77/407/407 sum_first2=484
+  n-tensors max=252 n-bufs max=6 m-size max=124960 vmem max=3120996864
+  first2=[(0, 6, 252, 407, 3120996864, 144, 14112, 91168, 124960), (1, 4, 88, 77, 742818304, 96, 4928, 17248, 25968)]
+  execute-op first batches (484): [('ADD', 129), ('RMS_NORM+MUL', 65), ('MUL_MAT', 65), ('MUL_MAT_ID', 48), ('ROPE', 32), ('SET_ROWS', 32), ('GET_ROWS', 18), ('FLASH_ATTN_EXT', 16), ('SOFT_MAX', 16), ('ARGSORT', 16), ('SWIGLU', 16), ('MUL', 16), ('MUL_MAT+ADD', 15)]
+== olmoe_hvx n_batches=2
+  n-ops min/max/first=18/27/18 sum_first2=45
+  n-tensors max=40 n-bufs max=4 m-size max=9680 vmem max=194937344
+  first2=[(0, 4, 31, 18, 194937344, 96, 1736, 4032, 6728), (1, 4, 40, 27, 194937344, 96, 2240, 6048, 9680)]
+  execute-op first batches (45): [('MUL_MAT', 10), ('ADD', 10), ('RMS_NORM+MUL', 8), ('ROPE', 4), ('SET_ROWS', 4), ('FLASH_ATTN_EXT', 2), ('SOFT_MAX', 2), ('ARGSORT', 2), ('GET_ROWS', 2), ('MUL', 1)]
+== olmoe_v75 n_batches=18
+  n-ops min/max/first=73/407/407 sum_first2=484
+  n-tensors max=252 n-bufs max=6 m-size max=124960 vmem max=3120996864
+  first2=[(0, 6, 252, 407, 3120996864, 144, 14112, 91168, 124960), (1, 4, 88, 77, 742818304, 96, 4928, 17248, 25968)]
+  execute-op first batches (863): [('ADD', 233), ('RMS_NORM+MUL', 121), ('MUL_MAT_ID', 87), ('MUL_MAT', 79), ('ROPE', 60), ('SET_ROWS', 60), ('GET_ROWS', 32), ('FLASH_ATTN_EXT', 30), ('SOFT_MAX', 30), ('ARGSORT', 30), ('MUL_MAT+ADD', 29), ('SWIGLU', 29), ('MUL', 29), ('MUL_MAT+MUL_MAT+MUL_MAT', 14)]
+== qwen4b n_batches=25
+  n-ops min/max/first=24/50/24 sum_first2=54
+  n-tensors max=80 n-bufs max=5 m-size max=18200 vmem max=1214128256
+  first2=[(0, 4, 41, 24, 1197346944, 96, 2296, 5376, 8920), (1, 4, 48, 30, 1197346944, 96, 2688, 6720, 10944)]
+  execute-op first batches (164): [('MUL_MAT', 33), ('RMS_NORM+MUL', 18), ('MUL', 11), ('SCALE', 10), ('GET_ROWS', 10), ('CPY', 10), ('SILU', 10), ('L2_NORM', 10), ('ADD', 9), ('SIGMOID', 6), ('MUL_MAT+ADD', 6), ('CONCAT', 5), ('SSM_CONV', 5), ('SOFTPLUS', 5), ('GATED_DELTA_NET', 5)]

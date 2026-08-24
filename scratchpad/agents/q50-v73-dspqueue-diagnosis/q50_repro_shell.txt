@@ -1,0 +1,8 @@
+RC=134
+9: 0x74d09abd84 llama_decode
+10: 0x74ddbdcc44 
+11: 0x74ddbd5784 _Z11llama_benchiPPc
+12: 0x74d150b664 __libc_init
+Aborted 
+
+---stderr---
