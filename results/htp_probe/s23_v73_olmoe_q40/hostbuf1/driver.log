@@ -1,0 +1,12 @@
+2026-08-24T13:50:24Z STATUS STARTING
+2026-08-24T13:50:29Z gate tag=a level=77 temp10=259
+2026-08-24T13:50:29Z cool-start PASS tag=a temp10=259
+2026-08-24T13:50:29Z launch (a) pp16/tg8 -v HOSTBUF=1 --no-host 1
+2026-08-24T13:50:37Z a proof rc_a=134 n_json=0 n_json_err=0 n_htp=484 n_mul_mat_id=48 n_exps_htp0=48 n_attn=96
+2026-08-24T13:50:37Z a DIED rc=134; one MM_SELECT=2 HVX pp16 variation
+2026-08-24T13:50:37Z gate tag=a_hvx level=77 temp10=259
+2026-08-24T13:50:37Z cool-start PASS tag=a_hvx temp10=259
+2026-08-24T13:50:37Z launch (a_hvx) pp16/tg8 MM_SELECT=2
+2026-08-24T13:50:44Z a_hvx proof rc_hvx=134 n_json=0 n_exps_htp0=0
+2026-08-24T13:50:44Z STATUS DONE a_died rc_a=134 a_hvx=134 n_exps_a=48 n_exps_hvx=0
+2026-08-24T13:50:44Z hostbuf1 DONE died then hvx variation

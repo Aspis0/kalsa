@@ -110,4 +110,16 @@ Driver `/data/local/tmp/kalsa_q48_x` pid 7352. **ALL rc=0.**
 
 Pulled 96 files → `results/htp_probe/xiaomi_v75_olmoe_q40/`. MANIFEST written. No git.
 
+## 2026-08-24T13:50Z — S23 v73 HOSTBUF=1 confound-closer
+
+S23 only. Battery 77 % unplugged, 25.9 °C. No llama. GGUF already on device, sha re-verified `43379486…`. Stub 5db18906, hexagon f06aa309, **htp v73** c8f9d14a.
+
+Env: `GGML_HEXAGON_HOSTBUF=1` `NDEV=1` `VERBOSE=1` `--no-host 1` (houji pair). Launch pid 26870.
+
+- 13:50:29Z (a) pp16/tg8 -v: **rc=134**. proof n_htp=484 n_mmid=48 **n_exps_htp0=48** n_attn=96 n_json=0. Same `dspqueue_read failed: 0x0000002e`. Experts still hmx-tiled. Tombstone_13 cmdline has `--no-host 1`.
+- 13:50:37Z (a_hvx) `GGML_HEXAGON_MM_SELECT=2`: **rc=134**. n_exps_htp0=0. Attn execute-op **hvx-tiled** (select applied). Same 0x2e around blk.1 ffn_gate_inp. Stop.
+
+Confound closed: HOSTBUF=1 + `--no-host 1` does not make v73 live. Crash not HMX-only. Pulled 55 files (4.2 MB) → `results/htp_probe/s23_v73_olmoe_q40/hostbuf1/`. No git. No leftover llama.
+
+
 

@@ -1,0 +1,16 @@
+phase=q48 S23 v73 OLMoE HOSTBUF=1 confound-closer REGISTRA+DICHIARA
+ts=2026-08-24T13:50:29Z
+note=a pp16/tg8 -v HOSTBUF=1 --no-host 1
+unplugged_declared=yes
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 2898750
+  status: 3
+  level: 77
+  voltage: 4096
+  temperature: 259
+HOSTBUF=1 NDEV=1 --no-host 1 -dev HTP0 VERBOSE=1 (houji pair; S23 previous had HOSTBUF unset and no --no-host)
+binary=/data/local/tmp/kalsahtp/llama-bench stub=5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507 hexagon=f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448 htp_v73=c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5
+model=/data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf pin=43379486db3178d89b338358d298ea0721d6c123e0107d91c5d6179371000500

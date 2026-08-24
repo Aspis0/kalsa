@@ -5,17 +5,17 @@ NO_LLAMA
   USB powered: false
   Wireless powered: false
   Dock powered: false
-  Charge counter: 2951250
+  Charge counter: 2898750
   status: 3
-  level: 78
-  voltage: 4107
-  temperature: 281
+  level: 77
+  voltage: 4090
+  temperature: 260
 ===SYSFS_CC===
 cat: /sys/class/power_supply/battery/charge_counter: Permission denied
 ===SYSFS_TEMP===
 cat: /sys/class/power_supply/battery/temp: Permission denied
 ===TOMBSTONES===
-total 5208
+total 5048
 -rw-rw-r-- 1 tombstoned system 115217 2026-08-21 21:31 tombstone_00
 -rw-rw-r-- 1 tombstoned system  66709 2026-08-21 21:31 tombstone_00.pb
 -rw-rw-r-- 1 tombstoned system 106750 2026-08-21 21:32 tombstone_01
@@ -34,7 +34,7 @@ total 5208
 -rw-rw-r-- 1 tombstoned system  62701 2026-08-21 21:35 tombstone_07.pb
 -rw-rw-r-- 1 tombstoned system  73256 2026-08-24 09:01 tombstone_08
 -rw-rw-r-- 1 tombstoned system  35500 2026-08-24 09:01 tombstone_08.pb
--rw-rw-r-- 1 tombstoned system  84603 2026-08-06 09:37 tombstone_09
+-rw-rw-r-- 1 tombstoned system  73125 2026-08-24 09:11 tombstone_09
 ===KALSAHTP===
 Qwen3.5-4B-Q4_0.gguf
 libc++_shared.so

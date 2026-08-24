@@ -1,0 +1,10 @@
+STATUS=STARTING
+HEARTBEAT=2026-08-24T13:50:24Z
+driver_pid=26870
+     37 /data/local/tmp/kalsa_q48/hostbuf1/driver.log
+     37 /data/local/tmp/kalsa_q48/hostbuf1/driver.out
+     74 total
+---LOG---
+2026-08-24T13:50:24Z STATUS STARTING
+---PS---
+NO_LLAMA

@@ -191,4 +191,44 @@ All stderr: dspqueue=0, INTERNAL-ERROR=0, hmx error=0, Aborted=0. q35 caveat sti
 
 No git. Nothing deleted. No leftover llama.
 
+---
+
+## S23 v73 HOSTBUF=1 confound-closer — 2026-08-24T13:50Z
+
+**This closes the confound.** Houji survived with HOSTBUF=1 + `--no-host 1`. S23 v73 originally died with HOSTBUF **unset** and no `--no-host`. Retry on S23: **same llama-bench @3f545be**, **same gguf `43379486…0500`**, **same v73** `libggml-htp-v73.so` `c8f9d14a…`, env **HOSTBUF=1 NDEV=1 VERBOSE=1 `--no-host 1`** (houji pair). Battery 77 % unplugged, 25.9 °C. Raw: `results/htp_probe/s23_v73_olmoe_q40/hostbuf1/`.
+
+HOSTBUF=1 + `--no-host 1` **does not save v73**. The houji liveness is **not** those two flags.
+
+### Variation 1 — HOSTBUF=1 `--no-host 1` (houji pair): **DIED**
+
+rc=134, jsonl empty. Tombstone cmdline confirms `--no-host 1` (`tombstone_13`, 09:50:36-0400, SIGABRT).
+
+Discriminating line (identical to HOSTBUF-unset (a)):
+
+```
+ggml-hexagon.cpp:1583: ggml-hex: dspqueue_read failed: 0x0000002e
+```
+
+Dispatch still happened: n_htp=484, n_attn=96, **n_exps_htp0=48**, MUL_MAT_ID **hmx-tiled** at n=16, buffer split CPU 55.27 / CPU_REPACK 80.60 / HTP0 8.51 / HTP0-REPACK 3600.02. INTERNAL-ERROR=0.
+
+### Variation 2 — same + `GGML_HEXAGON_MM_SELECT=2` (HVX, skip HMX), pp16 only: **DIED**
+
+rc=134, jsonl empty, **n_exps_htp0=0**. MM_SELECT applied: attn `MUL_MAT` is **hvx-tiled** (not hmx-tiled). Crash **before** any expert `MUL_MAT_ID` execute-op (dies around blk.1 `ffn_gate_inp`, still):
+
+```
+ggml-hexagon.cpp:1583: ggml-hex: dspqueue_read failed: 0x0000002e
+```
+
+Crash is **not HMX-path-specific**. Stopped here (no brute-force).
+
+| variation | flags | survived | experts execute-op | discriminating line |
+|---|---|---|---:|---|
+| S23 original (a) | HOSTBUF unset, no `--no-host` | no | 48 hmx | `dspqueue_read failed: 0x0000002e` |
+| S23 hostbuf1 | HOSTBUF=1 `--no-host 1` | **no** | 48 hmx | **same 0x2e** |
+| S23 hostbuf1 HVX | + MM_SELECT=2 | **no** | 0 | **same 0x2e** (earlier, hvx attn) |
+| houji v75 | HOSTBUF=1 `--no-host 1` | **yes** | 432 | none |
+
+Remaining discriminator: **v73 vs v75** (and/or S23 vs houji), not HOSTBUF/`--no-host`.
+
+
 

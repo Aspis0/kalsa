@@ -1,0 +1,7 @@
+file=/data/local/tmp/kalsa_q48/hostbuf1/a_stderr.txt
+dspqueue=1
+dspqueue_read_failed=1
+INTERNAL_ERROR=0
+hmx_error=0
+Aborted=1
+ggml_abort=1
