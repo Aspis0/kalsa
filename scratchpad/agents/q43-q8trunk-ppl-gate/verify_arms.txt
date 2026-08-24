@@ -1,0 +1,8 @@
+control bytes=6385238912 types={'F32': 141, 'Q5_K': 113, 'Q3_K': 28, 'Q2_K': 56}
+control trunk=228073472 expert=6121586688
+control expert_sha256=d84c4b43b24384648b1036e043973655b3092d4ebdf6cb62bb8de18f3cc2c74d
+control expert_sha_matches_prereg=True
+
+== q8_0 ok=True ==
+  disk=6509642624 delta=124403712 (1.948%)
+  types={'F32': 141, 'Q8_0': 113, 'Q3_K': 28, 'Q2_K': 56} expert_sha_match=True
