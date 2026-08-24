@@ -1,0 +1,7 @@
+rc_a=0 n_htp_execute_op=4633 n_attn_execute_op=228 n_shortconv_execute_op=486 n_jsonl_avg_ts=2
+--- buffer split ---
+load_tensors: offloaded 25/25 layers to GPU
+load_tensors:          CPU model buffer size =  2941.38 MiB
+load_tensors:   CPU_REPACK model buffer size =   265.62 MiB
+load_tensors:         HTP0 model buffer size =     6.31 MiB
+load_tensors:  HTP0-REPACK model buffer size =   459.00 MiB

@@ -1,0 +1,3 @@
+-rw-rw-rw- 1 shell shell 3580407296 2026-08-24 08:36 /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf
+-rw-rw-rw- 1 shell shell 6509642624 2026-08-23 19:59 /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf
+38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a  /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf

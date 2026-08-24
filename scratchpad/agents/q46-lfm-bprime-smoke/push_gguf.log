@@ -1,0 +1,3 @@
+ts_start=2026-08-24T12:41:58Z src=scratchpad\agents\q37-bprime-from-source\gguf\lfm\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf dst=/data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf
+scratchpad\agents\q37-bprime-from-source\gguf\lfm\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf: 1 file pushed, 0 skipped. 11.0 MB/s (3580407296 bytes in 309.467s)
+rc=0 wall_s=309.9

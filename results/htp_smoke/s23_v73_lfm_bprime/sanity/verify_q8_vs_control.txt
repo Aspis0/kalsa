@@ -1,0 +1,9 @@
+ok=True
+control bytes=3326160384 types={'Q5_K': 47, 'F32': 123, 'Q6_K': 20, 'Q3_K': 22, 'Q2_K': 44}
+control expert_sha256=00ef935a4653e9e5086f8ff6d806ad7bae7b89f0148f95834c995df92198a946
+q8_0 bytes=3580407296 types={'Q8_0': 67, 'F32': 123, 'Q3_K': 22, 'Q2_K': 44}
+q8_0 expert_sha256=00ef935a4653e9e5086f8ff6d806ad7bae7b89f0148f95834c995df92198a946
+expert_sha_match=True
+trunk_type_bad=0 leftover_k=0
+expert_type_mismatch=0 expert_nbytes_mismatch=0
+expert_not_q2k_q3k=0 missing=0 extra=0

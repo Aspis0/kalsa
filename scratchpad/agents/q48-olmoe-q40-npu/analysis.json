@@ -1,0 +1,60 @@
+{
+  "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q48-olmoe-q40-npu\\gguf\\OLMoE-1B-7B-0924-Instruct-Q4_0.gguf",
+  "bytes": 3928037856,
+  "sha256": "43379486db3178d89b338358d298ea0721d6c123e0107d91c5d6179371000500",
+  "kv": {
+    "olmoe.expert_count": 64,
+    "olmoe.expert_used_count": 8,
+    "olmoe.block_count": 16
+  },
+  "types": {
+    "Q6_K": 1,
+    "F32": 81,
+    "Q4_0": 113
+  },
+  "non_q40_non_f32": [
+    [
+      "output.weight",
+      "Q6_K"
+    ]
+  ],
+  "n_expert_tensors": 48,
+  "expert_bytes_total": 3623878656,
+  "expert_examples": [
+    {
+      "name": "blk.0.ffn_down_exps.weight",
+      "type": "Q4_0",
+      "ne": [
+        1024,
+        2048,
+        64
+      ],
+      "nbytes": 75497472
+    },
+    {
+      "name": "blk.0.ffn_gate_exps.weight",
+      "type": "Q4_0",
+      "ne": [
+        2048,
+        1024,
+        64
+      ],
+      "nbytes": 75497472
+    },
+    {
+      "name": "blk.0.ffn_up_exps.weight",
+      "type": "Q4_0",
+      "ne": [
+        2048,
+        1024,
+        64
+      ],
+      "nbytes": 75497472
+    }
+  ],
+  "expert_types": [
+    "Q4_0"
+  ],
+  "experts_htp_type_ok": true,
+  "experts_ne1_le_32768": true
+}

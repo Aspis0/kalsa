@@ -1,0 +1,1 @@
+38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a  /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf

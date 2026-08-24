@@ -1,0 +1,8 @@
+STATUS=DONE a_rc=0 b_rc=0 c_rc=0 n_htp=4633 n_attn=228
+HEARTBEAT=2026-08-24T12:49:35Z
+2026-08-24T12:49:35Z cool-start PASS tag=c_pp512_tg128_cpu temp10=319
+2026-08-24T12:49:35Z launch (c) pp512 tg128 -r 2 CPU-only same-harness exploratory
+2026-08-24T12:50:43Z c rc=0
+2026-08-24T12:50:43Z STATUS DONE a_rc=0 b_rc=0 c_rc=0 n_htp=4633 n_attn=228
+2026-08-24T12:50:43Z q46 DONE
+NO_LLAMA

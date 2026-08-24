@@ -1,0 +1,11 @@
+[async-jobs] jobId=job-1787575108861-1
+[async-jobs] startedAt=2026-08-24T12:38:28.861Z
+[async-jobs] command=powershell -NoProfile -ExecutionPolicy Bypass -File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\dl_olmoe.ps1"
+[async-jobs] description=Download OLMoE Q8_0 source (resume-safe, self-verifying sha)
+[async-jobs] --- output ---
+Processing -File '"C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\dl_olmoe.ps1"' failed: Illegal characters in path. Specify a valid path for the -File parameter.
+Windows PowerShell
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+
+[async-jobs] exit code=4294770688 signal= at=2026-08-24T12:38:29.338Z

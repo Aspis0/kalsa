@@ -1,0 +1,14 @@
+2026-08-24T12:48:26Z STATUS STARTING
+2026-08-24T12:48:31Z model_sha=38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a
+2026-08-24T12:48:31Z gate tag=a_pp16_tg8 level=82 temp10=272
+2026-08-24T12:48:31Z cool-start PASS tag=a_pp16_tg8 temp10=272
+2026-08-24T12:48:32Z launch (a) pp16/tg8 -v HTP0
+2026-08-24T12:48:39Z a rc=0
+2026-08-24T12:48:40Z a proof n_htp=4633 n_attn=228 n_sc=486 n_json=2
+2026-08-24T12:48:40Z gate tag=b_pp512_tg128 level=82 temp10=272
+2026-08-24T12:48:40Z cool-start PASS tag=b_pp512_tg128 temp10=272
+2026-08-24T12:48:40Z launch (b) pp512 tg128 -r 2 HTP0 exploratory
+2026-08-24T12:49:35Z b rc=0
+2026-08-24T12:49:35Z gate tag=c_pp512_tg128_cpu level=81 temp10=319
+2026-08-24T12:49:35Z cool-start PASS tag=c_pp512_tg128_cpu temp10=319
+2026-08-24T12:49:35Z launch (c) pp512 tg128 -r 2 CPU-only same-harness exploratory

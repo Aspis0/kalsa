@@ -1,0 +1,8 @@
+[async-jobs] jobId=job-1787575654488-2
+[async-jobs] startedAt=2026-08-24T12:47:34.488Z
+[async-jobs] command=cd "C:/Users/gualt/Desktop/Kalsa/moe-experiments" && ./build-pc-quantize/bin/llama-quantize.exe "scratchpad/agents/q37-bprime-from-source/src/olmoe-1b-7b-0924-instruct-q8_0.gguf" "scratchpad/agents/q48-olmoe-q40-npu/gguf/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf" Q4_0 16 > "scratchpad/agents/q48-olmoe-q40-npu/logs/quantize.log" 2>&1; echo "QUANTIZE_RC=$?" >> "scratchpad/agents/q48-olmoe-q40-npu/logs/quantize.log"
+[async-jobs] description=Quantize OLMoE Q8_0 to plain Q4_0 (ftype Q4_0, thread 16)
+[async-jobs] --- output ---
+The filename, directory name, or volume label syntax is incorrect.
+
+[async-jobs] exit code=1 signal= at=2026-08-24T12:47:34.537Z

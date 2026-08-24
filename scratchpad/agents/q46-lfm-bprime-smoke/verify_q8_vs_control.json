@@ -1,0 +1,38 @@
+{
+  "ok": true,
+  "control": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-control.gguf",
+    "bytes_on_disk": 3326160384,
+    "types": {
+      "Q5_K": 47,
+      "F32": 123,
+      "Q6_K": 20,
+      "Q3_K": 22,
+      "Q2_K": 44
+    },
+    "trunk_bytes": 505577472,
+    "expert_bytes": 2805727232,
+    "expert_sha256": "00ef935a4653e9e5086f8ff6d806ad7bae7b89f0148f95834c995df92198a946"
+  },
+  "q8_0": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf",
+    "bytes_on_disk": 3580407296,
+    "types": {
+      "Q8_0": 67,
+      "F32": 123,
+      "Q3_K": 22,
+      "Q2_K": 44
+    },
+    "trunk_bytes": 759824384,
+    "expert_bytes": 2805727232,
+    "expert_sha256": "00ef935a4653e9e5086f8ff6d806ad7bae7b89f0148f95834c995df92198a946"
+  },
+  "expert_sha_match": true,
+  "missing": [],
+  "extra": [],
+  "expert_type_mismatch": [],
+  "expert_nbytes_mismatch": [],
+  "expert_not_q2k_q3k": [],
+  "trunk_type_bad": [],
+  "leftover_kquant_on_trunk": []
+}
