@@ -509,5 +509,5 @@ size =   204.00 MiB ->    82.50 MiB
 llama_model_quantize_impl: model size  = 17500.40 MiB (8.51 BPW)
 llama_model_quantize_impl: quant size  =  6202.40 MiB (3.02 BPW)
 
-llama_quantize: quantize time = 457920.40 ms
-llama_quantize:    total time = 457920.40 ms
+llama_quantize: quantize time = 595773.32 ms
+llama_quantize:    total time = 595773.32 ms

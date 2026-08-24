@@ -1,22 +1,7 @@
 [
   {
-    "arm": "control",
-    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-control.gguf",
-    "bytes": 6385238912
-  },
-  {
     "arm": "q8_0",
     "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf",
     "bytes": 6509642624
-  },
-  {
-    "arm": "iq4_nl",
-    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-iq4_nl.gguf",
-    "bytes": 6343771008
-  },
-  {
-    "arm": "q4_0",
-    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\marco\\Marco-Mini-Instruct-KEXP-fromsrc-trunk-q4_0.gguf",
-    "bytes": 6343771008
   }
 ]

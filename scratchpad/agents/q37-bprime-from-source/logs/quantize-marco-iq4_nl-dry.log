@@ -509,5 +509,5 @@ load_imatrix: imatrix datasets=['imatrix-training-full-3']
 load_imatrix: loaded 224 importance matrix entries from C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\src\Marco-Mini-Instruct.imatrix.gguf computed on 318 chunks
 prepare_imatrix: have 224 importance matrix entries
 
-llama_quantize: quantize time =   344.29 ms
-llama_quantize:    total time =   344.29 ms
+llama_quantize: quantize time =   418.98 ms
+llama_quantize:    total time =   418.98 ms
