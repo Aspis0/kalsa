@@ -1,0 +1,368 @@
+BUILD_START low_priority=BELOW_NORMAL jobs=4
+NINJA_PID=1001564 priority=BELOW_NORMAL
+ninja: Entering directory `C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon-q53'
+[1/258] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/258] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[3/258] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[4/258] Building C object ggml/src/ggml-hexagon/CMakeFiles/htp_iface.dir/htp_iface_stub.c.o
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:384:70: warning: cast from 'const struct htp_iface_pmu_conf *' to 'unsigned int *' drops const qualifier [-Wcast-qual]
+  384 |    return _stub_method_4(_handle, _mid, (uint32_t*)&mode, (uint32_t*)pmu);
+      |                                                                      ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+C:/Qualcomm/Hexagon_SDK/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+31 warnings generated.
+[5/258] Building CXX object src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[6/258] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[7/258] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/htp-drv.cpp.o
+[8/258] Building CXX object src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[9/258] Building CXX object src/CMakeFiles/llama.dir/llama-io.cpp.o
+[10/258] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[11/258] Building CXX object src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[12/258] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[13/258] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-msa.cpp.o
+[14/258] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/ggml-hexagon.cpp.o
+[15/258] Building CXX object src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[16/258] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsa-iswa.cpp.o
+[17/258] Building CXX object src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[18/258] Building CXX object src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[19/258] Building CXX object src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[20/258] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[21/258] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[22/258] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+[23/258] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[24/258] Building CXX object src/CMakeFiles/llama.dir/llama.cpp.o
+[25/258] Building CXX object src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[26/258] Building CXX object src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[27/258] Building CXX object src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[28/258] Building CXX object src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[29/258] Building CXX object src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[30/258] Building CXX object src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+[31/258] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe3.cpp.o
+[32/258] Building CXX object src/CMakeFiles/llama.dir/models/bert.cpp.o
+[33/258] Building CXX object src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+[34/258] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+[35/258] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+[36/258] Building CXX object src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+[37/258] Building CXX object src/CMakeFiles/llama.dir/llama-context.cpp.o
+[38/258] Building CXX object src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+[39/258] Building CXX object src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+[40/258] Building CXX object src/CMakeFiles/llama.dir/models/bloom.cpp.o
+[41/258] Building CXX object src/CMakeFiles/llama.dir/models/clip.cpp.o
+[42/258] Building CXX object src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[43/258] Building CXX object src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[44/258] Building CXX object src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[45/258] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[46/258] Building CXX object src/CMakeFiles/llama.dir/models/apertus.cpp.o
+[47/258] Building CXX object src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[48/258] Building CXX object src/CMakeFiles/llama.dir/llama-model.cpp.o
+[49/258] Building CXX object src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[50/258] Building CXX object src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+[51/258] Building CXX object src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+[52/258] Building CXX object src/CMakeFiles/llama.dir/models/arctic.cpp.o
+[53/258] Building CXX object src/CMakeFiles/llama.dir/models/arcee.cpp.o
+[54/258] Building CXX object src/CMakeFiles/llama.dir/models/dflash.cpp.o
+[55/258] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+[56/258] Building CXX object src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+[57/258] Building CXX object src/CMakeFiles/llama.dir/unicode.cpp.o
+[58/258] Building CXX object src/CMakeFiles/llama.dir/models/deepseek4.cpp.o
+[59/258] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+[60/258] Building CXX object src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+[61/258] Building CXX object src/CMakeFiles/llama.dir/models/dots3note.cpp.o
+[62/258] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+[63/258] Building CXX object src/CMakeFiles/llama.dir/models/dream.cpp.o
+[64/258] Building CXX object src/CMakeFiles/llama.dir/models/eagle3.cpp.o
+[65/258] Building CXX object src/CMakeFiles/llama.dir/models/dots1.cpp.o
+[66/258] Building CXX object src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+[67/258] Building CXX object src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+[68/258] Building CXX object src/CMakeFiles/llama.dir/models/exaone.cpp.o
+[69/258] Building CXX object src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+[70/258] Building CXX object src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+[71/258] Building CXX object src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+[72/258] Building CXX object src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+[73/258] Building CXX object src/CMakeFiles/llama.dir/models/command-r.cpp.o
+[74/258] Building CXX object src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+[75/258] Building CXX object src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+[76/258] Building CXX object src/CMakeFiles/llama.dir/models/cohere2moe.cpp.o
+[77/258] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+[78/258] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[79/258] Building CXX object src/CMakeFiles/llama.dir/models/deci.cpp.o
+[80/258] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[81/258] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[82/258] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[83/258] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[84/258] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[85/258] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[86/258] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[87/258] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[88/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[89/258] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[90/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[91/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[92/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[93/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[94/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[95/258] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[96/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[97/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[98/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[99/258] Building CXX object tools/perplexity/CMakeFiles/llama-perplexity.dir/main.cpp.o
+[100/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[101/258] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+[102/258] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[103/258] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+[104/258] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+[105/258] Linking CXX shared library bin\libggml-base.so
+[106/258] Building CXX object tools/perplexity/CMakeFiles/llama-perplexity-impl.dir/perplexity.cpp.o
+[107/258] Building CXX object src/CMakeFiles/llama.dir/models/hy-v3.cpp.o
+[108/258] Building CXX object src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+[109/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma.cpp.o
+[110/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+[111/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+[112/258] Building CXX object src/CMakeFiles/llama.dir/models/falcon.cpp.o
+[113/258] Linking CXX shared library bin\libggml-hexagon.so
+[114/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+[115/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma4-assistant.cpp.o
+[116/258] Building CXX object src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+[117/258] Building CXX object src/CMakeFiles/llama.dir/models/glm4.cpp.o
+[118/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+[119/258] Building CXX object src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+[120/258] Building CXX object src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+[121/258] Building CXX object src/CMakeFiles/llama.dir/models/granite-swa.cpp.o
+[122/258] Building CXX object src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+[123/258] Building CXX object src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+[124/258] Building CXX object src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+[125/258] Building CXX object src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+[126/258] Building CXX object src/CMakeFiles/llama.dir/models/grok.cpp.o
+[127/258] Building CXX object src/CMakeFiles/llama.dir/models/granite.cpp.o
+[128/258] Building CXX object src/CMakeFiles/llama.dir/models/granite-switch.cpp.o
+[129/258] Building CXX object src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+[130/258] Building CXX object src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+[131/258] Building CXX object src/CMakeFiles/llama.dir/models/orion.cpp.o
+[132/258] Building CXX object src/CMakeFiles/llama.dir/models/phi2.cpp.o
+[133/258] Building CXX object src/CMakeFiles/llama.dir/models/phi3.cpp.o
+[134/258] Building CXX object src/CMakeFiles/llama.dir/models/jais.cpp.o
+[135/258] Building CXX object src/CMakeFiles/llama.dir/models/jamba.cpp.o
+[136/258] Building CXX object src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+[137/258] Linking CXX shared library bin\libggml-cpu.so
+[138/258] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+[139/258] Linking CXX shared library bin\libggml.so
+[140/258] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+[141/258] Building CXX object src/CMakeFiles/llama.dir/models/jais2.cpp.o
+[142/258] Building CXX object src/CMakeFiles/llama.dir/models/laguna.cpp.o
+[143/258] Building CXX object src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+[144/258] Building CXX object src/CMakeFiles/llama.dir/models/kimi-k3.cpp.o
+[145/258] Building CXX object src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+[146/258] Building CXX object src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+[147/258] Building CXX object src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+[148/258] Building CXX object src/CMakeFiles/llama.dir/models/llama.cpp.o
+[149/258] Building CXX object src/CMakeFiles/llama.dir/models/llama4.cpp.o
+[150/258] Building CXX object src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+[151/258] Building CXX object src/CMakeFiles/llama.dir/models/llada.cpp.o
+[152/258] Building CXX object src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+[153/258] Building CXX object src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+[154/258] Building CXX object src/CMakeFiles/llama.dir/models/mellum.cpp.o
+[155/258] Building CXX object src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+[156/258] Building CXX object src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+[157/258] Building CXX object src/CMakeFiles/llama.dir/models/mamba.cpp.o
+[158/258] Building CXX object src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+[159/258] Building CXX object src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+[160/258] Building CXX object src/CMakeFiles/llama.dir/models/minimax-m3.cpp.o
+[161/258] Building CXX object src/CMakeFiles/llama.dir/models/minimax-01.cpp.o
+[162/258] Building CXX object src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+[163/258] Building CXX object src/CMakeFiles/llama.dir/models/muse-glimmer.cpp.o
+[164/258] Building CXX object src/CMakeFiles/llama.dir/models/mpt.cpp.o
+[165/258] Building CXX object src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+[166/258] Building CXX object src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+[167/258] Building CXX object src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+[168/258] Building CXX object src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+[169/258] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+[170/258] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+[171/258] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+[172/258] Building CXX object src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+[173/258] Building CXX object src/CMakeFiles/llama.dir/models/nanbeige.cpp.o
+[174/258] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+[175/258] Building CXX object src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+[176/258] Building CXX object src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+[177/258] Building CXX object src/CMakeFiles/llama.dir/models/olmo.cpp.o
+[178/258] Building CXX object src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+[179/258] Building CXX object src/CMakeFiles/llama.dir/models/openelm.cpp.o
+[180/258] Building CXX object src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+[181/258] Building CXX object src/CMakeFiles/llama.dir/models/plm.cpp.o
+[182/258] Building CXX object src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+[183/258] Building CXX object src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+[184/258] Building CXX object src/CMakeFiles/llama.dir/models/plamo.cpp.o
+[185/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+[186/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+[187/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+[188/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen.cpp.o
+[189/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+[190/258] Building CXX object src/CMakeFiles/llama.dir/models/pockettts.cpp.o
+[191/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen3tts.cpp.o
+[192/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+[193/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+[194/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+[195/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+[196/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+[197/258] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+[198/258] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+[199/258] Building CXX object src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+[200/258] Building CXX object src/CMakeFiles/llama.dir/models/refact.cpp.o
+[201/258] Building CXX object src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+[202/258] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+[203/258] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+[204/258] Building CXX object src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+[205/258] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+[206/258] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+[207/258] Building CXX object src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+[208/258] Building CXX object src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+[209/258] Building CXX object src/CMakeFiles/llama.dir/models/step35.cpp.o
+[210/258] Building CXX object src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+[211/258] Building CXX object src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+[212/258] Building CXX object src/CMakeFiles/llama.dir/models/xverse.cpp.o
+[213/258] Building CXX object src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+[214/258] Building CXX object src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+[215/258] Building CXX object src/CMakeFiles/llama.dir/models/talkie.cpp.o
+[216/258] Building CXX object src/CMakeFiles/llama.dir/models/t5.cpp.o
+[217/258] Building CXX object common/CMakeFiles/llama-common.dir/debug.cpp.o
+[218/258] Building CXX object common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+[219/258] Building CXX object common/CMakeFiles/llama-common.dir/fit.cpp.o
+[220/258] Building CXX object common/CMakeFiles/llama-common.dir/console.cpp.o
+[221/258] Building CXX object common/CMakeFiles/llama-common.dir/download.cpp.o
+[222/258] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[223/258] Linking CXX static library common\libllama-common-base.a
+[224/258] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-helpers.cpp.o
+[225/258] Building CXX object common/CMakeFiles/llama-common.dir/chat-peg-parser.cpp.o
+[226/258] Building CXX object common/CMakeFiles/llama-common.dir/arg.cpp.o
+[227/258] Building CXX object vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[228/258] Linking CXX static library vendor\cpp-httplib\libcpp-httplib.a
+[229/258] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-generator.cpp.o
+[230/258] Building CXX object common/CMakeFiles/llama-common.dir/chat-diff-analyzer.cpp.o
+[231/258] Building CXX object common/CMakeFiles/llama-common.dir/log.cpp.o
+[232/258] Building CXX object common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[233/258] Building CXX object common/CMakeFiles/llama-common.dir/imatrix-loader.cpp.o
+[234/258] Building CXX object common/CMakeFiles/llama-common.dir/chat.cpp.o
+[235/258] Building CXX object common/CMakeFiles/llama-common.dir/common.cpp.o
+[236/258] Building CXX object common/CMakeFiles/llama-common.dir/ngram-mod.cpp.o
+[237/258] Building CXX object common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[238/258] Building CXX object common/CMakeFiles/llama-common.dir/json.cpp.o
+[239/258] Building CXX object common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+[240/258] Building CXX object common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[241/258] Building CXX object common/CMakeFiles/llama-common.dir/preset.cpp.o
+[242/258] Building CXX object common/CMakeFiles/llama-common.dir/subproc.cpp.o
+[243/258] Building CXX object common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[244/258] Building CXX object common/CMakeFiles/llama-common.dir/unicode.cpp.o
+[245/258] Building CXX object common/CMakeFiles/llama-common.dir/trie.cpp.o
+[246/258] Building CXX object common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[247/258] Building CXX object common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[248/258] Building CXX object common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[249/258] Building CXX object common/CMakeFiles/llama-common.dir/jinja/parser.cpp.o
+[250/258] Building CXX object common/CMakeFiles/llama-common.dir/jinja/string.cpp.o
+[251/258] Building CXX object common/CMakeFiles/llama-common.dir/jinja/runtime.cpp.o
+[252/258] Building CXX object common/CMakeFiles/llama-common.dir/jinja/lexer.cpp.o
+[253/258] Linking CXX shared library bin\libllama.so
+[254/258] Building CXX object common/CMakeFiles/llama-common.dir/jinja/caps.cpp.o
+[255/258] Building CXX object common/CMakeFiles/llama-common.dir/jinja/value.cpp.o
+[256/258] Linking CXX shared library bin\libllama-common.so
+[257/258] Linking CXX shared library bin\libllama-perplexity-impl.so
+[258/258] Linking CXX executable bin\llama-perplexity
+BUILD_END rc=0

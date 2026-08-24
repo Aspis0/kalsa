@@ -1,0 +1,16 @@
+BUILD_START target=llama-cli low_priority=BELOW_NORMAL jobs=4
+NINJA_PID=114716 priority=BELOW_NORMAL
+ninja: Entering directory `C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon-q53'
+[1/76] Building llama-ui-embed (host)
+FAILED: tools/ui/llama-ui-embed-host.exe C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/tools/ui/llama-ui-embed-host.exe 
+cmd.exe /C "cd /D C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-android-hexagon-q53\tools\ui && C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe -O2 -std=c++17 -o C:/Users/gualt/Desktop/Kalsa/moe-experiments/build-android-hexagon-q53/tools/ui/llama-ui-embed-host.exe C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama-q53-3f545be/tools/ui/embed.cpp"
+In file included from C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama-q53-3f545be/tools/ui/embed.cpp:10:
+C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/lib/clang/18/include/inttypes.h:21:15: fatal error: 'inttypes.h' file not found
+   21 | #include_next <inttypes.h>
+      |               ^~~~~~~~~~~~
+1 error generated.
+[2/76] Building CXX object tools/server/CMakeFiles/server-context.dir/server-chat.cpp.o
+[3/76] Building CXX object tools/server/CMakeFiles/server-context.dir/server-common.cpp.o
+[4/76] Building CXX object tools/server/CMakeFiles/server-context.dir/server-task.cpp.o
+ninja: build stopped: subcommand failed.
+BUILD_END rc=1

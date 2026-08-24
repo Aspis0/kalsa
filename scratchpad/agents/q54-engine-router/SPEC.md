@@ -161,8 +161,8 @@ A rule fires ONLY if its lane is ON in the ledger. v0 ships with:
 | CPU (all) | banked | production | **ON** |
 | GPU 750 prefill | banked | 407/407 kernel suite | ON |
 | GPU 740 cool-mode (R8) | banked (KEXP) | 407/407 | **OFF until #24 sustained** |
-| v73 trunk-NPU (R7) | banked | **q53 RUNNING** (numerical PPL) — AND a behavioral loop gate now owed: q52 proved Marco-B′ degenerates 4/10 under the production sampler (a B′-class trunk can pass PPL and still loop) | OFF → ON only at q53 PASS **+ loop gate on the served model** |
-| v73 dense-NPU (R6) | banked | q53 lane-2 conditional — likely SKIP (no dense gguf on device, pushes forbidden at 96% disk) ⇒ realistically needs its own window | OFF |
+| v73 trunk-NPU (R7) | banked | **q53 FAIL (24/08): HTP arm dies under perplexity batch-2048 load — third v73 death signature (`dspqueue_write 0x1`), r=NaN.** Lane not certifiable; -b 512 discriminator queued. Also owes the q52 loop gate | **OFF — hard, until a v73 lane survives a correctness cell** |
+| v73 dense-NPU (R6) | banked | q53 lane-2 ran (Qwen hybrid on-device) but INTERRUPTED at 8/32 chunks by adb disconnect — incomplete, ~40 min to finish at next window | OFF |
 | v75 experts-NPU (R2) | banked (4.82×) | **NO correctness test designed yet** — q48 was liveness+dispatch only; needs its own cell (q55 candidate, Xiaomi window) | OFF |
 | v75 dense/trunk NPU (R3/R4) | banked (R4 single-replica) | uncertified, no cell designed; R4 additionally owes the q52-class loop gate (trunk-B′ lane) | OFF |
 

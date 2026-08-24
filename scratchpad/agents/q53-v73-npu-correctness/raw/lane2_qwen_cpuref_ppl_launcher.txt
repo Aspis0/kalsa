@@ -1,0 +1,3 @@
+
+STDERR
+adb.exe: device 'adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp' not found

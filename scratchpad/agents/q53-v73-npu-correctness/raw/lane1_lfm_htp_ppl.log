@@ -1,0 +1,26 @@
+0.00.005.262 W ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+0.00.006.179 W ggml-hex: failed to get URI for session 0 : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp
+0.00.401.895 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+0.00.448.016 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.07.454.963 I cmn          init: llama threadpool init, n_threads = 8
+0.07.735.849 I 
+0.07.737.211 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.07.737.751 I perplexity: tokenizing the input ..
+0.08.007.557 I perplexity: tokenization took 269.798 ms
+0.08.008.140 I perplexity: calculating perplexity over 32 chunks, n_ctx=2048, batch_size=2048, n_seq=1
+3.48.190.158 I perplexity: 69.95 seconds per pass - ETA 37.30 minutes
+[1]34.2815,[2]35.8966,C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1624: ggml-hex: HTP0 dspqueue_write failed: 0x00000001
+
+0: 0x7c59f4666c 
+1: 0x7c59f46578 ggml_print_backtrace
+2: 0x7c59f46864 ggml_abort
+3: 0x7c61ed4a28 _ZN20ggml_hexagon_session11flush_batchEv
+4: 0x7c61ee8470 
+5: 0x7c59f68930 ggml_backend_sched_graph_compute_async
+6: 0x7c5d939d14 _ZN13llama_context13graph_computeEP11ggml_cgraphb
+7: 0x7c5d939af8 _ZN13llama_context14process_ubatchERK12llama_ubatch14llm_graph_typeP22llama_memory_context_iR11ggml_status
+8: 0x7c5d93b1b0 _ZN13llama_context6decodeERK11llama_batch
+9: 0x7c5d943d84 llama_decode
+10: 0x7c5be70a68 
+11: 0x7c5be67d08 _Z16llama_perplexityiPPc
+12: 0x7c5d334664 __libc_init

@@ -1,0 +1,18 @@
+{
+  "tag": "lane1_lfm_cpuref_ppl",
+  "model": "/data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf",
+  "htp": false,
+  "probe": false,
+  "args": ["./llama-perplexity", "-m", "/data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf", "-f", "/data/local/tmp/wiki.test.raw", "-c", "2048", "-b", "2048", "-ub", "1024", "-t", "8", "-ngl", "0", "--chunks", "32", "--ppl-stride", "0", "-fa", "on", "--load-mode", "none"],
+  "binary_pid": 7558,
+  "cpuset": "/",
+  "launch_from": "adb shell",
+  "pre_battery": {"level_pct": 68, "temperature_c": 31.0, "ac_powered": false, "usb_powered": false, "wireless_powered": false, "status": "3"},
+  "host_wait_timeout_seconds": 3600,
+  "device_wait_reconnect_timeout_seconds": 7200,
+  "terminal": "Final estimate: PPL = 32.4892 +/- 0.66534",
+  "ppl": 32.4892,
+  "ppl_std": 0.66534,
+  "post_battery_last_available": {"level_pct": 22, "temperature_c": 32.8, "ac_powered": false, "usb_powered": false, "wireless_powered": false, "status": "3"},
+  "local_log": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q53-v73-npu-correctness\\raw\\lane1_lfm_cpuref_ppl.log"
+}

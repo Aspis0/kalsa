@@ -1,0 +1,69 @@
+{
+  "cell": "q53-v73-npu-correctness",
+  "prereg_commit": "7ec4c231",
+  "serial": "adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp",
+  "device": "S23 NPU Hexagon v73",
+  "source_commit": "3f545beccee69d9975f466ec7e45fd9aacd8ba90",
+  "build_dir": "/data/local/tmp/kalsahtp",
+  "pins": {
+    "stub_sha256": "5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507",
+    "hexagon_sha256": "f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448",
+    "htp_v73_sha256": "c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5",
+    "lfm_model_sha256": "38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a",
+    "lfm_model_bytes": 3580407296,
+    "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+    "corpus_bytes": 1290590,
+    "qwen_model_sha256": "298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb",
+    "qwen_model_bytes": 2583221408
+  },
+  "environment": {
+    "ngl_htp": 99,
+    "device_htp": "HTP0",
+    "ngl_cpuref": 0,
+    "context": 2048,
+    "batch": 2048,
+    "ubatch": 1024,
+    "threads": 8,
+    "chunks": 32,
+    "fa": "on",
+    "load_mode": "none",
+    "launch": "adb shell",
+    "cpus_visible": "0-7",
+    "hostbuf": "unset",
+    "ndev": 1
+  },
+  "battery": {
+    "start": {"timestamp_utc": "2026-08-24T16:33:57Z", "level_pct": 72, "temperature_c": 25.3, "plugged": false},
+    "last_available": {"timestamp_utc": "2026-08-24T20:56:53.088042Z", "level_pct": 21, "temperature_c": 33.8, "plugged": false},
+    "end": "unavailable_adb_disconnect_after_2026-08-24T21:12:45.495108Z"
+  },
+  "lane1": {
+    "htp_probe": {"pid": 690, "cpuset": "/", "rc": 0, "execute_op_lines": 1667, "raw": "raw/lane1_lfm_htp_probe.log"},
+    "htp_ppl": {"pid": 2083, "cpuset": "/", "rc": 134, "ppl": null, "error": "HTP0 dspqueue_write failed: 0x00000001", "raw": "raw/lane1_lfm_htp_ppl.log"},
+    "cpuref_ppl": {"pid": 7558, "cpuset": "/", "rc": 0, "ppl": 32.4892, "ppl_std": 0.66534, "raw": "raw/lane1_lfm_cpuref_ppl.log"},
+    "r": null,
+    "r_display": "NaN",
+    "gate": "FAIL"
+  },
+  "lane2": {
+    "eligible_existing_dense_gguf": true,
+    "htp_probe": {"pid": 31371, "cpuset": "/", "rc": 0, "raw": "raw/lane2_qwen_htp_probe.log"},
+    "htp_ppl": {"pid": 32279, "cpuset": "/", "rc": 255, "completed_chunks": 8, "ppl": null, "status": "adb_disconnect", "raw": "raw/lane2_qwen_htp_ppl.log unavailable; raw/lane2_qwen_htp_ppl_pull.txt"},
+    "cpuref_ppl": {"status": "not_launched_device_unavailable", "ppl": null}
+  },
+  "secondary": {
+    "status": "unavailable",
+    "llama_cli_build_attempts": 2,
+    "build_error": "Android clang missing inttypes.h in llama-ui-embed",
+    "generation_files": []
+  },
+  "raw_files": [
+    "raw/lane1_lfm_htp_probe.log",
+    "raw/lane1_lfm_htp_ppl.log",
+    "raw/lane1_lfm_cpuref_ppl.log",
+    "raw/lane2_qwen_htp_probe.log",
+    "raw/lane2_qwen_htp_ppl.json",
+    "raw/lane2_qwen_htp_ppl_launcher.txt",
+    "raw/lane2_qwen_htp_ppl_pull.txt"
+  ]
+}
