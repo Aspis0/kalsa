@@ -1,0 +1,1872 @@
+ggml-hex: Loading driver libcdsprpc.so
+ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+ggml-hex: Hexagon Arch version v73
+ggml-hex: HTP0 allocating new session
+ggml-hex: failed to get URI for session 0 : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp handle 0xb400007b24412d40
+ggml-hex: rpcmem_alloc2 not found, falling back to rpcmem_alloc
+ggml-hex: HTP0 allocated buffer: base 0x7a9bd66000 size 13637632 fd 15 pinned 1
+ggml-hex: HTP0 mapped buffer: base 0x7a9bd66000 size 13637632 fd 15 pinned 1
+ggml-hex: HTP0 allocated op-queue : batch-size 1024 depth 16 shm-size 13637632 shm-block-size 852352
+ggml-hex: HTP0 op batching: n-bufs 16 n-tensors 7168 n-ops 1024 vmem 3145728000
+llama_model_loader: loaded meta data with 78 key-value pairs and 338 tensors from /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf (version GGUF V3 (latest))
+llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+llama_model_loader: - kv   0:                       general.architecture str              = qwen3moe
+llama_model_loader: - kv   1:                               general.type str              = model
+llama_model_loader: - kv   2:                               general.name str              = Marco Mini Instruct
+llama_model_loader: - kv   3:                           general.finetune str              = Instruct
+llama_model_loader: - kv   4:                           general.basename str              = Marco
+llama_model_loader: - kv   5:                         general.size_label str              = Mini
+llama_model_loader: - kv   6:                            general.license str              = apache-2.0
+llama_model_loader: - kv   7:                      general.dataset.count u32              = 10
+llama_model_loader: - kv   8:                     general.dataset.0.name str              = Dolci Instruct SFT
+llama_model_loader: - kv   9:             general.dataset.0.organization str              = Allenai
+llama_model_loader: - kv  10:                 general.dataset.0.repo_url str              = https://huggingface.co/allenai/Dolci-...
+llama_model_loader: - kv  11:                     general.dataset.1.name str              = Nemotron Cascade 2 SFT Data
+llama_model_loader: - kv  12:             general.dataset.1.organization str              = Nvidia
+llama_model_loader: - kv  13:                 general.dataset.1.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  14:                     general.dataset.2.name str              = Nemotron RL Instruction_Following
+llama_model_loader: - kv  15:             general.dataset.2.organization str              = Nvidia
+llama_model_loader: - kv  16:                 general.dataset.2.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  17:                     general.dataset.3.name str              = Nemotron RL Instruction_Following Str...
+llama_model_loader: - kv  18:             general.dataset.3.organization str              = Nvidia
+llama_model_loader: - kv  19:                 general.dataset.3.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  20:                     general.dataset.4.name str              = Nemotron RL ReasoningGym v1
+llama_model_loader: - kv  21:                  general.dataset.4.version str              = v1
+llama_model_loader: - kv  22:             general.dataset.4.organization str              = Nvidia
+llama_model_loader: - kv  23:                 general.dataset.4.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  24:                     general.dataset.5.name str              = Nemotron RL Knowledge Mcqa
+llama_model_loader: - kv  25:             general.dataset.5.organization str              = Nvidia
+llama_model_loader: - kv  26:                 general.dataset.5.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  27:                     general.dataset.6.name str              = Nemotron Cascade RL RLHF
+llama_model_loader: - kv  28:             general.dataset.6.organization str              = Nvidia
+llama_model_loader: - kv  29:                 general.dataset.6.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  30:                     general.dataset.7.name str              = DAPO Math 17k
+llama_model_loader: - kv  31:             general.dataset.7.organization str              = BytedTsinghua SIA
+llama_model_loader: - kv  32:                 general.dataset.7.repo_url str              = https://huggingface.co/BytedTsinghua-...
+llama_model_loader: - kv  33:                     general.dataset.8.name str              = Skywork OR1 RL Data
+llama_model_loader: - kv  34:             general.dataset.8.organization str              = Skywork
+llama_model_loader: - kv  35:                 general.dataset.8.repo_url str              = https://huggingface.co/Skywork/Skywor...
+llama_model_loader: - kv  36:                     general.dataset.9.name str              = Nemotron SFT Multilingual v1
+llama_model_loader: - kv  37:                  general.dataset.9.version str              = v1
+llama_model_loader: - kv  38:             general.dataset.9.organization str              = Nvidia
+llama_model_loader: - kv  39:                 general.dataset.9.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  40:                               general.tags arr[str,5]       = ["moe", "mixture-of-experts", "multil...
+llama_model_loader: - kv  41:                          general.languages arr[str,29]      = ["en", "zh", "ar", "de", "es", "fr", ...
+llama_model_loader: - kv  42:                       qwen3moe.block_count u32              = 28
+llama_model_loader: - kv  43:                    qwen3moe.context_length u32              = 32768
+llama_model_loader: - kv  44:                  qwen3moe.embedding_length u32              = 1024
+llama_model_loader: - kv  45:               qwen3moe.feed_forward_length u32              = 3072
+llama_model_loader: - kv  46:              qwen3moe.attention.head_count u32              = 16
+llama_model_loader: - kv  47:           qwen3moe.attention.head_count_kv u32              = 8
+llama_model_loader: - kv  48:                    qwen3moe.rope.freq_base f32              = 1000000.000000
+llama_model_loader: - kv  49:  qwen3moe.attention.layer_norm_rms_epsilon f32              = 0.000001
+llama_model_loader: - kv  50:                      qwen3moe.expert_count u32              = 256
+llama_model_loader: - kv  51:                 qwen3moe.expert_used_count u32              = 8
+llama_model_loader: - kv  52:              qwen3moe.attention.key_length u32              = 128
+llama_model_loader: - kv  53:            qwen3moe.attention.value_length u32              = 128
+llama_model_loader: - kv  54:        qwen3moe.expert_feed_forward_length u32              = 768
+llama_model_loader: - kv  55:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  56:                         tokenizer.ggml.pre str              = qwen2
+llama_model_loader: - kv  57:                      tokenizer.ggml.tokens arr[str,151936]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+llama_model_loader: - kv  58:                  tokenizer.ggml.token_type arr[i32,151936]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  59:                      tokenizer.ggml.merges arr[str,151387]  = ["Ġ Ġ", "ĠĠ ĠĠ", "i n", "Ġ t",...
+llama_model_loader: - kv  60:                tokenizer.ggml.eos_token_id u32              = 151645
+llama_model_loader: - kv  61:            tokenizer.ggml.padding_token_id u32              = 151643
+llama_model_loader: - kv  62:                tokenizer.ggml.bos_token_id u32              = 151643
+llama_model_loader: - kv  63:               tokenizer.ggml.add_bos_token bool             = false
+llama_model_loader: - kv  64:                    tokenizer.chat_template str              = {%- if tools %}\n    {{- '<|im_start|>...
+llama_model_loader: - kv  65:                                general.url str              = https://huggingface.co/mradermacher/M...
+llama_model_loader: - kv  66:              mradermacher.quantize_version str              = 2
+llama_model_loader: - kv  67:                  mradermacher.quantized_by str              = mradermacher
+llama_model_loader: - kv  68:                  mradermacher.quantized_at str              = 2026-04-09T12:03:52+02:00
+llama_model_loader: - kv  69:                  mradermacher.quantized_on str              = marco
+llama_model_loader: - kv  70:                         general.source.url str              = https://huggingface.co/AIDC-AI/Marco-...
+llama_model_loader: - kv  71:                  mradermacher.convert_type str              = hf
+llama_model_loader: - kv  72:               general.quantization_version u32              = 2
+llama_model_loader: - kv  73:                          general.file_type u32              = 7
+llama_model_loader: - kv  74:                      quantize.imatrix.file str              = C:\Users\gualt\Desktop\Kalsa\moe-expe...
+llama_model_loader: - kv  75:                   quantize.imatrix.dataset str              = imatrix-training-full-3
+llama_model_loader: - kv  76:             quantize.imatrix.entries_count u32              = 224
+llama_model_loader: - kv  77:              quantize.imatrix.chunks_count u32              = 318
+llama_model_loader: - type  f32:  141 tensors
+llama_model_loader: - type q8_0:  113 tensors
+llama_model_loader: - type q2_K:   56 tensors
+llama_model_loader: - type q3_K:   28 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = Q8_0
+print_info: file size   = 6.06 GiB (3.02 BPW) 
+llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free
+init_tokenizer: initializing tokenizer for type 2
+load: 0 unused tokens
+load: control token: 151659 '<|fim_prefix|>' is not marked as EOG
+load: control token: 151656 '<|video_pad|>' is not marked as EOG
+load: control token: 151655 '<|image_pad|>' is not marked as EOG
+load: control token: 151653 '<|vision_end|>' is not marked as EOG
+load: control token: 151652 '<|vision_start|>' is not marked as EOG
+load: control token: 151651 '<|quad_end|>' is not marked as EOG
+load: control token: 151649 '<|box_end|>' is not marked as EOG
+load: control token: 151648 '<|box_start|>' is not marked as EOG
+load: control token: 151646 '<|object_ref_start|>' is not marked as EOG
+load: control token: 151644 '<|im_start|>' is not marked as EOG
+load: control token: 151661 '<|fim_suffix|>' is not marked as EOG
+load: control token: 151647 '<|object_ref_end|>' is not marked as EOG
+load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+load: control token: 151660 '<|fim_middle|>' is not marked as EOG
+load: control token: 151654 '<|vision_pad|>' is not marked as EOG
+load: control token: 151650 '<|quad_start|>' is not marked as EOG
+load: printing all EOG tokens:
+load:   - 128247 ('</s>')
+load:   - 151643 ('<|endoftext|>')
+load:   - 151645 ('<|im_end|>')
+load:   - 151662 ('<|fim_pad|>')
+load:   - 151663 ('<|repo_name|>')
+load:   - 151664 ('<|file_sep|>')
+load: special tokens cache size = 23
+load: token to piece cache size = 0.9310 MB
+print_info: arch                  = qwen3moe
+print_info: vocab_only            = 0
+print_info: no_alloc              = 0
+print_info: n_ctx_train           = 32768
+print_info: n_embd_inp            = 1024
+print_info: n_embd                = 1024
+print_info: n_embd_out            = 1024
+print_info: n_layer               = 28
+print_info: n_layer_all           = 28
+print_info: n_head                = 16
+print_info: n_head_kv             = 8
+print_info: n_rot                 = 128
+print_info: n_swa                 = 0
+print_info: is_swa_any            = 0
+print_info: n_embd_head_k         = 128
+print_info: n_embd_head_v         = 128
+print_info: n_gqa                 = 2
+print_info: n_embd_k_gqa          = 1024
+print_info: n_embd_v_gqa          = 1024
+print_info: f_norm_eps            = 0.0e+00
+print_info: f_norm_rms_eps        = 1.0e-06
+print_info: f_clamp_kqv           = 0.0e+00
+print_info: f_max_alibi_bias      = 0.0e+00
+print_info: f_logit_scale         = 0.0e+00
+print_info: f_attn_scale          = 0.0e+00
+print_info: f_attn_value_scale    = 0.0000
+print_info: n_ff                  = 3072
+print_info: n_expert              = 256
+print_info: n_expert_used         = 8
+print_info: n_expert_groups       = 0
+print_info: n_group_used          = 0
+print_info: causal attn           = 1
+print_info: pooling type          = -1
+print_info: rope type             = 2
+print_info: rope scaling          = linear
+print_info: freq_base_train       = 1000000.0
+print_info: freq_scale_train      = 1
+print_info: n_ctx_orig_yarn       = 32768
+print_info: rope_yarn_log_mul     = 0.0000
+print_info: rope_finetuned        = unknown
+print_info: model type            = ?B
+print_info: model params          = 17.25 B
+print_info: general.name          = Marco Mini Instruct
+print_info: n_ff_exp              = 768
+print_info: vocab type            = BPE
+print_info: n_vocab               = 151936
+print_info: n_merges              = 151387
+print_info: BOS token             = 151643 '<|endoftext|>'
+print_info: EOS token             = 151645 '<|im_end|>'
+print_info: EOT token             = 151645 '<|im_end|>'
+print_info: PAD token             = 151643 '<|endoftext|>'
+print_info: LF token              = 198 'Ċ'
+print_info: FIM PRE token         = 151659 '<|fim_prefix|>'
+print_info: FIM SUF token         = 151661 '<|fim_suffix|>'
+print_info: FIM MID token         = 151660 '<|fim_middle|>'
+print_info: FIM PAD token         = 151662 '<|fim_pad|>'
+print_info: FIM REP token         = 151663 '<|repo_name|>'
+print_info: FIM SEP token         = 151664 '<|file_sep|>'
+print_info: EOG token             = 128247 '</s>'
+print_info: EOG token             = 151643 '<|endoftext|>'
+print_info: EOG token             = 151645 '<|im_end|>'
+print_info: EOG token             = 151662 '<|fim_pad|>'
+print_info: EOG token             = 151663 '<|repo_name|>'
+print_info: EOG token             = 151664 '<|file_sep|>'
+print_info: max token length      = 256
+load_tensors: loading model tensors, this can take a while... (load_mode = none)
+ggml-hex: device-get-extra-buft : HTP0 
+load_tensors: layer   0 assigned to device HTP0, is_swa = 0
+load_tensors: layer   1 assigned to device HTP0, is_swa = 0
+load_tensors: layer   2 assigned to device HTP0, is_swa = 0
+load_tensors: layer   3 assigned to device HTP0, is_swa = 0
+load_tensors: layer   4 assigned to device HTP0, is_swa = 0
+load_tensors: layer   5 assigned to device HTP0, is_swa = 0
+load_tensors: layer   6 assigned to device HTP0, is_swa = 0
+load_tensors: layer   7 assigned to device HTP0, is_swa = 0
+load_tensors: layer   8 assigned to device HTP0, is_swa = 0
+load_tensors: layer   9 assigned to device HTP0, is_swa = 0
+load_tensors: layer  10 assigned to device HTP0, is_swa = 0
+load_tensors: layer  11 assigned to device HTP0, is_swa = 0
+load_tensors: layer  12 assigned to device HTP0, is_swa = 0
+load_tensors: layer  13 assigned to device HTP0, is_swa = 0
+load_tensors: layer  14 assigned to device HTP0, is_swa = 0
+load_tensors: layer  15 assigned to device HTP0, is_swa = 0
+load_tensors: layer  16 assigned to device HTP0, is_swa = 0
+load_tensors: layer  17 assigned to device HTP0, is_swa = 0
+load_tensors: layer  18 assigned to device HTP0, is_swa = 0
+load_tensors: layer  19 assigned to device HTP0, is_swa = 0
+load_tensors: layer  20 assigned to device HTP0, is_swa = 0
+load_tensors: layer  21 assigned to device HTP0, is_swa = 0
+load_tensors: layer  22 assigned to device HTP0, is_swa = 0
+load_tensors: layer  23 assigned to device HTP0, is_swa = 0
+load_tensors: layer  24 assigned to device HTP0, is_swa = 0
+load_tensors: layer  25 assigned to device HTP0, is_swa = 0
+load_tensors: layer  26 assigned to device HTP0, is_swa = 0
+load_tensors: layer  27 assigned to device HTP0, is_swa = 0
+load_tensors: layer  28 assigned to device HTP0, is_swa = 0
+create_tensor: loading tensor token_embd.weight
+create_tensor: loading tensor output_norm.weight
+ggml-hex: HTP0 supports-op MUL| x output_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor output.weight
+create_tensor: loading tensor token_embd.weight
+ggml-hex: HTP0 supports-op MUL_MAT|token_embd.weight x  -> |1024:151936 x 1024:512 -> 151936:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:607744|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|token_embd.weight x  -> |1024:151936 x 1024:512 -> 151936:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:607744|HTP0-REPACK x NONE -> NONE|no
+create_tensor: loading tensor blk.0.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.0.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.0.attn_qkv.weight
+create_tensor: loading tensor blk.0.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.0.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.0.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.0.attn_q.bias
+create_tensor: loading tensor blk.0.attn_k.bias
+create_tensor: loading tensor blk.0.attn_v.bias
+create_tensor: loading tensor blk.0.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.0.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.0.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.0.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.0.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.0.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.0.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.0.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.0.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.0.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.0.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.0.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.0.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.0.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.0.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.0.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.0.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.0.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.1.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.1.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.1.attn_qkv.weight
+create_tensor: loading tensor blk.1.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.1.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.1.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.1.attn_q.bias
+create_tensor: loading tensor blk.1.attn_k.bias
+create_tensor: loading tensor blk.1.attn_v.bias
+create_tensor: loading tensor blk.1.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.1.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.1.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.1.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.1.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.1.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.1.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.1.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.1.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.1.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.1.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.1.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.1.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.1.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.1.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.1.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.1.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.1.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.2.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.2.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.2.attn_qkv.weight
+create_tensor: loading tensor blk.2.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.2.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.2.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.2.attn_q.bias
+create_tensor: loading tensor blk.2.attn_k.bias
+create_tensor: loading tensor blk.2.attn_v.bias
+create_tensor: loading tensor blk.2.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.2.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.2.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.2.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.2.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.2.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.2.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.2.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.2.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.2.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.2.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.2.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.2.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.2.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.2.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.2.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.2.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.2.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.3.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.3.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.3.attn_qkv.weight
+create_tensor: loading tensor blk.3.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.3.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.3.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.3.attn_q.bias
+create_tensor: loading tensor blk.3.attn_k.bias
+create_tensor: loading tensor blk.3.attn_v.bias
+create_tensor: loading tensor blk.3.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.3.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.3.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.3.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.3.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.3.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.3.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.3.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.3.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.3.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.3.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.3.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.3.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.3.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.3.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.3.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.3.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.3.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.4.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.4.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.4.attn_qkv.weight
+create_tensor: loading tensor blk.4.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.4.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.4.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.4.attn_q.bias
+create_tensor: loading tensor blk.4.attn_k.bias
+create_tensor: loading tensor blk.4.attn_v.bias
+create_tensor: loading tensor blk.4.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.4.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.4.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.4.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.4.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.4.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.4.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.4.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.4.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.4.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.4.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.4.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.4.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.4.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.4.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.4.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.4.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.4.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.5.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.5.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.5.attn_qkv.weight
+create_tensor: loading tensor blk.5.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.5.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.5.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.5.attn_q.bias
+create_tensor: loading tensor blk.5.attn_k.bias
+create_tensor: loading tensor blk.5.attn_v.bias
+create_tensor: loading tensor blk.5.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.5.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.5.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.5.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.5.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.5.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.5.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.5.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.5.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.5.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.5.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.5.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.5.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.5.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.5.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.5.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.5.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.5.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.6.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.6.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.6.attn_qkv.weight
+create_tensor: loading tensor blk.6.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.6.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.6.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.6.attn_q.bias
+create_tensor: loading tensor blk.6.attn_k.bias
+create_tensor: loading tensor blk.6.attn_v.bias
+create_tensor: loading tensor blk.6.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.6.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.6.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.6.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.6.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.6.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.6.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.6.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.6.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.6.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.6.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.6.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.6.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.6.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.6.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.6.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.6.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.6.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.7.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.7.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.7.attn_qkv.weight
+create_tensor: loading tensor blk.7.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.7.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.7.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.7.attn_q.bias
+create_tensor: loading tensor blk.7.attn_k.bias
+create_tensor: loading tensor blk.7.attn_v.bias
+create_tensor: loading tensor blk.7.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.7.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.7.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.7.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.7.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.7.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.7.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.7.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.7.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.7.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.7.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.7.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.8.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.8.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.8.attn_qkv.weight
+create_tensor: loading tensor blk.8.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.8.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.8.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.8.attn_q.bias
+create_tensor: loading tensor blk.8.attn_k.bias
+create_tensor: loading tensor blk.8.attn_v.bias
+create_tensor: loading tensor blk.8.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.8.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.8.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.8.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.8.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.8.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.8.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.8.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.8.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.8.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.8.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.8.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.9.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.9.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.9.attn_qkv.weight
+create_tensor: loading tensor blk.9.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.9.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.9.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.9.attn_q.bias
+create_tensor: loading tensor blk.9.attn_k.bias
+create_tensor: loading tensor blk.9.attn_v.bias
+create_tensor: loading tensor blk.9.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.9.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.9.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.9.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.9.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.9.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.9.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.9.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.9.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.9.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.9.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.9.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.10.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.10.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.10.attn_qkv.weight
+create_tensor: loading tensor blk.10.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.10.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.10.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.10.attn_q.bias
+create_tensor: loading tensor blk.10.attn_k.bias
+create_tensor: loading tensor blk.10.attn_v.bias
+create_tensor: loading tensor blk.10.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.10.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.10.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.10.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.10.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.10.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.10.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.10.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.10.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.10.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.10.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.10.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.11.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.11.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.11.attn_qkv.weight
+create_tensor: loading tensor blk.11.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.11.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.11.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.11.attn_q.bias
+create_tensor: loading tensor blk.11.attn_k.bias
+create_tensor: loading tensor blk.11.attn_v.bias
+create_tensor: loading tensor blk.11.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.11.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.11.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.11.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.11.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.11.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.11.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.11.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.11.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.11.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.11.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.11.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.12.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.12.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.12.attn_qkv.weight
+create_tensor: loading tensor blk.12.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.12.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.12.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.12.attn_q.bias
+create_tensor: loading tensor blk.12.attn_k.bias
+create_tensor: loading tensor blk.12.attn_v.bias
+create_tensor: loading tensor blk.12.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.12.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.12.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.12.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.12.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.12.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.12.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.12.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.12.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.12.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.12.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.12.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.13.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.13.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.13.attn_qkv.weight
+create_tensor: loading tensor blk.13.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.13.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.13.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.13.attn_q.bias
+create_tensor: loading tensor blk.13.attn_k.bias
+create_tensor: loading tensor blk.13.attn_v.bias
+create_tensor: loading tensor blk.13.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.13.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.13.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.13.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.13.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.13.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.13.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.13.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.13.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.13.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.13.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.13.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.14.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.14.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.14.attn_qkv.weight
+create_tensor: loading tensor blk.14.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.14.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.14.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.14.attn_q.bias
+create_tensor: loading tensor blk.14.attn_k.bias
+create_tensor: loading tensor blk.14.attn_v.bias
+create_tensor: loading tensor blk.14.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.14.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.14.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.14.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.14.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.14.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.14.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.14.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.14.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.14.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.14.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.14.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.15.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.15.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.15.attn_qkv.weight
+create_tensor: loading tensor blk.15.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.15.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.15.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.15.attn_q.bias
+create_tensor: loading tensor blk.15.attn_k.bias
+create_tensor: loading tensor blk.15.attn_v.bias
+create_tensor: loading tensor blk.15.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.15.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.15.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.15.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.15.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.15.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.15.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.15.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.15.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.15.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.15.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.15.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.16.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.16.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.16.attn_qkv.weight
+create_tensor: loading tensor blk.16.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.16.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.16.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.16.attn_q.bias
+create_tensor: loading tensor blk.16.attn_k.bias
+create_tensor: loading tensor blk.16.attn_v.bias
+create_tensor: loading tensor blk.16.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.16.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.16.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.16.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.16.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.16.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.16.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.16.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.16.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.16.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.16.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.16.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.16.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.16.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.16.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.16.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.16.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.16.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.17.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.17.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.17.attn_qkv.weight
+create_tensor: loading tensor blk.17.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.17.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.17.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.17.attn_q.bias
+create_tensor: loading tensor blk.17.attn_k.bias
+create_tensor: loading tensor blk.17.attn_v.bias
+create_tensor: loading tensor blk.17.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.17.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.17.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.17.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.17.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.17.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.17.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.17.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.17.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.17.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.17.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.17.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.17.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.17.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.17.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.17.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.17.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.17.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.18.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.18.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.18.attn_qkv.weight
+create_tensor: loading tensor blk.18.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.18.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.18.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.18.attn_q.bias
+create_tensor: loading tensor blk.18.attn_k.bias
+create_tensor: loading tensor blk.18.attn_v.bias
+create_tensor: loading tensor blk.18.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.18.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.18.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.18.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.18.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.18.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.18.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.18.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.18.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.18.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.18.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.18.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.18.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.18.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.18.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.18.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.18.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.19.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.19.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.19.attn_qkv.weight
+create_tensor: loading tensor blk.19.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.19.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.19.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.19.attn_q.bias
+create_tensor: loading tensor blk.19.attn_k.bias
+create_tensor: loading tensor blk.19.attn_v.bias
+create_tensor: loading tensor blk.19.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.19.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.19.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.19.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.19.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.19.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.19.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.19.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.19.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.19.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.19.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.19.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.19.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.19.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.19.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.19.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.19.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.19.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.20.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.20.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.20.attn_qkv.weight
+create_tensor: loading tensor blk.20.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.20.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.20.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.20.attn_q.bias
+create_tensor: loading tensor blk.20.attn_k.bias
+create_tensor: loading tensor blk.20.attn_v.bias
+create_tensor: loading tensor blk.20.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.20.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.20.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.20.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.20.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.20.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.20.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.20.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.20.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.20.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.20.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.20.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.20.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.20.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.20.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.20.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.20.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.21.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.21.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.21.attn_qkv.weight
+create_tensor: loading tensor blk.21.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.21.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.21.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.21.attn_q.bias
+create_tensor: loading tensor blk.21.attn_k.bias
+create_tensor: loading tensor blk.21.attn_v.bias
+create_tensor: loading tensor blk.21.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.21.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.21.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.21.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.21.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.21.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.21.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.21.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.21.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.21.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.21.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.21.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.21.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.21.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.21.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.21.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.21.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.22.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.22.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.22.attn_qkv.weight
+create_tensor: loading tensor blk.22.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.22.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.22.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.22.attn_q.bias
+create_tensor: loading tensor blk.22.attn_k.bias
+create_tensor: loading tensor blk.22.attn_v.bias
+create_tensor: loading tensor blk.22.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.22.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.22.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.22.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.22.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.22.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.22.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.22.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.22.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.22.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.22.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.22.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.22.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.22.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.22.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.22.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.22.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.23.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.23.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.23.attn_qkv.weight
+create_tensor: loading tensor blk.23.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.23.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.23.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.23.attn_q.bias
+create_tensor: loading tensor blk.23.attn_k.bias
+create_tensor: loading tensor blk.23.attn_v.bias
+create_tensor: loading tensor blk.23.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.23.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.23.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.23.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.23.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.23.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.23.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.23.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.23.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.23.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.23.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.23.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.23.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.23.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.23.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.23.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.23.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.23.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.24.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.24.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.24.attn_qkv.weight
+create_tensor: loading tensor blk.24.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.24.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.24.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.24.attn_q.bias
+create_tensor: loading tensor blk.24.attn_k.bias
+create_tensor: loading tensor blk.24.attn_v.bias
+create_tensor: loading tensor blk.24.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.24.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.24.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.24.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.24.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.24.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.24.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.24.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.24.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.24.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.24.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.24.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.24.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.24.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.24.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.24.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.24.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.25.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.25.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.25.attn_qkv.weight
+create_tensor: loading tensor blk.25.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.25.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.25.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.25.attn_q.bias
+create_tensor: loading tensor blk.25.attn_k.bias
+create_tensor: loading tensor blk.25.attn_v.bias
+create_tensor: loading tensor blk.25.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.25.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.25.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.25.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.25.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.25.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.25.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.25.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.25.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.25.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.25.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.25.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.25.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.25.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.25.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.25.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.25.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.26.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.26.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.26.attn_qkv.weight
+create_tensor: loading tensor blk.26.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.26.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.26.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.26.attn_q.bias
+create_tensor: loading tensor blk.26.attn_k.bias
+create_tensor: loading tensor blk.26.attn_v.bias
+create_tensor: loading tensor blk.26.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.26.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.26.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.26.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.26.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.26.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.26.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.26.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.26.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.26.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.26.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.26.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.26.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.26.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.26.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.26.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.26.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.27.attn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.27.attn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.27.attn_qkv.weight
+create_tensor: loading tensor blk.27.attn_q.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_q.weight x  -> |1024:2048 x 1024:512 -> 2048:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.27.attn_k.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_k.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.27.attn_v.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_v.weight x  -> |1024:1024 x 1024:512 -> 1024:512|q8_0 x f32 -> f32|34:1088 x 4:4096 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.27.attn_q.bias
+create_tensor: loading tensor blk.27.attn_k.bias
+create_tensor: loading tensor blk.27.attn_v.bias
+create_tensor: loading tensor blk.27.attn_output.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0 x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_output.weight x  -> |2048:1024 x 2048:512 -> 1024:512|q8_0 x f32 -> f32|34:2176 x 4:8192 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+create_tensor: loading tensor blk.27.attn_k_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.27.attn_k_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.27.attn_q_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.27.attn_q_norm.weight -> |128:1 x 128:1 -> 128:1|f32 x f32 -> f32|4:512 x 4:512 -> 4:512|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.27.ffn_norm.weight
+ggml-hex: HTP0 supports-op MUL| x blk.27.ffn_norm.weight -> |1024:1 x 1024:1 -> 1024:1|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|NONE x HTP0 -> NONE|yes
+create_tensor: loading tensor blk.27.ffn_gate_inp.weight
+ggml-hex: HTP0 supports-op MUL_MAT|blk.27.ffn_gate_inp.weight x  -> |1024:256 x 1024:512 -> 256:512|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:1024|HTP0 x NONE -> NONE|yes
+create_tensor: loading tensor blk.27.ffn_gate_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.27.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.27.ffn_gate_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.27.ffn_down_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.27.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.27.ffn_down_exps.weight x  x  -> |768:1024:256:1 x 768:8:512:1 x 8:512 -> 1024:8:512:1|q3_K x f32 x i32 -> f32|110:330:337920:86507520 x 4:3072:24576:12582912 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.27.ffn_up_exps.weight
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.27.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0 x NONE x NONE -> NONE|no
+ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.27.ffn_up_exps.weight x  x  -> |1024:768:256:1 x 1024:8:512:1 x 8:512 -> 768:8:512:1|q2_K x f32 x i32 -> f32|84:336:258048:66060288 x 4:4096:32768:16777216 x 4:32 -> 4:3072:24576:12582912|HTP0-REPACK x NONE x NONE -> NONE|no
+create_tensor: loading tensor blk.0.attn_q.scale
+create_tensor: loading tensor blk.0.attn_k.scale
+create_tensor: loading tensor blk.0.attn_v.scale
+create_tensor: loading tensor blk.0.attn_output.scale
+create_tensor: loading tensor blk.0.ffn_gate_exps.scale
+create_tensor: loading tensor blk.0.ffn_down_exps.scale
+create_tensor: loading tensor blk.0.ffn_up_exps.scale
+create_tensor: loading tensor blk.0.attn_q.input_scale
+create_tensor: loading tensor blk.0.attn_k.input_scale
+create_tensor: loading tensor blk.0.attn_v.input_scale
+create_tensor: loading tensor blk.0.attn_output.input_scale
+create_tensor: loading tensor blk.0.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.0.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.0.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.1.attn_q.scale
+create_tensor: loading tensor blk.1.attn_k.scale
+create_tensor: loading tensor blk.1.attn_v.scale
+create_tensor: loading tensor blk.1.attn_output.scale
+create_tensor: loading tensor blk.1.ffn_gate_exps.scale
+create_tensor: loading tensor blk.1.ffn_down_exps.scale
+create_tensor: loading tensor blk.1.ffn_up_exps.scale
+create_tensor: loading tensor blk.1.attn_q.input_scale
+create_tensor: loading tensor blk.1.attn_k.input_scale
+create_tensor: loading tensor blk.1.attn_v.input_scale
+create_tensor: loading tensor blk.1.attn_output.input_scale
+create_tensor: loading tensor blk.1.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.1.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.1.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.2.attn_q.scale
+create_tensor: loading tensor blk.2.attn_k.scale
+create_tensor: loading tensor blk.2.attn_v.scale
+create_tensor: loading tensor blk.2.attn_output.scale
+create_tensor: loading tensor blk.2.ffn_gate_exps.scale
+create_tensor: loading tensor blk.2.ffn_down_exps.scale
+create_tensor: loading tensor blk.2.ffn_up_exps.scale
+create_tensor: loading tensor blk.2.attn_q.input_scale
+create_tensor: loading tensor blk.2.attn_k.input_scale
+create_tensor: loading tensor blk.2.attn_v.input_scale
+create_tensor: loading tensor blk.2.attn_output.input_scale
+create_tensor: loading tensor blk.2.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.2.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.2.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.3.attn_q.scale
+create_tensor: loading tensor blk.3.attn_k.scale
+create_tensor: loading tensor blk.3.attn_v.scale
+create_tensor: loading tensor blk.3.attn_output.scale
+create_tensor: loading tensor blk.3.ffn_gate_exps.scale
+create_tensor: loading tensor blk.3.ffn_down_exps.scale
+create_tensor: loading tensor blk.3.ffn_up_exps.scale
+create_tensor: loading tensor blk.3.attn_q.input_scale
+create_tensor: loading tensor blk.3.attn_k.input_scale
+create_tensor: loading tensor blk.3.attn_v.input_scale
+create_tensor: loading tensor blk.3.attn_output.input_scale
+create_tensor: loading tensor blk.3.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.3.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.3.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.4.attn_q.scale
+create_tensor: loading tensor blk.4.attn_k.scale
+create_tensor: loading tensor blk.4.attn_v.scale
+create_tensor: loading tensor blk.4.attn_output.scale
+create_tensor: loading tensor blk.4.ffn_gate_exps.scale
+create_tensor: loading tensor blk.4.ffn_down_exps.scale
+create_tensor: loading tensor blk.4.ffn_up_exps.scale
+create_tensor: loading tensor blk.4.attn_q.input_scale
+create_tensor: loading tensor blk.4.attn_k.input_scale
+create_tensor: loading tensor blk.4.attn_v.input_scale
+create_tensor: loading tensor blk.4.attn_output.input_scale
+create_tensor: loading tensor blk.4.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.4.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.4.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.5.attn_q.scale
+create_tensor: loading tensor blk.5.attn_k.scale
+create_tensor: loading tensor blk.5.attn_v.scale
+create_tensor: loading tensor blk.5.attn_output.scale
+create_tensor: loading tensor blk.5.ffn_gate_exps.scale
+create_tensor: loading tensor blk.5.ffn_down_exps.scale
+create_tensor: loading tensor blk.5.ffn_up_exps.scale
+create_tensor: loading tensor blk.5.attn_q.input_scale
+create_tensor: loading tensor blk.5.attn_k.input_scale
+create_tensor: loading tensor blk.5.attn_v.input_scale
+create_tensor: loading tensor blk.5.attn_output.input_scale
+create_tensor: loading tensor blk.5.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.5.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.5.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.6.attn_q.scale
+create_tensor: loading tensor blk.6.attn_k.scale
+create_tensor: loading tensor blk.6.attn_v.scale
+create_tensor: loading tensor blk.6.attn_output.scale
+create_tensor: loading tensor blk.6.ffn_gate_exps.scale
+create_tensor: loading tensor blk.6.ffn_down_exps.scale
+create_tensor: loading tensor blk.6.ffn_up_exps.scale
+create_tensor: loading tensor blk.6.attn_q.input_scale
+create_tensor: loading tensor blk.6.attn_k.input_scale
+create_tensor: loading tensor blk.6.attn_v.input_scale
+create_tensor: loading tensor blk.6.attn_output.input_scale
+create_tensor: loading tensor blk.6.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.6.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.6.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.7.attn_q.scale
+create_tensor: loading tensor blk.7.attn_k.scale
+create_tensor: loading tensor blk.7.attn_v.scale
+create_tensor: loading tensor blk.7.attn_output.scale
+create_tensor: loading tensor blk.7.ffn_gate_exps.scale
+create_tensor: loading tensor blk.7.ffn_down_exps.scale
+create_tensor: loading tensor blk.7.ffn_up_exps.scale
+create_tensor: loading tensor blk.7.attn_q.input_scale
+create_tensor: loading tensor blk.7.attn_k.input_scale
+create_tensor: loading tensor blk.7.attn_v.input_scale
+create_tensor: loading tensor blk.7.attn_output.input_scale
+create_tensor: loading tensor blk.7.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.7.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.7.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.8.attn_q.scale
+create_tensor: loading tensor blk.8.attn_k.scale
+create_tensor: loading tensor blk.8.attn_v.scale
+create_tensor: loading tensor blk.8.attn_output.scale
+create_tensor: loading tensor blk.8.ffn_gate_exps.scale
+create_tensor: loading tensor blk.8.ffn_down_exps.scale
+create_tensor: loading tensor blk.8.ffn_up_exps.scale
+create_tensor: loading tensor blk.8.attn_q.input_scale
+create_tensor: loading tensor blk.8.attn_k.input_scale
+create_tensor: loading tensor blk.8.attn_v.input_scale
+create_tensor: loading tensor blk.8.attn_output.input_scale
+create_tensor: loading tensor blk.8.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.8.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.8.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.9.attn_q.scale
+create_tensor: loading tensor blk.9.attn_k.scale
+create_tensor: loading tensor blk.9.attn_v.scale
+create_tensor: loading tensor blk.9.attn_output.scale
+create_tensor: loading tensor blk.9.ffn_gate_exps.scale
+create_tensor: loading tensor blk.9.ffn_down_exps.scale
+create_tensor: loading tensor blk.9.ffn_up_exps.scale
+create_tensor: loading tensor blk.9.attn_q.input_scale
+create_tensor: loading tensor blk.9.attn_k.input_scale
+create_tensor: loading tensor blk.9.attn_v.input_scale
+create_tensor: loading tensor blk.9.attn_output.input_scale
+create_tensor: loading tensor blk.9.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.9.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.9.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.10.attn_q.scale
+create_tensor: loading tensor blk.10.attn_k.scale
+create_tensor: loading tensor blk.10.attn_v.scale
+create_tensor: loading tensor blk.10.attn_output.scale
+create_tensor: loading tensor blk.10.ffn_gate_exps.scale
+create_tensor: loading tensor blk.10.ffn_down_exps.scale
+create_tensor: loading tensor blk.10.ffn_up_exps.scale
+create_tensor: loading tensor blk.10.attn_q.input_scale
+create_tensor: loading tensor blk.10.attn_k.input_scale
+create_tensor: loading tensor blk.10.attn_v.input_scale
+create_tensor: loading tensor blk.10.attn_output.input_scale
+create_tensor: loading tensor blk.10.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.10.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.10.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.11.attn_q.scale
+create_tensor: loading tensor blk.11.attn_k.scale
+create_tensor: loading tensor blk.11.attn_v.scale
+create_tensor: loading tensor blk.11.attn_output.scale
+create_tensor: loading tensor blk.11.ffn_gate_exps.scale
+create_tensor: loading tensor blk.11.ffn_down_exps.scale
+create_tensor: loading tensor blk.11.ffn_up_exps.scale
+create_tensor: loading tensor blk.11.attn_q.input_scale
+create_tensor: loading tensor blk.11.attn_k.input_scale
+create_tensor: loading tensor blk.11.attn_v.input_scale
+create_tensor: loading tensor blk.11.attn_output.input_scale
+create_tensor: loading tensor blk.11.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.11.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.11.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.12.attn_q.scale
+create_tensor: loading tensor blk.12.attn_k.scale
+create_tensor: loading tensor blk.12.attn_v.scale
+create_tensor: loading tensor blk.12.attn_output.scale
+create_tensor: loading tensor blk.12.ffn_gate_exps.scale
+create_tensor: loading tensor blk.12.ffn_down_exps.scale
+create_tensor: loading tensor blk.12.ffn_up_exps.scale
+create_tensor: loading tensor blk.12.attn_q.input_scale
+create_tensor: loading tensor blk.12.attn_k.input_scale
+create_tensor: loading tensor blk.12.attn_v.input_scale
+create_tensor: loading tensor blk.12.attn_output.input_scale
+create_tensor: loading tensor blk.12.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.12.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.12.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.13.attn_q.scale
+create_tensor: loading tensor blk.13.attn_k.scale
+create_tensor: loading tensor blk.13.attn_v.scale
+create_tensor: loading tensor blk.13.attn_output.scale
+create_tensor: loading tensor blk.13.ffn_gate_exps.scale
+create_tensor: loading tensor blk.13.ffn_down_exps.scale
+create_tensor: loading tensor blk.13.ffn_up_exps.scale
+create_tensor: loading tensor blk.13.attn_q.input_scale
+create_tensor: loading tensor blk.13.attn_k.input_scale
+create_tensor: loading tensor blk.13.attn_v.input_scale
+create_tensor: loading tensor blk.13.attn_output.input_scale
+create_tensor: loading tensor blk.13.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.13.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.13.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.14.attn_q.scale
+create_tensor: loading tensor blk.14.attn_k.scale
+create_tensor: loading tensor blk.14.attn_v.scale
+create_tensor: loading tensor blk.14.attn_output.scale
+create_tensor: loading tensor blk.14.ffn_gate_exps.scale
+create_tensor: loading tensor blk.14.ffn_down_exps.scale
+create_tensor: loading tensor blk.14.ffn_up_exps.scale
+create_tensor: loading tensor blk.14.attn_q.input_scale
+create_tensor: loading tensor blk.14.attn_k.input_scale
+create_tensor: loading tensor blk.14.attn_v.input_scale
+create_tensor: loading tensor blk.14.attn_output.input_scale
+create_tensor: loading tensor blk.14.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.14.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.14.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.15.attn_q.scale
+create_tensor: loading tensor blk.15.attn_k.scale
+create_tensor: loading tensor blk.15.attn_v.scale
+create_tensor: loading tensor blk.15.attn_output.scale
+create_tensor: loading tensor blk.15.ffn_gate_exps.scale
+create_tensor: loading tensor blk.15.ffn_down_exps.scale
+create_tensor: loading tensor blk.15.ffn_up_exps.scale
+create_tensor: loading tensor blk.15.attn_q.input_scale
+create_tensor: loading tensor blk.15.attn_k.input_scale
+create_tensor: loading tensor blk.15.attn_v.input_scale
+create_tensor: loading tensor blk.15.attn_output.input_scale
+create_tensor: loading tensor blk.15.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.15.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.15.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.16.attn_q.scale
+create_tensor: loading tensor blk.16.attn_k.scale
+create_tensor: loading tensor blk.16.attn_v.scale
+create_tensor: loading tensor blk.16.attn_output.scale
+create_tensor: loading tensor blk.16.ffn_gate_exps.scale
+create_tensor: loading tensor blk.16.ffn_down_exps.scale
+create_tensor: loading tensor blk.16.ffn_up_exps.scale
+create_tensor: loading tensor blk.16.attn_q.input_scale
+create_tensor: loading tensor blk.16.attn_k.input_scale
+create_tensor: loading tensor blk.16.attn_v.input_scale
+create_tensor: loading tensor blk.16.attn_output.input_scale
+create_tensor: loading tensor blk.16.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.16.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.16.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.17.attn_q.scale
+create_tensor: loading tensor blk.17.attn_k.scale
+create_tensor: loading tensor blk.17.attn_v.scale
+create_tensor: loading tensor blk.17.attn_output.scale
+create_tensor: loading tensor blk.17.ffn_gate_exps.scale
+create_tensor: loading tensor blk.17.ffn_down_exps.scale
+create_tensor: loading tensor blk.17.ffn_up_exps.scale
+create_tensor: loading tensor blk.17.attn_q.input_scale
+create_tensor: loading tensor blk.17.attn_k.input_scale
+create_tensor: loading tensor blk.17.attn_v.input_scale
+create_tensor: loading tensor blk.17.attn_output.input_scale
+create_tensor: loading tensor blk.17.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.17.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.17.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.18.attn_q.scale
+create_tensor: loading tensor blk.18.attn_k.scale
+create_tensor: loading tensor blk.18.attn_v.scale
+create_tensor: loading tensor blk.18.attn_output.scale
+create_tensor: loading tensor blk.18.ffn_gate_exps.scale
+create_tensor: loading tensor blk.18.ffn_down_exps.scale
+create_tensor: loading tensor blk.18.ffn_up_exps.scale
+create_tensor: loading tensor blk.18.attn_q.input_scale
+create_tensor: loading tensor blk.18.attn_k.input_scale
+create_tensor: loading tensor blk.18.attn_v.input_scale
+create_tensor: loading tensor blk.18.attn_output.input_scale
+create_tensor: loading tensor blk.18.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.18.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.18.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.19.attn_q.scale
+create_tensor: loading tensor blk.19.attn_k.scale
+create_tensor: loading tensor blk.19.attn_v.scale
+create_tensor: loading tensor blk.19.attn_output.scale
+create_tensor: loading tensor blk.19.ffn_gate_exps.scale
+create_tensor: loading tensor blk.19.ffn_down_exps.scale
+create_tensor: loading tensor blk.19.ffn_up_exps.scale
+create_tensor: loading tensor blk.19.attn_q.input_scale
+create_tensor: loading tensor blk.19.attn_k.input_scale
+create_tensor: loading tensor blk.19.attn_v.input_scale
+create_tensor: loading tensor blk.19.attn_output.input_scale
+create_tensor: loading tensor blk.19.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.19.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.19.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.20.attn_q.scale
+create_tensor: loading tensor blk.20.attn_k.scale
+create_tensor: loading tensor blk.20.attn_v.scale
+create_tensor: loading tensor blk.20.attn_output.scale
+create_tensor: loading tensor blk.20.ffn_gate_exps.scale
+create_tensor: loading tensor blk.20.ffn_down_exps.scale
+create_tensor: loading tensor blk.20.ffn_up_exps.scale
+create_tensor: loading tensor blk.20.attn_q.input_scale
+create_tensor: loading tensor blk.20.attn_k.input_scale
+create_tensor: loading tensor blk.20.attn_v.input_scale
+create_tensor: loading tensor blk.20.attn_output.input_scale
+create_tensor: loading tensor blk.20.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.20.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.20.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.21.attn_q.scale
+create_tensor: loading tensor blk.21.attn_k.scale
+create_tensor: loading tensor blk.21.attn_v.scale
+create_tensor: loading tensor blk.21.attn_output.scale
+create_tensor: loading tensor blk.21.ffn_gate_exps.scale
+create_tensor: loading tensor blk.21.ffn_down_exps.scale
+create_tensor: loading tensor blk.21.ffn_up_exps.scale
+create_tensor: loading tensor blk.21.attn_q.input_scale
+create_tensor: loading tensor blk.21.attn_k.input_scale
+create_tensor: loading tensor blk.21.attn_v.input_scale
+create_tensor: loading tensor blk.21.attn_output.input_scale
+create_tensor: loading tensor blk.21.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.21.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.21.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.22.attn_q.scale
+create_tensor: loading tensor blk.22.attn_k.scale
+create_tensor: loading tensor blk.22.attn_v.scale
+create_tensor: loading tensor blk.22.attn_output.scale
+create_tensor: loading tensor blk.22.ffn_gate_exps.scale
+create_tensor: loading tensor blk.22.ffn_down_exps.scale
+create_tensor: loading tensor blk.22.ffn_up_exps.scale
+create_tensor: loading tensor blk.22.attn_q.input_scale
+create_tensor: loading tensor blk.22.attn_k.input_scale
+create_tensor: loading tensor blk.22.attn_v.input_scale
+create_tensor: loading tensor blk.22.attn_output.input_scale
+create_tensor: loading tensor blk.22.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.22.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.22.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.23.attn_q.scale
+create_tensor: loading tensor blk.23.attn_k.scale
+create_tensor: loading tensor blk.23.attn_v.scale
+create_tensor: loading tensor blk.23.attn_output.scale
+create_tensor: loading tensor blk.23.ffn_gate_exps.scale
+create_tensor: loading tensor blk.23.ffn_down_exps.scale
+create_tensor: loading tensor blk.23.ffn_up_exps.scale
+create_tensor: loading tensor blk.23.attn_q.input_scale
+create_tensor: loading tensor blk.23.attn_k.input_scale
+create_tensor: loading tensor blk.23.attn_v.input_scale
+create_tensor: loading tensor blk.23.attn_output.input_scale
+create_tensor: loading tensor blk.23.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.23.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.23.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.24.attn_q.scale
+create_tensor: loading tensor blk.24.attn_k.scale
+create_tensor: loading tensor blk.24.attn_v.scale
+create_tensor: loading tensor blk.24.attn_output.scale
+create_tensor: loading tensor blk.24.ffn_gate_exps.scale
+create_tensor: loading tensor blk.24.ffn_down_exps.scale
+create_tensor: loading tensor blk.24.ffn_up_exps.scale
+create_tensor: loading tensor blk.24.attn_q.input_scale
+create_tensor: loading tensor blk.24.attn_k.input_scale
+create_tensor: loading tensor blk.24.attn_v.input_scale
+create_tensor: loading tensor blk.24.attn_output.input_scale
+create_tensor: loading tensor blk.24.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.24.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.24.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.25.attn_q.scale
+create_tensor: loading tensor blk.25.attn_k.scale
+create_tensor: loading tensor blk.25.attn_v.scale
+create_tensor: loading tensor blk.25.attn_output.scale
+create_tensor: loading tensor blk.25.ffn_gate_exps.scale
+create_tensor: loading tensor blk.25.ffn_down_exps.scale
+create_tensor: loading tensor blk.25.ffn_up_exps.scale
+create_tensor: loading tensor blk.25.attn_q.input_scale
+create_tensor: loading tensor blk.25.attn_k.input_scale
+create_tensor: loading tensor blk.25.attn_v.input_scale
+create_tensor: loading tensor blk.25.attn_output.input_scale
+create_tensor: loading tensor blk.25.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.25.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.25.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.26.attn_q.scale
+create_tensor: loading tensor blk.26.attn_k.scale
+create_tensor: loading tensor blk.26.attn_v.scale
+create_tensor: loading tensor blk.26.attn_output.scale
+create_tensor: loading tensor blk.26.ffn_gate_exps.scale
+create_tensor: loading tensor blk.26.ffn_down_exps.scale
+create_tensor: loading tensor blk.26.ffn_up_exps.scale
+create_tensor: loading tensor blk.26.attn_q.input_scale
+create_tensor: loading tensor blk.26.attn_k.input_scale
+create_tensor: loading tensor blk.26.attn_v.input_scale
+create_tensor: loading tensor blk.26.attn_output.input_scale
+create_tensor: loading tensor blk.26.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.26.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.26.ffn_up_exps.input_scale
+create_tensor: loading tensor blk.27.attn_q.scale
+create_tensor: loading tensor blk.27.attn_k.scale
+create_tensor: loading tensor blk.27.attn_v.scale
+create_tensor: loading tensor blk.27.attn_output.scale
+create_tensor: loading tensor blk.27.ffn_gate_exps.scale
+create_tensor: loading tensor blk.27.ffn_down_exps.scale
+create_tensor: loading tensor blk.27.ffn_up_exps.scale
+create_tensor: loading tensor blk.27.attn_q.input_scale
+create_tensor: loading tensor blk.27.attn_k.input_scale
+create_tensor: loading tensor blk.27.attn_v.input_scale
+create_tensor: loading tensor blk.27.attn_output.input_scale
+create_tensor: loading tensor blk.27.ffn_gate_exps.input_scale
+create_tensor: loading tensor blk.27.ffn_down_exps.input_scale
+create_tensor: loading tensor blk.27.ffn_up_exps.input_scale
+done_getting_tensors: tensor 'token_embd.weight' (q8_0) (and 197 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+ggml-hex: rpcmem_alloc2 not found, falling back to rpcmem_alloc
+ggml-hex: HTP0 allocated buffer: base 0x78d63bf000 size 29626368 fd 18 pinned 0
+ggml-hex: HTP0 mapped buffer: base 0x78d63bf000 size 29626368 fd 18 pinned 0
+ggml-hex: HTP0 init-tensor output_norm.weight : base 0x78d63bf000 data 0x78d63bf000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_norm.weight : base 0x78d63bf000 data 0x78d63c0000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_k_norm.weight : base 0x78d63bf000 data 0x78d63c1000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_q_norm.weight : base 0x78d63bf000 data 0x78d63c1200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.0.ffn_norm.weight : base 0x78d63bf000 data 0x78d63c1400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.0.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d63c2400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_norm.weight : base 0x78d63bf000 data 0x78d64c2400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_k_norm.weight : base 0x78d63bf000 data 0x78d64c3400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_q_norm.weight : base 0x78d63bf000 data 0x78d64c3600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.1.ffn_norm.weight : base 0x78d63bf000 data 0x78d64c3800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.1.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d64c4800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_norm.weight : base 0x78d63bf000 data 0x78d65c4800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_k_norm.weight : base 0x78d63bf000 data 0x78d65c5800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_q_norm.weight : base 0x78d63bf000 data 0x78d65c5a00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.2.ffn_norm.weight : base 0x78d63bf000 data 0x78d65c5c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.2.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d65c6c00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_norm.weight : base 0x78d63bf000 data 0x78d66c6c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_k_norm.weight : base 0x78d63bf000 data 0x78d66c7c00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_q_norm.weight : base 0x78d63bf000 data 0x78d66c7e00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.3.ffn_norm.weight : base 0x78d63bf000 data 0x78d66c8000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.3.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d66c9000 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_norm.weight : base 0x78d63bf000 data 0x78d67c9000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_k_norm.weight : base 0x78d63bf000 data 0x78d67ca000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_q_norm.weight : base 0x78d63bf000 data 0x78d67ca200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.4.ffn_norm.weight : base 0x78d63bf000 data 0x78d67ca400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.4.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d67cb400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_norm.weight : base 0x78d63bf000 data 0x78d68cb400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_k_norm.weight : base 0x78d63bf000 data 0x78d68cc400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_q_norm.weight : base 0x78d63bf000 data 0x78d68cc600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.5.ffn_norm.weight : base 0x78d63bf000 data 0x78d68cc800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.5.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d68cd800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_norm.weight : base 0x78d63bf000 data 0x78d69cd800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_k_norm.weight : base 0x78d63bf000 data 0x78d69ce800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_q_norm.weight : base 0x78d63bf000 data 0x78d69cea00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.6.ffn_norm.weight : base 0x78d63bf000 data 0x78d69cec00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.6.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d69cfc00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_norm.weight : base 0x78d63bf000 data 0x78d6acfc00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_k_norm.weight : base 0x78d63bf000 data 0x78d6ad0c00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_q_norm.weight : base 0x78d63bf000 data 0x78d6ad0e00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.7.ffn_norm.weight : base 0x78d63bf000 data 0x78d6ad1000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.7.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d6ad2000 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_norm.weight : base 0x78d63bf000 data 0x78d6bd2000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_k_norm.weight : base 0x78d63bf000 data 0x78d6bd3000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_q_norm.weight : base 0x78d63bf000 data 0x78d6bd3200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.8.ffn_norm.weight : base 0x78d63bf000 data 0x78d6bd3400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.8.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d6bd4400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_norm.weight : base 0x78d63bf000 data 0x78d6cd4400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_k_norm.weight : base 0x78d63bf000 data 0x78d6cd5400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_q_norm.weight : base 0x78d63bf000 data 0x78d6cd5600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.9.ffn_norm.weight : base 0x78d63bf000 data 0x78d6cd5800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.9.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d6cd6800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_norm.weight : base 0x78d63bf000 data 0x78d6dd6800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_k_norm.weight : base 0x78d63bf000 data 0x78d6dd7800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_q_norm.weight : base 0x78d63bf000 data 0x78d6dd7a00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.10.ffn_norm.weight : base 0x78d63bf000 data 0x78d6dd7c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.10.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d6dd8c00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_norm.weight : base 0x78d63bf000 data 0x78d6ed8c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_k_norm.weight : base 0x78d63bf000 data 0x78d6ed9c00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_q_norm.weight : base 0x78d63bf000 data 0x78d6ed9e00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.11.ffn_norm.weight : base 0x78d63bf000 data 0x78d6eda000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.11.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d6edb000 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_norm.weight : base 0x78d63bf000 data 0x78d6fdb000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_k_norm.weight : base 0x78d63bf000 data 0x78d6fdc000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_q_norm.weight : base 0x78d63bf000 data 0x78d6fdc200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.12.ffn_norm.weight : base 0x78d63bf000 data 0x78d6fdc400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.12.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d6fdd400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_norm.weight : base 0x78d63bf000 data 0x78d70dd400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_k_norm.weight : base 0x78d63bf000 data 0x78d70de400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_q_norm.weight : base 0x78d63bf000 data 0x78d70de600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.13.ffn_norm.weight : base 0x78d63bf000 data 0x78d70de800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.13.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d70df800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_norm.weight : base 0x78d63bf000 data 0x78d71df800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_k_norm.weight : base 0x78d63bf000 data 0x78d71e0800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_q_norm.weight : base 0x78d63bf000 data 0x78d71e0a00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.14.ffn_norm.weight : base 0x78d63bf000 data 0x78d71e0c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.14.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d71e1c00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_norm.weight : base 0x78d63bf000 data 0x78d72e1c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_k_norm.weight : base 0x78d63bf000 data 0x78d72e2c00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_q_norm.weight : base 0x78d63bf000 data 0x78d72e2e00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.15.ffn_norm.weight : base 0x78d63bf000 data 0x78d72e3000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.15.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d72e4000 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_norm.weight : base 0x78d63bf000 data 0x78d73e4000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_k_norm.weight : base 0x78d63bf000 data 0x78d73e5000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_q_norm.weight : base 0x78d63bf000 data 0x78d73e5200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.16.ffn_norm.weight : base 0x78d63bf000 data 0x78d73e5400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.16.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d73e6400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_norm.weight : base 0x78d63bf000 data 0x78d74e6400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_k_norm.weight : base 0x78d63bf000 data 0x78d74e7400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_q_norm.weight : base 0x78d63bf000 data 0x78d74e7600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.17.ffn_norm.weight : base 0x78d63bf000 data 0x78d74e7800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.17.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d74e8800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_norm.weight : base 0x78d63bf000 data 0x78d75e8800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_k_norm.weight : base 0x78d63bf000 data 0x78d75e9800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_q_norm.weight : base 0x78d63bf000 data 0x78d75e9a00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.18.ffn_norm.weight : base 0x78d63bf000 data 0x78d75e9c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.18.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d75eac00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_norm.weight : base 0x78d63bf000 data 0x78d76eac00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_k_norm.weight : base 0x78d63bf000 data 0x78d76ebc00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_q_norm.weight : base 0x78d63bf000 data 0x78d76ebe00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.19.ffn_norm.weight : base 0x78d63bf000 data 0x78d76ec000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.19.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d76ed000 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_norm.weight : base 0x78d63bf000 data 0x78d77ed000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_k_norm.weight : base 0x78d63bf000 data 0x78d77ee000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_q_norm.weight : base 0x78d63bf000 data 0x78d77ee200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.20.ffn_norm.weight : base 0x78d63bf000 data 0x78d77ee400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.20.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d77ef400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_norm.weight : base 0x78d63bf000 data 0x78d78ef400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_k_norm.weight : base 0x78d63bf000 data 0x78d78f0400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_q_norm.weight : base 0x78d63bf000 data 0x78d78f0600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.21.ffn_norm.weight : base 0x78d63bf000 data 0x78d78f0800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.21.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d78f1800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_norm.weight : base 0x78d63bf000 data 0x78d79f1800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_k_norm.weight : base 0x78d63bf000 data 0x78d79f2800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_q_norm.weight : base 0x78d63bf000 data 0x78d79f2a00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.22.ffn_norm.weight : base 0x78d63bf000 data 0x78d79f2c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.22.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d79f3c00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_norm.weight : base 0x78d63bf000 data 0x78d7af3c00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_k_norm.weight : base 0x78d63bf000 data 0x78d7af4c00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_q_norm.weight : base 0x78d63bf000 data 0x78d7af4e00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.23.ffn_norm.weight : base 0x78d63bf000 data 0x78d7af5000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.23.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d7af6000 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_norm.weight : base 0x78d63bf000 data 0x78d7bf6000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_k_norm.weight : base 0x78d63bf000 data 0x78d7bf7000 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_q_norm.weight : base 0x78d63bf000 data 0x78d7bf7200 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.24.ffn_norm.weight : base 0x78d63bf000 data 0x78d7bf7400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.24.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d7bf8400 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_norm.weight : base 0x78d63bf000 data 0x78d7cf8400 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_k_norm.weight : base 0x78d63bf000 data 0x78d7cf9400 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_q_norm.weight : base 0x78d63bf000 data 0x78d7cf9600 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.25.ffn_norm.weight : base 0x78d63bf000 data 0x78d7cf9800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.25.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d7cfa800 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_norm.weight : base 0x78d63bf000 data 0x78d7dfa800 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_k_norm.weight : base 0x78d63bf000 data 0x78d7dfb800 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_q_norm.weight : base 0x78d63bf000 data 0x78d7dfba00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.26.ffn_norm.weight : base 0x78d63bf000 data 0x78d7dfbc00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.26.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d7dfcc00 nbytes 1048576 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_norm.weight : base 0x78d63bf000 data 0x78d7efcc00 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_k_norm.weight : base 0x78d63bf000 data 0x78d7efdc00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_q_norm.weight : base 0x78d63bf000 data 0x78d7efde00 nbytes 512 usage 0
+ggml-hex: HTP0 init-tensor blk.27.ffn_norm.weight : base 0x78d63bf000 data 0x78d7efe000 nbytes 4096 usage 0
+ggml-hex: HTP0 init-tensor blk.27.ffn_gate_inp.weight : base 0x78d63bf000 data 0x78d7eff000 nbytes 1048576 usage 0
+ggml-hex: rpcmem_alloc2 not found, falling back to rpcmem_alloc
+ggml-hex: HTP0 allocated buffer: base 0x78cb13e000 size 187174912 fd 19 pinned 0
+ggml-hex: HTP0 mapped buffer: base 0x78cb13e000 size 187174912 fd 19 pinned 0
+ggml-hex: HTP0 init-tensor blk.0.attn_q.weight : base 0x78cb13e000 data 0x78cb13e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_k.weight : base 0x78cb13e000 data 0x78cb35e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_v.weight : base 0x78cb13e000 data 0x78cb46e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_output.weight : base 0x78cb13e000 data 0x78cb57e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_q.weight : base 0x78cb13e000 data 0x78cb79e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_k.weight : base 0x78cb13e000 data 0x78cb9be000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_v.weight : base 0x78cb13e000 data 0x78cbace000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_output.weight : base 0x78cb13e000 data 0x78cbbde000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_q.weight : base 0x78cb13e000 data 0x78cbdfe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_k.weight : base 0x78cb13e000 data 0x78cc01e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_v.weight : base 0x78cb13e000 data 0x78cc12e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.2.attn_output.weight : base 0x78cb13e000 data 0x78cc23e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_q.weight : base 0x78cb13e000 data 0x78cc45e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_k.weight : base 0x78cb13e000 data 0x78cc67e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_v.weight : base 0x78cb13e000 data 0x78cc78e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.3.attn_output.weight : base 0x78cb13e000 data 0x78cc89e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_q.weight : base 0x78cb13e000 data 0x78ccabe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_k.weight : base 0x78cb13e000 data 0x78cccde000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_v.weight : base 0x78cb13e000 data 0x78ccdee000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.4.attn_output.weight : base 0x78cb13e000 data 0x78ccefe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_q.weight : base 0x78cb13e000 data 0x78cd11e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_k.weight : base 0x78cb13e000 data 0x78cd33e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_v.weight : base 0x78cb13e000 data 0x78cd44e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.5.attn_output.weight : base 0x78cb13e000 data 0x78cd55e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_q.weight : base 0x78cb13e000 data 0x78cd77e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_k.weight : base 0x78cb13e000 data 0x78cd99e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_v.weight : base 0x78cb13e000 data 0x78cdaae000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.6.attn_output.weight : base 0x78cb13e000 data 0x78cdbbe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_q.weight : base 0x78cb13e000 data 0x78cddde000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_k.weight : base 0x78cb13e000 data 0x78cdffe000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_v.weight : base 0x78cb13e000 data 0x78ce10e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.7.attn_output.weight : base 0x78cb13e000 data 0x78ce21e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_q.weight : base 0x78cb13e000 data 0x78ce43e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_k.weight : base 0x78cb13e000 data 0x78ce65e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_v.weight : base 0x78cb13e000 data 0x78ce76e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.8.attn_output.weight : base 0x78cb13e000 data 0x78ce87e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_q.weight : base 0x78cb13e000 data 0x78cea9e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_k.weight : base 0x78cb13e000 data 0x78cecbe000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_v.weight : base 0x78cb13e000 data 0x78cedce000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.9.attn_output.weight : base 0x78cb13e000 data 0x78ceede000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_q.weight : base 0x78cb13e000 data 0x78cf0fe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_k.weight : base 0x78cb13e000 data 0x78cf31e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_v.weight : base 0x78cb13e000 data 0x78cf42e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.10.attn_output.weight : base 0x78cb13e000 data 0x78cf53e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_q.weight : base 0x78cb13e000 data 0x78cf75e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_k.weight : base 0x78cb13e000 data 0x78cf97e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_v.weight : base 0x78cb13e000 data 0x78cfa8e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.11.attn_output.weight : base 0x78cb13e000 data 0x78cfb9e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_q.weight : base 0x78cb13e000 data 0x78cfdbe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_k.weight : base 0x78cb13e000 data 0x78cffde000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_v.weight : base 0x78cb13e000 data 0x78d00ee000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.12.attn_output.weight : base 0x78cb13e000 data 0x78d01fe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_q.weight : base 0x78cb13e000 data 0x78d041e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_k.weight : base 0x78cb13e000 data 0x78d063e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_v.weight : base 0x78cb13e000 data 0x78d074e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.13.attn_output.weight : base 0x78cb13e000 data 0x78d085e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_q.weight : base 0x78cb13e000 data 0x78d0a7e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_k.weight : base 0x78cb13e000 data 0x78d0c9e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_v.weight : base 0x78cb13e000 data 0x78d0dae000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.14.attn_output.weight : base 0x78cb13e000 data 0x78d0ebe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_q.weight : base 0x78cb13e000 data 0x78d10de000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_k.weight : base 0x78cb13e000 data 0x78d12fe000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_v.weight : base 0x78cb13e000 data 0x78d140e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.15.attn_output.weight : base 0x78cb13e000 data 0x78d151e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_q.weight : base 0x78cb13e000 data 0x78d173e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_k.weight : base 0x78cb13e000 data 0x78d195e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_v.weight : base 0x78cb13e000 data 0x78d1a6e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.16.attn_output.weight : base 0x78cb13e000 data 0x78d1b7e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_q.weight : base 0x78cb13e000 data 0x78d1d9e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_k.weight : base 0x78cb13e000 data 0x78d1fbe000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_v.weight : base 0x78cb13e000 data 0x78d20ce000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.17.attn_output.weight : base 0x78cb13e000 data 0x78d21de000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_q.weight : base 0x78cb13e000 data 0x78d23fe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_k.weight : base 0x78cb13e000 data 0x78d261e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_v.weight : base 0x78cb13e000 data 0x78d272e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.18.attn_output.weight : base 0x78cb13e000 data 0x78d283e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_q.weight : base 0x78cb13e000 data 0x78d2a5e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_k.weight : base 0x78cb13e000 data 0x78d2c7e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_v.weight : base 0x78cb13e000 data 0x78d2d8e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.19.attn_output.weight : base 0x78cb13e000 data 0x78d2e9e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_q.weight : base 0x78cb13e000 data 0x78d30be000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_k.weight : base 0x78cb13e000 data 0x78d32de000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_v.weight : base 0x78cb13e000 data 0x78d33ee000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.20.attn_output.weight : base 0x78cb13e000 data 0x78d34fe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_q.weight : base 0x78cb13e000 data 0x78d371e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_k.weight : base 0x78cb13e000 data 0x78d393e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_v.weight : base 0x78cb13e000 data 0x78d3a4e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.21.attn_output.weight : base 0x78cb13e000 data 0x78d3b5e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_q.weight : base 0x78cb13e000 data 0x78d3d7e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_k.weight : base 0x78cb13e000 data 0x78d3f9e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_v.weight : base 0x78cb13e000 data 0x78d40ae000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.22.attn_output.weight : base 0x78cb13e000 data 0x78d41be000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_q.weight : base 0x78cb13e000 data 0x78d43de000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_k.weight : base 0x78cb13e000 data 0x78d45fe000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_v.weight : base 0x78cb13e000 data 0x78d470e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.23.attn_output.weight : base 0x78cb13e000 data 0x78d481e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_q.weight : base 0x78cb13e000 data 0x78d4a3e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_k.weight : base 0x78cb13e000 data 0x78d4c5e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_v.weight : base 0x78cb13e000 data 0x78d4d6e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.24.attn_output.weight : base 0x78cb13e000 data 0x78d4e7e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_q.weight : base 0x78cb13e000 data 0x78d509e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_k.weight : base 0x78cb13e000 data 0x78d52be000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_v.weight : base 0x78cb13e000 data 0x78d53ce000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.25.attn_output.weight : base 0x78cb13e000 data 0x78d54de000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_q.weight : base 0x78cb13e000 data 0x78d56fe000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_k.weight : base 0x78cb13e000 data 0x78d591e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_v.weight : base 0x78cb13e000 data 0x78d5a2e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.26.attn_output.weight : base 0x78cb13e000 data 0x78d5b3e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_q.weight : base 0x78cb13e000 data 0x78d5d5e000 nbytes 2228224 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_k.weight : base 0x78cb13e000 data 0x78d5f7e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_v.weight : base 0x78cb13e000 data 0x78d608e000 nbytes 1114112 usage 0
+ggml-hex: HTP0 init-tensor blk.27.attn_output.weight : base 0x78cb13e000 data 0x78d619e000 nbytes 2228224 usage 0
+load_tensors: offloading output layer to GPU
+load_tensors: offloading 27 repeating layers to GPU
+load_tensors: offloaded 29/29 layers to GPU
+load_tensors:          CPU model buffer size =  5995.65 MiB
+load_tensors:   CPU_REPACK model buffer size =   157.65 MiB
+load_tensors:         HTP0 model buffer size =    28.25 MiB
+load_tensors:  HTP0-REPACK model buffer size =   178.50 MiB
+load_all_data: no device found for buffer type CPU for async uploads
+.......................................................................

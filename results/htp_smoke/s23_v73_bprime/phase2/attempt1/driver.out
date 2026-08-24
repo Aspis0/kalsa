@@ -1,0 +1,6 @@
+2026-08-24T05:16:34Z STATUS STARTING
+2026-08-24T05:17:16Z model_sha=bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419
+Failed to write while dumping service battery: Broken pipe
+2026-08-24T05:17:18Z gate tag=a_pp16_tg8 level=94 temp10=301
+2026-08-24T05:17:18Z cool-start PASS tag=a_pp16_tg8 temp10=301
+2026-08-24T05:17:19Z launch (a) pp16/tg8 -v HTP0

@@ -1,0 +1,5 @@
+2026-08-24T06:49:32Z STATUS STARTING
+2026-08-24T06:49:40Z model_sha=bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419
+2026-08-24T06:49:41Z gate tag=a_pp16_tg8 level=91 temp10=257
+2026-08-24T06:49:41Z cool-start PASS tag=a_pp16_tg8 temp10=257
+2026-08-24T06:49:41Z launch (a) pp16/tg8 -v HTP0

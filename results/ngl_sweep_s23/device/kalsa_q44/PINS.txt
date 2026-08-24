@@ -1,0 +1,10 @@
+model_sha_preverified=b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4
+stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807
+ocl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
+bindir=/data/local/tmp/s3oracle
+bin=/data/local/tmp/s3oracle/llama-bench
+model=/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+threads=4
+flags=-nr -fa off -t 4 -p 512 -n 128 -r 1 -v -o jsonl (ngl0 had no -v)
+GGML_OPENCL_LOG_ALLOC=1

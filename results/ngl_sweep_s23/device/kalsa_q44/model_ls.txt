@@ -1,0 +1,1 @@
+-rw-rw-rw- 1 shell shell 3326160384 2026-08-19 12:21 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf

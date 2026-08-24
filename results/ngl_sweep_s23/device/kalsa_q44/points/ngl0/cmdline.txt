@@ -1,0 +1,1 @@
+./llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf -ngl 0 -nr -fa off -t 4 -p 512 -n 128 -r 1 -o jsonl 

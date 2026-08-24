@@ -1,0 +1,124 @@
+2026-08-24T03:57:47Z STATUS STARTING
+2026-08-24T03:57:48Z driver start pid=15556
+2026-08-24T03:57:53Z sha stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 ocl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
+2026-08-24T03:57:54Z STATUS RUNNING ngl=0
+2026-08-24T03:57:56Z gate tag=ngl0 level=100 temp10=268
+2026-08-24T03:57:56Z cool-start PASS tag=ngl0 temp10=268
+2026-08-24T03:57:57Z sampler started tag=ngl0 spid=15602
+2026-08-24T03:58:01Z launch llama-bench ngl=0
+2026-08-24T03:58:01Z bench pid=15630 ngl=0
+2026-08-24T03:58:02Z cpuset captured pid=15630 cpuset=/ 
+2026-08-24T04:00:30Z bench rc=0 ngl=0
+2026-08-24T04:00:40Z sampler stopped tag=ngl0
+2026-08-24T04:00:42Z smoke ngl0 rc=0 samples=37
+2026-08-24T04:00:42Z STATUS SMOKE_OK samples=37
+2026-08-24T04:00:42Z N missing from ngl0; load-only probe at ngl 1
+2026-08-24T04:01:52Z STATUS STOP cannot_parse_N
+2026-08-24T04:04:37Z STATUS STARTING
+2026-08-24T04:04:38Z driver start pid=17949
+2026-08-24T04:04:41Z sha stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 ocl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
+2026-08-24T04:04:42Z continue skip ngl0 (already done) rc=0 samples=37
+2026-08-24T04:04:43Z N missing from ngl0; -v load-only probe at ngl 1
+2026-08-24T04:04:43Z N missing from ngl0; load-only probe at ngl 1
+2026-08-24T04:05:51Z STATUS STOP cannot_parse_N
+2026-08-24T04:08:37Z STATUS STARTING
+2026-08-24T04:08:38Z driver start pid=18091
+2026-08-24T04:08:43Z sha stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 ocl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
+2026-08-24T04:08:44Z continue skip ngl0 (already done) rc=0 samples=37
+2026-08-24T04:08:46Z N from existing offload_line_raw.txt: 25
+2026-08-24T04:08:46Z N_MAP N=25 points=0,7,13,19,99
+2026-08-24T04:08:46Z STATUS SMOKE_OK N=25 points=0,7,13,19,99
+2026-08-24T04:08:46Z cooldown 180s start
+2026-08-24T04:09:22Z cooldown elapsed=15s
+2026-08-24T04:10:12Z cooldown elapsed=30s
+2026-08-24T04:10:53Z cooldown elapsed=45s
+2026-08-24T04:11:34Z cooldown elapsed=60s
+2026-08-24T04:12:21Z cooldown elapsed=75s
+2026-08-24T04:13:00Z cooldown elapsed=90s
+2026-08-24T04:13:46Z cooldown elapsed=105s
+2026-08-24T04:14:32Z cooldown elapsed=120s
+2026-08-24T04:15:10Z cooldown elapsed=135s
+2026-08-24T04:15:51Z cooldown elapsed=150s
+2026-08-24T04:16:38Z cooldown elapsed=165s
+2026-08-24T04:17:16Z cooldown elapsed=180s
+2026-08-24T04:17:16Z cooldown 180s done
+2026-08-24T04:17:16Z STATUS RUNNING ngl=7
+2026-08-24T04:17:16Z gate tag=ngl7 level=99 temp10=273
+2026-08-24T04:17:16Z cool-start PASS tag=ngl7 temp10=273
+2026-08-24T04:17:16Z sampler started tag=ngl7 spid=18431
+2026-08-24T04:17:17Z launch llama-bench ngl=7
+2026-08-24T04:17:17Z bench pid=18517 ngl=7
+2026-08-24T04:17:17Z cpuset captured pid=18517 cpuset=/ 
+2026-08-24T04:20:20Z bench rc=0 ngl=7
+2026-08-24T04:20:25Z sampler stopped tag=ngl7
+2026-08-24T04:20:26Z cooldown 180s start
+2026-08-24T04:21:07Z cooldown elapsed=15s
+2026-08-24T04:21:45Z cooldown elapsed=30s
+2026-08-24T04:22:25Z cooldown elapsed=45s
+2026-08-24T04:23:17Z cooldown elapsed=60s
+2026-08-24T04:23:52Z cooldown elapsed=75s
+2026-08-24T04:24:33Z cooldown elapsed=90s
+2026-08-24T04:25:21Z cooldown elapsed=105s
+2026-08-24T04:26:07Z cooldown elapsed=120s
+2026-08-24T04:26:41Z cooldown elapsed=135s
+2026-08-24T04:27:16Z cooldown elapsed=150s
+2026-08-24T04:27:52Z cooldown elapsed=165s
+2026-08-24T04:28:49Z cooldown elapsed=180s
+2026-08-24T04:28:49Z cooldown 180s done
+2026-08-24T04:28:49Z STATUS RUNNING ngl=13
+2026-08-24T04:28:50Z gate tag=ngl13 level=98 temp10=281
+2026-08-24T04:28:50Z cool-start PASS tag=ngl13 temp10=281
+2026-08-24T04:28:50Z sampler started tag=ngl13 spid=21621
+2026-08-24T04:28:52Z launch llama-bench ngl=13
+2026-08-24T04:28:53Z bench pid=21656 ngl=13
+2026-08-24T04:28:53Z cpuset captured pid=21656 cpuset=/ 
+2026-08-24T04:33:29Z bench rc=0 ngl=13
+2026-08-24T04:33:36Z sampler stopped tag=ngl13
+2026-08-24T04:33:37Z cooldown 180s start
+2026-08-24T04:34:23Z cooldown elapsed=15s
+2026-08-24T04:35:10Z cooldown elapsed=30s
+2026-08-24T04:35:59Z cooldown elapsed=45s
+2026-08-24T04:36:38Z cooldown elapsed=60s
+2026-08-24T04:37:16Z cooldown elapsed=75s
+2026-08-24T04:38:06Z cooldown elapsed=90s
+2026-08-24T04:38:51Z cooldown elapsed=105s
+2026-08-24T04:39:28Z cooldown elapsed=120s
+2026-08-24T04:40:19Z cooldown elapsed=135s
+2026-08-24T04:41:05Z cooldown elapsed=150s
+2026-08-24T04:41:44Z cooldown elapsed=165s
+2026-08-24T04:42:33Z cooldown elapsed=180s
+2026-08-24T04:42:33Z cooldown 180s done
+2026-08-24T04:42:33Z STATUS RUNNING ngl=19
+2026-08-24T04:42:33Z gate tag=ngl19 level=97 temp10=280
+2026-08-24T04:42:33Z cool-start PASS tag=ngl19 temp10=280
+2026-08-24T04:42:34Z sampler started tag=ngl19 spid=25160
+2026-08-24T04:42:35Z launch llama-bench ngl=19
+2026-08-24T04:42:35Z bench pid=25188 ngl=19
+2026-08-24T04:42:35Z cpuset captured pid=25188 cpuset=/ 
+2026-08-24T04:45:35Z bench rc=0 ngl=19
+2026-08-24T04:45:46Z sampler stopped tag=ngl19
+2026-08-24T04:45:47Z cooldown 180s start
+2026-08-24T04:46:38Z cooldown elapsed=15s
+2026-08-24T04:47:23Z cooldown elapsed=30s
+2026-08-24T04:48:11Z cooldown elapsed=45s
+2026-08-24T04:48:31Z cooldown elapsed=60s
+2026-08-24T04:49:10Z cooldown elapsed=75s
+2026-08-24T04:49:56Z cooldown elapsed=90s
+2026-08-24T04:50:31Z cooldown elapsed=105s
+2026-08-24T04:51:12Z cooldown elapsed=120s
+2026-08-24T04:51:57Z cooldown elapsed=135s
+2026-08-24T04:52:46Z cooldown elapsed=150s
+2026-08-24T04:53:36Z cooldown elapsed=165s
+2026-08-24T04:54:23Z cooldown elapsed=180s
+2026-08-24T04:54:23Z cooldown 180s done
+2026-08-24T04:54:23Z STATUS RUNNING ngl=99
+2026-08-24T04:54:25Z gate tag=ngl99 level=96 temp10=282
+2026-08-24T04:54:25Z cool-start PASS tag=ngl99 temp10=282
+2026-08-24T04:54:27Z sampler started tag=ngl99 spid=28306
+2026-08-24T04:54:30Z launch llama-bench ngl=99
+2026-08-24T04:54:30Z bench pid=28335 ngl=99
+2026-08-24T04:54:31Z cpuset captured pid=28335 cpuset=/ 
+2026-08-24T04:57:25Z bench rc=0 ngl=99
+2026-08-24T04:57:35Z sampler stopped tag=ngl99
+2026-08-24T04:57:36Z STATUS DONE
+2026-08-24T04:57:36Z driver DONE

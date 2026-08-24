@@ -1,0 +1,6 @@
+N=25
+ngl_points=0 7 13 19 99
+ceil_N_4=7
+ceil_N_2=13
+ceil_3N_4=19
+source=load_tensors offloaded X/N (ngl0 stderr, else ngl1 probe)

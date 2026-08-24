@@ -1,0 +1,16 @@
+2026-08-24T03:57:47Z STATUS STARTING
+2026-08-24T03:57:48Z driver start pid=15556
+2026-08-24T03:57:53Z sha stub=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c impl=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807 ocl=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
+2026-08-24T03:57:54Z STATUS RUNNING ngl=0
+2026-08-24T03:57:56Z gate tag=ngl0 level=100 temp10=268
+2026-08-24T03:57:56Z cool-start PASS tag=ngl0 temp10=268
+2026-08-24T03:57:57Z sampler started tag=ngl0 spid=15602
+2026-08-24T03:58:01Z launch llama-bench ngl=0
+2026-08-24T03:58:01Z bench pid=15630 ngl=0
+2026-08-24T03:58:02Z cpuset captured pid=15630 cpuset=/ 
+2026-08-24T04:00:30Z bench rc=0 ngl=0
+2026-08-24T04:00:40Z sampler stopped tag=ngl0
+2026-08-24T04:00:42Z smoke ngl0 rc=0 samples=37
+2026-08-24T04:00:42Z STATUS SMOKE_OK samples=37
+2026-08-24T04:00:42Z N missing from ngl0; load-only probe at ngl 1
+2026-08-24T04:01:52Z STATUS STOP cannot_parse_N

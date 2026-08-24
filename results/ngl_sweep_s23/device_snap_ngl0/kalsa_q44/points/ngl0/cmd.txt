@@ -1,0 +1,9 @@
+BIN=/data/local/tmp/s3oracle/llama-bench
+LD_LIBRARY_PATH=/data/local/tmp/s3oracle
+GGML_OPENCL_LOG_ALLOC=1
+llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf -ngl 0 -nr -fa off -t 4 -p 512 -n 128 -r 1 -o jsonl
+stub_sha=b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c
+impl_sha=8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807
+ocl_sha=f432548328af0429fd0f885ccde70cae69f40666118836c713491602dedd6d6d
+model_sha=b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4
+threads=4

@@ -1,0 +1,13 @@
+phase=2 B-prime Q8_0-trunk HTP smoke v73 REGISTRA+DICHIARA
+ts=2026-08-24T06:49:32Z
+unplugged_declared=yes
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 91
+  temperature: 257
+HOSTBUF_note=llama-bench path UNSETS GGML_HEXAGON_HOSTBUF (v73 run_bench_htp.sh). HOSTBUF=1 is test-backend-ops only and CPU-falls back quantized MUL_MAT.
+binary=/data/local/tmp/kalsahtp/llama-bench stub=5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507 hexagon=f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448 htp_v73=c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5
+model=/data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf pin=bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419
