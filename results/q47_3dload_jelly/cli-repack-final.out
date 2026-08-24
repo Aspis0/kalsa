@@ -1,0 +1,6 @@
+user
+The capital of France is
+assistant
+<think>
+The user asks: "The capital of France is" presumably they want the answer: Paris. However, the instruction says: "If the question has a final answer, place the answer (and only answer) inside \boxed{}
+

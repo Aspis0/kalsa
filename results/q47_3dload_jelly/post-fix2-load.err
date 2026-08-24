@@ -1,0 +1,15 @@
+repack: repack tensor  with q2_K_8x4
+loader-set 2d_q2 size=ggml_nbytes=672 native=672 extra=Q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+loader-set pad_q2_3d size=ggml_nbytes=2016 native=2016 extra=Q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+loader-set q3_3d size=ggml_nbytes=2640 native=2640 extra=Q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+loader-set lfm_gate_q2 size=ggml_nbytes=38535168 native=38535168 extra=Q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+loader-set lfm_down_q3 size=ggml_nbytes=50462720 native=50462720 extra=Q3_K_8x4
+repack: repack tensor  with q3_K_8x4

@@ -1,0 +1,9 @@
+repack: repack tensor  with q2_K_8x4
+FAIL: pad_q2_3d: ggml_nbytes=2080 != native GGUF payload 2016 after init_tensor (hybrid wart; loader would pass the hybrid size into set_tensor)
+repack: repack tensor  with q2_K_8x4
+FAIL: q3_3d: ggml_nbytes=2800 != native GGUF payload 2640 after init_tensor (hybrid wart; loader would pass the hybrid size into set_tensor)
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+FAIL: lfm_down_q3: ggml_nbytes=52240384 != native GGUF payload 50462720 after init_tensor (hybrid wart; loader would pass the hybrid size into set_tensor)
+repack: repack tensor  with q3_K_8x4
+RESULT: FAIL (3)

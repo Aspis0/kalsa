@@ -1,0 +1,185 @@
+{
+  "cases": [
+    {
+      "name": "padded_q2_3d_m2pin",
+      "type": "Q2_K",
+      "ne": [
+        256,
+        8,
+        3,
+        1
+      ],
+      "nblocks": 1,
+      "native_slice": 672,
+      "native_slice_mod64": 32,
+      "packed_payload_mod64": 32,
+      "packed_stride": 704,
+      "pad_per_slice": 32,
+      "native_total": 2016,
+      "packed_total": 2112,
+      "hybrid_nbytes_after_init": 2080,
+      "ggml_nbytes_before_init": 2016,
+      "loader_size_eq_native": false,
+      "set_tensor_would_abort": true,
+      "bounds_native_le_hybrid": true,
+      "delta_hybrid_minus_native": 64
+    },
+    {
+      "name": "2d_q2",
+      "type": "Q2_K",
+      "ne": [
+        256,
+        8,
+        1,
+        1
+      ],
+      "nblocks": 1,
+      "native_slice": 672,
+      "native_slice_mod64": 32,
+      "packed_payload_mod64": 32,
+      "packed_stride": 704,
+      "pad_per_slice": 32,
+      "native_total": 672,
+      "packed_total": 704,
+      "hybrid_nbytes_after_init": 672,
+      "ggml_nbytes_before_init": 672,
+      "loader_size_eq_native": true,
+      "set_tensor_would_abort": false,
+      "bounds_native_le_hybrid": true,
+      "delta_hybrid_minus_native": 0
+    },
+    {
+      "name": "lfm_gate_q2",
+      "type": "Q2_K",
+      "ne": [
+        2048,
+        1792,
+        32,
+        1
+      ],
+      "nblocks": 8,
+      "native_slice": 1204224,
+      "native_slice_mod64": 0,
+      "packed_payload_mod64": 0,
+      "packed_stride": 1204224,
+      "pad_per_slice": 0,
+      "native_total": 38535168,
+      "packed_total": 38535168,
+      "hybrid_nbytes_after_init": 38535168,
+      "ggml_nbytes_before_init": 38535168,
+      "loader_size_eq_native": true,
+      "set_tensor_would_abort": false,
+      "bounds_native_le_hybrid": true,
+      "delta_hybrid_minus_native": 0
+    },
+    {
+      "name": "lfm_down_q3",
+      "type": "Q3_K",
+      "ne": [
+        1792,
+        2048,
+        32,
+        1
+      ],
+      "nblocks": 7,
+      "native_slice": 1576960,
+      "native_slice_mod64": 0,
+      "packed_payload_mod64": 0,
+      "packed_stride": 1634304,
+      "pad_per_slice": 0,
+      "native_total": 50462720,
+      "packed_total": 52297728,
+      "hybrid_nbytes_after_init": 52240384,
+      "ggml_nbytes_before_init": 50462720,
+      "loader_size_eq_native": false,
+      "set_tensor_would_abort": true,
+      "bounds_native_le_hybrid": true,
+      "delta_hybrid_minus_native": 1777664
+    },
+    {
+      "name": "marco_gate_q2",
+      "type": "Q2_K",
+      "ne": [
+        1024,
+        768,
+        256,
+        1
+      ],
+      "nblocks": 4,
+      "native_slice": 258048,
+      "native_slice_mod64": 0,
+      "packed_payload_mod64": 0,
+      "packed_stride": 258048,
+      "pad_per_slice": 0,
+      "native_total": 66060288,
+      "packed_total": 66060288,
+      "hybrid_nbytes_after_init": 66060288,
+      "ggml_nbytes_before_init": 66060288,
+      "loader_size_eq_native": true,
+      "set_tensor_would_abort": false,
+      "bounds_native_le_hybrid": true,
+      "delta_hybrid_minus_native": 0
+    },
+    {
+      "name": "marco_down_q3",
+      "type": "Q3_K",
+      "ne": [
+        768,
+        1024,
+        256,
+        1
+      ],
+      "nblocks": 3,
+      "native_slice": 337920,
+      "native_slice_mod64": 0,
+      "packed_payload_mod64": 0,
+      "packed_stride": 350208,
+      "pad_per_slice": 0,
+      "native_total": 86507520,
+      "packed_total": 89653248,
+      "hybrid_nbytes_after_init": 89640960,
+      "ggml_nbytes_before_init": 86507520,
+      "loader_size_eq_native": false,
+      "set_tensor_would_abort": true,
+      "bounds_native_le_hybrid": true,
+      "delta_hybrid_minus_native": 3133440
+    }
+  ],
+  "gguf": {
+    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-control.gguf",
+    "exists": true,
+    "tensors": [
+      {
+        "name": "blk.2.ffn_down_exps.weight",
+        "type": "Q3_K",
+        "shape": [
+          1792,
+          2048,
+          32
+        ],
+        "nbytes": 50462720
+      },
+      {
+        "name": "blk.2.ffn_gate_exps.weight",
+        "type": "Q2_K",
+        "shape": [
+          2048,
+          1792,
+          32
+        ],
+        "nbytes": 38535168
+      },
+      {
+        "name": "blk.2.ffn_up_exps.weight",
+        "type": "Q2_K",
+        "shape": [
+          2048,
+          1792,
+          32
+        ],
+        "nbytes": 38535168
+      }
+    ],
+    "size_bytes": 3326160384
+  }
+}

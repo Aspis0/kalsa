@@ -1,0 +1,15 @@
+# Android arm64-v8a, GGML_CPU_ARM_ARCH=armv8.2-a+dotprod+fp16, no i8mm
+# build-android-repack-q23k-m2
+
+# Garbage-demo: first post-load-fix llama-completion (fused FFN still on;
+# slash-spam at temp 0). Pushed 2026-08-24 before fusion-gate commit.
+# Evidence: cli-interactive.out
+665AFB987DAC294499841263B6C80B2F2E7453F5C309A97B80805BFB0FCB9E82  llama-completion (garbage-demo, fused-FFN-on)
+
+# Landing candidate after generalized tiled fusion gates (this round)
+650C3396EA34545730EAAC803DF6F41FC51C5206F739A24A8BBFD6D928BD5933  test-repack-q23k-load
+5427C68EB75BE33340979AB16E0DB2ADFB73556547BD90DE7BEBEE3134099894  test-repack-q23k-m5
+74D83F75737EF0E0331C335B5105BA7D02EC00B0D3BC079AF0389D262F08D2F0  llama-completion
+
+# Previous coherent fusion-gate binary (q23k-only gates), for reference
+C155BA16347B7CCEDA73E6C742D5BA0D549C14336D4499AEC4F1AED263E6CE1D  llama-completion (pre-generalize, q23k-only gates)

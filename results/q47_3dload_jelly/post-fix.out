@@ -1,0 +1,15 @@
+test-repack-q23k-load neon=1 dotprod=1 loader_set=0
+
+== size contract (ggml_nbytes after CPU_REPACK init_tensor) ==
+tag             extra     native     nbytes      alloc     stride loader_ok
+2d_q2          Q2_K_8x4        672        672        704        704 ok
+  ok native set_tensor 2d_q2 nb[2]=704
+pad_q2_3d      Q2_K_8x4       2016       2016       2112        704 ok
+  ok native set_tensor pad_q2_3d nb[2]=704
+q3_3d          Q3_K_8x4       2640       2640       2880        960 ok
+  ok native set_tensor q3_3d nb[2]=960
+lfm_gate_q2    Q2_K_8x4   38535168   38535168   38535168    1204224 ok
+  ok native set_tensor lfm_gate_q2 nb[2]=1204224
+lfm_down_q3    Q3_K_8x4   50462720   50462720   52297728    1634304 ok
+  ok native set_tensor lfm_down_q3 nb[2]=1634304
+RESULT: PASS
