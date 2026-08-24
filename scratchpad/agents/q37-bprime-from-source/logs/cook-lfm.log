@@ -29,3 +29,13 @@
 [2026-08-23T15:02:42] OK lfm/q4_0 bytes=3222842880
 [2026-08-23T15:02:42] DISK free_bytes=140213698560 free_GB=130.58 phase=post-lfm-q4_0
 [2026-08-23T15:02:42] DONE cook model=lfm
+[2026-08-24T08:32:33] START cook model=lfm arms=['q8_0']
+[2026-08-24T08:32:33] DISK free_bytes=141277077504 free_GB=131.57 phase=pre-cook-lfm
+[2026-08-24T08:32:33] DISK free_bytes=141277077504 free_GB=131.57 phase=pre-lfm-q8_0
+[2026-08-24T08:32:33] CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-quantize\bin\llama-quantize.exe --allow-requantize --dry-run --imatrix C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\imatrix_lfm25_unsloth.gguf_file --tensor-type-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\recipes\lfm\q8_0.txt C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\src\LFM2.5-8B-A1B-Q8_0.gguf C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\gguf\lfm\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf Q8_0 16
+[2026-08-24T08:32:34] quantize lfm/q8_0 dry=True rc=0 wall_s=1.2 log=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\logs\quantize-lfm-q8_0-dry.log
+[2026-08-24T08:32:34] CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-pc-quantize\bin\llama-quantize.exe --allow-requantize --imatrix C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\imatrix_lfm25_unsloth.gguf_file --tensor-type-file C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\recipes\lfm\q8_0.txt C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\src\LFM2.5-8B-A1B-Q8_0.gguf C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\gguf\lfm\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf Q8_0 16
+[2026-08-24T08:36:10] quantize lfm/q8_0 dry=False rc=0 wall_s=215.5 log=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q37-bprime-from-source\logs\quantize-lfm-q8_0.log
+[2026-08-24T08:36:10] OK lfm/q8_0 bytes=3580407296
+[2026-08-24T08:36:10] DISK free_bytes=137601761280 free_GB=128.15 phase=post-lfm-q8_0
+[2026-08-24T08:36:10] DONE cook model=lfm

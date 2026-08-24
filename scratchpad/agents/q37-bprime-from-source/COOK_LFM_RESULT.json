@@ -1,22 +1,7 @@
 [
   {
-    "arm": "control",
-    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-control.gguf",
-    "bytes": 3326160384
-  },
-  {
     "arm": "q8_0",
     "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf",
     "bytes": 3580407296
-  },
-  {
-    "arm": "iq4_nl",
-    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-iq4_nl.gguf",
-    "bytes": 3222842880
-  },
-  {
-    "arm": "q4_0",
-    "path": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q37-bprime-from-source\\gguf\\lfm\\LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q4_0.gguf",
-    "bytes": 3222842880
   }
 ]

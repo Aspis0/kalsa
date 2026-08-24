@@ -374,5 +374,5 @@ load_imatrix: imatrix datasets=['unsloth_calibration_LFM2.5-8B-A1B.txt']
 load_imatrix: loaded 154 importance matrix entries from C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\imatrix_lfm25_unsloth.gguf_file computed on 78 chunks
 prepare_imatrix: have 154 importance matrix entries
 
-llama_quantize: quantize time =   356.90 ms
-llama_quantize:    total time =   356.90 ms
+llama_quantize: quantize time =   379.93 ms
+llama_quantize:    total time =   379.94 ms
