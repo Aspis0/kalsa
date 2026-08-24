@@ -423,3 +423,40 @@ Outside the recipe and TTFT, nothing new has shipped into the app. The largest
 unshipped configuration result remains **2.6×** on Marco1c and **−32 %** on
 cache. Measurement discipline remains the bottleneck: record the condition in
 the data row, and read the binary that ran from the run JSON.
+
+---
+
+## 8. THE THREE-ENGINE MAP BY GENERATION (2026-08-24, all cells banked)
+
+The cross-generation laws, measured:
+
+1. **Decode is DRAM-bound → the CPU wins it on every generation, always.**
+   NPU decode 0.37–0.63×, GPU loses (740) or at best ties (750). No exception found.
+2. **Prefill is compute-bound → accelerators pay there.** v75 ranking:
+   experts-on-NPU **4.82×** > dense-NPU 3.2× > GPU 2.48× > trunk-NPU (B′) 1.46×.
+   On 740 the GPU prefill is ~1.1× (not worth it) and the NPU stack is fragile.
+3. **Quant compatibility is the gatekeeper.** HTP reads only Q4_0-family/Q8_0 —
+   KEXP experts (Q2/Q3_K) enter only via the Q8_0 trunk (B′) today, or via future
+   HVX K-quant MUL_MAT_ID kernels (the repriced road (b)). Our GPU kernels read
+   everything including K-quants: the universal accelerator, with the smallest prize.
+4. **Memory decides before speed.** NPU path materializes everything anon (no mmap
+   — hard fit on 8 GB phones); GPU costs ~750 MiB fixed + 1:1 driver-side invisible
+   to RSS (q44); CPU+mmap is the only elastic-residency engine — where the #29
+   repack kernel plays.
+5. **Energy, first datum:** NPU arm 0.86× J/token at matched work (single replica;
+   the #24 sustained cell will confirm or kill it).
+
+Per generation:
+
+| | S23 / 740-class (v73, 8 GB) | Xiaomi / 750-class (v75, 16 GB) | Jelly / G99-class (no HTP) |
+|---|---|---|---|
+| **CPU** | Fastest overall; decode king (17.55 vs GPU 14.25 on KEXP) | Decode king still | The only engine: #29 residency kernel (6.6×) + K-F prefetch (−34% where stall>20%) |
+| **GPU** | Cool-mode on KEXP only (−19 %, −2.75 °C); the only working GPU path for quantized MoE (Vulkan dead) | Decode parity (0.992) + prefill 2.48× → default candidate where the model fits (fit-gate hard) | Parked: G57 never beats CPU (0.24–0.96×); reopens on G610/G615 |
+| **NPU** | Prefill-only and fragile: 3.5× on 4B Q4_0; experts dispatch but DSP queue dies under load (0x2e); all-anon load | Full menu: dense 3.19×, B′ trunk 1.46× (+J/token 0.86×), **experts 4.82× (686 t/s)**; survives where v73 dies | None |
+
+**The generational jump 740→750 changes verdicts, not just speeds** (C-always-wins
+→ GPU parity; NPU fragile → NPU holds). Decision tables are re-measured per
+generation, never transferred (#16's lesson). Owner directive 24/08: the NPU lane
+must ALSO work on v73 — DSP-queue crash and the no-mmap load path are the two
+hardening targets (note: the v73/v75 crash discriminator carried a second variable,
+HOSTBUF unset vs =1 — the clean retry is queued).
