@@ -1,0 +1,245 @@
+{
+  "note": "BLIND JUDGE MUST NOT READ THIS FILE",
+  "map": {
+    "fact_it_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_it_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_it_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_it_04": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_it_05": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_en_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_en_02": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_en_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_en_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_en_05": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_es_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_es_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_es_03": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_es_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_es_05": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_fr_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_fr_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_fr_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_fr_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_fr_05": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_zh_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_zh_02": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_zh_03": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "fact_zh_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "fact_zh_05": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "inst_en_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_en_02": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_en_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "inst_en_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "inst_en_05": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_it_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_it_02": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_it_03": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_it_04": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "inst_it_05": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "code_en_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "code_en_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "code_en_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "code_en_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "code_en_05": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "math_it_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "math_it_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "math_it_03": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "math_it_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "math_en_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "math_en_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "math_en_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "math_en_04": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "long_it_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "long_it_02": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "long_it_03": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "long_it_04": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "long_it_05": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "long_it_06": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "trap_it_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "trap_fr_01": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "trap_es_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "trap_zh_01": {
+      "A": "control",
+      "B": "q8_0"
+    },
+    "trap_it_02": {
+      "A": "q8_0",
+      "B": "control"
+    },
+    "trap_fr_02": {
+      "A": "control",
+      "B": "q8_0"
+    }
+  }
+}

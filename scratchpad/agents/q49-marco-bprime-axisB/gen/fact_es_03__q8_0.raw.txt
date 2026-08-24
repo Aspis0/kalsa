@@ -1,0 +1,6 @@
+User:
+¿En qué año llegó Cristóbal Colón a América en su primer viaje? Responde en español con el año.
+
+Assistant:
+Cristóbal Colón llegó a América en su primer viaje en el año 1492.
+

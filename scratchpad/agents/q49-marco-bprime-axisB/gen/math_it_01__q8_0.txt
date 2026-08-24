@@ -1,0 +1,18 @@
+Ecco il calcolo passo passo:
+
+1. **Ci sono 3 cassetti** nella scatola principale.  
+   → Quindi, 3 cassetti.
+
+2. **In ogni cassetto ci sono 4 scatole più piccole**.  
+   → Ogni cassetto contiene 4 scatole → 3 cassetti × 4 scatole = **12 scatole più piccole**.
+
+3. **In ciascuna di queste scatole più piccole ci sono 5 biglie**.  
+   → 12 scatole × 5 biglie = **60 biglie**.
+
+Quindi, il numero totale di biglie è:
+
+\[
+3 \text{ cassetti} \times 4 \text{ scatole per cassetto} \times 5 \text{ biglie per scatola} = 60 \text{ biglie}
+\]
+
+**Risposta finale: 60 biglie.**

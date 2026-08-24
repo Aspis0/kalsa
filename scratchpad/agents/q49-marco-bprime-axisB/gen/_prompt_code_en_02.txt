@@ -1,0 +1,1 @@
+Write a SQL query that selects email from a table named users where active = 1, ordered by created_at DESC, limited to 10 rows. SQL only, no explanation.

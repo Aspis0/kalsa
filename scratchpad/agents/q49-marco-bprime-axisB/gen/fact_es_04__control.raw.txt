@@ -1,0 +1,6 @@
+User:
+¿Qué río atraviesa la ciudad de Sevilla? Responde en español.
+
+Assistant:
+El río que atraviesa la ciudad de Sevilla es el río Guadalquivir.
+

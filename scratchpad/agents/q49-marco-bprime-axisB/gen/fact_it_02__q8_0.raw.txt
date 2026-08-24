@@ -1,0 +1,6 @@
+User:
+Chi fu il primo Presidente della Repubblica Italiana? Rispondi in italiano, nome e cognome.
+
+Assistant:
+Il primo Presidente della Repubblica Italiana fu Enrico De Nicola.
+

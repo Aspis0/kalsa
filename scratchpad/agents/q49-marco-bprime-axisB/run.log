@@ -1,0 +1,299 @@
+2026-08-24T13:54:29Z PIN control sha=f3e2826f78c78452afa0765613875c806f1ca3976f1f59ff4e8ff85bea5782ea size=6385238912
+2026-08-24T13:54:43Z PIN q8_0 sha=bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419 size=6509642624
+2026-08-24T13:54:43Z PIN llama-cli.exe sha=035ac1a68cff7ffaee243946f66443a95cf436dd8185b14fb458f58f689c1518 size=10752
+2026-08-24T13:54:43Z START fact_it_01 control n=512
+2026-08-24T13:55:23Z DONE fact_it_01 control rc=0 chars=170 wall=39.7s
+2026-08-24T13:55:23Z START fact_it_01 q8_0 n=512
+2026-08-24T13:56:19Z DONE fact_it_01 q8_0 rc=0 chars=183 wall=55.9s
+2026-08-24T13:56:19Z START fact_it_02 control n=512
+2026-08-24T13:57:15Z DONE fact_it_02 control rc=0 chars=70 wall=55.8s
+2026-08-24T13:57:15Z START fact_it_02 q8_0 n=512
+2026-08-24T13:57:37Z DONE fact_it_02 q8_0 rc=0 chars=66 wall=22.6s
+2026-08-24T13:57:37Z START fact_it_03 control n=512
+2026-08-24T13:58:00Z DONE fact_it_03 control rc=0 chars=95 wall=22.4s
+2026-08-24T13:58:00Z START fact_it_03 q8_0 n=512
+2026-08-24T13:58:22Z DONE fact_it_03 q8_0 rc=0 chars=95 wall=22.0s
+2026-08-24T13:58:22Z START fact_it_04 control n=512
+2026-08-24T13:59:15Z DONE fact_it_04 control rc=0 chars=592 wall=53.5s
+2026-08-24T13:59:15Z START fact_it_04 q8_0 n=512
+2026-08-24T13:59:52Z DONE fact_it_04 q8_0 rc=0 chars=412 wall=37.1s
+2026-08-24T13:59:52Z START fact_it_05 control n=512
+2026-08-24T14:00:08Z DONE fact_it_05 control rc=0 chars=47 wall=15.7s
+2026-08-24T14:00:08Z START fact_it_05 q8_0 n=512
+2026-08-24T14:00:27Z DONE fact_it_05 q8_0 rc=0 chars=57 wall=19.0s
+2026-08-24T14:00:27Z START fact_en_01 control n=512
+2026-08-24T14:00:39Z DONE fact_en_01 control rc=0 chars=38 wall=12.6s
+2026-08-24T14:00:39Z START fact_en_01 q8_0 n=512
+2026-08-24T14:00:55Z DONE fact_en_01 q8_0 rc=0 chars=38 wall=16.0s
+2026-08-24T14:00:55Z START fact_en_02 control n=512
+2026-08-24T14:01:09Z DONE fact_en_02 control rc=0 chars=33 wall=13.7s
+2026-08-24T14:01:09Z START fact_en_02 q8_0 n=512
+2026-08-24T14:01:24Z DONE fact_en_02 q8_0 rc=0 chars=47 wall=15.2s
+2026-08-24T14:01:24Z START fact_en_03 control n=512
+2026-08-24T14:01:46Z DONE fact_en_03 control rc=0 chars=179 wall=21.7s
+2026-08-24T14:01:46Z START fact_en_03 q8_0 n=512
+2026-08-24T14:02:04Z DONE fact_en_03 q8_0 rc=0 chars=128 wall=18.0s
+2026-08-24T14:02:04Z START fact_en_04 control n=512
+2026-08-24T14:02:19Z DONE fact_en_04 control rc=0 chars=47 wall=14.7s
+2026-08-24T14:02:19Z START fact_en_04 q8_0 n=512
+2026-08-24T14:02:37Z DONE fact_en_04 q8_0 rc=0 chars=48 wall=18.1s
+2026-08-24T14:02:37Z START fact_en_05 control n=512
+2026-08-24T14:02:50Z DONE fact_en_05 control rc=0 chars=46 wall=13.6s
+2026-08-24T14:02:50Z START fact_en_05 q8_0 n=512
+2026-08-24T14:03:04Z DONE fact_en_05 q8_0 rc=0 chars=46 wall=13.8s
+2026-08-24T14:03:04Z START fact_es_01 control n=512
+2026-08-24T14:03:20Z DONE fact_es_01 control rc=0 chars=72 wall=15.5s
+2026-08-24T14:03:20Z START fact_es_01 q8_0 n=512
+2026-08-24T14:03:35Z DONE fact_es_01 q8_0 rc=0 chars=63 wall=14.9s
+2026-08-24T14:03:35Z START fact_es_02 control n=512
+2026-08-24T14:03:45Z DONE fact_es_02 control rc=0 chars=31 wall=10.3s
+2026-08-24T14:03:45Z START fact_es_02 q8_0 n=512
+2026-08-24T14:03:57Z DONE fact_es_02 q8_0 rc=0 chars=31 wall=11.9s
+2026-08-24T14:03:57Z START fact_es_03 control n=512
+2026-08-24T14:04:10Z DONE fact_es_03 control rc=0 chars=66 wall=13.6s
+2026-08-24T14:04:10Z START fact_es_03 q8_0 n=512
+2026-08-24T14:04:25Z DONE fact_es_03 q8_0 rc=0 chars=66 wall=14.8s
+2026-08-24T14:04:25Z START fact_es_04 control n=512
+2026-08-24T14:04:37Z DONE fact_es_04 control rc=0 chars=65 wall=12.1s
+2026-08-24T14:04:37Z START fact_es_04 q8_0 n=512
+2026-08-24T14:04:51Z DONE fact_es_04 q8_0 rc=0 chars=65 wall=13.9s
+2026-08-24T14:04:51Z START fact_es_05 control n=512
+2026-08-24T14:05:06Z DONE fact_es_05 control rc=0 chars=54 wall=15.2s
+2026-08-24T14:05:06Z START fact_es_05 q8_0 n=512
+2026-08-24T14:05:19Z DONE fact_es_05 q8_0 rc=0 chars=54 wall=13.0s
+2026-08-24T14:05:19Z START fact_fr_01 control n=512
+2026-08-24T14:05:31Z DONE fact_fr_01 control rc=0 chars=52 wall=11.7s
+2026-08-24T14:05:31Z START fact_fr_01 q8_0 n=512
+2026-08-24T14:05:44Z DONE fact_fr_01 q8_0 rc=0 chars=52 wall=12.6s
+2026-08-24T14:05:44Z START fact_fr_02 control n=512
+2026-08-24T14:05:55Z DONE fact_fr_02 control rc=0 chars=41 wall=11.0s
+2026-08-24T14:05:55Z START fact_fr_02 q8_0 n=512
+2026-08-24T14:06:15Z DONE fact_fr_02 q8_0 rc=0 chars=41 wall=20.5s
+2026-08-24T14:06:15Z START fact_fr_03 control n=512
+2026-08-24T14:06:41Z DONE fact_fr_03 control rc=0 chars=42 wall=26.2s
+2026-08-24T14:06:41Z START fact_fr_03 q8_0 n=512
+2026-08-24T14:06:59Z DONE fact_fr_03 q8_0 rc=0 chars=42 wall=17.5s
+2026-08-24T14:06:59Z START fact_fr_04 control n=512
+2026-08-24T14:07:25Z DONE fact_fr_04 control rc=0 chars=174 wall=26.3s
+2026-08-24T14:07:25Z START fact_fr_04 q8_0 n=512
+2026-08-24T14:07:42Z DONE fact_fr_04 q8_0 rc=0 chars=203 wall=16.3s
+2026-08-24T14:07:42Z START fact_fr_05 control n=512
+2026-08-24T14:07:55Z DONE fact_fr_05 control rc=0 chars=68 wall=13.7s
+2026-08-24T14:07:55Z START fact_fr_05 q8_0 n=512
+2026-08-24T14:08:11Z DONE fact_fr_05 q8_0 rc=0 chars=69 wall=15.7s
+2026-08-24T14:08:11Z START fact_zh_01 control n=512
+2026-08-24T14:08:23Z DONE fact_zh_01 control rc=0 chars=9 wall=12.3s
+2026-08-24T14:08:23Z START fact_zh_01 q8_0 n=512
+2026-08-24T14:08:37Z DONE fact_zh_01 q8_0 rc=0 chars=9 wall=13.2s
+2026-08-24T14:08:37Z START fact_zh_02 control n=512
+2026-08-24T14:08:47Z DONE fact_zh_02 control rc=0 chars=13 wall=10.7s
+2026-08-24T14:08:47Z START fact_zh_02 q8_0 n=512
+2026-08-24T14:08:59Z DONE fact_zh_02 q8_0 rc=0 chars=13 wall=11.7s
+2026-08-24T14:08:59Z START fact_zh_03 control n=512
+2026-08-24T14:09:11Z DONE fact_zh_03 control rc=0 chars=18 wall=12.1s
+2026-08-24T14:09:11Z START fact_zh_03 q8_0 n=512
+2026-08-24T14:09:27Z DONE fact_zh_03 q8_0 rc=0 chars=18 wall=15.9s
+2026-08-24T14:09:27Z START fact_zh_04 control n=512
+2026-08-24T14:09:54Z DONE fact_zh_04 control rc=0 chars=45 wall=26.8s
+2026-08-24T14:09:54Z START fact_zh_04 q8_0 n=512
+2026-08-24T14:10:15Z DONE fact_zh_04 q8_0 rc=0 chars=45 wall=20.9s
+2026-08-24T14:10:15Z START fact_zh_05 control n=512
+2026-08-24T14:10:26Z DONE fact_zh_05 control rc=0 chars=50 wall=11.0s
+2026-08-24T14:10:26Z START fact_zh_05 q8_0 n=512
+2026-08-24T14:10:40Z DONE fact_zh_05 q8_0 rc=0 chars=41 wall=14.6s
+2026-08-24T14:10:40Z START inst_en_01 control n=256
+2026-08-24T14:11:06Z DONE inst_en_01 control rc=0 chars=26 wall=26.1s
+2026-08-24T14:11:06Z START inst_en_01 q8_0 n=256
+2026-08-24T14:11:23Z DONE inst_en_01 q8_0 rc=0 chars=20 wall=17.1s
+2026-08-24T14:11:23Z START inst_en_02 control n=256
+2026-08-24T14:11:45Z DONE inst_en_02 control rc=0 chars=11 wall=21.2s
+2026-08-24T14:11:45Z START inst_en_02 q8_0 n=256
+2026-08-24T14:12:00Z DONE inst_en_02 q8_0 rc=0 chars=11 wall=14.9s
+2026-08-24T14:12:00Z START inst_en_03 control n=256
+2026-08-24T14:12:26Z DONE inst_en_03 control rc=0 chars=28 wall=26.2s
+2026-08-24T14:12:26Z START inst_en_03 q8_0 n=256
+2026-08-24T14:12:44Z DONE inst_en_03 q8_0 rc=0 chars=28 wall=18.3s
+2026-08-24T14:12:44Z START inst_en_04 control n=256
+2026-08-24T14:13:03Z DONE inst_en_04 control rc=0 chars=19 wall=19.3s
+2026-08-24T14:13:03Z START inst_en_04 q8_0 n=256
+2026-08-24T14:13:24Z DONE inst_en_04 q8_0 rc=0 chars=19 wall=20.7s
+2026-08-24T14:13:24Z START inst_en_05 control n=256
+2026-08-24T14:13:47Z DONE inst_en_05 control rc=0 chars=12 wall=22.8s
+2026-08-24T14:13:47Z START inst_en_05 q8_0 n=256
+2026-08-24T14:14:04Z DONE inst_en_05 q8_0 rc=0 chars=12 wall=17.5s
+2026-08-24T14:14:04Z START inst_it_01 control n=256
+2026-08-24T14:14:19Z DONE inst_it_01 control rc=0 chars=40 wall=14.6s
+2026-08-24T14:14:19Z START inst_it_01 q8_0 n=256
+2026-08-24T14:14:43Z DONE inst_it_01 q8_0 rc=0 chars=40 wall=24.2s
+2026-08-24T14:14:43Z START inst_it_02 control n=256
+2026-08-24T14:15:01Z DONE inst_it_02 control rc=0 chars=33 wall=18.2s
+2026-08-24T14:15:01Z START inst_it_02 q8_0 n=256
+2026-08-24T14:15:23Z DONE inst_it_02 q8_0 rc=0 chars=33 wall=21.9s
+2026-08-24T14:15:23Z START inst_it_03 control n=256
+2026-08-24T14:15:40Z DONE inst_it_03 control rc=0 chars=17 wall=16.4s
+2026-08-24T14:15:40Z START inst_it_03 q8_0 n=256
+2026-08-24T14:15:59Z DONE inst_it_03 q8_0 rc=0 chars=17 wall=18.9s
+2026-08-24T14:15:59Z START inst_it_04 control n=256
+2026-08-24T14:16:15Z DONE inst_it_04 control rc=0 chars=26 wall=16.1s
+2026-08-24T14:16:15Z START inst_it_04 q8_0 n=256
+2026-08-24T14:16:31Z DONE inst_it_04 q8_0 rc=0 chars=26 wall=16.6s
+2026-08-24T14:18:55Z PIN control sha=f3e2826f78c78452afa0765613875c806f1ca3976f1f59ff4e8ff85bea5782ea size=6385238912
+2026-08-24T14:19:06Z PIN q8_0 sha=bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419 size=6509642624
+2026-08-24T14:19:06Z PIN llama-cli.exe sha=035ac1a68cff7ffaee243946f66443a95cf436dd8185b14fb458f58f689c1518 size=10752
+2026-08-24T14:19:06Z START inst_it_05 control n=256 threads=8 prio=Idle
+2026-08-24T14:19:26Z DONE inst_it_05 control rc=0 chars=15 wall=19.7s threads=8 prio=Idle
+2026-08-24T14:19:26Z PAUSE 10s between generations
+2026-08-24T14:19:36Z START inst_it_05 q8_0 n=256 threads=8 prio=Idle
+2026-08-24T14:19:54Z DONE inst_it_05 q8_0 rc=0 chars=15 wall=18.5s threads=8 prio=Idle
+2026-08-24T14:19:54Z PAUSE 10s between generations
+2026-08-24T14:20:04Z START code_en_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:20:27Z DONE code_en_01 control rc=0 chars=93 wall=23.4s threads=8 prio=Idle
+2026-08-24T14:20:27Z PAUSE 10s between generations
+2026-08-24T14:20:37Z START code_en_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:20:49Z DONE code_en_01 q8_0 rc=0 chars=93 wall=12.0s threads=8 prio=Idle
+2026-08-24T14:20:49Z PAUSE 10s between generations
+2026-08-24T14:20:59Z START code_en_02 control n=512 threads=8 prio=Idle
+2026-08-24T14:21:10Z DONE code_en_02 control rc=0 chars=75 wall=10.7s threads=8 prio=Idle
+2026-08-24T14:21:10Z PAUSE 10s between generations
+2026-08-24T14:21:20Z START code_en_02 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:21:54Z DONE code_en_02 q8_0 rc=0 chars=75 wall=33.9s threads=8 prio=Idle
+2026-08-24T14:21:54Z PAUSE 10s between generations
+2026-08-24T14:22:04Z START code_en_03 control n=512 threads=8 prio=Idle
+2026-08-24T14:22:43Z DONE code_en_03 control rc=0 chars=155 wall=39.1s threads=8 prio=Idle
+2026-08-24T14:22:43Z PAUSE 10s between generations
+2026-08-24T14:22:53Z START code_en_03 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:23:29Z DONE code_en_03 q8_0 rc=0 chars=155 wall=35.8s threads=8 prio=Idle
+2026-08-24T14:23:29Z PAUSE 10s between generations
+2026-08-24T14:23:39Z START code_en_04 control n=256 threads=8 prio=Idle
+2026-08-24T14:24:11Z DONE code_en_04 control rc=0 chars=38 wall=32.5s threads=8 prio=Idle
+2026-08-24T14:24:11Z PAUSE 10s between generations
+2026-08-24T14:24:21Z START code_en_04 q8_0 n=256 threads=8 prio=Idle
+2026-08-24T14:25:00Z DONE code_en_04 q8_0 rc=0 chars=38 wall=38.2s threads=8 prio=Idle
+2026-08-24T14:25:00Z PAUSE 10s between generations
+2026-08-24T14:25:10Z START code_en_05 control n=512 threads=8 prio=Idle
+2026-08-24T14:25:31Z DONE code_en_05 control rc=0 chars=91 wall=21.5s threads=8 prio=Idle
+2026-08-24T14:25:31Z PAUSE 10s between generations
+2026-08-24T14:25:41Z START code_en_05 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:26:59Z DONE code_en_05 q8_0 rc=0 chars=1429 wall=78.3s threads=8 prio=Idle
+2026-08-24T14:26:59Z PAUSE 10s between generations
+2026-08-24T14:27:09Z START math_it_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:27:51Z DONE math_it_01 control rc=0 chars=576 wall=41.3s threads=8 prio=Idle
+2026-08-24T14:27:51Z PAUSE 10s between generations
+2026-08-24T14:28:01Z START math_it_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:28:45Z DONE math_it_01 q8_0 rc=0 chars=565 wall=44.5s threads=8 prio=Idle
+2026-08-24T14:28:45Z PAUSE 10s between generations
+2026-08-24T14:28:55Z START math_it_02 control n=512 threads=8 prio=Idle
+2026-08-24T14:29:21Z DONE math_it_02 control rc=0 chars=489 wall=25.4s threads=8 prio=Idle
+2026-08-24T14:29:21Z PAUSE 10s between generations
+2026-08-24T14:29:31Z START math_it_02 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:29:59Z DONE math_it_02 q8_0 rc=0 chars=481 wall=28.0s threads=8 prio=Idle
+2026-08-24T14:29:59Z PAUSE 10s between generations
+2026-08-24T14:30:09Z START math_it_03 control n=512 threads=8 prio=Idle
+2026-08-24T14:30:25Z DONE math_it_03 control rc=0 chars=243 wall=16.0s threads=8 prio=Idle
+2026-08-24T14:30:25Z PAUSE 10s between generations
+2026-08-24T14:30:35Z START math_it_03 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:30:52Z DONE math_it_03 q8_0 rc=0 chars=243 wall=16.9s threads=8 prio=Idle
+2026-08-24T14:30:52Z PAUSE 10s between generations
+2026-08-24T14:31:02Z START math_it_04 control n=512 threads=8 prio=Idle
+2026-08-24T14:31:23Z DONE math_it_04 control rc=0 chars=496 wall=21.1s threads=8 prio=Idle
+2026-08-24T14:31:23Z PAUSE 10s between generations
+2026-08-24T14:31:33Z START math_it_04 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:32:02Z DONE math_it_04 q8_0 rc=0 chars=771 wall=28.8s threads=8 prio=Idle
+2026-08-24T14:32:02Z PAUSE 10s between generations
+2026-08-24T14:32:12Z START math_en_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:32:37Z DONE math_en_01 control rc=0 chars=529 wall=25.7s threads=8 prio=Idle
+2026-08-24T14:32:37Z PAUSE 10s between generations
+2026-08-24T14:32:47Z START math_en_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:33:17Z DONE math_en_01 q8_0 rc=0 chars=899 wall=29.8s threads=8 prio=Idle
+2026-08-24T14:33:17Z PAUSE 10s between generations
+2026-08-24T14:33:27Z START math_en_02 control n=512 threads=8 prio=Idle
+2026-08-24T14:33:52Z DONE math_en_02 control rc=0 chars=620 wall=24.8s threads=8 prio=Idle
+2026-08-24T14:33:52Z PAUSE 10s between generations
+2026-08-24T14:34:02Z START math_en_02 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:34:25Z DONE math_en_02 q8_0 rc=0 chars=596 wall=23.2s threads=8 prio=Idle
+2026-08-24T14:34:25Z PAUSE 10s between generations
+2026-08-24T14:34:35Z START math_en_03 control n=512 threads=8 prio=Idle
+2026-08-24T14:35:01Z DONE math_en_03 control rc=0 chars=1024 wall=25.4s threads=8 prio=Idle
+2026-08-24T14:35:01Z PAUSE 10s between generations
+2026-08-24T14:35:11Z START math_en_03 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:35:37Z DONE math_en_03 q8_0 rc=0 chars=1030 wall=25.8s threads=8 prio=Idle
+2026-08-24T14:35:37Z PAUSE 10s between generations
+2026-08-24T14:35:47Z START math_en_04 control n=512 threads=8 prio=Idle
+2026-08-24T14:36:21Z DONE math_en_04 control rc=0 chars=1446 wall=34.1s threads=8 prio=Idle
+2026-08-24T14:36:21Z PAUSE 10s between generations
+2026-08-24T14:36:31Z START math_en_04 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:37:04Z DONE math_en_04 q8_0 rc=0 chars=1311 wall=33.5s threads=8 prio=Idle
+2026-08-24T14:37:04Z PAUSE 10s between generations
+2026-08-24T14:37:14Z START long_it_01 control n=1024 threads=8 prio=Idle
+2026-08-24T14:38:17Z DONE long_it_01 control rc=0 chars=3062 wall=62.8s threads=8 prio=Idle
+2026-08-24T14:38:17Z PAUSE 10s between generations
+2026-08-24T14:38:27Z START long_it_01 q8_0 n=1024 threads=8 prio=Idle
+2026-08-24T14:39:28Z DONE long_it_01 q8_0 rc=0 chars=2679 wall=60.7s threads=8 prio=Idle
+2026-08-24T14:39:28Z PAUSE 10s between generations
+2026-08-24T14:39:38Z START long_it_02 control n=1024 threads=8 prio=Idle
+2026-08-24T14:40:07Z DONE long_it_02 control rc=0 chars=1428 wall=29.0s threads=8 prio=Idle
+2026-08-24T14:40:07Z PAUSE 10s between generations
+2026-08-24T14:40:17Z START long_it_02 q8_0 n=1024 threads=8 prio=Idle
+2026-08-24T14:41:00Z DONE long_it_02 q8_0 rc=0 chars=1458 wall=43.5s threads=8 prio=Idle
+2026-08-24T14:41:00Z PAUSE 10s between generations
+2026-08-24T14:41:10Z START long_it_03 control n=1024 threads=8 prio=Idle
+2026-08-24T14:42:05Z DONE long_it_03 control rc=0 chars=2439 wall=54.2s threads=8 prio=Idle
+2026-08-24T14:42:05Z PAUSE 10s between generations
+2026-08-24T14:42:15Z START long_it_03 q8_0 n=1024 threads=8 prio=Idle
+2026-08-24T14:42:54Z DONE long_it_03 q8_0 rc=0 chars=1733 wall=39.2s threads=8 prio=Idle
+2026-08-24T14:42:54Z PAUSE 10s between generations
+2026-08-24T14:43:04Z START long_it_04 control n=1024 threads=8 prio=Idle
+2026-08-24T14:44:18Z DONE long_it_04 control rc=0 chars=3093 wall=74.0s threads=8 prio=Idle
+2026-08-24T14:44:18Z PAUSE 10s between generations
+2026-08-24T14:44:28Z START long_it_04 q8_0 n=1024 threads=8 prio=Idle
+2026-08-24T14:45:45Z DONE long_it_04 q8_0 rc=0 chars=2988 wall=77.0s threads=8 prio=Idle
+2026-08-24T14:45:45Z PAUSE 10s between generations
+2026-08-24T14:45:55Z START long_it_05 control n=1024 threads=8 prio=Idle
+2026-08-24T14:46:39Z DONE long_it_05 control rc=0 chars=1720 wall=43.7s threads=8 prio=Idle
+2026-08-24T14:46:39Z PAUSE 10s between generations
+2026-08-24T14:46:49Z START long_it_05 q8_0 n=1024 threads=8 prio=Idle
+2026-08-24T14:47:33Z DONE long_it_05 q8_0 rc=0 chars=1668 wall=43.8s threads=8 prio=Idle
+2026-08-24T14:47:33Z PAUSE 10s between generations
+2026-08-24T14:47:43Z START long_it_06 control n=1024 threads=8 prio=Idle
+2026-08-24T14:48:45Z DONE long_it_06 control rc=0 chars=2804 wall=62.0s threads=8 prio=Idle
+2026-08-24T14:48:45Z PAUSE 10s between generations
+2026-08-24T14:48:55Z START long_it_06 q8_0 n=1024 threads=8 prio=Idle
+2026-08-24T14:50:10Z DONE long_it_06 q8_0 rc=0 chars=2899 wall=74.9s threads=8 prio=Idle
+2026-08-24T14:50:10Z PAUSE 10s between generations
+2026-08-24T14:50:20Z START trap_it_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:50:52Z DONE trap_it_01 control rc=0 chars=1555 wall=31.3s threads=8 prio=Idle
+2026-08-24T14:50:52Z PAUSE 10s between generations
+2026-08-24T14:51:02Z START trap_it_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:51:23Z DONE trap_it_01 q8_0 rc=0 chars=819 wall=21.7s threads=8 prio=Idle
+2026-08-24T14:51:23Z PAUSE 10s between generations
+2026-08-24T14:51:33Z START trap_fr_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:51:50Z DONE trap_fr_01 control rc=0 chars=344 wall=16.2s threads=8 prio=Idle
+2026-08-24T14:51:50Z PAUSE 10s between generations
+2026-08-24T14:52:00Z START trap_fr_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:52:14Z DONE trap_fr_01 q8_0 rc=0 chars=337 wall=14.8s threads=8 prio=Idle
+2026-08-24T14:52:14Z PAUSE 10s between generations
+2026-08-24T14:52:24Z START trap_es_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:52:37Z DONE trap_es_01 control rc=0 chars=216 wall=12.9s threads=8 prio=Idle
+2026-08-24T14:52:37Z PAUSE 10s between generations
+2026-08-24T14:52:47Z START trap_es_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:53:02Z DONE trap_es_01 q8_0 rc=0 chars=243 wall=14.9s threads=8 prio=Idle
+2026-08-24T14:53:02Z PAUSE 10s between generations
+2026-08-24T14:53:12Z START trap_zh_01 control n=512 threads=8 prio=Idle
+2026-08-24T14:53:27Z DONE trap_zh_01 control rc=0 chars=121 wall=14.2s threads=8 prio=Idle
+2026-08-24T14:53:27Z PAUSE 10s between generations
+2026-08-24T14:53:37Z START trap_zh_01 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:53:52Z DONE trap_zh_01 q8_0 rc=0 chars=151 wall=15.6s threads=8 prio=Idle
+2026-08-24T14:53:52Z PAUSE 10s between generations
+2026-08-24T14:54:02Z START trap_it_02 control n=512 threads=8 prio=Idle
+2026-08-24T14:54:23Z DONE trap_it_02 control rc=0 chars=734 wall=20.4s threads=8 prio=Idle
+2026-08-24T14:54:23Z PAUSE 10s between generations
+2026-08-24T14:54:33Z START trap_it_02 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:54:55Z DONE trap_it_02 q8_0 rc=0 chars=598 wall=22.0s threads=8 prio=Idle
+2026-08-24T14:54:55Z PAUSE 10s between generations
+2026-08-24T14:55:05Z START trap_fr_02 control n=512 threads=8 prio=Idle
+2026-08-24T14:55:26Z DONE trap_fr_02 control rc=0 chars=788 wall=20.7s threads=8 prio=Idle
+2026-08-24T14:55:26Z PAUSE 10s between generations
+2026-08-24T14:55:36Z START trap_fr_02 q8_0 n=512 threads=8 prio=Idle
+2026-08-24T14:55:59Z DONE trap_fr_02 q8_0 rc=0 chars=784 wall=23.1s threads=8 prio=Idle
+2026-08-24T14:55:59Z PAUSE 10s between generations
+2026-08-24T14:56:09Z ALL_GEN_DONE n=120

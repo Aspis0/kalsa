@@ -1,0 +1,435 @@
+{
+  "n": 60,
+  "prompts": [
+    {
+      "id": "fact_it_01",
+      "cat": "factual",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "In quale città italiana si trova la Cappella degli Scrovegni? Rispondi in italiano con il nome della città e una frase di contesto."
+    },
+    {
+      "id": "fact_it_02",
+      "cat": "factual",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Chi fu il primo Presidente della Repubblica Italiana? Rispondi in italiano, nome e cognome."
+    },
+    {
+      "id": "fact_it_03",
+      "cat": "factual",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "In che anno si tenne il referendum istituzionale che portò alla nascita della Repubblica Italiana? Rispondi in italiano con l'anno."
+    },
+    {
+      "id": "fact_it_04",
+      "cat": "factual",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Qual è il fiume più lungo interamente in territorio italiano? Rispondi in italiano."
+    },
+    {
+      "id": "fact_it_05",
+      "cat": "factual",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Chi ha composto l'opera 'La traviata'? Rispondi in italiano, nome e cognome del compositore."
+    },
+    {
+      "id": "fact_en_01",
+      "cat": "factual",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "What is the chemical symbol for tungsten? Answer in English in one or two sentences."
+    },
+    {
+      "id": "fact_en_02",
+      "cat": "factual",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Which planet in the Solar System has the Great Red Spot? Answer in English."
+    },
+    {
+      "id": "fact_en_03",
+      "cat": "factual",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "In which year did the Berlin Wall fall? Answer in English with the year and a short clause of context."
+    },
+    {
+      "id": "fact_en_04",
+      "cat": "factual",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Who wrote the novel Pride and Prejudice? Answer in English with the author's name."
+    },
+    {
+      "id": "fact_en_05",
+      "cat": "factual",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "What is the capital city of New Zealand? Answer in English."
+    },
+    {
+      "id": "fact_es_01",
+      "cat": "factual",
+      "lang": "es",
+      "n_predict": 512,
+      "text": "¿Quién escribió la novela Cien años de soledad? Responde en español con el nombre del autor."
+    },
+    {
+      "id": "fact_es_02",
+      "cat": "factual",
+      "lang": "es",
+      "n_predict": 512,
+      "text": "¿Cuál es la capital de Ecuador? Responde en español."
+    },
+    {
+      "id": "fact_es_03",
+      "cat": "factual",
+      "lang": "es",
+      "n_predict": 512,
+      "text": "¿En qué año llegó Cristóbal Colón a América en su primer viaje? Responde en español con el año."
+    },
+    {
+      "id": "fact_es_04",
+      "cat": "factual",
+      "lang": "es",
+      "n_predict": 512,
+      "text": "¿Qué río atraviesa la ciudad de Sevilla? Responde en español."
+    },
+    {
+      "id": "fact_es_05",
+      "cat": "factual",
+      "lang": "es",
+      "n_predict": 512,
+      "text": "¿Quién pintó el cuadro Las Meninas? Responde en español con el nombre del pintor."
+    },
+    {
+      "id": "fact_fr_01",
+      "cat": "factual",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "Qui a écrit le roman Les Misérables ? Réponds en français avec le nom de l'auteur."
+    },
+    {
+      "id": "fact_fr_02",
+      "cat": "factual",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "Quelle est la capitale de la Belgique ? Réponds en français."
+    },
+    {
+      "id": "fact_fr_03",
+      "cat": "factual",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "En quelle année a eu lieu la prise de la Bastille ? Réponds en français avec l'année."
+    },
+    {
+      "id": "fact_fr_04",
+      "cat": "factual",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "Quel est le plus haut sommet des Alpes ? Réponds en français."
+    },
+    {
+      "id": "fact_fr_05",
+      "cat": "factual",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "Qui a peint Impression, soleil levant ? Réponds en français avec le nom du peintre."
+    },
+    {
+      "id": "fact_zh_01",
+      "cat": "factual",
+      "lang": "zh",
+      "n_predict": 512,
+      "text": "中国的首都是哪座城市？请用中文回答。"
+    },
+    {
+      "id": "fact_zh_02",
+      "cat": "factual",
+      "lang": "zh",
+      "n_predict": 512,
+      "text": "《红楼梦》的作者是谁？请用中文回答姓名。"
+    },
+    {
+      "id": "fact_zh_03",
+      "cat": "factual",
+      "lang": "zh",
+      "n_predict": 512,
+      "text": "世界上最高的高原是哪个高原？请用中文回答。"
+    },
+    {
+      "id": "fact_zh_04",
+      "cat": "factual",
+      "lang": "zh",
+      "n_predict": 512,
+      "text": "圆周率π大约等于多少？请用中文回答，并写出小数点后至少四位。"
+    },
+    {
+      "id": "fact_zh_05",
+      "cat": "factual",
+      "lang": "zh",
+      "n_predict": 512,
+      "text": "孔子大约生活在中国的哪个历史时期（朝代）？请用中文回答。"
+    },
+    {
+      "id": "inst_en_01",
+      "cat": "instruction",
+      "lang": "en",
+      "n_predict": 256,
+      "format": "json_ok_n",
+      "text": "Reply with ONLY a JSON object with exactly two keys: \"ok\" (boolean true) and \"n\" (integer 7). No markdown, no extra keys, no other text."
+    },
+    {
+      "id": "inst_en_02",
+      "cat": "instruction",
+      "lang": "en",
+      "n_predict": 256,
+      "format": "three_lines_ready",
+      "text": "Output exactly three lines and nothing else. Line 1 must be the word READY. Line 2 must be the integer 3. Line 3 must be the word END."
+    },
+    {
+      "id": "inst_en_03",
+      "cat": "instruction",
+      "lang": "en",
+      "n_predict": 256,
+      "format": "csv_two_rows",
+      "text": "Return a CSV with header name,year and exactly two data rows: Ada,1815 and Alan,1912. No extra lines, no commentary."
+    },
+    {
+      "id": "inst_en_04",
+      "cat": "instruction",
+      "lang": "en",
+      "n_predict": 256,
+      "format": "xml_answer_42",
+      "text": "Wrap your entire answer in <answer>...</answer> tags and put nothing outside the tags. Inside the tags, write only the integer 42."
+    },
+    {
+      "id": "inst_en_05",
+      "cat": "instruction",
+      "lang": "en",
+      "n_predict": 256,
+      "format": "hash_protocol",
+      "text": "Your reply must start with the two characters hash-space (the '#' character, then a space), then the word PROTOCOL, then a newline, then the word OK. Nothing else."
+    },
+    {
+      "id": "inst_it_01",
+      "cat": "instruction",
+      "lang": "it",
+      "n_predict": 256,
+      "format": "four_numbered_colors",
+      "text": "Rispondi con ESATTAMENTE quattro voci numerate che iniziano con '1. ' '2. ' '3. ' '4. ' e nient'altro. Le quattro voci, in quest'ordine, devono essere: rosso, blu, giallo, verde."
+    },
+    {
+      "id": "inst_it_02",
+      "cat": "instruction",
+      "lang": "it",
+      "n_predict": 256,
+      "format": "posneg_plus_sentence",
+      "text": "La prima riga deve essere SOLO la parola POSITIVO in maiuscolo. La seconda riga deve essere una frase in italiano che afferma che due più due fa quattro. Nient'altro."
+    },
+    {
+      "id": "inst_it_03",
+      "cat": "instruction",
+      "lang": "it",
+      "n_predict": 256,
+      "format": "yaml_torino",
+      "text": "Output: un blocco YAML che inizia con la riga --- e contiene solo la chiave citta: con valore Torino. Nient'altro prima o dopo."
+    },
+    {
+      "id": "inst_it_04",
+      "cat": "instruction",
+      "lang": "it",
+      "n_predict": 256,
+      "format": "three_bullets_abg",
+      "text": "Scrivi tre righe bullet che iniziano ciascuna con '- ' (trattino seguito da uno spazio). Il testo delle tre voci deve essere esattamente alfa, beta, gamma in quest'ordine. Nient'altro."
+    },
+    {
+      "id": "inst_it_05",
+      "cat": "instruction",
+      "lang": "it",
+      "n_predict": 256,
+      "format": "data_moon",
+      "text": "Rispondi con una sola riga nel formato DATA=YYYY-MM-DD usando la data del primo sbarco umano sulla Luna (20 luglio 1969). Nient'altro."
+    },
+    {
+      "id": "code_en_01",
+      "cat": "code",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Write a Python function is_palindrome(s: str) -> bool that ignores case and spaces. Code only, no explanation, no markdown fences."
+    },
+    {
+      "id": "code_en_02",
+      "cat": "code",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Write a SQL query that selects email from a table named users where active = 1, ordered by created_at DESC, limited to 10 rows. SQL only, no explanation."
+    },
+    {
+      "id": "code_en_03",
+      "cat": "code",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Write a JavaScript function sumEvens(arr) that returns the sum of even numbers in an array of integers. Code only, no explanation, no markdown fences."
+    },
+    {
+      "id": "code_en_04",
+      "cat": "code",
+      "lang": "en",
+      "n_predict": 256,
+      "text": "Write a Python list comprehension that produces the squares of the integers from 1 through 10 inclusive, assigned to a variable named squares. One line of code only."
+    },
+    {
+      "id": "code_en_05",
+      "cat": "code",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Write a POSIX sh function named die that prints all its arguments to stderr and exits with status 1. Shell code only, no explanation."
+    },
+    {
+      "id": "math_it_01",
+      "cat": "reasoning",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Una scatola contiene 3 cassetti. In ciascun cassetto ci sono 4 scatole più piccole, e in ciascuna di queste ci sono 5 biglie. Quante biglie ci sono in totale? Rispondi in italiano mostrando i passaggi e il numero finale."
+    },
+    {
+      "id": "math_it_02",
+      "cat": "reasoning",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Un treno parte alle 09:10 e arriva alle 11:05. Quanto dura il viaggio in minuti? Rispondi in italiano con i passaggi."
+    },
+    {
+      "id": "math_it_03",
+      "cat": "reasoning",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Quanto fa il 15 percento di 80? Rispondi in italiano mostrando il calcolo."
+    },
+    {
+      "id": "math_it_04",
+      "cat": "reasoning",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Un triangolo ha lati 3, 4 e 5. È un triangolo rettangolo? Rispondi in italiano e spiega perché sì o no."
+    },
+    {
+      "id": "math_en_01",
+      "cat": "reasoning",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "A tank is 3/4 full. You drain 1/3 of the current contents. What fraction of the tank's capacity remains? Answer in English with steps."
+    },
+    {
+      "id": "math_en_02",
+      "cat": "reasoning",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "Solve for x: x + 3 = 2x - 5. Answer in English showing the algebra and the value of x."
+    },
+    {
+      "id": "math_en_03",
+      "cat": "reasoning",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "How many distinct permutations are there of the letters in the word BOOK? Answer in English showing the counting argument."
+    },
+    {
+      "id": "math_en_04",
+      "cat": "reasoning",
+      "lang": "en",
+      "n_predict": 512,
+      "text": "A clock shows 3:15. What is the angle in degrees between the hour hand and the minute hand? Answer in English with steps."
+    },
+    {
+      "id": "long_it_01",
+      "cat": "longform",
+      "lang": "it",
+      "n_predict": 1024,
+      "text": "Scrivi una lettera formale di circa 200 parole a un Comune italiano per chiedere il permesso di occupare suolo pubblico sabato prossimo con un banchetto di libri usati in una piazza. Italiano, registro burocratico-civile, con destinatario fittizio ma realistico."
+    },
+    {
+      "id": "long_it_02",
+      "cat": "longform",
+      "lang": "it",
+      "n_predict": 1024,
+      "text": "Spiega a un quindicenne, in italiano, come funziona un vaccino a mRNA. Circa 250 parole, tono calmo, senza allarmismo e senza slogan."
+    },
+    {
+      "id": "long_it_03",
+      "cat": "longform",
+      "lang": "it",
+      "n_predict": 1024,
+      "text": "Narra in prima persona un pomeriggio d'estate a Bologna, circa 300 parole, tono realistico, niente elementi fantastici. Tutto in italiano."
+    },
+    {
+      "id": "long_it_04",
+      "cat": "longform",
+      "lang": "it",
+      "n_predict": 1024,
+      "text": "Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale."
+    },
+    {
+      "id": "long_it_05",
+      "cat": "longform",
+      "lang": "it",
+      "n_predict": 1024,
+      "text": "Scrivi un'email di reclamo, civile ma ferma, a un e-commerce per un pacco arrivato con la confezione schiacciata e un oggetto incrinato. Circa 180 parole, in italiano, con richiesta concreta."
+    },
+    {
+      "id": "long_it_06",
+      "cat": "longform",
+      "lang": "it",
+      "n_predict": 1024,
+      "text": "Descrivi passo-passo come preparare un risotto allo zafferano per un cuoco principiante, in italiano, con quantità per 4 persone. Circa 250 parole."
+    },
+    {
+      "id": "trap_it_01",
+      "cat": "langfid",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Spiega in italiano, senza usare parole inglesi, che cos'è un buffer overflow in informatica. Se ti viene in mente un termine inglese, traducilo o circoscrivilo."
+    },
+    {
+      "id": "trap_fr_01",
+      "cat": "langfid",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "Réponds uniquement en français. Qu'est-ce que le machine learning ? N'écris aucun mot anglais."
+    },
+    {
+      "id": "trap_es_01",
+      "cat": "langfid",
+      "lang": "es",
+      "n_predict": 512,
+      "text": "Contesta solo en español. ¿Qué es un pull request en git? No uses palabras en inglés."
+    },
+    {
+      "id": "trap_zh_01",
+      "cat": "langfid",
+      "lang": "zh",
+      "n_predict": 512,
+      "text": "请只用中文回答，不要夹杂英文字母或英文单词。什么是开源软件？"
+    },
+    {
+      "id": "trap_it_02",
+      "cat": "langfid",
+      "lang": "it",
+      "n_predict": 512,
+      "text": "Rispondi solo in italiano. Riassumi in cinque frasi la trama del film Il Padrino (il primo film della trilogia). Non scrivere titoli in inglese."
+    },
+    {
+      "id": "trap_fr_02",
+      "cat": "langfid",
+      "lang": "fr",
+      "n_predict": 512,
+      "text": "Uniquement en français. Explique ce qu'est un téléphone intelligent à un grand-parent qui n'a jamais utilisé Internet. Aucun mot anglais."
+    }
+  ]
+}

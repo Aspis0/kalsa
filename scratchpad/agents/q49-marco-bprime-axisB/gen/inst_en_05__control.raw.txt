@@ -1,0 +1,6 @@
+User:
+Your reply must start with the two characters hash-space (the '#' character, then a space), then the word PROTOCOL, then a newline, then the word OK. Nothing else.
+
+Assistant:
+#PROTOCOL OK
+

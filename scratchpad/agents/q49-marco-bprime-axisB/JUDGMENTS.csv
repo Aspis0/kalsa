@@ -1,0 +1,61 @@
+pair_id,category,verdict,confidence,one_line_reason
+code_en_01,code,TIE,1,Identical responses (palindrome function)
+code_en_02,code,TIE,1,Identical responses (SQL query)
+code_en_03,code,TIE,1,Identical responses (sumEvens function)
+code_en_04,code,TIE,1,Identical responses (list comprehension)
+code_en_05,code,TIE,2,Both fail: neither prints to stderr; A uses wrong piping, B is truncated loop
+fact_en_01,factual,TIE,1,Identical correct answer (tungsten = W)
+fact_en_02,factual,TIE,1,Both correct; A slightly more informative (giant storm) but trivial difference
+fact_en_03,factual,TIE,2,Both correct year 1989; A gives slightly more historical context
+fact_en_04,factual,TIE,1,Both correct (Jane Austen), different word order only
+fact_en_05,factual,TIE,1,Identical correct answer (Wellington)
+fact_es_01,factual,TIE,1,Both correct (García Márquez), active vs passive voice only
+fact_es_02,factual,TIE,1,Identical correct answer (Quito)
+fact_es_03,factual,TIE,1,Identical correct answer (1492)
+fact_es_04,factual,TIE,1,Identical correct answer (Guadalquivir)
+fact_es_05,factual,TIE,1,Identical correct answer (Velázquez)
+fact_fr_01,factual,TIE,1,Identical correct answer (Victor Hugo)
+fact_fr_02,factual,TIE,1,Identical correct answer (Brussels)
+fact_fr_03,factual,TIE,1,Identical correct answer (1789)
+fact_fr_04,factual,TIE,2,Both correct (Mont Blanc); altitude 4810 vs 4808 m — within accepted range
+fact_fr_05,factual,TIE,2,Both correct (Monet); A uses "peint" matching prompt, B uses "créé"
+fact_it_01,factual,TIE,2,Both correct city (Padova); B incorrectly says Renaissance for Giotto (Proto-Renaissance)
+fact_it_02,factual,TIE,1,Both correct (Enrico De Nicola)
+fact_it_03,factual,TIE,1,Identical correct answer (1946)
+fact_it_04,factual,TIE,2,Both claim Tevere (~406 km); A correctly states Umbria origin, B says Toscana (wrong)
+fact_it_05,factual,TIE,1,Both correct (Giuseppe Verdi)
+fact_zh_01,factual,TIE,1,Identical correct answer (北京)
+fact_zh_02,factual,TIE,1,Identical correct answer (曹雪芹)
+fact_zh_03,factual,TIE,1,Identical correct answer (青藏高原)
+fact_zh_04,factual,TIE,1,Identical correct answer (3.1416)
+fact_zh_05,factual,TIE,2,Both correct (春秋时期); A mentions 东周 explicitly, B equivalent
+inst_en_01,instruction,A,2,A is compact single-line JSON as asked; B adds unnecessary whitespace/newlines
+inst_en_02,instruction,TIE,1,Identical correct three-line output
+inst_en_03,instruction,TIE,1,Identical correct CSV
+inst_en_04,instruction,TIE,1,Identical correct <answer>42</answer>
+inst_en_05,instruction,A,2,A correctly has newline between #PROTOCOL and OK; B puts on one line
+inst_it_01,instruction,TIE,1,Both correct numbered list (1-4 rosso/blu/giallo/verde)
+inst_it_02,instruction,TIE,1,Identical correct two-line output
+inst_it_03,instruction,TIE,1,Identical correct YAML block
+inst_it_04,instruction,TIE,1,Both correct bullet list (alpha/beta/gamma)
+inst_it_05,instruction,TIE,1,Identical correct output (DATA=1969-07-20)
+long_it_01,longform,A,2,A has proper formal letter with specific dates; B uses excessive placeholders [Nome del Comune]
+long_it_02,longform,TIE,2,Both explain mRNA vaccine well; A slightly clearer, B adds analogy — comparable quality
+long_it_03,longform,TIE,2,Both vivid first-person Bologna narratives; comparable literary quality
+long_it_04,longform,TIE,3,Both degenerate into repetitive name lists — identical catastrophic failure
+long_it_05,longform,B,2,B has clearer numbered demands and balanced tone; A is verbose and slightly threatening
+long_it_06,longform,A,2,A correctly adds saffron at step 5 (before finishing); B adds it too late at step 6
+math_en_01,reasoning,TIE,1,Both correct (1/2) with clear steps
+math_en_02,reasoning,TIE,1,Both correct (x=8) with verification
+math_en_03,reasoning,TIE,1,Both correct (12 permutations) with counting argument
+math_en_04,reasoning,TIE,1,Both correct (7.5°) with detailed steps
+math_it_01,reasoning,TIE,1,Both correct (60 biglie) with clear steps
+math_it_02,reasoning,TIE,1,Both correct (115 minuti) with conversion steps
+math_it_03,reasoning,TIE,2,Both correct (12); A has cleaner LaTeX formatting than B
+math_it_04,reasoning,TIE,2,Both correct (Pitagora); B slightly more verbose/repetitive in explanation
+trap_es_01,langfid,A,2,A stays fully in Spanish; B mixes in Chinese characters (合并)
+trap_fr_01,langfid,TIE,2,Both use "machine learning" as French technical term; neither adds extra English words
+trap_fr_02,langfid,TIE,2,Both avoid English words and explain simply; B has slightly awkward grammar but adequate
+trap_it_01,langfid,A,2,A avoids English terms entirely; B uses untranslated ASLR/DEP/acronyms
+trap_it_02,langfid,TIE,1,Both fully in Italian, no English titles, accurate 5-sentence summaries
+trap_zh_01,langfid,TIE,2,Both in Chinese; reference to GPL/MIT license names is standard technical usage

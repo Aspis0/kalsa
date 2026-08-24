@@ -1,0 +1,16 @@
+{
+  "control": {
+    "n": 60,
+    "loop": 1,
+    "lang_fail": 1,
+    "format_fail": 3,
+    "format_pass": 7
+  },
+  "q8_0": {
+    "n": 60,
+    "loop": 2,
+    "lang_fail": 1,
+    "format_fail": 3,
+    "format_pass": 7
+  }
+}

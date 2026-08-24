@@ -1,0 +1,26 @@
+User:
+Scrivi un'email di reclamo, civile ma ferma, a un e-commerce per un pacco arrivato con la confezione schiacciata e un oggetto incrinato. Circa 180 parole, in italiano, con richiesta concreta.
+
+Assistant:
+Oggetto: Reclamo per confezione danneggiata e prodotto incrinato
+
+Gentile [Nome del Servizio Clienti],
+
+Mi rivolgo a voi con la massima serietà e con l’intento di risolvere un problema che, pur essendo raro, ha compromesso la mia esperienza di acquisto. Il pacco che ho ricevuto il [data di consegna] è arrivato con la confezione schiacciata e, in parte, rotta, e il prodotto stesso è stato consegnato con un’incrinatura visibile sulla superficie (vedi foto allegata). Non si tratta di un semplice difetto di imballaggio, ma di un’alterazione che rende l’oggetto inutilizzabile per il suo scopo originale.
+
+Sono stato costantemente attento alla qualità dei prodotti che ordino, e questo incidente non solo ha causato un disagio, ma ha anche generato un’imbarazzo significativo, soprattutto perché l’oggetto è stato acquistato per un’occasione speciale. Spero che la vostra attenzione ai dettagli sia sufficiente per garantire un’azione immediata.
+
+Pertanto, chiedo con fermezza:  
+1. **Rimborso completo** del valore dell’oggetto, o  
+2. **Rimessa gratuita** di un prodotto nuovo, con confezione integra, e con un’assistenza per la spedizione (inclusa la gestione del costo di spedizione).  
+3. **Risarcimento simbolico** per il disagio, in forma di sconto o buono per un acquisto futuro.
+
+Spero che la vostra risposta sia tempestiva e che mi offriate una soluzione concreta, non solo una scusa. Sono certo che la vostra azienda ha un’alta reputazione e che, con un’azione corretta, potrete recuperare la fiducia che ho nel vostro servizio.
+
+Grazie per l’attenzione e per la vostra risposta.
+
+Cordiali saluti,  
+[Il tuo nome]  
+[Indirizzo email]  
+[Numero di telefono]
+

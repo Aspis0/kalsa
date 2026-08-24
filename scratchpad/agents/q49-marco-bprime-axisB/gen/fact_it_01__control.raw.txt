@@ -1,0 +1,6 @@
+User:
+In quale città italiana si trova la Cappella degli Scrovegni? Rispondi in italiano con il nome della città e una frase di contesto.
+
+Assistant:
+La Cappella degli Scrovegni si trova a **Padova**, dove fu realizzata dal pittore Giotto nel XIV secolo e è famosa per le sue affreschi che raffigurano la vita di Cristo.
+
