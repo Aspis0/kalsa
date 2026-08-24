@@ -125,5 +125,79 @@ Load-time split recorded: CPU 5995.65 MiB (experts) / HTP0-REPACK 178.50 MiB (Q8
 
 (b) skipped. GGUF left on device. Pulled to `results/htp_smoke/s23_v73_bprime/`. No git add/commit/push. Did not touch BigMoeOnEdge/.
 
+## 2026-08-24 — Xiaomi houji B-prime HTP smoke: BLOCKED, device not reachable
+
+Owner order: run Marco B-prime HTP smoke on Xiaomi (houji, 16 GB, v75). S23 TLS serial not touched.
+
+`adb devices -l`:
+- `192.168.1.82:35785` product=Jelly_Star model=Jelly_Star. `getprop ro.product.device` = **Jelly_Star** (not houji).
+- `adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp` product=dm1qsqw SM_S911U — S23, left alone.
+
+`adb mdns services`: Jelly Star (two TLS records on 192.168.1.82) + S23 (`adb-R3CW406P8CV-zyLM4b` @ 192.168.1.152:33105). **No houji / 625689a2 record.**
+
+Banked v75 serial from `results/htp_prefill/xiaomi_v75/cell1/NOTES.txt`: `adb-625689a2-9xEOfw._adb-tls-connect._tcp` (houji / 23127PN0CG). `adb connect` that host: `cannot resolve host ... port 5555: No such host is known. (11001)`.
+
+No USB serial `625689a2` either. Stop. No push, no llama, no deletes, no git.
+
+## 2026-08-24T12:46Z — Xiaomi houji v75 B-prime HTP smoke (device now reachable)
+
+Serial `adb-625689a2-9xEOfw._adb-tls-connect._tcp` `ro.product.device=houji` 23127PN0CG. S23 and Jelly not addressed.
+
+- Battery session start: level 98, temp 32.4 °C, AC/USB/Wireless/Dock=false, status=3 discharging. **UNPLUGGED.**
+- `/data` 309G free. No deletions.
+- kalsahtp binaries match v75 cell1 pins (stub `5db18906…`, impl `5c744d…`, hexagon `f06aa309…`, htp-v75 `46d3ac92…`).
+- Push 6509642624 B in 439.9 s (14.1 MB/s). On-device sha `bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419` MATCH.
+- Env: HOSTBUF=1 NDEV=1 VERBOSE=1 on (a); flags `-ngl 99 -dev HTP0 --no-host 1 --load-mode none -fa on --ubatch-size 1024` (v75 cell1).
+- Driver setsid+nohup `/data/local/tmp/kalsa_bprime_x/` pid 27543.
+
+### (a) pp16/tg8 `-v` PASS
+
+rc=0, jsonl non-empty. 6896 HTP0 execute-op, 1064 attn, 812 MUL_MAT.
+Proof (blk.0, q8_0, HTP0-REPACK x HTP0 -> HTP0, hmx-tiled):
+- `attn_q.weight` 252× MUL_MAT
+- `attn_k.weight` 252×
+- `attn_v.weight` 252×
+- `attn_output.weight` 252× MUL_MAT+ADD
+
+Load split:
+```
+CPU model buffer size =  5995.65 MiB
+CPU_REPACK model buffer size =   157.65 MiB
+HTP0 model buffer size =    28.25 MiB
+HTP0-REPACK model buffer size =   178.50 MiB
+offloaded 29/29 layers to GPU
+```
+Q2_K/Q3_K expert MUL_MAT on HTP: **0**. Router `ffn_gate_inp` (f32) does execute on HTP0 (4032 lines) — not the experts.
+
+(a) t/s exploratory (no-warmup, tiny, verbose): pp16 1.221, tg8 0.145.
+
+### (b) pp512 + tg128 `-r 2` PASS, exploratory, UNPLUGGED
+
+rc=0. jsonl:
+- pp512 avg_ts **27.842** (samples 27.232, 28.451)
+- tg128 avg_ts **3.613** (samples 3.396, 3.829)
+backend=HTP. Battery at (b) start 97 % / 36.0 °C; post 95 % / 38.9 °C; still unplugged.
+
+Pulled 35 files → `results/htp_smoke/xiaomi_v75_bprime/`. MANIFEST sha256 written. No git. No deletes.
+
+## 2026-08-24T13:03Z — (c) CPU same-harness + energy
+
+Cool-start 31.9 °C PASS (ended (b) at 38.9 °C; already cooled). Unplugged 94 %. `-ngl 0` no `-dev HTP0` no `--no-host`. rc=0.
+
+(c) `-r 2` jsonl: pp512 **19.120** (19.285, 18.955); tg128 **6.448** (3.955, 8.942 — noisy).
+HTP/CPU: pp512 **1.46×**, tg128 **0.56×**. (d) skipped.
+
+sysfs charge_counter **EACCES**. dumpsys `Charge counter` used.
+(b) original WAS bracketed: 4044000→3973000 µAh (71 mAh), 36.0→38.9 °C, V 4183→4243.
+(c) original: 3931000→3849000 µAh (82 mAh), 31.9→36.2 °C, V 4315→4160.
+J/token (warmup-on, 1920 tok, load included): HTP 0.561, CPU 0.652.
+
+Energy extras after cooldown 34.9 °C: two CPU `-r 1` + one extra HTP `-r 1` (batt 92 % ≥ 90). Charge counter too coarse for ~33 s (CPU rep1 ΔQ=0). Later `-r 1` prefill t/s much higher (CPU 80–97, extra HTP 102) — not mixed into the ratio. Extra HTP tg 3.59 matches (b).
+
+MANIFEST refreshed. No git. No deletes.
+
+
+
+
 
 

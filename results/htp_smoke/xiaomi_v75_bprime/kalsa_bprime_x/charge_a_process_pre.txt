@@ -1,0 +1,13 @@
+note=HTP (a) sanity PRE — load-dominated, not for J/token
+sysfs=/sys/class/power_supply/battery/charge_counter Permission denied (shell)
+source=dumpsys battery Charge counter (uAh)
+source=battery_a_pre.txt
+charge_counter_uAh=4102000
+level=98
+temperature_tenth_C=324
+voltage_mV=4330
+ac=false
+usb=false
+wireless=false
+dock=false
+status=3

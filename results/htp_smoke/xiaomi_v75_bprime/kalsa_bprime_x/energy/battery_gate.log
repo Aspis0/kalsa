@@ -1,0 +1,5 @@
+ts=2026-08-24T13:08:22Z tag=energy_start level=92 temp10=359
+ts=2026-08-24T13:09:22Z tag=energy_start level=92 temp10=349
+ts=2026-08-24T13:09:22Z tag=c_rep1 level=92 temp10=349
+ts=2026-08-24T13:09:55Z tag=c_rep2 level=92 temp10=349
+ts=2026-08-24T13:10:26Z tag=b_extra level=92 temp10=350

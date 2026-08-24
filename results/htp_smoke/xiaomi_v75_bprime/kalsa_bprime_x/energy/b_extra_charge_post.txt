@@ -1,0 +1,12 @@
+note=HTP (b) extra process-rep POST
+ts=2026-08-24T13:11:25Z
+sysfs_charge_counter=EACCES
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 3785000
+  status: 3
+  level: 91
+  voltage: 4213
+  temperature: 372

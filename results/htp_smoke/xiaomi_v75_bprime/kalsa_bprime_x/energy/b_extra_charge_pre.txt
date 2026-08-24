@@ -1,0 +1,12 @@
+note=HTP (b) extra process-rep PRE -ngl 99 -dev HTP0 --no-host 1 -r 1
+ts=2026-08-24T13:10:26Z
+sysfs_charge_counter=EACCES
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 3820000
+  status: 3
+  level: 92
+  voltage: 4240
+  temperature: 350

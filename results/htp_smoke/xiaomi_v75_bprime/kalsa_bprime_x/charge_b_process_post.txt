@@ -1,0 +1,13 @@
+note=HTP (b) whole-process POST
+sysfs=/sys/class/power_supply/battery/charge_counter Permission denied (shell)
+source=dumpsys battery Charge counter (uAh)
+source=battery_b_post.txt
+charge_counter_uAh=3973000
+level=95
+temperature_tenth_C=389
+voltage_mV=4243
+ac=false
+usb=false
+wireless=false
+dock=false
+status=3

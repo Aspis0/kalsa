@@ -1,0 +1,58 @@
+===LLAMA===
+NO_LLAMA
+===BATT===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 2951250
+  status: 3
+  level: 78
+  voltage: 4107
+  temperature: 281
+===SYSFS_CC===
+cat: /sys/class/power_supply/battery/charge_counter: Permission denied
+===SYSFS_TEMP===
+cat: /sys/class/power_supply/battery/temp: Permission denied
+===TOMBSTONES===
+total 5208
+-rw-rw-r-- 1 tombstoned system 115217 2026-08-21 21:31 tombstone_00
+-rw-rw-r-- 1 tombstoned system  66709 2026-08-21 21:31 tombstone_00.pb
+-rw-rw-r-- 1 tombstoned system 106750 2026-08-21 21:32 tombstone_01
+-rw-rw-r-- 1 tombstoned system  61840 2026-08-21 21:32 tombstone_01.pb
+-rw-rw-r-- 1 tombstoned system 130159 2026-08-21 21:33 tombstone_02
+-rw-rw-r-- 1 tombstoned system  75737 2026-08-21 21:33 tombstone_02.pb
+-rw-rw-r-- 1 tombstoned system 130044 2026-08-21 21:33 tombstone_03
+-rw-rw-r-- 1 tombstoned system  75591 2026-08-21 21:33 tombstone_03.pb
+-rw-rw-r-- 1 tombstoned system 106432 2026-08-21 21:34 tombstone_04
+-rw-rw-r-- 1 tombstoned system  61754 2026-08-21 21:34 tombstone_04.pb
+-rw-rw-r-- 1 tombstoned system 106562 2026-08-21 21:34 tombstone_05
+-rw-rw-r-- 1 tombstoned system  61788 2026-08-21 21:34 tombstone_05.pb
+-rw-rw-r-- 1 tombstoned system 106677 2026-08-21 21:34 tombstone_06
+-rw-rw-r-- 1 tombstoned system  61809 2026-08-21 21:34 tombstone_06.pb
+-rw-rw-r-- 1 tombstoned system 107929 2026-08-21 21:35 tombstone_07
+-rw-rw-r-- 1 tombstoned system  62701 2026-08-21 21:35 tombstone_07.pb
+-rw-rw-r-- 1 tombstoned system  73256 2026-08-24 09:01 tombstone_08
+-rw-rw-r-- 1 tombstoned system  35500 2026-08-24 09:01 tombstone_08.pb
+-rw-rw-r-- 1 tombstoned system  84603 2026-08-06 09:37 tombstone_09
+===KALSAHTP===
+Qwen3.5-4B-Q4_0.gguf
+libc++_shared.so
+libggml-base.so
+libggml-cpu.so
+libggml-hexagon.so
+libggml-htp-v73.so
+libggml.so
+libllama-bench-impl.so
+libllama-common.so
+libllama.so
+libomp.so
+llama-bench
+llama-gguf
+llama-gguf-hash
+logs
+run_bench_cpu.sh
+run_bench_htp.sh
+run_htp.sh
+test-backend-ops
+===HELP_N===

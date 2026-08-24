@@ -1,0 +1,17 @@
+phase=xiaomi_v75_bprime CPU same-harness (c) -ngl 0 REGISTRA+DICHIARA
+device=houji 23127PN0CG serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp
+ts=2026-08-24T13:06:03Z
+power_declared_below=yes (unplugged required this cell; t/s exploratory)
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 93
+  temperature: 362
+cmd=llama-bench -m MODEL -ngl 0 -p 512 -n 128 -r 2 -o jsonl --load-mode none -fa on --ubatch-size 1024
+no -dev HTP0, no --no-host (v75 cell1 CPU convention / S23 q46 (c))
+binary=/data/local/tmp/kalsahtp/llama-bench stub=5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507
+model=/data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf pin=bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419
+speed_label=exploratory
+(d) skipped: -ngl 99 without HTP device is ambiguous on this HTP-linked stub

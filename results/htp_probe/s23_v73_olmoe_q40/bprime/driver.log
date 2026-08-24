@@ -1,0 +1,25 @@
+2026-08-24T13:11:10Z STATUS STARTING
+2026-08-24T13:11:15Z gate tag=htp_r1 level=78 temp10=277
+2026-08-24T13:11:15Z cool-start PASS tag=htp_r1 temp10=277
+2026-08-24T13:11:15Z launch htp_r1 pp512 n=0 ngl=99
+2026-08-24T13:11:22Z htp_r1 rc=134
+2026-08-24T13:11:22Z htp_r1 njson_stdout=0 njson_stderr=0 rc=134
+2026-08-24T13:11:22Z FALLBACK -n 0 produced no jsonl; retrying HTP r1 with -n 1
+2026-08-24T13:11:22Z gate tag=htp_r1_n1 level=78 temp10=277
+2026-08-24T13:11:22Z cool-start PASS tag=htp_r1_n1 temp10=277
+2026-08-24T13:11:22Z launch htp_r1 pp512 n=1 ngl=99
+2026-08-24T13:11:28Z htp_r1 rc=134
+2026-08-24T13:11:29Z gate tag=htp_r2 level=78 temp10=277
+2026-08-24T13:11:29Z cool-start PASS tag=htp_r2 temp10=277
+2026-08-24T13:11:29Z launch htp_r2 pp512 n=1 ngl=99
+2026-08-24T13:11:34Z htp_r2 rc=134
+2026-08-24T13:11:35Z gate tag=cpu_r1 level=78 temp10=289
+2026-08-24T13:11:35Z cool-start PASS tag=cpu_r1 temp10=289
+2026-08-24T13:11:35Z launch cpu_r1 pp512 n=1 ngl=0
+2026-08-24T13:11:53Z cpu_r1 rc=0
+2026-08-24T13:11:54Z gate tag=cpu_r2 level=78 temp10=289
+2026-08-24T13:11:54Z cool-start PASS tag=cpu_r2 temp10=289
+2026-08-24T13:11:54Z launch cpu_r2 pp512 n=1 ngl=0
+2026-08-24T13:12:04Z cpu_r2 rc=0
+2026-08-24T13:12:05Z STATUS DONE n_gen=1 htp_r1=134 htp_r2=134 cpu_r1=0 cpu_r2=0
+2026-08-24T13:12:05Z q48 bprime DONE

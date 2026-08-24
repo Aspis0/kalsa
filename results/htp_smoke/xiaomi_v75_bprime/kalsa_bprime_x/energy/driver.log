@@ -1,0 +1,20 @@
+2026-08-24T13:08:21Z STATUS STARTING
+2026-08-24T13:08:22Z gate tag=energy_start level=92 temp10=359
+2026-08-24T13:08:22Z cool-start WAIT tag=energy_start temp10=359; sleep 60
+2026-08-24T13:09:22Z gate tag=energy_start level=92 temp10=349
+2026-08-24T13:09:22Z cool-start PASS tag=energy_start temp10=349
+2026-08-24T13:09:22Z gate tag=c_rep1 level=92 temp10=349
+2026-08-24T13:09:22Z cool-start PASS tag=c_rep1 temp10=349
+2026-08-24T13:09:22Z launch CPU rep 1 -ngl 0 -p 512 -n 128 -r 1
+2026-08-24T13:09:55Z CPU rep 1 rc=0
+2026-08-24T13:09:55Z gate tag=c_rep2 level=92 temp10=349
+2026-08-24T13:09:55Z cool-start PASS tag=c_rep2 temp10=349
+2026-08-24T13:09:55Z launch CPU rep 2 -ngl 0 -p 512 -n 128 -r 1
+2026-08-24T13:10:26Z CPU rep 2 rc=0
+2026-08-24T13:10:26Z after CPU reps level=92 temp10=350
+2026-08-24T13:10:26Z gate tag=b_extra level=92 temp10=350
+2026-08-24T13:10:26Z cool-start PASS tag=b_extra temp10=350
+2026-08-24T13:10:26Z launch extra HTP (b) -ngl 99 -dev HTP0 --no-host 1 -p 512 -n 128 -r 1
+2026-08-24T13:11:26Z extra HTP rc=0
+2026-08-24T13:11:26Z STATUS DONE
+2026-08-24T13:11:26Z energy probes DONE

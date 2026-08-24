@@ -1,0 +1,31 @@
+ggml-hex: Loading driver libcdsprpc.so
+ggml-hex: forcing ndev to 1 for SoCs archs lower than v75.
+ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+ggml-hex: Hexagon Arch version v73
+ggml-hex: HTP0 allocating new session
+ggml-hex: failed to get URI for session 0 : error 0x14. Falling back to single session URI: file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp
+ggml-hex: HTP0 hwinfo: threads 4, hvx 4, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v73.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp handle 0xb400007e3b212d40
+ggml-hex: rpcmem_alloc2 not found, falling back to rpcmem_alloc
+ggml-hex: HTP0 allocated buffer: base 0x7db4efc000 size 13637632 fd 15 pinned 1
+ggml-hex: HTP0 mapped buffer: base 0x7db4efc000 size 13637632 fd 15 pinned 1
+ggml-hex: HTP0 allocated op-queue : batch-size 1024 depth 16 shm-size 13637632 shm-block-size 852352
+ggml-hex: HTP0 op batching: n-bufs 16 n-tensors 7168 n-ops 1024 vmem 3145728000
+llama-bench: benchmark 1/1: starting
+llama-bench: benchmark 1/1: prompt run 1/2
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1583: ggml-hex: dspqueue_read failed: 0x0000002e
+
+0: 0x7e48eca66c 
+1: 0x7e48eca578 ggml_print_backtrace
+2: 0x7e48eca864 ggml_abort
+3: 0x7e3b7b2464 _ZN20ggml_hexagon_session13flush_pendingEb
+4: 0x7e3b7c847c 
+5: 0x7e48eec930 ggml_backend_sched_graph_compute_async
+6: 0x7e42392d14 _ZN13llama_context13graph_computeEP11ggml_cgraphb
+7: 0x7e42392af8 _ZN13llama_context14process_ubatchERK12llama_ubatch14llm_graph_typeP22llama_memory_context_iR11ggml_status
+8: 0x7e423941b0 _ZN13llama_context6decodeERK11llama_batch
+9: 0x7e4239cd84 llama_decode
+10: 0x7e42e5cc44 
+11: 0x7e42e55784 _Z11llama_benchiPPc
+12: 0x7e42f5a664 __libc_init
+Aborted 

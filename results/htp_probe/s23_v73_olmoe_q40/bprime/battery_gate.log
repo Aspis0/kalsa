@@ -1,0 +1,5 @@
+ts=2026-08-24T13:11:15Z tag=htp_r1 level=78 temp10=277
+ts=2026-08-24T13:11:22Z tag=htp_r1_n1 level=78 temp10=277
+ts=2026-08-24T13:11:29Z tag=htp_r2 level=78 temp10=277
+ts=2026-08-24T13:11:35Z tag=cpu_r1 level=78 temp10=289
+ts=2026-08-24T13:11:54Z tag=cpu_r2 level=78 temp10=289

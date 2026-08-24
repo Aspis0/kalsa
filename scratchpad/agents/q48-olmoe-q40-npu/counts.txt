@@ -1,0 +1,24 @@
+n_exps_htp0=48
+n_mul_mat_id=48
+n_attn=96
+n_htp0=484
+n_init_exps=48
+n_init_attn=96
+n_supports_yes=528 n_supports_no=48
+exps_kernel {'hmx': 45, 'shape_n16': 45, 'hvx': 3, 'shape_n1': 3}
+--- init_exps first 6 ---
+ggml-hex: HTP0 init-tensor blk.0.ffn_gate_exps.weight : base 0x7d77ee2000 data 0x7d787e2000 nbytes 75497472 usage 0
+ggml-hex: HTP0 init-tensor blk.0.ffn_down_exps.weight : base 0x7d77ee2000 data 0x7d7cfe2000 nbytes 75497472 usage 0
+ggml-hex: HTP0 init-tensor blk.0.ffn_up_exps.weight : base 0x7d77ee2000 data 0x7d817e2000 nbytes 75497472 usage 0
+ggml-hex: HTP0 init-tensor blk.1.ffn_gate_exps.weight : base 0x7d77ee2000 data 0x7d868e2000 nbytes 75497472 usage 0
+ggml-hex: HTP0 init-tensor blk.1.ffn_down_exps.weight : base 0x7d77ee2000 data 0x7d8b0e2000 nbytes 75497472 usage 0
+ggml-hex: HTP0 init-tensor blk.1.ffn_up_exps.weight : base 0x7d77ee2000 data 0x7d8f8e2000 nbytes 75497472 usage 0
+--- init_attn first 4 ---
+ggml-hex: HTP0 init-tensor blk.0.attn_q_norm.weight : base 0x7db53e3000 data 0x7db53e7000 nbytes 8192 usage 0
+ggml-hex: HTP0 init-tensor blk.0.attn_k_norm.weight : base 0x7db53e3000 data 0x7db53e9000 nbytes 8192 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_q_norm.weight : base 0x7db53e3000 data 0x7db546f000 nbytes 8192 usage 0
+ggml-hex: HTP0 init-tensor blk.1.attn_k_norm.weight : base 0x7db53e3000 data 0x7db5471000 nbytes 8192 usage 0
+--- last 3 exps ---
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.15.ffn_gate_exps.weight x ffn_norm-15 (reshaped) x ffn_moe_topk-15 -> ffn_moe_gate-15|2048:1024:64:1 x 2048:1 x 8:1 -> 1024:8|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192 x 4:256 -> 4:4096|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 2727936|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.15.ffn_up_exps.weight x ffn_norm-15 (reshaped) x ffn_moe_topk-15 -> ffn_moe_up-15|2048:1024:64:1 x 2048:1 x 8:1 -> 1024:8|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192 x 4:256 -> 4:4096|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 2727936|flags 0x0
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.15.ffn_down_exps.weight x ffn_moe_swiglu-15 x ffn_moe_topk-15 -> ffn_moe_down-15|1024:2048:64:1 x 1024:8 x 8:1 -> 2048:8|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096 x 4:256 -> 4:8192|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 475136|flags 0x0

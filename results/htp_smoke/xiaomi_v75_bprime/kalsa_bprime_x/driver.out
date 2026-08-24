@@ -1,0 +1,8 @@
+2026-08-24T12:46:47Z STATUS STARTING
+2026-08-24T12:46:47Z launch (a) pp16/tg8 -v HTP0 HOSTBUF=1 --no-host 1
+2026-08-24T12:48:20Z a rc=0
+2026-08-24T12:48:22Z a proof n_htp=6896 n_attn=1064 n_mul_mat=812
+2026-08-24T12:48:22Z launch (b) pp512 tg128 -r 2 HTP0 HOSTBUF=1 --no-host 1 (exploratory)
+2026-08-24T12:50:50Z b rc=0
+2026-08-24T12:50:50Z STATUS DONE a_rc=0 b_rc=0 n_htp=6896 n_attn=1064
+2026-08-24T12:50:50Z xiaomi bprime DONE

@@ -1,0 +1,2 @@
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-60 104G  95G  8.5G  92% /data/user/0

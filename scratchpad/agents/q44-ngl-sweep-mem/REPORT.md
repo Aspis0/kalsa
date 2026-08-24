@@ -152,3 +152,76 @@ Prereq was (a) sane (rc=0, non-garbage, HTP dispatch proven). (a) failed that ga
 
 GGUF left on device for the next window. Raw: `results/htp_smoke/s23_v73_bprime/`.
 
+---
+
+## PHASE Xiaomi v75 — B-prime Q8_0-trunk HTP smoke (the S23-fit retry)
+
+**Class:** REGISTRA+DICHIARA. Device: houji / 23127PN0CG / 16 GB / Hexagon v75. Serial `adb-625689a2-9xEOfw._adb-tls-connect._tcp`. S23 not used.
+
+**Power:** UNPLUGGED the whole cell (AC=USB=Wireless=Dock=false, status=3). Start 98 % / 32.4 °C; (b) post 95 % / 38.9 °C. All t/s **exploratory**.
+
+**Pins:** kalsahtp llama-bench `5db18906…` @3f545be, htp-v75 `46d3ac92…`. GGUF on-device sha `bd63fc0f…` MATCH. Env HOSTBUF=1 + `--no-host 1` as v75 cell1.
+
+### Load split
+
+| buffer | MiB |
+|---|---:|
+| CPU (experts Q2_K/Q3_K) | 5995.65 |
+| CPU_REPACK | 157.65 |
+| HTP0 | 28.25 |
+| HTP0-REPACK (Q8_0 trunk) | 178.50 |
+| offloaded | 29/29 layers |
+
+This is the same split that OOMed the S23 8 GB phone. On 16 GB it loads.
+
+### (a) execute-op proof: YES
+
+rc=0. `HTP0 execute-op MUL_MAT` on `blk.*.attn_{q,k,v,output}.weight`, type **q8_0**, `HTP0-REPACK x HTP0 -> HTP0`, **hmx-tiled**. Counts: 252 each of Q/K/V/O (1064 attn lines; 6896 HTP0 execute-op total). Q2_K/Q3_K MUL_MAT on HTP: **0** (experts CPU). Router `ffn_gate_inp` f32 does run on HTP0 — not an expert matmul.
+
+### (b) headline numbers (exploratory, unplugged, `-r 2`)
+
+| test | avg t/s | samples |
+|---|---:|---|
+| pp512 | **27.842** | 27.232, 28.451 |
+| tg128 | **3.613** | 3.396, 3.829 |
+
+### (c) CPU same-harness `-ngl 0` (closes the cell)
+
+Cool-start 31.9 °C ≤ 35.0. Unplugged. `-ngl 0`, **no** `-dev HTP0`, **no** `--no-host` (v75 cell1 / q46 (c) convention). Same jsonl `-p 512 -n 128 -r 2 --load-mode none -fa on --ubatch-size 1024`. rc=0. jsonl still prints `backends=HTP` (stub is NEEDED-linked; `n_gpu_layers=0`). stderr still opens an HTP0 session at ngl 0.
+
+| test | avg t/s | samples |
+|---|---:|---|
+| pp512 | **19.120** | 19.285, 18.955 |
+| tg128 | **6.448** | 3.955, 8.942 |
+
+tg128 CPU samples are **not stable** (3.95 vs 8.94). Mean is a weak number.
+
+**(d) skipped** — `-ngl 99` without HTP device is ambiguous on this stub.
+
+### Honest HTP/CPU ratios (matched `-r 2` processes only)
+
+| test | HTP (b) | CPU (c) | HTP/CPU |
+|---|---:|---:|---:|
+| pp512 | 27.842 | 19.120 | **1.46×** |
+| tg128 | 3.613 | 6.448 | **0.56×** (CPU faster; mean-noisy) |
+
+Do **not** mix later energy `-r 1` t/s into this ratio (those runs were much faster at prefill — 80–102 pp512 — likely warm page-cache / second-process; generate HTP extra 3.59 matches (b) 3.61).
+
+### Energy (dumpsys Charge counter)
+
+`/sys/class/power_supply/battery/{charge_counter,voltage_now,temp}` = **EACCES** for adb shell. Fallback: `dumpsys battery` `Charge counter` (µAh) + `voltage` (mV) + `temperature`. Unplugged.
+
+Assumptions: `E = (ΔµAh / 1e6) × V_mean × 3600` J; `V_mean = (V_pre+V_post)/2`; tokens = llama-bench **warmup ON** so `-r N` ⇒ `(N+1)×(512+128)`; brackets are **whole process** (load + HTP init + warmup + reps). (a) omitted (load-dominated, 24 tokens).
+
+| arm | ΔQ | V_mean | E | tokens | J/token | ΔT |
+|---|---:|---:|---:|---:|---:|---:|
+| HTP (b) `-r 2` | 71.0 mAh | 4.213 V | 1077 J | 1920 | **0.561** | 36.0→38.9 (+2.9) |
+| CPU (c) `-r 2` | 82.0 mAh | 4.238 V | 1251 J | 1920 | **0.652** | 31.9→36.2 (+4.3) |
+
+HTP/CPU energy ≈ **0.86** (HTP cheaper at matched token count, still including load).
+
+Per-rep extra (`energy/`, `-r 1`, cool-start 34.9 °C): Charge counter **too coarse** for ~33 s runs (CPU rep1 ΔQ=**0**; rep2 19 mAh; extra HTP 35 mAh). Do not use those J/token as the comparison. Extra HTP `-r 1` was run (batt 92 % ≥ 90, temp gate 35.0). Files: `charge_*_pre/post.txt` + `energy/c_rep{1,2}_charge_*.txt` + `energy/b_extra_charge_*.txt`.
+
+Raw: `results/htp_smoke/xiaomi_v75_bprime/`.
+
+

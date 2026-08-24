@@ -1,0 +1,10 @@
+STATUS=STARTING
+HEARTBEAT=2026-08-24T13:11:10Z
+driver_pid=25096
+     37 /data/local/tmp/kalsa_q48/bprime/driver.log
+     37 /data/local/tmp/kalsa_q48/bprime/driver.out
+     74 total
+---LOG---
+2026-08-24T13:11:10Z STATUS STARTING
+---PS---
+NO_LLAMA

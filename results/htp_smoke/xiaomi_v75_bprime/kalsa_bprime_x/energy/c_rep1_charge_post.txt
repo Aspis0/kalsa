@@ -1,0 +1,12 @@
+note=CPU (c) process-rep 1 POST
+ts=2026-08-24T13:09:55Z
+sysfs_charge_counter=EACCES
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 3839000
+  status: 3
+  level: 92
+  voltage: 4287
+  temperature: 349

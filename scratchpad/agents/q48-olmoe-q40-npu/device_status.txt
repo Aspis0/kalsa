@@ -1,0 +1,22 @@
+===LLAMA===
+NO_LLAMA
+===BATT===
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  status: 3
+  level: 79
+  temperature: 299
+===DF===
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-60 104G  95G  8.5G  92% /data/user/0
+===TMP_GGUF===
+-rw-rw-rw- 1 shell shell  3580407296 2026-08-24 08:36 /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf
+-rw-rw-rw- 1 shell shell  3326160384 2026-08-19 12:21 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+-rw-rw-rw- 1 shell shell  6509642624 2026-08-23 19:59 /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf
+-rw-rw-rw- 1 shell shell 10505424704 2026-08-22 15:13 /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell  3928037856 2026-08-24 08:49 /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf
+===MEM===
+MemTotal:        7243744 kB
+MemAvailable:    4556492 kB

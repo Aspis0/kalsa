@@ -1,0 +1,70 @@
+source=device/kalsa_q48/a_stderr.txt
+dspqueue_line_1based=16878
+window=16828-16893 of 16893
+
+ggml-hex: HTP0 add-tensor #61 HTP0#leaf_227#0 : bi 1 data 0x7cc983d180 offset 139648 size 4 flags 0x1 : 1:1:1:1
+ggml-hex: HTP0 add-tensor #62 node_898 : bi 1 data 0x7cc985d200 offset 270848 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op GET_ROWS|l_out-14 x HTP0#leaf_227#0 -> node_899|2048:16 x 1:1 -> 2048:1|f32 x i32 -> f32|4:8192 x 4:4 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #63 node_899 : bi 1 data 0x7cc983d200 offset 139776 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_898 x node_899 -> ffn_inp-15|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 execute-op RMS_NORM+MUL|ffn_inp-15 x blk.15.ffn_norm.weight -> ffn_norm-15|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|HTP0 x HTP0 -> HTP0|row-block vtcm 8364032|flags 0x0
+ggml-hex: HTP0 add-tensor #64 blk.15.ffn_norm.weight : bi 2 data 0x7db5be3000 offset 8388608 size 8192 flags 0x0 : 2048:1:1:1
+ggml-hex: HTP0 add-tensor #65 ffn_norm-15 : bi 1 data 0x7cc981b000 offset 0 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op MUL_MAT|blk.15.ffn_gate_inp.weight x ffn_norm-15 -> ffn_moe_logits-15|2048:64 x 2048:1 -> 64:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 533504|flags 0x0
+ggml-hex: HTP0 add-tensor #66 blk.15.ffn_gate_inp.weight : bi 2 data 0x7db5be5000 offset 8396800 size 524288 flags 0x0 : 2048:64:1:1
+ggml-hex: HTP0 add-tensor #67 ffn_moe_logits-15 : bi 1 data 0x7cc983b000 offset 131072 size 256 flags 0x1 : 64:1:1:1
+ggml-hex: HTP0 execute-op SOFT_MAX|ffn_moe_logits-15 -> ffn_moe_probs-15|64:1 -> 64:1|f32 -> f32|4:256 -> 4:256|HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 execute-op ARGSORT|ffn_moe_probs-15 -> ffn_moe_argsort-15|64:1 -> 64:1|f32 -> i32|4:256 -> 4:256|HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #68 ffn_moe_argsort-15 : bi 1 data 0x7cc983c000 offset 135168 size 256 flags 0x1 : 64:1:1:1
+ggml-hex: HTP0 execute-op GET_ROWS|ffn_moe_probs-15 (reshaped) x ffn_moe_topk-15 -> ffn_moe_weights-15|1:64 x 8:1 -> 1:8|f32 x i32 -> f32|4:4 x 4:256 -> 4:4|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #69 ffn_moe_probs-15 (reshaped) : bi 1 data 0x7cc983b000 offset 131072 size 256 flags 0x1 : 1:64:1:1
+ggml-hex: HTP0 add-tensor #70 ffn_moe_topk-15 : bi 1 data 0x7cc983c000 offset 135168 size 32 flags 0x1 : 8:1:1:1
+ggml-hex: HTP0 add-tensor #71 ffn_moe_weights-15 : bi 1 data 0x7cc983d000 offset 139264 size 32 flags 0x1 : 1:8:1:1
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.15.ffn_gate_exps.weight x ffn_norm-15 (reshaped) x ffn_moe_topk-15 -> ffn_moe_gate-15|2048:1024:64:1 x 2048:1 x 8:1 -> 1024:8|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192 x 4:256 -> 4:4096|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 2727936|flags 0x0
+ggml-hex: HTP0 add-tensor #72 blk.15.ffn_gate_exps.weight : bi 0 data 0x7cf05df000 offset 471859200 size 75497472 flags 0x0 : 2048:1024:64:1
+ggml-hex: HTP0 add-tensor #73 ffn_moe_gate-15 : bi 1 data 0x7cc987d200 offset 401920 size 32768 flags 0x1 : 1024:8:1:1
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.15.ffn_up_exps.weight x ffn_norm-15 (reshaped) x ffn_moe_topk-15 -> ffn_moe_up-15|2048:1024:64:1 x 2048:1 x 8:1 -> 1024:8|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192 x 4:256 -> 4:4096|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 2727936|flags 0x0
+ggml-hex: HTP0 add-tensor #74 blk.15.ffn_up_exps.weight : bi 0 data 0x7cf95df000 offset 622854144 size 75497472 flags 0x0 : 2048:1024:64:1
+ggml-hex: HTP0 add-tensor #75 ffn_moe_up-15 : bi 1 data 0x7cc98fd200 offset 926208 size 32768 flags 0x1 : 1024:8:1:1
+ggml-hex: HTP0 execute-op SWIGLU|ffn_moe_gate-15 x ffn_moe_up-15 -> ffn_moe_swiglu-15|1024:8 x 1024:8 -> 1024:8|f32 x f32 -> f32|4:4096 x 4:4096 -> 4:4096|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #76 ffn_moe_swiglu-15 : bi 1 data 0x7cc997d200 offset 1450496 size 32768 flags 0x1 : 1024:8:1:1
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.15.ffn_down_exps.weight x ffn_moe_swiglu-15 x ffn_moe_topk-15 -> ffn_moe_down-15|1024:2048:64:1 x 1024:8 x 8:1 -> 2048:8|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096 x 4:256 -> 4:8192|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hvx-tiled vtcm 475136|flags 0x0
+ggml-hex: HTP0 add-tensor #77 blk.15.ffn_down_exps.weight : bi 0 data 0x7cf4ddf000 offset 547356672 size 75497472 flags 0x0 : 1024:2048:64:1
+ggml-hex: HTP0 add-tensor #78 ffn_moe_down-15 : bi 1 data 0x7cc987d200 offset 401920 size 65536 flags 0x1 : 2048:8:1:1
+ggml-hex: HTP0 execute-op MUL|ffn_moe_down-15 x ffn_moe_weights-15 -> ffn_moe_weighted-15|2048:8 x 1:8 -> 2048:8|f32 x f32 -> f32|4:8192 x 4:4 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 execute-op ADD|ffn_moe_weighted-15 (view) x ffn_moe_weighted-15 (view) -> node_923|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:65536 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #79 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc987d200 offset 401920 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 add-tensor #80 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc987f200 offset 410112 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_923 x ffn_moe_weighted-15 (view) -> node_924|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #81 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc9881200 offset 418304 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_924 x ffn_moe_weighted-15 (view) -> node_925|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #82 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc9883200 offset 426496 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_925 x ffn_moe_weighted-15 (view) -> node_926|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #83 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc9885200 offset 434688 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_926 x ffn_moe_weighted-15 (view) -> node_927|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #84 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc9887200 offset 442880 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_927 x ffn_moe_weighted-15 (view) -> node_928|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #85 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc9889200 offset 451072 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|node_928 x ffn_moe_weighted-15 (view) -> ffn_moe_out-15|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 add-tensor #86 ffn_moe_weighted-15 (view) : bi 1 data 0x7cc988b200 offset 459264 size 8192 flags 0x1 : 2048:1:1:1
+ggml-hex: HTP0 execute-op ADD|ffn_moe_out-15 x ffn_inp-15 -> l_out-15|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-15 x output_norm.weight -> result_norm|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|HTP0 x HTP0 -> HTP0|row-block vtcm 8364032|flags 0x0
+ggml-hex: HTP0 add-tensor #87 output_norm.weight : bi 2 data 0x7db53e3000 offset 0 size 8192 flags 0x0 : 2048:1:1:1
+ggml-hex: HTP0 op-queue push batch #1 : n-bufs 4 n-tensors 88 n-ops 77 vmem 742818304 : b-size 96 t-size 4928 o-size 17248 m-size 25968
+ggml-hex: HTP0 queue-opbatch: 0x7dc2036180 size 25968
+C:/Users/gualt/Desktop/Kalsa/moe-experiments/upstream-hexagon/llama.cpp/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1583: ggml-hex: dspqueue_read failed: 0x0000002e
+
+0: 0x7e4b6f166c 
+1: 0x7e4b6f1578 ggml_print_backtrace
+2: 0x7e4b6f1864 ggml_abort
+3: 0x7e49f1a464 _ZN20ggml_hexagon_session13flush_pendingEb
+4: 0x7e49f3047c 
+5: 0x7e4b713930 ggml_backend_sched_graph_compute_async
+6: 0x7e51329d14 _ZN13llama_context13graph_computeEP11ggml_cgraphb
+7: 0x7e51329af8 _ZN13llama_context14process_ubatchERK12llama_ubatch14llm_graph_typeP22llama_memory_context_iR11ggml_status
+8: 0x7e5132b1b0 _ZN13llama_context6decodeERK11llama_batch
+9: 0x7e51333d84 llama_decode
+10: 0x7e5451cc44 
+11: 0x7e54515784 _Z11llama_benchiPPc
+12: 0x7e4fd12664 __libc_init
+Aborted 

@@ -1,0 +1,18 @@
+xiaomi_v75_bprime energy summary
+sysfs /sys/class/power_supply/battery/charge_counter = EACCES for adb shell
+source = dumpsys battery 'Charge counter' (uAh) + voltage (mV)
+E_J = (dQ_uAh/1e6) * Vmean * 3600
+Vmean = average of pre/post dumpsys voltage
+UNPLUGGED all probes (AC=USB=Wireless=Dock=false)
+tokens assume llama-bench default warmup ON: -r N => (N+1) * (pp512+tg128)
+ALL process brackets INCLUDE model load + HTP session init (even -ngl 0 opens HTP0)
+(a) sanity omitted from J/token (load-dominated, 24 tokens)
+
+HTP (b) original -r2 PROCESS: dQ_uAh=71000 Vmean=4.2130 E_J=1076.8 tokens=1920 J_per_token=0.5609 dT_C=2.9 T=36.0->38.9 level=97->95 cc=4044000->3973000
+CPU (c) original -r2 PROCESS: dQ_uAh=82000 Vmean=4.2375 E_J=1250.9 tokens=1920 J_per_token=0.6515 dT_C=4.3 T=31.9->36.2 level=94->93 cc=3931000->3849000
+CPU energy rep1 -r1 PROCESS: dQ_uAh=0 Vmean=4.2870 E_J=0.0 tokens=1280 J_per_token=0.0000 dT_C=0.0 T=34.9->34.9 level=92->92 cc=3839000->3839000
+CPU energy rep2 -r1 PROCESS: dQ_uAh=19000 Vmean=4.2635 E_J=291.6 tokens=1280 J_per_token=0.2278 dT_C=0.1 T=34.9->35.0 level=92->92 cc=3839000->3820000
+HTP extra (b) -r1 PROCESS: dQ_uAh=35000 Vmean=4.2265 E_J=532.5 tokens=1280 J_per_token=0.4160 dT_C=2.2 T=35.0->37.2 level=92->91 cc=3820000->3785000
+
+matched original process: HTP/CPU energy = 0.861
+matched original process: CPU/HTP J/token = 1.162

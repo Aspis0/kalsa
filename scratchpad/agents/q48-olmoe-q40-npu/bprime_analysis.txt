@@ -1,0 +1,47 @@
+htp_r1: dQ=0 uAh E=0.0 J  J/tok=0.0 (tok=512 load-included) V=4.108 T 27.7->27.7 dT=0.0 lvl 78->78 sysfs=cat: /sys/class/power_supply/battery/charge_counter: Permission denied
+  jsonl EMPTY
+htp_r2: dQ=0 uAh E=0.0 J  J/tok=0.0 (tok=512 load-included) V=4.108 T 27.7->27.7 dT=0.0 lvl 78->78 sysfs=cat: /sys/class/power_supply/battery/charge_counter: Permission denied
+  jsonl EMPTY
+cpu_r1: dQ=0 uAh E=0.0 J  J/tok=0.0 (tok=512 load-included) V=4.054 T 28.9->28.9 dT=0.0 lvl 78->78 sysfs=cat: /sys/class/power_supply/battery/charge_counter: Permission denied
+  jsonl n_prompt=512 n_gen=0 avg_ts=39.238527 n_gpu_layers=0
+  jsonl n_prompt=0 n_gen=1 avg_ts=18.479182 n_gpu_layers=0
+cpu_r2: dQ=0 uAh E=0.0 J  J/tok=0.0 (tok=512 load-included) V=4.054 T 28.9->28.9 dT=0.0 lvl 78->78 sysfs=cat: /sys/class/power_supply/battery/charge_counter: Permission denied
+  jsonl n_prompt=512 n_gen=0 avg_ts=100.517038 n_gpu_layers=0
+  jsonl n_prompt=0 n_gen=1 avg_ts=17.827132 n_gpu_layers=0
+
+INTERNAL-ERROR / hmx-error counts:
+  results/htp_probe/s23_v73_olmoe_q40/device/kalsa_q48/a_stderr.txt:
+    'INTERNAL-ERROR': 0
+    'INTERNAL_ERROR': 0
+    'hmx error': 0
+    'HMX error': 0
+    'hmx-error': 0
+    'dspqueue_read failed': 1
+  results/htp_probe/s23_v73_olmoe_q40/bprime/htp_r1_stderr.txt:
+    'INTERNAL-ERROR': 0
+    'INTERNAL_ERROR': 0
+    'hmx error': 0
+    'HMX error': 0
+    'hmx-error': 0
+    'dspqueue_read failed': 1
+  results/htp_probe/s23_v73_olmoe_q40/bprime/htp_r2_stderr.txt:
+    'INTERNAL-ERROR': 0
+    'INTERNAL_ERROR': 0
+    'hmx error': 0
+    'HMX error': 0
+    'hmx-error': 0
+    'dspqueue_read failed': 1
+  results/htp_probe/s23_v73_olmoe_q40/bprime/cpu_r1_stderr.txt:
+    'INTERNAL-ERROR': 0
+    'INTERNAL_ERROR': 0
+    'hmx error': 0
+    'HMX error': 0
+    'hmx-error': 0
+    'dspqueue_read failed': 0
+  results/htp_probe/s23_v73_olmoe_q40/bprime/cpu_r2_stderr.txt:
+    'INTERNAL-ERROR': 0
+    'INTERNAL_ERROR': 0
+    'hmx error': 0
+    'HMX error': 0
+    'hmx-error': 0
+    'dspqueue_read failed': 0

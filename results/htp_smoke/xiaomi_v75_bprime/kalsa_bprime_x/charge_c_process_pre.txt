@@ -1,0 +1,13 @@
+note=CPU (c) whole-process PRE (original -r 2, includes load+warmup)
+sysfs=/sys/class/power_supply/battery/charge_counter Permission denied (shell)
+source=dumpsys battery Charge counter (uAh)
+source=battery_c_pre.txt
+charge_counter_uAh=3931000
+level=94
+temperature_tenth_C=319
+voltage_mV=4315
+ac=false
+usb=false
+wireless=false
+dock=false
+status=3

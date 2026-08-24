@@ -1,0 +1,6 @@
+2026-08-24T13:03:55Z STATUS STARTING
+2026-08-24T13:03:55Z gate (c) level=94 temp10=319
+2026-08-24T13:03:55Z cool-start PASS temp10=319
+2026-08-24T13:03:55Z launch (c) -ngl 0 pp512 tg128 -r 2 (no -dev HTP0, no --no-host)
+2026-08-24T13:06:03Z c rc=0
+2026-08-24T13:06:03Z STATUS DONE c_rc=0

@@ -1,0 +1,4 @@
+load_tensors:          CPU model buffer size =  5995.65 MiB
+load_tensors:   CPU_REPACK model buffer size =   157.65 MiB
+load_tensors:         HTP0 model buffer size =    28.25 MiB
+load_tensors:  HTP0-REPACK model buffer size =   178.50 MiB

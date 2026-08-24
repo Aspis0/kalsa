@@ -1,0 +1,10 @@
+ts=2026-08-24T13:14:29Z
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 2928750
+  status: 3
+  level: 78
+  voltage: 4097
+  temperature: 289
