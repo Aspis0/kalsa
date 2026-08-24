@@ -1,0 +1,44 @@
+diff --git a/ggml/src/ggml-hexagon/ggml-hexagon.cpp b/ggml/src/ggml-hexagon/ggml-hexagon.cpp
+index e8a5009b3..cfd12dfb6 100644
+--- a/ggml/src/ggml-hexagon/ggml-hexagon.cpp
++++ b/ggml/src/ggml-hexagon/ggml-hexagon.cpp
+@@ -85,6 +85,7 @@ static int opt_opqueue  = 16;   // max number of pending batches
+ static int opt_optrace  = 0;    // trace buffer size per thread (0 means default)
+ static int opt_oppoll   = 0;    // polling for batch completions
+ static int opt_opfusion = 1;    // enable/disable op fusion
++static int opt_no_binary = 0;   // GGML_HEXAGON_NO_BINARY=1: decline ADD/SUB/MUL/DIV (skel op_binary)
+ 
+ static std::regex* opt_opfilter = NULL; // regex of ops to not claim
+ 
+@@ -4087,6 +4088,12 @@ static bool ggml_backend_hexagon_device_supports_op(ggml_backend_dev_t dev, cons
+         case GGML_OP_ADD:
+         case GGML_OP_SUB:
+         case GGML_OP_DIV:
++            // F2b (q51): v73 skel op_binary NULL-deref (q50: TLBMISS RW, Bad VA 0x0 in
++            // libggml-htp-v73.so). Env-gated so MUL_MAT / MUL_MAT_ID stay on HTP.
++            if (opt_no_binary) {
++                supp = false;
++                break;
++            }
+             supp = ggml_hexagon_supported_binary(sess, op);
+             break;
+ 
+@@ -4398,6 +4405,7 @@ static void ggml_hexagon_init(ggml_backend_reg * reg) {
+     const char * str_vmem     = getenv("GGML_HEXAGON_VMEM");
+     const char * str_mbuf     = getenv("GGML_HEXAGON_MBUF");
+     const char * str_optrace  = getenv("GGML_HEXAGON_OPTRACE");
++    const char * str_no_binary = getenv("GGML_HEXAGON_NO_BINARY");
+ 
+     // Init Arch first since it affects other defaults
+     if (!str_arch) {
+@@ -4437,6 +4445,10 @@ static void ggml_hexagon_init(ggml_backend_reg * reg) {
+     opt_optrace   = str_optrace  ? strtoul(str_optrace, NULL, 0)          : (opt_opbatch * 256);
+     opt_oppoll    = str_oppoll   ? strtoul(str_oppoll,  NULL, 0)          : opt_oppoll;
+     opt_opfusion  = str_opfusion ? atoi(str_opfusion)                     : opt_opfusion;
++    opt_no_binary = str_no_binary ? atoi(str_no_binary)                   : 0;
++    if (opt_no_binary) {
++        GGML_LOG_INFO("ggml-hex: GGML_HEXAGON_NO_BINARY=1: declining ADD/SUB/MUL/DIV (skel op_binary); MUL_MAT/MUL_MAT_ID unchanged (q50/q51 F2b)\n");
++    }
+     opt_profile   = str_profile  ? atoi(str_profile)                      : 0;
+     opt_etm       = str_etm      ? atoi(str_etm)                          : 0;
+     opt_nhvx      = str_nhvx     ? strtoul(str_nhvx, NULL, 0)             : opt_nhvx;

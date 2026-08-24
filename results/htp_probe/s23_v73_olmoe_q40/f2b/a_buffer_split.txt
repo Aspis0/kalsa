@@ -1,0 +1,4 @@
+load_tensors: offloaded 17/17 layers to GPU
+load_tensors:          CPU model buffer size =   136.37 MiB
+load_tensors:         HTP0 model buffer size =     8.00 MiB
+load_tensors:  HTP0-REPACK model buffer size =  3600.02 MiB

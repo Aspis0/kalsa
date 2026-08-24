@@ -1,0 +1,16 @@
+phase=q51 F2b v73 GGML_HEXAGON_NO_BINARY=1 REGISTRA+DICHIARA
+ts=2026-08-24T14:33:59Z
+note=a pp16/tg8 -v NO_BINARY=1
+unplugged_declared=yes
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 2827500
+  status: 3
+  level: 75
+  voltage: 4071
+  temperature: 258
+BINDIR=/data/local/tmp/kalsahtp_f2b NO_BINARY=1 NDEV=1 VERBOSE=1 HOSTBUF=1 --no-host 1
+binary=/data/local/tmp/kalsahtp_f2b/llama-bench stub=f01a4d425a0dbacba9e5da17e88d33b032ccf85345f89725ec2b46441f241a33 hexagon=57c7ca6f4c86b0153439cf9b8c44e6bec00aee25f465b3be86612d582d220dfc htp_v73=c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5
+model=/data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf pin=43379486db3178d89b338358d298ea0721d6c123e0107d91c5d6179371000500

@@ -1,0 +1,6 @@
+file=/data/local/tmp/kalsa_q51_f2b/a_stderr.txt
+dspqueue=1
+dspqueue_read_failed=1
+INTERNAL_ERROR=0
+Aborted=1
+NO_BINARY_log=1

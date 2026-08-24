@@ -1,0 +1,15 @@
+STATUS=DONE a_died rc_a=134 n_exps=42 n_binary_htp0=0
+HEARTBEAT=2026-08-24T14:33:59Z
+    410 /data/local/tmp/kalsa_q51_f2b/driver.log
+    410 /data/local/tmp/kalsa_q51_f2b/driver.out
+    820 total
+---LOG---
+2026-08-24T14:33:54Z STATUS STARTING
+2026-08-24T14:33:59Z gate tag=a level=75 temp10=258
+2026-08-24T14:33:59Z cool-start PASS tag=a temp10=258
+2026-08-24T14:33:59Z launch (a) pp16/tg8 -v NO_BINARY=1
+2026-08-24T14:34:07Z a proof rc_a=134 n_json=0 n_json_err=0 n_htp=294 n_exps_htp0=42 n_binary_htp0=0
+2026-08-24T14:34:07Z STATUS DONE a_died rc_a=134 n_exps=42 n_binary_htp0=0
+2026-08-24T14:34:07Z F2b DONE died
+---PS---
+NO_LLAMA
