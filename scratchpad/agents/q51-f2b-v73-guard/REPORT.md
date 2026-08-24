@@ -63,3 +63,7 @@ Compare vs CPU: **n/a** (HTP did not finish). Do not compare t/s vs the doomed u
 4. No `CPU_REPACK` line; CPU buffer 136.37 MiB (binary/activations on CPU).
 
 No leftover llama. No git commits. Pinned `/data/local/tmp/kalsahtp` not modified.
+
+## Logcat repro — new crash PC (stop)
+
+One F2b (a) with `adb logcat -b all -v threadtime` from before launch to after abort (75 % unplugged, 25.9 °C). Raw: `results/htp_probe/s23_v73_olmoe_q40/f2b/logcat_repro/` (`cdsp_crash_block.txt`, `last_queued_ops.txt`, `tombstone_17.txt` pid 29609 SIGABRT, cmdline match). **Verdict: different-defect, not same-defect-shifted.** Unguarded q50 died TLBMISS RW Error `0x7003` Fault PC `0x20049E8C` in skel `op_binary+0x5B9C`. Under the guard the PD still dies `dspqueue_read 0x2e` after last-queued MUL_MAT_ID `blk.13` gate/up/down (hmx-tiled), but the CDSP block is **Application called qurt_exit()**, Error **`0x108`**, Fault PC **`0xD269BC`**, crashed SO **`fastrpc_shell_unsigned_3`**, trace `qurt_exception_raise_nonfatal+0x1C` → `raise+0xFC` → `abort+0x8` → **`htp_iface_stop+0x12E8`** in `libggml-htp-v73.so` — **not** `op_binary`, **not** `op_matmul_id`, **not** SWIGLU/glu. Bounded F1 (patch `op_binary`) is the wrong next move; the stack does not even name a handler to fix. Combined with houji v75 surviving the same graph, this datum decides **F6: v75-only policy for MoE-on-NPU**. No further experiments.

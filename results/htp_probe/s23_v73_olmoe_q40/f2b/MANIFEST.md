@@ -36,3 +36,11 @@ Python hashlib. New dir kalsahtp_f2b; pinned kalsahtp untouched.
 | model_sha.txt | 118 | c58d764cce945b7268b3050ac5ad8b690b30eaf514bae496d0ecb789fdf1bf0c |
 | STATUS | 47 | 5905f81b5ada5c4727c9303238603bfd564bb37110ca6d281e1faf65f26f7d26 |
 | t_session_end.txt | 21 | e6944169c87e551e71848a6664a096bc435f903bdb352207f75800ae2d8f7f43 |
+| logcat_repro/logcat_threadtime.txt | 45728 | 97c4398bbb3b9385e5290d7ba191f3f35253e9cb037a4c48c6d33952c79a0663 |
+| logcat_repro/shell_out.txt | 6820 | 5274ccb1ff63258214c84b18f4290018c83b8326010a61ef39b335afba367d0f |
+| logcat_repro/tombstones_pre.txt | 430 | 8536e34d2cfdf8ff46bbb569ddc626abc7d206b4d4cf16f087ff50b68420da07 |
+| logcat_repro/tombstones_post.txt | 688 | 00d1cb6cbf9cbe05a569f5c7dab7b57fd5a345e090f6c912e933b0c97668d730 |
+| logcat_repro/tombstone_17.txt | 75243 | 225f285968eb7be8564bf90d9fc4dc0a1da7340ae5fa601460c9baf84ba570f2 |
+| logcat_repro/cdsp_crash_block.txt | 4263 | edc9f0f6b3f0b872b74fecb61004f9a3f7f9904c622703089a230d25417ee330 |
+| logcat_repro/last_queued_ops.txt | 1475 | cd69972fb7b5e7f774393b2573b280bca102636178cf7041831f8d834cede748 |
+| logcat_repro/EXTRACT.md | 1754 | 87b758eb3256951bb11b685dc6b1a99dfb3394e45844d3dd84d3a0e016385248 |
