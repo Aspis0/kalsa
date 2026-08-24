@@ -1,0 +1,1 @@
+load_tensors: offloaded 17/17 layers to GPU

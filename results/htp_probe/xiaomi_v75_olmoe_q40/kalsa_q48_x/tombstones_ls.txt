@@ -1,0 +1,8 @@
+total 114604
+-rw-rw-r-- 1 tombstoned system  799438 2026-08-23 11:19 tombstone_22
+-rw-rw-r-- 1 tombstoned system  461599 2026-08-23 11:19 tombstone_22.pb
+-rw-rw-r-- 1 tombstoned system 5443700 2026-08-21 15:59 tombstone_21
+-rw-rw-r-- 1 tombstoned system 2370862 2026-08-21 15:59 tombstone_21.pb
+-rw-rw-r-- 1 tombstoned system 5493160 2026-08-20 15:18 tombstone_20
+-rw-rw-r-- 1 tombstoned system 2399157 2026-08-20 15:18 tombstone_20.pb
+-rw-rw-r-- 1 tombstoned system 5513474 2026-08-19 21:49 tombstone_19

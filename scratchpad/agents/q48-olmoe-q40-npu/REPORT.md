@@ -140,3 +140,55 @@ llama-cli: **skipped** — `kalsahtp` has no `llama-cli` (only `llama-bench` / `
 - Tombstone **accessible without root**: `/data/tombstones/tombstone_08` pulled. Timestamp `2026-08-24 09:01:48.469-0400`, cmdline matches (a) (`-p 16 -n 8 -v ... OLMoE ...`), signal 6 SIGABRT, pid 24761. Saved as `tombstone_08.txt`.
 - (b') n0 stderr: abort on **prompt run**, same `dspqueue_read 0x2e`.
 
+---
+
+## Xiaomi v75 discriminator — 2026-08-24T13:24Z
+
+**SURVIVED.** Same model/sha, same llama-bench @3f545be, **v75** `libggml-htp-v75.so` `46d3ac92…`, HOSTBUF=1 + `--no-host 1` (Marco v75 convention). houji 16 GB, unplugged 89 % / 31.9 °C start → 89 % / 33.4 °C end. Raw: `results/htp_probe/xiaomi_v75_olmoe_q40/`.
+
+v73 on S23 died with `dspqueue_read failed: 0x0000002e` at pp16-decode and at pp512 prompt. v75 on houji: **every HTP cell rc=0**, **0** `dspqueue` / `INTERNAL-ERROR` / `hmx error` / `Aborted` / `ggml_abort` lines in all stderr. No crash_context, no new tombstone. The HTP MUL_MAT_ID path is **not** broken under load in general — the death was **v73-specific**.
+
+### Execute-op (a, pp16/tg8 `-v`, rc=0)
+
+Same dispatch line as S23, but the process **finished**:
+
+```
+ggml-hex: HTP0 execute-op MUL_MAT_ID|blk.0.ffn_gate_exps.weight ...|q4_0 x f32 x i32 -> f32|...|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 6293504|flags 0x0
+```
+
+| class | n |
+|---|---:|
+| HTP0 execute-op (all) | 4100 |
+| attn Q/K/V/O execute-op | 608 |
+| `MUL_MAT_ID` on `ffn_*_exps` | **432** |
+| of which gate / up / down | 144 / 144 / 144 |
+| of which hmx-tiled | 45 |
+| of which hvx-tiled | 387 |
+
+Load split identical to S23: CPU 55.27 / CPU_REPACK 80.60 / HTP0 8.51 / **HTP0-REPACK 3600.02** MiB, offloaded 17/17. Experts on NPU.
+
+### t/s (exploratory, unplugged)
+
+| cell | pp512 t/s | tg128 t/s | rc |
+|---|---:|---:|---:|
+| HTP (b) r1 `-n 0` | **687.40** | — | 0 |
+| HTP (b) r2 `-n 0` | **684.99** | — | 0 |
+| HTP tg `-p 0 -n 128` | — | **21.76** | 0 |
+| CPU (c) r1 `-ngl 0` | 142.92 | 34.64 | 0 |
+| CPU (c) r2 `-ngl 0` | 141.48 | 33.96 | 0 |
+
+HTP/CPU pp512 **686.2 / 142.2 = 4.82×**. HTP/CPU tg128 **21.76 / 34.30 = 0.63×** (CPU faster generate). First MoE-experts-on-NPU prefill number: **~686 t/s pp512** (mean of two process-level `-r 1`). Wall times match (b_r1 ~7 s including load).
+
+(a) sanity: pp16 68.05 / tg8 21.46 (tg matches b_tg).
+
+### J/token
+
+sysfs charge_counter **EACCES**. dumpsys Charge counter. Per-rep windows 7–23 s: **mostly 0 µAh ticks** (b_r2 6 mAh, c_r2 18 mAh). Session 3717000→3693000 µAh (24 mAh) mixes HTP+CPU. **J/token not measurable at this duration** (same granularity problem as S23 and the Marco energy extras). Brackets saved (`charge_*_pre/post.txt`).
+
+### Correctness-flag counts
+
+All stderr: dspqueue=0, INTERNAL-ERROR=0, hmx error=0, Aborted=0. q35 caveat still applies (hmx-tiled at n=16, `16%32 != 0`) — this is a **liveness + dispatch** result, not a numerical-correctness proof.
+
+No git. Nothing deleted. No leftover llama.
+
+

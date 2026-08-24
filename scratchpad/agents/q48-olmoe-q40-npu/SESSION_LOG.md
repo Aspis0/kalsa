@@ -94,3 +94,20 @@ Two HTP `-r 1` + two CPU `-r 1`, charge-bracketed. `-n 0` first.
 
 No leftover llama. Nothing deleted. No git.
 
+## 2026-08-24T13:24Z — Xiaomi houji v75 discriminator
+
+Serial `adb-625689a2-9xEOfw._adb-tls-connect._tcp` houji. S23 not addressed. Unplugged 89 % / 31.9 °C. df 303G. No deletes.
+
+Push 3928037856 B in 247 s. On-device sha `43379486…` MATCH. kalsahtp v75 pins match Marco cells. HOSTBUF=1 `--no-host 1`.
+
+Driver `/data/local/tmp/kalsa_q48_x` pid 7352. **ALL rc=0.**
+- (a) 9 s, MUL_MAT_ID exps **432**, rc=0 (S23 died here)
+- (b) pp512 `-n 0` r1/r2 rc=0, **687 / 685 t/s**
+- tg `-p 0 -n 128` rc=0, **21.76 t/s**
+- (c) CPU r1/r2 rc=0, pp512 143/141, tg128 34.6/34.0
+- dspqueue/INTERNAL-ERROR/hmx error/Aborted: **0**
+- Charge per-rep mostly 0 ticks; session 3717000→3693000 µAh
+
+Pulled 96 files → `results/htp_probe/xiaomi_v75_olmoe_q40/`. MANIFEST written. No git.
+
+

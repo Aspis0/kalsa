@@ -1,0 +1,19 @@
+phase=xiaomi_v75_olmoe_q40 experts-on-NPU discriminator REGISTRA+DICHIARA
+device=houji 23127PN0CG serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp
+ts=2026-08-24T13:24:51Z
+note=a pp16/tg8 -v
+power_declared_below=yes
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 3717000
+  status: 3
+  level: 89
+  voltage: 4267
+  temperature: 319
+HOSTBUF=1 NDEV=1 --no-host 1 -dev HTP0 (v75 Marco cell convention)
+binary=/data/local/tmp/kalsahtp/llama-bench stub=5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507 htp_v75=46d3ac923988f20b75d6d3489eea0e1432aa275aaff61c39253e170c17729182
+model=/data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf pin=43379486db3178d89b338358d298ea0721d6c123e0107d91c5d6179371000500
+speed_label=exploratory
+sysfs_charge_counter=EACCES_use_dumpsys

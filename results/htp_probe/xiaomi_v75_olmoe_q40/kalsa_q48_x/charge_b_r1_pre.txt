@@ -1,0 +1,12 @@
+note=b_r1 PRE
+ts=2026-08-24T13:25:00Z
+sysfs_charge_counter=EACCES
+  AC powered: false
+  USB powered: false
+  Wireless powered: false
+  Dock powered: false
+  Charge counter: 3717000
+  status: 3
+  level: 89
+  voltage: 4267
+  temperature: 319
