@@ -1,0 +1,4 @@
+die() {
+    echo "$@" | tr -d ' ' | tr '\n' ' '
+    exit 1
+}

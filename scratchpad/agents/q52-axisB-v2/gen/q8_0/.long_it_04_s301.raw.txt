@@ -1,0 +1,44 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione condominio**
+
+**Data:** 15 maggio 2024  
+**Ore:** 18:30  
+**Luogo:** Sala assemblee, via Roma 12, Milano  
+**Partecipanti:** 12 condomini (su 15 iscritti)  
+**Presidente:** Dott. Marco Rossi  
+**Segretario:** Anna Bianchi  
+
+---
+
+**1. Inizio della riunione**  
+Il Presidente apre la riunione e dà il benvenuto a tutti i presenti. Rileva che la partecipazione è stata soddisfacente e che si è raggiunta la quorum legale.  
+“Con la presente, si avvia la discussione relativa alla riparazione del tetto e alla ripartizione della spesa per millesimi.”
+
+---
+
+**2. Discussione sul tetto**  
+Il Signor Antonio Bianchi, responsabile della manutenzione, presenta il rapporto tecnico: “Il tetto presenta una perdita significativa, soprattutto nella zona sud-ovest, con infiltrazioni che hanno compromesso la copertura e i pavimenti. È necessario sostituire la copertura in parte, con un’espansione del 70% della superficie.”  
+“La valutazione degli esperti del servizio di manutenzione è di circa 18.000 euro, di cui 12.000 per la sostituzione della copertura e 6.000 per la riparazione delle strutture interne.”
+
+Il Signor Luigi Conti, presidente del comitato per la manutenzione, chiede: “Vorrei sapere se il comune ha fornito un preventivo ufficiale o se siamo costretti a fare un appalto privato.”  
+“L’azienda “Aria di Casa” ha inviato un preventivo, che è stato approvato dal comitato. Non è richiesta alcuna autorizzazione comunale, poiché il lavoro è di competenza del condominio.”  
+“Tuttavia, il preventivo ha un costo di 18.500 euro, di cui 12.500 per la copertura e 6.000 per la manutenzione delle strutture.”
+
+---
+
+**3. Ripartizione della spesa per millesimi**  
+Il Signor Roberto Bianchi, membro del comitato, propone: “La spesa sarà ripartita in base ai millesimi, come previsto dall’articolo 1132 del codice civile. Tuttavia, si suggerisce di considerare un’altra opzione: se il tetto è stato riparato con una spesa superiore al 50% del costo totale, si può applicare un’altra ripartizione, per evitare un’ingiustizia. Inoltre, per i millesimi 1000, 500, 200, 100, 50, 20, 10, 5 e 1, si può considerare un’altra ripartizione per il tetto, per evitare che i proprietari con un millesimo più basso paghino di più.”  
+“L’idea è quella di dividere la spesa in modo equo, ma con un’aggiunta di 10% per i millesimi 1000 e 500, per coprire eventuali costi aggiuntivi.”
+
+Il Signor Giuseppe Ferrara, membro del consiglio, propone: “Dobbiamo considerare che la riparazione del tetto non è solo un costo di manutenzione, ma anche un investimento per l’edificio. Per questo motivo, i millesimi 1000 e 500 dovrebbero pagare un’aggiunta di 15%, mentre i millesimi 200, 100, 50, 20, 10, 5 e 1 pagano un’aggiunta di 5%.”  
+“La proposta è accettata dal comitato e da tutti i presenti.”
+
+---
+
+**4. Approvazione della spesa e ripartizione**  
+Il Presidente dichiara: “La riparazione del tetto è approvata e il preventivo sarà pagato da tutti i condomini, secondo i millesimi, come stabilito.”  
+“La spesa totale sarà ripartita come segue: 18.500 euro, per cui i millesimi 1000
+

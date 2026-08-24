@@ -1,0 +1,4 @@
+die() {
+    echo "$@" | tr -d '\n' | tr -s ' ' | awk '{print $0}' | tr ' ' '\n'
+    exit 1
+}

@@ -1,0 +1,44 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**
+
+**Data:** 15 marzo 2024  
+**Ora:** 18:30  
+**Luogo:** Sala conferenze del palazzo  
+
+**Condomini presenti:** 12 su 14 (assenti: 2)  
+**Assessori:** Presidenza: Dott. Marco Rossi  
+**Segretario:** Signora Elena Bianchi  
+
+---
+
+**Presidenza:** “Buonasera, cari condomini. La riunione di oggi è dedicata alla riparazione del tetto e alla ripartizione della spesa per millesimi. La preghiamo di seguire le attenzioni con la massima attenzione.”  
+
+**Presidenza:** “Nell’ultimo anno, la manutenzione del tetto ha subito un notevole deterioramento, con perdite che hanno compromesso la parte superiore del piano terra e l’impianto elettrico. Sono state registrate 18 lamentele da parte dei residenti, che hanno richiesto un intervento urgente.”  
+
+**Segretario:** “La commissione tecnica ha effettuato una valutazione e ha stabilito che il costo totale per la riparazione del tetto è di € 18.500,00. La ripartizione si farà in base ai millesimi, come previsto dall’art. 1136 del Codice Civile.”  
+
+**Presidenza:** “La ripartizione sarà calcolata con la seguente formula: ogni unità abitativa contribuirà in proporzione al suo millesimo. Ad esempio, un appartamento con 100 millesimi pagherà il 10% del totale, mentre un appartamento con 250 millesimi pagherà il 25%.”  
+
+**Condomino:** “Ecco un esempio: il mio appartamento ha 120 millesimi, quindi dovrò pagare € 2.220,00. È giusto? Non ci sono stati altri interventi di manutenzione in questi anni.”  
+
+**Presidenza:** “Il nostro regolamento prevede che ogni intervento di riparazione della parte comune sia a carico dei millesimi. Non è possibile differire questo pagamento, perché la manutenzione del tetto è un obbligo legale.”  
+
+**Condomino:** “Ricordo che il tetto è stato riparato nel 2018, ma il materiale non era di qualità. Sono stato informato che il costo di un’altra riparazione sarebbe stato di € 15.000. Perché è aumentato così tanto?”  
+
+**Presidenza:** “L’attuale riparazione richiede l’uso di materiale idrofobo e di una struttura rafforzata. Il costo è cresciuto a causa dei materiali di alta qualità e della manutenzione di un sistema di drenaggio. Le spese sono state calcolate con il consiglio tecnico e sono accettate dai nostri esperti.”  
+
+**Condomino:** “Mi sembra che il costo sia eccessivo. Ma se il tetto crolla, il danno sarà più grande. Dobbiamo essere consapevoli che questo è un investimento per la sicurezza.”  
+
+**Presidenza:** “Sono d’accordo. La riparazione del tetto è un’urgenza. I millesimi sono l’unica forma legale per la spesa. Non ci sono altri metodi di pagamento. Abbiamo deciso che la riparazione sarà realizzata con il 1° aprile 2024 e che la spesa sarà divisa in 12 rate, con un’assegnazione di € 1.540,00 per ogni condomino.”  
+
+**Condomino:** “E se ho un appartamento con 50 millesimi, quanto pagherò?”  
+
+**Presidenza:** “Il tuo appartamento pagherà € 770,00. È la parte che ti spetta secondo i millesimi. Se hai una domanda, contattami al 021.555.1234.”  
+
+**Condomino:** “Non ho capito perché non si può pagare in un’unica soluzione.”  
+
+**Presidenza:** “La legge non prevede pagamenti unici per interventi di questo tipo. La ripartizione in 12 rate garantisce la stabilità
+

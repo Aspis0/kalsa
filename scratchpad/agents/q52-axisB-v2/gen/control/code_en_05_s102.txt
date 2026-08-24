@@ -1,0 +1,4 @@
+die() {
+    echo "$@" | tr -d ' ' | awk '{print $1}' | xargs -n1 -d ' ' -e 1
+    exit 1
+}

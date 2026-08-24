@@ -1,0 +1,6 @@
+User:
+¿Quién escribió la novela Cien años de soledad? Responde en español con el nombre del autor.
+
+Assistant:
+La novela Cien años de soledad fue escrita por Gabriel García Márquez.
+

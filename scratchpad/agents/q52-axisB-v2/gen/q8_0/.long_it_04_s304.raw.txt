@@ -1,0 +1,37 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**  
+**Data:** 15/05/2024  
+**Ora:** 18:30  
+**Luogo:** Sala riunioni del condominio  
+
+Al momento dell’apertura della riunione, il presidente, **D. Bianchi**, ha dichiarato che la riunione è stata convocata per discutere le necessità di riparazione del tetto e la ripartizione delle spese in base ai millesimi. Il presidente ha invitato i condomini a prendere posto, ricordando che la presenza è obbligatoria per la validità della decisione.
+
+**D. Marini** ha presentato il progetto di riparazione del tetto, indicando che il costo totale è di €12.500, con un’analisi dei lavori previsti: sostituzione delle tegole danneggiate, riparazione delle strutture portanti e installazione di un nuovo sistema di drenaggio. Ha sottolineato che, per ragioni di sicurezza e per evitare ulteriori danni, è necessario intervenire entro la prossima stagione invernale.
+
+**D. Rossi** ha proposto di assegnare la spesa per millesimi, in base al criterio di utilizzo dei servizi: “I millesimi sono calcolati in base al valore cadastral dell’immobile e alla sua posizione in ambito condominiale, per garantire equità”. Ha citato il regolamento condominiale, articolo 12, che prevede la ripartizione delle spese in base ai millesimi. La proposta ha ricevuto il sostegno di **D. Fabbri** e **D. Serra**, che hanno sottolineato l’importanza di una ripartizione trasparente e di una maggiore fiducia tra i condomini.
+
+**D. Bianchi** ha poi proposto l’approvazione di un piano di riparazione e la ripartizione della spesa, con una votazione in cui è stata votata per **12 condomini**, contro **3 contrari** e **1 astensione**. La decisione è stata approvata, con la seguente ripartizione:  
+- 1° piano: €2.400 (120 millesimi)  
+- 2° piano: €3.000 (150 millesimi)  
+- 3° piano: €2.500 (125 millesimi)  
+- 4° piano: €2.600 (130 millesimi)  
+- 5° piano: €2.000 (100 millesimi)  
+- 6° piano: €2.000 (100 millesimi)  
+- Sottotetto: €1.500 (75 millesimi)  
+
+**D. Fabbri** ha chiesto di chiarire che il calcolo dei millesimi è stato effettuato con un software ufficiale, fornito dal Comune, e che tutti i condomini hanno ricevuto una copia della tabella. Il presidente ha sottolineato che la ripartizione è stata approvata con il 100% del consenso, e che il pagamento sarà effettuato entro 30 giorni dalla data della delibera.
+
+**D. Serra** ha chiesto di assicurare che il costo delle riparazioni sarà controllato da un assessore esterno, per garantire trasparenza. Il presidente ha risposto che il costo sarà monitorato da un comitato di controllo, e che l’impegno sarà comunicato a tutti i condomini.
+
+**D. Bianchi** ha chiuso la riunione, ringraziando i partecipanti e sottolineando che l’obiettivo è garantire la sicurezza e la stabilità del tetto, evitando costi maggiori in futuro.
+
+**Firmato:**  
+**D. Bianchi** – Presidente  
+**D. Rossi** – Vicepresidente  
+**D. Fabbri** – Segretario  
+
+*Nota: Il verbale è stato redatto e approvato dalle parti in presenza.*
+

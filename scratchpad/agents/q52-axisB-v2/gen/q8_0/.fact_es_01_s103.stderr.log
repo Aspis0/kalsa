@@ -1,0 +1,5 @@
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+
+===== 2026-08-24T16:52:15Z id=fact_es_01 seed=103 arm=q8_0 attempt=1 =====

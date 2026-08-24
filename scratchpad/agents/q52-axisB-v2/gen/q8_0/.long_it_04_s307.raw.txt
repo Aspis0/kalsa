@@ -1,0 +1,49 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione condominio**  
+**Data:** 15 marzo 2024  
+**Luogo:** Ufficio condominio  
+**Partecipanti:** 12 condomini (sotto la presenza del presidente e del segretario)  
+
+**Presidente:** “Buongiorno a tutti. Grazie per la presenza. Oggi abbiamo un unico argomento: la riparazione del tetto e la ripartizione della spesa per millesimi.”  
+
+**Segretario:** “In attesa che tutti i partecipanti si siano presentati, procediamo. Il tetto ha subito danni significativi a causa delle recenti piogge e del vento, con perdite in diverse unità abitative. La manutenzione è urgente per evitare ulteriori danni e per garantire la sicurezza degli abitanti.”  
+
+**Condomino A:** “Ho sentito che il tetto è stato già ispezionato da un tecnico e che i lavori costeranno circa 12.000 euro. Dobbiamo farli subito, altrimenti il costo potrebbe aumentare.”  
+
+**Condomino B:** “Sono d’accordo. Il tetto è stato danneggiato per anni, ma non si è mai provveduto alla sua riparazione. È un problema che riguarda tutti, quindi la spesa deve essere ripartita equamente.”  
+
+**Condomino C:** “Mi sembra giusto che la spesa sia ripartita in base ai millesimi, come previsto dal regolamento. Ma dobbiamo chiarire chi ha pagato in passato e se ci sono state spese di manutenzione.”  
+
+**Presidente:** “D’accordo. Il regolamento prevede che la spesa per manutenzione del tetto sia ripartita in base ai millesimi. Tuttavia, per garantire trasparenza, chiedo che ciascun condomino invii un’istanza con il numero di millesimi che ha accumulato.”  
+
+**Condomino D:** “Ho un’istanza: il mio appartamento ha 120 millesimi, ma ho pagato 150 millesimi per la riparazione del tetto l’anno scorso. Dobbiamo considerare questo? “  
+
+**Segretario:** “Per il momento, non è necessario aggiornare il calcolo, ma dobbiamo raccogliere le istanze. La riparazione sarà eseguita da un’impresa autorizzata, e la spesa sarà sottoposta a un bilancio di gruppo.”  
+
+**Presidente:** “Ora ci occupiamo della ripartizione. La spesa totale è di 12.000 euro. La ripartizione sarà fatta in base ai millesimi, con un calcolo di 12.000 ÷ 1000 = 12.000 euro per 1000 millesimi. Ogni condomino pagherà in proporzione.”  
+
+**Condomino E:** “Voglio sapere chi ha pagato per la riparazione del tetto l’anno scorso. Quali sono i millesimi che ho accumulato?”  
+
+**Presidente:** “Le istanze saranno inviate entro 7 giorni. Per ora, la decisione è di procedere con la riparazione del tetto e di ripartire la spesa in base ai millesimi. Non ci sono obiezioni?”  
+
+**Condomino F:** “Nessuna obiezione. La spesa è giusta e il tetto è in pericolo.”  
+
+**Segretario:** “La riunione si conclude. Le istanze saranno inviate al segretario per un calcolo definitivo. Tutti i condomini sono stati informati e il piano di riparazione sarà comunicato entro 15 giorni.”  
+
+**Presidente:** “Grazie a tutti per la responsabilità. Speriamo che il tetto venga riparato senza ulteriori danni.”  
+
+**Firma:**  
+**Presidente:** …  
+**Segretario:** …  
+**Condomino A:** …  
+**Condomino B:** …  
+**Condomino C:** …  
+**Condomino D:** …  
+**Condomino E:** …  
+**Condomino F:** …  
+
+**Nota:** La ripartizione dei millesimi sarà effettuata con l’aggiornamento del registro dei millesimi, e la spesa sarà pagata entro
+

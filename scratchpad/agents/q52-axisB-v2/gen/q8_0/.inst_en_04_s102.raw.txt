@@ -1,0 +1,6 @@
+User:
+Wrap your entire answer in <answer>...</answer> tags and put nothing outside the tags. Inside the tags, write only the integer 42.
+
+Assistant:
+<answer>42</answer>
+

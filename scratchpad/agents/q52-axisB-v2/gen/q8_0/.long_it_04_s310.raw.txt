@@ -1,0 +1,49 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione condominio**  
+**Data: 15 ottobre 2023**  
+**Luogo: Salone comunale del condominio**  
+**Partecipanti: 12 condomini su 14 presenti**  
+
+**Presidente:** Dott. Marco Bianchi  
+**Segretario:** Anna Rossi  
+
+---
+
+**1. Apertura e registrazione della riunione**  
+Il Presidente apre la riunione e dichiara la presenza legale (12 su 14 condomini presenti, superando la soglia minima del 50% + 1).  
+Si procede alla registrazione del verbale e alla lettura del precedente verbale, approvato senza osservazioni.
+
+**2. Discussione sulle riparazioni del tetto**  
+Il Presidente invita il signor Luigi Marini a presentare il progetto di riparazione del tetto, con un preventivo di 15.000 euro, fornito dalla ditta “Agricoltura S.r.l.”.  
+La ditta ha proposto un’opera di riparazione delle tegole e di sostituzione dei solai danneggiati, con garanzia di 10 anni.  
+Il signor Marini ha chiarito che l’opera sarà eseguita entro 30 giorni e che sarà necessario l’uso di materiali non tossici, conforme alle normative antinfortunistiche.  
+Un condomino, il signor Pietro Conti, chiede di verificare la possibilità di un’altra offerta più economica, ma il Presidente risponde che il preventivo è stato valutato e considerato adeguato.
+
+**3. Ripartizione della spesa per millesimi**  
+Il signor Marco Bianchi propone l’adeguamento della spesa per millesimi, in base al criterio di “spese di gestione” e non di “manutenzione ordinaria”.  
+Il segretario Anna Rossi propone un calcolo basato sui millesimi del 2022, con un fattore di 1,25 per la ristrutturazione.  
+La maggioranza dei presenti (8 condomini) approva la ripartizione, mentre 3 si oppongono: il signor Paolo Ferrara, il signor Giuseppe De Luca e la signora Elena Bianchi, che chiedono una revisione dei millesimi per le unità abitative più grandi.  
+Il Presidente, dopo aver esaminato la richiesta, decide di inviare un’altra scheda per la revisione dei millesimi, in modo da garantire equità e trasparenza.
+
+**4. Decisione finale**  
+- **Accettazione del progetto di riparazione del tetto**: Sì, con approvazione di 12 condomini.  
+- **Ripartizione della spesa per millesimi**: Aderente al calcolo proposto, con revisione in sede di riunione successiva.  
+- **Ricorso per la revisione dei millesimi**: Accettato, con richiesta di un nuovo calcolo da effettuare entro 15 giorni.
+
+**5. Chiusura della riunione**  
+Il Presidente ringrazia i presenti e annuncia che la spesa sarà incassata entro 10 giorni e che sarà assegnato un appuntamento per la firma del contratto con la ditta “Agricoltura S.r.l.”.  
+Si chiude la riunione con un’offerta di pace e collaborazione.  
+**Firma: Presidente, segretario, segretario**  
+
+**Note:**  
+- I millesimi sono stati calcolati in base ai dati del 2022, con un coefficiente di 1,25 per la ristrutturazione.  
+- Il consiglio di amministrazione sarà incaricato di verificare la correttezza del calcolo, con una revisione annuale.  
+- L’opera sarà avviata entro 30 giorni, con l’obbligo di comunicazione del progresso al consiglio di amministrazione.
+
+**Riferimento:** 2023 – 15 ottobre  
+**Dott. Marco Bianchi**  
+**Anna Rossi**
+

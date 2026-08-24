@@ -1,0 +1,1 @@
+Rispondi con ESATTAMENTE quattro voci numerate che iniziano con '1. ' '2. ' '3. ' '4. ' e nient'altro. Le quattro voci, in quest'ordine, devono essere: rosso, blu, giallo, verde.

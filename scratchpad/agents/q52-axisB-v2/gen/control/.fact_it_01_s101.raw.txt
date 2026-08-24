@@ -1,0 +1,6 @@
+User:
+In quale città italiana si trova la Cappella degli Scrovegni? Rispondi in italiano con il nome della città e una frase di contesto.
+
+Assistant:
+La Cappella degli Scrovegni si trova a **Padova**, nella città dove Giorgio da Castello ha dipinto il ciclo di affreschi di Giotto, noto per la sua bellezza e per la sua importanza storica e artistica.
+

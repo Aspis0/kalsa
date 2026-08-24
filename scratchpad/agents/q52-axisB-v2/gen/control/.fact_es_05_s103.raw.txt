@@ -1,0 +1,6 @@
+User:
+¿Quién pintó el cuadro Las Meninas? Responde en español con el nombre del pintor.
+
+Assistant:
+El pintor que pintó el cuadro Las Meninas es Diego Velázquez.
+

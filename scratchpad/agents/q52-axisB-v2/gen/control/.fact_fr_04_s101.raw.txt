@@ -1,0 +1,6 @@
+User:
+Quel est le plus haut sommet des Alpes ? Réponds en français.
+
+Assistant:
+Le plus haut sommet des Alpes est le Mont Blanc, qui atteint une altitude de 4 808 mètres au-dessus du niveau de la mer. Il se situe à la frontière entre la France et l'Italie, dans la chaîne des Alpes françaises.
+

@@ -1,0 +1,6 @@
+User:
+Quelle est la capitale de la Belgique ? Réponds en français.
+
+Assistant:
+La capitale de la Belgique est Bruxelles.
+

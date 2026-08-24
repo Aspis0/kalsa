@@ -1,0 +1,51 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale della Riunione del Condominio**
+
+**Data:** 15 aprile 2024  
+**Ora:** 19:30  
+**Luogo:** Sala assemblee, via Roma 12, Milano  
+
+**Condomini presenti:** 12 (in totale 15 iscritti)  
+**Assenti:** 3 (per motivi di forza maggiore o assenza)  
+**Presidente:** Dott. Marco Bianchi  
+**Segretario:** Anna Rossi  
+
+---
+
+**1. Chiusura della riunione**  
+Presidente: “Buonasera a tutti. Grazie per la partecipazione. La riunione è stata aperta con l’approvazione di tutti i presenti.”  
+Segretario: “Il verbale è stato redatto e sarà inviato a tutti i condomini entro 48 ore.”
+
+---
+
+**2. Discussione sulla riparazione del tetto**  
+Presidente: “La Commissione Tecnica ha presentato un progetto di riparazione del tetto, con un costo stimato di 180.000 euro. La necessità è stata confermata da un’ispezione effettuata lo scorso febbraio, che ha evidenziato perdite e deterioramento strutturale.”  
+Condominio 1 (dott. Luigi Bianchi): “La riparazione è necessaria per evitare danni ulteriori, specialmente nel caso di eventi meteorologici estremi.”  
+Condominio 2 (dott. Elena Fari): “Dobbiamo considerare anche la sicurezza degli abitanti, soprattutto per i bambini che giocano nei cortili adiacenti.”  
+Condominio 3 (dott. Marco Bianchi): “Sono favorevole al progetto, ma chiedo che la spesa sia ripartita in modo trasparente e basata su millesimi reali, per evitare sospetti di favoritismo.”
+
+---
+
+**3. Ripartizione della spesa per millesimi**  
+Segretario: “La ripartizione della spesa sarà calcolata in base ai millesimi di proprietà di ogni unità abitativa, come previsto dall’art. 1136 c.c. e dal regolamento condominiale.”  
+Presidente: “Dobbiamo assicurare che ogni condomino paghi proporzionalmente al suo peso in condominio. La ripartizione è stata calcolata con un’analisi dei millesimi, basata sullo spazio occupato e sull’uso delle aree comuni.”  
+Condominio 4 (dott. Pietro Conti): “Ho fatto un calcolo in base ai millesimi del 2023 e ho notato che alcuni condomini hanno un peso superiore a quello effettivo.”  
+Segretario: “Per questo motivo, abbiamo richiesto una verifica da parte dell’ingegnere che ha redatto il progetto. Il nuovo calcolo sarà inviato per approvazione.”
+
+---
+
+**4. Approvazione della spesa e del piano di riparazione**  
+Presidente: “La riparazione del tetto è approvata. La spesa sarà ripartita secondo i millesimi, con un’aggiornamento dei dati da parte dell’ingegnere.”  
+Condominio 5 (dott. Giulia Rossi): “Voglio chiedere che le aree comuni (giardini, balconi) siano considerate in modo equo, per evitare un’ineguaglianza.”  
+Presidente: “La richiesta è accettata. La ripartizione sarà aggiornata con i dati dei millesimi attuali, e sarà pubblicata su tutti i portali dei condomini.”  
+Condominio 6 (dott. Luca Bianchi): “Sono d’accordo con la ripartizione, ma chiedo che la spesa sia versata entro il 31 maggio 2024, per evitare ritardi.”  
+Segretario: “La data di pagamento è fissata per il 31 maggio 2024, con una scadenza di 30 giorni dopo l’approvazione.”
+
+---
+
+**5. Conclusioni e atti finali**  
+Presidente: “La riunione è stata un successo. La riparazione del tetto è stata approvata, e la ripartizione della spesa è stata fissata con criteri trasparenti. Ci sarà un controllo tecnico da
+

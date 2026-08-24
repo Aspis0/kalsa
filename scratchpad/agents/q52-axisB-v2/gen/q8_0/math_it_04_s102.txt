@@ -1,0 +1,11 @@
+Sì, un triangolo con lati 3, 4 e 5 è un triangolo rettangolo.
+
+Perché? Perché i lati 3, 4 e 5 soddisfano il teorema di Pitagora:  
+
+\( 3^2 + 4^2 = 9 + 16 = 25 = 5^2 \)
+
+Questo significa che il quadrato della lunghezza dell’ipotenusa (il lato più lungo, 5) è uguale alla somma dei quadrati degli altri due lati. Quindi, il triangolo ha un angolo retto tra i lati 3 e 4.
+
+Inoltre, è un triangolo rettangolo classico, spesso usato come esempio in geometria. La sua forma è ben nota e si può facilmente verificare con un calcolatore o con la conoscenza di triangoli rettangoli famosi.
+
+Quindi, **sì, è un triangolo rettangolo**.

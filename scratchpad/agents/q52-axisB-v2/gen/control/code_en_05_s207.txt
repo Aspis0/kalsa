@@ -1,0 +1,4 @@
+die() {
+    echo "$@" | tr ' ' '\n' | tee -a stderr
+    exit 1
+}

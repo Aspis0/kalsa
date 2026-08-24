@@ -1,0 +1,14 @@
+User:
+Spiega a un quindicenne, in italiano, come funziona un vaccino a mRNA. Circa 250 parole, tono calmo, senza allarmismo e senza slogan.
+
+Assistant:
+Un vaccino a mRNA, come quelli sviluppati per il COVID-19, funziona in un modo molto semplice, ma intelligente. Immagina che il tuo corpo abbia bisogno di una "scheda" per riconoscere un invasore, come un virus. Questa scheda è una molecola chiamata mRNA, che è come un messaggio che dice al tuo corpo: “Ecco come si presenta un virus. Impara a riconoscerlo”.  
+
+La parte del vaccino che arriva nel tuo corpo non contiene il virus stesso, ma solo una parte della sua “codice” – una sequenza di RNA che il corpo può leggere. Questa sequenza dice al tuo sistema immunitario di produrre una proteina specifica, quella che si trova sulla superficie del virus, chiamata “spike”.  
+
+Il tuo corpo, per esempio, non ha mai visto questo virus, ma quando vede la proteina, pensa: “Oh, questo è un pericolo!” E inizia a produrre anticorpi e cellule di difesa che lo riconoscono. Se poi il virus reale arriva, il tuo corpo è pronto, perché ha già imparato a combatterlo.  
+
+Non è pericoloso, perché l’mRNA non rimane nel tuo corpo. Dopo aver fatto il suo lavoro, si degrada naturalmente. Non può mai trasformarsi in un virus, perché non ha la capacità di riprodursi. E non influisce sui tuoi geni, perché non va nel nucleo della cellula, dove sono conservati i tuoi geni.  
+
+In sintesi, il vaccino non è un virus, ma un “insegnante” che dice al tuo corpo come difendersi. E quando lo ricevi, il tuo corpo impara, e ti protegge senza mai dover contrarre la malattia. È un modo intelligente, sicuro e molto efficace per proteggerti, senza dover aspettare che il virus faccia tutto da solo.
+

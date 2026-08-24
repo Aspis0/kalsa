@@ -1,0 +1,1 @@
+Output: un blocco YAML che inizia con la riga --- e contiene solo la chiave citta: con valore Torino. Nient'altro prima o dopo.

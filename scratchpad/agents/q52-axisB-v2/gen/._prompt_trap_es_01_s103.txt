@@ -1,0 +1,1 @@
+Contesta solo en español. ¿Qué es un pull request en git? No uses palabras en inglés.

@@ -1,0 +1,6 @@
+User:
+Rispondi solo in italiano. Riassumi in cinque frasi la trama del film Il Padrino (il primo film della trilogia). Non scrivere titoli in inglese.
+
+Assistant:
+Il Padrino è un film che segue la vita di Vito Corleone, un uomo di origine siciliana che diventa il capo di una potente famiglia mafiosa a New York. Dopo un’affare per la vendita di armi, il suo figlio Michael viene costretto a prendere il controllo della famiglia, diventando un leader implacabile e spietato. Il film esplora il passaggio di potere tra le generazioni, le dinamiche di potere e la corruzione morale che accompagnano la vita della mafia. La tensione cresce quando la famiglia viene attaccata da un gruppo di rivali, portando a una serie di omicidi e vendette. La storia culmina con la morte di Vito, che lascia il potere al figlio Michael, che diventa un simbolo del potere e della violenza della criminalità organizzata.
+

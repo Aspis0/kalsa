@@ -1,0 +1,58 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**  
+**Data:** 15 aprile 2025  
+**Ore:** 18:30  
+**Luogo:** Sala assemblee del palazzo  
+
+**Presidenza:** Sindaco del condominio, Dott. Marco Rossi  
+**Partecipanti:** 12 condomini (su 14 iscritti)  
+
+---
+
+**1. Apertura della riunione**  
+Il presidente apre la riunione e invita i presenti a presentare le proposte.  
+“Ricordo che la riunione è stata convocata per discutere la riparazione del tetto e la ripartizione della spesa per millesimi, come previsto dall’articolo 11 della Legge 10/2014.”  
+
+**2. Approvazione dell’ordine del giorno**  
+Tutti i partecipanti approvano l’ordine del giorno senza discussioni.  
+
+**3. Discussione sulla riparazione del tetto**  
+Il signor Luigi Bianchi, responsabile del servizio di manutenzione, presenta il progetto:  
+“Dopo l’ispezione effettuata dalla società “TettoSicuro” il 5 aprile, è stata riscontrata una perdita significativa in corrispondenza della copertura sud-ovest, con un rischio di infiltrazione d’acqua che minaccia la struttura. È necessario sostituire la copertura e riparare le guarnizioni. Il costo totale è di €18.500, di cui €12.000 per la sostituzione e €6.500 per la manodopera e i materiali.”  
+
+Il signor Paolo De Luca, rappresentante del gruppo di condomini, chiede:  
+“Dobbiamo considerare di richiedere un’offerta di un’altra azienda per garantire la migliore qualità?”.  
+Il presidente risponde: “Sì, è consigliabile ottenere almeno due preventivi. La scelta sarà del consiglio di amministrazione.”  
+
+**4. Ripartizione della spesa per millesimi**  
+Il signor Antonio Fabbri, presidente del comitato di ripartizione, presenta il calcolo:  
+“La spesa di €18.500 sarà ripartita in base ai millesimi, come stabilito dall’articolo 1080 del Codice Civile. L’attuale distribuzione è la seguente:  
+- 1° piano: 1.250 millesimi (€18.500 × 1.250/10.000)  
+- 2° piano: 1.050 millesimi  
+- 3° piano: 1.100 millesimi  
+- 4° piano: 1.300 millesimi  
+- Sottotetto: 1.200 millesimi  
+- Area comune: 1.150 millesimi  
+Totali: 6.000 millesimi.”  
+
+Il signor Marco Rossi chiede:  
+“Perché il sottotetto ha un millesimo in più rispetto al 3° piano?”.  
+“La spesa è stata calcolata in base all’uso effettivo del tetto. Il sottotetto è stato più frequentato per le attività di recupero e per l’installazione di pannelli solari, che hanno aumentato il consumo.”  
+
+Il sindaco conferma che il calcolo è corretto e invita a votare.  
+“Voi, membri del condominio, approvate la ripartizione e l’assegnazione dei lavori?”.  
+Sì, tutti i presenti votano a favore.  
+
+**5. Decisione finale**  
+“La riunione decide di:  
+a) affidare la riparazione del tetto a un’azienda selezionata con due preventivi;  
+b) ripartire la spesa di €18.500 in base ai millesimi indicati;  
+c) costituire un comitato di 5 membri per supervisionare l’intera operazione.”  
+
+**6. Chiusura della riunione**  
+Il presidente ringrazia i partecipanti e annuncia che la richiesta di preventivi sarà inviata entro 15 giorni.  
+“La prossima riunione sarà fissata per il 1° maggio, per disc
+

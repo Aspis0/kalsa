@@ -1,0 +1,4 @@
+1. rosso  
+2. blu  
+3. giallo  
+4. verde

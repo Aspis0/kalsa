@@ -1,0 +1,45 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione condominio**  
+**Data:** 15 aprile 2024  
+**Ora:** 18:00  
+**Luogo:** Sala riunioni del palazzo, via Roma 12  
+
+**Condomini presenti:**  
+- Dott. Carlo Bianchi (presidente)  
+- Anna Rossi  
+- Luca Bianchi  
+- Marta Fabbri  
+- Giorgio Conti  
+- Piero Lazzaro  
+- Federica Rossi  
+- Antonio Di Stefano  
+- Elena Marini  
+
+**Assenti:**  
+- Sofia Bianchi  
+- Luca Bianchi (in rappresentanza)  
+- Maria Bellini  
+
+**Presidente:** “Buon pomeriggio, signori. Con la presente riunione vogliamo approvare le decisioni relative alla riparazione del tetto e alla ripartizione della spesa in base ai millesimi. La riunione è stata convocata per motivi urgenti, come da ordinanza del Comune di Milano, e per garantire la sicurezza degli abitanti.”
+
+**Dott. Carlo Bianchi:** “Il tetto ha subito danni a seguito delle recenti tempeste, con perdite in tre locali e rischio di danni strutturali. È necessario intervenire immediatamente. Abbiamo ricevuto un preventivo da “TettoSicuro” per un’opera di riparazione completa, che costa 15.000 euro. La spesa deve essere ripartita in base ai millesimi, come previsto dall’articolo 1122 del Codice Civile.”
+
+**Anna Rossi:** “Mi sembra giusto che ogni condomino paghi in base alla sua quota. Ma dobbiamo chiarire chi ha la responsabilità di pagare per i millesimi: è il proprietario o il conduttore? In questo caso, la proprietà è di proprietà del condominio, quindi la spesa va ripartita in base ai millesimi.”
+
+**Luca Bianchi:** “Ho già controllato i millesimi e sono 3.200. La spesa sarà ripartita così: 3.200 millesimi corrispondono a 15.000 euro, quindi 4,6875 euro per millesimo. Il mio appartamento è di 2.500 millesimi, quindi dovrei pagare 11.72 euro. È giusto?”
+
+**Giorgio Conti:** “Sono d’accordo. Ma dobbiamo anche considerare che l’edificio ha un’età di 60 anni e che il tetto è stato riparato solo una volta nel 2002. Dobbiamo fare un’analisi delle spese future e mettere in atto un piano di manutenzione preventiva. Forse è il momento di costituire un fondo per le riparazioni.”
+
+**Piero Lazzaro:** “Ho sentito che il condominio ha un’altra spesa in corso: la pulizia dei canali. Questo è un punto importante. Dobbiamo anche valutare se la riparazione del tetto è la priorità, ma non possiamo trascurare gli altri servizi.”
+
+**Federica Rossi:** “Sono d’accordo. Per il tetto, la spesa sarà ripartita per millesimi. Per la pulizia dei canali, invece, ho proposto di farla da un’azienda specializzata, con un preventivo di 2.500 euro. Ma questa spesa sarà ripartita in base ai millesimi, come per l’altro intervento. Sono d’accordo?”
+
+**Antonio Di Stefano:** “Dobbiamo tenere una riserva. E se non riusciamo a pagare tutto in una volta? C’è un’opzione di finanziamento con la banca, ma bisogna discuterne. Per ora, la riparazione del tetto deve essere fatta, ma non possiamo non avere un piano di pagamento.”
+
+**Elena Marini:** “Sono d’accordo. È necessario che il condominio abbia un piano di gestione delle spese. Se non ci siamo preparati, ci ritroveremo in una situazione di crisi. Non vogliamo che il tetto crolli. Dobbiamo dare un’altra spinta al piano di manutenzione.”
+
+**Presidente:** “La riunione è stata approvata. La riparazione del tetto sarà effettuata da “TettoSicuro” e la spesa
+

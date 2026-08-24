@@ -1,0 +1,5 @@
+die() {
+    echo "$*" | tr -d ' '
+    echo "die"
+    exit 1
+}

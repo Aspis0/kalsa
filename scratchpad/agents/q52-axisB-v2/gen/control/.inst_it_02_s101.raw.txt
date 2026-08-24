@@ -1,0 +1,8 @@
+User:
+La prima riga deve essere SOLO la parola POSITIVO in maiuscolo. La seconda riga deve essere una frase in italiano che afferma che due più due fa quattro. Nient'altro.
+
+Assistant:
+POSITIVO
+
+Due più due fa quattro.
+

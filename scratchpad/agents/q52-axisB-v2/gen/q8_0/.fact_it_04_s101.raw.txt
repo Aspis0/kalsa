@@ -1,0 +1,8 @@
+User:
+Qual è il fiume più lungo interamente in territorio italiano? Rispondi in italiano.
+
+Assistant:
+Il fiume più lungo interamente in territorio italiano è il **Tevere**.
+
+Il Tevere ha una lunghezza di circa 400 km, e la sua intera sezione, dal Monte Cimino fino al Mar Tirreno, si trova completamente all'interno del territorio italiano. Non ha parti in altri paesi, a differenza di altri fiumi come il Po, che scorre anche in Francia e Svizzera, o il Piave, che ha parte del suo corso in Austria. Il Tevere è quindi il più lungo fiume interamente contenuto nella Repubblica Italiana.
+

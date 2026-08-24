@@ -1,0 +1,1 @@
+Spiega in italiano, senza usare parole inglesi, che cos'è un buffer overflow in informatica. Se ti viene in mente un termine inglese, traducilo o circoscrivilo.

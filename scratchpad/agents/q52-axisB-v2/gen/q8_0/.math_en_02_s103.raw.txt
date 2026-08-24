@@ -1,0 +1,31 @@
+User:
+Solve for x: x + 3 = 2x - 5. Answer in English showing the algebra and the value of x.
+
+Assistant:
+We are given the equation:
+
+x + 3 = 2x - 5
+
+Our goal is to solve for x.
+
+Step 1: Subtract x from both sides to get all x terms on one side.
+
+x + 3 - x = 2x - 5 - x  
+3 = x - 5
+
+Step 2: Add 5 to both sides to isolate x.
+
+3 + 5 = x - 5 + 5  
+8 = x
+
+So, x = 8
+
+Let’s check the solution by plugging x = 8 back into the original equation:
+
+Left side: x + 3 = 8 + 3 = 11  
+Right side: 2x - 5 = 2(8) - 5 = 16 - 5 = 11
+
+Both sides are equal, so the solution is correct.
+
+**Answer: x = 8**
+

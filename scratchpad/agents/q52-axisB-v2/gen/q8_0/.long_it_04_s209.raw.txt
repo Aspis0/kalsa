@@ -1,0 +1,77 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione condominio**
+
+**Data:** 15 marzo 2024  
+**Ora:** 18:30  
+**Luogo:** Sala riunioni del condominio  
+**Partecipanti:** 12 condomini (su 15 iscritti)  
+
+**Presidente:** Dott. Marco Rossi  
+**Segretario:** Francesca Bianchi  
+
+---
+
+**1. Apertura e svolgimento della riunione**  
+Il Presidente apre la riunione, dichiara l’assenza di un condomino e fa riferimento al verbale precedente, che è stato approvato senza osservazioni.  
+
+**2. Discorso di presentazione**  
+Il Presidente esprime la volontà di riparare il tetto, che è in cattivo stato da diversi anni, causando infiltrazioni e danni alle unità abitative. Si sottolinea che la riparazione è urgente e necessaria per garantire la sicurezza e la conservazione del bene comune.  
+
+**3. Progetto di riparazione del tetto**  
+L’architetto del condominio, ing. Luca Conti, presenta il progetto:  
+- **Lavori:** sostituzione della copertura in tegole, riparazione delle strutture di sostegno, installazione di un sistema di drenaggio.  
+- **Stima:** €18.500, con un’indicazione di 15% per manodopera, 85% per materiali.  
+- **Risultato:** la riparazione sarà completata entro 60 giorni.  
+- **Risultato:** il costo è interamente a carico del condominio, con un’aliquota di 15.000 euro per la manutenzione ordinaria.  
+
+**4. Ripartizione della spesa per millesimi**  
+Il segretario legge il calcolo dei millesimi:  
+- **Millesimi totali:** 1.000  
+- **Millesimi di ogni unità:**  
+  - Unità 1: 250  
+  - Unità 2: 180  
+  - Unità 3: 120  
+  - Unità 4: 150  
+  - Unità 5: 100  
+  - Unità 6: 90  
+  - Unità 7: 80  
+  - Unità 8: 70  
+  - Unità 9: 60  
+  - Unità 10: 50  
+  - Unità 11: 40  
+  - Unità 12: 30  
+  - Unità 13: 20  
+  - Unità 14: 15  
+  - Unità 15: 10  
+
+**5. Decisione di ripartizione**  
+Il Presidente propone di ripartire la spesa per millesimi, come previsto dalla normativa e dai regolamenti.  
+- **Primo passaggio:** la spesa sarà ripartita in base ai millesimi, per un totale di €18.500.  
+- **Calcolo:**  
+  - Unità 1: €4.625  
+  - Unità 2: €3.330  
+  - Unità 3: €2.160  
+  - Unità 4: €2.250  
+  - Unità 5: €1.850  
+  - Unità 6: €1.665  
+  - Unità 7: €1.480  
+  - Unità 8: €1.295  
+  - Unità 9: €1.110  
+  - Unità 10: €0.925  
+  - Unità 11: €0.740  
+  - Unità 12: €0.615  
+  - Unità 13: €0.300  
+  - Unità 14: €0.225  
+  - Unità 15: €0.185  
+
+**6. Votazione**  
+- **Votazione:** Sì – 12 condomini  
+- **No:** 0  
+- **Assenti:** 3 (non votano, ma non si oppongono)  
+
+**7. Conclusione**  
+Il Presidente ringrazia i condomini per la collaborazione e annuncia che l’incarico sarà
+

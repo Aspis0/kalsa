@@ -1,0 +1,50 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**  
+**Data:** 15 marzo 2024  
+**Ore:** 19:00  
+**Luogo:** Aula del condominio  
+
+**Presiede:** Sindaco del condominio, Signor Luca Bianchi  
+**Membri presenti:** 12 su 15 iscritti (inclusi i sindaci e i rappresentanti di ogni unità abitativa)  
+
+**Voto:** 12 a favore, 0 contrari, 0 astensioni  
+
+---
+
+**1. Introduzione e oggetto della riunione**  
+Il Presidente apre la riunione ricordando che l’ultima assemblea è stata tenuta il 15 febbraio 2023 e che, da quel momento, è stata identificata una necessità urgente per la riparazione del tetto, che ha subito danni a causa delle recenti tempeste. Con l’obiettivo di garantire la sicurezza e l’integrità dell’edificio, la comunità ha deciso di avviare un intervento di riparazione del tetto e di ripartire la spesa in base ai millesimi di proprietà.
+
+**2. Decisione di riparare il tetto**  
+La maggioranza dei presenti ha approvato, con voto unanime, la richiesta di avviare un intervento di riparazione del tetto. È stato stabilito che la riparazione sarà eseguita da una ditta specializzata, con l’obiettivo di completare i lavori entro 60 giorni. La ditta sarà scelta tramite gara pubblica, con l’annuncio di un bando da parte del Sindaco entro 15 giorni.
+
+**3. Ripartizione della spesa per millesimi**  
+Con la presente riunione, è stata approvata la ripartizione della spesa per la riparazione del tetto in base ai millesimi di proprietà, come previsto dall’art. 1114 del Codice Civile.  
+La spesa totale è stimata in €12.500, e sarà distribuita come segue:  
+- Unità abitative con 1 millesimo: €125,00  
+- Unità con 2 millesimi: €250,00  
+- Unità con 3 millesimi: €375,00  
+- Unità con 4 millesimi: €500,00  
+- Unità con 5 millesimi: €625,00  
+- Unità con 6 millesimi: €750,00  
+- Unità con 7 millesimi: €875,00  
+- Unità con 8 millesimi: €1.000,00  
+- Unità con 9 millesimi: €1.125,00  
+- Unità con 10 millesimi: €1.250,00  
+- Unità con 11 millesimi: €1.375,00  
+- Unità con 12 millesimi: €1.500,00  
+- Unità con 13 millesimi: €1.625,00  
+- Unità con 14 millesimi: €1.750,00  
+- Unità con 15 millesimi: €1.875,00  
+
+**4. Uso delle risorse e piano di pagamento**  
+La spesa sarà pagata in 4 rate: una prima entro 30 giorni dal momento della firma del contratto, e tre rate successive, ciascuna entro 30 giorni. La gestione dei pagamenti sarà affidata al Sindaco, che dovrà inviare una fattura elettronica ai proprietari entro 10 giorni dalla firma del contratto.
+
+**5. Altri argomenti e chiusura**  
+Non sono stati sollevati altri argomenti. È stato approvato un piano di manutenzione annuale da 500 € per il tetto, per garantire la durata dei lavori.  
+
+**6. Conclusione e attestazione**  
+Il Presidente ringrazia tutti i condomini per la loro partecipazione e per l’unità di intenti. La riunione è stata dichiarata valida e il verbale sarà inviato a tutti i proprietari via mail entro 5 giorni.
+

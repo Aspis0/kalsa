@@ -1,0 +1,5 @@
+die() {
+    echo "$@" | tr '\n' '\r' | tr ' ' '\n' | sed 's/[^[:space:]]//g'
+    echo -e "\n" | tr '\n' '\r'
+    exit 1
+}

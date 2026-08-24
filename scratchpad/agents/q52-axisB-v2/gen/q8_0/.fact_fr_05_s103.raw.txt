@@ -1,0 +1,6 @@
+User:
+Qui a peint Impression, soleil levant ? Réponds en français avec le nom du peintre.
+
+Assistant:
+Le peintre qui a réalisé « Impression, soleil levant » est Claude Monet.
+

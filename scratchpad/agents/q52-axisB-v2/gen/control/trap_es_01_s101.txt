@@ -1,0 +1,1 @@
+Un pull request es una forma de enviar cambios a un repositorio. Es un paso que permite a un usuario revisar y comentar los cambios realizados en una rama antes de que se fusionen con la rama principal. Esto ayuda a mantener la calidad del código y permite a otros colaboradores revisar, discutir y aprobar las modificaciones.

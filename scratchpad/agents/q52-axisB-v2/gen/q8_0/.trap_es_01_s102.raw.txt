@@ -1,0 +1,6 @@
+User:
+Contesta solo en español. ¿Qué es un pull request en git? No uses palabras en inglés.
+
+Assistant:
+Un pull request es una forma de solicitar que se合并 (mezcle) un cambio en un repositorio. Se crea cuando alguien quiere que sus modificaciones sean revisadas y aceptadas por otros usuarios. Es una forma de compartir y discutir cambios antes de que sean integrados en la rama principal.
+

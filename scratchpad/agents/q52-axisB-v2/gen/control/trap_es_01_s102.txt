@@ -1,0 +1,1 @@
+Un pull request es una solicitud para que alguien revise y combine cambios en un repositorio. Se usa para que otros revisen el código, añadan comentarios y decidan si los cambios deben ser incorporados. Es una forma de colaborar en proyectos con git.

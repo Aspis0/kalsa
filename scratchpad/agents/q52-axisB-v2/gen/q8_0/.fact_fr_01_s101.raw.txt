@@ -1,0 +1,6 @@
+User:
+Qui a écrit le roman Les Misérables ? Réponds en français avec le nom de l'auteur.
+
+Assistant:
+Le roman *Les Misérables* a été écrit par Victor Hugo.
+

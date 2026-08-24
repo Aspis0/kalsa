@@ -1,0 +1,1 @@
+Write a Python list comprehension that produces the squares of the integers from 1 through 10 inclusive, assigned to a variable named squares. One line of code only.

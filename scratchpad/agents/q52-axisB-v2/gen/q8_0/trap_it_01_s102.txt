@@ -1,0 +1,5 @@
+Un buffer overflow è un problema di sicurezza che si verifica quando un programma scrive più dati in un buffer (una zona di memoria temporanea) di quanto può contenere. Se il programma non controlla correttamente la quantità di dati inviati, i dati in eccesso possono sovrascrivere la memoria adiacente, dove sono memorizzati altri dati importanti, come istruzioni di programma o indirizzi di memoria. Questo può portare a comportamenti imprevisti, come l’esecuzione di codice malvagio, la corruzione di dati, o il crash del sistema. 
+
+La cosa più pericolosa è che un attaccante può sfruttare questo errore per inserire codice dannoso nella memoria, rendendo il programma eseguire comandi che non dovrebbe. Questo è uno dei principali tipi di vulnerabilità che si possono trovare nei programmi, specialmente quelli scritti in linguaggi come C o C++, dove la gestione della memoria è più libera ma meno controllata. 
+
+Per prevenire un buffer overflow, è importante usare tecniche come la convalida dei dati, l’uso di linguaggi con gestione automatica della memoria (come Java o Python), e la scrittura di codice con controlli di sicurezza per evitare di sovrascrivere la memoria.

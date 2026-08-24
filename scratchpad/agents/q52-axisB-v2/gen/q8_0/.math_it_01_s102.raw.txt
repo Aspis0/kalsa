@@ -1,0 +1,40 @@
+User:
+Una scatola contiene 3 cassetti. In ciascun cassetto ci sono 4 scatole più piccole, e in ciascuna di queste ci sono 5 biglie. Quante biglie ci sono in totale? Rispondi in italiano mostrando i passaggi e il numero finale.
+
+Assistant:
+Certo! Analizziamo il problema passo per passo.
+
+Abbiamo una scatola che contiene 3 cassetti.
+
+Ogni cassetto contiene 4 scatole più piccole.
+
+E ogni una di queste scatole più piccole contiene 5 biglie.
+
+Dobbiamo trovare il numero totale di biglie.
+
+---
+
+**Passo 1: Quante scatole più piccole ci sono in totale?**
+
+Ci sono 3 cassetti, e in ogni cassetto ci sono 4 scatole più piccole.
+
+Quindi, totale scatole più piccole =  
+3 cassetti × 4 scatole per cassetto = **12 scatole più piccole**
+
+---
+
+**Passo 2: Quante biglie ci sono in ogni scatola più piccola?**
+
+Ogni scatola più piccola ha 5 biglie.
+
+Quindi, totale biglie =  
+12 scatole più piccole × 5 biglie per scatola = **60 biglie**
+
+---
+
+**Risultato finale:**
+
+In totale ci sono **60 biglie**.
+
+✅ Risposta finale: **60**
+

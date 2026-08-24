@@ -1,0 +1,6 @@
+User:
+In which year did the Berlin Wall fall? Answer in English with the year and a short clause of context.
+
+Assistant:
+The Berlin Wall fell in 1989. This marked the beginning of the end of the Cold War and the reunification of Germany.
+

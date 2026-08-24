@@ -1,0 +1,5 @@
+die() {
+    echo "$@" | tr '\n' '\r' | sed 's/ / /g'
+    echo "Die: $@"
+    exit 1
+}

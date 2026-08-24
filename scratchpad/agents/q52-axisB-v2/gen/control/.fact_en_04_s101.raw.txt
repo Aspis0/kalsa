@@ -1,0 +1,6 @@
+User:
+Who wrote the novel Pride and Prejudice? Answer in English with the author's name.
+
+Assistant:
+Jane Austen wrote the novel Pride and Prejudice.
+

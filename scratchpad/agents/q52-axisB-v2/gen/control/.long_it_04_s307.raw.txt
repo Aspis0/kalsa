@@ -1,0 +1,47 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**
+
+**Data:** 15 aprile 2025  
+**Ore:** 19:00  
+**Luogo:** Aula del palazzo (via Roma 12, viale XX Settembre)  
+**Partecipanti:** 12 condomini (su 15 iscritti), 3 assenti
+
+---
+
+**Presidenza:** dott. Giorgio Conti (presidente del consiglio)  
+**Seduta:** inizio, con l’approvazione del regolamento di rito e l’annuncio della presenza di un nuovo condomino, il signor Marco Rossi, che ha partecipato alla riunione con un’interessante richiesta di chiarimento.
+
+**Risultato:** 12 condomini votano a favore della riparazione del tetto, 2 si oppongono, 1 si è assente.
+
+---
+
+**Presidente:** “La riunione è stata convocata per discutere la riparazione del tetto, che è stato segnalato dai residenti come in disordine, con perdite che si sono intensificate negli ultimi mesi. La spesa complessiva è stimata in € 12.000,00, e per la sua ripartizione ci siamo riuniti per stabilire i millesimi.”
+
+**Segretario:** “Il condominio ha un totale di 150 millesimi. La spesa sarà ripartita in base alla quota di proprietà di ogni unità, come previsto dall’art. 1118 c.c. e dal regolamento di condominio.”
+
+**Presidente:** “Nella riunione del 2023, la spesa per i lavori di manutenzione del tetto è stata ripartita in base ai millesimi. Tuttavia, poiché il tetto è stato oggetto di un’indagine tecnica che ha evidenziato un’usura inadeguata, riteniamo che la ripartizione sia corretta. La ripartizione sarà quindi: 150 millesimi, con una quota di 80% per le unità con balconi e 20% per quelle senza.”
+
+**Consiglio:** “L’opposizione dei due condomini è stata motivata da una richiesta di verificare la fonte di finanziamento e la necessità di un preventivo tecnico. Il consiglio ha approvato la richiesta, e ha chiesto che un tecnico del Comune di Milano si occupi di una verifica tecnica, con un costo di € 1.200,00, da cui verrà sottratto il totale della spesa.”
+
+**Presidente:** “La riparazione sarà affidata a una ditta specializzata, che sarà scelta con gara d’appalto. La spesa sarà pagata in due rate: la prima di € 6.000,00 entro il 30 giugno 2025, e la seconda di € 6.000,00 entro il 31 dicembre 2025. La spesa sarà ripartita in base ai millesimi, come stabilito.”
+
+**Segretario:** “La riunione è stata registrata e il verbale sarà inviato a tutti i condomini entro 48 ore. Il consiglio ha approvato, con 12 voti, la riparazione del tetto e la ripartizione della spesa con i millesimi, con la verifica tecnica da effettuare entro 15 giorni.”
+
+**Presidente:** “Siamo contenti che la riunione sia stata conclusa con successo. La riparazione sarà effettuata e la spesa sarà ripartita equamente. Grazie a tutti per la collaborazione.”
+
+**Conclusione:** “La riunione si è chiusa alle 19:45. La prossima riunione sarà fissata per il 15 maggio 2025, per discutere il preventivo tecnico e la scelta della ditta.”
+
+**Firma:**  
+**Presidente:** Giorgio Conti  
+**Segretario:** Maria Rossi  
+**Consiglio:** Paolo Bianchi
+
+---
+
+**Note:**  
+- Il verbale è stato redatto in forma scritta, con l’uso di un linguaggio formale ma accessibile.  
+- Tutti i condomini hanno ricevuto il verbale e il preventivo tecnico entro 4
+

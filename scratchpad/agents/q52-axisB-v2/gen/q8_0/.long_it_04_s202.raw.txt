@@ -1,0 +1,40 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**  
+**Data:** 15 marzo 2024  
+**Ore:** 19:30  
+**Luogo:** Sede del condominio, viale della Pace 12  
+
+---
+
+**Presenza:** 12 condomini (sindaco: dott. Luca Bianchi; segretario: Maria Rossi)  
+**Assenti:** 3 condomini (dott. Paolo Conti, dott. Elena Marini, dott. Giuseppe Russo)  
+
+**Presidente:** “Buongiorno a tutti. La riunione è stata convocata per discutere delle necessità urgenti del condominio, in particolare il tetto, che necessita di riparazione immediata.”  
+
+**Vicepresidente:** “La copertura del tetto ha subito un deterioramento significativo a causa delle tempeste di febbraio, con perdite che hanno danneggiato il soffitto e il piano superiore. È necessario intervenire entro 30 giorni.”  
+
+**Segretario:** “Voglio segnalare che il costo stimato per la riparazione del tetto è di €15.000, comprensivo di manodopera e materiali.”  
+
+**Condomino dott. Luca Bianchi:** “In linea con il regolamento del condominio, dobbiamo ripartire la spesa in base ai millesimi di proprietà. La ripartizione sarà così: 1.000 millesimi per i proprietari di appartamenti in viale della Pace 12, 800 millesimi per quelli in viale della Pace 14, 600 millesimi per quelli in viale della Pace 16, e 400 millesimi per quelli in viale della Pace 18.”  
+
+**Condomina dott. Elena Marini:** “È corretto, ma dobbiamo verificare se i millesimi sono stati aggiornati dopo la recente vendita di alcuni unità. Ho chiesto la scheda dei millesimi al cancelliere e risulta che la ripartizione è aggiornata.”  
+
+**Condomino dott. Paolo Conti:** “Ricordo che il regolamento prevede che, se i costi superano i €10.000, la spesa può essere ripartita in base al valore di mercato dei beni immobili, ma non è questo il caso. La ripartizione in millesimi è corretta e giusta.”  
+
+**Condomino dott. Giuseppe Russo:** “Vorrei chiedere che l’assemblea approvi un’altra voce di spesa per la manutenzione del sistema di drenaggio, che ha causato l’accumulo di acqua sul tetto.”  
+
+**Presidente:** “Sono d’accordo. Condivido che la riparazione del tetto è di urgenza. La ripartizione dei costi in millesimi è stata approvata, e il costo sarà pagato con i fondi condominiali. La spesa sarà sostenuta dal bilancio annuale, con l’approvazione del consiglio di amministrazione.”  
+
+**Segretario:** “Confermo l’approvazione della ripartizione dei costi in millesimi, con l’obbligo di comunicare l’importo per ogni unità entro 15 giorni. Inoltre, il consiglio di amministrazione dovrà predisporre un preventivo dettagliato entro 7 giorni.”  
+
+**Condomino dott. Luca Bianchi:** “A nome del consiglio, chiedo di fissare una data per l’affidamento dei lavori a un’impresa autorizzata, e di inviare un invito per l’affidamento del contratto entro la prossima assemblea.”  
+
+**Presidente:** “Ricorda che il progetto sarà discusso in una prossima riunione, con la presentazione di un preventivo. Tutti i condomini hanno diritto di partecipare alla scelta dell’impresa.”  
+
+**Condomino dott. Elena Marini:** “Faccio un invito affinché il progetto di riparazione del tetto venga condiviso con le associazioni di quartiere, per garantire trasparenza.”  
+
+**Segretario:** “Risultato: approvato l’adeguamento dei costi per la riparazione del tetto, con ripartizione in
+

@@ -1,0 +1,55 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**
+
+**Data:** 15 marzo 2024  
+**Ore:** 19:00  
+**Luogo:** Sala assemblee del condominio  
+**Partecipanti:** 12 condomini (su 18 iscritti)  
+
+**Presidente:** Dott. Marco Rossi  
+**Segretario:** Signora Anna Bianchi  
+
+---
+
+**1. Accoglienza e presentazione dei partecipanti**  
+Presidente: «Buongiorno a tutti. Grazie per la partecipazione. Sono qui per informarvi sulla riunione ordinaria del condominio, che si è svolta per discutere due temi fondamentali: la riparazione del tetto e la ripartizione della spesa in base ai millesimi.»  
+
+**2. Discorso del Presidente: riparazione del tetto**  
+Presidente: «Dopo la verifica tecnica effettuata dal nostro ingegnere, il tetto presenta danni consistenti, soprattutto in corrispondenza del piano di via Cavour. Sono stati identificati 18 punti di perdita, con rischio di infiltrazioni e danni all’edificio. È necessario intervenire tempestivamente. La spesa prevista è di €15.000, di cui €12.000 per l’opera di riparazione e €3.000 per la sostituzione dei materiali.»  
+
+**3. Approvazione della proposta di riparazione**  
+Segretario: «La proposta è stata presentata dal signor Luigi Bianchi, che ha spiegato che l’opera sarà eseguita da una ditta specializzata e che sarà garantita per 5 anni. Tutti i condomini hanno espresso il loro sostegno, e l’approvazione è stata unanime.»  
+
+**4. Ripartizione della spesa in base ai millesimi**  
+Presidente: «La spesa verrà ripartita in base ai millesimi di proprietà di ciascun condomino. Il piano di ripartizione è stato elaborato dal consiglio di amministrazione, in base al calcolo dei millesimi registrati. La ripartizione è la seguente:»  
+
+| Condomino | Millesimi | Contributo (€) |
+|-----------|-----------|----------------|
+| 1         | 120       | 180,00        |
+| 2         | 85        | 127,50        |
+| 3         | 150       | 225,00        |
+| 4         | 60        | 90,00         |
+| 5         | 100       | 150,00        |
+| 6         | 70        | 105,00        |
+| 7         | 130       | 195,00        |
+| 8         | 50        | 75,00         |
+| 9         | 95        | 142,50        |
+| 10        | 110       | 165,00        |
+| 11        | 80        | 120,00        |
+| 12        | 140       | 210,00        |
+| 13        | 65        | 97,50         |
+| 14        | 90        | 135,00        |
+| 15        | 75        | 112,50        |
+| 16        | 105       | 157,50        |
+| 17        | 115       | 172,50        |
+| 18        | 55        | 82,50         |
+
+**5. Voto e approvazione**  
+Segretario: «Il voto è stato espresso con il sistema di voto a scheda. Tutti i condomini hanno votato a favore. Nessun condomino ha espresso obiezioni.»  
+
+**6. Conclusione e invito a consultare il piano di ripartizione**  
+Presidente: «Grazie a tutti per l’impegno. Il piano di ripartizione sarà pubblicato sul sito del condominio e inviato via email. La ditta sarà contattata entro il 30
+

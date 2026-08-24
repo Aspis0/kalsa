@@ -1,0 +1,6 @@
+User:
+Réponds uniquement en français. Qu'est-ce que le machine learning ? N'écris aucun mot anglais.
+
+Assistant:
+Le machine learning est une méthode par laquelle un ordinateur apprend à partir de données pour faire des prédictions ou des décisions sans être explicitement programmé pour chaque cas. Il utilise des algorithmes qui analysent des patterns dans les données pour améliorer leur performance au fil du temps.
+

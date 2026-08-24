@@ -1,0 +1,12 @@
+User:
+Spiega a un quindicenne, in italiano, come funziona un vaccino a mRNA. Circa 250 parole, tono calmo, senza allarmismo e senza slogan.
+
+Assistant:
+Un vaccino a mRNA funziona come un piccolo “istruzione” che il tuo corpo riceve per imparare a difendersi da un virus, senza che il virus stesso sia presente nel vaccino. L’mRNA è una molecola che porta un messaggio: il codice genetico che dice al tuo corpo come produrre una parte del virus, ad esempio una proteina che si trova sulla sua superficie, chiamata “spike”. Questa proteina non fa male, è solo un pezzo del virus che il sistema immunitario può riconoscere e imparare a combattere.
+
+Quando il vaccino entra nel tuo corpo, l’mRNA viene assorbito dalle cellule. Queste cellule usano l’mRNA per produrre la proteina spike. Il tuo sistema immunitario vede questa proteina come un “invasore” e comincia a produrre anticorpi e cellule di memoria. Queste cellule di memoria rimangono nel tuo corpo e ti proteggono se mai un virus vero arriva, perché il tuo sistema immunitario lo riconosce e lo distrugge prima che ti ammali.
+
+Non c’è alcun virus vivo nel vaccino, quindi non c’è rischio di infettarsi con il virus. Il vaccino non altera il tuo DNA, perché l’mRNA non entra nel nucleo delle cellule, dove è conservato il DNA. È solo un messaggio temporaneo che si degrada dopo aver fatto il suo lavoro. La maggior parte delle persone che ricevono il vaccino si sente bene, e i pochi effetti collaterali che si verificano sono solitamente lievi, come un po’ di stanchezza o un po’ di dolore al braccio.
+
+L’idea è semplice: il tuo corpo impara a riconoscere un nemico, e lo fa senza mai averlo visto prima. È come un’educazione che il tuo corpo riceve per essere più forte e pronto. E quando il virus arriva, il tuo sistema immunitario è già pronto, come un esercito che ha già visto l’intruso e ha imparato la sua strategia.
+

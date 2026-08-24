@@ -1,0 +1,6 @@
+User:
+Rispondi con una sola riga nel formato DATA=YYYY-MM-DD usando la data del primo sbarco umano sulla Luna (20 luglio 1969). Nient'altro.
+
+Assistant:
+DATA=1969-07-20
+

@@ -1,0 +1,6 @@
+User:
+En quelle année a eu lieu la prise de la Bastille ? Réponds en français avec l'année.
+
+Assistant:
+La prise de la Bastille a eu lieu en 1789.
+

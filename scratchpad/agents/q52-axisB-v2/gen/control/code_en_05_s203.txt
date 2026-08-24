@@ -1,0 +1,4 @@
+die() {
+    echo "$*" | tr '\n' ' ' | printf '%s\n' "$*"
+    exit 1
+}

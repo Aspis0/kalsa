@@ -1,0 +1,10 @@
+The word "BOOK" has four letters: B, O, O, K.  
+
+We are asked to find the number of distinct permutations of these letters. Since there are two identical letters (the two O's), we must account for the fact that swapping these two O's does not produce a new permutation.  
+
+The total number of permutations if all letters were distinct would be 4! = 24. But since the two O's are identical, we divide by the factorial of the number of identical letters: 2! = 2.  
+
+So, the number of distinct permutations is:  
+4! / 2! = 24 / 2 = 12.  
+
+Thus, there are 12 distinct permutations of the letters in "BOOK".

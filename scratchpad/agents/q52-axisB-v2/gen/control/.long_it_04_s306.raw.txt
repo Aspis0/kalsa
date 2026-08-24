@@ -1,0 +1,44 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**
+
+**Data:** 15 aprile 2024  
+**Ore:** 18:30  
+**Luogo:** Sala conferenze del palazzo  
+**Partecipanti:** 12 condomini su 15 presenti (incluso il presidente del consiglio di condominio)
+
+---
+
+**Presidente:**  
+“Buonasera a tutti. Oggi abbiamo una riunione per discutere della riparazione del tetto e della ripartizione della spesa per millesimi. La richiesta è stata presentata dal signor Rossi, che ha notato un’imminente infiltrazione d’acqua in via dell’edificio, e il consiglio ha deciso di procedere con le riparazioni.”
+
+**Dott. Vittoria:**  
+“La riparazione del tetto è urgente. Abbiamo già contattato un’azienda specializzata, che ha fornito un preventivo di €12.000, inclusa la manodopera e i materiali. La spesa sarà ripartita in base ai millesimi, come da regolamento.”
+
+**Signor Bianchi:**  
+“Ho controllato i millesimi e, per la riparazione, il mio contributo è di 320 millesimi. Il consiglio ha approvato la ripartizione in base al registro dei millesimi, come previsto dal regolamento di condominio.”
+
+**Signora Maccari:**  
+“Non ho problemi a pagare la mia quota, ma vorrei chiarire che l’impianto di riscaldamento del tetto è stato danneggiato dalla pioggia. La riparazione deve essere completa, non solo parziale.”
+
+**Presidente:**  
+“Siamo d’accordo. La riparazione del tetto sarà completata entro il 30 giugno. La spesa sarà ripartita in base ai millesimi, come stabilito. Il consiglio ha approvato la ripartizione e ha nominato un comitato di controllo per monitorare le spese.”
+
+**Signor Rossi:**  
+“Spero che la riparazione sia fatta bene, perché non voglio che l’acqua si insedi in altri appartamenti.”
+
+**Dott. Vittoria:**  
+“La spesa sarà pagata con il conto corrente del condominio. I pagamenti saranno riconosciuti dai condomini in base al registro dei millesimi. Non ci saranno ulteriori rimborsi.”
+
+**Presidente:**  
+“Sono passate le 18:45. Tutti i presenti hanno approvato la riparazione e la ripartizione della spesa. Il consiglio si occuperà della firma dei contratti e della gestione delle fatture. Grazie per l’attenzione. La riunione è stata conclusa.”
+
+**Firma:**  
+Presidente – **Dott. Vittoria**  
+Condominio – **Consiglio di condominio**  
+**Data di registrazione:** 15 aprile 2024  
+
+**Nota:** Per la riparazione del tetto sarà rispettato il piano di intervento approvato dal consiglio. I condomini sono invitati a fornire documenti di pagamento e a verificare la ripartizione in base al registro dei millesimi.
+

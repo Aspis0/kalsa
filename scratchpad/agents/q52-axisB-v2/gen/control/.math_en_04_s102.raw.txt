@@ -1,0 +1,42 @@
+User:
+A clock shows 3:15. What is the angle in degrees between the hour hand and the minute hand? Answer in English with steps.
+
+Assistant:
+To find the angle between the hour hand and the minute hand at 3:15, we need to calculate the positions of both hands in degrees from the 12 o’clock position.
+
+---
+
+### Step 1: Understand the clock structure
+- A clock is a circle, so it has 360 degrees.
+- The clock is divided into 12 hours, so each hour represents **360° / 12 = 30°**.
+- The minute hand moves 360° in 60 minutes → **6° per minute**.
+- The hour hand moves 30° per hour, and also moves continuously as minutes pass → **0.5° per minute** (since 30° / 60 = 0.5°).
+
+---
+
+### Step 2: Position of the minute hand at 15 minutes
+- At 15 minutes, the minute hand is at:  
+  **15 × 6° = 90°**  
+  (Because each minute = 6°)
+
+---
+
+### Step 3: Position of the hour hand at 3:15
+- At 3:00, the hour hand is at **3 × 30° = 90°**.
+- From 3:00 to 3:15, the hour hand moves an additional **15 minutes × 0.5° = 7.5°**.
+- So, the hour hand is at:  
+  **90° + 7.5° = 97.5°**
+
+---
+
+### Step 4: Find the angle between the two hands
+- Minute hand: 90°
+- Hour hand: 97.5°
+- Difference:  
+  **|97.5° - 90°| = 7.5°**
+
+---
+
+### Final Answer:
+The angle between the hour hand and the minute hand at 3:15 is **7.5 degrees**.
+

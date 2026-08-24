@@ -1,0 +1,14 @@
+User:
+Write a JavaScript function sumEvens(arr) that returns the sum of even numbers in an array of integers. Code only, no explanation, no markdown fences.
+
+Assistant:
+function sumEvens(arr) {
+  let sum = 0;
+  for (let i = 0; i < arr.length; i++) {
+    if (arr[i] % 2 === 0) {
+      sum += arr[i];
+    }
+  }
+  return sum;
+}
+

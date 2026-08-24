@@ -1,0 +1,8 @@
+User:
+Output exactly three lines and nothing else. Line 1 must be the word READY. Line 2 must be the integer 3. Line 3 must be the word END.
+
+Assistant:
+READY
+3
+END
+

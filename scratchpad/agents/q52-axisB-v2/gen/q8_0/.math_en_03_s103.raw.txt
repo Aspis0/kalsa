@@ -1,0 +1,30 @@
+User:
+How many distinct permutations are there of the letters in the word BOOK? Answer in English showing the counting argument.
+
+Assistant:
+The word "BOOK" has four letters: B, O, O, K. Note that the letter "O" appears twice, while the other letters (B and K) are unique.
+
+To find the number of distinct permutations, we use the formula for permutations of a multiset:
+
+$$
+\frac{n!}{k_1! \cdot k_2! \cdot \ldots \cdot k_m!}
+$$
+
+where $ n $ is the total number of letters, and $ k_i $ are the frequencies of each repeated letter.
+
+Here, $ n = 4 $, and the letter "O" repeats twice, so we divide by $ 2! $ for the two O's.
+
+Thus, the number of distinct permutations is:
+
+$$
+\frac{4!}{2!} = \frac{24}{2} = 12
+$$
+
+**Counting argument**: We can think of arranging the four letters. First, we choose positions for the two O's. There are $ \binom{4}{2} = 6 $ ways to choose which two positions out of four are for the O's. The remaining two positions are filled by B and K, which can be arranged in $ 2! = 2 $ ways. So total distinct permutations are:
+
+$$
+6 \times 2 = 12
+$$
+
+Hence, there are **12 distinct permutations** of the letters in "BOOK".
+

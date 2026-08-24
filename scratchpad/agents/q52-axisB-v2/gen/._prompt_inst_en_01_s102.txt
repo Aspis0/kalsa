@@ -1,0 +1,1 @@
+Reply with ONLY a JSON object with exactly two keys: "ok" (boolean true) and "n" (integer 7). No markdown, no extra keys, no other text.

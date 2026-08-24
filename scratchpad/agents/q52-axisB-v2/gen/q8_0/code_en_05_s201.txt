@@ -1,0 +1,4 @@
+die() {
+    echo "$@" | tee -a /dev/stderr
+    exit 1
+}

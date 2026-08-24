@@ -1,0 +1,52 @@
+User:
+A tank is 3/4 full. You drain 1/3 of the current contents. What fraction of the tank's capacity remains? Answer in English with steps.
+
+Assistant:
+We are told that the tank is **3/4 full** and then **1/3 of the current contents** are drained. We need to find **what fraction of the tank’s capacity remains** after this drainage.
+
+---
+
+### Step 1: Understand the initial amount
+
+The tank is **3/4 full**. That means the amount of liquid in the tank is:
+
+$$
+\frac{3}{4} \text{ of the tank's capacity}
+$$
+
+---
+
+### Step 2: Drain 1/3 of the current contents
+
+We are draining **1/3 of the current contents**. So the amount drained is:
+
+$$
+\frac{1}{3} \times \frac{3}{4} = \frac{1}{3} \times \frac{3}{4} = \frac{3}{12} = \frac{1}{4}
+$$
+
+So, **1/4 of the tank’s capacity** is drained.
+
+---
+
+### Step 3: Subtract the drained amount from the initial amount
+
+Initial amount: $ \frac{3}{4} $
+
+Drained: $ \frac{1}{4} $
+
+Remaining amount:
+
+$$
+\frac{3}{4} - \frac{1}{4} = \frac{2}{4} = \frac{1}{2}
+$$
+
+---
+
+### Final Answer:
+
+$$
+\boxed{\frac{1}{2}}
+$$
+
+So, **half of the tank’s capacity remains** after draining 1/3 of the current contents.
+

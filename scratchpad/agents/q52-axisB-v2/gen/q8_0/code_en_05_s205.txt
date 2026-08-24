@@ -1,0 +1,4 @@
+die() {
+    echo "$*" | tr -d '\n' | tr -s '\n' | sed 's/^\s*//;s/\s*$//'
+    exit 1
+}

@@ -1,0 +1,6 @@
+User:
+Uniquement en français. Explique ce qu'est un téléphone intelligent à un grand-parent qui n'a jamais utilisé Internet. Aucun mot anglais.
+
+Assistant:
+Un téléphone intelligent, c’est un petit appareil que l’on peut tenir dans la main, comme une petite boîte. Il a un écran qui s’illumine quand on le touche, et il sert à parler avec les gens, à écouter de la musique, à regarder des photos, et même à appeler quelqu’un qui est loin, même s’il est dans un autre pays. On peut aussi le garder dans la main pour prendre des photos de la maison, de la cour, ou de la table du repas. Il ne faut pas le connecter à Internet pour le faire fonctionner : il peut parler, écouter, et même jouer à des jeux simples. C’est comme un petit ordinateur portable, mais plus petit, et plus facile à utiliser. On peut le porter partout, et il n’a pas besoin d’être branché à la lumière du soleil pour fonctionner.
+

@@ -1,0 +1,5 @@
+die() {
+    echo "Error: All arguments passed to die function" >&2
+    echo "$@"
+    exit 1
+}

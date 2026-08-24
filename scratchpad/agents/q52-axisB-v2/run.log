@@ -1,0 +1,899 @@
+2026-08-24T16:22:54Z RUNNER_START prereg_commit=1a1c9a19 prompt_sha=56574436b342d71464b58fd66982a2dbf8b9fb3f5fb14ddf12bf01cca2aacfb9 cli_sha=035ac1a68cff7ffaee243946f66443a95cf436dd8185b14fb458f58f689c1518 free_bytes=122329841664 planned=400
+2026-08-24T16:22:54Z START id=fact_it_01 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:23:11Z DONE id=fact_it_01 seed=101 arm=control rc=0 wall_s=16.6 output_chars=201
+2026-08-24T16:23:11Z START id=fact_it_01 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:23:25Z DONE id=fact_it_01 seed=101 arm=q8_0 rc=0 wall_s=13.9 output_chars=136
+2026-08-24T16:23:25Z START id=fact_it_01 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:23:38Z DONE id=fact_it_01 seed=102 arm=control rc=0 wall_s=13.2 output_chars=172
+2026-08-24T16:23:38Z START id=fact_it_01 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:23:54Z DONE id=fact_it_01 seed=102 arm=q8_0 rc=0 wall_s=16.0 output_chars=185
+2026-08-24T16:23:54Z START id=fact_it_01 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:24:08Z DONE id=fact_it_01 seed=103 arm=control rc=0 wall_s=13.3 output_chars=145
+2026-08-24T16:24:08Z START id=fact_it_01 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:24:21Z DONE id=fact_it_01 seed=103 arm=q8_0 rc=0 wall_s=13.9 output_chars=209
+2026-08-24T16:24:21Z START id=fact_it_02 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:24:33Z DONE id=fact_it_02 seed=101 arm=control rc=0 wall_s=11.4 output_chars=70
+2026-08-24T16:24:33Z START id=fact_it_02 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:24:44Z DONE id=fact_it_02 seed=101 arm=q8_0 rc=0 wall_s=11.6 output_chars=70
+2026-08-24T16:24:44Z START id=fact_it_02 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:24:56Z DONE id=fact_it_02 seed=102 arm=control rc=0 wall_s=11.1 output_chars=70
+2026-08-24T16:24:56Z START id=fact_it_02 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:25:08Z DONE id=fact_it_02 seed=102 arm=q8_0 rc=0 wall_s=12.3 output_chars=66
+2026-08-24T16:25:08Z START id=fact_it_02 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:25:20Z DONE id=fact_it_02 seed=103 arm=control rc=0 wall_s=12.1 output_chars=70
+2026-08-24T16:25:20Z START id=fact_it_02 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:25:32Z DONE id=fact_it_02 seed=103 arm=q8_0 rc=0 wall_s=12.1 output_chars=66
+2026-08-24T16:25:32Z START id=fact_it_03 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:25:45Z DONE id=fact_it_03 seed=101 arm=control rc=0 wall_s=12.5 output_chars=95
+2026-08-24T16:25:45Z START id=fact_it_03 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:25:59Z DONE id=fact_it_03 seed=101 arm=q8_0 rc=0 wall_s=14.1 output_chars=95
+2026-08-24T16:25:59Z START id=fact_it_03 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:26:11Z DONE id=fact_it_03 seed=102 arm=control rc=0 wall_s=12.8 output_chars=95
+2026-08-24T16:26:12Z START id=fact_it_03 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:26:25Z DONE id=fact_it_03 seed=102 arm=q8_0 rc=0 wall_s=13.4 output_chars=95
+2026-08-24T16:26:25Z START id=fact_it_03 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:26:37Z DONE id=fact_it_03 seed=103 arm=control rc=0 wall_s=12.2 output_chars=95
+2026-08-24T16:26:37Z START id=fact_it_03 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:26:49Z DONE id=fact_it_03 seed=103 arm=q8_0 rc=0 wall_s=12.2 output_chars=95
+2026-08-24T16:26:49Z START id=fact_it_04 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:27:49Z DONE id=fact_it_04 seed=101 arm=control rc=0 wall_s=59.9 output_chars=3073
+2026-08-24T16:27:49Z START id=fact_it_04 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:28:08Z DONE id=fact_it_04 seed=101 arm=q8_0 rc=0 wall_s=18.5 output_chars=485
+2026-08-24T16:28:08Z START id=fact_it_04 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:28:22Z DONE id=fact_it_04 seed=102 arm=control rc=0 wall_s=14.0 output_chars=337
+2026-08-24T16:28:22Z START id=fact_it_04 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:28:41Z DONE id=fact_it_04 seed=102 arm=q8_0 rc=0 wall_s=18.7 output_chars=653
+2026-08-24T16:28:41Z START id=fact_it_04 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:28:56Z DONE id=fact_it_04 seed=103 arm=control rc=0 wall_s=15.8 output_chars=537
+2026-08-24T16:28:56Z START id=fact_it_04 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:29:11Z DONE id=fact_it_04 seed=103 arm=q8_0 rc=0 wall_s=14.8 output_chars=344
+2026-08-24T16:29:11Z START id=fact_it_05 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:29:21Z DONE id=fact_it_05 seed=101 arm=control rc=0 wall_s=9.8 output_chars=47
+2026-08-24T16:29:21Z START id=fact_it_05 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:29:32Z DONE id=fact_it_05 seed=101 arm=q8_0 rc=0 wall_s=11.2 output_chars=57
+2026-08-24T16:29:32Z START id=fact_it_05 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:29:42Z DONE id=fact_it_05 seed=102 arm=control rc=0 wall_s=9.8 output_chars=47
+2026-08-24T16:29:42Z START id=fact_it_05 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:29:54Z DONE id=fact_it_05 seed=102 arm=q8_0 rc=0 wall_s=11.8 output_chars=57
+2026-08-24T16:29:54Z START id=fact_it_05 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:30:07Z DONE id=fact_it_05 seed=103 arm=control rc=0 wall_s=13.2 output_chars=47
+2026-08-24T16:30:07Z START id=fact_it_05 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:30:19Z DONE id=fact_it_05 seed=103 arm=q8_0 rc=0 wall_s=11.5 output_chars=57
+2026-08-24T16:30:19Z START id=fact_en_01 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:30:28Z DONE id=fact_en_01 seed=101 arm=control rc=0 wall_s=9.6 output_chars=38
+2026-08-24T16:30:28Z START id=fact_en_01 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:30:39Z DONE id=fact_en_01 seed=101 arm=q8_0 rc=0 wall_s=10.7 output_chars=38
+2026-08-24T16:30:39Z START id=fact_en_01 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:30:48Z DONE id=fact_en_01 seed=102 arm=control rc=0 wall_s=9.6 output_chars=38
+2026-08-24T16:30:48Z START id=fact_en_01 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:31:00Z DONE id=fact_en_01 seed=102 arm=q8_0 rc=0 wall_s=11.1 output_chars=38
+2026-08-24T16:31:00Z START id=fact_en_01 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:31:10Z DONE id=fact_en_01 seed=103 arm=control rc=0 wall_s=10.5 output_chars=38
+2026-08-24T16:31:10Z START id=fact_en_01 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:31:21Z DONE id=fact_en_01 seed=103 arm=q8_0 rc=0 wall_s=10.5 output_chars=38
+2026-08-24T16:31:21Z START id=fact_en_02 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:31:31Z DONE id=fact_en_02 seed=101 arm=control rc=0 wall_s=10.8 output_chars=87
+2026-08-24T16:31:31Z START id=fact_en_02 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:31:42Z DONE id=fact_en_02 seed=101 arm=q8_0 rc=0 wall_s=10.4 output_chars=33
+2026-08-24T16:31:42Z START id=fact_en_02 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:31:51Z DONE id=fact_en_02 seed=102 arm=control rc=0 wall_s=9.3 output_chars=33
+2026-08-24T16:31:51Z START id=fact_en_02 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:32:01Z DONE id=fact_en_02 seed=102 arm=q8_0 rc=0 wall_s=9.6 output_chars=47
+2026-08-24T16:32:01Z START id=fact_en_02 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:32:10Z DONE id=fact_en_02 seed=103 arm=control rc=0 wall_s=9.4 output_chars=33
+2026-08-24T16:32:10Z START id=fact_en_02 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:32:22Z DONE id=fact_en_02 seed=103 arm=q8_0 rc=0 wall_s=11.9 output_chars=33
+2026-08-24T16:32:22Z START id=fact_en_03 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:32:34Z DONE id=fact_en_03 seed=101 arm=control rc=0 wall_s=12.2 output_chars=116
+2026-08-24T16:32:34Z START id=fact_en_03 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:32:46Z DONE id=fact_en_03 seed=101 arm=q8_0 rc=0 wall_s=11.9 output_chars=123
+2026-08-24T16:32:46Z START id=fact_en_03 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:32:58Z DONE id=fact_en_03 seed=102 arm=control rc=0 wall_s=11.7 output_chars=179
+2026-08-24T16:32:58Z START id=fact_en_03 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:33:10Z DONE id=fact_en_03 seed=102 arm=q8_0 rc=0 wall_s=12.2 output_chars=146
+2026-08-24T16:33:10Z START id=fact_en_03 seed=103 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:33:21Z DONE id=fact_en_03 seed=103 arm=control rc=0 wall_s=11.0 output_chars=146
+2026-08-24T16:33:21Z START id=fact_en_03 seed=103 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:33:33Z DONE id=fact_en_03 seed=103 arm=q8_0 rc=0 wall_s=12.1 output_chars=129
+2026-08-24T16:33:33Z START id=fact_en_04 seed=101 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:33:43Z DONE id=fact_en_04 seed=101 arm=control rc=0 wall_s=9.4 output_chars=48
+2026-08-24T16:33:43Z START id=fact_en_04 seed=101 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:33:56Z DONE id=fact_en_04 seed=101 arm=q8_0 rc=0 wall_s=12.7 output_chars=48
+2026-08-24T16:33:56Z START id=fact_en_04 seed=102 arm=control n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:34:04Z DONE id=fact_en_04 seed=102 arm=control rc=3221225786 wall_s=8.9 output_chars=88
+2026-08-24T16:34:04Z START id=fact_en_04 seed=102 arm=q8_0 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:34:12Z DONE id=fact_en_04 seed=102 arm=q8_0 rc=3221225786 wall_s=7.2 output_chars=0
+2026-08-24T16:49:44Z RUNNER_START prereg_commit=1a1c9a19 prompt_sha=56574436b342d71464b58fd66982a2dbf8b9fb3f5fb14ddf12bf01cca2aacfb9 cli_sha=035ac1a68cff7ffaee243946f66443a95cf436dd8185b14fb458f58f689c1518 free_bytes=120399609856 planned=400
+2026-08-24T16:49:44Z SKIP id=fact_it_01 seed=101 arm=control existing_output_chars=202
+2026-08-24T16:49:44Z SKIP id=fact_it_01 seed=101 arm=q8_0 existing_output_chars=137
+2026-08-24T16:49:44Z SKIP id=fact_it_01 seed=102 arm=control existing_output_chars=172
+2026-08-24T16:49:44Z SKIP id=fact_it_01 seed=102 arm=q8_0 existing_output_chars=188
+2026-08-24T16:49:44Z SKIP id=fact_it_01 seed=103 arm=control existing_output_chars=150
+2026-08-24T16:49:44Z SKIP id=fact_it_01 seed=103 arm=q8_0 existing_output_chars=219
+2026-08-24T16:49:44Z SKIP id=fact_it_02 seed=101 arm=control existing_output_chars=70
+2026-08-24T16:49:44Z SKIP id=fact_it_02 seed=101 arm=q8_0 existing_output_chars=70
+2026-08-24T16:49:44Z SKIP id=fact_it_02 seed=102 arm=control existing_output_chars=70
+2026-08-24T16:49:44Z SKIP id=fact_it_02 seed=102 arm=q8_0 existing_output_chars=66
+2026-08-24T16:49:44Z SKIP id=fact_it_02 seed=103 arm=control existing_output_chars=70
+2026-08-24T16:49:44Z SKIP id=fact_it_02 seed=103 arm=q8_0 existing_output_chars=66
+2026-08-24T16:49:44Z SKIP id=fact_it_03 seed=101 arm=control existing_output_chars=96
+2026-08-24T16:49:44Z SKIP id=fact_it_03 seed=101 arm=q8_0 existing_output_chars=96
+2026-08-24T16:49:44Z SKIP id=fact_it_03 seed=102 arm=control existing_output_chars=96
+2026-08-24T16:49:44Z SKIP id=fact_it_03 seed=102 arm=q8_0 existing_output_chars=96
+2026-08-24T16:49:44Z SKIP id=fact_it_03 seed=103 arm=control existing_output_chars=96
+2026-08-24T16:49:44Z SKIP id=fact_it_03 seed=103 arm=q8_0 existing_output_chars=96
+2026-08-24T16:49:44Z SKIP id=fact_it_04 seed=101 arm=control existing_output_chars=3199
+2026-08-24T16:49:44Z SKIP id=fact_it_04 seed=101 arm=q8_0 existing_output_chars=491
+2026-08-24T16:49:44Z SKIP id=fact_it_04 seed=102 arm=control existing_output_chars=344
+2026-08-24T16:49:44Z SKIP id=fact_it_04 seed=102 arm=q8_0 existing_output_chars=667
+2026-08-24T16:49:44Z SKIP id=fact_it_04 seed=103 arm=control existing_output_chars=547
+2026-08-24T16:49:44Z SKIP id=fact_it_04 seed=103 arm=q8_0 existing_output_chars=350
+2026-08-24T16:49:44Z SKIP id=fact_it_05 seed=101 arm=control existing_output_chars=48
+2026-08-24T16:49:44Z SKIP id=fact_it_05 seed=101 arm=q8_0 existing_output_chars=58
+2026-08-24T16:49:44Z SKIP id=fact_it_05 seed=102 arm=control existing_output_chars=48
+2026-08-24T16:49:44Z SKIP id=fact_it_05 seed=102 arm=q8_0 existing_output_chars=58
+2026-08-24T16:49:44Z SKIP id=fact_it_05 seed=103 arm=control existing_output_chars=48
+2026-08-24T16:49:44Z SKIP id=fact_it_05 seed=103 arm=q8_0 existing_output_chars=58
+2026-08-24T16:49:44Z SKIP id=fact_en_01 seed=101 arm=control existing_output_chars=38
+2026-08-24T16:49:44Z SKIP id=fact_en_01 seed=101 arm=q8_0 existing_output_chars=38
+2026-08-24T16:49:44Z SKIP id=fact_en_01 seed=102 arm=control existing_output_chars=38
+2026-08-24T16:49:44Z SKIP id=fact_en_01 seed=102 arm=q8_0 existing_output_chars=38
+2026-08-24T16:49:44Z SKIP id=fact_en_01 seed=103 arm=control existing_output_chars=38
+2026-08-24T16:49:44Z SKIP id=fact_en_01 seed=103 arm=q8_0 existing_output_chars=38
+2026-08-24T16:49:44Z SKIP id=fact_en_02 seed=101 arm=control existing_output_chars=87
+2026-08-24T16:49:44Z SKIP id=fact_en_02 seed=101 arm=q8_0 existing_output_chars=33
+2026-08-24T16:49:44Z SKIP id=fact_en_02 seed=102 arm=control existing_output_chars=33
+2026-08-24T16:49:44Z SKIP id=fact_en_02 seed=102 arm=q8_0 existing_output_chars=47
+2026-08-24T16:49:44Z SKIP id=fact_en_02 seed=103 arm=control existing_output_chars=33
+2026-08-24T16:49:44Z SKIP id=fact_en_02 seed=103 arm=q8_0 existing_output_chars=33
+2026-08-24T16:49:44Z SKIP id=fact_en_03 seed=101 arm=control existing_output_chars=116
+2026-08-24T16:49:44Z SKIP id=fact_en_03 seed=101 arm=q8_0 existing_output_chars=123
+2026-08-24T16:49:44Z SKIP id=fact_en_03 seed=102 arm=control existing_output_chars=179
+2026-08-24T16:49:44Z SKIP id=fact_en_03 seed=102 arm=q8_0 existing_output_chars=146
+2026-08-24T16:49:44Z SKIP id=fact_en_03 seed=103 arm=control existing_output_chars=146
+2026-08-24T16:49:44Z SKIP id=fact_en_03 seed=103 arm=q8_0 existing_output_chars=129
+2026-08-24T16:49:44Z SKIP id=fact_en_04 seed=101 arm=control existing_output_chars=48
+2026-08-24T16:49:44Z SKIP id=fact_en_04 seed=101 arm=q8_0 existing_output_chars=48
+2026-08-24T16:49:44Z START id=fact_en_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:50:02Z DONE id=fact_en_04 seed=102 arm=control attempt=1 rc=0 wall_s=18.4 output_chars=47
+2026-08-24T16:50:02Z START id=fact_en_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:50:16Z DONE id=fact_en_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=13.8 output_chars=48
+2026-08-24T16:50:16Z START id=fact_en_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:50:27Z DONE id=fact_en_04 seed=103 arm=control attempt=1 rc=0 wall_s=11.4 output_chars=47
+2026-08-24T16:50:27Z START id=fact_en_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:50:37Z DONE id=fact_en_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.0 output_chars=48
+2026-08-24T16:50:37Z START id=fact_en_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:50:46Z DONE id=fact_en_05 seed=101 arm=control attempt=1 rc=0 wall_s=8.8 output_chars=46
+2026-08-24T16:50:46Z START id=fact_en_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:50:55Z DONE id=fact_en_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.7 output_chars=46
+2026-08-24T16:50:55Z START id=fact_en_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:04Z DONE id=fact_en_05 seed=102 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=46
+2026-08-24T16:51:04Z START id=fact_en_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:12Z DONE id=fact_en_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=46
+2026-08-24T16:51:12Z START id=fact_en_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:20Z DONE id=fact_en_05 seed=103 arm=control attempt=1 rc=0 wall_s=7.4 output_chars=46
+2026-08-24T16:51:20Z START id=fact_en_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:28Z DONE id=fact_en_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=46
+2026-08-24T16:51:28Z START id=fact_es_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:38Z DONE id=fact_es_01 seed=101 arm=control attempt=1 rc=0 wall_s=10.0 output_chars=70
+2026-08-24T16:51:38Z START id=fact_es_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:48Z DONE id=fact_es_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=10.0 output_chars=65
+2026-08-24T16:51:48Z START id=fact_es_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:51:57Z DONE id=fact_es_01 seed=102 arm=control attempt=1 rc=0 wall_s=9.0 output_chars=72
+2026-08-24T16:51:57Z START id=fact_es_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:06Z DONE id=fact_es_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.2 output_chars=63
+2026-08-24T16:52:06Z START id=fact_es_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:15Z DONE id=fact_es_01 seed=103 arm=control attempt=1 rc=0 wall_s=8.9 output_chars=70
+2026-08-24T16:52:15Z START id=fact_es_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:25Z DONE id=fact_es_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=9.6 output_chars=63
+2026-08-24T16:52:25Z START id=fact_es_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:32Z DONE id=fact_es_02 seed=101 arm=control attempt=1 rc=0 wall_s=7.6 output_chars=31
+2026-08-24T16:52:32Z START id=fact_es_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:40Z DONE id=fact_es_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=7.3 output_chars=31
+2026-08-24T16:52:40Z START id=fact_es_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:47Z DONE id=fact_es_02 seed=102 arm=control attempt=1 rc=0 wall_s=7.6 output_chars=31
+2026-08-24T16:52:47Z START id=fact_es_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:52:55Z DONE id=fact_es_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=7.5 output_chars=31
+2026-08-24T16:52:55Z START id=fact_es_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:02Z DONE id=fact_es_02 seed=103 arm=control attempt=1 rc=0 wall_s=7.5 output_chars=31
+2026-08-24T16:53:02Z START id=fact_es_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:10Z DONE id=fact_es_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=7.8 output_chars=31
+2026-08-24T16:53:10Z START id=fact_es_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:19Z DONE id=fact_es_03 seed=101 arm=control attempt=1 rc=0 wall_s=8.5 output_chars=66
+2026-08-24T16:53:19Z START id=fact_es_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:28Z DONE id=fact_es_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.1 output_chars=70
+2026-08-24T16:53:28Z START id=fact_es_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:37Z DONE id=fact_es_03 seed=102 arm=control attempt=1 rc=0 wall_s=9.3 output_chars=66
+2026-08-24T16:53:37Z START id=fact_es_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:47Z DONE id=fact_es_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.3 output_chars=66
+2026-08-24T16:53:47Z START id=fact_es_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:53:56Z DONE id=fact_es_03 seed=103 arm=control attempt=1 rc=0 wall_s=9.6 output_chars=66
+2026-08-24T16:53:56Z START id=fact_es_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:06Z DONE id=fact_es_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.2 output_chars=66
+2026-08-24T16:54:06Z START id=fact_es_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:15Z DONE id=fact_es_04 seed=101 arm=control attempt=1 rc=0 wall_s=8.8 output_chars=65
+2026-08-24T16:54:15Z START id=fact_es_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:24Z DONE id=fact_es_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=65
+2026-08-24T16:54:24Z START id=fact_es_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:33Z DONE id=fact_es_04 seed=102 arm=control attempt=1 rc=0 wall_s=9.1 output_chars=65
+2026-08-24T16:54:33Z START id=fact_es_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:42Z DONE id=fact_es_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.1 output_chars=65
+2026-08-24T16:54:42Z START id=fact_es_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:51Z DONE id=fact_es_04 seed=103 arm=control attempt=1 rc=0 wall_s=8.6 output_chars=65
+2026-08-24T16:54:51Z START id=fact_es_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:54:59Z DONE id=fact_es_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.5 output_chars=65
+2026-08-24T16:54:59Z START id=fact_es_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:55:09Z DONE id=fact_es_05 seed=101 arm=control attempt=1 rc=0 wall_s=9.8 output_chars=69
+2026-08-24T16:55:09Z START id=fact_es_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:55:19Z DONE id=fact_es_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=10.0 output_chars=66
+2026-08-24T16:55:19Z START id=fact_es_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:55:30Z DONE id=fact_es_05 seed=102 arm=control attempt=1 rc=0 wall_s=10.5 output_chars=54
+2026-08-24T16:55:30Z START id=fact_es_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:55:40Z DONE id=fact_es_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=10.1 output_chars=54
+2026-08-24T16:55:40Z START id=fact_es_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:55:50Z DONE id=fact_es_05 seed=103 arm=control attempt=1 rc=0 wall_s=9.6 output_chars=61
+2026-08-24T16:55:50Z START id=fact_es_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:55:59Z DONE id=fact_es_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=9.8 output_chars=54
+2026-08-24T16:55:59Z START id=fact_fr_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:56:09Z DONE id=fact_fr_01 seed=101 arm=control attempt=1 rc=0 wall_s=9.6 output_chars=58
+2026-08-24T16:56:09Z START id=fact_fr_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:56:19Z DONE id=fact_fr_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=10.1 output_chars=54
+2026-08-24T16:56:19Z START id=fact_fr_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:56:29Z DONE id=fact_fr_01 seed=102 arm=control attempt=1 rc=0 wall_s=9.8 output_chars=52
+2026-08-24T16:56:29Z START id=fact_fr_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:56:38Z DONE id=fact_fr_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.6 output_chars=52
+2026-08-24T16:56:39Z START id=fact_fr_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:56:47Z DONE id=fact_fr_01 seed=103 arm=control attempt=1 rc=0 wall_s=8.4 output_chars=52
+2026-08-24T16:56:47Z START id=fact_fr_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:56:56Z DONE id=fact_fr_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.7 output_chars=54
+2026-08-24T16:56:56Z START id=fact_fr_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:03Z DONE id=fact_fr_02 seed=101 arm=control attempt=1 rc=0 wall_s=7.7 output_chars=41
+2026-08-24T16:57:03Z START id=fact_fr_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:12Z DONE id=fact_fr_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.2 output_chars=41
+2026-08-24T16:57:12Z START id=fact_fr_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:19Z DONE id=fact_fr_02 seed=102 arm=control attempt=1 rc=0 wall_s=7.6 output_chars=41
+2026-08-24T16:57:19Z START id=fact_fr_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:28Z DONE id=fact_fr_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.0 output_chars=41
+2026-08-24T16:57:28Z START id=fact_fr_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:37Z DONE id=fact_fr_02 seed=103 arm=control attempt=1 rc=0 wall_s=8.6 output_chars=41
+2026-08-24T16:57:37Z START id=fact_fr_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:45Z DONE id=fact_fr_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=7.8 output_chars=41
+2026-08-24T16:57:45Z START id=fact_fr_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:57:53Z DONE id=fact_fr_03 seed=101 arm=control attempt=1 rc=0 wall_s=8.1 output_chars=42
+2026-08-24T16:57:53Z START id=fact_fr_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:01Z DONE id=fact_fr_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.2 output_chars=42
+2026-08-24T16:58:01Z START id=fact_fr_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:10Z DONE id=fact_fr_03 seed=102 arm=control attempt=1 rc=0 wall_s=8.8 output_chars=42
+2026-08-24T16:58:10Z START id=fact_fr_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:18Z DONE id=fact_fr_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=42
+2026-08-24T16:58:18Z START id=fact_fr_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:26Z DONE id=fact_fr_03 seed=103 arm=control attempt=1 rc=0 wall_s=7.7 output_chars=42
+2026-08-24T16:58:26Z START id=fact_fr_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:34Z DONE id=fact_fr_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=42
+2026-08-24T16:58:34Z START id=fact_fr_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:44Z DONE id=fact_fr_04 seed=101 arm=control attempt=1 rc=0 wall_s=9.6 output_chars=213
+2026-08-24T16:58:44Z START id=fact_fr_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:58:55Z DONE id=fact_fr_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=11.1 output_chars=239
+2026-08-24T16:58:55Z START id=fact_fr_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:59:06Z DONE id=fact_fr_04 seed=102 arm=control attempt=1 rc=0 wall_s=10.8 output_chars=225
+2026-08-24T16:59:06Z START id=fact_fr_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:59:16Z DONE id=fact_fr_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=10.2 output_chars=197
+2026-08-24T16:59:16Z START id=fact_fr_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:59:26Z DONE id=fact_fr_04 seed=103 arm=control attempt=1 rc=0 wall_s=9.9 output_chars=216
+2026-08-24T16:59:26Z START id=fact_fr_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:59:36Z DONE id=fact_fr_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.2 output_chars=204
+2026-08-24T16:59:36Z START id=fact_fr_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:59:45Z DONE id=fact_fr_05 seed=101 arm=control attempt=1 rc=0 wall_s=8.3 output_chars=70
+2026-08-24T16:59:45Z START id=fact_fr_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T16:59:53Z DONE id=fact_fr_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.3 output_chars=70
+2026-08-24T16:59:53Z START id=fact_fr_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:01Z DONE id=fact_fr_05 seed=102 arm=control attempt=1 rc=0 wall_s=8.0 output_chars=68
+2026-08-24T17:00:01Z START id=fact_fr_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:10Z DONE id=fact_fr_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.8 output_chars=69
+2026-08-24T17:00:10Z START id=fact_fr_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:18Z DONE id=fact_fr_05 seed=103 arm=control attempt=1 rc=0 wall_s=7.9 output_chars=69
+2026-08-24T17:00:18Z START id=fact_fr_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:26Z DONE id=fact_fr_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=7.9 output_chars=72
+2026-08-24T17:00:26Z START id=fact_zh_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:33Z DONE id=fact_zh_01 seed=101 arm=control attempt=1 rc=0 wall_s=7.5 output_chars=9
+2026-08-24T17:00:33Z START id=fact_zh_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:40Z DONE id=fact_zh_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=6.6 output_chars=9
+2026-08-24T17:00:40Z START id=fact_zh_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:47Z DONE id=fact_zh_01 seed=102 arm=control attempt=1 rc=0 wall_s=6.8 output_chars=9
+2026-08-24T17:00:47Z START id=fact_zh_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:00:54Z DONE id=fact_zh_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=7.1 output_chars=9
+2026-08-24T17:00:54Z START id=fact_zh_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:01Z DONE id=fact_zh_01 seed=103 arm=control attempt=1 rc=0 wall_s=7.0 output_chars=9
+2026-08-24T17:01:01Z START id=fact_zh_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:09Z DONE id=fact_zh_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=7.6 output_chars=9
+2026-08-24T17:01:09Z START id=fact_zh_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:15Z DONE id=fact_zh_02 seed=101 arm=control attempt=1 rc=0 wall_s=7.0 output_chars=13
+2026-08-24T17:01:15Z START id=fact_zh_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:23Z DONE id=fact_zh_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=7.4 output_chars=13
+2026-08-24T17:01:23Z START id=fact_zh_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:30Z DONE id=fact_zh_02 seed=102 arm=control attempt=1 rc=0 wall_s=7.0 output_chars=13
+2026-08-24T17:01:30Z START id=fact_zh_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:37Z DONE id=fact_zh_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=7.3 output_chars=13
+2026-08-24T17:01:37Z START id=fact_zh_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:44Z DONE id=fact_zh_02 seed=103 arm=control attempt=1 rc=0 wall_s=6.9 output_chars=13
+2026-08-24T17:01:44Z START id=fact_zh_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:51Z DONE id=fact_zh_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=7.1 output_chars=13
+2026-08-24T17:01:51Z START id=fact_zh_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:01:59Z DONE id=fact_zh_03 seed=101 arm=control attempt=1 rc=0 wall_s=8.2 output_chars=73
+2026-08-24T17:01:59Z START id=fact_zh_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:09Z DONE id=fact_zh_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.3 output_chars=69
+2026-08-24T17:02:09Z START id=fact_zh_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:16Z DONE id=fact_zh_03 seed=102 arm=control attempt=1 rc=0 wall_s=6.8 output_chars=18
+2026-08-24T17:02:16Z START id=fact_zh_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:24Z DONE id=fact_zh_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.3 output_chars=18
+2026-08-24T17:02:24Z START id=fact_zh_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:32Z DONE id=fact_zh_03 seed=103 arm=control attempt=1 rc=0 wall_s=8.4 output_chars=66
+2026-08-24T17:02:32Z START id=fact_zh_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:41Z DONE id=fact_zh_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.9 output_chars=73
+2026-08-24T17:02:41Z START id=fact_zh_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:49Z DONE id=fact_zh_04 seed=101 arm=control attempt=1 rc=0 wall_s=8.3 output_chars=40
+2026-08-24T17:02:49Z START id=fact_zh_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:02:58Z DONE id=fact_zh_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=40
+2026-08-24T17:02:58Z START id=fact_zh_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:03:08Z DONE id=fact_zh_04 seed=102 arm=control attempt=1 rc=0 wall_s=9.7 output_chars=45
+2026-08-24T17:03:08Z START id=fact_zh_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:03:17Z DONE id=fact_zh_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.0 output_chars=45
+2026-08-24T17:03:17Z START id=fact_zh_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:03:26Z DONE id=fact_zh_04 seed=103 arm=control attempt=1 rc=0 wall_s=9.1 output_chars=45
+2026-08-24T17:03:26Z START id=fact_zh_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:03:36Z DONE id=fact_zh_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.4 output_chars=37
+2026-08-24T17:03:36Z START id=fact_zh_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:03:47Z DONE id=fact_zh_05 seed=101 arm=control attempt=1 rc=0 wall_s=10.4 output_chars=111
+2026-08-24T17:03:47Z START id=fact_zh_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:03:56Z DONE id=fact_zh_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.3 output_chars=87
+2026-08-24T17:03:56Z START id=fact_zh_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:05Z DONE id=fact_zh_05 seed=102 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=43
+2026-08-24T17:04:05Z START id=fact_zh_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:15Z DONE id=fact_zh_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=10.5 output_chars=96
+2026-08-24T17:04:15Z START id=fact_zh_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:23Z DONE id=fact_zh_05 seed=103 arm=control attempt=1 rc=0 wall_s=7.5 output_chars=32
+2026-08-24T17:04:23Z START id=fact_zh_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:31Z DONE id=fact_zh_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=39
+2026-08-24T17:04:31Z START id=inst_en_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:39Z DONE id=inst_en_01 seed=101 arm=control attempt=1 rc=0 wall_s=8.0 output_chars=26
+2026-08-24T17:04:39Z START id=inst_en_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:48Z DONE id=inst_en_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.1 output_chars=20
+2026-08-24T17:04:48Z START id=inst_en_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:04:55Z DONE id=inst_en_01 seed=102 arm=control attempt=1 rc=0 wall_s=7.9 output_chars=26
+2026-08-24T17:04:55Z START id=inst_en_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:04Z DONE id=inst_en_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.5 output_chars=20
+2026-08-24T17:05:04Z START id=inst_en_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:12Z DONE id=inst_en_01 seed=103 arm=control attempt=1 rc=0 wall_s=8.5 output_chars=26
+2026-08-24T17:05:12Z START id=inst_en_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:21Z DONE id=inst_en_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.2 output_chars=20
+2026-08-24T17:05:21Z START id=inst_en_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:28Z DONE id=inst_en_02 seed=101 arm=control attempt=1 rc=0 wall_s=7.7 output_chars=11
+2026-08-24T17:05:28Z START id=inst_en_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:36Z DONE id=inst_en_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=7.9 output_chars=11
+2026-08-24T17:05:36Z START id=inst_en_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:44Z DONE id=inst_en_02 seed=102 arm=control attempt=1 rc=0 wall_s=7.8 output_chars=11
+2026-08-24T17:05:44Z START id=inst_en_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:52Z DONE id=inst_en_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=7.5 output_chars=11
+2026-08-24T17:05:52Z START id=inst_en_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:05:59Z DONE id=inst_en_02 seed=103 arm=control attempt=1 rc=0 wall_s=7.5 output_chars=11
+2026-08-24T17:05:59Z START id=inst_en_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:07Z DONE id=inst_en_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.0 output_chars=11
+2026-08-24T17:06:07Z START id=inst_en_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:15Z DONE id=inst_en_03 seed=101 arm=control attempt=1 rc=0 wall_s=8.0 output_chars=28
+2026-08-24T17:06:15Z START id=inst_en_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:23Z DONE id=inst_en_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.3 output_chars=28
+2026-08-24T17:06:24Z START id=inst_en_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:32Z DONE id=inst_en_03 seed=102 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=28
+2026-08-24T17:06:32Z START id=inst_en_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:41Z DONE id=inst_en_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=28
+2026-08-24T17:06:41Z START id=inst_en_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:50Z DONE id=inst_en_03 seed=103 arm=control attempt=1 rc=0 wall_s=9.4 output_chars=28
+2026-08-24T17:06:50Z START id=inst_en_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:06:58Z DONE id=inst_en_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.3 output_chars=28
+2026-08-24T17:06:58Z START id=inst_en_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:07Z DONE id=inst_en_04 seed=101 arm=control attempt=1 rc=0 wall_s=8.2 output_chars=19
+2026-08-24T17:07:07Z START id=inst_en_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:15Z DONE id=inst_en_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=19
+2026-08-24T17:07:15Z START id=inst_en_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:24Z DONE id=inst_en_04 seed=102 arm=control attempt=1 rc=0 wall_s=8.9 output_chars=19
+2026-08-24T17:07:24Z START id=inst_en_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:33Z DONE id=inst_en_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.7 output_chars=19
+2026-08-24T17:07:33Z START id=inst_en_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:41Z DONE id=inst_en_04 seed=103 arm=control attempt=1 rc=0 wall_s=7.9 output_chars=19
+2026-08-24T17:07:41Z START id=inst_en_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:48Z DONE id=inst_en_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=7.7 output_chars=19
+2026-08-24T17:07:48Z START id=inst_en_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:07:56Z DONE id=inst_en_05 seed=101 arm=control attempt=1 rc=0 wall_s=7.7 output_chars=12
+2026-08-24T17:07:56Z START id=inst_en_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:05Z DONE id=inst_en_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=12
+2026-08-24T17:08:05Z START id=inst_en_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:13Z DONE id=inst_en_05 seed=102 arm=control attempt=1 rc=0 wall_s=8.3 output_chars=12
+2026-08-24T17:08:13Z START id=inst_en_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:21Z DONE id=inst_en_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=7.8 output_chars=12
+2026-08-24T17:08:21Z START id=inst_en_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:29Z DONE id=inst_en_05 seed=103 arm=control attempt=1 rc=0 wall_s=8.1 output_chars=12
+2026-08-24T17:08:29Z START id=inst_en_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:37Z DONE id=inst_en_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.3 output_chars=12
+2026-08-24T17:08:37Z START id=inst_it_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:47Z DONE id=inst_it_01 seed=101 arm=control attempt=1 rc=0 wall_s=9.5 output_chars=40
+2026-08-24T17:08:47Z START id=inst_it_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:08:56Z DONE id=inst_it_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.4 output_chars=40
+2026-08-24T17:08:56Z START id=inst_it_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:09:07Z DONE id=inst_it_01 seed=102 arm=control attempt=1 rc=0 wall_s=10.4 output_chars=40
+2026-08-24T17:09:07Z START id=inst_it_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:09:16Z DONE id=inst_it_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.5 output_chars=40
+2026-08-24T17:09:16Z START id=inst_it_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:09:26Z DONE id=inst_it_01 seed=103 arm=control attempt=1 rc=0 wall_s=10.1 output_chars=40
+2026-08-24T17:09:26Z START id=inst_it_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:09:36Z DONE id=inst_it_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=9.8 output_chars=40
+2026-08-24T17:09:36Z START id=inst_it_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:09:45Z DONE id=inst_it_02 seed=101 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=33
+2026-08-24T17:09:45Z START id=inst_it_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:09:53Z DONE id=inst_it_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.7 output_chars=33
+2026-08-24T17:09:53Z START id=inst_it_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:02Z DONE id=inst_it_02 seed=102 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=33
+2026-08-24T17:10:02Z START id=inst_it_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:11Z DONE id=inst_it_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.1 output_chars=33
+2026-08-24T17:10:11Z START id=inst_it_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:19Z DONE id=inst_it_02 seed=103 arm=control attempt=1 rc=0 wall_s=8.0 output_chars=33
+2026-08-24T17:10:19Z START id=inst_it_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:28Z DONE id=inst_it_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=33
+2026-08-24T17:10:28Z START id=inst_it_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:36Z DONE id=inst_it_03 seed=101 arm=control attempt=1 rc=0 wall_s=8.2 output_chars=17
+2026-08-24T17:10:36Z START id=inst_it_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:44Z DONE id=inst_it_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.0 output_chars=17
+2026-08-24T17:10:44Z START id=inst_it_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:10:52Z DONE id=inst_it_03 seed=102 arm=control attempt=1 rc=0 wall_s=8.2 output_chars=17
+2026-08-24T17:10:52Z START id=inst_it_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:11:01Z DONE id=inst_it_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=17
+2026-08-24T17:11:01Z START id=inst_it_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:11:10Z DONE id=inst_it_03 seed=103 arm=control attempt=1 rc=0 wall_s=9.2 output_chars=17
+2026-08-24T17:11:10Z START id=inst_it_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:11:19Z DONE id=inst_it_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=9.4 output_chars=17
+2026-08-24T17:11:19Z START id=inst_it_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:11:33Z DONE id=inst_it_04 seed=101 arm=control attempt=1 rc=0 wall_s=13.9 output_chars=22
+2026-08-24T17:11:33Z START id=inst_it_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:11:49Z DONE id=inst_it_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=15.3 output_chars=22
+2026-08-24T17:11:49Z START id=inst_it_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:12:01Z DONE id=inst_it_04 seed=102 arm=control attempt=1 rc=0 wall_s=12.5 output_chars=26
+2026-08-24T17:12:01Z START id=inst_it_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:12:15Z DONE id=inst_it_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=13.7 output_chars=26
+2026-08-24T17:12:15Z START id=inst_it_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:12:26Z DONE id=inst_it_04 seed=103 arm=control attempt=1 rc=0 wall_s=11.3 output_chars=26
+2026-08-24T17:12:26Z START id=inst_it_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:12:37Z DONE id=inst_it_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=11.0 output_chars=26
+2026-08-24T17:12:37Z START id=inst_it_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:12:47Z DONE id=inst_it_05 seed=101 arm=control attempt=1 rc=0 wall_s=9.7 output_chars=15
+2026-08-24T17:12:47Z START id=inst_it_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:12:56Z DONE id=inst_it_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.4 output_chars=15
+2026-08-24T17:12:56Z START id=inst_it_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:06Z DONE id=inst_it_05 seed=102 arm=control attempt=1 rc=0 wall_s=9.6 output_chars=15
+2026-08-24T17:13:06Z START id=inst_it_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:15Z DONE id=inst_it_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.1 output_chars=15
+2026-08-24T17:13:15Z START id=inst_it_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:24Z DONE id=inst_it_05 seed=103 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=15
+2026-08-24T17:13:24Z START id=inst_it_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:33Z DONE id=inst_it_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.8 output_chars=15
+2026-08-24T17:13:33Z START id=code_en_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:42Z DONE id=code_en_01 seed=101 arm=control attempt=1 rc=0 wall_s=9.1 output_chars=93
+2026-08-24T17:13:42Z START id=code_en_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:50Z DONE id=code_en_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=93
+2026-08-24T17:13:50Z START id=code_en_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:13:59Z DONE id=code_en_01 seed=102 arm=control attempt=1 rc=0 wall_s=9.0 output_chars=93
+2026-08-24T17:13:59Z START id=code_en_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:14:09Z DONE id=code_en_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.8 output_chars=93
+2026-08-24T17:14:09Z START id=code_en_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:14:18Z DONE id=code_en_01 seed=103 arm=control attempt=1 rc=0 wall_s=8.6 output_chars=93
+2026-08-24T17:14:18Z START id=code_en_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:14:27Z DONE id=code_en_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=9.1 output_chars=93
+2026-08-24T17:14:27Z START id=code_en_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:14:36Z DONE id=code_en_02 seed=101 arm=control attempt=1 rc=0 wall_s=9.4 output_chars=75
+2026-08-24T17:14:36Z START id=code_en_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:14:46Z DONE id=code_en_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=10.0 output_chars=75
+2026-08-24T17:14:46Z START id=code_en_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:14:55Z DONE id=code_en_02 seed=102 arm=control attempt=1 rc=0 wall_s=8.7 output_chars=75
+2026-08-24T17:14:55Z START id=code_en_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:15:04Z DONE id=code_en_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.0 output_chars=75
+2026-08-24T17:15:04Z START id=code_en_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:15:13Z DONE id=code_en_02 seed=103 arm=control attempt=1 rc=0 wall_s=8.5 output_chars=75
+2026-08-24T17:15:13Z START id=code_en_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:15:21Z DONE id=code_en_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=8.4 output_chars=75
+2026-08-24T17:15:21Z START id=code_en_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:15:33Z DONE id=code_en_03 seed=101 arm=control attempt=1 rc=0 wall_s=11.8 output_chars=155
+2026-08-24T17:15:33Z START id=code_en_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:15:44Z DONE id=code_en_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=11.0 output_chars=92
+2026-08-24T17:15:44Z START id=code_en_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:15:56Z DONE id=code_en_03 seed=102 arm=control attempt=1 rc=0 wall_s=11.8 output_chars=155
+2026-08-24T17:15:56Z START id=code_en_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:16:08Z DONE id=code_en_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=11.8 output_chars=155
+2026-08-24T17:16:08Z START id=code_en_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:16:20Z DONE id=code_en_03 seed=103 arm=control attempt=1 rc=0 wall_s=12.0 output_chars=155
+2026-08-24T17:16:20Z START id=code_en_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:16:32Z DONE id=code_en_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=12.4 output_chars=155
+2026-08-24T17:16:32Z START id=code_en_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:16:43Z DONE id=code_en_04 seed=101 arm=control attempt=1 rc=0 wall_s=10.4 output_chars=38
+2026-08-24T17:16:43Z START id=code_en_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:16:52Z DONE id=code_en_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.6 output_chars=38
+2026-08-24T17:16:52Z START id=code_en_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:17:03Z DONE id=code_en_04 seed=102 arm=control attempt=1 rc=0 wall_s=10.4 output_chars=38
+2026-08-24T17:17:03Z START id=code_en_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:17:12Z DONE id=code_en_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=9.8 output_chars=38
+2026-08-24T17:17:12Z START id=code_en_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:17:24Z DONE id=code_en_04 seed=103 arm=control attempt=1 rc=0 wall_s=11.6 output_chars=38
+2026-08-24T17:17:24Z START id=code_en_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:17:34Z DONE id=code_en_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.3 output_chars=38
+2026-08-24T17:17:34Z START id=code_en_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:17:45Z DONE id=code_en_05 seed=101 arm=control attempt=1 rc=0 wall_s=10.5 output_chars=93
+2026-08-24T17:17:45Z START id=code_en_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:17:54Z DONE id=code_en_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.5 output_chars=89
+2026-08-24T17:17:54Z START id=code_en_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:18:05Z DONE id=code_en_05 seed=102 arm=control attempt=1 rc=0 wall_s=10.5 output_chars=89
+2026-08-24T17:18:05Z START id=code_en_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:18:15Z DONE id=code_en_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=10.3 output_chars=47
+2026-08-24T17:18:15Z START id=code_en_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:18:25Z DONE id=code_en_05 seed=103 arm=control attempt=1 rc=0 wall_s=10.2 output_chars=34
+2026-08-24T17:18:25Z START id=code_en_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:18:36Z DONE id=code_en_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.5 output_chars=34
+2026-08-24T17:18:36Z START id=math_it_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:18:56Z DONE id=math_it_01 seed=101 arm=control attempt=1 rc=0 wall_s=20.0 output_chars=574
+2026-08-24T17:18:56Z START id=math_it_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:19:18Z DONE id=math_it_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=21.7 output_chars=776
+2026-08-24T17:19:18Z START id=math_it_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:19:33Z DONE id=math_it_01 seed=102 arm=control attempt=1 rc=0 wall_s=15.7 output_chars=504
+2026-08-24T17:19:33Z START id=math_it_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:19:56Z DONE id=math_it_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=22.1 output_chars=775
+2026-08-24T17:19:56Z START id=math_it_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:20:16Z DONE id=math_it_01 seed=103 arm=control attempt=1 rc=0 wall_s=20.2 output_chars=662
+2026-08-24T17:20:16Z START id=math_it_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:20:32Z DONE id=math_it_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=16.0 output_chars=477
+2026-08-24T17:20:32Z START id=math_it_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:20:47Z DONE id=math_it_02 seed=101 arm=control attempt=1 rc=0 wall_s=15.4 output_chars=477
+2026-08-24T17:20:47Z START id=math_it_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:21:02Z DONE id=math_it_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=14.6 output_chars=441
+2026-08-24T17:21:02Z START id=math_it_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:21:46Z DONE id=math_it_02 seed=102 arm=control attempt=1 rc=0 wall_s=43.9 output_chars=1997
+2026-08-24T17:21:46Z START id=math_it_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:22:02Z DONE id=math_it_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=16.6 output_chars=559
+2026-08-24T17:22:03Z START id=math_it_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:22:18Z DONE id=math_it_02 seed=103 arm=control attempt=1 rc=0 wall_s=15.2 output_chars=464
+2026-08-24T17:22:18Z START id=math_it_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:22:34Z DONE id=math_it_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=15.8 output_chars=454
+2026-08-24T17:22:34Z START id=math_it_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:22:45Z DONE id=math_it_03 seed=101 arm=control attempt=1 rc=0 wall_s=11.8 output_chars=228
+2026-08-24T17:22:45Z START id=math_it_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:22:56Z DONE id=math_it_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=10.8 output_chars=196
+2026-08-24T17:22:56Z START id=math_it_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:23:08Z DONE id=math_it_03 seed=102 arm=control attempt=1 rc=0 wall_s=12.1 output_chars=261
+2026-08-24T17:23:08Z START id=math_it_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:23:20Z DONE id=math_it_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=11.6 output_chars=244
+2026-08-24T17:23:20Z START id=math_it_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:23:31Z DONE id=math_it_03 seed=103 arm=control attempt=1 rc=0 wall_s=11.1 output_chars=217
+2026-08-24T17:23:31Z START id=math_it_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:23:43Z DONE id=math_it_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=12.0 output_chars=240
+2026-08-24T17:23:43Z START id=math_it_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:23:59Z DONE id=math_it_04 seed=101 arm=control attempt=1 rc=0 wall_s=15.7 output_chars=593
+2026-08-24T17:23:59Z START id=math_it_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:24:19Z DONE id=math_it_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=20.5 output_chars=658
+2026-08-24T17:24:20Z START id=math_it_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:24:34Z DONE id=math_it_04 seed=102 arm=control attempt=1 rc=0 wall_s=14.9 output_chars=435
+2026-08-24T17:24:34Z START id=math_it_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:24:50Z DONE id=math_it_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=15.8 output_chars=624
+2026-08-24T17:24:50Z START id=math_it_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:25:08Z DONE id=math_it_04 seed=103 arm=control attempt=1 rc=0 wall_s=18.0 output_chars=687
+2026-08-24T17:25:08Z START id=math_it_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:25:25Z DONE id=math_it_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=16.3 output_chars=631
+2026-08-24T17:25:25Z START id=math_en_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:25:40Z DONE id=math_en_01 seed=101 arm=control attempt=1 rc=0 wall_s=15.8 output_chars=647
+2026-08-24T17:25:40Z START id=math_en_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:25:56Z DONE id=math_en_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=15.3 output_chars=635
+2026-08-24T17:25:56Z START id=math_en_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:26:15Z DONE id=math_en_01 seed=102 arm=control attempt=1 rc=0 wall_s=18.9 output_chars=806
+2026-08-24T17:26:15Z START id=math_en_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:26:34Z DONE id=math_en_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=19.5 output_chars=979
+2026-08-24T17:26:34Z START id=math_en_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:26:52Z DONE id=math_en_01 seed=103 arm=control attempt=1 rc=0 wall_s=18.0 output_chars=713
+2026-08-24T17:26:52Z START id=math_en_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:27:13Z DONE id=math_en_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=20.5 output_chars=1026
+2026-08-24T17:27:13Z START id=math_en_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:27:27Z DONE id=math_en_02 seed=101 arm=control attempt=1 rc=0 wall_s=14.4 output_chars=397
+2026-08-24T17:27:27Z START id=math_en_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:27:43Z DONE id=math_en_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=16.0 output_chars=447
+2026-08-24T17:27:43Z START id=math_en_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:28:00Z DONE id=math_en_02 seed=102 arm=control attempt=1 rc=0 wall_s=16.5 output_chars=604
+2026-08-24T17:28:00Z START id=math_en_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:28:19Z DONE id=math_en_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=19.6 output_chars=595
+2026-08-24T17:28:19Z START id=math_en_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:28:35Z DONE id=math_en_02 seed=103 arm=control attempt=1 rc=0 wall_s=15.7 output_chars=598
+2026-08-24T17:28:35Z START id=math_en_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:28:49Z DONE id=math_en_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=14.0 output_chars=480
+2026-08-24T17:28:49Z START id=math_en_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:29:08Z DONE id=math_en_03 seed=101 arm=control attempt=1 rc=0 wall_s=18.9 output_chars=962
+2026-08-24T17:29:08Z START id=math_en_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:29:23Z DONE id=math_en_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=14.4 output_chars=602
+2026-08-24T17:29:23Z START id=math_en_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:29:41Z DONE id=math_en_03 seed=102 arm=control attempt=1 rc=0 wall_s=18.2 output_chars=891
+2026-08-24T17:29:41Z START id=math_en_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:30:00Z DONE id=math_en_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=19.3 output_chars=1048
+2026-08-24T17:30:00Z START id=math_en_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:30:18Z DONE id=math_en_03 seed=103 arm=control attempt=1 rc=0 wall_s=18.2 output_chars=984
+2026-08-24T17:30:18Z START id=math_en_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:30:37Z DONE id=math_en_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=18.3 output_chars=1000
+2026-08-24T17:30:37Z START id=math_en_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:31:02Z DONE id=math_en_04 seed=101 arm=control attempt=1 rc=0 wall_s=25.6 output_chars=1562
+2026-08-24T17:31:02Z START id=math_en_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:31:29Z DONE id=math_en_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=27.2 output_chars=1271
+2026-08-24T17:31:30Z START id=math_en_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:31:55Z DONE id=math_en_04 seed=102 arm=control attempt=1 rc=0 wall_s=25.4 output_chars=1161
+2026-08-24T17:31:55Z START id=math_en_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:32:27Z DONE id=math_en_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=31.7 output_chars=1394
+2026-08-24T17:32:27Z START id=math_en_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:32:57Z DONE id=math_en_04 seed=103 arm=control attempt=1 rc=0 wall_s=30.4 output_chars=1597
+2026-08-24T17:32:57Z START id=math_en_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:33:25Z DONE id=math_en_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=28.1 output_chars=1404
+2026-08-24T17:33:25Z START id=long_it_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:34:06Z DONE id=long_it_01 seed=101 arm=control attempt=1 rc=0 wall_s=40.4 output_chars=2908
+2026-08-24T17:34:06Z START id=long_it_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:34:55Z DONE id=long_it_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=49.2 output_chars=3017
+2026-08-24T17:34:55Z START id=long_it_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:35:55Z DONE id=long_it_01 seed=102 arm=control attempt=1 rc=0 wall_s=60.2 output_chars=2942
+2026-08-24T17:35:55Z START id=long_it_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:36:39Z DONE id=long_it_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=44.2 output_chars=2656
+2026-08-24T17:36:39Z START id=long_it_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:37:30Z DONE id=long_it_01 seed=103 arm=control attempt=1 rc=0 wall_s=50.4 output_chars=3026
+2026-08-24T17:37:30Z START id=long_it_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:38:19Z DONE id=long_it_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=49.1 output_chars=2607
+2026-08-24T17:38:19Z START id=long_it_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:38:44Z DONE id=long_it_02 seed=101 arm=control attempt=1 rc=0 wall_s=25.6 output_chars=1575
+2026-08-24T17:38:44Z START id=long_it_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:39:08Z DONE id=long_it_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=23.6 output_chars=1222
+2026-08-24T17:39:08Z START id=long_it_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:39:38Z DONE id=long_it_02 seed=102 arm=control attempt=1 rc=0 wall_s=30.1 output_chars=1521
+2026-08-24T17:39:38Z START id=long_it_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:40:07Z DONE id=long_it_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=28.4 output_chars=1503
+2026-08-24T17:40:07Z START id=long_it_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:40:33Z DONE id=long_it_02 seed=103 arm=control attempt=1 rc=0 wall_s=25.9 output_chars=1509
+2026-08-24T17:40:33Z START id=long_it_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:41:10Z DONE id=long_it_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=37.1 output_chars=1727
+2026-08-24T17:41:10Z START id=long_it_03 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:41:55Z DONE id=long_it_03 seed=101 arm=control attempt=1 rc=0 wall_s=45.0 output_chars=2383
+2026-08-24T17:41:55Z START id=long_it_03 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:42:34Z DONE id=long_it_03 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=39.6 output_chars=2051
+2026-08-24T17:42:34Z START id=long_it_03 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:43:11Z DONE id=long_it_03 seed=102 arm=control attempt=1 rc=0 wall_s=36.6 output_chars=2030
+2026-08-24T17:43:11Z START id=long_it_03 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:43:48Z DONE id=long_it_03 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=37.4 output_chars=2160
+2026-08-24T17:43:48Z START id=long_it_03 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:44:31Z DONE id=long_it_03 seed=103 arm=control attempt=1 rc=0 wall_s=42.6 output_chars=2390
+2026-08-24T17:44:31Z START id=long_it_03 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:45:09Z DONE id=long_it_03 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=37.9 output_chars=2184
+2026-08-24T17:45:09Z START id=long_it_04 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:45:45Z DONE id=long_it_04 seed=101 arm=control attempt=1 rc=0 wall_s=35.8 output_chars=2492
+2026-08-24T17:45:45Z START id=long_it_04 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:46:34Z DONE id=long_it_04 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=48.9 output_chars=2965
+2026-08-24T17:46:34Z START id=long_it_04 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:47:23Z DONE id=long_it_04 seed=102 arm=control attempt=1 rc=0 wall_s=49.5 output_chars=3213
+2026-08-24T17:47:23Z START id=long_it_04 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:48:21Z DONE id=long_it_04 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=57.5 output_chars=3018
+2026-08-24T17:48:21Z START id=long_it_04 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:49:11Z DONE id=long_it_04 seed=103 arm=control attempt=1 rc=0 wall_s=50.5 output_chars=3359
+2026-08-24T17:49:11Z START id=long_it_04 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:49:57Z DONE id=long_it_04 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=45.2 output_chars=3147
+2026-08-24T17:49:57Z START id=long_it_05 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:50:27Z DONE id=long_it_05 seed=101 arm=control attempt=1 rc=0 wall_s=29.5 output_chars=1961
+2026-08-24T17:50:27Z START id=long_it_05 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:50:55Z DONE id=long_it_05 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=27.7 output_chars=1592
+2026-08-24T17:50:55Z START id=long_it_05 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:51:25Z DONE id=long_it_05 seed=102 arm=control attempt=1 rc=0 wall_s=29.5 output_chars=1798
+2026-08-24T17:51:25Z START id=long_it_05 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:51:55Z DONE id=long_it_05 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=30.6 output_chars=1874
+2026-08-24T17:51:55Z START id=long_it_05 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:52:22Z DONE id=long_it_05 seed=103 arm=control attempt=1 rc=0 wall_s=26.6 output_chars=1727
+2026-08-24T17:52:22Z START id=long_it_05 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:52:50Z DONE id=long_it_05 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=28.0 output_chars=1845
+2026-08-24T17:52:50Z START id=long_it_06 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:53:37Z DONE id=long_it_06 seed=101 arm=control attempt=1 rc=0 wall_s=47.5 output_chars=2873
+2026-08-24T17:53:37Z START id=long_it_06 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:54:28Z DONE id=long_it_06 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=50.1 output_chars=2809
+2026-08-24T17:54:28Z START id=long_it_06 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:55:14Z DONE id=long_it_06 seed=102 arm=control attempt=1 rc=0 wall_s=46.2 output_chars=2925
+2026-08-24T17:55:14Z START id=long_it_06 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:56:07Z DONE id=long_it_06 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=52.9 output_chars=2930
+2026-08-24T17:56:07Z START id=long_it_06 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:56:55Z DONE id=long_it_06 seed=103 arm=control attempt=1 rc=0 wall_s=47.8 output_chars=2973
+2026-08-24T17:56:55Z START id=long_it_06 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:57:52Z DONE id=long_it_06 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=57.4 output_chars=2835
+2026-08-24T17:57:52Z START id=trap_it_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:58:13Z DONE id=trap_it_01 seed=101 arm=control attempt=1 rc=0 wall_s=20.8 output_chars=1125
+2026-08-24T17:58:13Z START id=trap_it_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:58:40Z DONE id=trap_it_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=26.7 output_chars=1503
+2026-08-24T17:58:40Z START id=trap_it_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:59:03Z DONE id=trap_it_01 seed=102 arm=control attempt=1 rc=0 wall_s=23.6 output_chars=1348
+2026-08-24T17:59:03Z START id=trap_it_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:59:27Z DONE id=trap_it_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=23.6 output_chars=1178
+2026-08-24T17:59:27Z START id=trap_it_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T17:59:56Z DONE id=trap_it_01 seed=103 arm=control attempt=1 rc=0 wall_s=29.5 output_chars=1527
+2026-08-24T17:59:56Z START id=trap_it_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:00:22Z DONE id=trap_it_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=25.2 output_chars=1282
+2026-08-24T18:00:22Z START id=trap_fr_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:00:32Z DONE id=trap_fr_01 seed=101 arm=control attempt=1 rc=0 wall_s=10.6 output_chars=313
+2026-08-24T18:00:32Z START id=trap_fr_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:00:44Z DONE id=trap_fr_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=11.9 output_chars=305
+2026-08-24T18:00:44Z START id=trap_fr_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:00:56Z DONE id=trap_fr_01 seed=102 arm=control attempt=1 rc=0 wall_s=11.4 output_chars=322
+2026-08-24T18:00:56Z START id=trap_fr_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:01:07Z DONE id=trap_fr_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=11.6 output_chars=315
+2026-08-24T18:01:07Z START id=trap_fr_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:01:19Z DONE id=trap_fr_01 seed=103 arm=control attempt=1 rc=0 wall_s=11.6 output_chars=333
+2026-08-24T18:01:19Z START id=trap_fr_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:01:29Z DONE id=trap_fr_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.5 output_chars=310
+2026-08-24T18:01:29Z START id=trap_es_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:01:40Z DONE id=trap_es_01 seed=101 arm=control attempt=1 rc=0 wall_s=11.0 output_chars=326
+2026-08-24T18:01:40Z START id=trap_es_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:01:50Z DONE id=trap_es_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=9.6 output_chars=166
+2026-08-24T18:01:50Z START id=trap_es_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:02:00Z DONE id=trap_es_01 seed=102 arm=control attempt=1 rc=0 wall_s=10.3 output_chars=250
+2026-08-24T18:02:00Z START id=trap_es_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:02:12Z DONE id=trap_es_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=11.5 output_chars=284
+2026-08-24T18:02:12Z START id=trap_es_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:02:25Z DONE id=trap_es_01 seed=103 arm=control attempt=1 rc=0 wall_s=12.8 output_chars=401
+2026-08-24T18:02:25Z START id=trap_es_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:02:35Z DONE id=trap_es_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=10.8 output_chars=306
+2026-08-24T18:02:35Z START id=trap_zh_01 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:02:47Z DONE id=trap_zh_01 seed=101 arm=control attempt=1 rc=0 wall_s=12.0 output_chars=118
+2026-08-24T18:02:48Z START id=trap_zh_01 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:02:58Z DONE id=trap_zh_01 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=10.4 output_chars=119
+2026-08-24T18:02:58Z START id=trap_zh_01 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:03:10Z DONE id=trap_zh_01 seed=102 arm=control attempt=1 rc=0 wall_s=11.7 output_chars=166
+2026-08-24T18:03:10Z START id=trap_zh_01 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:03:20Z DONE id=trap_zh_01 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=10.8 output_chars=120
+2026-08-24T18:03:20Z START id=trap_zh_01 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:03:32Z DONE id=trap_zh_01 seed=103 arm=control attempt=1 rc=0 wall_s=11.7 output_chars=152
+2026-08-24T18:03:32Z START id=trap_zh_01 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:03:44Z DONE id=trap_zh_01 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=11.3 output_chars=167
+2026-08-24T18:03:44Z START id=trap_it_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:04:03Z DONE id=trap_it_02 seed=101 arm=control attempt=1 rc=0 wall_s=19.1 output_chars=811
+2026-08-24T18:04:03Z START id=trap_it_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:04:21Z DONE id=trap_it_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=17.9 output_chars=760
+2026-08-24T18:04:21Z START id=trap_it_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:04:39Z DONE id=trap_it_02 seed=102 arm=control attempt=1 rc=0 wall_s=18.1 output_chars=743
+2026-08-24T18:04:39Z START id=trap_it_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:04:56Z DONE id=trap_it_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=16.7 output_chars=709
+2026-08-24T18:04:56Z START id=trap_it_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:05:14Z DONE id=trap_it_02 seed=103 arm=control attempt=1 rc=0 wall_s=18.1 output_chars=736
+2026-08-24T18:05:14Z START id=trap_it_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:05:32Z DONE id=trap_it_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=18.7 output_chars=738
+2026-08-24T18:05:33Z START id=trap_fr_02 seed=101 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:05:51Z DONE id=trap_fr_02 seed=101 arm=control attempt=1 rc=0 wall_s=18.2 output_chars=1015
+2026-08-24T18:05:51Z START id=trap_fr_02 seed=101 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:06:08Z DONE id=trap_fr_02 seed=101 arm=q8_0 attempt=1 rc=0 wall_s=17.4 output_chars=837
+2026-08-24T18:06:08Z START id=trap_fr_02 seed=102 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:06:25Z DONE id=trap_fr_02 seed=102 arm=control attempt=1 rc=0 wall_s=17.2 output_chars=823
+2026-08-24T18:06:25Z START id=trap_fr_02 seed=102 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:06:43Z DONE id=trap_fr_02 seed=102 arm=q8_0 attempt=1 rc=0 wall_s=17.6 output_chars=833
+2026-08-24T18:06:43Z START id=trap_fr_02 seed=103 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:07:00Z DONE id=trap_fr_02 seed=103 arm=control attempt=1 rc=0 wall_s=17.1 output_chars=743
+2026-08-24T18:07:00Z START id=trap_fr_02 seed=103 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:07:17Z DONE id=trap_fr_02 seed=103 arm=q8_0 attempt=1 rc=0 wall_s=17.2 output_chars=801
+2026-08-24T18:07:17Z START id=code_en_05 seed=201 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:08:11Z DONE id=code_en_05 seed=201 arm=control attempt=1 rc=0 wall_s=53.8 output_chars=2453
+2026-08-24T18:08:11Z START id=code_en_05 seed=201 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:08:20Z DONE id=code_en_05 seed=201 arm=q8_0 attempt=1 rc=0 wall_s=8.9 output_chars=55
+2026-08-24T18:08:20Z START id=code_en_05 seed=202 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:08:29Z DONE id=code_en_05 seed=202 arm=control attempt=1 rc=0 wall_s=9.2 output_chars=60
+2026-08-24T18:08:29Z START id=code_en_05 seed=202 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:08:38Z DONE id=code_en_05 seed=202 arm=q8_0 attempt=1 rc=0 wall_s=9.0 output_chars=47
+2026-08-24T18:08:38Z START id=code_en_05 seed=203 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:08:47Z DONE id=code_en_05 seed=203 arm=control attempt=1 rc=0 wall_s=8.6 output_chars=69
+2026-08-24T18:08:47Z START id=code_en_05 seed=203 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:08:56Z DONE id=code_en_05 seed=203 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=61
+2026-08-24T18:08:56Z START id=code_en_05 seed=204 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:05Z DONE id=code_en_05 seed=204 arm=control attempt=1 rc=0 wall_s=9.0 output_chars=34
+2026-08-24T18:09:05Z START id=code_en_05 seed=204 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:14Z DONE id=code_en_05 seed=204 arm=q8_0 attempt=1 rc=0 wall_s=9.7 output_chars=34
+2026-08-24T18:09:14Z START id=code_en_05 seed=205 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:23Z DONE id=code_en_05 seed=205 arm=control attempt=1 rc=0 wall_s=9.0 output_chars=48
+2026-08-24T18:09:23Z START id=code_en_05 seed=205 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:34Z DONE id=code_en_05 seed=205 arm=q8_0 attempt=1 rc=0 wall_s=10.4 output_chars=86
+2026-08-24T18:09:34Z START id=code_en_05 seed=206 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:42Z DONE id=code_en_05 seed=206 arm=control attempt=1 rc=0 wall_s=8.0 output_chars=40
+2026-08-24T18:09:42Z START id=code_en_05 seed=206 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:50Z DONE id=code_en_05 seed=206 arm=q8_0 attempt=1 rc=0 wall_s=8.3 output_chars=40
+2026-08-24T18:09:50Z START id=code_en_05 seed=207 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:09:58Z DONE id=code_en_05 seed=207 arm=control attempt=1 rc=0 wall_s=8.4 output_chars=64
+2026-08-24T18:09:59Z START id=code_en_05 seed=207 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:10:48Z DONE id=code_en_05 seed=207 arm=q8_0 attempt=1 rc=0 wall_s=49.7 output_chars=2055
+2026-08-24T18:10:48Z START id=code_en_05 seed=208 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:10:58Z DONE id=code_en_05 seed=208 arm=control attempt=1 rc=0 wall_s=9.9 output_chars=121
+2026-08-24T18:10:58Z START id=code_en_05 seed=208 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:11:11Z DONE id=code_en_05 seed=208 arm=q8_0 attempt=1 rc=0 wall_s=12.4 output_chars=92
+2026-08-24T18:11:11Z START id=code_en_05 seed=209 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:11:20Z DONE id=code_en_05 seed=209 arm=control attempt=1 rc=0 wall_s=9.1 output_chars=34
+2026-08-24T18:11:20Z START id=code_en_05 seed=209 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:11:28Z DONE id=code_en_05 seed=209 arm=q8_0 attempt=1 rc=0 wall_s=8.6 output_chars=34
+2026-08-24T18:11:28Z START id=code_en_05 seed=210 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:11:38Z DONE id=code_en_05 seed=210 arm=control attempt=1 rc=0 wall_s=9.6 output_chars=84
+2026-08-24T18:11:38Z START id=code_en_05 seed=210 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:11:49Z DONE id=code_en_05 seed=210 arm=q8_0 attempt=1 rc=0 wall_s=10.7 output_chars=64
+2026-08-24T18:11:49Z START id=long_it_04 seed=201 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:12:44Z DONE id=long_it_04 seed=201 arm=control attempt=1 rc=0 wall_s=55.4 output_chars=2977
+2026-08-24T18:12:44Z START id=long_it_04 seed=201 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:13:38Z DONE id=long_it_04 seed=201 arm=q8_0 attempt=1 rc=0 wall_s=53.3 output_chars=2756
+2026-08-24T18:13:38Z START id=long_it_04 seed=202 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:14:22Z DONE id=long_it_04 seed=202 arm=control attempt=1 rc=0 wall_s=44.0 output_chars=2575
+2026-08-24T18:14:22Z START id=long_it_04 seed=202 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:15:22Z DONE id=long_it_04 seed=202 arm=q8_0 attempt=1 rc=0 wall_s=60.7 output_chars=3254
+2026-08-24T18:15:22Z START id=long_it_04 seed=203 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:16:17Z DONE id=long_it_04 seed=203 arm=control attempt=1 rc=0 wall_s=54.4 output_chars=3328
+2026-08-24T18:16:17Z START id=long_it_04 seed=203 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:17:12Z DONE id=long_it_04 seed=203 arm=q8_0 attempt=1 rc=0 wall_s=55.0 output_chars=3207
+2026-08-24T18:17:12Z START id=long_it_04 seed=204 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:18:05Z DONE id=long_it_04 seed=204 arm=control attempt=1 rc=0 wall_s=53.3 output_chars=2970
+2026-08-24T18:18:05Z START id=long_it_04 seed=204 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:19:08Z DONE id=long_it_04 seed=204 arm=q8_0 attempt=1 rc=0 wall_s=62.7 output_chars=2664
+2026-08-24T18:19:08Z START id=long_it_04 seed=205 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:20:02Z DONE id=long_it_04 seed=205 arm=control attempt=1 rc=0 wall_s=53.8 output_chars=2889
+2026-08-24T18:20:02Z START id=long_it_04 seed=205 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:20:52Z DONE id=long_it_04 seed=205 arm=q8_0 attempt=1 rc=0 wall_s=50.0 output_chars=2623
+2026-08-24T18:20:52Z START id=long_it_04 seed=206 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:21:39Z DONE id=long_it_04 seed=206 arm=control attempt=1 rc=0 wall_s=47.2 output_chars=2885
+2026-08-24T18:21:39Z START id=long_it_04 seed=206 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:22:35Z DONE id=long_it_04 seed=206 arm=q8_0 attempt=1 rc=0 wall_s=56.3 output_chars=3234
+2026-08-24T18:22:35Z START id=long_it_04 seed=207 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:23:28Z DONE id=long_it_04 seed=207 arm=control attempt=1 rc=0 wall_s=52.8 output_chars=3059
+2026-08-24T18:23:28Z START id=long_it_04 seed=207 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:24:26Z DONE id=long_it_04 seed=207 arm=q8_0 attempt=1 rc=0 wall_s=58.2 output_chars=3326
+2026-08-24T18:24:26Z START id=long_it_04 seed=208 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:25:30Z DONE id=long_it_04 seed=208 arm=control attempt=1 rc=0 wall_s=63.5 output_chars=3256
+2026-08-24T18:25:30Z START id=long_it_04 seed=208 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:26:20Z DONE id=long_it_04 seed=208 arm=q8_0 attempt=1 rc=0 wall_s=50.4 output_chars=2731
+2026-08-24T18:26:20Z START id=long_it_04 seed=209 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:27:11Z DONE id=long_it_04 seed=209 arm=control attempt=1 rc=0 wall_s=50.6 output_chars=2961
+2026-08-24T18:27:11Z START id=long_it_04 seed=209 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:28:10Z DONE id=long_it_04 seed=209 arm=q8_0 attempt=1 rc=0 wall_s=58.8 output_chars=2560
+2026-08-24T18:28:10Z START id=long_it_04 seed=210 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:29:04Z DONE id=long_it_04 seed=210 arm=control attempt=1 rc=0 wall_s=54.7 output_chars=2933
+2026-08-24T18:29:04Z START id=long_it_04 seed=210 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:30:04Z DONE id=long_it_04 seed=210 arm=q8_0 attempt=1 rc=0 wall_s=59.5 output_chars=3038
+2026-08-24T18:30:04Z ALL_GEN_DONE planned=400 existing_skips=50 recorded_runs=400
+2026-08-24T18:51:14Z ESC_RUNNER_START prereg_commit=1a1c9a19 prompt_sha=56574436b342d71464b58fd66982a2dbf8b9fb3f5fb14ddf12bf01cca2aacfb9 cli_sha=035ac1a68cff7ffaee243946f66443a95cf436dd8185b14fb458f58f689c1518 planned=20
+2026-08-24T18:51:14Z ESC_START id=long_it_04 seed=301 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:52:37Z ESC_DONE id=long_it_04 seed=301 arm=control attempt=1 rc=0 wall_s=83.1 output_chars=2846
+2026-08-24T18:52:37Z ESC_START id=long_it_04 seed=301 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:53:35Z ESC_DONE id=long_it_04 seed=301 arm=q8_0 attempt=1 rc=0 wall_s=57.6 output_chars=3085
+2026-08-24T18:53:35Z ESC_START id=long_it_04 seed=302 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:54:30Z ESC_DONE id=long_it_04 seed=302 arm=control attempt=1 rc=0 wall_s=55.2 output_chars=3327
+2026-08-24T18:54:30Z ESC_START id=long_it_04 seed=302 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:55:21Z ESC_DONE id=long_it_04 seed=302 arm=q8_0 attempt=1 rc=0 wall_s=51.0 output_chars=2832
+2026-08-24T18:55:21Z ESC_START id=long_it_04 seed=303 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:56:08Z ESC_DONE id=long_it_04 seed=303 arm=control attempt=1 rc=0 wall_s=46.6 output_chars=3123
+2026-08-24T18:56:08Z ESC_START id=long_it_04 seed=303 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:56:52Z ESC_DONE id=long_it_04 seed=303 arm=q8_0 attempt=1 rc=0 wall_s=44.1 output_chars=3064
+2026-08-24T18:56:52Z ESC_START id=long_it_04 seed=304 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:57:36Z ESC_DONE id=long_it_04 seed=304 arm=control attempt=1 rc=0 wall_s=44.1 output_chars=3333
+2026-08-24T18:57:36Z ESC_START id=long_it_04 seed=304 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:58:19Z ESC_DONE id=long_it_04 seed=304 arm=q8_0 attempt=1 rc=0 wall_s=43.2 output_chars=2974
+2026-08-24T18:58:19Z ESC_START id=long_it_04 seed=305 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:59:03Z ESC_DONE id=long_it_04 seed=305 arm=control attempt=1 rc=0 wall_s=44.0 output_chars=3217
+2026-08-24T18:59:03Z ESC_START id=long_it_04 seed=305 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T18:59:48Z ESC_DONE id=long_it_04 seed=305 arm=q8_0 attempt=1 rc=0 wall_s=44.2 output_chars=2927
+2026-08-24T18:59:48Z ESC_START id=long_it_04 seed=306 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:00:21Z ESC_DONE id=long_it_04 seed=306 arm=control attempt=1 rc=0 wall_s=33.1 output_chars=2489
+2026-08-24T19:00:21Z ESC_START id=long_it_04 seed=306 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:01:06Z ESC_DONE id=long_it_04 seed=306 arm=q8_0 attempt=1 rc=0 wall_s=45.6 output_chars=2803
+2026-08-24T19:01:06Z ESC_START id=long_it_04 seed=307 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:01:53Z ESC_DONE id=long_it_04 seed=307 arm=control attempt=1 rc=0 wall_s=47.2 output_chars=3132
+2026-08-24T19:01:53Z ESC_START id=long_it_04 seed=307 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:02:38Z ESC_DONE id=long_it_04 seed=307 arm=q8_0 attempt=1 rc=0 wall_s=44.9 output_chars=3232
+2026-08-24T19:02:38Z ESC_START id=long_it_04 seed=308 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:03:20Z ESC_DONE id=long_it_04 seed=308 arm=control attempt=1 rc=0 wall_s=42.2 output_chars=3337
+2026-08-24T19:03:20Z ESC_START id=long_it_04 seed=308 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:04:06Z ESC_DONE id=long_it_04 seed=308 arm=q8_0 attempt=1 rc=0 wall_s=45.1 output_chars=2856
+2026-08-24T19:04:06Z ESC_START id=long_it_04 seed=309 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:04:47Z ESC_DONE id=long_it_04 seed=309 arm=control attempt=1 rc=0 wall_s=40.9 output_chars=2218
+2026-08-24T19:04:47Z ESC_START id=long_it_04 seed=309 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:05:31Z ESC_DONE id=long_it_04 seed=309 arm=q8_0 attempt=1 rc=0 wall_s=44.1 output_chars=2462
+2026-08-24T19:05:31Z ESC_START id=long_it_04 seed=310 arm=control attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:06:26Z ESC_DONE id=long_it_04 seed=310 arm=control attempt=1 rc=0 wall_s=55.8 output_chars=3144
+2026-08-24T19:06:26Z ESC_START id=long_it_04 seed=310 arm=q8_0 attempt=1 n_predict=1024 threads=8 priority=Idle
+2026-08-24T19:07:17Z ESC_DONE id=long_it_04 seed=310 arm=q8_0 attempt=1 rc=0 wall_s=50.8 output_chars=3127
+2026-08-24T19:07:17Z ESC_ALL_GEN_DONE planned=20 existing_skips=0 recorded_runs=20

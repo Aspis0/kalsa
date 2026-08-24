@@ -1,0 +1,24 @@
+User:
+Un treno parte alle 09:10 e arriva alle 11:05. Quanto dura il viaggio in minuti? Rispondi in italiano con i passaggi.
+
+Assistant:
+Il treno parte alle 09:10 e arriva alle 11:05.
+
+Dobbiamo calcolare la durata del viaggio in minuti.
+
+Prima, calcoliamo la differenza tra le due ore:
+
+Dalla 09:10 alla 11:05 ci sono:
+
+- Dal 09:10 al 11:00: 1 ora e 50 minuti  
+- Dal 11:00 al 11:05: 5 minuti
+
+Quindi, totali: 1 ora e 50 minuti + 5 minuti = 1 ora e 55 minuti.
+
+Ora convertiamo 1 ora e 55 minuti in minuti:
+
+1 ora = 60 minuti  
++ 55 minuti = 115 minuti
+
+**Risposta: 115 minuti.**
+

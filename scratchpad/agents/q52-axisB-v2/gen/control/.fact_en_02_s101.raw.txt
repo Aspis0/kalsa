@@ -1,0 +1,6 @@
+User:
+Which planet in the Solar System has the Great Red Spot? Answer in English.
+
+Assistant:
+The Great Red Spot is a giant storm on Jupiter, the largest planet in the Solar System.
+

@@ -1,0 +1,12 @@
+User:
+Narra in prima persona un pomeriggio d'estate a Bologna, circa 300 parole, tono realistico, niente elementi fantastici. Tutto in italiano.
+
+Assistant:
+Era un pomeriggio d’estate che sembrava non voler finire mai. La città, con le sue strade strette e i muri bianchi che si affacciavano alle finestre, era un caldo che si era insediato come un vecchio amico. Il sole, alto e implacabile, illuminava i ciottoli della Via Emilia come se fosse un’immagine di un quadro che non voleva essere cancellato. Camminavo, con la giacca leggera di cotone che mi scappava dalle spalle, e l’aria mi sembrava un po’ più pesante, come se il calore fosse un’entità a sé stante, che si accumulava nei vicoli e nei portici.
+
+Ogni tanto, un passante si fermava, con un sorriso stanco, e guardava il cielo come se fosse l’unico luogo dove la vita fosse ancora possibile. Il profumo del cibo di strada, un’arancia di arancino appena cotto, si diffondeva dalle botteghe di via San Felice, dove la gente si aggrappava ai tavoli di legno, con il vino rosso che si faceva più dolce col passare delle ore. Un vecchio, con i suoi occhiali da sole e la camicia a righe, mi guardò e mi disse, con voce bassa: “Tieni, è l’ultimo, ma non ti farà male.” Non mi chiesi perché, ma non mi importava. Era il tempo che mi faceva sentire vivo.
+
+Il profumo di un gatto che si riposava sulla pietra, accanto a un’altra pietra con un’incisione antica, mi fece pensare a quanto la città fosse stata, per secoli, un punto di passaggio. Non era una città che si nascondeva, ma una che si lasciava guardare, senza mai dire “no” a chiunque avesse bisogno di un po’ di calore. Le ombre dei portici si allungavano, poi si accorciavano, come se la città stesse respirando, in un ritmo che non aveva bisogno di parole.
+
+Quando la luce iniziò a scaldarsi, i ragazzi si riversarono nei parchi, con le bottiglie di birra in mano, e la gente si fermava per parlare, per ascoltare, per non sentirsi soli. Non era una festa. Era un momento. Un momento che non si ripeteva mai, e che, se lo guardavi bene, ti faceva sentire che la vita era un po’ più grande di quello che ci dicevano di essere. Non mi accorsi di quanto fosse lungo il pomeriggio, finché non sentii la voce del vento che mi diceva: “Fai ancora una passeggiata.” E, per la prima volta, non mi sentii solo.
+

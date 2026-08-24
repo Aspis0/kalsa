@@ -1,0 +1,32 @@
+User:
+Scrivi una lettera formale di circa 200 parole a un Comune italiano per chiedere il permesso di occupare suolo pubblico sabato prossimo con un banchetto di libri usati in una piazza. Italiano, registro burocratico-civile, con destinatario fittizio ma realistico.
+
+Assistant:
+**Oggetto: Richiesta di autorizzazione per l’occupazione del suolo pubblico per un banchetto di libri usati**
+
+**A. S. **Comune di **[Nome del Comune]**, via **[Indirizzo o ufficio competente]**, 2024
+
+Egregio Signore,
+
+Con la presente, mi permetto di richiedere formalmente l’approvazione per l’occupazione temporanea del suolo pubblico, in via **[Piazza o piazza specifica, es. “Piazza della Libertà”]**, sabato prossimo, per un banchetto di libri usati, in occasione della **“Giornata della Lettura”**, promossa dall’Associazione Culturale “Libri in Movimento” e sostenuta da un gruppo di volontari.
+
+La manifestazione, che si svolgerà dalle ore 10:00 alle 18:00, ha come scopo principale la valorizzazione del patrimonio bibliotecario, la promozione della lettura tra le generazioni e l’attivazione di un punto di incontro culturale per cittadini di ogni età. L’organizzazione ha ottenuto l’approvazione preliminare da parte del Centro di Cultura e Promozione (C.C.P.) del Comune, e ha già ricevuto l’incoraggiamento da parte della Giunta Comunale. Il banchetto sarà costituito da 15 tavoli, con un’area di 120 m², e sarà dotato di un’area di sosta per il personale e di un sistema di sicurezza (fascia di protezione, segnali di ingresso, e monitoraggio da parte di un volontario qualificato).
+
+La presenza di libri usati, che sono stati raccogliati da donazioni e da un’ampia campagna di raccolta in biblioteche e scuole, non comporterà alcuna alterazione del suolo, né alcun danno all’infrastruttura pubblica. La manifestazione sarà sostenuta da un’alimentazione leggera (acqua, frutta, cibi a basso impatto) e sarà accompagnata da una breve presentazione di autori locali, con un’attività di scambio di libri tra i visitatori.
+
+In caso di rifiuto, mi si chiede di poter rispettare le norme vigenti e di fornire, su richiesta, un’altra data e un’area alternativa, ma mi auguro che la vostra amministrazione possa accogliere con favore una iniziativa che promuove il valore della cultura e del risparmio, in linea con le politiche di sostenibilità e di valorizzazione del territorio.
+
+Per quanto riguarda la responsabilità civile, l’organizzazione ha assunto una responsabilità assoluta e ha assunto l’obbligo di garantire la pulizia e la rimozione dei rifiuti, nonché l’eliminazione dei tavoli e dei materiali post-evento. Inoltre, la presenza di un segnale di sicurezza e di un’area di raccordo con le forze dell’ordine locali sarà garantita.
+
+Sono certo che la vostra amministrazione, con la sua lunga tradizione di promozione della cultura e del patrimonio locale, riconoscerà l’importanza di questa iniziativa. Mi auguro di poter ricevere, entro il 20 aprile 2024, una risposta positiva, che permetterebbe di realizzare un evento di grande valore sociale e culturale.
+
+Con l’alta considerazione,
+
+**[Nome e Cognome]**  
+**[Indirizzo]**  
+**[Telefono e Email]**  
+**[Riferimento all’Associazione “Libri in Movimento”]**  
+**[Firma e firma di un volontario qualificato]**  
+
+*“La cultura non si compra, si condivide.”*
+

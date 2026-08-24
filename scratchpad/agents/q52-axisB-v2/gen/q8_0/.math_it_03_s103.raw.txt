@@ -1,0 +1,14 @@
+User:
+Quanto fa il 15 percento di 80? Rispondi in italiano mostrando il calcolo.
+
+Assistant:
+Il 15 percento di 80 si calcola come segue:
+
+1. Prima, convertiamo il percento in numero decimale:  
+   \( 15\% = \frac{15}{100} = 0.15 \)
+
+2. Poi moltiplichiamo per 80:  
+   \( 0.15 \times 80 = 12 \)
+
+Quindi, il 15 percento di 80 è **12**.
+

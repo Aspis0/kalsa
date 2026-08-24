@@ -1,0 +1,1 @@
+Le machine learning est une méthode par laquelle un système informatique apprend à partir de données pour prendre des décisions ou faire des prédictions, sans être explicitement programmé pour chaque tâche. Il utilise des modèles statistiques pour identifier des patterns dans les données et améliorer sa performance au fil du temps.

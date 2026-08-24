@@ -1,0 +1,1 @@
+Scrivi tre righe bullet che iniziano ciascuna con '- ' (trattino seguito da uno spazio). Il testo delle tre voci deve essere esattamente alfa, beta, gamma in quest'ordine. Nient'altro.

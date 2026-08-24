@@ -1,0 +1,6 @@
+User:
+Write a SQL query that selects email from a table named users where active = 1, ordered by created_at DESC, limited to 10 rows. SQL only, no explanation.
+
+Assistant:
+SELECT email FROM users WHERE active = 1 ORDER BY created_at DESC LIMIT 10;
+

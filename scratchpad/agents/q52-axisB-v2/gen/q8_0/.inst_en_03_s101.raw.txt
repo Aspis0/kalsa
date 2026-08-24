@@ -1,0 +1,8 @@
+User:
+Return a CSV with header name,year and exactly two data rows: Ada,1815 and Alan,1912. No extra lines, no commentary.
+
+Assistant:
+Name,Year
+Ada,1815
+Alan,1912
+

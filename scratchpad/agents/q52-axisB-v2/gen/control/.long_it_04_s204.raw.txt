@@ -1,0 +1,64 @@
+User:
+Redigi un verbale di riunione di condominio di circa 200 parole in cui i condomini decidono di riparare il tetto e di ripartire la spesa per millesimi. Italiano, forma da verbale.
+
+Assistant:
+**Verbale di riunione del condominio**  
+**Data:** 15 aprile 2024  
+**Ore:** 19:00  
+**Luogo:** Sala riunioni del palazzo  
+
+**Condomini presenti:** 12 su 14 iscritti (presenza del 85,7%)  
+**Assenti:** 2 condomini (assenti per motivi di lavoro)  
+
+**Presidente:** Dott. Luca Bianchi  
+**Segretario:** Maria Rossi  
+
+---
+
+**1. Approvazione dell’ordine del giorno**  
+Il presidente annuncia che l’ordine del giorno è stato approvato in modo unanime.  
+“La riunione è stata convocata per discutere due temi principali: la riparazione del tetto e la ripartizione della spesa per millesimi.”  
+
+**2. Discorso del Presidente sulla riparazione del tetto**  
+“Tutti i condomini hanno notato che il tetto ha subito danni significativi a causa delle recenti tempeste. La struttura è in stato di degrado e rischia di causare infiltrazioni d’acqua, danni alle finiture interne e rischi per la sicurezza. Per questo, abbiamo deciso di avviare un’azione urgente per la riparazione del tetto.”  
+
+**3. Proposta di ripartizione della spesa**  
+“La spesa per la riparazione del tetto è stimata in € 12.000. Dopo una discussione con il consiglio di amministrazione, abbiamo deciso di ripartire la spesa in base ai millesimi di proprietà di ciascun condominio, come previsto dall’articolo 1132 del codice civile.”  
+
+**4. Decisione sulle quote**  
+“La ripartizione sarà calcolata come segue:  
+- 1º millesimo: € 150,00  
+- 2º millesimo: € 140,00  
+- 3º millesimo: € 130,00  
+- 4º millesimo: € 120,00  
+- 5º millesimo: € 110,00  
+- 6º millesimo: € 100,00  
+- 7º millesimo: € 90,00  
+- 8º millesimo: € 80,00  
+- 9º millesimo: € 70,00  
+- 10º millesimo: € 60,00  
+- 11º millesimo: € 50,00  
+- 12º millesimo: € 40,00  
+- 13º millesimo: € 30,00  
+- 14º millesimo: € 20,00  
+
+Tutti i condomini hanno approvato questa ripartizione con il voto favorevole di 12 su 14, senza obiezioni.”  
+
+**5. Proposta di commissione di riparazione**  
+“Sono stati nominati l’ingegnere Giovanni Fabbri e il manovale Antonio Rossi come commissione di riparazione. La commissione sarà responsabile della gestione dei preventivi, della scelta del fornitore e della supervisione dei lavori.”  
+
+**6. Conclusione e chiamata per la prossima riunione**  
+“La riunione si conclude alle 20:30. La commissione di riparazione sarà incaricata di presentare un preventivo e un piano di lavoro entro 15 giorni. La prossima riunione sarà convocata entro il 1° maggio per approvare il preventivo e nominare il fornitore.  
+Ringraziamo tutti per la collaborazione e per la responsabilità che dimostrano verso il bene comune.”  
+
+**Firma:**  
+Presidente: Dott. Luca Bianchi  
+Segretario: Maria Rossi  
+Condominio: Comune di Roma – via Cavour, 12  
+
+**Nota:** Tutti i condomini presenti hanno confermato che l’azione verrà condotta con trasparenza, con documentazione e con la partecipazione di un tecnico per la verifica dei lavori.  
+
+**Risultato finale:**  
+- Riparazione del tetto approvata  
+- Ripartizione della spesa per mil
+

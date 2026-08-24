@@ -1,0 +1,23 @@
+The word "BOOK" has 4 letters: B, O, O, K. Notice that the letter "O" appears twice, while the other letters (B and K) are unique.
+
+To find the number of distinct permutations, we use the formula for permutations of a multiset:
+
+$$
+\frac{n!}{k_1! \cdot k_2! \cdot \ldots \cdot k_m!}
+$$
+
+where $ n $ is the total number of letters, and $ k_i $ are the frequencies of each repeated letter.
+
+Here, $ n = 4 $, and the letter "O" is repeated twice (so $ k_1 = 2 $), and the other letters are unique (so their factorials are 1).
+
+So the number of distinct permutations is:
+
+$$
+\frac{4!}{2!} = \frac{24}{2} = 12
+$$
+
+We can also think of it this way: if all letters were distinct, there would be $ 4! = 24 $ permutations. But since the two "O"s are indistinguishable, we divide by 2! to account for the overcounting — each unique arrangement is counted twice in the 24, once for each ordering of the two O’s.
+
+Thus, there are **12 distinct permutations** of the letters in "BOOK".
+
+Answer: 12

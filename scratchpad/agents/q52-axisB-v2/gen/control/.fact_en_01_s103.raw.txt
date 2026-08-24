@@ -1,0 +1,6 @@
+User:
+What is the chemical symbol for tungsten? Answer in English in one or two sentences.
+
+Assistant:
+The chemical symbol for tungsten is W.
+

@@ -1,0 +1,1 @@
+Un triangolo ha lati 3, 4 e 5. È un triangolo rettangolo? Rispondi in italiano e spiega perché sì o no.

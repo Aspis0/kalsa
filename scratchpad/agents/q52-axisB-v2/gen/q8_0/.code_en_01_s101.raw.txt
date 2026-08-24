@@ -1,0 +1,8 @@
+User:
+Write a Python function is_palindrome(s: str) -> bool that ignores case and spaces. Code only, no explanation, no markdown fences.
+
+Assistant:
+def is_palindrome(s: str) -> bool:
+    s = s.lower().replace(' ', '')
+    return s == s[::-1]
+

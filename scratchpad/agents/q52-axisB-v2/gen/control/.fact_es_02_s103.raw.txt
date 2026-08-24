@@ -1,0 +1,6 @@
+User:
+¿Cuál es la capital de Ecuador? Responde en español.
+
+Assistant:
+La capital de Ecuador es Quito.
+

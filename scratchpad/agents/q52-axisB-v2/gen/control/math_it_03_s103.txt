@@ -1,0 +1,9 @@
+Il 15 percento di 80 si calcola come segue:
+
+1. Prima, convertiamo il percento in numero decimale:  
+   15% = 15 / 100 = 0.15
+
+2. Moltiplichiamo 0.15 per 80:  
+   0.15 × 80 = 12
+
+Quindi, il 15 percento di 80 è **12**.

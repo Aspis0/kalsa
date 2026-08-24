@@ -1,0 +1,6 @@
+User:
+Chi ha composto l'opera 'La traviata'? Rispondi in italiano, nome e cognome del compositore.
+
+Assistant:
+La traviata è stata composta da Giuseppe Verdi.
+
