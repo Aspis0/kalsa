@@ -12,7 +12,7 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-08-20)
+# ⭐ STATO CORRENTE — vista compatta (2026-08-24)
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
@@ -20,27 +20,27 @@
 
 ## Dove siamo, in una frase
 
-**ABBIAMO FIXATO I KERNEL MoE OpenCL DI LLAMA.CPP SUGLI ADRENO** — la famiglia
-di GPU (A6X/A7X, cioè S23/S24 e simili) per cui upstream ha SPENTO l'intero
-path MoE "for now" per miscompilazioni mai capite: noi le abbiamo dissezionate
-(tre miscompile del compilatore Qualcomm, caratterizzati al bit), fixate e
-verificate al byte sul device — **i quant narrow MoE (q4_0/q4_1/q5_0/q5_1/mxfp4)
-passano ORA su Adreno 740, dove non erano mai passati**. Il giudice del test
-è riabilitato, la produzione è dimostrata immune. **E il 20/08 notte è caduto
-anche K2**: q4_K/q5_K MoE su MUL_MAT_ID — cioè i quant K standard del mondo
-reale (Q4_K_M compreso, tocca Mellum2) — da 0/84 a 84/84 sul device (tag
-kalsakernel-v3). **E il 21/08 la prima misura di velocità sul path riparato:
-esperti su GPU = 2.17× in burst e ~1.5× sustained vs esperti CPU, più fresco
-(OLMoE q4_K, esplorativa).** Questo è IL risultato pubblicabile del progetto
-kernel: upstream ha spento la GPU, noi l'abbiamo riaccesa con quattro diff
-minimali — e va il doppio. **E il 21/08 sera il passo oltre la riparazione:
-kernel MoE q2_K/q3_K scritti DA ZERO (non esistono upstream per NESSUNA GPU) —
-gli esperti della ricetta KEXP girano su GPU per la prima volta in assoluto
-(tag kalsakernel-v4, 401/401, smoke LFM2.5 con entrambi i tipi in dispatch).**
-**E il 21/08 sera i numeri: SHIP pre-registrato 1.553× OLMoE (N≥5 v1.2,
-audit BANK) e 1.81× esplorativo sugli esperti KEXP (LFM2.5, kernel nostri),
-in entrambi i casi più fresco della controparte CPU. Chiusa anche la coda
-#3 (cherry-pick #26476: dense 925/925).**
+**LA MAPPA A TRE MOTORI È COMPLETA E MISURATA PER GENERAZIONE** (dettaglio:
+`docs/ALIVE.md` §8). Le campagne chiuse, in ordine: (1) **GPU/Adreno** — i
+kernel MoE OpenCL che upstream aveva spento: 4+1 miscompile E031 dissezionati
+al bit e fixati + kernel q2_K/q3_K scritti da zero (esistono solo da noi),
+407/407 su DUE compiler (740+750); decision table onesta: CPU vince il decode
+ovunque, GPU = cool-mode su KEXP (740) o parità+prefill 2.5× (750). (2) **CPU
+repack q2_K/q3_K v1** (#29) — residenza 6.6× dove il device sfratta, consolidato
+su kalsallama `main`, **bug di produzione 3D fixato e mergiato 24/08
+(`a0cabca6b`)**: arm di accettazione 464s sbloccato lato app. (3) **NPU/HTP**
+— campagna 22–24/08: prefill-only ovunque (decode 0.37–0.63×, mai vinto);
+denso/ibrido 3.5×/3.19× (v73/v75); **B′ Q8_0-trunk: gate PPL multilingue PASS
+5/5 (meglio del control su OGNI lingua, +1.95% size, decisione owner strada
+(a))**, tronco-su-NPU 1.46× (Marco/v75) con **primo J/token: 0.86× vs CPU**;
+**PRIMA MONDIALE: esperti MoE eseguiti su NPU — pp512 686 t/s = 4.82× su v75**
+(miglior rapporto NPU della campagna); v73 muore sui grafi MoE per due difetti
+skel caratterizzati → **policy F6 owner-confirmed: esperti-su-NPU = v75-class
+only**. Asse B comportamentale Marco-B′: FAIL v1 per un loop greedy (giudice
+cieco però 6:1 PER B′) → cella v2 col sampler di produzione in preparazione
+(q52). Per l'app: sweep -ngl bancato — costo GPU ≈ **750 MiB fissi + 1.0×byte**,
+mmap invisibile a MemAvailable, copie GPU invisibili a RSS (il loro fit-gate
+ora ha i numeri).
 
 ## Il capitolo del fix Adreno (nome interno: "trans4"), chiuso 19–20/08
 
