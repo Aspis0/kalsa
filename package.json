@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "harness:markdown": "node scripts/markdownHarness.mjs",
     "doctor": "expo-doctor",
-    "postinstall": "patch-package",
+    "postinstall": "scripts/sync-kalsallama.sh overlay && patch-package",
     "telemetry:flush": "node workers/telemetry/flush.mjs",
     "harness:telemetry": "node scripts/telemetryHarness.mjs",
     "harness:research": "node scripts/researchPlanHarness.mjs"

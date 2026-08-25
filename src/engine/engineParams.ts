@@ -62,7 +62,9 @@ export type EngineParamsSlice = {
  * - nThreadsPrefill: consumed by applyPrefillThreadOverride after this call.
  * - nUbatch: clamped to params.n_batch ?? 512.
  * - moeStream: forwarded only when explicitly present; production omits it.
- * - useMmap: same rule — bench-only residency probe, never defaulted.
+ * - useMmap: same rule. Production now always sends use_mmap itself (resolved
+ *   per-model load policy, loadPolicy.ts); this override is the bench arm that
+ *   wins over that policy when present.
  * Absent fields leave params untouched. Empty/undefined override is a no-op.
  */
 export function applyEngineOverride<T extends EngineParamsSlice>(
@@ -96,7 +98,9 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
     // Blocking that cell too made the one untested configuration unmeasurable,
     // in the bench as well as in production, since both share this path.
     // So: Android needs an explicit `flashAttn: "off"` in the SAME override.
-    // Production sets no override at all and stays n_gpu_layers=0 either way.
+    // Production sets no override, so it keeps whatever deviceTuning chose —
+    // which is now GPU offload on Android, not 0. Ignoring the override here
+    // therefore leaves production's value standing; it does not force CPU.
     if (platformOS === "android" && override.flashAttn !== "off") {
       console.warn(
         "bench:engine nGpuLayers ignored on Android — Hexagon/HTP offload " +
@@ -121,9 +125,8 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
     params.moe_stream = override.moeStream;
   }
 
-  // Only when explicitly present: absent must stay absent, because llama.rn
-  // derives load_mode from the pair and a defaulted false would silently turn
-  // every production load into a non-mmap one.
+  // Only when explicitly present: an absent field must not clobber the
+  // per-model policy resolution already written into params by initEngine.
   if (override.useMmap !== undefined) {
     params.use_mmap = override.useMmap;
   }

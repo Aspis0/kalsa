@@ -59,7 +59,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { PdfExtractError, PdfToImages } from "../components/PdfToImages";
 import { MarkdownText } from "../chat/MarkdownText";
 import { isSafeHttpUrl } from "../util/url";
-import { isBenchCommand, tryHandleBenchCommand } from "../bench/benchConfig";
+import { isBenchCommand, tryHandleBenchCommand, getBenchNoRepack } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import {
@@ -1872,6 +1872,7 @@ export function AiChatPage({
         engineCtx: model.engineCtx,
         kvBytesPerToken: model.kvBytesPerToken,
         mmproj: model.mmproj ? { sizeBytes: model.mmproj.sizeBytes } : null,
+        loadPolicy: model.loadPolicy,
       },
       available,
       {
@@ -1879,6 +1880,8 @@ export function AiChatPage({
         recoverLost,
         lostModelId,
         requestedModelId: mid,
+        // Same resolved mode initEngine will load with.
+        benchNoRepack: await getBenchNoRepack(),
       },
     );
     try {

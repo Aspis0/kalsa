@@ -86,6 +86,17 @@ before repeating it.
 - **Open:** why does the app hold 5.15 GB of file pages with 0.92 GB available when the CLI holds
   the same pages with 5.8 GB available? Not mlock, not repack (that arm was `norepack=1`).
 
+**The engine — the app finally runs our own fork, and it computes correctly** (§7.51, §7.52)
+- Pin `a0cabca6b`. Before 2026-08-23 the app had **never** compiled kalsallama: every benchmark
+  before that date measured llama.rn's vendored upstream. Do not compare across that line.
+- ⭐ **Correctness is closed**: 5 models, ~20 turns, **0 engine faults**. The proof arm is
+  `qwen3.5-4b-q3` (entirely `Q3_K_M`, 100 `q3_K_8x4` repacks), because Q3 is the type that died.
+- ⛔ **The memory estimate was wrong in four ways at once** (§7.52), the largest being that
+  **`mmap = false`** on every load, so weights are anonymous and unreclaimable. Two of seven models
+  do not load at all on an 8 GB phone. A per-model load policy landed in code; **it has never run
+  on a phone.** Anything about memory measured before 2026-08-24 predates it.
+- Read tok/s from `KALSA_TELEMETRY.predictedPerSecond`, always with `tokensPredicted` (§7.49).
+
 **The phone**
 - The Jelly is **UFS** with **f2fs**, 137 GB free, coldest sequential read **984 MB/s** — so a cold
   KEXP load has a ~3.4 s floor (§7.32). Cores: 6×A55 (capacity 348) + 2×A76 (1024).
@@ -1627,6 +1638,113 @@ Cooling is fast (44 → 29 °C in ~10 min with the screen off), so the gate cost
 Battery burn is the other limit: ~30 %/h of sustained 4B inference, so with the sibling repo's
 30 % floor one discharge holds ~2.3 h of measurement.
 
+### 7.52 MEASURED 2026-08-24: the app's memory estimate was wrong in four ways at once, and `mmap = false` was the one nobody had noticed
+
+Seven models, one phone (Jelly, 8 GB), release APK carrying the fork. `am force-stop` + 30 s +
+`/proc/meminfo` before each, then `/proc/<pid>/status` after load. **Two of seven never load at
+all** — killed by lowmemorykiller before reaching ready.
+
+| model | file | loads | RssAnon | RssFile | tok/s |
+|---|---:|---|---:|---:|---:|
+| Qwen 3.5 2B Q4_K_M | 1.28 GB | yes | 3.74 GB | 134 MB | 7.87 |
+| LFM2.5 2.6B QAD-Q4_0 | 1.59 GB | yes | 2.46 GB | 60 MB | 7.05 |
+| Qwen 4B Q3_K_M | 2.26 GB | yes | 3.84 GB | 96 MB | 1.59 |
+| Qwen 3.5 4B Q4_K_M | 2.83 GB | yes | 4.30 GB | 102 MB | 3.32 |
+| LFM2.5 8B-A1B KEXP | 3.33 GB | yes | — | — | — |
+| Gemma 4 E2B Q4_K_M | 4.1 GB | **NO — lmkd** | | | |
+| LFM2.5 8B-A1B Q4_K_M | 5.16 GB | **NO — lmkd** | | | |
+
+The load ceiling on this phone sits between 3.33 GB (KEXP loads) and 4.1 GB (Gemma dies).
+
+**`RssFile` is ~100 MB on every model regardless of size**, and the reason is one line in the load
+log that had never been read:
+
+    load_tensors: loading model tensors, this can take a while... (mmap = false, direct_io = false)
+
+**No `CPU_Mapped` buffer exists in any log from that night.** With mmap off the weights are
+anonymous: the kernel cannot reclaim them, it can only swap, and then lmkd kills. That is exactly
+what the kill lines say — `device is low on swap (72kB < 876004kB) and thrashing (304%)`, never
+"low on RAM". §7.45 turned `use_mmap=false` on deliberately because the KEXP thrashes when its
+experts get evicted; what was missed is that the setting is **global**, so it converts every other
+model's weights from evictable to non-evictable too.
+
+**Four independent errors in `memoryEstimate.ts`, all found the same night:**
+1. Term 1 (weights) is documented as *"mmap'd, file-backed, EVICTABLE"*. False in the shipped
+   build: mmap is off, so they are anonymous. The gate counted reclaimable memory that is not.
+2. `REPACK_FRACTION = 0.895`, calibrated on the 2B alone. The Q3 load log shows
+   `CPU_REPACK model buffer size = 2265.50 MiB` against a **2264.53 MiB** file — 1.00×, not 0.895×.
+3. **The vision projector loads even for text-only use** — `mmproj-F16.gguf`, 641 MiB, confirmed in
+   the Qwen 4B log; `initMultimodal` is unconditional. The term is absent from the estimator.
+4. `n_ctx` resolves to **16384** where the registry says `engineCtx: 8192` (the Jelly upgrades
+   hybrids), and `kvBytesPerToken` is missing for six of seven models, so KV is estimated as **zero**.
+
+⛔ **A trap that cost two wrong readings in ten minutes.** `logcat -d` dumps the whole ring buffer,
+so a load log contains the *previous* model's lines. Two sets of buffer sizes are not two resident
+models — until you check the timestamps AND the pid. Here they were 13:55:28 and 13:58:05 under the
+**same pid 8958**: two loads, one process, and the first model's memory still held. So the app does
+carry two models at once when you switch models in-app (it auto-reloads the previously selected one
+at startup, then loads the new one), and that closes the Qwen 2B row exactly:
+1511.20 + 206.07 + 1208.95 + 399.94 + compute 248.50 + 129.00 + KV 104 + 78 + RS 19.27 + 0.34
+= **3906 MiB predicted against 3828 MiB measured**. The Qwen 4B row closes differently — one load
+plus the 641 MiB projector — so *two different causes*, one per row. Not knowable whether the
+memory is never freed or freed-but-not-returned by the allocator; dispose IS called
+(`LlamaService.ts`), which points at the allocator.
+
+**What landed as a result (code, not yet measured on a phone):** a per-model load policy of two
+booleans (`mmap`, `repack`) living on the registry entry, resolved by `src/engine/loadPolicy.ts`.
+Precedence **streaming > bench > per-model > default**, default `{mmap: true, repack: true}` —
+llama.cpp's own normal behaviour, because the previous global setting was the defect and there is
+no installed base to protect. `kalsa.bench.norepack` is now tri-state (`"1"` off, `"0"` **forced
+on**, absent → policy) specifically so the repack-on arm stays measurable on a model whose policy
+turns it off. The estimator now models weights as a **partition**, not two copies: mmap off means
+the bytes land once, in `CPU` or in `CPU_REPACK`, never both.
+
+⭐ **The estimator now reproduces the measurements, and this is the only reason to trust it:**
+Qwen 4B Q3 predicted 3879.5 MiB against **3936 measured (−1.4 %)**; Qwen 4B Q4_K_M predicted
+4459.1 against **4402 (+1.3 %)**. No constant was tuned to make that happen, and the anchor factor
+(1.32) comes from a different model than the two validation points.
+
+⚠️ **Still weak, do not over-trust:** KV is counted zero on six models; `REPACK_FRACTION` stays
+under-calibrated (it is only used on the mmap-on branch); n = 3 for the anon-weights factor, one
+model family. And **none of this has run on a phone yet** — the APK was not rebuilt.
+
+---
+
+### 7.51 MEASURED 2026-08-24: the fork computes correctly in the app — 0 engine faults over 5 models, and the Q3 model is what proves it
+
+The defect fixed in `a0cabca6b` did not crash; it produced silently wrong bytes. So "it loads and
+generates" was never the question — correctness was. Answered on the Jelly, release APK:
+**five models, ~20 turns, zero turns classified ENGINE.**
+
+The decisive arm is **`qwen3.5-4b-q3`, 5/5 clean**. It is entirely `Q3_K_M` — **100 `q3_K_8x4`
+repacks at load** — and Q3 is the type that actually died before the fix (LFM's Q2 is 64-aligned
+and always passed, which is why the first diagnosis blamed the wrong quant). KEXP carries only 22
+q3 tensors; this model is nothing else.
+
+It also **separates model from engine**, which the KEXP alone could not: "elenca 15 città italiane"
+came out clean here, where KEXP refused it and wrote the non-word `ciue`. §7.38 had already
+measured the 8B tiers failing answer-language ~30 % **on upstream**, before our kernel existed —
+so the broken Italian is the artefact, not the kernel.
+
+**The grading rule that made this usable, keep it:** a *coherent, plausible* error is the model; a
+*broken* one — endless repetition, garbled characters, invented words, mid-sentence language
+switches, progressive degeneration — is the engine. Exact-repetition prompts are the clean signal
+because they need no reasoning: either the string comes back identical or it does not. Four such
+probes stayed byte-identical across a growing context, including one fired immediately after the
+worst-quality turn.
+
+Supporting evidence, all read off the artifacts rather than an agent's report: pid unchanged across
+every turn (a silent crash-and-restart would look like a fresh conversation), no `Fatal`/`abort`
+line for `com.kalsa.app` in the buffer, and — statically — the sizing bug class can no longer be
+silent: `vendor/kalsallama-cpp/ggml-cpu/repack.cpp` aborts on a q23k source/dest size mismatch and
+on views over packed tensors. "It loaded without aborting" is now evidence about sizes. It says
+nothing about the packing arithmetic; that is what the device turns cover.
+
+⚠️ Speed is **stable** (no decay within a run) but tracks size, not quant: 7.87 / 7.05 / 3.32 /
+1.59 tok/s. Read it from **`KALSA_TELEMETRY`** (`predictedPerSecond`, a plain `console.log` in
+`LlamaService.ts`, so it survives release) and always next to `tokensPredicted` — see §7.49.
+
+---
 ### 7.50 MEASURED 2026-08-23: expert streaming is 21x on the 8B IN THE APP — and it kills a hypothesis I had pre-registered against it
 
 I predicted this arm would fail, in writing, on the strength of §7.40's opening line (*"§7.39 measured

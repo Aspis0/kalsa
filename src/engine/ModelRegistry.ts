@@ -15,6 +15,7 @@
  */
 
 import type { RamTier } from "./contextProfile";
+import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
 
 export type ModelFileSpec = {
@@ -137,6 +138,22 @@ export type ModelInfo = {
    * dense model has no routed experts and must never carry this.
    */
   canStreamExperts?: boolean;
+  /**
+   * Weight-load policy for THIS model: mmap and repack, resolved by
+   * loadPolicy.resolveLoadPolicy. Precedence: bench levers (kalsa.bench.norepack,
+   * bench:engine useMmap) > expert streaming > this entry > DEFAULT_LOAD_POLICY.
+   *
+   * The default ({mmap:true, repack:true}) is llama.cpp's own normal behaviour
+   * (common/common.h:574): weights stay mapped on the GGUF file — page-cache
+   * backed, reclaimable by the kernel under pressure. It is the correct
+   * configuration, not a trade-off; entries below deviate only on a measure.
+   *
+   * Adding the policy CHANGES THE LOAD BEHAVIOUR OF EVERY MODEL: measured device
+   * logs until now show `load_tensors ... (mmap = false)` — anonymous,
+   * unreclaimable weights — for every entry. This is deliberate; re-measure on
+   * device after rebuilding before drawing conclusions from older runs.
+   */
+  loadPolicy?: LoadPolicy;
   default?: boolean;
 };
 
@@ -231,6 +248,11 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     contextLength: 131072,
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
+    // One of the two models that did not load at all on an 8 GB phone (lmkd
+    // kill): with repack on, load_tensors builds CPU_REPACK ≈ file size of
+    // ANONYMOUS memory on top of the weights (2265.50 MiB on a 2264.53 MiB
+    // file). Repack off keeps the weights entirely file-backed/reclaimable.
+    loadPolicy: { mmap: true, repack: false },
     descriptionKey: "models.gemmaE2b.description",
   },
   {
@@ -315,6 +337,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
       bytes: 2_816_708_608,
       measuredAtContextTokens: 8192,
     },
+    // Same failure as gemma-4-e2b: repack's anonymous copy ≈ file size kills
+    // the load on an 8 GB phone. When the gate arms expert streaming it
+    // re-forces no_extra_bufts anyway and outranks this (loadPolicy.ts).
+    loadPolicy: { mmap: true, repack: false },
     descriptionKey: "models.lfm258b.description",
   },
   {
@@ -358,6 +384,12 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     // gate will not stream this build. The missing measurement is the guard,
     // not the flag.
     canStreamExperts: true,
+    // MEASURED deviation — the only mmap-off entry. With eviction active the
+    // whole plan went 3055 s with mmap against 464 s with use_mmap=false on the
+    // S23 (HARNESS_FINDINGS §7.45; §7.48 confirmed the mechanism: on the Jelly,
+    // which never evicts, the same flag bought nothing). Anonymous weights are
+    // what keeps this model off the reclaim path it provokes.
+    loadPolicy: { mmap: false, repack: true },
     descriptionKey: "models.lfm258b.description",
   },
 ];

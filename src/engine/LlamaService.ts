@@ -61,6 +61,7 @@ import {
 } from "./engineParams";
 import type { EngineOverrideFields } from "./engineParams";
 import { shouldStreamModel } from "./modelGateRAM";
+import { resolveLoadPolicy } from "./loadPolicy";
 import {
   createToolCallDeltaStripper,
   LFM_TOOL_CALL_START,
@@ -201,6 +202,8 @@ let activeSpeculativeOverrideKey: string | null = null;
 let activeEngineOverrideKey: string | null = null;
 /** Resolved no_extra_bufts for the loaded engine; part of the skip-reload key. */
 let activeNoExtraBufts: boolean | null = null;
+/** Resolved use_mmap for the loaded engine; part of the skip-reload key. */
+let activeUseMmap: boolean | null = null;
 /** Production expert-streaming decision; part of the skip-reload key. */
 let activeStreamExperts: boolean | null = null;
 /** JSON of engine override for session meta; undefined when production defaults. */
@@ -322,6 +325,14 @@ async function ensureNativeLogCapture(): Promise<void> {
       if (nativeLogTail.length > NATIVE_LOG_CAP) {
         nativeLogTail.splice(0, nativeLogTail.length - NATIVE_LOG_CAP);
       }
+      // Mirror to the console as it arrives, do not only buffer. The tail is
+      // read by rethrowWithNativeTail, which needs a caught error to exist —
+      // and a native LM_GGML_ABORT does not throw, it kills the process. The
+      // line ggml prints immediately before aborting is usually the whole
+      // diagnosis, and buffering it means it dies with the tail. That is not
+      // hypothetical: on 2026-08-23 the engine aborted in load_all_data on the
+      // Jelly and the reason was unrecoverable from the corpse.
+      console.log(`KALSA_NATIVE ${level} ${text}`);
     });
     // LAST, and that placement is the whole point. This flag used to be set
     // BEFORE the try: if toggleNativeLog threw, the listener was never added,
@@ -1154,9 +1165,12 @@ export function initEngine(
     // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
     // repacking). Resolved here so the skip-reload key and the init params share
     // one value; flipping the pref must force a real reload + KALSA_SESSION init.
+    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
+    // repacking). Resolved here so the skip-reload key and the init params share
+    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
-    const noExtraBufts = await getBenchNoRepack();
+    const benchNoRepack = await getBenchNoRepack();
     // Same predicate the RAM gate uses. Production writes params.moe_stream
     // below, BEFORE applyEngineOverride, so a bench A/B still wins.
     const streamExperts =
@@ -1166,14 +1180,31 @@ export function initEngine(
         contextTokens: engineCtx,
         availableMemoryBytes: deviceProfile.availableMemoryBytes,
       });
+    // Per-model load policy (ModelRegistry.loadPolicy → loadPolicy.ts), folded
+    // with the levers that outrank it: bench levers > streaming > policy >
+    // llama.cpp default ({mmap:true, repack:true}). Resolved WITHOUT the
+    // streaming term (streamExperts:false): the force lands in the block below
+    // and in the re-force after applyEngineOverride, so a bench arm that vetoes
+    // moe_stream falls back to exactly this value — the non-streamed config it
+    // means to measure. Tuning therefore sees the policy-honest repack term,
+    // same shape as when only the norepack knob existed.
+    const load = resolveLoadPolicy({
+      policy: modelInfo?.loadPolicy,
+      streamExperts: false,
+      benchNoRepack,
+      benchUseMmap: options.engineOverride?.useMmap,
+    });
     const tuning = await resolveEngineTuning({
       model: modelInfo,
       profile: deviceProfile,
       cpuCapacities: deviceProfile.cpuCapacities,
       request: {
         contextBudget: engineCtx,
-        // When norepack is on, non-evictable estimate drops the repack term.
-        repack: !noExtraBufts,
+        // The resolved load mode, so the estimate prices exactly what init
+        // will allocate: repack off drops that term; mmap off moves the
+        // weights into the non-evictable bucket.
+        mmap: load.useMmap,
+        repack: !load.noExtraBufts,
       },
       platformHint: Platform.OS,
     });
@@ -1192,7 +1223,8 @@ export function initEngine(
       activeCacheTypeV === cacheTypeV &&
       activeSpeculativeOverrideKey === speculativeOverrideKey &&
       activeEngineOverrideKey === engineOverrideKey &&
-      activeNoExtraBufts === noExtraBufts &&
+      activeNoExtraBufts === load.noExtraBufts &&
+      activeUseMmap === load.useMmap &&
       activeStreamExperts === streamExperts
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
@@ -1222,8 +1254,12 @@ export function initEngine(
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
-      // When true, skip the anonymous repack buffer (~file size of extra RSS).
-      no_extra_bufts: noExtraBufts,
+      // Per-model load policy (loadPolicy.ts): mmap keeps the weights mapped on
+      // file — page-cache backed, kernel-reclaimable. A bench:engine useMmap
+      // still wins below (applyEngineOverride overwrites when present).
+      use_mmap: load.useMmap,
+      // True → skip the anonymous repack buffer (~file size of extra RSS).
+      no_extra_bufts: load.noExtraBufts,
       n_ctx: effectiveNCtx,
       n_batch: 512,
       // HARD GUARD (moe-experiments F5.1): ubatch ≤512; default 256 ≈ 250 MB.
@@ -1251,12 +1287,15 @@ export function initEngine(
     }
 
     // Bench-only engineOverride: apply after production defaults; absent fields keep production.
-    // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
+    // Production now offloads on Android too (deviceTuning → gpu-opencl); this only decides
+    // whether a bench arm may move n_gpu_layers off that value.
     applyEngineOverride(params, options.engineOverride, Platform.OS);
-    // Streaming forces no_extra_bufts. If a bench arm disabled moe_stream,
-    // fall back to the norepack knob so production streaming cannot leak.
+    // Streaming forces no_extra_bufts and outranks the per-model policy. If a
+    // bench arm disabled moe_stream after the gate said yes, fall back to the
+    // resolved base (bench levers > policy > default) so that arm measures the
+    // non-streamed configuration faithfully rather than inheriting streaming's.
     params.no_extra_bufts =
-      params.moe_stream?.enabled === true ? true : noExtraBufts;
+      params.moe_stream?.enabled === true ? true : load.noExtraBufts;
 
     // Once per load: arm evidence must name the repack mode it ran under.
     // Number (0|1), same KALSA_SESSION shape as save/load (op + extras).
@@ -1343,6 +1382,19 @@ export function initEngine(
     await ensureNativeLogCapture();
     try {
       context = await initLlama(params);
+      // Which .so actually loaded. RNLlama.java tries the CPU-feature variants
+      // in order and tryLoadLibrary swallows UnsatisfiedLinkError silently, so
+      // a phone can quietly run a different kernel than the one being measured
+      // — and the generic librnllama.so carries the patch marker either way, so
+      // assert-native-patch cannot tell. llama.rn already reports it; nothing
+      // read it until now. Only the `_opencl` variant has the GPU backend
+      // compiled in, so this also says whether OpenCL exists on this device.
+      console.log(
+        `KALSA_NATIVE_VARIANT ${JSON.stringify({
+          androidLib: context.androidLib ?? null,
+          nGpuLayers: params.n_gpu_layers ?? 0,
+        })}`,
+      );
     } catch (error) {
       try {
         // Opt-in telemetry: categories + allowlisted signal only (no stack/path).
@@ -1370,12 +1422,14 @@ export function initEngine(
       } catch {
         /* telemetry never throws into engine path */
       }
-      // Android offload is bench-only and known to be able to kill init (HTP0
-      // with FA on CPU). There is no other retry on this path, so without this
-      // a stale `kalsa.bench.engine` would leave the model permanently
-      // unloadable behind a "Riprova caricamento" that cannot work — the same
-      // dead end §7.11 documented. Fall back to CPU once, and say so loudly:
-      // a silent fallback would hand the GPU arm a CPU number to publish.
+      // Android offload can kill init — the recorded case is HTP0/Hexagon with
+      // FA on CPU, and an .so built without the OpenCL variant fails here too.
+      // There is no other retry on this path, so without this a phone whose
+      // driver refuses the backend would leave the model permanently unloadable
+      // behind a "Riprova caricamento" that cannot work — the same dead end
+      // §7.11 documented. Fall back to CPU once, and say so loudly: a silent
+      // fallback would hand a GPU arm a CPU number to publish. This now guards
+      // production too, not only the bench: deviceTuning selects gpu-opencl.
       if (Platform.OS === "android" && (params.n_gpu_layers ?? 0) > 0) {
         console.warn(
           `KALSA_GPU_FALLBACK ${JSON.stringify({
@@ -1386,8 +1440,12 @@ export function initEngine(
         params.n_gpu_layers = 0;
         try {
           context = await initLlama(params);
-        } catch {
-          rethrowWithNativeTail(error);
+        } catch (retryError) {
+          // Report the CPU retry's own failure, not the GPU one that got us
+          // here: at 0 layers the weights become resident, so the retry can
+          // die of something else entirely (OOM) and rethrowing the first
+          // error would send that to telemetry under the wrong cause.
+          rethrowWithNativeTail(retryError);
         }
       } else {
         rethrowWithNativeTail(error);
@@ -1401,7 +1459,8 @@ export function initEngine(
     activeCacheTypeV = cacheTypeV;
     activeSpeculativeOverrideKey = speculativeOverrideKey;
     activeEngineOverrideKey = engineOverrideKey;
-    activeNoExtraBufts = noExtraBufts;
+    activeNoExtraBufts = load.noExtraBufts;
+    activeUseMmap = load.useMmap;
     activeStreamExperts = streamExperts;
     activeEngineKnob =
       options.engineOverride !== undefined
@@ -1433,8 +1492,9 @@ export function initEngine(
     if (isMultimodal && options.mmprojPath) {
       let enabled: boolean;
       try {
-        // use_gpu MUST stay false on Android: the LLM is CPU-only (Hexagon
-        // offload was fatal, see n_gpu_layers above) and the first on-device
+        // use_gpu MUST stay false on Android. This is the VISION context, and
+        // it is a separate decision from the LLM's n_gpu_layers above (which
+        // does offload now): the first on-device
         // image turn with use_gpu:true died natively in
         // lm_ggml_gallocr_alloc_graph inside the OpenCL vision graph (MIUI
         // crash report, Xiaomi 14, 2026-08-07 17:12). CPU encode is seconds
@@ -1522,6 +1582,7 @@ async function disposeEngineLocked(opts?: {
     activeSpeculativeOverrideKey = null;
     activeEngineOverrideKey = null;
     activeNoExtraBufts = null;
+    activeUseMmap = null;
     activeStreamExperts = null;
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;

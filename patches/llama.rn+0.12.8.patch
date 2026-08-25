@@ -1,5 +1,5 @@
 diff --git a/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt b/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt
-index 8ef1659..41f9dfd 100644
+index 8ef1659..61ba57c 100644
 --- a/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt
 +++ b/node_modules/llama.rn/android/src/main/rnllama/CMakeLists.txt
 @@ -29,6 +29,30 @@ file(GLOB MTMD_MODEL_FILES CONFIGURE_DEPENDS ${RNLLAMA_LIB_DIR}/tools/mtmd/model
@@ -58,6 +58,293 @@ index 8ef1659..41f9dfd 100644
      target_link_libraries(${target_name} PRIVATE ${LOG_LIB} android)
  
      if (${arch} STREQUAL "generic")
+@@ -211,36 +246,126 @@ function(build_rnllama_library target_name arch cpu_flags)
+     if (ENABLE_OPENCL)
+         include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../../../../third_party/OpenCL-Headers)
+ 
++        # Derived from the kalsallama overlay, NOT hand-maintained. This is exactly the set of
++        # <name>.cl.h that cpp/ggml-opencl/ggml-opencl.cpp #includes, which is exactly the set of
++        # cpp/ggml-opencl/kernels/*.cl the fork ships (156 of each, verified equal). llama.rn's
++        # own list named 17 kernels the fork dropped and missed the four Adreno q2_k/q3_k ones.
++        # Regenerate after any overlay bump by listing those #includes; a name with no matching
++        # .cl file fails embed_kernel.py at configure time.
+         set(GGML_OPENCL_KERNELS
+             add
+             add_id
+             argsort
+-            tri
+-            fill
+             clamp
++            concat
++            conv2d
++            conv2d_f16_f32
+             cpy
++            cumsum
+             cvt
+-            diag_mask_inf
+             diag
++            diag_mask_inf
+             div
++            exp
++            expm1
++            fill
++            flash_attn_f16
++            flash_attn_f32
++            flash_attn_f32_f16
++            flash_attn_f32_q4_0
++            flash_attn_f32_q8_0
++            flash_attn_pre_f16
++            gated_delta_net
+             gelu
++            gemm_moe_mxfp4_f32
++            gemm_moe_mxfp4_f32_ns
++            gemm_moe_q2_k_f32_ns
++            gemm_moe_q3_k_f32_ns
++            gemm_moe_q4_0_f32_ns
++            gemm_moe_q4_1_f32_ns
++            gemm_moe_q4_k_f32_ns
++            gemm_moe_q5_0_f32_ns
++            gemm_moe_q5_1_f32_ns
++            gemm_moe_q5_k_f32_ns
++            gemm_moe_q6_k_f32_ns
++            gemm_noshuffle_iq4_nl_f32
++            gemm_noshuffle_q1_0_f32
++            gemm_noshuffle_q4_0_f32
++            gemm_noshuffle_q4_1_f32
++            gemm_noshuffle_q4_k_f32
++            gemm_noshuffle_q5_0_f32
++            gemm_noshuffle_q5_1_f32
++            gemm_noshuffle_q5_k_f32
++            gemm_noshuffle_q6_k_f32
++            gemm_noshuffle_q8_0_f32
++            gemm_xmem_f16_f32_os8
++            gemv_moe_mxfp4_f32
++            gemv_moe_mxfp4_f32_ns
++            gemv_moe_q2_k_f32_ns
++            gemv_moe_q3_k_f32_ns
++            gemv_moe_q4_0_f32_ns
++            gemv_moe_q4_1_f32_ns
++            gemv_moe_q4_k_f32_ns
++            gemv_moe_q5_0_f32_ns
++            gemv_moe_q5_1_f32_ns
++            gemv_moe_q5_k_f32_ns
++            gemv_moe_q6_k_f32_ns
++            gemv_noshuffle_iq4_nl_f32
++            gemv_noshuffle_q1_0_f32
++            gemv_noshuffle_q4_0_f32
++            gemv_noshuffle_q4_0_f32_spec
++            gemv_noshuffle_q4_1_f32
++            gemv_noshuffle_q4_k_f32
++            gemv_noshuffle_q5_0_f32
++            gemv_noshuffle_q5_1_f32
++            gemv_noshuffle_q5_k_f32
++            gemv_noshuffle_q6_k_f32
++            gemv_noshuffle_q8_0_f32
+             get_rows
+             glu
+             group_norm
+-            solve_tri
+-            im2col_f32
+             im2col_f16
++            im2col_f32
++            l2_norm
+             mean
++            moe_reorder_b
++            moe_sort_by_expert
++            mul
++            mul_mat_f16_f32
++            mul_mm_f16_f32_kq_kqv
++            mul_mm_f16_f32_l4_lm
++            mul_mm_f32_f32_l4_lm
++            mul_mm_iq4_nl_f32_l4_lm
++            mul_mm_q1_0_f32_l4_lm
++            mul_mm_q4_0_f32_l4_lm
++            mul_mm_q4_1_f32_l4_lm
++            mul_mm_q4_k_f32_l4_lm
++            mul_mm_q5_0_f32_l4_lm
++            mul_mm_q5_1_f32_l4_lm
++            mul_mm_q5_k_f32_l4_lm
++            mul_mm_q6_k_f32_l4_lm
++            mul_mm_q8_0_f32_l4_lm
+             mul_mv_f16_f16
++            mul_mv_f16_f32
+             mul_mv_f16_f32_1row
+             mul_mv_f16_f32_l4
+-            mul_mv_f16_f32
+             mul_mv_f32_f32
++            mul_mv_id_mxfp4_f32
++            mul_mv_id_mxfp4_f32_flat
++            mul_mv_id_q4_0_f32_8x_flat
++            mul_mv_id_q8_0_f32
++            mul_mv_id_q8_0_f32_flat
++            mul_mv_iq4_nl_f32
++            mul_mv_iq4_nl_f32_flat
++            mul_mv_mxfp4_f32
++            mul_mv_mxfp4_f32_flat
++            mul_mv_q1_0_f32
++            mul_mv_q1_0_f32_flat
+             mul_mv_q4_0_f32
+-            mul_mv_q4_0_f32_v
+-            mul_mv_q4_0_f32_8x_flat
+-            mul_mv_q4_0_f32_1d_8x_flat
+             mul_mv_q4_0_f32_1d_16x_flat
++            mul_mv_q4_0_f32_1d_8x_flat
++            mul_mv_q4_0_f32_8x_flat
++            mul_mv_q4_0_f32_v
+             mul_mv_q4_1_f32
+             mul_mv_q4_1_f32_flat
+             mul_mv_q4_k_f32
+@@ -255,130 +380,35 @@ function(build_rnllama_library target_name arch cpu_flags)
+             mul_mv_q6_k_f32_flat
+             mul_mv_q8_0_f32
+             mul_mv_q8_0_f32_flat
+-            mul_mv_q1_0_f32
+-            mul_mv_q1_0_f32_flat
+-            mul_mv_iq4_nl_f32
+-            mul_mv_iq4_nl_f32_flat
+-            mul_mv_mxfp4_f32
+-            mul_mv_mxfp4_f32_flat
+-            mul_mv_id_q4_0_f32_8x_flat
+-            mul_mv_id_q8_0_f32
+-            mul_mv_id_q8_0_f32_flat
+-            mul_mv_id_mxfp4_f32
+-            mul_mv_id_mxfp4_f32_flat
+-            gemm_moe_q4_0_f32_ns
+-            gemm_moe_q4_0_q8_1_dp4a
+-            gemv_moe_q4_0_f32_ns
+-            gemm_moe_q8_0_f32_ns
+-            gemm_moe_q4_1_f32_ns
+-            gemv_moe_q4_1_f32_ns
+-            gemm_moe_q5_0_f32_ns
+-            gemv_moe_q5_0_f32_ns
+-            gemm_moe_q5_1_f32_ns
+-            gemv_moe_q5_1_f32_ns
+-            gemm_moe_q4_k_f32_ns
+-            gemm_moe_q4_k_q8_1_dp4a
+-            gemm_moe_q6_k_q8_1_dp4a
+-            gemm_moe_q8_1_dp4a
+-            moe_reorder_quant_a_q8_1
+-            gemm_noshuffle_q4_k_q8_1_dp4a
+-            gemm_noshuffle_q5_k_q8_1_dp4a
+-            gemm_noshuffle_q6_k_q8_1_dp4a
+-            gemm_noshuffle_q8_0_q8_1_dp4a
+-            gemm_noshuffle_q5_0_q8_1_dp4a
+-            gemm_noshuffle_iq4_nl_q8_1_dp4a
+-            gemm_noshuffle_q4_0_q8_1_dp4a
+-            quant_a_q8_1
+-            gemv_moe_q4_k_f32_ns
+-            gemm_moe_q5_k_f32_ns
+-            gemv_moe_q5_k_f32_ns
+-            gemm_moe_q6_k_f32_ns
+-            gemv_moe_q6_k_f32_ns
+-            gemm_moe_mxfp4_f32
+-            gemv_moe_mxfp4_f32
+-            gemm_moe_mxfp4_f32_ns
+-            gemm_moe_mxfp4_q8_1_dp4a
+-            gemv_moe_mxfp4_f32_ns
+-            moe_reorder_b
+-            moe_combine
+-            moe_sort_by_expert
+-            mul_mm_f32_f32_l4_lm
+-            mul_mm_f16_f32_l4_lm
+-            mul_mm_q4_0_f32_l4_lm
+-            mul_mm_q4_1_f32_l4_lm
+-            mul_mm_q5_0_f32_l4_lm
+-            mul_mm_q5_1_f32_l4_lm
+-            mul_mm_q8_0_f32_l4_lm
+-            mul_mm_q1_0_f32_l4_lm
+-            mul_mm_iq4_nl_f32_l4_lm
+-            mul_mm_q4_k_f32_l4_lm
+-            mul_mm_q5_k_f32_l4_lm
+-            mul_mm_q6_k_f32_l4_lm
+-            gemv_noshuffle_q4_0_f32
+-            gemv_noshuffle_q4_0_f32_spec
+-            gemm_noshuffle_q4_0_f32
+-            gemv_noshuffle_q4_1_f32
+-            gemm_noshuffle_q4_1_f32
+-            gemv_noshuffle_iq4_nl_f32
+-            gemm_noshuffle_iq4_nl_f32
+-            gemv_noshuffle_q5_0_f32
+-            gemm_noshuffle_q5_0_f32
+-            gemv_noshuffle_q5_1_f32
+-            gemm_noshuffle_q5_1_f32
+-            gemv_noshuffle_q8_0_f32
+-            gemm_noshuffle_q8_0_f32
+-            gemv_noshuffle_q1_0_f32
+-            gemm_noshuffle_q1_0_f32
+-            gemv_noshuffle_q4_k_f32
+-            gemm_noshuffle_q4_k_f32
+-            gemv_noshuffle_q6_k_f32
+-            gemm_noshuffle_q6_k_f32
+-            gemv_noshuffle_q5_k_f32
+-            gemm_noshuffle_q5_k_f32
+-            mul
+             neg
+             norm
++            oracle_consumer_q4_0_gemm
++            oracle_consumer_q4_0_gemv
++            pad
+             relu
+-            l2_norm
++            repeat
+             rms_norm
+             rope
+             scale
+             set_rows
+             sigmoid
+             silu
+-            softmax_4_f32
+             softmax_4_f16
+-            softmax_f32
++            softmax_4_f32
+             softmax_f16
++            softmax_f32
++            softplus
++            solve_tri
+             sqr
+             sqrt
+             ssm_conv
+-            gated_delta_net
+             sub
+             sum_rows
+-            cumsum
++            tanh
+             transpose
+-            concat
++            tri
+             tsembd
+             upscale
+-            tanh
+-            exp
+-            expm1
+-            abs
+-            softplus
+-            pad
+-            repeat
+-            mul_mat_f16_f32
+-            mul_mm_f16_f32_kq_kqv
+-            conv2d
+-            conv2d_f16_f32
+-            flash_attn_f32_f16
+-            flash_attn_f16
+-            flash_attn_f32
+-            flash_attn_pre_f16
+-            flash_attn_f32_q8_0
+-            flash_attn_f32_q4_0
+-            gemm_xmem_f16_f32_os8
+         )
+         set(GGML_OPENCL_KERNEL_DIR ${RNLLAMA_LIB_DIR}/ggml-opencl/kernels)
+         set(GGML_OPENCL_KERNEL_HEADERS "")
+@@ -414,7 +444,8 @@ function(build_rnllama_library target_name arch cpu_flags)
+         target_include_directories(${target_name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+         target_sources(${target_name} PRIVATE
+             ${RNLLAMA_LIB_DIR}/ggml-opencl/ggml-opencl.cpp
+-            ${RNLLAMA_LIB_DIR}/ggml-opencl/cl-program-cache.cpp
++            # cl-program-cache.{cpp,h} is llama.rn-era only: the kalsallama overlay does not ship it
++            # and the fork's ggml-opencl.cpp never references it. Naming it here fails configure.
+             ${GGML_OPENCL_KERNEL_HEADERS}
+         )
+         target_compile_options(${target_name} PRIVATE
 diff --git a/node_modules/llama.rn/cpp/common/common.cpp b/node_modules/llama.rn/cpp/common/common.cpp
 index 93b2032..5e92298 100644
 --- a/node_modules/llama.rn/cpp/common/common.cpp
@@ -101,112 +388,8 @@ index 080bc20..8014f35 100644
      bool no_host           = false; // bypass host buffer allowing extra buffers to be used
  
      bool single_turn       = false; // single turn chat conversation
-diff --git a/node_modules/llama.rn/cpp/ggml-cpu.h b/node_modules/llama.rn/cpp/ggml-cpu.h
-index 1024e5f..4f19873 100644
---- a/node_modules/llama.rn/cpp/ggml-cpu.h
-+++ b/node_modules/llama.rn/cpp/ggml-cpu.h
-@@ -140,6 +140,54 @@ extern "C" {
- 
-     LM_GGML_BACKEND_API lm_ggml_backend_reg_t lm_ggml_backend_cpu_reg(void);
- 
-+    // Kalsa patch (MoE streaming): the `--overlap` wait point. Called by the CPU backend from
-+    // mul_mat_id for each expert weight matrix about to be consumed (src0 = the expert weight
-+    // tensor, expert = index along dim 2). Every compute thread calls it before reading any row
-+    // of that expert, and the hook MAY BLOCK until that expert's slice is resident. There is no
-+    // barrier inside the expert loop, so a thread blocked on one expert cannot deadlock the
-+    // threadpool: the others move on to the experts already in memory.
-+    //
-+    // Upstream has no equivalent; the eval-callback (the only public hook near routing) fires
-+    // before a layer's expert matmuls run and cannot pause partway through them, which is exactly
-+    // what overlapping reads with compute needs.
-+    //
-+    // PROVENANCE — this is NOT a hand-written edit.
-+    //   repo    Aspis0/kalsallama (private)
-+    //   branch  kalsa/mmap-prefetch-opt @ e5605f3bd
-+    //   files   ggml/src/ggml-cpu/ggml-cpu.c   (globals, setter, call site in mul_mat_id)
-+    //           ggml/include/ggml-cpu.h        (this declaration)
-+    //   commit  5236140e5 "ggml-cpu : add expert-ready hook for mul_mat_id (expert streaming)"
-+    //           e5605f3bd also carries mmap_prefetch (206a8fe7f), which is NOT ported here.
-+    // Every code line here matches that commit modulo the `lm_` prefix — compared line by line
-+    // against the commit, not asserted. Only the comments are ours.
-+    //
-+    // The `#include "ggml-cpu.h"` that commit adds to ggml-cpu.c is part of the change and is
-+    // load-bearing: without it this typedef reaches that file only through vec.h. That compiles
-+    // today and breaks the day llama.rn reshuffles an include — and re-typing the hook by hand is
-+    // exactly how such a line gets dropped. It was dropped here once, and only the diff caught it.
-+    //
-+    // Re-derive it, never re-type it. After a llama.rn bump the whole diff is:
-+    //   git diff 22b69b6e9..e5605f3bd -- ggml/src/ggml-cpu/ggml-cpu.c ggml/include/ggml-cpu.h
-+    // then apply llama.rn's `lm_` symbol prefix. 22b69b6e9 is the upstream base the branch sits on.
-+    // A hand edit in node_modules is how the app's copy silently drifts from the engine the
-+    // benchmarks measure, and the drift is invisible until a number is wrong.
-+    //
-+    // A repo and a commit are named here, not a checkout path: an earlier version of this comment
-+    // cited a path and a branch that did not resolve. The streaming engine vendored under
-+    // native/bmoe/ has a different home again — Aspis0/kalsa-forkbigmoeonedge — so they travel together
-+    // but are not one upstream.
-+    // Scope note for whoever diffs this later: the hook lives in the CPU backend, so it is in
-+    // every build and every CPU variant. Kalsa ships ONE kernel — device differences are settled
-+    // at runtime by which backend loads, never by a per-phone source branch. Anything added to
-+    // the OpenCL backend follows the same rule: it is inert on hardware that cannot run it, which
-+    // is the backend's job and not a reason to fork the build.
-+    // Delete all of it the day upstream ships a residency callback.
-+    typedef void (*lm_ggml_cpu_expert_ready_hook_t)(const struct lm_ggml_tensor * src0, int expert, void * user_data);
-+
-+    // Process-global registration; pass NULL to unregister. NOT thread-safe against a running
-+    // graph compute — register before compute starts, unregister after it has stopped.
-+    LM_GGML_BACKEND_API void lm_ggml_cpu_set_expert_ready_hook(lm_ggml_cpu_expert_ready_hook_t hook, void * user_data);
-+
-     LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_fp32(const float *,       float *, int64_t);
-     LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_i32 (const float *,     int32_t *, int64_t);
-     LM_GGML_BACKEND_API void lm_ggml_cpu_fp32_to_fp16(const float *, lm_ggml_fp16_t *, int64_t);
-diff --git a/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c b/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
-index 5016976..ab92ed7 100644
---- a/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
-+++ b/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c
-@@ -3,6 +3,7 @@
- 
- #include "ggml-backend-impl.h"
- #include "ggml-backend.h"
-+#include "ggml-cpu.h"
- #include "traits.h"
- #include "ggml-cpu-impl.h"
- #include "ggml-impl.h"
-@@ -1451,6 +1452,17 @@ UseGgmlGemm2:;
-     }
- }
- 
-+// Kalsa patch (MoE streaming): the `--overlap` wait point. See ggml-cpu.h for the contract.
-+// Process-global by design — the streamer owns exactly one llama context at a time, and
-+// threading it through params would touch every compute signature for one integration.
-+static lm_ggml_cpu_expert_ready_hook_t g_expert_ready_hook      = NULL;
-+static void *                          g_expert_ready_hook_data = NULL;
-+
-+void lm_ggml_cpu_set_expert_ready_hook(lm_ggml_cpu_expert_ready_hook_t hook, void * user_data) {
-+    g_expert_ready_hook      = hook;
-+    g_expert_ready_hook_data = user_data;
-+}
-+
- // lm_ggml_compute_forward_mul_mat_id
- 
- #define MMID_MATRIX_ROW(row_id, i1) matrix_rows[(row_id)*ids->ne[0]*ids->ne[1] + (i1)]
-@@ -1651,6 +1663,14 @@ static void lm_ggml_compute_forward_mul_mat_id(
-             continue;
-         }
- 
-+        // Kalsa patch (MoE streaming): tell the streamer this expert is about to be read.
-+        // Placed AFTER the not-routed skip, so an expert no token routed to costs no wait,
-+        // and BEFORE src0->data is dereferenced. The hook may block until the slice lands.
-+        // A null check when nothing is registered, which is every non-streaming build.
-+        if (g_expert_ready_hook) {
-+            g_expert_ready_hook(src0, cur_a, g_expert_ready_hook_data);
-+        }
-+
-         const char * src0_cur = (const char *) src0->data + cur_a * nb02;
-         const void * wdata = (src1->type == vec_dot_type) ? src1->data : params->wdata;
-         const size_t row_size = lm_ggml_row_size(vec_dot_type, ne10);
 diff --git a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
-index 650349e..7ee1072 100644
+index 650349e..8649c86 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
 +++ b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
 @@ -300,9 +300,11 @@ namespace rnllama_jsi {
@@ -223,7 +406,29 @@ index 650349e..7ee1072 100644
          }
      }
  
-@@ -329,6 +331,9 @@ namespace rnllama_jsi {
+@@ -311,24 +313,20 @@ namespace rnllama_jsi {
+ 
+         // Model path
+         cparams.model.path = getPropertyAsString(runtime, params, "model");
+-        cparams.vocab_only = getPropertyAsBool(runtime, params, "vocab_only", false);
+-        if (cparams.vocab_only) {
+-            cparams.warmup = false;
++        // Kalsa: kalsallama's common_params has no vocab_only; vocab-only loads are not
++        // supported by this engine. Fail fast rather than silently loading full weights.
++        if (getPropertyAsBool(runtime, params, "vocab_only", false)) {
++            throw std::invalid_argument("vocab_only is not supported by this llama.cpp build");
+         }
+ 
+         cparams.n_ctx = getPropertyAsInt(runtime, params, "n_ctx", cparams.n_ctx);
+-
+-        // For vocab_only models, ensure n_ctx is set because:
+-        // 1. vocab_only models have n_ctx_train = 0 (no tensors loaded)
+-        // 2. Context creation fails if both n_ctx and n_ctx_train are 0
+-        // Use 512 as a minimal default - sufficient for tokenization
+-        if (cparams.vocab_only && cparams.n_ctx == 0) {
+-            cparams.n_ctx = 512;
+-        }
+         cparams.n_batch = getPropertyAsInt(runtime, params, "n_batch", cparams.n_batch);
          cparams.n_ubatch = getPropertyAsInt(runtime, params, "n_ubatch", cparams.n_ubatch);
          cparams.n_parallel = getPropertyAsInt(runtime, params, "n_parallel", cparams.n_parallel);
          cparams.cpuparams.n_threads = getPropertyAsInt(runtime, params, "n_threads", cparams.cpuparams.n_threads);
@@ -233,8 +438,29 @@ index 650349e..7ee1072 100644
  
          std::string cpuMask = getPropertyAsString(runtime, params, "cpu_mask");
  #if defined(__ANDROID__)
-@@ -372,6 +377,45 @@ namespace rnllama_jsi {
+@@ -355,23 +353,51 @@ namespace rnllama_jsi {
+             cparams.chat_template = chatTemplate;
          }
+ 
+-        bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+-            cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+-        bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+-            cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+-        useMlock = getPropertyAsBool(runtime, params, "use_mlock", useMlock);
+-        useMmap = getPropertyAsBool(runtime, params, "use_mmap", useMmap);
+-        if (useMmap && useMlock) {
+-            cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+-        } else if (useMmap) {
+-            cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+-        } else if (useMlock) {
+-            cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+-        } else {
+-            cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+-        }
++        // Kalsa: kalsallama predates load_mode/LLAMA_LOAD_MODE_*; it exposes the
++        // equivalent boolean pair use_mmap/use_mlock instead.
++        cparams.use_mmap = getPropertyAsBool(runtime, params, "use_mmap", cparams.use_mmap);
++        cparams.use_mlock = getPropertyAsBool(runtime, params, "use_mlock", cparams.use_mlock);
          cparams.no_extra_bufts = getPropertyAsBool(runtime, params, "no_extra_bufts", cparams.no_extra_bufts);
  
 +        if (params.hasProperty(runtime, "moe_stream")) {
@@ -279,7 +505,37 @@ index 650349e..7ee1072 100644
          if (params.hasProperty(runtime, "flash_attn")) {
              bool fa = getPropertyAsBool(runtime, params, "flash_attn", false);
              cparams.flash_attn_type = fa ? LLAMA_FLASH_ATTN_TYPE_ENABLED : LLAMA_FLASH_ATTN_TYPE_DISABLED;
-@@ -666,5 +710,9 @@ namespace rnllama_jsi {
+@@ -508,7 +534,9 @@ namespace rnllama_jsi {
+         sparams.grammar_triggers.clear();
+         sparams.preserved_tokens.clear();
+         sparams.reasoning_budget_tokens = -1;
+-        sparams.reasoning_budget_activate_immediately = false;
++        // Kalsa: kalsallama has no reasoning_budget_activate_immediately; reasoning_control
++        // is its boolean knob to activate the budget sampler regardless of token budget.
++        sparams.reasoning_control = false;
+         sparams.reasoning_budget_start.clear();
+         sparams.reasoning_budget_end.clear();
+         sparams.reasoning_budget_forced.clear();
+@@ -539,14 +567,16 @@ namespace rnllama_jsi {
+                 auto reasoningBudgetEnd = common_tokenize(
+                     ctx->ctx, thinkingEndTag, /* add_special= */ false, /* parse_special= */ true);
+                 if (!reasoningBudgetEnd.empty()) {
+-                    sparams.reasoning_budget_end.push_back(std::move(reasoningBudgetEnd));
++                    // Kalsa: reasoning_budget_end is a flat token vector in kalsallama.
++                    sparams.reasoning_budget_end.insert(sparams.reasoning_budget_end.end(),
++                        reasoningBudgetEnd.begin(), reasoningBudgetEnd.end());
+                 }
+                 sparams.reasoning_budget_forced = common_tokenize(
+                     ctx->ctx, thinkingBudgetMessage + thinkingEndTag, /* add_special= */ false, /* parse_special= */ true);
+ 
+                 if (!sparams.reasoning_budget_end.empty() && !sparams.reasoning_budget_forced.empty()) {
+                     sparams.reasoning_budget_tokens = thinkingBudgetTokens;
+-                    sparams.reasoning_budget_activate_immediately = getPropertyAsBool(
++                    sparams.reasoning_control = getPropertyAsBool(
+                         runtime, params, "thinking_forced_open", false);
+                 } else {
+                     sparams.reasoning_budget_start.clear();
+@@ -666,5 +696,9 @@ namespace rnllama_jsi {
              ctx->params.cpuparams.n_threads = nThreads > 0 ? nThreads : defaultNThreads;
          }
  #endif
@@ -289,6 +545,129 @@ index 650349e..7ee1072 100644
 +        }
      }
  }
+diff --git a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+index aaab748..6b44dcc 100644
+--- a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
++++ b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+@@ -253,10 +253,9 @@ namespace rnllama_jsi {
+             return false;
+         }
+ 
+-        for (const auto& endTag : chatParams.thinking_end_tags) {
+-            if (endTag.empty()) {
+-                continue;
+-            }
++        // Kalsa: kalsallama's common_chat_params has a single thinking_end_tag, not a list.
++        const std::string& endTag = chatParams.thinking_end_tag;
++        if (!endTag.empty()) {
+             const size_t lastEnd = chatParams.generation_prompt.rfind(endTag);
+             if (lastEnd != std::string::npos && lastEnd >= lastStart) {
+                 return false;
+@@ -298,13 +297,22 @@ namespace rnllama_jsi {
+         bool jinjaDefault = ctx->validateModelChatTemplate(true, nullptr);
+         jinja.setProperty(runtime, "default", jinjaDefault);
+ 
++        // Kalsa: the kalsallama fork has no common_chat_templates_has_variant() and its
++        // common_chat_templates_get_caps() takes no variant argument: it returns a
++        // std::map<std::string, bool> with the caps of the most expressive template
++        // available (tool_use when present, else default) — the same template selection
++        // made at apply time for tool-enabled chats. Per-variant queries don't exist.
++        std::map<std::string, bool> capsMap;
++        if (ctx->templates) {
++            capsMap = common_chat_templates_get_caps(ctx->templates.get());
++        }
++
+         jsi::Object defaultCaps(runtime);
+-        if (ctx->templates && common_chat_templates_has_variant(ctx->templates.get(), "")) {
+-            auto caps = common_chat_templates_get_caps(ctx->templates.get(), "");
+-            defaultCaps.setProperty(runtime, "tools", caps.supports_tools);
+-            defaultCaps.setProperty(runtime, "toolCalls", caps.supports_tool_calls);
+-            defaultCaps.setProperty(runtime, "parallelToolCalls", caps.supports_parallel_tool_calls);
+-            defaultCaps.setProperty(runtime, "systemRole", caps.supports_system_role);
++        if (ctx->templates) {
++            defaultCaps.setProperty(runtime, "tools", capsMap.at("supports_tools"));
++            defaultCaps.setProperty(runtime, "toolCalls", capsMap.at("supports_tool_calls"));
++            defaultCaps.setProperty(runtime, "parallelToolCalls", capsMap.at("supports_parallel_tool_calls"));
++            defaultCaps.setProperty(runtime, "systemRole", capsMap.at("supports_system_role"));
+         } else {
+             defaultCaps.setProperty(runtime, "tools", false);
+             defaultCaps.setProperty(runtime, "toolCalls", false);
+@@ -315,13 +323,15 @@ namespace rnllama_jsi {
+ 
+         bool toolUseSupported = ctx->validateModelChatTemplate(true, "tool_use");
+         jinja.setProperty(runtime, "toolUse", toolUseSupported);
+-        if (ctx->templates && common_chat_templates_has_variant(ctx->templates.get(), "tool_use")) {
+-            auto caps = common_chat_templates_get_caps(ctx->templates.get(), "tool_use");
++        // Kalsa: the fork exposes no per-variant caps. When a tool_use template validates,
++        // get_caps() already reports that variant's caps (it prefers it internally); report
++        // those effective caps here. Otherwise leave toolUseCaps absent (optional in types.ts).
++        if (ctx->templates && toolUseSupported) {
+             jsi::Object toolUseCaps(runtime);
+-            toolUseCaps.setProperty(runtime, "tools", caps.supports_tools);
+-            toolUseCaps.setProperty(runtime, "toolCalls", caps.supports_tool_calls);
+-            toolUseCaps.setProperty(runtime, "parallelToolCalls", caps.supports_parallel_tool_calls);
+-            toolUseCaps.setProperty(runtime, "systemRole", caps.supports_system_role);
++            toolUseCaps.setProperty(runtime, "tools", capsMap.at("supports_tools"));
++            toolUseCaps.setProperty(runtime, "toolCalls", capsMap.at("supports_tool_calls"));
++            toolUseCaps.setProperty(runtime, "parallelToolCalls", capsMap.at("supports_parallel_tool_calls"));
++            toolUseCaps.setProperty(runtime, "systemRole", capsMap.at("supports_system_role"));
+             jinja.setProperty(runtime, "toolUseCaps", toolUseCaps);
+         }
+ 
+@@ -552,37 +562,12 @@ namespace rnllama_jsi {
+                         anyGpuAvailable
+                     );
+ 
++                    // Kalsa: kalsallama's common_params has no progress_callback, so this
++                    // engine cannot deliver load-progress events. Warn once instead of
++                    // wiring a callback that would never fire.
+                     if (useProgressCallback && progressData && progressData->callback) {
+-                        cparams.progress_callback = [](float progress, void * user_data) {
+-                            auto *data = static_cast<ProgressCallbackData *>(user_data);
+-                            if (!data) {
+-                                return true;
+-                            }
+-
+-                            int percentage = (int) (progress * 100.0f);
+-                            int last = data->lastProgress.load();
+-                            if (percentage < 100 && percentage - last < data->progressEvery) {
+-                                return true;
+-                            }
+-                            if (percentage <= last) {
+-                                return true;
+-                            }
+-
+-                            data->lastProgress.store(percentage);
+-
+-                            auto invoker = data->callInvoker.lock();
+-                            auto cb = data->callback;
+-                            auto runtime = data->runtime;
+-                            if (invoker && cb && runtime) {
+-                                invoker->invokeAsync([cb, percentage, runtime]() {
+-                                    auto& rt = *runtime;
+-                                    cb->call(rt, jsi::Value((double) percentage));
+-                                });
+-                            }
+-
+-                            return true;
+-                        };
+-                        cparams.progress_callback_user_data = progressData.get();
++                        log(LogLevel::LOG_INFO,
++                            "progress callbacks unsupported by this llama.cpp build; ignoring");
+                     }
+ 
+                     auto ctx = new rnllama::llama_rn_context();
+@@ -872,8 +857,8 @@ namespace rnllama_jsi {
+                               if (!chatParams.thinking_start_tag.empty()) {
+                                   result.setProperty(rt, "thinking_start_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_start_tag));
+                               }
+-                              if (!chatParams.thinking_end_tags.empty()) {
+-                                  result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tags.front()));
++                              if (!chatParams.thinking_end_tag.empty()) {
++                                  result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tag));
+                               }
+ 
+                               // Preserve the same shape as legacy native bridge
 diff --git a/node_modules/llama.rn/cpp/jsi/JSISession.h b/node_modules/llama.rn/cpp/jsi/JSISession.h
 index fa4cbad..da4af9b 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSISession.h
@@ -358,10 +737,10 @@ index fa4cbad..da4af9b 100644
          // legacy files (media is then conservatively reprocessed)
          ctx->setMediaHashes(embd.empty() ? std::vector<std::string>{}
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..92002fd 100644
+index a60bd15..375aede 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
-@@ -427,6 +427,54 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -427,6 +427,65 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
          // n_common = shared prefix with the live cache; it bounds how far a
          // checkpoint may be trusted.
          size_t n_common = is_enc_dec ? 0 : find_common_prefix_length(embd, text_tokens);
@@ -392,6 +771,15 @@ index a60bd15..92002fd 100644
 +            for (size_t i = n_common; i < text_hi; i++) {
 +                text_ids += std::to_string(text_tokens[i]) + " ";
 +            }
++            // Kalsa patch: the detokenized snippets are the user's own words, and
++            // WARNING-level logcat is collected by Android bug reports. They are
++            // compiled in for debug builds only — RNLLAMA_ANDROID_ENABLE_LOGGING is
++            // set by CMake when CMAKE_BUILD_TYPE is Debug (rnllama/CMakeLists.txt).
++            // NDEBUG cannot serve here: that target sets it unconditionally.
++            // Token ids stay in both builds: they locate the divergence, which is
++            // the whole point of the diagnostic. The words never were.
++            std::string divergence_txt;
++#ifdef RNLLAMA_ANDROID_ENABLE_LOGGING
 +            auto clip200 = [](std::string s) {
 +                if (s.size() > 200) s.resize(200);
 +                return s;
@@ -405,18 +793,20 @@ index a60bd15..92002fd 100644
 +            const std::string text_txt = text_hi > n_common
 +                ? clip200(tokens_to_str(parent_ctx->ctx, text_tokens.cbegin() + n_common, text_tokens.cbegin() + text_hi))
 +                : std::string();
++            divergence_txt = " shared_txt=[" + shared_txt + "] embd_txt=[" + embd_txt
++                + "] text_txt=[" + text_txt + "]";
++#endif
 +            rnllama::log("WARNING", __func__, __LINE__,
 +                "KALSA_KVDIVERGE n_common=%zu shared_lo=%zu embd_hi=%zu text_hi=%zu "
-+                "shared_ids=[%s] embd_ids=[%s] text_ids=[%s] "
-+                "shared_txt=[%s] embd_txt=[%s] text_txt=[%s]",
++                "shared_ids=[%s] embd_ids=[%s] text_ids=[%s]%s",
 +                n_common, shared_lo, embd_hi, text_hi,
 +                shared_ids.c_str(), embd_ids.c_str(), text_ids.c_str(),
-+                shared_txt.c_str(), embd_txt.c_str(), text_txt.c_str());
++                divergence_txt.c_str());
 +        }
          // A mem-shared MTP draft leaves stale speculative cells in the target's
          // SHARED KV window that upstream never cleans (TAG_KV_CACHE_SHARE_CELLS,
          // see initMTP). Reusing any prefix — even the plain seq_rm fast path —
-@@ -436,6 +484,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -436,6 +495,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
          if (mtp_draft_mem_shared) {
              n_common = 0;
          }
@@ -439,7 +829,7 @@ index a60bd15..92002fd 100644
          n_past = (llama_pos) n_common;
  
          embd = text_tokens;
-@@ -459,6 +523,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -459,6 +534,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
                  LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
                      n_past, num_prompt_tokens);
              } else {
@@ -461,7 +851,7 @@ index a60bd15..92002fd 100644
                  LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
                  llama_memory_clear(kv, false);
                  clearStateCheckpoints();
-@@ -626,9 +705,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
+@@ -626,9 +716,14 @@ void llama_rn_context_completion::updateGenerationTiming() {
  }
  
  bool llama_rn_context_completion::shouldUseMTP() const {
@@ -658,3 +1048,17 @@ index e461f36..175de90 100644
    /**
     * Single LoRA adapter path
     */
+diff --git a/node_modules/llama.rn/cpp/rn-mtmd.hpp b/node_modules/llama.rn/cpp/rn-mtmd.hpp
+index 0e5a8bb..eb31bb7 100644
+--- a/node_modules/llama.rn/cpp/rn-mtmd.hpp
++++ b/node_modules/llama.rn/cpp/rn-mtmd.hpp
+@@ -280,7 +280,8 @@ inline mtmd_tokenize_result tokenizeWithMedia(llama_rn_context_mtmd *mtmd_wrappe
+ 
+     mtmd_input_text input_text{};
+     input_text.text = prompt.data(); // Use the full prompt with media markers
+-    input_text.text_len = prompt.size();
++    // Kalsa patch: the kalsallama fork's mtmd_input_text has no text_len (tools/mtmd/mtmd.h:68);
++    // mtmd.cpp:842 reads text->text as a NUL-terminated C string, and prompt.data() is one.
+     input_text.add_special = true;  // Add BOS token if this is the first message
+     input_text.parse_special = true;       // Parse special tokens like <__media__>
+ 

@@ -23,6 +23,7 @@ import {
 } from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
 import { shouldRecoverLost } from "./engineLiveness";
+import { resolveGateLoadPolicy, type LoadPolicy } from "./loadPolicy";
 import {
   modelSpeedAdvisory,
   predictTokensPerSecond,
@@ -221,16 +222,20 @@ export function modelGateVerdict(
  * `contextTokens` is the resolved load context, not the catalog default.
  * For registry models with no measured bytes/token, the KV term is 0; this is
  * therefore a LOWER BOUND. The 4B at 16k is ~256 MiB above it. Do not invent
- * a kvBytesPerToken. ubatch 256, repack true (llama.rn default) unless the
- * caller passes `repack: false` (bench norepack arm).
+ * a kvBytesPerToken. ubatch 256. Load mode defaults to llama.cpp normal
+ * (repack on, weights file-mapped); callers pass the model's RESOLVED policy —
+ * repack:false drops the repack term, mmap:false moves the weights into the
+ * non-evictable bucket (anonymous reads).
  * Returns null on bad input.
  */
 export function estimateModelNonEvictableMiB(input: {
   sizeBytes: number;
   contextTokens: number;
   kvBytesPerToken?: number | null;
-  /** Default true (production). false → repack term 0. */
+  /** Default true (llama.cpp normal). false → repack term 0. */
   repack?: boolean;
+  /** Default true (weights file-backed). false → weights count anonymous. */
+  mmap?: boolean;
 }): number | null {
   try {
     if (
@@ -255,6 +260,7 @@ export function estimateModelNonEvictableMiB(input: {
       kvBytesPerToken,
       ubatch: 256,
       repack: input.repack !== false,
+      mmap: input.mmap !== false,
     });
     return est.nonEvictableMiB;
   } catch {
@@ -292,6 +298,11 @@ export type PreSendFitDecision =
 export type PreSendFitOptions = {
   alreadyResident?: boolean;
   /**
+   * kalsa.bench.norepack tri-state; absent → the model's loadPolicy decides.
+   * Folds into the same resolved load mode used for requiredBytes below.
+   */
+  benchNoRepack?: boolean;
+  /**
    * Engine was resident then lost (on-contact native ping timed out).
    * Skip size-vs-available so Send can recover via ensureEngineForModel
    * instead of repeating the P0 "not enough memory" dead end.
@@ -316,7 +327,8 @@ export function evaluateModelFit(
     mmproj?: { sizeBytes: number } | null;
   },
   availableBytes: number | null,
-  options: { repack?: boolean } = {},
+  /** Load mode the engine will actually use — see decidePreSendFit. */
+  options: { repack?: boolean; mmap?: boolean } = {},
 ): ModelFitEvaluation {
   const main =
     typeof model.sizeBytes === "number" && Number.isFinite(model.sizeBytes)
@@ -345,14 +357,15 @@ export function evaluateModelFit(
   // gate to a different one is the S23-class bug class, and it was live here:
   // the comment claimed "the bench norepack arm bypasses these gates" while the
   // arm did not, so with kalsa.bench.norepack=1 the gate refused on a repack
-  // footprint the engine would never have allocated. Default stays true, so
-  // production (knob absent) is unchanged.
+  // footprint the engine would never have allocated. Defaults stay llama.cpp
+  // normal, so callers without a resolved policy are unchanged.
   const estimate = estimateMemory({
     fileBytes,
     contextTokens,
     kvBytesPerToken,
     ubatch: 256,
     repack: options.repack !== false,
+    mmap: options.mmap !== false,
   });
   const availableMiB =
     typeof availableBytes === "number" &&
@@ -387,6 +400,8 @@ export function decidePreSendFit(
     engineCtx: number;
     kvBytesPerToken?: number | null;
     mmproj?: { sizeBytes: number } | null;
+    /** Per-model weight-load policy (ModelRegistry.loadPolicy). */
+    loadPolicy?: LoadPolicy;
   },
   availableBytes: number | null,
   opts?: PreSendFitOptions,
@@ -424,8 +439,13 @@ export function decidePreSendFit(
     Number.isFinite(model.kvBytesPerToken)
       ? model.kvBytesPerToken
       : 0;
-  // Gates deliberately assume the conservative repack-ON footprint (see
-  // evaluateModelFit). requiredBytes must match that same estimate.
+  // One resolved load mode for both numbers below: requiredBytes and the
+  // verdict MUST describe the same configuration, or tight/does_not_fit are
+  // computed against a footprint the engine will never allocate.
+  const gateLoad = resolveGateLoadPolicy({
+    policy: model.loadPolicy,
+    benchNoRepack: opts?.benchNoRepack,
+  });
   const estimate =
     fileBytes > 0
       ? estimateMemory({
@@ -433,7 +453,8 @@ export function decidePreSendFit(
           contextTokens,
           kvBytesPerToken,
           ubatch: 256,
-          repack: true,
+          repack: gateLoad.repack,
+          mmap: gateLoad.mmap,
         })
       : null;
   const requiredBytes =
@@ -441,7 +462,10 @@ export function decidePreSendFit(
       ? estimate.nonEvictableMiB * 1024 * 1024
       : null;
 
-  const fit = evaluateModelFit(model, availableBytes);
+  const fit = evaluateModelFit(model, availableBytes, {
+    repack: gateLoad.repack,
+    mmap: gateLoad.mmap,
+  });
   if (fit.verdict === "does_not_fit") {
     return { allow: false, reasonKey: "model.tooLarge" };
   }

@@ -100,6 +100,7 @@ import {
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
 import { gateNonEvictableMiB } from "../engine/modelGateRAM";
+import { resolveLoadPolicy } from "../engine/loadPolicy";
 import {
   deviceBandwidthForModel,
   mergeDeviceBandwidthCalibrations,
@@ -366,8 +367,8 @@ function gateForModel(
   profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
   freeDiskBytes: number | null,
   checkVolatileMemory = true,
-  /** Load mode the engine will actually use. False only under kalsa.bench.norepack. */
-  repack = true,
+  /** kalsa.bench.norepack tri-state; absent → the model's loadPolicy decides. */
+  benchNoRepack?: boolean,
   deviceBandwidth: DeviceBandwidthCalibration = {},
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
@@ -396,7 +397,7 @@ function gateForModel(
         model,
         contextTokens: resolvedContextTokens,
         availableMemoryBytes: profile.availableMemoryBytes,
-        repack,
+        benchNoRepack,
       }),
       modelWeightsBytesPerToken: model.weightsBytesPerToken,
       deviceBandwidthBytesPerSecond: deviceBandwidthForModel(deviceBandwidth, model),
@@ -2709,6 +2710,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
+              // Gate on the load mode initEngine will really use: the model's
+              // policy with the bench lever folded in.
+              const load = resolveLoadPolicy({
+                policy: model.loadPolicy,
+                streamExperts: false,
+                benchNoRepack: await getBenchNoRepack(),
+              });
               const fit = evaluateModelFit(
                 {
                   sizeBytes: model.sizeBytes,
@@ -2719,7 +2727,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     : null,
                 },
                 available,
-                { repack: !(await getBenchNoRepack()) },
+                { repack: !load.noExtraBufts, mmap: load.useMmap },
               );
               console.info(
                 "model.fit",
@@ -3067,7 +3075,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           profile,
           free,
           true,
-          !(await getBenchNoRepack()),
+          await getBenchNoRepack(),
           deviceBandwidth,
         );
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
@@ -3528,7 +3536,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         deviceProfile,
         free,
         false,
-        true,
+        undefined, // disk-only gate: RAM axis unused (checkVolatileMemory false)
         deviceBandwidth,
       );
       if (!gate.allowed) {
@@ -3714,7 +3722,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           deviceProfile,
           free,
           true,
-          !(await getBenchNoRepack()),
+          await getBenchNoRepack(),
           deviceBandwidth,
         );
         if (
@@ -3921,7 +3929,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             deviceProfile,
             free,
             false,
-            true,
+            undefined, // disk-only gate: RAM axis unused (checkVolatileMemory false)
             deviceBandwidth,
           );
           if (!gate.allowed) {

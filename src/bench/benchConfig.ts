@@ -472,25 +472,32 @@ export async function getToolGateEnabled(): Promise<boolean> {
 }
 
 /**
- * Pure parse for kalsa.bench.norepack. "1" → disable repacking; empty /
- * absent / anything else → false (production: repack on). Same "empty =
- * catalog wins" shape as parseBenchNCtx — only the explicit arm value bites.
+ * Pure parse for kalsa.bench.norepack, tri-state. "1" → true (no_extra_bufts,
+ * disable ARM repack — existing semantics); "0" → false (repack forced ON — the
+ * arm that lets a bench measure repack-on on models whose per-model policy
+ * disables it); empty / absent / anything else → undefined (no bench opinion:
+ * the per-model policy decides). Same "empty = catalog wins" shape as
+ * parseBenchNCtx.
  */
-export function parseBenchNoRepack(raw: string | null | undefined): boolean {
-  return raw === "1";
+export function parseBenchNoRepack(
+  raw: string | null | undefined,
+): boolean | undefined {
+  if (raw === "1") return true;
+  if (raw === "0") return false;
+  return undefined;
 }
 
 /**
- * Bench-only weight-repack disable. Absent / invalid → false (production
- * repack on). "1" → no_extra_bufts at engine init (saves ~file-size of
- * anonymous RSS; slower prefill). Applies at ENGINE INIT only.
+ * Tri-state weight-repack lever. Absent / invalid → undefined (production:
+ * per-model loadPolicy decides). "1" → no_extra_bufts at engine init; "0" →
+ * repack forced on. Applies at ENGINE INIT only.
  */
-export async function getBenchNoRepack(): Promise<boolean> {
+export async function getBenchNoRepack(): Promise<boolean | undefined> {
   try {
     const raw = await AsyncStorage.getItem(BENCH_NOREPACK_KEY);
     return parseBenchNoRepack(raw);
   } catch {
-    return false;
+    return undefined;
   }
 }
 

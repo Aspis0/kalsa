@@ -15,15 +15,19 @@
  * either way keeps its resident weights; a model that fits neither way is still
  * refused, honestly, rather than started in a configuration that cannot help.
  *
- * The two sides are not symmetric: the resident test is an ESTIMATE over repacked
- * weights + KV, while the streamed test is one phone MEASUREMENT of RssAnon.
- * They cross at different memory points, and both must hold — which is exactly
- * why the streamed footprint is never taken from an estimate.
+ * The two sides are not symmetric: the resident test is an ESTIMATE over
+ * weights + KV priced with the model's RESOLVED load policy (what the engine
+ * would actually hold if it loaded resident — repack off stays off, mmap-off
+ * weights count as anonymous), while the streamed test is one phone
+ * MEASUREMENT of RssAnon. They cross at different memory points, and both must
+ * hold — which is exactly why the streamed footprint is never taken from an
+ * estimate.
  *
  * Pure module — no react-native, no AsyncStorage — so the harness can load it.
  */
 
 import { estimateModelNonEvictableMiB } from "./deviceProfile";
+import { resolveGateLoadPolicy, type LoadPolicy } from "./loadPolicy";
 
 /** Phone-measured streamed footprint. Absent or ctx-mismatched → never stream. */
 export type StreamingResident = {
@@ -47,6 +51,10 @@ export type ExpertStreamingInput = {
    * scaled. Absent or a context mismatch → never stream.
    */
   streamingResident?: StreamingResident;
+  /** Per-model weight-load policy (ModelRegistry.loadPolicy). Absent → default. */
+  loadPolicy?: LoadPolicy;
+  /** kalsa.bench.norepack tri-state; absent → policy decides. */
+  benchNoRepack?: boolean;
 };
 
 /**
@@ -98,19 +106,25 @@ export function shouldStreamExperts(input: ExpertStreamingInput): boolean {
   }
   const streamedMiB = streamedBytes / (1024 * 1024);
 
-  // Resident side is an ESTIMATE (repack:true). A null estimate is bad input,
-  // not a green light.
+  // Resident side is an ESTIMATE, priced with the resolved load policy (the
+  // config the engine would actually load resident). A null estimate is bad
+  // input, not a green light.
+  const gatePolicy = resolveGateLoadPolicy({
+    policy: input.loadPolicy,
+    benchNoRepack: input.benchNoRepack,
+  });
   const resident = estimateModelNonEvictableMiB({
     sizeBytes: input.sizeBytes,
     contextTokens: input.contextTokens,
     kvBytesPerToken: input.kvBytesPerToken,
-    repack: true,
+    repack: gatePolicy.repack,
+    mmap: gatePolicy.mmap,
   });
   if (typeof resident !== "number") return false;
 
   // Resident must NOT fit, streamed (measured) MUST fit. The two sides are not
-  // symmetric by design: resident is an estimate over repacked weights + KV,
-  // streamed is one phone measurement of RssAnon. They cross at different
+  // symmetric by design: resident is an estimate over policy-priced weights +
+  // KV, streamed is one phone measurement of RssAnon. They cross at different
   // memory points, and both must hold for streaming to be offered.
   return resident > availableMiB && streamedMiB <= availableMiB;
 }

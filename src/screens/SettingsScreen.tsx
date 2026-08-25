@@ -825,6 +825,24 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const processHealth = useProcessHealth({
     totalMemoryBytes: deviceProfile?.totalMemoryBytes ?? null,
   });
+  // "free" above is MemAvailable, which counts a resident model's own mapped
+  // weights as headroom (HARNESS_FINDINGS §7.44). "headroom" is that minus this
+  // process's RssFile — what is actually reclaimable elsewhere. Swap shows only
+  // once it has grown past the distress threshold, because growth there means
+  // the system is paying for memory this process does not appear to hold.
+  const processMemorySuffix = `${
+    processHealth.residentHeadroomBytes != null
+      ? ` · ${Math.round(processHealth.residentHeadroomBytes / (1024 * 1024))} MiB headroom`
+      : ""
+  }${
+    processHealth.swapDistressed && processHealth.swapGrownBytes != null
+      ? ` · swap +${Math.round(processHealth.swapGrownBytes / (1024 * 1024))} MiB`
+      : ""
+  }${
+    processHealth.majfltGrown != null
+      ? ` · majflt +${Math.round(processHealth.majfltGrown)}`
+      : ""
+  }`;
   const thermal = useThermalMonitor();
   useEffect(() => {
     let cancelled = false;
@@ -1826,6 +1844,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               {processHealth.availableMemoryBytes != null
                 ? ` · ${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`
                 : ""}
+              {processMemorySuffix}
               {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
             </Text>
           ) : processHealth.availableMemoryBytes != null ? (
@@ -1836,6 +1855,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               ]}
             >
               {`${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`}
+              {processMemorySuffix}
               {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
             </Text>
           ) : null}
