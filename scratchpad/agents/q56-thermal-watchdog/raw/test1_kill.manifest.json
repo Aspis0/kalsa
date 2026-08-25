@@ -1,0 +1,68 @@
+{
+  "tag": "test1_kill",
+  "serial": "192.168.1.152:41679",
+  "binary_pid": 25380,
+  "cpuset": "/",
+  "workload": [
+    "/data/local/tmp/kalsahtp/llama-bench",
+    "-m",
+    "/data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf",
+    "-p",
+    "64",
+    "-n",
+    "16",
+    "-r",
+    "1",
+    "--no-warmup",
+    "-t",
+    "8",
+    "-o",
+    "jsonl",
+    "-ngl",
+    "0",
+    "--load-mode",
+    "none",
+    "-fa",
+    "on",
+    "--ubatch-size",
+    "1024"
+  ],
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "unset",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "pid_file": "BINARY_PID=25380\nCPUSET=/",
+    "warn_tenths": 281,
+    "kill_tenths": 281,
+    "hard_abort_tenths": 380,
+    "interval_s": 1,
+    "exit_code": 2,
+    "max_temperature_tenths": 286
+  },
+  "workload_rc": 137,
+  "timed_out": false,
+  "wall_seconds_until_poll_end": 2.031,
+  "launch_stdout": "LAUNCH_PID=25378\n",
+  "guard_launch_stdout": "GUARD_LAUNCH_PID=25385\n",
+  "execute_op_htp0_in_stderr": false,
+  "pulls": {
+    "/data/local/tmp/q56_thermal_watchdog/test1_kill.stdout.jsonl": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/test1_kill.stdout.jsonl: 1 file pulled, 0 skipped.\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/test1_kill.stderr.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/test1_kill.stderr.log: 1 file pulled, 0 skipped. 0.1 MB/s (1039 bytes in 0.008s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/test1_kill.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/test1_kill.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (66 bytes in 0.007s)\n"
+    }
+  }
+}
