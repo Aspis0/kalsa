@@ -1,0 +1,7 @@
+START,1787665836,warn_tenths=267,kill_tenths=267,hard_abort_tenths=0,session_hard_cap_tenths=0,effective_kill_tenths=267,interval_s=1,sensor_fail_limit=3,sensor_timeout_s=5,sensor_failure_window_s=15,sensor_command_override=none,fail_closed_false_kill_accepted=1
+1787665836,272,100
+1787665836,272,100,READY
+1787665836,272,100,TRACKING_30602
+1787665836,272,100,WARN
+1787665836,272,100,KILL_THRESHOLD
+1787665836,272,100,KILLED

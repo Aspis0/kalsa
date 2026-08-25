@@ -26,6 +26,7 @@ tracking_path=${8:-}
 sensor_fail_limit=${9:-3}
 sensor_timeout_s=5
 sensor_failure_window_s=$((sensor_fail_limit * sensor_timeout_s))
+sensor_command_override=${THERMAL_SENSOR_CMD:-}
 
 is_uint() {
     case "$1" in
@@ -68,6 +69,7 @@ sensor_ok=0
 target_pid=0
 tracking_written=0
 ready_written=0
+sample_logged=0
 
 log_line() {
     printf '%s\n' "$*" >> "$log_path"
@@ -92,11 +94,15 @@ resolve_target_pid() {
 }
 
 read_sample() {
-    sample_text=$(timeout "$sensor_timeout_s" dumpsys battery 2>/dev/null)
+    if [ -n "$sensor_command_override" ]; then
+        sample_text=$(timeout "$sensor_timeout_s" sh -c "$sensor_command_override" 2>/dev/null)
+    else
+        sample_text=$(timeout "$sensor_timeout_s" dumpsys battery 2>/dev/null)
+    fi
     temp=$(printf '%s\n' "$sample_text" | grep -m 1 '^[[:space:]]*temperature:' | sed -n 's/.*temperature:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
     level=$(printf '%s\n' "$sample_text" | grep -m 1 '^[[:space:]]*level:' | sed -n 's/.*level:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
 
-    if [ -z "$temp" ]; then
+    if [ -z "$temp" ] && [ -z "$sensor_command_override" ]; then
         for zone in /sys/class/thermal/thermal_zone*; do
             [ -r "$zone/type" ] || continue
             zone_type=$(cat "$zone/type" 2>/dev/null)
@@ -160,7 +166,10 @@ abort_with_kill() {
 process_sample() {
     [ "$temp" -gt "$max_temp" ] && max_temp=$temp
     [ "$level" -gt "$max_level" ] && max_level=$level
-    log_line "$epoch,$temp,$level" || return 3
+    if [ "$sample_logged" -eq 0 ]; then
+        log_line "$epoch,$temp,$level" || return 3
+        sample_logged=1
+    fi
 
     if [ "$sensor_ok" -eq 0 ]; then
         sensor_failures=$((sensor_failures + 1))
@@ -199,7 +208,7 @@ process_sample() {
 }
 
 : >> "$log_path" || exit 73
-log_line "START,$(date +%s),warn_tenths=$warn_tenths,kill_tenths=$kill_tenths,hard_abort_tenths=$session_hard_cap_tenths,session_hard_cap_tenths=$session_hard_cap_tenths,effective_kill_tenths=$effective_kill_tenths,interval_s=$interval_s,sensor_fail_limit=$sensor_fail_limit,sensor_timeout_s=$sensor_timeout_s,sensor_failure_window_s=$sensor_failure_window_s,fail_closed_false_kill_accepted=1" || exit 73
+log_line "START,$(date +%s),warn_tenths=$warn_tenths,kill_tenths=$kill_tenths,hard_abort_tenths=$session_hard_cap_tenths,session_hard_cap_tenths=$session_hard_cap_tenths,effective_kill_tenths=$effective_kill_tenths,interval_s=$interval_s,sensor_fail_limit=$sensor_fail_limit,sensor_timeout_s=$sensor_timeout_s,sensor_failure_window_s=$sensor_failure_window_s,sensor_command_override=${sensor_command_override:-none},fail_closed_false_kill_accepted=1" || exit 73
 if ! command -v timeout >/dev/null 2>&1; then
     log_line "TIMEOUT_BINARY_MISSING,timeout_required_for_${sensor_timeout_s}s_sensor_reads"
     exit 64
@@ -208,9 +217,27 @@ fi
 while :; do
     poll_started=$(date +%s 2>/dev/null)
     read_sample
-    process_sample
-    sample_result=$?
-    [ "$sample_result" -ne 0 ] && exit "$sample_result"
+    sample_logged=0
+    log_line "$epoch,$temp,$level" || exit 3
+    sample_logged=1
+
+    resolve_target_pid
+    if [ "$target_pid" -eq 0 ]; then
+        if [ "$sensor_ok" -eq 0 ]; then
+            process_sample
+            sample_result=$?
+            [ "$sample_result" -ne 0 ] && exit "$sample_result"
+        fi
+        sleep 1
+        continue
+    fi
+    if ! pid_exists; then
+        if [ "$tracking_written" -eq 0 ]; then
+            log_line "$epoch,$temp,$level,TARGET_GONE" || exit 3
+            exit 3
+        fi
+        break
+    fi
 
     if [ "$ready_written" -eq 0 ] && [ "$sensor_ok" -eq 1 ]; then
         log_line "$epoch,$temp,$level,READY" || exit 3
@@ -219,24 +246,17 @@ while :; do
         fi
         ready_written=1
     fi
-
-    resolve_target_pid
-    if [ "$target_pid" -gt 0 ]; then
-        if ! pid_exists; then
-            if [ "$tracking_written" -eq 0 ]; then
-                log_line "$epoch,$temp,$level,TARGET_GONE" || exit 3
-                exit 3
-            fi
-            break
+    if [ "$tracking_written" -eq 0 ]; then
+        log_line "$epoch,$temp,$level,TRACKING_$target_pid" || exit 3
+        if [ -n "$tracking_path" ]; then
+            printf 'GUARD_TRACKING=%s\n' "$epoch" > "$tracking_path" || exit 3
         fi
-        if [ "$tracking_written" -eq 0 ]; then
-            log_line "$epoch,$temp,$level,TRACKING_$target_pid" || exit 3
-            if [ -n "$tracking_path" ]; then
-                printf 'GUARD_TRACKING=%s\n' "$epoch" > "$tracking_path" || exit 3
-            fi
-            tracking_written=1
-        fi
+        tracking_written=1
     fi
+
+    process_sample
+    sample_result=$?
+    [ "$sample_result" -ne 0 ] && exit "$sample_result"
 
     poll_finished=$(date +%s 2>/dev/null)
     case "$poll_started" in

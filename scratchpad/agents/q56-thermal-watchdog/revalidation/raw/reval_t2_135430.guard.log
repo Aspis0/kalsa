@@ -1,0 +1,8 @@
+START,1787665893,warn_tenths=400,kill_tenths=430,hard_abort_tenths=380,session_hard_cap_tenths=380,effective_kill_tenths=380,interval_s=10,sensor_fail_limit=3,sensor_timeout_s=5,sensor_failure_window_s=15,sensor_command_override=none,fail_closed_false_kill_accepted=1
+1787665893,273,100
+1787665893,273,100,READY
+1787665893,273,100,TRACKING_30904
+1787665903,274,100
+1787665914,274,100
+1787665924,274,100
+1787665924,274,100,MAX

@@ -1,0 +1,130 @@
+{
+  "tag": "reval_t1_135026_fix1",
+  "serial": "192.168.1.152:43187",
+  "supervisor_pid": 30600,
+  "guard_pid": 30601,
+  "binary_pid": 30602,
+  "cpuset": "/",
+  "workload": [
+    "C:\\data\\local\\tmp\\kalsahtp\\llama-bench",
+    "-m",
+    "/data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf",
+    "-p",
+    "64",
+    "-n",
+    "16",
+    "-r",
+    "1",
+    "--no-warmup",
+    "-t",
+    "8",
+    "-o",
+    "jsonl",
+    "-ngl",
+    "0",
+    "--load-mode",
+    "none",
+    "-fa",
+    "on",
+    "--ubatch-size",
+    "1024"
+  ],
+  "allow_npu": false,
+  "thermal_sensor_cmd": "",
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "unset",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "warn_tenths": 267,
+    "kill_tenths": 267,
+    "hard_abort_tenths": 0,
+    "session_hard_cap_tenths": 0,
+    "effective_kill_tenths": 267,
+    "interval_s": 1,
+    "sensor_fail_limit": 3,
+    "sensor_timeout_s": 5,
+    "sensor_failure_window_s": 15,
+    "fail_closed_false_kill_accepted": true,
+    "ready_verified": true,
+    "tracking_verified": true,
+    "exit_code": 2,
+    "max_temperature_tenths": 272
+  },
+  "workload_rc": 137,
+  "guard_exit_code": 2,
+  "guard_outcome": "thermal kill",
+  "launcher_exit_code": 0,
+  "workload_never_started": false,
+  "timed_out": false,
+  "abort_reason": "",
+  "workload_failure_signature": "",
+  "guard_liveness_abort": false,
+  "adb_disconnect": false,
+  "adb_reconnect_attempts": 0,
+  "wall_seconds_until_poll_end": 3.726,
+  "disk_available_kb": 8452040,
+  "battery_start": {
+    "level": 100,
+    "temperature_tenths": 272,
+    "voltage_mv": 4355,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_end": {
+    "level": 100,
+    "temperature_tenths": 272,
+    "voltage_mv": 4355,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_samples": [
+    {
+      "level": 100,
+      "temperature_tenths": 272,
+      "voltage_mv": 4355,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    }
+  ],
+  "battery_floor_triggered": false,
+  "battery_floor_chunk": null,
+  "battery_poll_error": false,
+  "running_ppl_values": {},
+  "running_ppl_max_chunk": null,
+  "launch_stdout": "LAUNCH_PID=30600\n",
+  "guard_launch_stdout": "GUARD_PID=30601",
+  "execute_op_htp0": false,
+  "pulls": {
+    "/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.stdout.jsonl": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.stdout.jsonl': No such file or directory\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.stderr.log": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.stderr.log': No such file or directory\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.workload.start_failure": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.workload.start_failure': No such file or directory\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/reval_t1_135026_fix1.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (425 bytes in 0.010s)\n"
+    }
+  }
+}

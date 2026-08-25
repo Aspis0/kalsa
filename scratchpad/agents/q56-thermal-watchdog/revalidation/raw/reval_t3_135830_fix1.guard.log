@@ -1,0 +1,10 @@
+START,1787666044,warn_tenths=400,kill_tenths=430,hard_abort_tenths=380,session_hard_cap_tenths=380,effective_kill_tenths=380,interval_s=10,sensor_fail_limit=3,sensor_timeout_s=5,sensor_failure_window_s=15,sensor_command_override=/data/local/tmp/nonexistent,fail_closed_false_kill_accepted=1
+1787666044,0,-1
+1787666044,0,-1,TRACKING_32010
+1787666044,0,-1,SENSOR_FAILURE_1
+1787666054,0,-1
+1787666054,0,-1,SENSOR_FAILURE_2
+1787666064,0,-1
+1787666064,0,-1,SENSOR_FAILURE_3
+1787666064,0,-1,SENSOR_ERROR
+1787666064,0,-1,KILLED

@@ -1,0 +1,5 @@
+START,1787665569,warn_tenths=268,kill_tenths=268,hard_abort_tenths=0,session_hard_cap_tenths=0,effective_kill_tenths=268,interval_s=1,sensor_fail_limit=3,sensor_timeout_s=5,sensor_failure_window_s=15,fail_closed_false_kill_accepted=1
+1787665569,273,100
+1787665569,273,100,WARN
+1787665569,273,100,KILL_THRESHOLD
+1787665569,273,100,KILLED

@@ -169,7 +169,7 @@ def proc_exists(device: Device, pid: int) -> bool:
     return result.returncode == 0
 
 
-def require_safe_workload(workload: list[str]) -> None:
+def require_safe_workload(workload: list[str], allow_npu: bool = False) -> None:
     lowered = [item.lower() for item in workload]
     is_perplexity = any(
         item == "llama-perplexity"
@@ -177,11 +177,12 @@ def require_safe_workload(workload: list[str]) -> None:
         or item.endswith("\\llama-perplexity")
         for item in lowered
     )
-    if "htp0" in lowered or "-dev" in lowered or "--device" in lowered:
-        raise SystemExit("REFUSING: HTP/NPU device flags are prohibited")
+    npu_requested = "htp0" in lowered or "-dev" in lowered or "--device" in lowered
     for i, item in enumerate(lowered):
         if item in {"-ngl", "--n-gpu-layers"} and i + 1 < len(lowered) and lowered[i + 1] == "99":
-            raise SystemExit("REFUSING: -ngl 99 is prohibited")
+            npu_requested = True
+    if npu_requested and not allow_npu:
+        raise SystemExit("REFUSING: HTP/NPU device flags require explicit --allow-npu")
     if is_perplexity:
         ngl_zero = any(
             item in {"-ngl", "--n-gpu-layers"}
@@ -189,8 +190,15 @@ def require_safe_workload(workload: list[str]) -> None:
             and lowered[i + 1] == "0"
             for i, item in enumerate(lowered)
         )
-        if not ngl_zero:
+        if not ngl_zero and not allow_npu:
             raise SystemExit("REFUSING: llama-perplexity is allowed only with explicit -ngl 0")
+
+
+def failure_signature_line(text: str) -> str:
+    for line in text.splitlines():
+        if re.search(r"dspqueue|INTERNAL-ERROR|\babort\b", line, re.IGNORECASE):
+            return line.strip()
+    return ""
 
 
 def battery_snapshot(device: Device) -> dict[str, int | bool | None]:
@@ -270,7 +278,7 @@ def wait_for_guard_ready(
     guard_log_file: str,
     interval_s: int,
 ) -> int:
-    deadline = time.monotonic() + max(2.0 * interval_s, 10.0)
+    deadline = time.monotonic() + max(2.0 * interval_s + 5.0, 10.0)
     while time.monotonic() < deadline:
         guard_text = read_remote_file(device, guard_pid_file)
         guard_pid_text = parse_key_value(guard_text, "GUARD_PID")
@@ -311,7 +319,7 @@ def launch(args: argparse.Namespace) -> int:
         workload = workload[1:]
     if not workload:
         raise SystemExit("missing workload after --")
-    require_safe_workload(workload)
+    require_safe_workload(workload, args.allow_npu)
     if args.max_seconds <= 0 or args.max_seconds > MAX_ALLOWED_SECONDS:
         raise SystemExit(f"max_seconds must be in 1..{MAX_ALLOWED_SECONDS}")
     if args.warn_tenths < 0 or args.kill_tenths <= 0 or args.warn_tenths > args.kill_tenths:
@@ -336,6 +344,19 @@ def launch(args: argparse.Namespace) -> int:
     remote_start_failure_file = f"{REMOTE_DIR}/{remote_tag}.workload.start_failure"
     remote_guard_rc_file = f"{REMOTE_DIR}/{remote_tag}.guard.rc"
     remote_supervisor_failure_file = f"{REMOTE_DIR}/{remote_tag}.supervisor.failure"
+    remote_run_files = (
+        remote_workload_log,
+        remote_stderr_log,
+        remote_guard_log,
+        remote_pid_file,
+        remote_guard_pid_file,
+        remote_guard_ready_file,
+        remote_guard_tracking_file,
+        remote_rc_file,
+        remote_start_failure_file,
+        remote_guard_rc_file,
+        remote_supervisor_failure_file,
+    )
 
     initial_battery = battery_snapshot(device)
     if initial_battery["returncode"] != 0 or initial_battery["level"] is None or initial_battery["temperature_tenths"] is None:
@@ -360,6 +381,7 @@ def launch(args: argparse.Namespace) -> int:
     battery_poll_error = False
     htp_execute_op_detected = False
     abort_reason = ""
+    failure_signature = ""
     guard_liveness_abort = False
     adb_disconnect = False
     timed_out = False
@@ -388,7 +410,7 @@ def launch(args: argparse.Namespace) -> int:
         ]
     )
     workload_wrapper = (
-        f"while [ ! -f {shlex.quote(remote_guard_tracking_file)} ]; do sleep 1; done; "
+        f"while [ ! -f {shlex.quote(remote_guard_ready_file)} ] || [ ! -f {shlex.quote(remote_guard_tracking_file)} ]; do sleep 1; done; "
         f"{setup} ; exec {quoted_workload} > {shlex.quote(remote_workload_log)} "
         f"2> {shlex.quote(remote_stderr_log)}; exec_rc=$?; "
         f"echo WORKLOAD_NEVER_STARTED=$exec_rc > {shlex.quote(remote_start_failure_file)}; exit 126"
@@ -408,23 +430,17 @@ def launch(args: argparse.Namespace) -> int:
             str(args.sensor_failure_limit),
         ]
     )
-    guard_inner = f"{guard_args}; rc=$?; echo $rc > {shlex.quote(remote_guard_rc_file)}; exit $rc"
-    clear_files = " ".join(
-        f"rm -f {shlex.quote(path)}"
-        for path in (
-            remote_workload_log,
-            remote_stderr_log,
-            remote_guard_log,
-            remote_pid_file,
-            remote_guard_pid_file,
-            remote_guard_ready_file,
-            remote_guard_tracking_file,
-            remote_rc_file,
-            remote_start_failure_file,
-            remote_guard_rc_file,
-            remote_supervisor_failure_file,
-        )
+    guard_env = ""
+    if args.thermal_sensor_cmd:
+        guard_env = f"export THERMAL_SENSOR_CMD={shlex.quote(args.thermal_sensor_cmd)}; "
+    guard_inner = (
+        f"{guard_env}{guard_args}; rc=$?; "
+        f"if [ \"$rc\" -ne 126 ]; then echo $rc > {shlex.quote(remote_guard_rc_file)}; fi; exit $rc"
     )
+    for path in remote_run_files:
+        if device.shell(f"test -e {shlex.quote(path)}", timeout=10).returncode == 0:
+            raise SystemExit(f"REFUSING: remote run tag already exists: {path}")
+    clear_files = ":"
     supervisor_inner = " ; ".join(
         [
             clear_files,
@@ -513,11 +529,18 @@ def launch(args: argparse.Namespace) -> int:
                         if running_values.get(chunk) != value:
                             running_values[chunk] = value
                             append_text(running_log_path, f"{int(time.time())},[{chunk}]{value}\n")
-                    if re.search(r"execute-op.*HTP0|HTP0.*execute-op", tail_text, re.I):
-                        htp_execute_op_detected = True
-                        abort_reason = "HTP0_execute_op_detected"
+                    signature = failure_signature_line(tail_text)
+                    if signature:
+                        failure_signature = signature
+                        abort_reason = "workload_failure_signature"
                         kill_workload(device, pid)
                         break
+                    if re.search(r"execute-op.*HTP0|HTP0.*execute-op", tail_text, re.I):
+                        htp_execute_op_detected = True
+                        if not args.allow_npu:
+                            abort_reason = "HTP0_execute_op_detected"
+                            kill_workload(device, pid)
+                            break
                 next_log_tail = now + 10.0
 
             if time.monotonic() >= deadline:
@@ -527,23 +550,33 @@ def launch(args: argparse.Namespace) -> int:
                 break
             time.sleep(2.0)
     except GuardLivenessError as exc:
-        guard_liveness_abort = True
-        abort_reason = f"guard_liveness_abort:{exc}"
-        if pid is not None:
-            try:
-                kill_workload(device, pid)
-            except AdbTransportError:
-                adb_disconnect = True
-        if supervisor_pid is not None:
-            try:
-                device.shell(f"kill -9 {supervisor_pid}", timeout=10)
-            except AdbTransportError:
-                adb_disconnect = True
-        if guard_pid is not None:
-            try:
-                device.shell(f"kill -9 {guard_pid}", timeout=10)
-            except AdbTransportError:
-                adb_disconnect = True
+        sensor_fail_closed = False
+        try:
+            sensor_fail_closed = read_int_file(device, remote_guard_rc_file) == 3
+        except AdbTransportError:
+            adb_disconnect = True
+        if sensor_fail_closed:
+            abort_reason = "sensor_fail_closed"
+            # The detached guard has already killed the gated wrapper. Let the
+            # supervisor publish its workload rc instead of killing it here.
+        else:
+            guard_liveness_abort = True
+            abort_reason = f"guard_liveness_abort:{exc}"
+            if pid is not None:
+                try:
+                    kill_workload(device, pid)
+                except AdbTransportError:
+                    adb_disconnect = True
+            if supervisor_pid is not None:
+                try:
+                    device.shell(f"kill -9 {supervisor_pid}", timeout=10)
+                except AdbTransportError:
+                    adb_disconnect = True
+            if guard_pid is not None:
+                try:
+                    device.shell(f"kill -9 {guard_pid}", timeout=10)
+                except AdbTransportError:
+                    adb_disconnect = True
     except AdbTransportError as exc:
         adb_disconnect = True
         abort_reason = f"adb_disconnect_after_reconnect_budget:{exc}"
@@ -591,6 +624,7 @@ def launch(args: argparse.Namespace) -> int:
         abort_reason = "workload_never_started"
     execute_op_htp0 = bool(re.search(r"execute-op.*HTP0|HTP0.*execute-op", stderr_log, re.I))
     execute_op_htp0 = execute_op_htp0 or bool(re.search(r"execute-op.*HTP0|HTP0.*execute-op", stdout_log, re.I))
+    failure_signature = failure_signature or failure_signature_line(stderr_log + ("\n" if stderr_log and stdout_log else "") + stdout_log)
     running_values.update(running_ppl_values(stdout_log))
     running_values.update(running_ppl_values(stderr_log))
     try:
@@ -606,7 +640,10 @@ def launch(args: argparse.Namespace) -> int:
         adb_disconnect = True
     if execute_op_htp0:
         htp_execute_op_detected = True
-        abort_reason = abort_reason or "HTP0_execute_op_detected"
+        if not args.allow_npu:
+            abort_reason = abort_reason or "HTP0_execute_op_detected"
+    if failure_signature:
+        abort_reason = "workload_failure_signature"
     if battery_floor_chunk is None and battery_floor_triggered:
         battery_floor_chunk = max(running_values) if running_values else None
 
@@ -614,7 +651,9 @@ def launch(args: argparse.Namespace) -> int:
     if args.session_hard_cap_tenths > 0:
         effective_kill_tenths = min(effective_kill_tenths, args.session_hard_cap_tenths)
     named_guard_outcome = guard_outcome(guard_rc, guard_liveness_abort, guard_log)
-    if htp_execute_op_detected:
+    if failure_signature:
+        launcher_exit_code = 4
+    elif htp_execute_op_detected and not args.allow_npu:
         launcher_exit_code = 3
     elif workload_never_started:
         launcher_exit_code = EXIT_WORKLOAD_NOT_STARTED
@@ -625,7 +664,7 @@ def launch(args: argparse.Namespace) -> int:
     elif timed_out:
         launcher_exit_code = 124
     elif guard_rc == 2:
-        launcher_exit_code = 0
+        launcher_exit_code = 2 if args.allow_npu else 0
     elif guard_rc != 0 or workload_rc != 0:
         launcher_exit_code = 1
     else:
@@ -638,6 +677,8 @@ def launch(args: argparse.Namespace) -> int:
         "binary_pid": pid,
         "cpuset": cpuset,
         "workload": workload,
+        "allow_npu": args.allow_npu,
+        "thermal_sensor_cmd": args.thermal_sensor_cmd,
         "environment": {
             "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
             "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
@@ -670,6 +711,7 @@ def launch(args: argparse.Namespace) -> int:
         "workload_never_started": workload_never_started,
         "timed_out": timed_out,
         "abort_reason": abort_reason,
+        "workload_failure_signature": failure_signature,
         "guard_liveness_abort": guard_liveness_abort,
         "adb_disconnect": adb_disconnect,
         "adb_reconnect_attempts": device.reconnect_attempts,
@@ -693,7 +735,9 @@ def launch(args: argparse.Namespace) -> int:
     manifest_path.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps(manifest, indent=2, ensure_ascii=False))
 
-    if htp_execute_op_detected:
+    if failure_signature:
+        print(f"STOP: workload failure signature: {failure_signature}", file=sys.stderr)
+    elif htp_execute_op_detected and not args.allow_npu:
         print("STOP: HTP0 execute-op evidence found in workload logs", file=sys.stderr)
     return launcher_exit_code
 
@@ -710,6 +754,8 @@ def main() -> int:
     parser.add_argument("--max-seconds", type=int, default=120)
     parser.add_argument("--local-dir", default=str(HERE / "raw"))
     parser.add_argument("--manifest-path", default="")
+    parser.add_argument("--allow-npu", action="store_true")
+    parser.add_argument("--thermal-sensor-cmd", default="")
     parser.add_argument("workload", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     return launch(args)

@@ -1,0 +1,8 @@
+{
+  "status": "NOT_RUN",
+  "reason": "hard stop after q53 lane-2 session-3 abort signature",
+  "arm_A": {"status": "NOT_RUN", "guard_exit_code": null, "outcome": "not_started"},
+  "arm_B": {"status": "NOT_RUN", "guard_exit_code": null, "outcome": "not_started"},
+  "arm_C": {"status": "NOT_RUN", "guard_exit_code": null, "outcome": "not_started"},
+  "battery_last_check": {"level": 96, "temperature_tenths": 363, "plugged": false}
+}
