@@ -332,30 +332,35 @@ async function main() {
   });
 
   // ── kalsa.bench.norepack (no_extra_bufts arm) ──────────────────────────
-  await test('parseBenchNoRepack: only "1" disables repack', () => {
+  // Sealed contract (parseBenchNoRepack JSDoc): tri-state. "1" → true
+  // (disable ARM repack), "0" → false (force repack ON), empty / absent /
+  // junk → undefined (no bench opinion: per-model loadPolicy decides).
+  await test('parseBenchNoRepack: tri-state "1"/true "0"/false else undefined', () => {
     assert(parseBenchNoRepack("1") === true, '"1" → true');
-    assert(parseBenchNoRepack("0") === false, '"0" → false (production)');
-    assert(parseBenchNoRepack(null) === false, "null → false");
-    assert(parseBenchNoRepack(undefined) === false, "undefined → false");
-    assert(parseBenchNoRepack("") === false, "empty → false");
-    assert(parseBenchNoRepack("yes") === false, "junk → false");
+    assert(parseBenchNoRepack("0") === false, '"0" → false (repack forced on)');
+    assert(parseBenchNoRepack(null) === undefined, "null → undefined");
+    assert(parseBenchNoRepack(undefined) === undefined, "undefined → undefined");
+    assert(parseBenchNoRepack("") === undefined, "empty → undefined");
+    assert(parseBenchNoRepack("yes") === undefined, "junk → undefined");
   });
 
-  await test("getBenchNoRepack: absent → false; '1' → true; other → false", async () => {
+  await test("getBenchNoRepack: absent → undefined; '1' → true; '0' → false; junk → undefined", async () => {
     store.clear();
-    assert((await getBenchNoRepack()) === false, "absent defaults to false");
+    assert((await getBenchNoRepack()) === undefined, "absent → undefined (policy decides)");
     store.set(BENCH_NOREPACK_KEY, "1");
     assert((await getBenchNoRepack()) === true, "'1' → true");
     store.set(BENCH_NOREPACK_KEY, "0");
     assert((await getBenchNoRepack()) === false, "'0' → false");
     store.set(BENCH_NOREPACK_KEY, "2");
-    assert((await getBenchNoRepack()) === false, "junk → false");
+    assert((await getBenchNoRepack()) === undefined, "junk → undefined");
   });
 
-  // Reload skip key must include the resolved no_extra_bufts mode — otherwise
-  // flipping kalsa.bench.norepack with an identical context silently keeps the
-  // old engine mode and emits no KALSA_SESSION init telemetry.
-  await test("initEngine skip-reload key includes noExtraBufts mode", () => {
+  // Reload skip key must include the *resolved* no_extra_bufts mode from
+  // resolveLoadPolicy — otherwise flipping kalsa.bench.norepack with an
+  // identical context silently keeps the old engine mode and emits no
+  // KALSA_SESSION init telemetry. The bench lever is folded into `load`;
+  // there is no local `noExtraBufts` binding.
+  await test("initEngine skip-reload key includes resolved load.noExtraBufts", () => {
     const src = readFileSync(
       path.join(projectRoot, "src/engine/LlamaService.ts"),
       "utf8",
@@ -365,12 +370,12 @@ async function main() {
       "activeNoExtraBufts state must exist",
     );
     assert(
-      src.includes("activeNoExtraBufts === noExtraBufts"),
-      "skip-reload condition must compare activeNoExtraBufts === noExtraBufts",
+      src.includes("activeNoExtraBufts === load.noExtraBufts"),
+      "skip-reload condition must compare activeNoExtraBufts === load.noExtraBufts",
     );
     assert(
-      /activeNoExtraBufts = noExtraBufts\s*;/.test(src),
-      "successful load must record activeNoExtraBufts",
+      /activeNoExtraBufts = load\.noExtraBufts\s*;/.test(src),
+      "successful load must record activeNoExtraBufts from load policy",
     );
     assert(
       /activeNoExtraBufts = null\s*;/.test(src),
