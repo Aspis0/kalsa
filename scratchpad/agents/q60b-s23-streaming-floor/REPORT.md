@@ -36,3 +36,24 @@ max_temperature_C_n2048 = 35.4
 max_temperature_C_all = 35.4
 battery_start_pct = 67
 battery_end_pct = 62
+
+## Corrections applied after audit (REVIEW_MATH.md, BANK-with-corrections)
+- DISCLAIMER: this cell does NOT decide GO/NO-GO for any kernel; it characterizes the streaming
+  prefill floor. Legend: "headroom" = wall / max(I/O floor, compute/k); k = hypothetical matmul
+  speed-up; values > 1 are ceilings, not predictions.
+- Phase split: read_MB and MB/s are per-LAUNCH (each launch carries a ~1 GB/s full-file prefetch,
+  5.2–6.6 GB, before eval); the timed eval re-read pass runs at only 312–393 MB/s (n ≤ 512).
+  The 1157 MB/s "best" is one warm pp128 launch, not a sustained eval rate.
+- SELF-CONSISTENT headroom (each rep at its own eval-pass rate): ≈ 1.0 for every rep. With the
+  user-compute-only model (stime stays on CPU): 1.0–1.3× at k=2. By rate convention the wording
+  is "mixed" only at the cell-best rate; self-consistent and io_gate conventions both read
+  FLASH-BOUND.
+- pp2048: every launch shows an untimed eval-equivalent pass (sampler window ≈ 2.1× bench wall);
+  only ~9–14 GB of the 30 GB belong to the timed eval. Re-read multiplier grows with batch
+  (0.9× → 3.7×); batches > 512 fall into a ~100–150 MB/s thrash regime — design implication:
+  only layer-local double-buffering can cap it.
+- UFS 4.0 extrapolation (audit, from results/io_gate/xiaomi_ufs4: seq 2046 MB/s, rand 1543,
+  same RAM/re-read volumes, NPU removing all utime): pp512 ≈ 2.5–3× central (1.6–4.1×),
+  pp2048 ≈ 3.5×, with the user-matmul term (3.9–4.3 s) binding near 3–4×. Settling measurement
+  on v75: cold-protocol pp512×3 + pp2048 with per-launch read_bytes, utime/stime/majflt, and
+  sampler-window-vs-wall check.
