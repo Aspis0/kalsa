@@ -49,9 +49,9 @@ wiki.test.raw=173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08 M
 LFM-B-prime=38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a MATCH
 Qwen3.5-4B-Q4_0=298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb MATCH
 mismatches=0
-thermal_guard_sha256=1397e02f7866e32d8921a2c3db9cd4a09d25ba42719f10933cb9fc82f2e93d58
-launch_with_guard_sha256=a829f5f9d4b54c93455d763d2468643b3000d1cb7044219a752bf12b02a77fb6
-thermal_guard_device_sha256=NOT_REVALIDATED
+thermal_guard_sha256=f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84c
+launch_with_guard_sha256=64ef5fb808b7bd2784555b54db3c395aecd1d85021e568c948d1f07b7f783b40
+thermal_guard_device_sha256=f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84c
 ```
 
 ## validation
@@ -83,6 +83,21 @@ test2_n_gpu_layers=0
 test2_execute_op_htp0_stderr=0
 ```
 
+## Revalidation update (current fixed guard)
+
+The parser now selects only the current `dumpsys battery` block lines matching
+`^  temperature: *[0-9]+` and `^  level: *[0-9]+`; history lines are ignored.
+Temperature is the only sensor-failure criterion. A missing level is recorded
+as `-1` and is informational; the launcher enforces the 45% battery floor.
+
+```text
+sensor_timeout_s=10
+sensor_fail_limit=4
+sensor_failure_window_s=40
+kill_verification=up_to_5s_at_0.5s_intervals
+guard_kills_exec_workload_pid=1
+```
+
 ## production_command
 
 ```text
@@ -92,9 +107,9 @@ requested_kill_tenths=430
 session_hard_cap_tenths=380
 effective_kill_tenths=380
 effective_kill_temperature_c=38.0
-sensor_failure_limit=3
-sensor_timeout_s=5
-sensor_failure_window_s=15
+sensor_failure_limit=4
+sensor_timeout_s=10
+sensor_failure_window_s=40
 fail_closed_false_kill_accepted=1
 ```
 
@@ -130,9 +145,9 @@ test2_n_gpu_layers=0
 3 -> warn_tenths, kill_tenths, hard_abort_tenths/session_hard_cap_tenths, and effective_kill_tenths are explicit and logged at START; manifest/report state effective kill
 4 -> final sample uses the same WARN/KILL/BATTERY/SENSOR checks before MAX
 5 -> dumpsys is bounded by timeout 5 and elapsed sample time is subtracted from the sleep interval
-6 -> kill -9 is followed by a one-second liveness confirmation; failure logs KILL_FAILED and exits 3
+6 -> kill -9 is followed by up to five seconds of 0.5-second liveness confirmation; failure logs KILL_FAILED and exits 3
 7 -> inclusive integer-tenths WARN/KILL comparisons retained and documented by explicit threshold fields
-8 -> zero, malformed, missing, and invalid-level samples are sensor failures
+8 -> zero, malformed, and missing temperature samples are sensor failures; missing level is informational and logged as -1
 9 -> nohup/setsid detached guard retained
 10 -> exec workload remains the tracked wrapper PID
 11 -> detached on-device guard remains independent of adb
@@ -147,7 +162,7 @@ test2_n_gpu_layers=0
 A -> wrapper records WORKLOAD_NEVER_STARTED on exec failure; launcher marks workload_never_started and returns distinct exit 77
 B -> supervisor EXIT trap now checks kill -0 before attempting cleanup kill
 D -> guard checks command -v timeout at startup, logs TIMEOUT_BINARY_MISSING, and refuses to arm without it
-E -> sensor_fail_limit remains 3 by design; 3 consecutive 5 s reads = 15 s binder-unavailability window, and fail-closed false-kill is explicitly accepted
+E -> current guard uses sensor_fail_limit=4 and 10 s reads: a 40 s binder-unavailability window; fail-closed false-kill remains explicitly accepted
 H -> guard-ready deadline is max(2 poll intervals, 10 seconds)
 K -> manifest records guard_exit_code and named guard_outcome: 0 normal, 2 thermal kill, 3 sensor fail-closed, 75 guard-not-ready, other otherwise
 local_shell_syntax=PASS

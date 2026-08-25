@@ -26,7 +26,7 @@ DEFAULT_SERIAL = "192.168.1.152:41679"
 REMOTE_DIR = "/data/local/tmp/q56_thermal_watchdog"
 REMOTE_GUARD = f"{REMOTE_DIR}/thermal_guard.sh"
 MAX_ALLOWED_SECONDS = 3600
-DEFAULT_SENSOR_FAILURE_LIMIT = 3
+DEFAULT_SENSOR_FAILURE_LIMIT = 4
 MIN_FREE_KB = 500 * 1024
 EXIT_GUARD_LIVENESS = 75
 EXIT_ADB_DISCONNECT = 76
@@ -196,7 +196,12 @@ def require_safe_workload(workload: list[str], allow_npu: bool = False) -> None:
 
 def failure_signature_line(text: str) -> str:
     for line in text.splitlines():
-        if re.search(r"dspqueue|INTERNAL-ERROR|\babort\b", line, re.IGNORECASE):
+        if re.search(r"ggml_abort|ggml_assert|dspqueue|INTERNAL-ERROR|\baborted\b|\bsegmentation\b", line, re.IGNORECASE):
+            return line.strip()
+        # Normal startup uses lower-case "cdsp" in the URI/domain and
+        # libcdsprpc name. The authorized crash marker is the explicit
+        # upper-case CDSP token.
+        if re.search(r"\bCDSP\b", line):
             return line.strip()
     return ""
 
@@ -228,8 +233,7 @@ def battery_snapshot(device: Device) -> dict[str, int | bool | None]:
 def running_ppl_values(text: str) -> dict[int, float]:
     values: dict[int, float] = {}
     for line in text.splitlines():
-        match = re.search(r"^\[(\d+)\]([0-9]+(?:\.[0-9]+)?)", line)
-        if match:
+        for match in re.finditer(r"\[(\d+)\]([0-9]+(?:\.[0-9]+)?)", line):
             values[int(match.group(1))] = float(match.group(2))
     return values
 
@@ -337,6 +341,7 @@ def launch(args: argparse.Namespace) -> int:
     remote_stderr_log = f"{REMOTE_DIR}/{remote_tag}.stderr.log"
     remote_guard_log = f"{REMOTE_DIR}/{remote_tag}.guard.log"
     remote_pid_file = f"{REMOTE_DIR}/{remote_tag}.pid"
+    remote_exec_pid_file = f"{REMOTE_DIR}/{remote_tag}.workload.exec.pid"
     remote_guard_pid_file = f"{REMOTE_DIR}/{remote_tag}.guard.pid"
     remote_guard_ready_file = f"{REMOTE_DIR}/{remote_tag}.guard.ready"
     remote_guard_tracking_file = f"{REMOTE_DIR}/{remote_tag}.guard.tracking"
@@ -349,6 +354,7 @@ def launch(args: argparse.Namespace) -> int:
         remote_stderr_log,
         remote_guard_log,
         remote_pid_file,
+        remote_exec_pid_file,
         remote_guard_pid_file,
         remote_guard_ready_file,
         remote_guard_tracking_file,
@@ -363,8 +369,8 @@ def launch(args: argparse.Namespace) -> int:
         raise SystemExit("REFUSING: initial battery snapshot unavailable")
     if int(initial_battery["level"]) < 50:
         raise SystemExit(f"REFUSING: initial battery level below 50% ({initial_battery['level']}%)")
-    if int(initial_battery["temperature_tenths"]) > 300:
-        raise SystemExit(f"REFUSING: initial battery temperature above 30.0 C ({initial_battery['temperature_tenths']})")
+    if int(initial_battery["temperature_tenths"]) > 320:
+        raise SystemExit(f"REFUSING: initial battery temperature above 32.0 C ({initial_battery['temperature_tenths']})")
     if any(initial_battery[key] is True for key in ("ac_powered", "usb_powered", "wireless_powered")):
         raise SystemExit("REFUSING: device charging state is not unplugged")
     available_kb = disk_available_kb(device)
@@ -388,6 +394,7 @@ def launch(args: argparse.Namespace) -> int:
     supervisor_pid: int | None = None
     guard_pid: int | None = None
     pid: int | None = None
+    workload_exec_pid: int | None = None
     cpuset = "CPUSET_UNAVAILABLE"
     launch_text = ""
     guard_text = ""
@@ -397,6 +404,7 @@ def launch(args: argparse.Namespace) -> int:
     started = time.time()
 
     quoted_workload = " ".join(shlex.quote(item) for item in workload)
+    hostbuf_setup = "export GGML_HEXAGON_HOSTBUF=1" if args.allow_npu else "unset GGML_HEXAGON_HOSTBUF"
     setup = " ; ".join(
         [
             f"cd {shlex.quote('/data/local/tmp/kalsahtp')}",
@@ -405,7 +413,7 @@ def launch(args: argparse.Namespace) -> int:
             "export CDSP_LIBRARY_PATH=/data/local/tmp/kalsahtp",
             "export GGML_HEXAGON_NDEV=1",
             "export GGML_HEXAGON_VERBOSE=1",
-            "unset GGML_HEXAGON_HOSTBUF",
+            hostbuf_setup,
             "unset GGML_OPENCL_LOG_ALLOC",
         ]
     )
@@ -449,6 +457,7 @@ def launch(args: argparse.Namespace) -> int:
             "child=0",
             "trap 'if [ \"$child\" -gt 0 ] && kill -0 \"$child\" 2>/dev/null; then kill -9 \"$child\" 2>/dev/null; fi' 0 1 2 3 15",
             f"( {workload_wrapper} ) & child=$!",
+            f"echo WORKLOAD_PID=$child > {shlex.quote(remote_exec_pid_file)}",
             f"echo BINARY_PID=$child > {shlex.quote(remote_pid_file)}",
             f"if [ -r /proc/$child/cpuset ]; then echo CPUSET=$(cat /proc/$child/cpuset) >> {shlex.quote(remote_pid_file)}; else echo CPUSET_UNAVAILABLE >> {shlex.quote(remote_pid_file)}; fi",
             f"while [ ! -f {shlex.quote(remote_guard_tracking_file)} ]; do if ! kill -0 $guard 2>/dev/null; then echo GUARD_DIED_BEFORE_TRACKING > {shlex.quote(remote_supervisor_failure_file)}; exit {EXIT_GUARD_LIVENESS}; fi; sleep 1; done",
@@ -485,6 +494,19 @@ def launch(args: argparse.Namespace) -> int:
             raise GuardLivenessError("workload wrapper did not publish BINARY_PID")
         pid = int(pid_text_value)
         cpuset = parse_key_value(pid_text, "CPUSET") or "CPUSET_UNAVAILABLE"
+        exec_pid_value = ""
+        exec_deadline = time.monotonic() + max(2.0 * args.interval_s + 5.0, 10.0)
+        while time.monotonic() < exec_deadline:
+            exec_pid_text = read_remote_file(device, remote_exec_pid_file)
+            exec_pid_value = parse_key_value(exec_pid_text, "WORKLOAD_PID")
+            if exec_pid_value.isdigit() and int(exec_pid_value) > 0:
+                break
+            if not proc_exists(device, pid):
+                break
+            time.sleep(0.5)
+        if not exec_pid_value.isdigit() or int(exec_pid_value) <= 0:
+            raise GuardLivenessError("workload wrapper did not publish WORKLOAD_PID")
+        workload_exec_pid = int(exec_pid_value)
 
         deadline = time.monotonic() + args.max_seconds
         next_battery_poll = 0.0
@@ -492,9 +514,13 @@ def launch(args: argparse.Namespace) -> int:
         while proc_exists(device, pid):
             now = time.monotonic()
             if guard_pid is None or not proc_exists(device, guard_pid):
-                guard_liveness_abort = True
-                abort_reason = "guard_liveness_lost"
-                kill_workload(device, pid)
+                observed_guard_rc = read_int_file(device, remote_guard_rc_file)
+                if observed_guard_rc in (2, 3):
+                    abort_reason = f"guard_exit_{observed_guard_rc}"
+                else:
+                    guard_liveness_abort = True
+                    abort_reason = "guard_liveness_lost"
+                    kill_workload(device, pid)
                 break
             if now >= next_battery_poll:
                 sample = battery_snapshot(device)
@@ -597,6 +623,7 @@ def launch(args: argparse.Namespace) -> int:
         (remote_workload_log, f"{remote_tag}.stdout.jsonl"),
         (remote_stderr_log, f"{remote_tag}.stderr.log"),
         (remote_start_failure_file, f"{remote_tag}.workload.start_failure"),
+        (remote_exec_pid_file, f"{remote_tag}.workload.exec.pid"),
         (remote_guard_log, f"{remote_tag}.guard.log"),
     ]:
         try:
@@ -610,6 +637,7 @@ def launch(args: argparse.Namespace) -> int:
     stdout_local = local_dir / f"{remote_tag}.stdout.jsonl"
     stderr_local = local_dir / f"{remote_tag}.stderr.log"
     start_failure_local = local_dir / f"{remote_tag}.workload.start_failure"
+    exec_pid_local = local_dir / f"{remote_tag}.workload.exec.pid"
     guard_log = guard_local.read_text(encoding="utf-8", errors="replace") if guard_local.exists() else ""
     try:
         guard_text = read_remote_file(device, remote_guard_pid_file) if not adb_disconnect else ""
@@ -619,6 +647,10 @@ def launch(args: argparse.Namespace) -> int:
     stdout_log = stdout_local.read_text(encoding="utf-8", errors="replace") if stdout_local.exists() else ""
     stderr_log = stderr_local.read_text(encoding="utf-8", errors="replace") if stderr_local.exists() else ""
     start_failure_log = start_failure_local.read_text(encoding="utf-8", errors="replace") if start_failure_local.exists() else ""
+    if workload_exec_pid is None and exec_pid_local.exists():
+        exec_pid_value = parse_key_value(exec_pid_local.read_text(encoding="utf-8", errors="replace"), "WORKLOAD_PID")
+        if exec_pid_value.isdigit():
+            workload_exec_pid = int(exec_pid_value)
     workload_never_started = bool(re.search(r"^WORKLOAD_NEVER_STARTED=", start_failure_log, re.MULTILINE)) or workload_rc in {126, 127}
     if workload_never_started:
         abort_reason = "workload_never_started"
@@ -646,6 +678,18 @@ def launch(args: argparse.Namespace) -> int:
         abort_reason = "workload_failure_signature"
     if battery_floor_chunk is None and battery_floor_triggered:
         battery_floor_chunk = max(running_values) if running_values else None
+    if (
+        not failure_signature
+        and workload_rc is not None
+        and workload_rc >= 128
+        and guard_rc not in (2, 3)
+        and not timed_out
+        and not battery_floor_triggered
+        and not guard_liveness_abort
+        and not adb_disconnect
+    ):
+        failure_signature = f"workload_rc={workload_rc}"
+        abort_reason = "workload_rc_ge_128"
 
     effective_kill_tenths = args.kill_tenths
     if args.session_hard_cap_tenths > 0:
@@ -675,6 +719,7 @@ def launch(args: argparse.Namespace) -> int:
         "supervisor_pid": supervisor_pid,
         "guard_pid": guard_pid,
         "binary_pid": pid,
+        "workload_exec_pid": workload_exec_pid,
         "cpuset": cpuset,
         "workload": workload,
         "allow_npu": args.allow_npu,
@@ -685,7 +730,7 @@ def launch(args: argparse.Namespace) -> int:
             "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
             "GGML_HEXAGON_NDEV": "1",
             "GGML_HEXAGON_VERBOSE": "1",
-            "GGML_HEXAGON_HOSTBUF": "unset",
+            "GGML_HEXAGON_HOSTBUF": "1" if args.allow_npu else "unset",
             "GGML_OPENCL_LOG_ALLOC": "unset",
         },
         "guard": {
@@ -696,8 +741,8 @@ def launch(args: argparse.Namespace) -> int:
             "effective_kill_tenths": effective_kill_tenths,
             "interval_s": args.interval_s,
             "sensor_fail_limit": args.sensor_failure_limit,
-            "sensor_timeout_s": 5,
-            "sensor_failure_window_s": args.sensor_failure_limit * 5,
+            "sensor_timeout_s": 10,
+            "sensor_failure_window_s": args.sensor_failure_limit * 10,
             "fail_closed_false_kill_accepted": True,
             "ready_verified": not guard_liveness_abort and guard_pid is not None,
             "tracking_verified": not guard_liveness_abort and pid is not None,

@@ -1,0 +1,603 @@
+3.41.581.721 D ggml-hex: HTP0 add-tensor #15 blk.25.ssm_dt.bias : bi 2 data 0x7ee1f5f100 offset 3191040 size 128 flags 0x0 : 32:1:1:1
+3.41.581.722 D ggml-hex: HTP0 add-tensor #16 node_1467 : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 32:1024:1:1
+3.41.581.726 D ggml-hex: HTP0 execute-op SOFTPLUS|node_1467 -> a_softplus-25|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.41.581.738 D ggml-hex: HTP0 execute-op MUL|a_softplus-25 x blk.25.ssm_a -> gate-25|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.41.581.740 D ggml-hex: HTP0 add-tensor #17 blk.25.ssm_a : bi 2 data 0x7ee1f5f180 offset 3191168 size 128 flags 0x0 : 32:1:1:1
+3.41.581.745 D ggml-hex: HTP0 execute-op SIGMOID|beta-25 -> beta_sigmoid-25|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.41.581.746 D ggml-hex: HTP0 add-tensor #18 beta-25 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 1:32:1024:1
+3.41.581.755 D ggml-hex: HTP0 add-tensor #19 beta_sigmoid-25 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 1:32:1024:1
+3.41.596.005 D ggml-hex: HTP0 execute-op GATED_DELTA_NET|q_conv_predelta-25 x k_conv_predelta-25 x v_conv_predelta-25 x gate-25 (reshaped) x beta_sigmoid-25 x state_predelta-25 -> node_1475|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|HTP0 x HTP0 x HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.41.596.031 D ggml-hex: HTP0 add-tensor #20 v_conv_predelta-25 : bi 1 data 0x7d70976080 offset 92520576 size 33538048 flags 0x1 : 128:32:1024:1
+3.41.596.033 D ggml-hex: HTP0 add-tensor #21 gate-25 (reshaped) : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 1:32:1024:1
+3.41.596.035 D ggml-hex: HTP0 add-tensor #22 state_predelta-25 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 128:128:32:1
+3.41.596.037 D ggml-hex: HTP0 add-tensor #23 node_1475 : bi 1 data 0x7d6dba2080 offset 44466304 size 18874368 flags 0x1 : 4096:1152:1:1
+3.41.596.049 D ggml-hex: HTP0 execute-op CPY|new_state-25 x cache_s_l25 (view) -> cache_s_l25 (view) (copy of new_state-25)|128:128:32:1 x 524288:1 -> 524288:1|f32 x f32 -> f32|4:512:65536:2097152 x 4:2097152 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.41.596.060 D ggml-hex: HTP0 add-tensor #24 new_state-25 : bi 1 data 0x7d6eba2080 offset 61243520 size 2097152 flags 0x1 : 128:128:32:1
+3.41.600.144 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_output-25 x blk.25.ssm_norm.weight -> node_1481|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8382464|flags 0x0
+3.41.600.190 D ggml-hex: HTP0 add-tensor #25 attn_output-25 : bi 1 data 0x7d6dba2080 offset 44466304 size 16777216 flags 0x1 : 128:32:1024:1
+3.41.600.208 D ggml-hex: HTP0 add-tensor #26 blk.25.ssm_norm.weight : bi 2 data 0x7ee1f5f200 offset 3191296 size 512 flags 0x0 : 128:1:1:1
+3.41.600.392 D ggml-hex: HTP0 add-tensor #27 node_1481 : bi 1 data 0x7d6c942080 offset 25198720 size 16777216 flags 0x1 : 128:32:1024:1
+3.41.612.473 D ggml-hex: HTP0 execute-op MUL_MAT|blk.25.attn_gate.weight x attn_norm-25 -> z-25|2560:4096 x 2560:1024 -> 4096:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.41.612.601 D ggml-hex: HTP0 add-tensor #28 blk.25.attn_gate.weight : bi 3 data 0x7df2819000 offset 403251200 size 5898240 flags 0x0 : 2560:4096:1:1
+3.41.612.625 D ggml-hex: HTP0 add-tensor #29 z-25 : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 4096:1024:1:1
+3.41.612.697 D ggml-hex: HTP0 execute-op SILU|z-25 (reshaped) -> node_1484|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.41.612.727 D ggml-hex: HTP0 add-tensor #30 z-25 (reshaped) : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 128:32:1024:1
+3.41.612.753 D ggml-hex: HTP0 add-tensor #31 node_1484 : bi 1 data 0x7d6e942080 offset 58753152 size 16777216 flags 0x1 : 128:32:1024:1
+3.41.612.777 D ggml-hex: HTP0 execute-op MUL|node_1481 x node_1484 -> node_1485|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.41.614.345 D ggml-hex: HTP0 op-queue push batch #1 : n-bufs 4 n-tensors 32 n-ops 17 vmem 995780736 : b-size 96 t-size 1792 o-size 3808 m-size 6512
+3.41.618.499 D ggml-hex: HTP0 queue-opbatch: 0x7ee8737180 size 6512
+3.41.769.785 D ggml-hex: HTP0 op-queue pop batch #1 : n-bufs 4 n-tensors 32 n-ops 17 : m-size 6512 b-size 96 t-size 1792 o-size 3808
+3.41.769.886 D ggml-hex: HTP0 synchronize
+3.42.163.259 D ggml-hex: HTP0 synchronize
+3.42.163.681 D ggml-hex: HTP0 synchronize
+3.42.163.725 D ggml-hex: HTP0 set-tensor HTP0#linear_attn_out-25 (reshaped)#0 : data 0xb400007cfbf44fe0 offset 0 size 10485760
+3.42.164.611 D ggml-hex: HTP0 graph-compute n_nodes 12
+3.42.176.706 D ggml-hex: HTP0 execute-op ADD|HTP0#linear_attn_out-25 (reshaped)#0 x l_out-24 -> attn_residual-25|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.176.740 D ggml-hex: HTP0 add-buffer #0 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 138453120
+3.42.176.763 D ggml-hex: HTP0 add-tensor #0 HTP0#linear_attn_out-25 (reshaped)#0 : bi 0 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.42.195.723 D ggml-hex: HTP0 add-tensor #1 l_out-24 : bi 0 data 0x7d6b13a000 offset 0 size 10485760 flags 0x1 : 2560:1024:1:1
+3.42.195.779 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-25 x blk.25.post_attention_norm.weight -> attn_post_norm-25|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.42.195.821 D ggml-hex: HTP0 add-buffer #1 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 142303360
+3.42.195.832 D ggml-hex: HTP0 add-tensor #2 blk.25.post_attention_norm.weight : bi 1 data 0x7ee1f3c900 offset 3049728 size 10240 flags 0x0 : 2560:1:1:1
+3.42.195.865 D ggml-hex: HTP0 execute-op MUL_MAT|blk.25.ffn_gate.weight x attn_post_norm-25 -> ffn_gate-25|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.195.896 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 943085696
+3.42.195.906 D ggml-hex: HTP0 add-tensor #3 blk.25.ffn_gate.weight : bi 2 data 0x7df2de3800 offset 409323520 size 13271040 flags 0x0 : 2560:9216:1:1
+3.42.195.925 D ggml-hex: HTP0 add-tensor #4 ffn_gate-25 : bi 0 data 0x7d6c942080 offset 25198720 size 37748736 flags 0x1 : 9216:1024:1:1
+3.42.195.930 D ggml-hex: HTP0 execute-op MUL_MAT|blk.25.ffn_up.weight x attn_post_norm-25 -> ffn_up-25|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.195.936 D ggml-hex: HTP0 add-tensor #5 blk.25.ffn_up.weight : bi 2 data 0x7df4733800 offset 435865600 size 13271040 flags 0x0 : 2560:9216:1:1
+3.42.195.938 D ggml-hex: HTP0 add-tensor #6 ffn_up-25 : bi 0 data 0x7d6ed42080 offset 62947456 size 37748736 flags 0x1 : 9216:1024:1:1
+3.42.195.951 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-25 x ffn_up-25 -> ffn_swiglu-25|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.195.967 D ggml-hex: HTP0 add-tensor #7 ffn_swiglu-25 : bi 0 data 0x7d71142080 offset 100696192 size 37748736 flags 0x1 : 9216:1024:1:1
+3.42.195.980 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.25.ffn_down.weight x ffn_swiglu-25 x attn_residual-25 -> l_out-25|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.42.195.994 D ggml-hex: HTP0 add-tensor #8 blk.25.ffn_down.weight : bi 2 data 0x7df3a8b800 offset 422594560 size 13271040 flags 0x0 : 9216:2560:1:1
+3.42.195.999 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-25 x blk.26.attn_norm.weight -> attn_norm-26|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.42.196.001 D ggml-hex: HTP0 add-tensor #9 blk.26.attn_norm.weight : bi 1 data 0x7ee1f5f400 offset 3191808 size 10240 flags 0x0 : 2560:1:1:1
+3.42.200.935 D ggml-hex: HTP0 op-queue push batch #2 : n-bufs 3 n-tensors 10 n-ops 7 vmem 943085696 : b-size 72 t-size 560 o-size 1568 m-size 2536
+3.42.201.005 D ggml-hex: HTP0 queue-opbatch: 0x7ee8807300 size 2536
+3.42.238.277 D ggml-hex: HTP0 op-queue pop batch #2 : n-bufs 3 n-tensors 10 n-ops 7 : m-size 2536 b-size 72 t-size 560 o-size 1568
+3.42.238.298 D ggml-hex: HTP0 synchronize
+3.42.275.849 D ggml-hex: HTP0 graph-compute n_nodes 14
+3.42.275.938 D ggml-hex: HTP0 execute-op GET_ROWS|cache_r_l26 (reshaped) x HTP0# (view)#0 -> conv_states-26|24576:1 x 1:1 -> 24576:1|f32 x i32 -> f32|4:98304 x 4:4 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.275.949 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.42.275.951 D ggml-hex: HTP0 add-tensor #0 cache_r_l26 (reshaped) : bi 0 data 0x7dd5f25000 offset 43909120 size 98304 flags 0x1 : 24576:1:1:1
+3.42.275.963 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.42.275.964 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.42.275.966 D ggml-hex: HTP0 add-tensor #2 conv_states-26 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 24576:1:1:1
+3.42.275.972 D ggml-hex: HTP0 execute-op MUL_MAT|blk.26.attn_qkv.weight x attn_norm-26 -> node_1507|2560:8192 x 2560:1024 -> 8192:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.275.974 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 991930496
+3.42.275.975 D ggml-hex: HTP0 add-tensor #3 blk.26.attn_qkv.weight : bi 2 data 0x7df53db800 offset 449136640 size 11796480 flags 0x0 : 2560:8192:1:1
+3.42.275.976 D ggml-hex: HTP0 add-tensor #4 attn_norm-26 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.42.275.977 D ggml-hex: HTP0 add-tensor #5 node_1507 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 8192:1024:1:1
+3.42.275.995 D ggml-hex: HTP0 execute-op CONCAT|conv_states_reshaped-26 x qkv_mixed_transposed-26 -> conv_input-26|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.276.004 D ggml-hex: HTP0 add-tensor #6 conv_states_reshaped-26 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 3:8192:1:1
+3.42.276.006 D ggml-hex: HTP0 add-tensor #7 qkv_mixed_transposed-26 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 1024:8192:1:1
+3.42.276.007 D ggml-hex: HTP0 add-tensor #8 conv_input-26 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.42.276.011 D ggml-hex: HTP0 execute-op CPY|conv_state_last-26 x conv_state_update-26 -> conv_state_update-26 (copy of conv_state_last-26)|3:8192 x 24576:1 -> 24576:1|f32 x f32 -> f32|4:4108! x 4:98304 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.276.020 D ggml-hex: HTP0 add-tensor #9 conv_state_last-26 : bi 1 data 0x7d6e95b080 offset 58855552 size 33648640 flags 0x1 : 3:8192:1:1
+3.42.279.676 D ggml-hex: HTP0 op-queue push batch #3 : n-bufs 3 n-tensors 10 n-ops 4 vmem 991930496 : b-size 72 t-size 560 o-size 896 m-size 1720
+3.42.279.687 D ggml-hex: HTP0 queue-opbatch: 0x7ee88d7480 size 1720
+3.42.299.907 D ggml-hex: HTP0 op-queue pop batch #3 : n-bufs 3 n-tensors 10 n-ops 4 : m-size 1720 b-size 72 t-size 560 o-size 896
+3.42.299.918 D ggml-hex: HTP0 synchronize
+3.42.462.085 D ggml-hex: HTP0 graph-compute n_nodes 33
+3.42.463.085 D ggml-hex: HTP0 execute-op GET_ROWS|cache_s_l26 (reshaped) x HTP0# (view)#0 -> node_1517|524288:1 x 1:1 -> 524288:1|f32 x i32 -> f32|4:2097152 x 4:4 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.087 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.42.463.090 D ggml-hex: HTP0 add-tensor #0 cache_s_l26 (reshaped) : bi 0 data 0x7dd5f3d000 offset 44007424 size 2097152 flags 0x1 : 524288:1:1:1
+3.42.463.092 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.42.463.093 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.42.463.094 D ggml-hex: HTP0 add-tensor #2 node_1517 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 524288:1:1:1
+3.42.463.099 D ggml-hex: HTP0 execute-op SSM_CONV|conv_input-26 x blk.26.ssm_conv1d.weight -> conv_output_raw-26|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.100 D ggml-hex: HTP0 add-tensor #3 conv_input-26 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.42.463.101 D ggml-hex: HTP0 add-buffer #2 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 194998400
+3.42.463.102 D ggml-hex: HTP0 add-tensor #4 blk.26.ssm_conv1d.weight : bi 2 data 0x7ee1f64400 offset 3212288 size 131072 flags 0x0 : 4:8192:1:1
+3.42.463.117 D ggml-hex: HTP0 add-tensor #5 conv_output_raw-26 : bi 1 data 0x7d70972080 offset 92504192 size 33554432 flags 0x1 : 8192:1024:1:1
+3.42.463.121 D ggml-hex: HTP0 execute-op SILU|conv_output_raw-26 -> conv_output_silu-26|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.42.463.125 D ggml-hex: HTP0 execute-op L2_NORM|q_conv-26 -> q_conv_predelta-26|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.42.463.126 D ggml-hex: HTP0 add-tensor #6 q_conv-26 : bi 1 data 0x7d70972080 offset 92504192 size 33529856 flags 0x1 : 128:16:1024:1
+3.42.463.127 D ggml-hex: HTP0 add-tensor #7 q_conv_predelta-26 : bi 1 data 0x7d6cb42080 offset 27295872 size 8388608 flags 0x1 : 128:16:1024:1
+3.42.463.130 D ggml-hex: HTP0 execute-op L2_NORM|k_conv-26 -> k_conv_predelta-26|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.42.463.131 D ggml-hex: HTP0 add-tensor #8 k_conv-26 : bi 1 data 0x7d70974080 offset 92512384 size 33529856 flags 0x1 : 128:16:1024:1
+3.42.463.132 D ggml-hex: HTP0 add-tensor #9 k_conv_predelta-26 : bi 1 data 0x7d6d342080 offset 35684480 size 8388608 flags 0x1 : 128:16:1024:1
+3.42.463.136 D ggml-hex: HTP0 execute-op MUL_MAT|blk.26.ssm_alpha.weight x attn_norm-26 -> node_1528|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.42.463.149 D ggml-hex: HTP0 add-buffer #3 : fd 20 base 0x7dda787000 size 800782336 : vmem 995780736
+3.42.463.150 D ggml-hex: HTP0 add-tensor #10 blk.26.ssm_alpha.weight : bi 3 data 0x7df64d0c00 offset 466918400 size 87040 flags 0x0 : 2560:32:1:1
+3.42.463.160 D ggml-hex: HTP0 add-tensor #11 attn_norm-26 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.42.463.161 D ggml-hex: HTP0 add-tensor #12 node_1528 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 32:1024:1:1
+3.42.463.171 D ggml-hex: HTP0 execute-op MUL_MAT|blk.26.ssm_beta.weight x attn_norm-26 -> node_1534|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.42.463.172 D ggml-hex: HTP0 add-tensor #13 blk.26.ssm_beta.weight : bi 3 data 0x7df64bb800 offset 466831360 size 87040 flags 0x0 : 2560:32:1:1
+3.42.463.174 D ggml-hex: HTP0 add-tensor #14 node_1534 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 32:1024:1:1
+3.42.463.177 D ggml-hex: HTP0 execute-op ADD|alpha-26 x blk.26.ssm_dt.bias -> node_1530|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.178 D ggml-hex: HTP0 add-tensor #15 blk.26.ssm_dt.bias : bi 2 data 0x7ee1f84400 offset 3343360 size 128 flags 0x0 : 32:1:1:1
+3.42.463.179 D ggml-hex: HTP0 add-tensor #16 node_1530 : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 32:1024:1:1
+3.42.463.182 D ggml-hex: HTP0 execute-op SOFTPLUS|node_1530 -> a_softplus-26|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.42.463.185 D ggml-hex: HTP0 execute-op MUL|a_softplus-26 x blk.26.ssm_a -> gate-26|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.193 D ggml-hex: HTP0 add-tensor #17 blk.26.ssm_a : bi 2 data 0x7ee1f84480 offset 3343488 size 128 flags 0x0 : 32:1:1:1
+3.42.463.197 D ggml-hex: HTP0 execute-op SIGMOID|beta-26 -> beta_sigmoid-26|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.42.463.197 D ggml-hex: HTP0 add-tensor #18 beta-26 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 1:32:1024:1
+3.42.463.198 D ggml-hex: HTP0 add-tensor #19 beta_sigmoid-26 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 1:32:1024:1
+3.42.463.417 D ggml-hex: HTP0 execute-op GATED_DELTA_NET|q_conv_predelta-26 x k_conv_predelta-26 x v_conv_predelta-26 x gate-26 (reshaped) x beta_sigmoid-26 x state_predelta-26 -> node_1538|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|HTP0 x HTP0 x HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.427 D ggml-hex: HTP0 add-tensor #20 v_conv_predelta-26 : bi 1 data 0x7d70976080 offset 92520576 size 33538048 flags 0x1 : 128:32:1024:1
+3.42.463.428 D ggml-hex: HTP0 add-tensor #21 gate-26 (reshaped) : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 1:32:1024:1
+3.42.463.429 D ggml-hex: HTP0 add-tensor #22 state_predelta-26 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 128:128:32:1
+3.42.463.429 D ggml-hex: HTP0 add-tensor #23 node_1538 : bi 1 data 0x7d6dba2080 offset 44466304 size 18874368 flags 0x1 : 4096:1152:1:1
+3.42.463.434 D ggml-hex: HTP0 execute-op CPY|new_state-26 x cache_s_l26 (view) -> cache_s_l26 (view) (copy of new_state-26)|128:128:32:1 x 524288:1 -> 524288:1|f32 x f32 -> f32|4:512:65536:2097152 x 4:2097152 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.435 D ggml-hex: HTP0 add-tensor #24 new_state-26 : bi 1 data 0x7d6eba2080 offset 61243520 size 2097152 flags 0x1 : 128:128:32:1
+3.42.463.465 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_output-26 x blk.26.ssm_norm.weight -> node_1544|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8382464|flags 0x0
+3.42.463.466 D ggml-hex: HTP0 add-tensor #25 attn_output-26 : bi 1 data 0x7d6dba2080 offset 44466304 size 16777216 flags 0x1 : 128:32:1024:1
+3.42.463.467 D ggml-hex: HTP0 add-tensor #26 blk.26.ssm_norm.weight : bi 2 data 0x7ee1f84500 offset 3343616 size 512 flags 0x0 : 128:1:1:1
+3.42.463.468 D ggml-hex: HTP0 add-tensor #27 node_1544 : bi 1 data 0x7d6c942080 offset 25198720 size 16777216 flags 0x1 : 128:32:1024:1
+3.42.463.471 D ggml-hex: HTP0 execute-op MUL_MAT|blk.26.attn_gate.weight x attn_norm-26 -> z-26|2560:4096 x 2560:1024 -> 4096:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.463.473 D ggml-hex: HTP0 add-tensor #28 blk.26.attn_gate.weight : bi 3 data 0x7df5f1b800 offset 460933120 size 5898240 flags 0x0 : 2560:4096:1:1
+3.42.463.485 D ggml-hex: HTP0 add-tensor #29 z-26 : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 4096:1024:1:1
+3.42.463.488 D ggml-hex: HTP0 execute-op SILU|z-26 (reshaped) -> node_1547|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.42.463.488 D ggml-hex: HTP0 add-tensor #30 z-26 (reshaped) : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 128:32:1024:1
+3.42.463.499 D ggml-hex: HTP0 add-tensor #31 node_1547 : bi 1 data 0x7d6e942080 offset 58753152 size 16777216 flags 0x1 : 128:32:1024:1
+3.42.463.502 D ggml-hex: HTP0 execute-op MUL|node_1544 x node_1547 -> node_1548|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.463.760 D ggml-hex: HTP0 op-queue push batch #4 : n-bufs 4 n-tensors 32 n-ops 17 vmem 995780736 : b-size 96 t-size 1792 o-size 3808 m-size 6512
+3.42.463.769 D ggml-hex: HTP0 queue-opbatch: 0x7ee89a7600 size 6512
+3.42.630.461 D ggml-hex: HTP0 op-queue pop batch #4 : n-bufs 4 n-tensors 32 n-ops 17 : m-size 6512 b-size 96 t-size 1792 o-size 3808
+3.42.630.558 D ggml-hex: HTP0 synchronize
+3.42.973.790 D ggml-hex: HTP0 synchronize
+3.42.973.901 D ggml-hex: HTP0 synchronize
+3.42.974.226 D ggml-hex: HTP0 set-tensor HTP0#linear_attn_out-26 (reshaped)#0 : data 0xb400007cfbf44fe0 offset 0 size 10485760
+3.42.974.869 D ggml-hex: HTP0 graph-compute n_nodes 51
+3.42.979.084 D ggml-hex: HTP0 execute-op ADD|HTP0#linear_attn_out-26 (reshaped)#0 x l_out-25 -> attn_residual-26|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.979.141 D ggml-hex: HTP0 add-buffer #0 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 138453120
+3.42.979.177 D ggml-hex: HTP0 add-tensor #0 HTP0#linear_attn_out-26 (reshaped)#0 : bi 0 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.42.979.233 D ggml-hex: HTP0 add-tensor #1 l_out-25 : bi 0 data 0x7d6b13a000 offset 0 size 10485760 flags 0x1 : 2560:1024:1:1
+3.42.979.328 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-26 x blk.26.post_attention_norm.weight -> attn_post_norm-26|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.42.979.376 D ggml-hex: HTP0 add-buffer #1 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 142303360
+3.42.979.396 D ggml-hex: HTP0 add-tensor #2 blk.26.post_attention_norm.weight : bi 1 data 0x7ee1f61c00 offset 3202048 size 10240 flags 0x0 : 2560:1:1:1
+3.42.979.462 D ggml-hex: HTP0 execute-op MUL_MAT|blk.26.ffn_gate.weight x attn_post_norm-26 -> ffn_gate-26|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.983.104 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 943085696
+3.42.983.109 D ggml-hex: HTP0 add-tensor #3 blk.26.ffn_gate.weight : bi 2 data 0x7df64e6000 offset 467005440 size 13271040 flags 0x0 : 2560:9216:1:1
+3.42.983.126 D ggml-hex: HTP0 add-tensor #4 ffn_gate-26 : bi 0 data 0x7d6c942080 offset 25198720 size 37748736 flags 0x1 : 9216:1024:1:1
+3.42.983.132 D ggml-hex: HTP0 execute-op MUL_MAT|blk.26.ffn_up.weight x attn_post_norm-26 -> ffn_up-26|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.983.135 D ggml-hex: HTP0 add-tensor #5 blk.26.ffn_up.weight : bi 2 data 0x7df7e36000 offset 493547520 size 13271040 flags 0x0 : 2560:9216:1:1
+3.42.983.137 D ggml-hex: HTP0 add-tensor #6 ffn_up-26 : bi 0 data 0x7d6ed42080 offset 62947456 size 37748736 flags 0x1 : 9216:1024:1:1
+3.42.983.156 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-26 x ffn_up-26 -> ffn_swiglu-26|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.42.983.171 D ggml-hex: HTP0 add-tensor #7 ffn_swiglu-26 : bi 0 data 0x7d71142080 offset 100696192 size 37748736 flags 0x1 : 9216:1024:1:1
+3.42.983.250 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.26.ffn_down.weight x ffn_swiglu-26 x attn_residual-26 -> l_out-26|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.42.983.263 D ggml-hex: HTP0 add-tensor #8 blk.26.ffn_down.weight : bi 2 data 0x7df718e000 offset 480276480 size 13271040 flags 0x0 : 9216:2560:1:1
+3.42.983.277 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-26 x blk.27.attn_norm.weight -> attn_norm-27|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.42.983.284 D ggml-hex: HTP0 add-tensor #9 blk.27.attn_norm.weight : bi 1 data 0x7ee1f84700 offset 3344128 size 10240 flags 0x0 : 2560:1:1:1
+3.42.983.288 D ggml-hex: HTP0 execute-op MUL_MAT|blk.27.attn_q.weight x attn_norm-27 -> Qcur_full-27|2560:8192 x 2560:1024 -> 8192:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.983.303 D ggml-hex: HTP0 add-tensor #10 blk.27.attn_q.weight : bi 2 data 0x7df8ade000 offset 506818560 size 11796480 flags 0x0 : 2560:8192:1:1
+3.42.983.313 D ggml-hex: HTP0 add-tensor #11 Qcur_full-27 : bi 0 data 0x7d6c942080 offset 25198720 size 33554432 flags 0x1 : 8192:1024:1:1
+3.42.983.320 D ggml-hex: HTP0 execute-op MUL_MAT|blk.27.attn_v.weight x attn_norm-27 -> Vcur-27|2560:1024 x 2560:1024 -> 1024:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.983.332 D ggml-hex: HTP0 add-tensor #12 blk.27.attn_v.weight : bi 2 data 0x7df9786000 offset 520089600 size 1474560 flags 0x0 : 2560:1024:1:1
+3.42.993.702 D ggml-hex: HTP0 add-tensor #13 Vcur-27 : bi 0 data 0x7d6e942080 offset 58753152 size 4194304 flags 0x1 : 1024:1024:1:1
+3.42.993.801 D ggml-hex: HTP0 execute-op MUL_MAT|blk.27.attn_k.weight x attn_norm-27 -> Kcur-27|2560:1024 x 2560:1024 -> 1024:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.42.993.805 D ggml-hex: HTP0 add-tensor #14 blk.27.attn_k.weight : bi 2 data 0x7df961e000 offset 518615040 size 1474560 flags 0x0 : 2560:1024:1:1
+3.42.993.809 D ggml-hex: HTP0 add-tensor #15 Kcur-27 : bi 0 data 0x7d6ed42080 offset 62947456 size 4194304 flags 0x1 : 1024:1024:1:1
+3.42.993.826 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|Qcur_reshaped-27 x blk.27.attn_q_norm.weight -> Qcur_normed-27|256:16:1024:1 x 256:1 -> 256:16:1024:1|f32 x f32 -> f32|4:2048:32768:33554432! x 4:1024 -> 4:1024:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8376320|flags 0x0
+3.43.001.319 D ggml-hex: HTP0 add-tensor #16 Qcur_reshaped-27 : bi 0 data 0x7d6c942080 offset 25198720 size 33553408 flags 0x1 : 256:16:1024:1
+3.43.001.362 D ggml-hex: HTP0 add-tensor #17 blk.27.attn_q_norm.weight : bi 1 data 0x7ee1f89700 offset 3364608 size 1024 flags 0x0 : 256:1:1:1
+3.43.001.383 D ggml-hex: HTP0 add-tensor #18 Qcur_normed-27 : bi 0 data 0x7d6f142080 offset 67141760 size 16777216 flags 0x1 : 256:16:1024:1
+3.43.001.408 D ggml-hex: HTP0 execute-op ROPE|Qcur_normed-27 x HTP0#leaf_55#0 -> Qcur-27|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.001.425 D ggml-hex: HTP0 add-tensor #19 HTP0#leaf_55#0 : bi 0 data 0x7d6c53a080 offset 20971648 size 16384 flags 0x1 : 4096:1:1:1
+3.43.001.462 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|Kcur-27 (reshaped) x blk.27.attn_k_norm.weight -> Kcur_normed-27|256:4:1024:1 x 256:1 -> 256:4:1024:1|f32 x f32 -> f32|4:1024:4096:4194304 x 4:1024 -> 4:1024:4096:4194304|HTP0 x HTP0 -> HTP0|row-block vtcm 8376320|flags 0x0
+3.43.001.488 D ggml-hex: HTP0 add-tensor #20 Kcur-27 (reshaped) : bi 0 data 0x7d6ed42080 offset 62947456 size 4194304 flags 0x1 : 256:4:1024:1
+3.43.001.507 D ggml-hex: HTP0 add-tensor #21 blk.27.attn_k_norm.weight : bi 1 data 0x7ee1f89b00 offset 3365632 size 1024 flags 0x0 : 256:1:1:1
+3.43.001.533 D ggml-hex: HTP0 add-tensor #22 Kcur_normed-27 : bi 0 data 0x7d6bb3a000 offset 10485760 size 4194304 flags 0x1 : 256:4:1024:1
+3.43.001.554 D ggml-hex: HTP0 execute-op ROPE|Kcur_normed-27 x HTP0#leaf_55#0 -> Kcur-27|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.001.603 D ggml-hex: HTP0 execute-op SET_ROWS|Kcur-27 (view) x HTP0#leaf_59#0 x cache_k_l27 -> cache_k_l27 (view)|1024:1024 x 1024:1 x 1024:2048 -> 1024:2048|f32 x i64 x f16 -> f16|4:4096 x 8:8192 x 2:2048 -> 2:2048|HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.001.629 D ggml-hex: HTP0 add-tensor #23 Kcur-27 (view) : bi 0 data 0x7d6bb3a000 offset 10485760 size 4194304 flags 0x1 : 1024:1024:1:1
+3.43.001.648 D ggml-hex: HTP0 add-tensor #24 HTP0#leaf_59#0 : bi 0 data 0x7d6c53e080 offset 20988032 size 8192 flags 0x1 : 1024:1:1:1
+3.43.001.666 D ggml-hex: HTP0 add-buffer #3 : fd 17 base 0x7dd6786000 size 67112960 : vmem 1010198656
+3.43.001.689 D ggml-hex: HTP0 add-tensor #25 cache_k_l27 : bi 3 data 0x7dd9786000 offset 50331648 size 4194304 flags 0x1 : 1024:2048:1:1
+3.43.001.711 D ggml-hex: HTP0 execute-op SET_ROWS|Vcur-27 (view) x HTP0#leaf_61#0 x cache_v_l27 -> cache_v_l27 (view)|1024:1024 x 1024:1 x 1024:2048 -> 1024:2048|f32 x i64 x f16 -> f16|4:4096 x 8:8192 x 2:2048 -> 2:2048|HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.001.736 D ggml-hex: HTP0 add-tensor #26 HTP0#leaf_61#0 : bi 0 data 0x7d6c540080 offset 20996224 size 8192 flags 0x1 : 1024:1:1:1
+3.43.001.754 D ggml-hex: HTP0 add-tensor #27 cache_v_l27 : bi 3 data 0x7dd9b86000 offset 54525952 size 4194304 flags 0x1 : 1024:2048:1:1
+3.43.001.786 D ggml-hex: HTP0 execute-op FLASH_ATTN_EXT|Qcur-27 (view) (permuted) x cache_k_l27 (view) (permuted) x cache_v_l27 (view) (permuted) x HTP0#attn_inp_kq_mask#0 -> node_1584|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|hmx-pipe vtcm 6802944|flags 0x0
+3.43.007.253 D ggml-hex: HTP0 add-tensor #28 Qcur-27 (view) (permuted) : bi 0 data 0x7d6f142080 offset 67141760 size 16777216 flags 0x1 : 256:1024:16:1
+3.43.007.278 D ggml-hex: HTP0 add-tensor #29 cache_k_l27 (view) (permuted) : bi 3 data 0x7dd9786000 offset 50331648 size 4194304 flags 0x1 : 256:2048:4:1
+3.43.007.283 D ggml-hex: HTP0 add-tensor #30 cache_v_l27 (view) (permuted) : bi 3 data 0x7dd9b86000 offset 54525952 size 4194304 flags 0x1 : 256:2048:4:1
+3.43.007.301 D ggml-hex: HTP0 add-tensor #31 HTP0#attn_inp_kq_mask#0 : bi 0 data 0x7d6c542080 offset 21004416 size 4194304 flags 0x1 : 2048:1024:1:1
+3.43.007.303 D ggml-hex: HTP0 add-tensor #32 node_1584 : bi 0 data 0x7d70142080 offset 83918976 size 16777216 flags 0x1 : 256:16:1024:1
+3.43.007.318 D ggml-hex: HTP0 execute-op CONT|Qcur_full-27 (view) -> gate_reshaped-27|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|HTP0 -> HTP0|----|flags 0x0
+3.43.007.334 D ggml-hex: HTP0 add-tensor #33 Qcur_full-27 (view) : bi 0 data 0x7d6c942480 offset 25199744 size 33553408 flags 0x1 : 256:16:1024:1
+3.43.007.336 D ggml-hex: HTP0 add-tensor #34 gate_reshaped-27 : bi 0 data 0x7d6e942080 offset 58753152 size 16777216 flags 0x1 : 4096:1024:1:1
+3.43.007.348 D ggml-hex: HTP0 execute-op SIGMOID|gate_reshaped-27 -> gate_sigmoid-27|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.007.357 D ggml-hex: HTP0 execute-op MUL|attn_pregate-27 x gate_sigmoid-27 -> attn_gated-27|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.007.368 D ggml-hex: HTP0 add-tensor #35 attn_pregate-27 : bi 0 data 0x7d70142080 offset 83918976 size 16777216 flags 0x1 : 4096:1024:1:1
+3.43.007.384 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.27.attn_output.weight x attn_gated-27 x l_out-26 -> attn_residual-27|4096:2560 x 4096:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:2304 x 4:16384 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8308736|flags 0x0
+3.43.007.392 D ggml-hex: HTP0 add-tensor #36 blk.27.attn_output.weight : bi 2 data 0x7df98ee000 offset 521564160 size 5898240 flags 0x0 : 4096:2560:1:1
+3.43.007.398 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-27 x blk.27.post_attention_norm.weight -> attn_post_norm-27|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.43.007.399 D ggml-hex: HTP0 add-tensor #37 blk.27.post_attention_norm.weight : bi 1 data 0x7ee1f86f00 offset 3354368 size 10240 flags 0x0 : 2560:1:1:1
+3.43.007.404 D ggml-hex: HTP0 execute-op MUL_MAT|blk.27.ffn_gate.weight x attn_post_norm-27 -> ffn_gate-27|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.43.007.405 D ggml-hex: HTP0 add-tensor #38 blk.27.ffn_gate.weight : bi 2 data 0x7df9e8e000 offset 527462400 size 13271040 flags 0x0 : 2560:9216:1:1
+3.43.007.418 D ggml-hex: HTP0 execute-op MUL_MAT|blk.27.ffn_up.weight x attn_post_norm-27 -> ffn_up-27|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.43.007.419 D ggml-hex: HTP0 add-tensor #39 blk.27.ffn_up.weight : bi 2 data 0x7dfb7de000 offset 554004480 size 13271040 flags 0x0 : 2560:9216:1:1
+3.43.007.431 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-27 x ffn_up-27 -> ffn_swiglu-27|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.007.465 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.27.ffn_down.weight x ffn_swiglu-27 x attn_residual-27 -> l_out-27|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.43.007.478 D ggml-hex: HTP0 add-tensor #40 blk.27.ffn_down.weight : bi 2 data 0x7dfab36000 offset 540733440 size 13271040 flags 0x0 : 9216:2560:1:1
+3.43.007.482 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-27 x blk.28.attn_norm.weight -> attn_norm-28|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.43.007.484 D ggml-hex: HTP0 add-tensor #41 blk.28.attn_norm.weight : bi 1 data 0x7ee1f89f00 offset 3366656 size 10240 flags 0x0 : 2560:1:1:1
+3.43.007.847 D ggml-hex: HTP0 op-queue push batch #5 : n-bufs 4 n-tensors 42 n-ops 27 vmem 1010198656 : b-size 96 t-size 2352 o-size 6048 m-size 9792
+3.43.007.913 D ggml-hex: HTP0 queue-opbatch: 0x7ee8a77780 size 9792
+3.43.107.578 D ggml-hex: HTP0 op-queue pop batch #5 : n-bufs 4 n-tensors 42 n-ops 27 : m-size 9792 b-size 96 t-size 2352 o-size 6048
+3.43.107.670 D ggml-hex: HTP0 synchronize
+3.43.143.762 D ggml-hex: HTP0 graph-compute n_nodes 14
+3.43.168.888 D ggml-hex: HTP0 execute-op GET_ROWS|cache_r_l28 (reshaped) x HTP0# (view)#0 -> conv_states-28|24576:1 x 1:1 -> 24576:1|f32 x i32 -> f32|4:98304 x 4:4 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.168.892 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.43.168.895 D ggml-hex: HTP0 add-tensor #0 cache_r_l28 (reshaped) : bi 0 data 0x7dd613d000 offset 46104576 size 98304 flags 0x1 : 24576:1:1:1
+3.43.168.910 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.43.168.911 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.43.168.913 D ggml-hex: HTP0 add-tensor #2 conv_states-28 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 24576:1:1:1
+3.43.168.923 D ggml-hex: HTP0 execute-op MUL_MAT|blk.28.attn_qkv.weight x attn_norm-28 -> node_1609|2560:8192 x 2560:1024 -> 8192:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.43.168.924 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 991930496
+3.43.168.926 D ggml-hex: HTP0 add-tensor #3 blk.28.attn_qkv.weight : bi 2 data 0x7dfc486000 offset 567275520 size 11796480 flags 0x0 : 2560:8192:1:1
+3.43.168.939 D ggml-hex: HTP0 add-tensor #4 attn_norm-28 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.43.168.941 D ggml-hex: HTP0 add-tensor #5 node_1609 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 8192:1024:1:1
+3.43.168.985 D ggml-hex: HTP0 execute-op CONCAT|conv_states_reshaped-28 x qkv_mixed_transposed-28 -> conv_input-28|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.168.988 D ggml-hex: HTP0 add-tensor #6 conv_states_reshaped-28 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 3:8192:1:1
+3.43.168.990 D ggml-hex: HTP0 add-tensor #7 qkv_mixed_transposed-28 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 1024:8192:1:1
+3.43.168.991 D ggml-hex: HTP0 add-tensor #8 conv_input-28 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.43.168.998 D ggml-hex: HTP0 execute-op CPY|conv_state_last-28 x conv_state_update-28 -> conv_state_update-28 (copy of conv_state_last-28)|3:8192 x 24576:1 -> 24576:1|f32 x f32 -> f32|4:4108! x 4:98304 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.168.999 D ggml-hex: HTP0 add-tensor #9 conv_state_last-28 : bi 1 data 0x7d6e95b080 offset 58855552 size 33648640 flags 0x1 : 3:8192:1:1
+3.43.169.311 D ggml-hex: HTP0 op-queue push batch #6 : n-bufs 3 n-tensors 10 n-ops 4 vmem 991930496 : b-size 72 t-size 560 o-size 896 m-size 1720
+3.43.169.320 D ggml-hex: HTP0 queue-opbatch: 0x7ee8b47900 size 1720
+3.43.189.316 D ggml-hex: HTP0 op-queue pop batch #6 : n-bufs 3 n-tensors 10 n-ops 4 : m-size 1720 b-size 72 t-size 560 o-size 896
+3.43.189.324 D ggml-hex: HTP0 synchronize
+3.43.211.888 D ggml-hex: HTP0 graph-compute n_nodes 33
+3.43.212.034 D ggml-hex: HTP0 execute-op GET_ROWS|cache_s_l28 (reshaped) x HTP0# (view)#0 -> node_1619|524288:1 x 1:1 -> 524288:1|f32 x i32 -> f32|4:2097152 x 4:4 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.212.043 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.43.212.046 D ggml-hex: HTP0 add-tensor #0 cache_s_l28 (reshaped) : bi 0 data 0x7dd6155000 offset 46202880 size 2097152 flags 0x1 : 524288:1:1:1
+3.43.212.058 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.43.212.070 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.43.212.071 D ggml-hex: HTP0 add-tensor #2 node_1619 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 524288:1:1:1
+3.43.212.090 D ggml-hex: HTP0 execute-op SSM_CONV|conv_input-28 x blk.28.ssm_conv1d.weight -> conv_output_raw-28|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.212.092 D ggml-hex: HTP0 add-tensor #3 conv_input-28 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.43.212.104 D ggml-hex: HTP0 add-buffer #2 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 194998400
+3.43.212.121 D ggml-hex: HTP0 add-tensor #4 blk.28.ssm_conv1d.weight : bi 2 data 0x7ee1f8ef00 offset 3387136 size 131072 flags 0x0 : 4:8192:1:1
+3.43.212.127 D ggml-hex: HTP0 add-tensor #5 conv_output_raw-28 : bi 1 data 0x7d70972080 offset 92504192 size 33554432 flags 0x1 : 8192:1024:1:1
+3.43.212.134 D ggml-hex: HTP0 execute-op SILU|conv_output_raw-28 -> conv_output_silu-28|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.212.152 D ggml-hex: HTP0 execute-op L2_NORM|q_conv-28 -> q_conv_predelta-28|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.212.153 D ggml-hex: HTP0 add-tensor #6 q_conv-28 : bi 1 data 0x7d70972080 offset 92504192 size 33529856 flags 0x1 : 128:16:1024:1
+3.43.212.155 D ggml-hex: HTP0 add-tensor #7 q_conv_predelta-28 : bi 1 data 0x7d6cb42080 offset 27295872 size 8388608 flags 0x1 : 128:16:1024:1
+3.43.212.159 D ggml-hex: HTP0 execute-op L2_NORM|k_conv-28 -> k_conv_predelta-28|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.212.160 D ggml-hex: HTP0 add-tensor #8 k_conv-28 : bi 1 data 0x7d70974080 offset 92512384 size 33529856 flags 0x1 : 128:16:1024:1
+3.43.212.162 D ggml-hex: HTP0 add-tensor #9 k_conv_predelta-28 : bi 1 data 0x7d6d342080 offset 35684480 size 8388608 flags 0x1 : 128:16:1024:1
+3.43.212.187 D ggml-hex: HTP0 execute-op MUL_MAT|blk.28.ssm_alpha.weight x attn_norm-28 -> node_1630|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.43.212.198 D ggml-hex: HTP0 add-buffer #3 : fd 20 base 0x7dda787000 size 800782336 : vmem 995780736
+3.43.212.200 D ggml-hex: HTP0 add-tensor #10 blk.28.ssm_alpha.weight : bi 3 data 0x7dfd57b400 offset 585057280 size 87040 flags 0x0 : 2560:32:1:1
+3.43.212.201 D ggml-hex: HTP0 add-tensor #11 attn_norm-28 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.43.212.212 D ggml-hex: HTP0 add-tensor #12 node_1630 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 32:1024:1:1
+3.43.212.217 D ggml-hex: HTP0 execute-op MUL_MAT|blk.28.ssm_beta.weight x attn_norm-28 -> node_1636|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.43.212.236 D ggml-hex: HTP0 add-tensor #13 blk.28.ssm_beta.weight : bi 3 data 0x7dfd566000 offset 584970240 size 87040 flags 0x0 : 2560:32:1:1
+3.43.217.677 D ggml-hex: HTP0 add-tensor #14 node_1636 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 32:1024:1:1
+3.43.217.710 D ggml-hex: HTP0 execute-op ADD|alpha-28 x blk.28.ssm_dt.bias -> node_1632|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.217.727 D ggml-hex: HTP0 add-tensor #15 blk.28.ssm_dt.bias : bi 2 data 0x7ee1faef00 offset 3518208 size 128 flags 0x0 : 32:1:1:1
+3.43.217.729 D ggml-hex: HTP0 add-tensor #16 node_1632 : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 32:1024:1:1
+3.43.217.736 D ggml-hex: HTP0 execute-op SOFTPLUS|node_1632 -> a_softplus-28|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.217.744 D ggml-hex: HTP0 execute-op MUL|a_softplus-28 x blk.28.ssm_a -> gate-28|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.217.746 D ggml-hex: HTP0 add-tensor #17 blk.28.ssm_a : bi 2 data 0x7ee1faef80 offset 3518336 size 128 flags 0x0 : 32:1:1:1
+3.43.217.807 D ggml-hex: HTP0 execute-op SIGMOID|beta-28 -> beta_sigmoid-28|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.217.809 D ggml-hex: HTP0 add-tensor #18 beta-28 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 1:32:1024:1
+3.43.217.811 D ggml-hex: HTP0 add-tensor #19 beta_sigmoid-28 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 1:32:1024:1
+3.43.234.277 D ggml-hex: HTP0 execute-op GATED_DELTA_NET|q_conv_predelta-28 x k_conv_predelta-28 x v_conv_predelta-28 x gate-28 (reshaped) x beta_sigmoid-28 x state_predelta-28 -> node_1640|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|HTP0 x HTP0 x HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.234.305 D ggml-hex: HTP0 add-tensor #20 v_conv_predelta-28 : bi 1 data 0x7d70976080 offset 92520576 size 33538048 flags 0x1 : 128:32:1024:1
+3.43.234.306 D ggml-hex: HTP0 add-tensor #21 gate-28 (reshaped) : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 1:32:1024:1
+3.43.234.308 D ggml-hex: HTP0 add-tensor #22 state_predelta-28 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 128:128:32:1
+3.43.234.310 D ggml-hex: HTP0 add-tensor #23 node_1640 : bi 1 data 0x7d6dba2080 offset 44466304 size 18874368 flags 0x1 : 4096:1152:1:1
+3.43.234.321 D ggml-hex: HTP0 execute-op CPY|new_state-28 x cache_s_l28 (view) -> cache_s_l28 (view) (copy of new_state-28)|128:128:32:1 x 524288:1 -> 524288:1|f32 x f32 -> f32|4:512:65536:2097152 x 4:2097152 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.234.322 D ggml-hex: HTP0 add-tensor #24 new_state-28 : bi 1 data 0x7d6eba2080 offset 61243520 size 2097152 flags 0x1 : 128:128:32:1
+3.43.234.376 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_output-28 x blk.28.ssm_norm.weight -> node_1646|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8382464|flags 0x0
+3.43.234.379 D ggml-hex: HTP0 add-tensor #25 attn_output-28 : bi 1 data 0x7d6dba2080 offset 44466304 size 16777216 flags 0x1 : 128:32:1024:1
+3.43.234.381 D ggml-hex: HTP0 add-tensor #26 blk.28.ssm_norm.weight : bi 2 data 0x7ee1faf000 offset 3518464 size 512 flags 0x0 : 128:1:1:1
+3.43.234.395 D ggml-hex: HTP0 add-tensor #27 node_1646 : bi 1 data 0x7d6c942080 offset 25198720 size 16777216 flags 0x1 : 128:32:1024:1
+3.43.234.401 D ggml-hex: HTP0 execute-op MUL_MAT|blk.28.attn_gate.weight x attn_norm-28 -> z-28|2560:4096 x 2560:1024 -> 4096:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.43.234.403 D ggml-hex: HTP0 add-tensor #28 blk.28.attn_gate.weight : bi 3 data 0x7dfcfc6000 offset 579072000 size 5898240 flags 0x0 : 2560:4096:1:1
+3.43.234.404 D ggml-hex: HTP0 add-tensor #29 z-28 : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 4096:1024:1:1
+3.43.234.408 D ggml-hex: HTP0 execute-op SILU|z-28 (reshaped) -> node_1649|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.43.234.409 D ggml-hex: HTP0 add-tensor #30 z-28 (reshaped) : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 128:32:1024:1
+3.43.234.417 D ggml-hex: HTP0 add-tensor #31 node_1649 : bi 1 data 0x7d6e942080 offset 58753152 size 16777216 flags 0x1 : 128:32:1024:1
+3.43.234.421 D ggml-hex: HTP0 execute-op MUL|node_1646 x node_1649 -> node_1650|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.234.652 D ggml-hex: HTP0 op-queue push batch #7 : n-bufs 4 n-tensors 32 n-ops 17 vmem 995780736 : b-size 96 t-size 1792 o-size 3808 m-size 6512
+3.43.234.670 D ggml-hex: HTP0 queue-opbatch: 0x7ee8c17a80 size 6512
+3.43.393.698 D ggml-hex: HTP0 op-queue pop batch #7 : n-bufs 4 n-tensors 32 n-ops 17 : m-size 6512 b-size 96 t-size 1792 o-size 3808
+3.43.401.291 D ggml-hex: HTP0 synchronize
+3.43.944.406 D ggml-hex: HTP0 synchronize
+3.43.944.496 D ggml-hex: HTP0 synchronize
+3.43.944.535 D ggml-hex: HTP0 set-tensor HTP0#linear_attn_out-28 (reshaped)#0 : data 0xb400007cfbf44fe0 offset 0 size 10485760
+3.43.945.362 D ggml-hex: HTP0 graph-compute n_nodes 12
+3.43.960.649 D ggml-hex: HTP0 execute-op ADD|HTP0#linear_attn_out-28 (reshaped)#0 x l_out-27 -> attn_residual-28|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.960.755 D ggml-hex: HTP0 add-buffer #0 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 138453120
+3.43.960.801 D ggml-hex: HTP0 add-tensor #0 HTP0#linear_attn_out-28 (reshaped)#0 : bi 0 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.43.960.836 D ggml-hex: HTP0 add-tensor #1 l_out-27 : bi 0 data 0x7d6b13a000 offset 0 size 10485760 flags 0x1 : 2560:1024:1:1
+3.43.960.900 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-28 x blk.28.post_attention_norm.weight -> attn_post_norm-28|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.43.960.979 D ggml-hex: HTP0 add-buffer #1 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 142303360
+3.43.961.009 D ggml-hex: HTP0 add-tensor #2 blk.28.post_attention_norm.weight : bi 1 data 0x7ee1f8c700 offset 3376896 size 10240 flags 0x0 : 2560:1:1:1
+3.43.961.066 D ggml-hex: HTP0 execute-op MUL_MAT|blk.28.ffn_gate.weight x attn_post_norm-28 -> ffn_gate-28|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.43.961.098 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 943085696
+3.43.961.123 D ggml-hex: HTP0 add-tensor #3 blk.28.ffn_gate.weight : bi 2 data 0x7dfd590800 offset 585144320 size 13271040 flags 0x0 : 2560:9216:1:1
+3.43.961.148 D ggml-hex: HTP0 add-tensor #4 ffn_gate-28 : bi 0 data 0x7d6c942080 offset 25198720 size 37748736 flags 0x1 : 9216:1024:1:1
+3.43.961.167 D ggml-hex: HTP0 execute-op MUL_MAT|blk.28.ffn_up.weight x attn_post_norm-28 -> ffn_up-28|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.43.961.190 D ggml-hex: HTP0 add-tensor #5 blk.28.ffn_up.weight : bi 2 data 0x7dfeee0800 offset 611686400 size 13271040 flags 0x0 : 2560:9216:1:1
+3.43.961.217 D ggml-hex: HTP0 add-tensor #6 ffn_up-28 : bi 0 data 0x7d6ed42080 offset 62947456 size 37748736 flags 0x1 : 9216:1024:1:1
+3.43.961.241 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-28 x ffn_up-28 -> ffn_swiglu-28|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.43.961.274 D ggml-hex: HTP0 add-tensor #7 ffn_swiglu-28 : bi 0 data 0x7d71142080 offset 100696192 size 37748736 flags 0x1 : 9216:1024:1:1
+3.43.961.564 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.28.ffn_down.weight x ffn_swiglu-28 x attn_residual-28 -> l_out-28|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.43.967.159 D ggml-hex: HTP0 add-tensor #8 blk.28.ffn_down.weight : bi 2 data 0x7dfe238800 offset 598415360 size 13271040 flags 0x0 : 9216:2560:1:1
+3.43.967.187 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-28 x blk.29.attn_norm.weight -> attn_norm-29|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.43.967.201 D ggml-hex: HTP0 add-tensor #9 blk.29.attn_norm.weight : bi 1 data 0x7ee1faf200 offset 3518976 size 10240 flags 0x0 : 2560:1:1:1
+3.43.975.661 D ggml-hex: HTP0 op-queue push batch #8 : n-bufs 3 n-tensors 10 n-ops 7 vmem 943085696 : b-size 72 t-size 560 o-size 1568 m-size 2536
+3.43.975.787 D ggml-hex: HTP0 queue-opbatch: 0x7ee8ce7c00 size 2536
+3.44.002.514 D ggml-hex: HTP0 op-queue pop batch #8 : n-bufs 3 n-tensors 10 n-ops 7 : m-size 2536 b-size 72 t-size 560 o-size 1568
+3.44.002.540 D ggml-hex: HTP0 synchronize
+3.44.012.678 D ggml-hex: HTP0 graph-compute n_nodes 14
+3.44.012.763 D ggml-hex: HTP0 execute-op GET_ROWS|cache_r_l29 (reshaped) x HTP0# (view)#0 -> conv_states-29|24576:1 x 1:1 -> 24576:1|f32 x i32 -> f32|4:98304 x 4:4 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.012.777 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.44.012.780 D ggml-hex: HTP0 add-tensor #0 cache_r_l29 (reshaped) : bi 0 data 0x7dd6355000 offset 48300032 size 98304 flags 0x1 : 24576:1:1:1
+3.44.012.792 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.44.012.802 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.44.012.804 D ggml-hex: HTP0 add-tensor #2 conv_states-29 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 24576:1:1:1
+3.44.020.300 D ggml-hex: HTP0 execute-op MUL_MAT|blk.29.attn_qkv.weight x attn_norm-29 -> node_1672|2560:8192 x 2560:1024 -> 8192:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.44.020.329 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 991930496
+3.44.020.332 D ggml-hex: HTP0 add-tensor #3 blk.29.attn_qkv.weight : bi 2 data 0x7dffb88800 offset 624957440 size 11796480 flags 0x0 : 2560:8192:1:1
+3.44.020.335 D ggml-hex: HTP0 add-tensor #4 attn_norm-29 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.44.020.337 D ggml-hex: HTP0 add-tensor #5 node_1672 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 8192:1024:1:1
+3.44.020.349 D ggml-hex: HTP0 execute-op CONCAT|conv_states_reshaped-29 x qkv_mixed_transposed-29 -> conv_input-29|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.020.351 D ggml-hex: HTP0 add-tensor #6 conv_states_reshaped-29 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 3:8192:1:1
+3.44.020.353 D ggml-hex: HTP0 add-tensor #7 qkv_mixed_transposed-29 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 1024:8192:1:1
+3.44.020.354 D ggml-hex: HTP0 add-tensor #8 conv_input-29 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.44.020.362 D ggml-hex: HTP0 execute-op CPY|conv_state_last-29 x conv_state_update-29 -> conv_state_update-29 (copy of conv_state_last-29)|3:8192 x 24576:1 -> 24576:1|f32 x f32 -> f32|4:4108! x 4:98304 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.020.363 D ggml-hex: HTP0 add-tensor #9 conv_state_last-29 : bi 1 data 0x7d6e95b080 offset 58855552 size 33648640 flags 0x1 : 3:8192:1:1
+3.44.020.730 D ggml-hex: HTP0 op-queue push batch #9 : n-bufs 3 n-tensors 10 n-ops 4 vmem 991930496 : b-size 72 t-size 560 o-size 896 m-size 1720
+3.44.020.743 D ggml-hex: HTP0 queue-opbatch: 0x7ee8db7d80 size 1720
+3.44.051.943 D ggml-hex: HTP0 op-queue pop batch #9 : n-bufs 3 n-tensors 10 n-ops 4 : m-size 1720 b-size 72 t-size 560 o-size 896
+3.44.051.987 D ggml-hex: HTP0 synchronize
+3.44.052.039 D ggml-hex: HTP0 graph-compute n_nodes 33
+3.44.052.626 D ggml-hex: HTP0 execute-op GET_ROWS|cache_s_l29 (reshaped) x HTP0# (view)#0 -> node_1682|524288:1 x 1:1 -> 524288:1|f32 x i32 -> f32|4:2097152 x 4:4 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.052.646 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.44.052.666 D ggml-hex: HTP0 add-tensor #0 cache_s_l29 (reshaped) : bi 0 data 0x7dd636d000 offset 48398336 size 2097152 flags 0x1 : 524288:1:1:1
+3.44.052.685 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.44.052.700 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.44.052.714 D ggml-hex: HTP0 add-tensor #2 node_1682 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 524288:1:1:1
+3.44.052.738 D ggml-hex: HTP0 execute-op SSM_CONV|conv_input-29 x blk.29.ssm_conv1d.weight -> conv_output_raw-29|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.052.741 D ggml-hex: HTP0 add-tensor #3 conv_input-29 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.44.052.742 D ggml-hex: HTP0 add-buffer #2 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 194998400
+3.44.052.745 D ggml-hex: HTP0 add-tensor #4 blk.29.ssm_conv1d.weight : bi 2 data 0x7ee1fb4200 offset 3539456 size 131072 flags 0x0 : 4:8192:1:1
+3.44.052.748 D ggml-hex: HTP0 add-tensor #5 conv_output_raw-29 : bi 1 data 0x7d70972080 offset 92504192 size 33554432 flags 0x1 : 8192:1024:1:1
+3.44.052.755 D ggml-hex: HTP0 execute-op SILU|conv_output_raw-29 -> conv_output_silu-29|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.052.774 D ggml-hex: HTP0 execute-op L2_NORM|q_conv-29 -> q_conv_predelta-29|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.052.776 D ggml-hex: HTP0 add-tensor #6 q_conv-29 : bi 1 data 0x7d70972080 offset 92504192 size 33529856 flags 0x1 : 128:16:1024:1
+3.44.052.779 D ggml-hex: HTP0 add-tensor #7 q_conv_predelta-29 : bi 1 data 0x7d6cb42080 offset 27295872 size 8388608 flags 0x1 : 128:16:1024:1
+3.44.052.794 D ggml-hex: HTP0 execute-op L2_NORM|k_conv-29 -> k_conv_predelta-29|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.052.796 D ggml-hex: HTP0 add-tensor #8 k_conv-29 : bi 1 data 0x7d70974080 offset 92512384 size 33529856 flags 0x1 : 128:16:1024:1
+3.44.052.798 D ggml-hex: HTP0 add-tensor #9 k_conv_predelta-29 : bi 1 data 0x7d6d342080 offset 35684480 size 8388608 flags 0x1 : 128:16:1024:1
+3.44.052.806 D ggml-hex: HTP0 execute-op MUL_MAT|blk.29.ssm_alpha.weight x attn_norm-29 -> node_1693|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.44.052.821 D ggml-hex: HTP0 add-buffer #3 : fd 20 base 0x7dda787000 size 800782336 : vmem 995780736
+3.44.052.824 D ggml-hex: HTP0 add-tensor #10 blk.29.ssm_alpha.weight : bi 3 data 0x7e00c7dc00 offset 642739200 size 87040 flags 0x0 : 2560:32:1:1
+3.44.052.826 D ggml-hex: HTP0 add-tensor #11 attn_norm-29 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.44.052.850 D ggml-hex: HTP0 add-tensor #12 node_1693 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 32:1024:1:1
+3.44.052.870 D ggml-hex: HTP0 execute-op MUL_MAT|blk.29.ssm_beta.weight x attn_norm-29 -> node_1699|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.44.052.886 D ggml-hex: HTP0 add-tensor #13 blk.29.ssm_beta.weight : bi 3 data 0x7e00c68800 offset 642652160 size 87040 flags 0x0 : 2560:32:1:1
+3.44.052.901 D ggml-hex: HTP0 add-tensor #14 node_1699 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 32:1024:1:1
+3.44.052.908 D ggml-hex: HTP0 execute-op ADD|alpha-29 x blk.29.ssm_dt.bias -> node_1695|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.052.910 D ggml-hex: HTP0 add-tensor #15 blk.29.ssm_dt.bias : bi 2 data 0x7ee1fd4200 offset 3670528 size 128 flags 0x0 : 32:1:1:1
+3.44.052.911 D ggml-hex: HTP0 add-tensor #16 node_1695 : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 32:1024:1:1
+3.44.052.916 D ggml-hex: HTP0 execute-op SOFTPLUS|node_1695 -> a_softplus-29|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.052.922 D ggml-hex: HTP0 execute-op MUL|a_softplus-29 x blk.29.ssm_a -> gate-29|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.052.924 D ggml-hex: HTP0 add-tensor #17 blk.29.ssm_a : bi 2 data 0x7ee1fd4280 offset 3670656 size 128 flags 0x0 : 32:1:1:1
+3.44.052.930 D ggml-hex: HTP0 execute-op SIGMOID|beta-29 -> beta_sigmoid-29|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.052.942 D ggml-hex: HTP0 add-tensor #18 beta-29 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 1:32:1024:1
+3.44.052.943 D ggml-hex: HTP0 add-tensor #19 beta_sigmoid-29 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 1:32:1024:1
+3.44.052.979 D ggml-hex: HTP0 execute-op GATED_DELTA_NET|q_conv_predelta-29 x k_conv_predelta-29 x v_conv_predelta-29 x gate-29 (reshaped) x beta_sigmoid-29 x state_predelta-29 -> node_1703|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|HTP0 x HTP0 x HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.052.993 D ggml-hex: HTP0 add-tensor #20 v_conv_predelta-29 : bi 1 data 0x7d70976080 offset 92520576 size 33538048 flags 0x1 : 128:32:1024:1
+3.44.052.995 D ggml-hex: HTP0 add-tensor #21 gate-29 (reshaped) : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 1:32:1024:1
+3.44.053.007 D ggml-hex: HTP0 add-tensor #22 state_predelta-29 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 128:128:32:1
+3.44.053.020 D ggml-hex: HTP0 add-tensor #23 node_1703 : bi 1 data 0x7d6dba2080 offset 44466304 size 18874368 flags 0x1 : 4096:1152:1:1
+3.44.053.027 D ggml-hex: HTP0 execute-op CPY|new_state-29 x cache_s_l29 (view) -> cache_s_l29 (view) (copy of new_state-29)|128:128:32:1 x 524288:1 -> 524288:1|f32 x f32 -> f32|4:512:65536:2097152 x 4:2097152 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.053.029 D ggml-hex: HTP0 add-tensor #24 new_state-29 : bi 1 data 0x7d6eba2080 offset 61243520 size 2097152 flags 0x1 : 128:128:32:1
+3.44.053.048 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_output-29 x blk.29.ssm_norm.weight -> node_1709|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8382464|flags 0x0
+3.44.053.049 D ggml-hex: HTP0 add-tensor #25 attn_output-29 : bi 1 data 0x7d6dba2080 offset 44466304 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.053.051 D ggml-hex: HTP0 add-tensor #26 blk.29.ssm_norm.weight : bi 2 data 0x7ee1fd4300 offset 3670784 size 512 flags 0x0 : 128:1:1:1
+3.44.053.052 D ggml-hex: HTP0 add-tensor #27 node_1709 : bi 1 data 0x7d6c942080 offset 25198720 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.053.071 D ggml-hex: HTP0 execute-op MUL_MAT|blk.29.attn_gate.weight x attn_norm-29 -> z-29|2560:4096 x 2560:1024 -> 4096:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.44.053.074 D ggml-hex: HTP0 add-tensor #28 blk.29.attn_gate.weight : bi 3 data 0x7e006c8800 offset 636753920 size 5898240 flags 0x0 : 2560:4096:1:1
+3.44.053.075 D ggml-hex: HTP0 add-tensor #29 z-29 : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 4096:1024:1:1
+3.44.053.081 D ggml-hex: HTP0 execute-op SILU|z-29 (reshaped) -> node_1712|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.053.082 D ggml-hex: HTP0 add-tensor #30 z-29 (reshaped) : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.053.084 D ggml-hex: HTP0 add-tensor #31 node_1712 : bi 1 data 0x7d6e942080 offset 58753152 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.053.090 D ggml-hex: HTP0 execute-op MUL|node_1709 x node_1712 -> node_1713|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.053.449 D ggml-hex: HTP0 op-queue push batch #10 : n-bufs 4 n-tensors 32 n-ops 17 vmem 995780736 : b-size 96 t-size 1792 o-size 3808 m-size 6512
+3.44.053.474 D ggml-hex: HTP0 queue-opbatch: 0x7ee8e87f00 size 6512
+3.44.202.774 D ggml-hex: HTP0 op-queue pop batch #10 : n-bufs 4 n-tensors 32 n-ops 17 : m-size 6512 b-size 96 t-size 1792 o-size 3808
+3.44.203.396 D ggml-hex: HTP0 synchronize
+3.44.637.333 D ggml-hex: HTP0 synchronize
+3.44.637.388 D ggml-hex: HTP0 synchronize
+3.44.637.437 D ggml-hex: HTP0 set-tensor HTP0#linear_attn_out-29 (reshaped)#0 : data 0xb400007cfbf44fe0 offset 0 size 10485760
+3.44.639.742 D ggml-hex: HTP0 graph-compute n_nodes 12
+3.44.640.298 D ggml-hex: HTP0 execute-op ADD|HTP0#linear_attn_out-29 (reshaped)#0 x l_out-28 -> attn_residual-29|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.640.319 D ggml-hex: HTP0 add-buffer #0 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 138453120
+3.44.640.331 D ggml-hex: HTP0 add-tensor #0 HTP0#linear_attn_out-29 (reshaped)#0 : bi 0 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.44.640.335 D ggml-hex: HTP0 add-tensor #1 l_out-28 : bi 0 data 0x7d6b13a000 offset 0 size 10485760 flags 0x1 : 2560:1024:1:1
+3.44.640.346 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-29 x blk.29.post_attention_norm.weight -> attn_post_norm-29|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.44.640.357 D ggml-hex: HTP0 add-buffer #1 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 142303360
+3.44.640.362 D ggml-hex: HTP0 add-tensor #2 blk.29.post_attention_norm.weight : bi 1 data 0x7ee1fb1a00 offset 3529216 size 10240 flags 0x0 : 2560:1:1:1
+3.44.640.367 D ggml-hex: HTP0 execute-op MUL_MAT|blk.29.ffn_gate.weight x attn_post_norm-29 -> ffn_gate-29|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.44.640.368 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 943085696
+3.44.640.369 D ggml-hex: HTP0 add-tensor #3 blk.29.ffn_gate.weight : bi 2 data 0x7e00c93000 offset 642826240 size 13271040 flags 0x0 : 2560:9216:1:1
+3.44.640.370 D ggml-hex: HTP0 add-tensor #4 ffn_gate-29 : bi 0 data 0x7d6c942080 offset 25198720 size 37748736 flags 0x1 : 9216:1024:1:1
+3.44.640.374 D ggml-hex: HTP0 execute-op MUL_MAT|blk.29.ffn_up.weight x attn_post_norm-29 -> ffn_up-29|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.44.640.375 D ggml-hex: HTP0 add-tensor #5 blk.29.ffn_up.weight : bi 2 data 0x7e025e3000 offset 669368320 size 13271040 flags 0x0 : 2560:9216:1:1
+3.44.640.376 D ggml-hex: HTP0 add-tensor #6 ffn_up-29 : bi 0 data 0x7d6ed42080 offset 62947456 size 37748736 flags 0x1 : 9216:1024:1:1
+3.44.640.388 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-29 x ffn_up-29 -> ffn_swiglu-29|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.640.406 D ggml-hex: HTP0 add-tensor #7 ffn_swiglu-29 : bi 0 data 0x7d71142080 offset 100696192 size 37748736 flags 0x1 : 9216:1024:1:1
+3.44.640.647 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.29.ffn_down.weight x ffn_swiglu-29 x attn_residual-29 -> l_out-29|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.44.640.656 D ggml-hex: HTP0 add-tensor #8 blk.29.ffn_down.weight : bi 2 data 0x7e0193b000 offset 656097280 size 13271040 flags 0x0 : 9216:2560:1:1
+3.44.640.662 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-29 x blk.30.attn_norm.weight -> attn_norm-30|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.44.640.673 D ggml-hex: HTP0 add-tensor #9 blk.30.attn_norm.weight : bi 1 data 0x7ee1fd4500 offset 3671296 size 10240 flags 0x0 : 2560:1:1:1
+3.44.640.993 D ggml-hex: HTP0 op-queue push batch #11 : n-bufs 3 n-tensors 10 n-ops 7 vmem 943085696 : b-size 72 t-size 560 o-size 1568 m-size 2536
+3.44.641.036 D ggml-hex: HTP0 queue-opbatch: 0x7ee8f58080 size 2536
+3.44.667.510 D ggml-hex: HTP0 op-queue pop batch #11 : n-bufs 3 n-tensors 10 n-ops 7 : m-size 2536 b-size 72 t-size 560 o-size 1568
+3.44.667.531 D ggml-hex: HTP0 synchronize
+3.44.668.794 D ggml-hex: HTP0 graph-compute n_nodes 14
+3.44.678.582 D ggml-hex: HTP0 execute-op GET_ROWS|cache_r_l30 (reshaped) x HTP0# (view)#0 -> conv_states-30|24576:1 x 1:1 -> 24576:1|f32 x i32 -> f32|4:98304 x 4:4 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.678.600 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.44.678.615 D ggml-hex: HTP0 add-tensor #0 cache_r_l30 (reshaped) : bi 0 data 0x7dd656d000 offset 50495488 size 98304 flags 0x1 : 24576:1:1:1
+3.44.678.619 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.44.678.631 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.44.678.633 D ggml-hex: HTP0 add-tensor #2 conv_states-30 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 24576:1:1:1
+3.44.678.653 D ggml-hex: HTP0 execute-op MUL_MAT|blk.30.attn_qkv.weight x attn_norm-30 -> node_1735|2560:8192 x 2560:1024 -> 8192:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.44.678.655 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 991930496
+3.44.678.675 D ggml-hex: HTP0 add-tensor #3 blk.30.attn_qkv.weight : bi 2 data 0x7e0328b000 offset 682639360 size 11796480 flags 0x0 : 2560:8192:1:1
+3.44.678.677 D ggml-hex: HTP0 add-tensor #4 attn_norm-30 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.44.678.679 D ggml-hex: HTP0 add-tensor #5 node_1735 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 8192:1024:1:1
+3.44.678.700 D ggml-hex: HTP0 execute-op CONCAT|conv_states_reshaped-30 x qkv_mixed_transposed-30 -> conv_input-30|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.678.703 D ggml-hex: HTP0 add-tensor #6 conv_states_reshaped-30 : bi 1 data 0x7d6c942080 offset 25198720 size 98304 flags 0x1 : 3:8192:1:1
+3.44.678.716 D ggml-hex: HTP0 add-tensor #7 qkv_mixed_transposed-30 : bi 1 data 0x7d6c95a080 offset 25297024 size 33554432 flags 0x1 : 1024:8192:1:1
+3.44.678.717 D ggml-hex: HTP0 add-tensor #8 conv_input-30 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.44.678.740 D ggml-hex: HTP0 execute-op CPY|conv_state_last-30 x conv_state_update-30 -> conv_state_update-30 (copy of conv_state_last-30)|3:8192 x 24576:1 -> 24576:1|f32 x f32 -> f32|4:4108! x 4:98304 -> 4:98304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.678.742 D ggml-hex: HTP0 add-tensor #9 conv_state_last-30 : bi 1 data 0x7d6e95b080 offset 58855552 size 33648640 flags 0x1 : 3:8192:1:1
+3.44.679.066 D ggml-hex: HTP0 op-queue push batch #12 : n-bufs 3 n-tensors 10 n-ops 4 vmem 991930496 : b-size 72 t-size 560 o-size 896 m-size 1720
+3.44.679.078 D ggml-hex: HTP0 queue-opbatch: 0x7ee9028200 size 1720
+3.44.690.769 D ggml-hex: HTP0 op-queue pop batch #12 : n-bufs 3 n-tensors 10 n-ops 4 : m-size 1720 b-size 72 t-size 560 o-size 896
+3.44.690.772 D ggml-hex: HTP0 synchronize
+3.44.690.939 D ggml-hex: HTP0 graph-compute n_nodes 33
+3.44.691.087 D ggml-hex: HTP0 execute-op GET_ROWS|cache_s_l30 (reshaped) x HTP0# (view)#0 -> node_1745|524288:1 x 1:1 -> 524288:1|f32 x i32 -> f32|4:2097152 x 4:4 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.691.093 D ggml-hex: HTP0 add-buffer #0 : fd 21 base 0x7dd3545000 size 52695040 : vmem 52695040
+3.44.691.099 D ggml-hex: HTP0 add-tensor #0 cache_s_l30 (reshaped) : bi 0 data 0x7dd6585000 offset 50593792 size 2097152 flags 0x1 : 524288:1:1:1
+3.44.691.124 D ggml-hex: HTP0 add-buffer #1 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 191148160
+3.44.691.146 D ggml-hex: HTP0 add-tensor #1 HTP0# (view)#0 : bi 1 data 0x7d6c53a000 offset 20971520 size 4 flags 0x1 : 1:1:1:1
+3.44.691.175 D ggml-hex: HTP0 add-tensor #2 node_1745 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 524288:1:1:1
+3.44.691.193 D ggml-hex: HTP0 execute-op SSM_CONV|conv_input-30 x blk.30.ssm_conv1d.weight -> conv_output_raw-30|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.691.198 D ggml-hex: HTP0 add-tensor #3 conv_input-30 : bi 1 data 0x7d6e95a080 offset 58851456 size 33652736 flags 0x1 : 1027:8192:1:1
+3.44.691.221 D ggml-hex: HTP0 add-buffer #2 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 194998400
+3.44.691.227 D ggml-hex: HTP0 add-tensor #4 blk.30.ssm_conv1d.weight : bi 2 data 0x7ee1fd9500 offset 3691776 size 131072 flags 0x0 : 4:8192:1:1
+3.44.691.251 D ggml-hex: HTP0 add-tensor #5 conv_output_raw-30 : bi 1 data 0x7d70972080 offset 92504192 size 33554432 flags 0x1 : 8192:1024:1:1
+3.44.691.290 D ggml-hex: HTP0 execute-op SILU|conv_output_raw-30 -> conv_output_silu-30|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.691.307 D ggml-hex: HTP0 execute-op L2_NORM|q_conv-30 -> q_conv_predelta-30|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.691.311 D ggml-hex: HTP0 add-tensor #6 q_conv-30 : bi 1 data 0x7d70972080 offset 92504192 size 33529856 flags 0x1 : 128:16:1024:1
+3.44.691.317 D ggml-hex: HTP0 add-tensor #7 q_conv_predelta-30 : bi 1 data 0x7d6cb42080 offset 27295872 size 8388608 flags 0x1 : 128:16:1024:1
+3.44.691.330 D ggml-hex: HTP0 execute-op L2_NORM|k_conv-30 -> k_conv_predelta-30|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.691.333 D ggml-hex: HTP0 add-tensor #8 k_conv-30 : bi 1 data 0x7d70974080 offset 92512384 size 33529856 flags 0x1 : 128:16:1024:1
+3.44.691.339 D ggml-hex: HTP0 add-tensor #9 k_conv_predelta-30 : bi 1 data 0x7d6d342080 offset 35684480 size 8388608 flags 0x1 : 128:16:1024:1
+3.44.691.355 D ggml-hex: HTP0 execute-op MUL_MAT|blk.30.ssm_alpha.weight x attn_norm-30 -> node_1756|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.44.691.358 D ggml-hex: HTP0 add-buffer #3 : fd 20 base 0x7dda787000 size 800782336 : vmem 995780736
+3.44.691.383 D ggml-hex: HTP0 add-tensor #10 blk.30.ssm_alpha.weight : bi 3 data 0x7e04380400 offset 700421120 size 87040 flags 0x0 : 2560:32:1:1
+3.44.691.387 D ggml-hex: HTP0 add-tensor #11 attn_norm-30 : bi 1 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.44.691.391 D ggml-hex: HTP0 add-tensor #12 node_1756 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 32:1024:1:1
+3.44.691.426 D ggml-hex: HTP0 execute-op MUL_MAT|blk.30.ssm_beta.weight x attn_norm-30 -> node_1762|2560:32 x 2560:1024 -> 32:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:128|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 5888000|flags 0x0
+3.44.691.433 D ggml-hex: HTP0 add-tensor #13 blk.30.ssm_beta.weight : bi 3 data 0x7e0436b000 offset 700334080 size 87040 flags 0x0 : 2560:32:1:1
+3.44.691.437 D ggml-hex: HTP0 add-tensor #14 node_1762 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 32:1024:1:1
+3.44.691.472 D ggml-hex: HTP0 execute-op ADD|alpha-30 x blk.30.ssm_dt.bias -> node_1758|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.691.477 D ggml-hex: HTP0 add-tensor #15 blk.30.ssm_dt.bias : bi 2 data 0x7ee1ff9500 offset 3822848 size 128 flags 0x0 : 32:1:1:1
+3.44.691.481 D ggml-hex: HTP0 add-tensor #16 node_1758 : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 32:1024:1:1
+3.44.691.493 D ggml-hex: HTP0 execute-op SOFTPLUS|node_1758 -> a_softplus-30|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.691.508 D ggml-hex: HTP0 execute-op MUL|a_softplus-30 x blk.30.ssm_a -> gate-30|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.691.512 D ggml-hex: HTP0 add-tensor #17 blk.30.ssm_a : bi 2 data 0x7ee1ff9580 offset 3822976 size 128 flags 0x0 : 32:1:1:1
+3.44.691.544 D ggml-hex: HTP0 execute-op SIGMOID|beta-30 -> beta_sigmoid-30|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.691.549 D ggml-hex: HTP0 add-tensor #18 beta-30 : bi 1 data 0x7d6db62080 offset 44204160 size 131072 flags 0x1 : 1:32:1024:1
+3.44.691.553 D ggml-hex: HTP0 add-tensor #19 beta_sigmoid-30 : bi 1 data 0x7d6db42080 offset 44073088 size 131072 flags 0x1 : 1:32:1024:1
+3.44.691.623 D ggml-hex: HTP0 execute-op GATED_DELTA_NET|q_conv_predelta-30 x k_conv_predelta-30 x v_conv_predelta-30 x gate-30 (reshaped) x beta_sigmoid-30 x state_predelta-30 -> node_1766|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|HTP0 x HTP0 x HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.691.648 D ggml-hex: HTP0 add-tensor #20 v_conv_predelta-30 : bi 1 data 0x7d70976080 offset 92520576 size 33538048 flags 0x1 : 128:32:1024:1
+3.44.691.652 D ggml-hex: HTP0 add-tensor #21 gate-30 (reshaped) : bi 1 data 0x7d6db82080 offset 44335232 size 131072 flags 0x1 : 1:32:1024:1
+3.44.691.656 D ggml-hex: HTP0 add-tensor #22 state_predelta-30 : bi 1 data 0x7d6c942080 offset 25198720 size 2097152 flags 0x1 : 128:128:32:1
+3.44.691.660 D ggml-hex: HTP0 add-tensor #23 node_1766 : bi 1 data 0x7d6dba2080 offset 44466304 size 18874368 flags 0x1 : 4096:1152:1:1
+3.44.691.676 D ggml-hex: HTP0 execute-op CPY|new_state-30 x cache_s_l30 (view) -> cache_s_l30 (view) (copy of new_state-30)|128:128:32:1 x 524288:1 -> 524288:1|f32 x f32 -> f32|4:512:65536:2097152 x 4:2097152 -> 4:2097152|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.696.742 D ggml-hex: HTP0 add-tensor #24 new_state-30 : bi 1 data 0x7d6eba2080 offset 61243520 size 2097152 flags 0x1 : 128:128:32:1
+3.44.696.777 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_output-30 x blk.30.ssm_norm.weight -> node_1772|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8382464|flags 0x0
+3.44.696.783 D ggml-hex: HTP0 add-tensor #25 attn_output-30 : bi 1 data 0x7d6dba2080 offset 44466304 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.696.787 D ggml-hex: HTP0 add-tensor #26 blk.30.ssm_norm.weight : bi 2 data 0x7ee1ff9600 offset 3823104 size 512 flags 0x0 : 128:1:1:1
+3.44.696.790 D ggml-hex: HTP0 add-tensor #27 node_1772 : bi 1 data 0x7d6c942080 offset 25198720 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.696.807 D ggml-hex: HTP0 execute-op MUL_MAT|blk.30.attn_gate.weight x attn_norm-30 -> z-30|2560:4096 x 2560:1024 -> 4096:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.44.696.813 D ggml-hex: HTP0 add-tensor #28 blk.30.attn_gate.weight : bi 3 data 0x7e03dcb000 offset 694435840 size 5898240 flags 0x0 : 2560:4096:1:1
+3.44.696.816 D ggml-hex: HTP0 add-tensor #29 z-30 : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 4096:1024:1:1
+3.44.696.829 D ggml-hex: HTP0 execute-op SILU|z-30 (reshaped) -> node_1775|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.44.696.833 D ggml-hex: HTP0 add-tensor #30 z-30 (reshaped) : bi 1 data 0x7d6d942080 offset 41975936 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.696.836 D ggml-hex: HTP0 add-tensor #31 node_1775 : bi 1 data 0x7d6e942080 offset 58753152 size 16777216 flags 0x1 : 128:32:1024:1
+3.44.696.852 D ggml-hex: HTP0 execute-op MUL|node_1772 x node_1775 -> node_1776|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.44.697.463 D ggml-hex: HTP0 op-queue push batch #13 : n-bufs 4 n-tensors 32 n-ops 17 vmem 995780736 : b-size 96 t-size 1792 o-size 3808 m-size 6512
+3.44.697.502 D ggml-hex: HTP0 queue-opbatch: 0x7ee90f8380 size 6512
+3.44.898.128 D ggml-hex: HTP0 op-queue pop batch #13 : n-bufs 4 n-tensors 32 n-ops 17 : m-size 6512 b-size 96 t-size 1792 o-size 3808
+3.44.898.248 D ggml-hex: HTP0 synchronize
+3.45.290.988 D ggml-hex: HTP0 synchronize
+3.45.291.092 D ggml-hex: HTP0 synchronize
+3.45.291.180 D ggml-hex: HTP0 set-tensor HTP0#linear_attn_out-30 (reshaped)#0 : data 0xb400007cfbf44fe0 offset 0 size 10485760
+3.45.292.000 D ggml-hex: HTP0 synchronize
+3.45.292.015 D ggml-hex: HTP0 set-tensor HTP0#leaf_498#0 : data 0xb400007cfbf43fe0 offset 0 size 4096
+3.45.292.037 D ggml-hex: HTP0 graph-compute n_nodes 50
+3.45.294.749 D ggml-hex: HTP0 execute-op ADD|HTP0#linear_attn_out-30 (reshaped)#0 x l_out-29 -> attn_residual-30|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.294.767 D ggml-hex: HTP0 add-buffer #0 : fd 22 base 0x7d6b13a000 size 138453120 : vmem 138453120
+3.45.294.775 D ggml-hex: HTP0 add-tensor #0 HTP0#linear_attn_out-30 (reshaped)#0 : bi 0 data 0x7d6bb3a000 offset 10485760 size 10485760 flags 0x1 : 2560:1024:1:1
+3.45.294.797 D ggml-hex: HTP0 add-tensor #1 l_out-29 : bi 0 data 0x7d6b13a000 offset 0 size 10485760 flags 0x1 : 2560:1024:1:1
+3.45.294.896 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-30 x blk.30.post_attention_norm.weight -> attn_post_norm-30|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.45.294.910 D ggml-hex: HTP0 add-buffer #1 : fd 18 base 0x7ee1c54000 size 3850240 : vmem 142303360
+3.45.294.922 D ggml-hex: HTP0 add-tensor #2 blk.30.post_attention_norm.weight : bi 1 data 0x7ee1fd6d00 offset 3681536 size 10240 flags 0x0 : 2560:1:1:1
+3.45.294.931 D ggml-hex: HTP0 execute-op MUL_MAT|blk.30.ffn_gate.weight x attn_post_norm-30 -> ffn_gate-30|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.294.953 D ggml-hex: HTP0 add-buffer #2 : fd 20 base 0x7dda787000 size 800782336 : vmem 943085696
+3.45.294.955 D ggml-hex: HTP0 add-tensor #3 blk.30.ffn_gate.weight : bi 2 data 0x7e04395800 offset 700508160 size 13271040 flags 0x0 : 2560:9216:1:1
+3.45.294.957 D ggml-hex: HTP0 add-tensor #4 ffn_gate-30 : bi 0 data 0x7d6c943080 offset 25202816 size 37748736 flags 0x1 : 9216:1024:1:1
+3.45.294.979 D ggml-hex: HTP0 execute-op MUL_MAT|blk.30.ffn_up.weight x attn_post_norm-30 -> ffn_up-30|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.294.994 D ggml-hex: HTP0 add-tensor #5 blk.30.ffn_up.weight : bi 2 data 0x7e05ce5800 offset 727050240 size 13271040 flags 0x0 : 2560:9216:1:1
+3.45.294.996 D ggml-hex: HTP0 add-tensor #6 ffn_up-30 : bi 0 data 0x7d6ed43080 offset 62951552 size 37748736 flags 0x1 : 9216:1024:1:1
+3.45.295.013 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-30 x ffn_up-30 -> ffn_swiglu-30|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.295.022 D ggml-hex: HTP0 add-tensor #7 ffn_swiglu-30 : bi 0 data 0x7d71143080 offset 100700288 size 37748736 flags 0x1 : 9216:1024:1:1
+3.45.295.030 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.30.ffn_down.weight x ffn_swiglu-30 x attn_residual-30 -> l_out-30|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.45.295.042 D ggml-hex: HTP0 add-tensor #8 blk.30.ffn_down.weight : bi 2 data 0x7e0503d800 offset 713779200 size 13271040 flags 0x0 : 9216:2560:1:1
+3.45.295.063 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-30 x blk.31.attn_norm.weight -> attn_norm-31|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.45.295.074 D ggml-hex: HTP0 add-tensor #9 blk.31.attn_norm.weight : bi 1 data 0x7ee1ff9800 offset 3823616 size 10240 flags 0x0 : 2560:1:1:1
+3.45.295.079 D ggml-hex: HTP0 execute-op MUL_MAT|blk.31.attn_q.weight x attn_norm-31 -> Qcur_full-31|2560:8192 x 2560:1024 -> 8192:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.295.081 D ggml-hex: HTP0 add-tensor #10 blk.31.attn_q.weight : bi 2 data 0x7e0698d800 offset 740321280 size 11796480 flags 0x0 : 2560:8192:1:1
+3.45.295.107 D ggml-hex: HTP0 add-tensor #11 Qcur_full-31 : bi 0 data 0x7d6c943080 offset 25202816 size 33554432 flags 0x1 : 8192:1024:1:1
+3.45.298.204 D ggml-hex: HTP0 execute-op MUL_MAT|blk.31.attn_v.weight x attn_norm-31 -> Vcur-31|2560:1024 x 2560:1024 -> 1024:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.298.230 D ggml-hex: HTP0 add-tensor #12 blk.31.attn_v.weight : bi 2 data 0x7e07635800 offset 753592320 size 1474560 flags 0x0 : 2560:1024:1:1
+3.45.298.238 D ggml-hex: HTP0 add-tensor #13 Vcur-31 : bi 0 data 0x7d6e943080 offset 58757248 size 4194304 flags 0x1 : 1024:1024:1:1
+3.45.298.247 D ggml-hex: HTP0 execute-op MUL_MAT|blk.31.attn_k.weight x attn_norm-31 -> Kcur-31|2560:1024 x 2560:1024 -> 1024:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.298.250 D ggml-hex: HTP0 add-tensor #14 blk.31.attn_k.weight : bi 2 data 0x7e074cd800 offset 752117760 size 1474560 flags 0x0 : 2560:1024:1:1
+3.45.298.255 D ggml-hex: HTP0 add-tensor #15 Kcur-31 : bi 0 data 0x7d6ed43080 offset 62951552 size 4194304 flags 0x1 : 1024:1024:1:1
+3.45.298.274 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|Qcur_reshaped-31 x blk.31.attn_q_norm.weight -> Qcur_normed-31|256:16:1024:1 x 256:1 -> 256:16:1024:1|f32 x f32 -> f32|4:2048:32768:33554432! x 4:1024 -> 4:1024:16384:16777216|HTP0 x HTP0 -> HTP0|row-block vtcm 8376320|flags 0x0
+3.45.298.288 D ggml-hex: HTP0 add-tensor #16 Qcur_reshaped-31 : bi 0 data 0x7d6c943080 offset 25202816 size 33553408 flags 0x1 : 256:16:1024:1
+3.45.298.303 D ggml-hex: HTP0 add-tensor #17 blk.31.attn_q_norm.weight : bi 1 data 0x7ee1ffe800 offset 3844096 size 1024 flags 0x0 : 256:1:1:1
+3.45.298.304 D ggml-hex: HTP0 add-tensor #18 Qcur_normed-31 : bi 0 data 0x7d6f143080 offset 67145856 size 16777216 flags 0x1 : 256:16:1024:1
+3.45.298.311 D ggml-hex: HTP0 execute-op ROPE|Qcur_normed-31 x HTP0#leaf_55#0 -> Qcur-31|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.298.313 D ggml-hex: HTP0 add-tensor #19 HTP0#leaf_55#0 : bi 0 data 0x7d6c53a080 offset 20971648 size 16384 flags 0x1 : 4096:1:1:1
+3.45.298.332 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|Kcur-31 (reshaped) x blk.31.attn_k_norm.weight -> Kcur_normed-31|256:4:1024:1 x 256:1 -> 256:4:1024:1|f32 x f32 -> f32|4:1024:4096:4194304 x 4:1024 -> 4:1024:4096:4194304|HTP0 x HTP0 -> HTP0|row-block vtcm 8376320|flags 0x0
+3.45.298.335 D ggml-hex: HTP0 add-tensor #20 Kcur-31 (reshaped) : bi 0 data 0x7d6ed43080 offset 62951552 size 4194304 flags 0x1 : 256:4:1024:1
+3.45.298.337 D ggml-hex: HTP0 add-tensor #21 blk.31.attn_k_norm.weight : bi 1 data 0x7ee1ffec00 offset 3845120 size 1024 flags 0x0 : 256:1:1:1
+3.45.298.338 D ggml-hex: HTP0 add-tensor #22 Kcur_normed-31 : bi 0 data 0x7d6bb3a000 offset 10485760 size 4194304 flags 0x1 : 256:4:1024:1
+3.45.298.344 D ggml-hex: HTP0 execute-op ROPE|Kcur_normed-31 x HTP0#leaf_55#0 -> Kcur-31|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.298.393 D ggml-hex: HTP0 execute-op SET_ROWS|Kcur-31 (view) x HTP0#leaf_59#0 x cache_k_l31 -> cache_k_l31 (view)|1024:1024 x 1024:1 x 1024:2048 -> 1024:2048|f32 x i64 x f16 -> f16|4:4096 x 8:8192 x 2:2048 -> 2:2048|HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.298.394 D ggml-hex: HTP0 add-tensor #23 Kcur-31 (view) : bi 0 data 0x7d6bb3a000 offset 10485760 size 4194304 flags 0x1 : 1024:1024:1:1
+3.45.298.410 D ggml-hex: HTP0 add-tensor #24 HTP0#leaf_59#0 : bi 0 data 0x7d6c53e080 offset 20988032 size 8192 flags 0x1 : 1024:1:1:1
+3.45.298.423 D ggml-hex: HTP0 add-buffer #3 : fd 17 base 0x7dd6786000 size 67112960 : vmem 1010198656
+3.45.298.424 D ggml-hex: HTP0 add-tensor #25 cache_k_l31 : bi 3 data 0x7dd9f86000 offset 58720256 size 4194304 flags 0x1 : 1024:2048:1:1
+3.45.298.438 D ggml-hex: HTP0 execute-op SET_ROWS|Vcur-31 (view) x HTP0#leaf_61#0 x cache_v_l31 -> cache_v_l31 (view)|1024:1024 x 1024:1 x 1024:2048 -> 1024:2048|f32 x i64 x f16 -> f16|4:4096 x 8:8192 x 2:2048 -> 2:2048|HTP0 x HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.298.439 D ggml-hex: HTP0 add-tensor #26 HTP0#leaf_61#0 : bi 0 data 0x7d6c540080 offset 20996224 size 8192 flags 0x1 : 1024:1:1:1
+3.45.298.452 D ggml-hex: HTP0 add-tensor #27 cache_v_l31 : bi 3 data 0x7dda386000 offset 62914560 size 4194304 flags 0x1 : 1024:2048:1:1
+3.45.299.270 D ggml-hex: HTP0 execute-op FLASH_ATTN_EXT|Qcur-31 (view) (permuted) x cache_k_l31 (view) (permuted) x cache_v_l31 (view) (permuted) x HTP0#attn_inp_kq_mask#0 -> node_1812|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|HTP0 x HTP0 x HTP0 x HTP0 -> HTP0|hmx-pipe vtcm 6802944|flags 0x0
+3.45.299.296 D ggml-hex: HTP0 add-tensor #28 Qcur-31 (view) (permuted) : bi 0 data 0x7d6f143080 offset 67145856 size 16777216 flags 0x1 : 256:1024:16:1
+3.45.299.312 D ggml-hex: HTP0 add-tensor #29 cache_k_l31 (view) (permuted) : bi 3 data 0x7dd9f86000 offset 58720256 size 4194304 flags 0x1 : 256:2048:4:1
+3.45.299.326 D ggml-hex: HTP0 add-tensor #30 cache_v_l31 (view) (permuted) : bi 3 data 0x7dda386000 offset 62914560 size 4194304 flags 0x1 : 256:2048:4:1
+3.45.299.339 D ggml-hex: HTP0 add-tensor #31 HTP0#attn_inp_kq_mask#0 : bi 0 data 0x7d6c542080 offset 21004416 size 4194304 flags 0x1 : 2048:1024:1:1
+3.45.299.353 D ggml-hex: HTP0 add-tensor #32 node_1812 : bi 0 data 0x7d70143080 offset 83923072 size 16777216 flags 0x1 : 256:16:1024:1
+3.45.299.359 D ggml-hex: HTP0 execute-op CONT|Qcur_full-31 (view) -> gate_reshaped-31|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|HTP0 -> HTP0|----|flags 0x0
+3.45.299.361 D ggml-hex: HTP0 add-tensor #33 Qcur_full-31 (view) : bi 0 data 0x7d6c943480 offset 25203840 size 33553408 flags 0x1 : 256:16:1024:1
+3.45.299.363 D ggml-hex: HTP0 add-tensor #34 gate_reshaped-31 : bi 0 data 0x7d6e943080 offset 58757248 size 16777216 flags 0x1 : 4096:1024:1:1
+3.45.299.367 D ggml-hex: HTP0 execute-op SIGMOID|gate_reshaped-31 -> gate_sigmoid-31|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|HTP0 -> HTP0|row-block vtcm 8388608|flags 0x0
+3.45.299.372 D ggml-hex: HTP0 execute-op MUL|attn_pregate-31 x gate_sigmoid-31 -> attn_gated-31|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.299.373 D ggml-hex: HTP0 add-tensor #35 attn_pregate-31 : bi 0 data 0x7d70143080 offset 83923072 size 16777216 flags 0x1 : 4096:1024:1:1
+3.45.299.388 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.31.attn_output.weight x attn_gated-31 x l_out-30 -> attn_residual-31|4096:2560 x 4096:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:2304 x 4:16384 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8308736|flags 0x0
+3.45.299.399 D ggml-hex: HTP0 add-tensor #36 blk.31.attn_output.weight : bi 2 data 0x7e0779d800 offset 755066880 size 5898240 flags 0x0 : 4096:2560:1:1
+3.45.299.411 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|attn_residual-31 x blk.31.post_attention_norm.weight -> attn_post_norm-31|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.45.299.413 D ggml-hex: HTP0 add-tensor #37 blk.31.post_attention_norm.weight : bi 1 data 0x7ee1ffc000 offset 3833856 size 10240 flags 0x0 : 2560:1:1:1
+3.45.299.417 D ggml-hex: HTP0 execute-op MUL_MAT|blk.31.ffn_gate.weight x attn_post_norm-31 -> ffn_gate-31|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.299.418 D ggml-hex: HTP0 add-tensor #38 blk.31.ffn_gate.weight : bi 2 data 0x7e07d3d800 offset 760965120 size 13271040 flags 0x0 : 2560:9216:1:1
+3.45.299.440 D ggml-hex: HTP0 execute-op MUL_MAT|blk.31.ffn_up.weight x attn_post_norm-31 -> ffn_up-31|2560:9216 x 2560:1024 -> 9216:1024|q4_0 x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x HTP0 -> HTP0|hmx-tiled vtcm 8284160|flags 0x0
+3.45.299.447 D ggml-hex: HTP0 add-tensor #39 blk.31.ffn_up.weight : bi 2 data 0x7e0968d800 offset 787507200 size 13271040 flags 0x0 : 2560:9216:1:1
+3.45.299.450 D ggml-hex: HTP0 execute-op SWIGLU|ffn_gate-31 x ffn_up-31 -> ffn_swiglu-31|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.299.456 D ggml-hex: HTP0 execute-op MUL_MAT+ADD|blk.31.ffn_down.weight x ffn_swiglu-31 x attn_residual-31 -> l_out-31|9216:2560 x 9216:1024 x 2560:1024 -> 2560:1024|q4_0 x f32 x f32 -> f32|18:5184 x 4:36864 x 4:10240 -> 4:10240|HTP0-REPACK x HTP0 x HTP0 -> HTP0|hmx-tiled vtcm 8259584|flags 0x0
+3.45.299.457 D ggml-hex: HTP0 add-tensor #40 blk.31.ffn_down.weight : bi 2 data 0x7e089e5800 offset 774236160 size 13271040 flags 0x0 : 9216:2560:1:1
+3.45.299.469 D ggml-hex: HTP0 execute-op RMS_NORM+MUL|l_out-31 x output_norm.weight -> h_nextn|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|HTP0 x HTP0 -> HTP0|row-block vtcm 8232960|flags 0x0
+3.45.299.471 D ggml-hex: HTP0 add-tensor #41 output_norm.weight : bi 1 data 0x7ee1c54000 offset 0 size 10240 flags 0x0 : 2560:1:1:1
+3.45.299.475 D ggml-hex: HTP0 execute-op GET_ROWS|h_nextn x HTP0#leaf_498#0 -> result_norm|2560:1024 x 1024:1 -> 2560:1024|f32 x i32 -> f32|4:10240 x 4:4096 -> 4:10240|HTP0 x HTP0 -> HTP0|----|flags 0x0
+3.45.299.476 D ggml-hex: HTP0 add-tensor #42 HTP0#leaf_498#0 : bi 0 data 0x7d6c942080 offset 25198720 size 4096 flags 0x1 : 1024:1:1:1
+3.45.299.866 D ggml-hex: HTP0 op-queue push batch #14 : n-bufs 4 n-tensors 43 n-ops 28 vmem 1010198656 : b-size 96 t-size 2408 o-size 6272 m-size 10120
+3.45.299.903 D ggml-hex: HTP0 queue-opbatch: 0x7ee91c8500 size 10120
+3.45.411.984 D ggml-hex: HTP0 op-queue pop batch #14 : n-bufs 4 n-tensors 43 n-ops 28 : m-size 10120 b-size 96 t-size 2408 o-size 6272
+3.45.412.023 D ggml-hex: HTP0 synchronize
+
+4.68 minutes
+[1]7.9075,[2]9.4123,

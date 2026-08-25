@@ -42,3 +42,19 @@ The first T1 attempt (`reval_t1_134553`) exposed the immediate-kill readiness or
 - Expected: guard cannot start; launcher kills the gated workload and exits 75; no workload process remains.
 - Observed: launcher exit 75; guard rc absent; guard log absent; stdout/stderr absent; no `llama` or `thermal_guard` process after restoration; pre-arm 100%, 27.6 °C, unplugged; adb reconnects 0.
 - The first T4 attempt had a shell-wrapper guard rc=126 marker; the marker-write rule was tightened so an unstartable guard leaves it absent, matching the review artifact expectation. All four final matrix tests pass.
+
+## T5 — parser/normal-completion re-check
+
+| Test | Expected | Observed | Result |
+|---|---|---|---|
+| T5 parser and pass-through | current-block numeric temperature and level, no `SENSOR_FAILURE`, guard 0, workload 0, `MAX`, JSONL | guard 0; workload 0; START timeout=10/fail-limit=4/window=40; samples 284→298; level 95 on every sample; no `SENSOR_FAILURE`; MAX 298; JSONL 1,889 bytes / 2 rows; exec PID=24837; no residual process | PASS |
+
+The current fixed guard uses `sensor_timeout_s=10`, `sensor_fail_limit=4`,
+and a 40-second fail-closed window. T5 is the short CPU-only `llama-bench`
+re-check using WARN 400 / KILL 430.
+
+Observed tag: `reval_t5_20260825_1022_fix2`. The two preceding attempts were
+launcher-only false positives: normal `libcdsprpc.so`/`_dom=cdsp` startup text
+was initially over-matched. The matcher was narrowed to the authorized crash
+signatures and T5 was rerun successfully; those attempts produced no real
+crash signature.

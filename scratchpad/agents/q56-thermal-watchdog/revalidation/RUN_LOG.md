@@ -41,3 +41,15 @@ No workload has started at this point.
 - Fix applied PC-side: guard rc marker is not written for unstartable rc=126.
 - Final attempt `reval_t4_140650_fix1`: mode 000 during launch, restored 755 immediately after; launcher=75; guard rc/log absent; no stdout/stderr; no residual `llama` or `thermal_guard`; pre-arm 100%, 27.6 °C, unplugged; adb reconnects=0.
 - Final T1–T4 matrix status: PASS.
+
+## Current parser/kill fix before T5
+
+- Current-block parser fixed to select only `^  temperature: *[0-9]+` and `^  level: *[0-9]+`; dumpsys history lines and sysfs fallback are not used.
+- Missing level is informational (`-1`); only missing/non-numeric/zero temperature increments sensor failures.
+- Current defaults: `sensor_timeout_s=10`, `sensor_fail_limit=4`, `sensor_failure_window_s=40`.
+- `kill -9` verification now polls up to 5 seconds at 0.5-second intervals and treats a zombie target as gone.
+- Launcher crash matching excludes the benign `common_fit_params ... n_gpu_layers ... abort` warning and matches only the authorized real signatures.
+- T5 attempt `reval_t5_20260825_1018`: launcher false-positive on normal `ggml-hex: Loading driver libcdsprpc.so`; workload was guard-killed rc=137, guard rc=0. Not a device crash.
+- T5 attempt `reval_t5_20260825_1020_fix1`: launcher false-positive on normal lower-case `_dom=cdsp` URI text; workload was guard-killed rc=137, guard rc=0. Not a device crash.
+- Fix: CDSP matching is now case-sensitive for explicit upper-case `CDSP`; normal lower-case `cdsp` startup URI/domain is accepted. Exec PID proof is recorded by the supervisor as the child PID (not POSIX `$$` from a subshell).
+- T5 final `reval_t5_20260825_1022_fix2`: guard rc=0, workload rc=0, launcher rc=0; START reports timeout=10/fail-limit=4/window=40; every sample had numeric temperature and level=95; no SENSOR_FAILURE; MAX=298 tenths; JSONL=1,889 bytes / 2 rows; WORKLOAD_PID=24837; no residual llama/guard process.

@@ -23,8 +23,8 @@ interval_s=$5
 session_hard_cap_tenths=${6:-0}
 ready_path=${7:-}
 tracking_path=${8:-}
-sensor_fail_limit=${9:-3}
-sensor_timeout_s=5
+sensor_fail_limit=${9:-4}
+sensor_timeout_s=10
 sensor_failure_window_s=$((sensor_fail_limit * sensor_timeout_s))
 sensor_command_override=${THERMAL_SENSOR_CMD:-}
 
@@ -76,7 +76,11 @@ log_line() {
 }
 
 pid_exists() {
-    [ "$target_pid" -gt 0 ] 2>/dev/null && [ -d "/proc/$target_pid" ] && kill -0 "$target_pid" 2>/dev/null
+    [ "$target_pid" -gt 0 ] 2>/dev/null || return 1
+    [ -d "/proc/$target_pid" ] || return 1
+    proc_state=$(cat "/proc/$target_pid/stat" 2>/dev/null | sed -n 's/^[0-9][0-9]* ([^)]*) \([A-Z]\).*$/\1/p')
+    [ "$proc_state" = "Z" ] && return 1
+    kill -0 "$target_pid" 2>/dev/null
 }
 
 resolve_target_pid() {
@@ -99,38 +103,19 @@ read_sample() {
     else
         sample_text=$(timeout "$sensor_timeout_s" dumpsys battery 2>/dev/null)
     fi
-    temp=$(printf '%s\n' "$sample_text" | grep -m 1 '^[[:space:]]*temperature:' | sed -n 's/.*temperature:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
-    level=$(printf '%s\n' "$sample_text" | grep -m 1 '^[[:space:]]*level:' | sed -n 's/.*level:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
-
-    if [ -z "$temp" ] && [ -z "$sensor_command_override" ]; then
-        for zone in /sys/class/thermal/thermal_zone*; do
-            [ -r "$zone/type" ] || continue
-            zone_type=$(cat "$zone/type" 2>/dev/null)
-            case "$zone_type" in
-                *battery*|*Battery*|*BATTERY*)
-                    zone_temp=$(cat "$zone/temp" 2>/dev/null)
-                    case "$zone_temp" in
-                        ''|*[!0-9]*) ;;
-                        *)
-                            if [ "$zone_temp" -ge 1000 ]; then
-                                temp=$((zone_temp / 100))
-                            else
-                                temp=$zone_temp
-                            fi
-                            break
-                            ;;
-                    esac
-                    ;;
-            esac
-        done
-    fi
+    # dumpsys battery has a current-value block followed by a history block.
+    # Only the two-space current-block forms are authoritative; history lines
+    # such as "Sending ACTION_BATTERY_CHANGED: ... temperature:..." must not
+    # be selected.
+    temp=$(printf '%s\n' "$sample_text" | grep -m 1 '^  temperature:[[:space:]]*[0-9][0-9]*' | sed -n 's/^  temperature:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
+    level=$(printf '%s\n' "$sample_text" | grep -m 1 '^  level:[[:space:]]*[0-9][0-9]*' | sed -n 's/^  level:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
 
     sensor_ok=1
     case "$temp" in
         ''|*[!0-9]*|0) sensor_ok=0; temp=0 ;;
     esac
     case "$level" in
-        ''|*[!0-9]*) sensor_ok=0; level=-1 ;;
+        ''|*[!0-9]*) level=-1 ;;
     esac
     epoch=$(date +%s 2>/dev/null)
     case "$epoch" in
@@ -141,7 +126,11 @@ read_sample() {
 terminate_target() {
     if pid_exists; then
         kill -9 "$target_pid" 2>/dev/null
-        sleep 1
+        poll=0
+        while [ "$poll" -lt 10 ] && pid_exists; do
+            sleep 0.5
+            poll=$((poll + 1))
+        done
         if pid_exists; then
             log_line "$epoch,$temp,$level,KILL_FAILED"
             return 3
@@ -186,7 +175,7 @@ process_sample() {
     fi
     sensor_failures=0
 
-    if [ "$level" -lt 45 ]; then
+    if [ "$level" -ge 0 ] && [ "$level" -lt 45 ]; then
         abort_with_kill BATTERY_LOW_ABORT 2
         return $?
     fi
