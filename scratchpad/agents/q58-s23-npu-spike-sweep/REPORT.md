@@ -54,3 +54,15 @@ headroom thresholds = NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4
 ## crash signature
 
 NONE
+
+## Corrections applied after audit (REVIEW_DOC.md, BANK-with-corrections)
+1. Thermal-threshold candidate: the report's 39.4 °C used the individual-max ΔT (0.6); the
+   PREREG formula uses sizes ≤ N_max with their MEAN ΔT → 40.0 − 0.5 = **39.5 °C** is the value
+   banked (both retained in manifest; 39.5 is the labelled one).
+2. Metric labels: ΔT, wall, "°C/1k" and "s/1k" are PER-PROCESS numbers (they include HTP
+   session allocation + model materialization on the NPU arm, mmap load on the CPU arm). Load
+   share of wall: ~46–49 % at n=128, ~22–25 % at n=2048. Prompt-only wall (from stderr
+   timestamps): NPU 1.7 s vs CPU 12.3 s at n=128; NPU 23.2 s vs CPU 81.6 s at n=2048 — the NPU
+   advantage holds at every size after deconfounding; the confound penalizes the NPU arm.
+3. Anomaly: n128_cpu_1 = cold mmap + first-eval penalty (load 26.2 s + prompt 21.4 s; t/s 6.0
+   vs 38.7 on the second CPU rep). Recorded; does not affect the NPU verdict.
