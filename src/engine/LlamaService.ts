@@ -94,6 +94,7 @@ import {
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
+  memoryFactTextsForEnvHash,
   deleteSessionArtifacts,
   ensureSessionsDir,
   estimateSessionBytes,
@@ -175,6 +176,7 @@ import {
   EXTRACT_MEMORY_PRESERVE_CHAT_KV,
   MEMORY_FACTS_ON_USER_TAIL,
 } from "./ttftFlags";
+import type { MemoryFact } from "../memory/MemoryStore";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -408,7 +410,7 @@ const TARGET_LANG_NAME: Record<Locale, string> = {
 export function buildSystemPrompt(
   locale: Locale,
   withTools: boolean,
-  facts?: string[],
+  facts?: readonly MemoryFact[],
 ): string {
   const strings = getStrings(locale);
   let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
@@ -846,6 +848,7 @@ function emitTurnTelemetry(
   attribution?: ToolAttributionSnapshot | null,
   model?: ModelInfo | null,
   onDecodeSample?: StreamTurnOptions["onDecodeSample"],
+  ciswireFlags?: number,
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
@@ -853,6 +856,7 @@ function emitTurnTelemetry(
     // never ran a successful tool.
     if (attribution?.tool != null) r.tool = attribution.tool;
     if (attribution?.strategy != null) r.strategy = attribution.strategy;
+    if (ciswireFlags !== undefined) r.ciswireFlags = ciswireFlags;
     console.log(formatTelemetryLine(turnId, r));
     if (model != null) {
       onDecodeSample?.(model, {
@@ -2447,10 +2451,11 @@ export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
   /**
-   * Durable user facts (max 10 used). Default: last-user tail (format B), not
-   * the system prompt — see MEMORY_FACTS_ON_USER_TAIL. Empty when memory off.
+   * Durable user facts. Default: last-user tail (format B), not the system
+   * prompt — see MEMORY_FACTS_ON_USER_TAIL. Bounded at injection. Empty when
+   * memory off.
    */
-  memoryFacts?: string[];
+  memoryFacts?: readonly MemoryFact[];
   /**
    * Compaction context for the operative block:
    * - digest: query-time BM25 (refreshed every user turn)
@@ -2475,6 +2480,8 @@ export type StreamTurnOptions = EngineTurnOptions & {
   lastUserBare?: string;
   /** Receives each settled completion's numeric decode sample for calibration. */
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
+  /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
+  ciswireFlags?: number;
 };
 
 export async function streamAssistantTurn(
@@ -2589,7 +2596,9 @@ export async function streamAssistantTurn(
     const toolNames = (options?.tools ?? []).map((t) => t.function.name);
     lastPromptEnvHash = computePromptEnvHash(
       locale,
-      MEMORY_FACTS_ON_USER_TAIL ? [] : options.memoryFacts,
+      MEMORY_FACTS_ON_USER_TAIL
+        ? []
+        : memoryFactTextsForEnvHash(options.memoryFacts),
       hasTools,
       toolNames,
       blockFormat,
@@ -2960,6 +2969,7 @@ export async function streamAssistantTurn(
           toolAttribution.snapshot(),
           activeModel,
           options.onDecodeSample,
+          options.ciswireFlags,
         );
 
         if (bailIfStopped()) return;
@@ -3275,6 +3285,7 @@ export async function streamAssistantTurn(
               toolAttribution.snapshot(),
               activeModel,
               options.onDecodeSample,
+              options.ciswireFlags,
             );
             // Strip tool_call/think markup from the fallback result. If text
             // remains, emit it; otherwise fall through to the canned message.

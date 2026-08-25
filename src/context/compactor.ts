@@ -246,6 +246,21 @@ export const DEFAULT_COMPACTOR_CONFIG: CompactorConfig = {
 /** AsyncStorage key: compaction feature toggle ("1" / "0"). */
 export const COMPACTION_ENABLED_KEY = "kalsa.context.compaction";
 
+/** AsyncStorage key: CisWire tool-help flag ("1" / "true"). */
+export const CISWIRE_TOOLHELP_KEY = "kalsa.ciswire.toolhelp";
+
+/** Bits reported in ciswireFlags telemetry fields. */
+export const CISWIRE_FLAG_COMPACTION = 1;
+export const CISWIRE_FLAG_MEMORY = 1 << 1;
+export const CISWIRE_FLAG_TOOLHELP = 1 << 2;
+
+/** Parse the opt-in CisWire tool-help flag. Absent / invalid values are OFF. */
+export function parseCiswireToolHelp(
+  raw: string | null | undefined,
+): boolean {
+  return raw === "1" || raw === "true";
+}
+
 /**
  * Written as "1" only when the user toggles the Settings switch.
  * Absent → treat leftover "0" as the old default, not an explicit OFF

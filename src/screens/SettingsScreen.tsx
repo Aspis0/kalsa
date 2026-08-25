@@ -65,11 +65,15 @@ import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
 import {
+  CISWIRE_TOOLHELP_KEY,
   COMPACTION_CHOICE_KEY,
   COMPACTION_ENABLED_KEY,
+  parseContextMode,
+  type ContextMode,
 } from "../context/compactor";
 import {
   COMPACTION_ENABLED_DEFAULT,
+  getCiswireToolHelp,
   parseCompactionEnabled,
 } from "../engine/ttftFlags";
 import {
@@ -201,6 +205,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   // ── Context compaction (ConversationCompactor — default ON) ─────────────
   const [compactionEnabled, setCompactionEnabled] = useState(COMPACTION_ENABLED_DEFAULT);
+  const [compactionMode, setCompactionMode] = useState<ContextMode>("anchored");
 
   // ── KV session pool size (conversation count, not megabytes) ─────────────
   const [sessionPoolChats, setSessionPoolChats] = useState<SessionPoolConversationOption>(
@@ -219,6 +224,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [deviceToolsEnabled, setDeviceToolsEnabled] = useState(true);
   const [calendarToolsEnabled, setCalendarToolsEnabled] = useState(false);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [ciswireToolHelpEnabled, setCiswireToolHelpEnabled] = useState(false);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
@@ -376,10 +382,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     void Promise.all([
       AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
       AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+      getCiswireToolHelp(),
     ])
-      .then(([raw, choice]) => {
+      .then(([raw, choice, toolHelp]) => {
         if (!mounted) return;
+        setCompactionMode(parseContextMode(raw));
         setCompactionEnabled(parseCompactionEnabled(raw, choice === "1"));
+        setCiswireToolHelpEnabled(toolHelp);
       })
       .catch(() => undefined);
     return () => {
@@ -420,22 +429,35 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     });
   }, [calendarToolsEnabled]);
 
-  const handleToggleCompaction = useCallback(
-    (next: boolean) => {
-      const previous = compactionEnabled;
-      setCompactionEnabled(next);
-      void (async () => {
-        try {
-          await AsyncStorage.multiSet([
-            [COMPACTION_ENABLED_KEY, next ? "1" : "0"],
-            [COMPACTION_CHOICE_KEY, "1"],
-          ]);
-        } catch {
-          if (mountedRef.current) setCompactionEnabled(previous);
-        }
-      })();
+  // Single writer of COMPACTION_ENABLED_KEY (raw 'off' | 'anchored' | 'ciswire').
+  // Also stamps COMPACTION_CHOICE_KEY='1'; on failure rolls back all affected state.
+  const handleSelectCompactionMode = useCallback(
+    (next: ContextMode) => {
+      const previousMode = compactionMode;
+      const previousEnabled = compactionEnabled;
+      setCompactionMode(next);
+      setCompactionEnabled(next !== "off");
+      void AsyncStorage.multiSet([
+        [COMPACTION_ENABLED_KEY, next],
+        [COMPACTION_CHOICE_KEY, "1"],
+      ]).catch(() => {
+        if (!mountedRef.current) return;
+        setCompactionMode(previousMode);
+        setCompactionEnabled(previousEnabled);
+      });
     },
-    [compactionEnabled],
+    [compactionEnabled, compactionMode],
+  );
+
+  const handleToggleCiswireToolHelp = useCallback(
+    (next: boolean) => {
+      const previous = ciswireToolHelpEnabled;
+      setCiswireToolHelpEnabled(next);
+      void AsyncStorage.setItem(CISWIRE_TOOLHELP_KEY, next ? "1" : "0").catch(() => {
+        if (mountedRef.current) setCiswireToolHelpEnabled(previous);
+      });
+    },
+    [ciswireToolHelpEnabled],
   );
 
   useEffect(() => {
@@ -1099,32 +1121,94 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           </Text>
         </GlassPanel2>
 
-        {/* ── Context (ConversationCompactor) ──────────────────────────── */}
+        {/* ── CisWire flags ───────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("settings.context")}
+            {t("settings.ciswire")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("settings.contextCompactionHint")}
+            {t("settings.ciswireHint")}
           </Text>
+          <Text style={[typography.bodySm, { color: colors.ink, marginTop: spacing.xs }]}>
+            {t("settings.ciswireCompaction")}
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {(
+              [
+                ["off", t("settings.ciswireOff")],
+                ["anchored", t("settings.ciswireStandard")],
+                ["ciswire", t("settings.ciswireMode")],
+              ] as const
+            ).map(([id, label]) => {
+              const selected = compactionMode === id;
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => handleSelectCompactionMode(id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.bodySm,
+                      {
+                        color: selected ? colors.accent : colors.ink,
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
               gap: spacing.sm,
-              marginTop: spacing.xs,
             }}
           >
             <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
-              {t("settings.contextCompaction")}
+              {t("settings.ciswireMemory")}
             </Text>
             <Switch
-              value={compactionEnabled}
-              onValueChange={handleToggleCompaction}
+              value={memoryEnabled}
+              onValueChange={handleToggleMemory}
               trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={compactionEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.contextCompaction")}
+              thumbColor={memoryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.ciswireMemory")}
+            />
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
+              {t("settings.ciswireToolHelp")}
+            </Text>
+            <Switch
+              value={ciswireToolHelpEnabled}
+              onValueChange={handleToggleCiswireToolHelp}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={ciswireToolHelpEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.ciswireToolHelp")}
             />
           </View>
         </GlassPanel2>
@@ -1231,27 +1315,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("memory.note")}
           </Text>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-              marginTop: spacing.xs,
-            }}
-          >
-            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
-              {t("memory.enabled")}
-            </Text>
-            <Switch
-              value={memoryEnabled}
-              onValueChange={handleToggleMemory}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={memoryEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("memory.enabled")}
-            />
-          </View>
 
           {!memoryEnabled ? (
             <Text style={[typography.bodyXs, { color: colors.muted }]}>

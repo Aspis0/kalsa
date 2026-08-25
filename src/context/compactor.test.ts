@@ -14,6 +14,7 @@ import {
   LEGACY_MAX_HISTORY_IMAGES,
   legacyWindowStartIndex,
   parseContextMode,
+  parseCiswireToolHelp,
   splitAtBoundary,
   type HistoryRoleMessage,
 } from "./compactor";
@@ -52,6 +53,23 @@ describe("compactor parseContextMode", () => {
 
   test('"anchored" → anchored', () => {
     expect(parseContextMode("anchored")).toBe("anchored");
+  });
+});
+
+describe("parseCiswireToolHelp", () => {
+  test('"1" / "true" → on', () => {
+    expect(parseCiswireToolHelp("1")).toBe(true);
+    expect(parseCiswireToolHelp("true")).toBe(true);
+  });
+
+  test("absent / garbage / explicit off values → off", () => {
+    expect(parseCiswireToolHelp(null)).toBe(false);
+    expect(parseCiswireToolHelp(undefined)).toBe(false);
+    expect(parseCiswireToolHelp("")).toBe(false);
+    expect(parseCiswireToolHelp("0")).toBe(false);
+    expect(parseCiswireToolHelp("false")).toBe(false);
+    expect(parseCiswireToolHelp("off")).toBe(false);
+    expect(parseCiswireToolHelp("yes")).toBe(false);
   });
 });
 

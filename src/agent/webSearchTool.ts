@@ -7,8 +7,6 @@ import {
   type SearchProviderId,
 } from "../search";
 import type { EngineTool, EngineToolResult } from "../engine/LlamaService";
-import { evaluateTurn } from "../rules/evaluate";
-import { TOOL_GATE_TABLE } from "../rules/toolGate";
 import { isSafeHttpUrl } from "../util/url";
 
 export { buildWebSearchSnippet, NO_PREVIEW_SNIPPET } from "../search";
@@ -61,14 +59,13 @@ function labelForPrimaryFailure(
 
 export function makeWebSearchExecutor(
   locale: Locale,
-  options?: { getMemoryFacts?: () => readonly string[] },
 ): (
   name: string,
   args: Record<string, unknown>,
   signal?: AbortSignal,
-  lastUserMessage?: string,
+  _lastUserMessage?: string,
 ) => Promise<EngineToolResult> {
-  return async (name, args, signal, lastUserMessage) => {
+  return async (name, args, signal) => {
     const strings = getStrings(locale);
     if (name !== "web_search") {
       return { text: strings.errors.unknownTool.replace("{name}", name) };
@@ -76,23 +73,7 @@ export function makeWebSearchExecutor(
     const query = String(args.query ?? "").trim();
     if (!query) return { text: strings.errors.emptySearchQuery };
 
-    // Privacy gate: block queries that echo the last user message or an
-    // injected memory fact. No network call, no content logged either way.
-    const facts = options?.getMemoryFacts?.() ?? [];
-    const gate = evaluateTurn(
-      {
-        toolName: "web_search",
-        input: {
-          query,
-          lastUserMessage: lastUserMessage ?? "",
-          memoryFacts: facts.slice(0, 10),
-        },
-      },
-      TOOL_GATE_TABLE,
-    );
-    if (gate.blocked) {
-      return { text: strings.errors.webSearchPrivacyBlocked };
-    }
+    // Privacy gate lives at executeTool (runToolGate / registry).
 
     // searchWeb also clamps; tool-level default is 4.
     const numResults = normalizeNumResults(args.numResults ?? 4);

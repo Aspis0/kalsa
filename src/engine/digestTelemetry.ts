@@ -21,6 +21,8 @@ export interface DigestTelemetry {
   corpusSize: number;
   /** Number of snippets actually selected for the digest. */
   selectedCount: number;
+  /** CisWire feature bits: compaction=1, memory=2, tool-help=4. */
+  ciswireFlags?: number;
 }
 
 /**
@@ -32,5 +34,6 @@ export function formatDigestLine(t: DigestTelemetry): string {
     durationMs: t.durationMs,
     corpusSize: t.corpusSize,
     selectedCount: t.selectedCount,
+    ...(t.ciswireFlags ? { ciswireFlags: t.ciswireFlags } : {}),
   })}`;
 }

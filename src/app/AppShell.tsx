@@ -129,6 +129,7 @@ import {
   saveEngineSession,
   streamAssistantTurn,
   type EngineMessage,
+  type EngineToolResult,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
 import { runDeepResearch } from "../research/deepResearch";
@@ -149,6 +150,7 @@ import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
+  memoryFactTextsForEnvHash,
   getBootHistoryHash,
   historyHash,
   readBootMessages,
@@ -158,6 +160,7 @@ import {
 } from "../engine/sessionPersistence";
 import { formatDigestLine } from "../engine/digestTelemetry";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
+import { boundMemoryFacts } from "../memory/dnaBounding";
 import {
   conversationHasPersistedMessages,
   createEmptyConversationMeta,
@@ -211,8 +214,10 @@ import {
   getBlockFormat,
   getEngineOverride,
   getSpeculativeOverride,
+  getToolGateEnabled,
 } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
 import {
   WEB_FETCH_TOOL,
   makeFetchAllowlist,
@@ -232,12 +237,17 @@ import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
   assembleEngineHistory,
+  CISWIRE_FLAG_COMPACTION,
+  CISWIRE_FLAG_MEMORY,
+  CISWIRE_FLAG_TOOLHELP,
+  CISWIRE_TOOLHELP_KEY,
   COMPACTION_CHOICE_KEY,
   COMPACTION_ENABLED_KEY,
   compactorStorageKey,
   countUserTurns,
   DEFAULT_CHAT_ID,
   emptyCompactorState,
+  parseCiswireToolHelp,
   parseCompactorState,
   shouldInjectOperativeBlock,
   parseContextMode,
@@ -808,7 +818,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // ── User memory refs (declared early so agentOptions can read via getter) ──
   // State/sync for memoryFacts lives below; only injected facts count when enabled.
-  const memoryFactsRef = useRef<string[]>([]);
+  const memoryFactsRef = useRef<MemoryStore.MemoryFact[]>([]);
   /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
   const memoryEnabledRef = useRef(false);
   /**
@@ -817,6 +827,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * user disables memory mid-turn (live enabled/facts refs would go empty).
    */
   const injectedFactsRef = useRef<string[]>([]);
+  /** Opt-in CisWire tool-help flag (kalsa.ciswire.toolhelp) — default OFF. */
+  const toolhelpRef = useRef(false);
 
   // ── Document library (local PDF/TXT chat) ────────────────────────────────
   // Owned here so the tool executor + DocumentsScreen share one snapshot.
@@ -1826,9 +1838,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // document_chat sits alongside web tools and reuses requestPdfText (no new host).
   // agentOptions is rebuilt when webToolsEnabled flips so the tool list matches.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
-    const searchExec = makeWebSearchExecutor(locale, {
-      getMemoryFacts: () => injectedFactsRef.current,
-    });
+    const searchExec = makeWebSearchExecutor(locale);
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
     const pdfCacheFs = makePdfCacheFs({
@@ -1944,27 +1954,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             ),
           };
         }
-
-        if (name === "web_search") {
-          if (privateSearchLatchSeq === fetchAllowlistTurnSeq) {
-            return { text: getStrings(locale).errors.searchSkippedPrivate };
-          }
-          const outcome = await searchExec(name, args, signal, rawUserText);
-          const sources = outcome.sources as Array<{ url?: string }> | undefined;
-          if (sources?.length) {
-            for (const source of sources) {
-              if (typeof source?.url === "string" && source.url) {
-                allowlist.add(source.url);
-              }
-            }
-          }
-          return outcome;
-        }
-
-        if (name === "web_fetch") {
-          return fetchExec(name, args, signal);
-        }
-
         if (
           !deviceToolsEnabledRef.current &&
           (name === "device_info" || name === "device_calc")
@@ -1978,48 +1967,68 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             text: getStrings(locale).errors.unknownTool.replace("{name}", name),
           };
         }
+        if (name === "web_search" && privateSearchLatchSeq === fetchAllowlistTurnSeq) {
+          return { text: getStrings(locale).errors.searchSkippedPrivate };
+        }
 
-        if (name === "device_info") {
+        // kalsa.bench.toolgate=0 skips the gate (CI A/B). Absent key → on.
+        const gate = (await getToolGateEnabled())
+          ? await runToolGate({
+              toolName: name,
+              args,
+              lastUserMessage: rawUserText,
+              memoryFacts: injectedFactsRef.current,
+              toolhelpOn: toolhelpRef.current,
+              locale,
+            })
+          : { blocked: false };
+        if (gate.blocked) return { text: gate.text ?? "" };
+
+        let outcome: EngineToolResult;
+        if (name === "web_search") {
+          outcome = await searchExec(name, args, signal, rawUserText);
+          const sources = outcome.sources as Array<{ url?: string }> | undefined;
+          if (sources?.length) {
+            for (const source of sources) {
+              if (typeof source?.url === "string" && source.url) {
+                allowlist.add(source.url);
+              }
+            }
+          }
+        } else if (name === "web_fetch") {
+          outcome = await fetchExec(name, args, signal);
+        } else if (name === "device_info") {
           privateSearchLatchSeq = fetchAllowlistTurnSeq;
           try {
             const info = await readDeviceInfo(locale);
-            return formatDeviceInfoResult(info);
+            outcome = formatDeviceInfoResult(info);
           } catch {
-            return { text: getStrings(locale).errors.deviceUnavailable };
+            outcome = { text: getStrings(locale).errors.deviceUnavailable };
           }
-        }
-
-        if (name === "device_calc") {
+        } else if (name === "device_calc") {
           const strings = getStrings(locale).errors;
-          return runDeviceCalc(args, strings.deviceCalcInvalid, strings.deviceCalcDivZero);
-        }
-
-        if (name === "calendar_agenda") {
+          outcome = runDeviceCalc(args, strings.deviceCalcInvalid, strings.deviceCalcDivZero);
+        } else if (name === "calendar_agenda") {
           privateSearchLatchSeq = fetchAllowlistTurnSeq;
           calendarExtractSkipSeq = fetchAllowlistTurnSeq;
-          return runCalendarAgenda(args, {
+          outcome = await runCalendarAgenda(args, {
             denied: getStrings(locale).errors.calendarDenied,
             failed: getStrings(locale).errors.calendarFailed,
             unavailable: getStrings(locale).errors.calendarUnavailable,
           });
-        }
-
-        if (name === "document_chat") {
-          const outcome = await documentExec(name, args, signal);
-          // Vision fallback: do NOT hand the model an instruction to use an
-          // unwired path. Return a user-facing scanned-document message only.
-          if (outcome.strategy === "vision_fallback") {
+        } else if (name === "document_chat") {
+          const docOutcome = await documentExec(name, args, signal);
+          if (docOutcome.strategy === "vision_fallback") {
             const strings = getStrings(locale);
             const msg =
               strings.errors.documentChatVisionFallback
                 ?.replace("{name}", "")
                 ?.replace("{pages}", "") ||
-              outcome.text.replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "");
-            // Prefer the tool's already-localized text (has name/pages filled).
-            const cleaned = outcome.text
+              docOutcome.text.replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "");
+            const cleaned = docOutcome.text
               .replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "")
               .trim();
-            return {
+            outcome = {
               text:
                 cleaned ||
                 msg ||
@@ -2027,20 +2036,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               kind: "document_chat" as const,
               strategy: "vision_fallback" as const,
             };
+          } else {
+            outcome = {
+              text: docOutcome.text,
+              passages: docOutcome.passages,
+              strategy: docOutcome.strategy,
+              error: docOutcome.error,
+              kind: "document_chat" as const,
+            };
           }
-          return {
-            text: outcome.text,
-            passages: outcome.passages,
-            provenance: outcome.provenance,
-            strategy: outcome.strategy,
-            error: outcome.error,
-            kind: "document_chat" as const,
+        } else {
+          outcome = {
+            text: getStrings(locale).errors.unknownTool.replace("{name}", name),
           };
         }
-
-        return {
-          text: getStrings(locale).errors.unknownTool.replace("{name}", name),
-        };
+        return applyWarnToResult(outcome, gate.warnNote);
       },
     };
   }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
@@ -2388,7 +2398,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // ── User memory (local facts; injected on last-user tail when flag on) ──
   // Refs declared above agentOptions; keep state + sync here.
-  const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
+  const [memoryFacts, setMemoryFacts] = useState<MemoryStore.MemoryFact[]>([]);
   memoryFactsRef.current = memoryFacts;
   /** Mirror of kalsa.context.compaction — default anchored (boolean ON). */
   const contextModeRef = useRef<ContextMode>("anchored");
@@ -2406,8 +2416,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
       const facts = await MemoryStore.listFacts();
-      // Most recent 10 facts (list is chronological ascending).
-      setMemoryFacts(facts.map((fact) => fact.text).slice(-10));
+      setMemoryFacts(facts);
     } catch {
       // best-effort; never block UI, never log contents
     }
@@ -3251,7 +3260,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const facts = await MemoryStore.listFacts();
             sessionPromptEnvHash = computePromptEnvHash(
               locale,
-              facts.map((f) => f.text).slice(-10),
+              memoryFactTextsForEnvHash(facts),
               true,
               toolNames,
               blockFormat,
@@ -3772,7 +3781,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const facts = await MemoryStore.listFacts();
             sessionPromptEnvHash = computePromptEnvHash(
               locale,
-              facts.map((f) => f.text).slice(-10),
+              memoryFactTextsForEnvHash(facts),
               true,
               toolNamesDl,
               blockFormatDl,
@@ -4212,6 +4221,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           let turnFailed = false;
           let assistantFull = "";
           let extractScheduled = false;
+          // CisWire feature bits for this turn's telemetry lines. Assigned
+          // after the per-send toggle reads below; 0 → field omitted.
+          let turnCiswireFlags = 0;
 
           /**
            * Turn-end order (must preserve for KV save effectiveness):
@@ -4245,6 +4257,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               ...extractTelemetry,
               // Injection belongs to the turn, not to extraction.
               factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              dnaDeferred: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              dnaInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              dnaBudgetTokens: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              ciswireFlags: turnCiswireFlags || undefined,
             }, "KALSA_MEMORY_EXTRACT"));
           };
           const trackMemoryExtractJob = (extractJob: Promise<void>) => {
@@ -4271,6 +4287,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                dnaDeferred: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                dnaInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                dnaBudgetTokens: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 extractStopReason: 4,
@@ -4492,21 +4511,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               setMemoryFacts([]);
             }
             try {
-              const [raw, choice] = await Promise.all([
+              const [raw, choice, toolhelpRaw] = await Promise.all([
                 AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
                 AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+                AsyncStorage.getItem(CISWIRE_TOOLHELP_KEY),
               ]);
               contextModeRef.current = parseContextMode(raw);
               compactionEnabledRef.current = parseCompactionEnabled(
                 raw,
                 choice === "1",
               );
+              toolhelpRef.current = parseCiswireToolHelp(toolhelpRaw);
             } catch {
               contextModeRef.current = "anchored";
               compactionEnabledRef.current = COMPACTION_ENABLED_DEFAULT;
+              toolhelpRef.current = false;
             }
 
             const contextMode = contextModeRef.current;
+            // Telemetry bitmask only — no gating behavior here (S4 consumes it).
+            // bit0=compaction-ciswire, bit1=memory, bit2=toolhelp.
+            turnCiswireFlags =
+              (contextMode === "ciswire" ? CISWIRE_FLAG_COMPACTION : 0) |
+              (memoryEnabledRef.current ? CISWIRE_FLAG_MEMORY : 0) |
+              (toolhelpRef.current ? CISWIRE_FLAG_TOOLHELP : 0);
             // Retrieval (digest + summary) is only ciswire. Anchored is a
             // no-digest append-only window with its own pressure trigger.
             const retrievalOn = contextMode === "ciswire";
@@ -4726,7 +4754,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   index: digestIndex,
                   oldTurns: oldUnits,
                   currentQuery: text,
-                  onTelemetry: (t) => console.log(formatDigestLine(t)),
+                  onTelemetry: (t) =>
+                    console.log(
+                      formatDigestLine({
+                        ...t,
+                        ciswireFlags: turnCiswireFlags || undefined,
+                      }),
+                    ),
                   ranking: rankingOverride ?? "bm25",
                 });
                 compactorStateByChat.set(chatId, state);
@@ -4827,11 +4861,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             engineMessages.push(userMessage);
 
             const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
-            // Track injection count for telemetry (numbers only, no fact text)
-            MemoryStore.trackMemoryInjection(promptFacts.length);
-            // Echo guard uses exactly the facts injected this turn (immune to
-            // mid-turn memory disable). Empty when memory off / no facts.
-            injectedFactsRef.current = promptFacts;
+            // Bound at send so echo-guard + telemetry see the same kept set
+            // LlamaService injects (pure; assembly site bounds again).
+            if (memoryEnabledRef.current) {
+              const dna = boundMemoryFacts(promptFacts);
+              MemoryStore.trackMemoryInjection(dna.health.injectedCount);
+              MemoryStore.trackMemoryDnaBound(
+                dna.health.deferredCount,
+                dna.health.injectedCount,
+                dna.health.budgetTokens,
+              );
+              injectedFactsRef.current = dna.keptTexts;
+            } else {
+              MemoryStore.trackMemoryInjection(0);
+              injectedFactsRef.current = [];
+            }
 
             await streamAssistantTurn(
               engineMessages,
@@ -4864,6 +4908,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                     extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                     extractStopReason: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    ciswireFlags: turnCiswireFlags || undefined,
                   };
                   console.log(formatMemoryLine(memTelemetry));
                   // Arm extract (memoryExtractRef) before unlocking; gate opens
@@ -4902,6 +4947,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 lastUserMessage: text,
                 lastUserBare: lastUserHistoryContent,
                 onDecodeSample: recordDecodeSample,
+                ciswireFlags: turnCiswireFlags || undefined,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).

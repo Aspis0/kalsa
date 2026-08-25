@@ -309,6 +309,13 @@ export function setSessionConversationId(id: string | undefined): void {
   sessionConversationId = undefined;
 }
 
+/** Full fact-text list for prompt-env hash — store order, never a tail slice. */
+export function memoryFactTextsForEnvHash(
+  facts: readonly { readonly text: string }[] | null | undefined,
+): string[] {
+  return (facts ?? []).map((f) => f.text);
+}
+
 /**
  * Hash of system-prompt env inputs that are not covered by historyHash.
  * Covers locale, memory facts (joined), whether tools are wired into

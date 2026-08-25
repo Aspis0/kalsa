@@ -74,6 +74,9 @@ let telemetryAccum = {
   factsRejectedFull: 0,
   factsInjected: 0,
   totalFactsInStore: 0,
+  dnaDeferred: -1,
+  dnaInjected: -1,
+  dnaBudgetTokens: -1,
   extractParseOutcome: 0,
   extractGateSource: 0,
   extractStopReason: 0,
@@ -91,11 +94,22 @@ export function trackMemoryEnabled(enabled: boolean): void {
 }
 
 /**
- * Track when facts are injected into system prompt (called from AppShell).
- * @param count Number of facts injected (0..10)
+ * Track when facts are injected into the turn prompt (called from AppShell).
+ * @param count Number of facts injected after bounding
  */
 export function trackMemoryInjection(count: number): void {
   telemetryAccum.factsInjected = count;
+}
+
+/** Track DNA bounding health for this turn's injection (called from AppShell). */
+export function trackMemoryDnaBound(
+  deferredCount: number,
+  injectedCount: number,
+  budgetTokens: number,
+): void {
+  telemetryAccum.dnaDeferred = deferredCount;
+  telemetryAccum.dnaInjected = injectedCount;
+  telemetryAccum.dnaBudgetTokens = budgetTokens;
 }
 
 /** Track the settled number of facts in the store (called before extract telemetry). */
@@ -153,6 +167,9 @@ export function getAndResetMemoryTelemetry(): typeof telemetryAccum {
     factsRejectedFull: 0,
     factsInjected: 0,
     totalFactsInStore: 0,
+    dnaDeferred: -1,
+    dnaInjected: -1,
+    dnaBudgetTokens: -1,
     extractParseOutcome: 0,
     extractGateSource: 0,
     extractStopReason: 0,

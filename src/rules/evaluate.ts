@@ -6,7 +6,8 @@
 
 export type RuleAction =
   | { kind: "block"; reason: string }
-  | { kind: "rewrite"; param: string; value: unknown };
+  | { kind: "rewrite"; param: string; value: unknown }
+  | { kind: "warn" };
 
 export interface Rule {
   id: string;
@@ -52,6 +53,10 @@ export interface TurnTrace {
 export interface TurnDecision {
   blocked: boolean;
   reason?: string;
+  /** True when a warn rule fired and no block won. Tool still runs. */
+  warned: boolean;
+  /** Winning rule id (block, warn, or first rewrite); empty when none fired. */
+  ruleId: string;
   appliedRewrites: AppliedRewrite[];
   trace: TurnTrace;
 }
@@ -118,9 +123,21 @@ export function evaluateTurn(
     return {
       blocked: true,
       reason,
+      warned: false,
+      ruleId: blockCandidate.rule.id,
       appliedRewrites,
       trace: makeTrace(snapshot.toolName, frozenInput, rows, appliedRewrites),
     };
+  }
+
+  const warnCandidate = fired.find((entry) => entry.row.action?.kind === "warn");
+  if (warnCandidate) {
+    for (const other of fired) {
+      if (other === warnCandidate) continue;
+      if (other.row.action?.kind !== "warn") continue;
+      other.row.shadowed = true;
+      other.row.shadowedByRule = warnCandidate.rule.id;
+    }
   }
 
   const paramWinners = new Map<string, string>();
@@ -141,8 +158,13 @@ export function evaluateTurn(
     }
   }
 
+  const ruleId = warnCandidate
+    ? warnCandidate.rule.id
+    : (appliedRewrites[0]?.ruleId ?? "");
   return {
     blocked: false,
+    warned: Boolean(warnCandidate),
+    ruleId,
     appliedRewrites,
     trace: makeTrace(snapshot.toolName, frozenInput, rows, appliedRewrites),
   };
