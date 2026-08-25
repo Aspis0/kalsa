@@ -34,3 +34,13 @@ Secondary models (Qwen3.5-2B, Gemma-4-e2b): same protocol if time allows; report
 ## Hygiene
 sha256 via Python hashlib; downloads/quantize at Idle priority; one llama process at a time;
 no git push; prereg before any download; `RUN_LOG.md`, `manifest.json`, `REPORT.md` (numbers).
+
+## Amendment 1 (PRE-RESULT, 25/08 — no PPL value had been read when this was written)
+Compute budget: the first cell (control/wiki, 145 chunks) projected 2h26m → 15 cells ≈ 36 h at
+`-t 8` Idle on a dense 4B. Amended, before any result exists:
+- wiki: first **64 chunks** (`--chunks 64`, `-c 2048`) for every arm; IT/ES/FR/ZH: all chunks
+  (small corpora), identical chunk counts per corpus across arms (unchanged rule).
+- Order: control and IQ4_NL alternating per corpus (wiki, IT, ES, FR, ZH) → verdict on IQ4_NL
+  first; Q4_0 cells run only if IQ4_NL fails the gate on any corpus (else recorded as skipped).
+- Q8_0 ceiling: skipped (optional in the original letter).
+Gate arithmetic and thresholds unchanged (Δ% ≤ +1.0 % on all 5 corpora).
