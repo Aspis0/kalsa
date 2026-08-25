@@ -1,0 +1,10 @@
+arm=q57_armB_block1
+when=pre
+timestamp_utc=2026-08-25T15:12:48.2459944Z
+AC powered: false
+USB powered: false
+Wireless powered: false
+Charge counter: 3172500
+level: 84
+voltage: 4181
+temperature: 296

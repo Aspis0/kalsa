@@ -49,3 +49,64 @@ File-first log. Initial pre-resume entry recorded no q57 workload; the resumed A
 - Execute-op proof count: 5,995 lines containing `HTP0 execute-op`; `execute_op_htp0=true`.
 - No real crash signature. Normal lower-case `cdsp` URI/domain and `libcdsprpc.so` startup text were not treated as crashes.
 - Hard stop applied after an NPU guard kill: Arms B and C were not run; no retry.
+
+## Arms B/C — optional continuation
+
+- Date: 2026-08-25.
+- Device: Galaxy S23 / Hexagon v73; active endpoint `192.168.1.152:36269`; mDNS service `adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp`.
+- Guard PC SHA256: `f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84`; device SHA256: MATCH.
+- Launcher SHA256: `64ef5fb808b7bd2784555b54db3c395aecd1d85021e568c948d1f07b7f783b40`.
+- q56 revalidation: T1–T4 PASS; T5 normal-completion re-check PASS.
+- Device remained unplugged for all arms: AC=false, USB=false, Wireless=false.
+- Launcher environment: `GGML_HEXAGON_NDEV=1`, `GGML_HEXAGON_VERBOSE=1`; NPU arms `GGML_HEXAGON_HOSTBUF=1`; CPU arms HOSTBUF unset.
+- Guard polling: 1 s launcher/guard interval, sensor timeout 10 s, sensor failure limit 4, WARN 400 tenths.
+- Order: B1, C1, C2, B2 (allowed B-C-C-B order). All workload, guard, and launcher return codes were 0. No adb reconnects.
+- Cool-start poll/gate: B1 2026-08-25T15:12:27Z, 29.7 °C, 84%; C1 2026-08-25T15:15:37Z, 29.8 °C, 84%; C2 2026-08-25T15:18:30Z, 31.2 °C, 83%; B2 2026-08-25T15:21:39Z, 31.6 °C, 82%. All passed ≤32.0 °C and ≥50%.
+- Exact workload base: `llama-bench -m /data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -v`; B adds `-ngl 99 -dev HTP0`, C adds `-ngl 0` and no `-dev`.
+
+### Arm B — block 1
+
+- Tag: `q57_armB_block1`; guard WARN/KILL 400/410; workload rc=0; guard rc=0; launcher rc=0; wall=46.527 s.
+- Start: 84%, 29.6 °C, 4181 mV, charge counter 3172500 µAh, unplugged.
+- End: 84%, 30.8 °C, 4169 mV, charge counter 3161250 µAh, unplugged.
+- JSONL: 1 row; samples=2; prefill tokens=1024; `samples_ts=81.9936,94.5511`; `pp512_avg_ts=88.272380`.
+- Guard MAX=30.6 °C; ΔT(start→post)=+1.2 °C; °C/512-token pass=0.6.
+- Δcharge=11250 µAh; mean voltage=4175 mV; energy=169.0875 J; J/token=0.165124512.
+- Execute-op proof: 1764 `HTP0 execute-op` lines; offloaded 33/33 layers; `execute_op_htp0=true`.
+- Crash signature: NONE.
+
+### Arm C — block 1
+
+- Tag: `q57_armC_block1`; guard WARN/KILL 400/430; workload rc=0; guard rc=0; launcher rc=0; wall=60.526 s.
+- Start: 84%, 29.8 °C, 4177 mV, charge counter 3161250 µAh, unplugged.
+- End: 83%, 32.3 °C, 4150 mV, charge counter 3161250 µAh, unplugged.
+- JSONL: 1 row; samples=2; prefill tokens=1024; `samples_ts=34.8171,30.7436`; `pp512_avg_ts=32.780367`.
+- Guard MAX=32.5 °C; ΔT(start→post)=+2.5 °C; °C/512-token pass=1.25.
+- Δcharge=0 µAh; mean voltage=4163.5 mV; energy=0 J recorded; J/token=0 recorded; counter unchanged caveat applies.
+- Offloaded 0/33 layers; HTP0 execute-op count=0; `execute_op_htp0=false`.
+- Crash signature: NONE.
+
+### Arm C — block 2
+
+- Tag: `q57_armC_block2`; guard WARN/KILL 400/430; workload rc=0; guard rc=0; launcher rc=0; wall=90.961 s.
+- Start: 83%, 31.1 °C, 4162 mV, charge counter 3161250 µAh, unplugged.
+- End: 83%, 33.1 °C, 4149 mV, charge counter 3161250 µAh, unplugged.
+- JSONL: 1 row; samples=2; prefill tokens=1024; `samples_ts=26.9187,27.8937`; `pp512_avg_ts=27.406200`.
+- Guard MAX=33.3 °C; ΔT(start→post)=+2.0 °C; °C/512-token pass=1.0.
+- Δcharge=0 µAh; mean voltage=4155.5 mV; energy=0 J recorded; J/token=0 recorded; counter unchanged caveat applies.
+- Offloaded 0/33 layers; HTP0 execute-op count=0; `execute_op_htp0=false`.
+- Crash signature: NONE.
+
+### Arm B — block 2
+
+- Tag: `q57_armB_block2`; guard WARN/KILL 400/410; workload rc=0; guard rc=0; launcher rc=0; wall=55.452 s.
+- Start: 82%, 31.5 °C, 4158 mV, charge counter 3161250 µAh, unplugged.
+- End: 82%, 32.1 °C, 4147 mV, charge counter 3101250 µAh, unplugged.
+- JSONL: 1 row; samples=2; prefill tokens=1024; `samples_ts=86.3959,94.7414`; `pp512_avg_ts=90.568617`.
+- Guard MAX=32.1 °C; ΔT(start→post)=+0.6 °C; °C/512-token pass=0.3.
+- Δcharge=60000 µAh; mean voltage=4152.5 mV; energy=896.94 J; J/token=0.875917969.
+- Execute-op proof: 1764 `HTP0 execute-op` lines; offloaded 33/33 layers; `execute_op_htp0=true`.
+- Crash signature: NONE.
+
+- Energy caveat: `Charge counter` was read from `dumpsys battery` immediately before/after each arm. C1 and C2 were unchanged despite level/voltage/temperature movement; their zero-energy values are recorded counter deltas, not a claim of zero physical energy.
+- Final residue check at 2026-08-25T15:23:04Z: no `llama-bench`, `llama-perplexity`, or `thermal_guard` process; battery 82%, 32.1 °C, unplugged.
