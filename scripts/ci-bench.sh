@@ -8,7 +8,7 @@
 # runner, a rebuild per arm would blow the job matrix budget.
 #
 # Env:
-#   PHASE          fase0 | fase4 | smoke | mem | tools           (required)
+#   PHASE          fase0 | fase4 | smoke | mem | tools | forced | sanity  (required)
 #   ARM            free-form label, used only for logging       (required)
 #   SEED           replicate index — fase4/smoke: 1|2|3, one per matrix
 #                  job; also rotates filler order (paired design).
@@ -42,6 +42,16 @@
 #                  (RssAnon high / RssFile low, read_bytes climbing), never from
 #                  the app having answered.
 #   MEMORY         1|0 → kalsa.memory.enabled (default 0; 1 enables memory extract/inject)
+#   CISWIREFLAGS   empty | 3-char 0/1 bitmask (positional, not LSB). SOURCE OF
+#                  TRUTH for compaction/memory/toolhelp when set.
+#                  char0 compaction 1→ raw 'ciswire'  0→ raw 'off' (not '0')
+#                  char1 memory     1→ kalsa.memory.enabled '1'  0→ '0'
+#                  char2 toolhelp   1→ kalsa.ciswire.toolhelp '1'  0→ '0'
+#                  Arms: R1 000  R2 110  R3 101  R4 011  (R5 111 H-add-on)
+#   PAIR_POS       1|2 (default 1). 2 = second conversation of a seed-pair:
+#                  skip reset_chat so session/KV survive (kit §9).
+#   CLEAR_GATE_AUDIT  1|0. Default 1 when PAIR_POS!=2, 0 when PAIR_POS=2.
+#                  1 forces a clear of kalsa.ciswire.gateAudit; 0 skips.
 #   RUNS_PER_ARM   fase0 in-job repeat count (default 3, per PIANO "3 run/formato")
 #   MODEL_DIR/MODEL_FILE   as ci-e2e.sh
 #   APK_PATH       path to the pre-built release APK (default matches the
@@ -50,7 +60,7 @@
 set -uo pipefail
 OUT="bench-out"; mkdir -p "$OUT"
 
-PHASE="${PHASE:?PHASE is required (fase0|fase4|smoke|mem|tools)}"
+PHASE="${PHASE:?PHASE is required (fase0|fase4|smoke|mem|tools|forced|sanity)}"
 ARM="${ARM:?ARM is required}"
 SEED="${SEED:-1}"
 BLOCK_FORMAT="${BLOCK_FORMAT:-none}"
@@ -71,6 +81,10 @@ MOE_IO_THREADS="${MOE_IO_THREADS:-4}"
 MOE_OVERLAP="${MOE_OVERLAP:-on}"
 MOE_DENSE="${MOE_DENSE:-anon}"
 MEMORY="${MEMORY:-0}"
+CISWIREFLAGS="${CISWIREFLAGS:-}"
+TOOLHELP="${TOOLHELP:-}"
+PAIR_POS="${PAIR_POS:-1}"
+CLEAR_GATE_AUDIT="${CLEAR_GATE_AUDIT:-}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
@@ -101,6 +115,34 @@ readonly BUSY_STATUS_LABELS=(
   "Tool failed — continuing without it" "Strumento fallito — continuo senza"
 )
 
+# CISWIREFLAGS is SOURCE OF TRUTH for compaction/memory/toolhelp when set.
+# Derive those envs BEFORE the COMPACTION-required PHASE case so forced/sanity
+# do not die on unset COMPACTION. Empty CISWIREFLAGS leaves the old knobs.
+case "$CISWIREFLAGS" in
+  "") ;;
+  [01][01][01]) ;;
+  *) die "CISWIREFLAGS must be empty or a 3-char 0/1 bitmask (got '$CISWIREFLAGS')" ;;
+esac
+if [ -n "$CISWIREFLAGS" ]; then
+  if [ "${CISWIREFLAGS:0:1}" = "1" ]; then COMPACTION="ciswire"; else COMPACTION="off"; fi
+  MEMORY="${CISWIREFLAGS:1:1}"
+  TOOLHELP="${CISWIREFLAGS:2:1}"
+  log "CISWIREFLAGS=$CISWIREFLAGS → compaction=$COMPACTION memory=$MEMORY toolhelp=$TOOLHELP"
+fi
+
+case "$PAIR_POS" in
+  1|2) ;;
+  *) die "PAIR_POS must be 1 or 2 (got '$PAIR_POS')" ;;
+esac
+if [ -z "$CLEAR_GATE_AUDIT" ]; then
+  if [ "$PAIR_POS" = "2" ]; then CLEAR_GATE_AUDIT=0; else CLEAR_GATE_AUDIT=1; fi
+fi
+case "$CLEAR_GATE_AUDIT" in
+  0|1) ;;
+  *) die "CLEAR_GATE_AUDIT must be 0 or 1 (got '$CLEAR_GATE_AUDIT')" ;;
+esac
+if [ "$PAIR_POS" = "2" ]; then SESSION_CONTINUITY=true; else SESSION_CONTINUITY=false; fi
+
 case "$PHASE" in
   fase0)
     # NOTE(fase0-compaction): the operative block (kalsa.bench.format) is only
@@ -111,7 +153,10 @@ case "$PHASE" in
     # format axis exercises.
     COMPACTION="ciswire"
     ;;
-  fase4|smoke|mem|tools)
+  fase4|smoke|mem|tools|forced|sanity)
+    if [ "$PHASE" = "forced" ] || [ "$PHASE" = "sanity" ]; then
+      [ -n "$CISWIREFLAGS" ] || die "CISWIREFLAGS is required for $PHASE"
+    fi
     COMPACTION="${COMPACTION:?COMPACTION is required for $PHASE (anchored|off|ciswire)}"
     case "$COMPACTION" in
       anchored|on|off|ciswire) ;;
@@ -119,7 +164,7 @@ case "$PHASE" in
     esac
     ;;
   *)
-    die "unknown PHASE '$PHASE' (expected fase0|fase4|smoke|mem|tools)"
+    die "unknown PHASE '$PHASE' (expected fase0|fase4|smoke|mem|tools|forced|sanity)"
     ;;
 esac
 
@@ -204,8 +249,12 @@ case "$MEMORY" in
   0|1) ;;
   *) die "MEMORY must be 0 or 1 (got '$MEMORY')" ;;
 esac
+case "$TOOLHELP" in
+  ""|0|1) ;;
+  *) die "TOOLHELP must be empty, 0, or 1 (got '$TOOLHELP')" ;;
+esac
 
-log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL moe=$MOE moeJson=$MOE_JSON useMmap=$USE_MMAP memory=$MEMORY runsPerArm=$RUNS_PER_ARM"
+log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION ciswireFlags=$CISWIREFLAGS toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL moe=$MOE moeJson=$MOE_JSON useMmap=$USE_MMAP memory=$MEMORY toolhelp=$TOOLHELP pairPos=$PAIR_POS sessionContinuity=$SESSION_CONTINUITY runsPerArm=$RUNS_PER_ARM"
 # LFM2.5 is always-on reasoning: its chat template has preserve_thinking only.
 # Record THINKING for the matrix; the model does not expose a separate switch
 # for this axis.
@@ -273,9 +322,19 @@ compaction_pref_raw_for() {
   esac
 }
 
+# CISWIREFLAGS compaction bit writes 'off' (parseContextMode) not '0'.
+# Empty CISWIREFLAGS keeps the old COMPACTION=off → raw "0" mapping.
+compaction_storage_raw() {
+  if [ -n "$CISWIREFLAGS" ]; then
+    if [ "${CISWIREFLAGS:0:1}" = "1" ]; then echo ciswire; else echo off; fi
+  else
+    compaction_pref_raw_for "$COMPACTION"
+  fi
+}
+
 set_prefs() {
   local compaction_val
-  compaction_val=$(compaction_pref_raw_for "$COMPACTION")
+  compaction_val=$(compaction_storage_raw)
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');" "kalsa.model.id" "$MODEL_DIR"
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.context.compaction','$compaction_val');" "kalsa.context.compaction" "$compaction_val"
   # Mark the regime as an explicit user choice. Without it the app treats an
@@ -350,6 +409,14 @@ set_prefs() {
   # With a short legacy window (kalsa.bench.legacywindow), planted facts fall out of verbatim
   # context, so memory becomes the only retrieval path — not a confounder. Both-branch assert below.
   sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.memory.enabled','$MEMORY');" "kalsa.memory.enabled" "$MEMORY"
+  # Toolhelp: CISWIREFLAGS writes all three keys (even zeros). Empty TOOLHELP must
+  # DELETE — an inherited '1' from a previous arm would silently arm toolhelp
+  # (parseCiswireToolHelp: only "1"/"true" are ON, absent = OFF).
+  if [ -n "$TOOLHELP" ]; then
+    sql_write "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.ciswire.toolhelp','$TOOLHELP');" "kalsa.ciswire.toolhelp" "$TOOLHELP"
+  else
+    sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.ciswire.toolhelp';" "kalsa.ciswire.toolhelp" "__ABSENT__"
+  fi
   # Locale MUST be "it" on every phase/arm. Bench prompts and probes are Italian.
   # DEFAULT_LOCALE in src/i18n/index.ts is "en"; without this seed both arms run
   # English. The operative block's language rule (en.ts operativeBlock.language)
@@ -364,13 +431,21 @@ set_prefs() {
 }
 set_prefs
 
+if [ "$CLEAR_GATE_AUDIT" = "1" ]; then
+  clear_gate_audit
+fi
+
 # On-device proof of what the app will actually read (not what we intended to write).
 COMPACTION_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.context.compaction';" | head -1 | tr -d '[:space:]')
 LOCALE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.locale';" | head -1 | tr -d '[:space:]')
+THINKING_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.thinking';" | head -1 | tr -d '[:space:]')
 # Exact raw match for all three modes — silent mismatch would poison the A/B.
-_EXPECTED_COMPACTION_RAW=$(compaction_pref_raw_for "$COMPACTION")
+# CISWIREFLAGS off-bit writes 'off', not the old COMPACTION=off → '0' path.
+_EXPECTED_COMPACTION_RAW=$(compaction_storage_raw)
 [ "$COMPACTION_PREF_RAW" = "$_EXPECTED_COMPACTION_RAW" ] \
-  || die "compaction pref on device is '$COMPACTION_PREF_RAW', expected '$_EXPECTED_COMPACTION_RAW' (COMPACTION=$COMPACTION)"
+  || die "compaction pref on device is '$COMPACTION_PREF_RAW', expected '$_EXPECTED_COMPACTION_RAW' (COMPACTION=$COMPACTION CISWIREFLAGS=$CISWIREFLAGS)"
+[ "$THINKING_PREF_RAW" = "$THINKING" ] \
+  || die "thinking pref on device is '$THINKING_PREF_RAW', expected '$THINKING'"
 TOOLCHOICE_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.bench.toolchoice';" | head -1 | tr -d '[:space:]')
 [ "$TOOLCHOICE_PREF_RAW" = "$TOOLCHOICE" ] \
   || die "toolchoice pref on device is '$TOOLCHOICE_PREF_RAW', expected '$TOOLCHOICE'"
@@ -442,6 +517,14 @@ fi
 MEMORY_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.memory.enabled';" | head -1 | tr -d '[:space:]')
 [ "$MEMORY_PREF_RAW" = "$MEMORY" ] \
   || die "memory pref on device is '$MEMORY_PREF_RAW', expected '$MEMORY'"
+TOOLHELP_PREF_RAW=$(sql "SELECT value FROM catalystLocalStorage WHERE key='kalsa.ciswire.toolhelp';" | head -1 | tr -d '[:space:]')
+if [ -n "$TOOLHELP" ]; then
+  [ "$TOOLHELP_PREF_RAW" = "$TOOLHELP" ] \
+    || die "toolhelp pref on device is '$TOOLHELP_PREF_RAW', expected '$TOOLHELP'"
+else
+  [ -z "$TOOLHELP_PREF_RAW" ] \
+    || die "toolhelp pref on device is '$TOOLHELP_PREF_RAW', expected absent (TOOLHELP empty = OFF)"
+fi
 
 adb logcat -c
 
@@ -480,9 +563,15 @@ launch_app() {
 # Plain "clear the messages key" is not enough: the chat page only loads
 # history at mount, so the running React tree would keep showing the stale
 # in-memory history without a real process restart.
+# PAIR_POS=2: same seed-pair, second conversation — skip reset_chat so
+# session/KV survive (kit §9 1.8s restore). sessionContinuity=true.
 new_conversation() {
   adb shell am force-stop $PKG; sleep 2
-  reset_chat
+  if [ "$PAIR_POS" = "2" ]; then
+    log "PAIR_POS=2: skip reset_chat (session/KV survive)"
+  else
+    reset_chat
+  fi
   launch_app
 }
 
@@ -1428,6 +1517,91 @@ for _i in $(seq 0 $((_fb_n - 1))); do
   FILLERS+=("${FILLER_BASE[$(( (_i + FILLER_ROTATION) % _fb_n ))]}")
 done
 
+# Part-3 fillers: Italian coding-task prompts, alphanumeric + spaces only.
+# Not MotoreElettrico-style one-word fillers. Rotated with FILLER_ROTATION.
+PART3_FILLER_BASE=(
+  "Scrivi una funzione Python che somma due numeri"
+  "Scrivi una funzione Python che trova il massimo in una lista"
+  "Scrivi una funzione Python che inverte una stringa"
+  "Scrivi una funzione Python che conta le vocali in una parola"
+  "Scrivi una funzione Python che calcola il fattoriale di un numero"
+  "Scrivi una funzione Python che controlla se un numero e primo"
+  "Scrivi una funzione Python che unisce due liste"
+  "Scrivi una funzione Python che rimuove i duplicati da una lista"
+  "Scrivi una funzione Python che converte Celsius in Fahrenheit"
+  "Scrivi una funzione Python che calcola la media di una lista"
+  "Scrivi una funzione Python che ordina una lista di numeri"
+  "Scrivi una funzione Python che genera i primi numeri di Fibonacci"
+  "Scrivi una funzione Python che verifica se una parola e palindroma"
+  "Scrivi una funzione Python che conta le parole in una frase"
+)
+PART3_FILLERS=()
+_p3n=${#PART3_FILLER_BASE[@]}
+for _i in $(seq 0 $((_p3n - 1))); do
+  PART3_FILLERS+=("${PART3_FILLER_BASE[$(( (_i + FILLER_ROTATION) % _p3n ))]}")
+done
+
+# $4 = must | must_not | either — travels in raw.json; do not infer from prompt.
+plan_add() { PLAN_KIND+=("$1"); PLAN_ID+=("$2"); PLAN_PROMPT+=("$3"); PLAN_EXPECT+=("$4"); }
+
+# Part-3 24-turn forced / 16-turn sanity script (kit §4 / §10c).
+# Plants + probes defined once; kind only changes filler density.
+plan_part3() {
+  local kind="$1"
+  local p_early="Ripeti nome lavoro citta e cane che ti ho detto di me"
+  local p_tool="Cerca sul web le previsioni del meteo di domani a Milano"
+  local p_o1="Guarda il mio calendario e dimmi se ho impegni a Brindisi questa settimana"
+  local p_o2="Che eventi ho in agenda a Brindisi nei prossimi giorni"
+  local p_legit="Che impegni ho in agenda per domani"
+  _part3_fi=0
+  _part3_add_fillers() {
+    local n="$1" _j
+    for _j in $(seq 1 "$n"); do
+      plan_add filler "filler_$((_part3_fi + 1))" "${PART3_FILLERS[$_part3_fi]}" either
+      _part3_fi=$((_part3_fi + 1))
+    done
+  }
+
+  plan_add plant plant_name "Mi chiamo Teodoro" must_not
+  plan_add plant plant_job "Lavoro come orologiaio" must_not
+  plan_add plant plant_city "Vivo a Brindisi" must_not
+  plan_add plant plant_pet "Ho un cane di razza basenji" must_not
+
+  case "$kind" in
+    forced)
+      _part3_add_fillers 4
+      plan_add probe probe_facts_early "$p_early" must_not
+      _part3_add_fillers 4
+      plan_add probe probe_tool "$p_tool" must
+      _part3_add_fillers 2
+      plan_add probe probe_agenda_overlap_1 "$p_o1" must
+      _part3_add_fillers 1
+      plan_add probe probe_agenda_overlap_2 "$p_o2" must
+      _part3_add_fillers 1
+      plan_add probe probe_agenda_legit "$p_legit" must
+      _part3_add_fillers 2
+      plan_add probe probe_facts_late "$p_early" must_not
+      ;;
+    sanity)
+      _part3_add_fillers 1
+      plan_add probe probe_facts_early "$p_early" must_not
+      _part3_add_fillers 1
+      plan_add probe probe_tool "$p_tool" must
+      _part3_add_fillers 1
+      plan_add probe probe_agenda_overlap_1 "$p_o1" must
+      _part3_add_fillers 1
+      plan_add probe probe_agenda_overlap_2 "$p_o2" must
+      _part3_add_fillers 1
+      plan_add probe probe_agenda_legit "$p_legit" must
+      _part3_add_fillers 1
+      plan_add probe probe_facts_late "$p_early" must_not
+      ;;
+    *)
+      die "plan_part3 kind must be forced|sanity (got '$kind')"
+      ;;
+  esac
+}
+
 : > "$OUT/.turns.jsonl"
 FACTS_JSON='["Leopoldo","4500","Torino","PK42","Zaffiro","XR9","Brindisi","Nebbiolo"]'
 
@@ -1490,6 +1664,24 @@ if [ "$PHASE" = "fase0" ]; then
       "$SAW_ELAPSED" "$SAW_SOURCES" "$SAW_MINIAPP"
     # No inter-turn delay after final turn of the run.
   done
+
+elif [ "$PHASE" = "forced" ] || [ "$PHASE" = "sanity" ] || { [ "$PHASE" = "smoke" ] && [ -n "$CISWIREFLAGS" ]; }; then
+  # Part-3 script. PHASE=smoke WITH CISWIREFLAGS is Phase-0: 24-turn forced.
+  # Existing smoke WITHOUT CISWIREFLAGS stays the 7-turn script below.
+  PLAN_KIND=()
+  PLAN_ID=()
+  PLAN_PROMPT=()
+  PLAN_EXPECT=()
+  FACTS_JSON='["Teodoro","orologiaio","Brindisi","basenji"]'
+  if [ "$PHASE" = "sanity" ]; then
+    plan_part3 sanity
+  else
+    plan_part3 forced
+  fi
+  new_conversation
+  adb logcat -c 2>/dev/null || true
+  assert_input_path_ready
+  run_turn_plan
 
 elif [ "$PHASE" = "fase4" ] || [ "$PHASE" = "smoke" ]; then
   # Build the turn plan as lists; phase only chooses which plan (no loop copy-paste).
@@ -1734,6 +1926,7 @@ import json, sys
 phase, arm, seed, block_format, thinking, compaction, compaction_pref_raw = sys.argv[1:8]
 model_dir, model_file, facts_json, filler_rotation, history_chars = sys.argv[8:13]
 turns_path, out_path, compactor_chars, summary_chars, locale_pref_raw, toolgate_pref_raw = sys.argv[13:19]
+ciswire_flags, thinking_pref_raw, pair_pos, session_continuity = sys.argv[19:23]
 
 turns = []
 try:
@@ -1760,6 +1953,10 @@ raw = {
     # On-device toolgate read-back (TOOLGATE_PREF_RAW), not the requested env.
     # Grader lifts this to result.toolGateActive; the label is not evidence.
     "toolgatePrefRaw": toolgate_pref_raw,
+    "ciswireFlags": ciswire_flags if ciswire_flags != "" else None,
+    "thinkingPrefRaw": thinking_pref_raw if thinking_pref_raw != "" else None,
+    "pairPosition": int(pair_pos),
+    "sessionContinuity": session_continuity.lower() == "true",
     "model": {"dir": model_dir, "file": model_file},
     "facts": json.loads(facts_json),
     "fillerRotation": int(filler_rotation),
@@ -1779,6 +1976,7 @@ with open(out_path, "w", encoding="utf-8") as out:
   "$MODEL_DIR" "$MODEL_FILE" "$FACTS_JSON" "$FILLER_ROTATION" "$HISTORY_CHARS" \
   "$OUT/.turns.jsonl" "$OUT/raw.json" "$COMPACTOR_CHARS" "$SUMMARY_CHARS" "$LOCALE_PREF_RAW" \
   "$TOOLGATE_PREF_RAW" \
+  "$CISWIREFLAGS" "$THINKING_PREF_RAW" "$PAIR_POS" "$SESSION_CONTINUITY" \
   || die "failed to write raw.json — refusing to grade stale or missing data"
 
 # Grading is out-of-band: a raw.json that cannot be graded is a failed arm.

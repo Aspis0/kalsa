@@ -157,6 +157,14 @@ sql_write() {
   fi
 }
 
+# Wipe kalsa.ciswire.gateAudit (src/rules/gateAuditLog.ts GATE_AUDIT_KEY).
+# Prefs/sql_write trick — there is no app API. Call BETWEEN ARMS, not between
+# conversations of the same seed-pair (PAIR_POS=2). Cap 500; blending arms
+# is the bug this exists to prevent.
+clear_gate_audit() {
+  sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.ciswire.gateAudit';" "kalsa.ciswire.gateAudit" "__ABSENT__"
+}
+
 # Dismiss a system ANR dialog ("<app> isn't responding") covering the screen —
 # the loaded CI AVD throws these for Pixel Launcher after multi-GB pushes and
 # every node lookup then fails (runs 31235650917/31278860896). Tap Wait (keeps

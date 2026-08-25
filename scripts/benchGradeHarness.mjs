@@ -1848,6 +1848,184 @@ async function main() {
           result.positiveControl?.digestCharsByTurn?.["4"] === 0,
         `pc=${JSON.stringify(result.positiveControl)}`,
       );
+      check(
+        "positiveControl.digestCharsFirstTurn is first index with digestChars > 0",
+        result.positiveControl?.digestCharsFirstTurn === 3,
+        `got ${result.positiveControl?.digestCharsFirstTurn}`,
+      );
+    }
+
+    // ── 10b4. Part-3 pass-through + digest/reuse positive-control fields ─
+    {
+      const probeTurns = [turn(1, "probe_facts", "Leopoldo")];
+      const present = gradeRaw(
+        baseRaw({
+          ciswireFlags: "110",
+          thinkingPrefRaw: "default",
+          pairPosition: 2,
+          sessionContinuity: true,
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "ciswireFlags / pairPosition / sessionContinuity / thinkingPrefRaw pass-through",
+        present.ciswireFlags === "110" &&
+          present.pairPosition === 2 &&
+          present.sessionContinuity === true &&
+          present.thinkingPrefRaw === "default" &&
+          present.thinking === "budget256",
+        `got flags=${present.ciswireFlags} pair=${present.pairPosition} cont=${present.sessionContinuity} pref=${present.thinkingPrefRaw} thinking=${present.thinking}`,
+      );
+      const pos1 = gradeRaw(
+        baseRaw({
+          pairPosition: 1,
+          sessionContinuity: false,
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "sessionContinuity false and pairPosition 1 pass through (not null)",
+        pos1.sessionContinuity === false && pos1.pairPosition === 1,
+        `got cont=${pos1.sessionContinuity} pair=${pos1.pairPosition}`,
+      );
+      check(
+        "thinking=default note when thinkingPrefRaw is default",
+        (present.notes ?? []).some((n) => n === "thinking=default"),
+        `notes=${JSON.stringify(present.notes)}`,
+      );
+
+      const notDefault = gradeRaw(
+        baseRaw({
+          thinkingPrefRaw: "budget256",
+          turns: probeTurns,
+          facts: ["Leopoldo"],
+        }),
+        tmp,
+      );
+      check(
+        "thinkingPrefRaw not default → note, grade still succeeds",
+        (notDefault.notes ?? []).some((n) => n === "thinking=budget256") &&
+          notDefault.thinkingPrefRaw === "budget256",
+        `notes=${JSON.stringify(notDefault.notes)}`,
+      );
+
+      const absentRaw = baseRaw({
+        turns: probeTurns,
+        facts: ["Leopoldo"],
+      });
+      delete absentRaw.ciswireFlags;
+      delete absentRaw.thinkingPrefRaw;
+      delete absentRaw.pairPosition;
+      delete absentRaw.sessionContinuity;
+      const absent = gradeRaw(absentRaw, tmp);
+      check(
+        "absent ciswireFlags/pairPosition/sessionContinuity/thinkingPrefRaw → null",
+        absent.ciswireFlags === null &&
+          absent.pairPosition === null &&
+          absent.sessionContinuity === null &&
+          absent.thinkingPrefRaw === null,
+        `got flags=${absent.ciswireFlags} pair=${absent.pairPosition} cont=${absent.sessionContinuity} pref=${absent.thinkingPrefRaw}`,
+      );
+      check(
+        "no thinking= note when thinkingPrefRaw absent",
+        !(absent.notes ?? []).some((n) => /^thinking=/.test(n)),
+        `notes=${JSON.stringify(absent.notes)}`,
+      );
+    }
+
+    {
+      const dZero = path.join(tmp, "cs-zero");
+      mkdirSync(dZero, { recursive: true });
+      const t1z = path.join(dZero, "turn1");
+      mkdirSync(t1z, { recursive: true });
+      writeFileSync(
+        path.join(t1z, "compactor_state.json"),
+        JSON.stringify({ frozenDigest: "", rollingSummary: "", boundaryIndex: 0 }),
+      );
+      const zero = gradeRaw(baseRaw({ turns: [turn(1, "filler_1", "ok")] }), dZero);
+      check(
+        "digestCharsFirstTurn null when all digestChars are 0",
+        zero.positiveControl?.digestCharsFirstTurn === null,
+        `got ${zero.positiveControl?.digestCharsFirstTurn}`,
+      );
+    }
+
+    {
+      const dDrop = path.join(tmp, "reuse-drop");
+      mkdirSync(dDrop, { recursive: true });
+      writeSidecar(dDrop, 1, {
+        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+      });
+      writeSidecar(dDrop, 2, {
+        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+      });
+      writeSidecar(dDrop, 3, {
+        loadprompt: "Input processed: n_past=50, embd.size=100\n",
+      });
+      const drop = gradeRaw(
+        baseRaw({
+          turns: [
+            turn(1, "filler_1", "a"),
+            turn(2, "filler_2", "b"),
+            turn(3, "filler_3", "c"),
+          ],
+        }),
+        dDrop,
+      );
+      check(
+        "reuseFracDropTurn is first i>1 with drop > 0.1 vs previous numeric",
+        drop.positiveControl?.reuseFracDropTurn === 3,
+        `got ${drop.positiveControl?.reuseFracDropTurn} rf=${JSON.stringify(drop.turns.map((t) => t.reuseFrac))}`,
+      );
+
+      const dFlat = path.join(tmp, "reuse-flat");
+      mkdirSync(dFlat, { recursive: true });
+      writeSidecar(dFlat, 1, {
+        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+      });
+      writeSidecar(dFlat, 2, {
+        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+      });
+      const flat = gradeRaw(
+        baseRaw({
+          turns: [turn(1, "filler_1", "a"), turn(2, "filler_2", "b")],
+        }),
+        dFlat,
+      );
+      check(
+        "reuseFracDropTurn null when no drop",
+        flat.positiveControl?.reuseFracDropTurn === null,
+        `got ${flat.positiveControl?.reuseFracDropTurn}`,
+      );
+
+      const dSkip = path.join(tmp, "reuse-skip");
+      mkdirSync(dSkip, { recursive: true });
+      writeSidecar(dSkip, 1, {
+        loadprompt: "Input processed: n_past=90, embd.size=100\n",
+      });
+      // turn 2: no loadprompt → reuseFrac null, skipped
+      writeSidecar(dSkip, 3, {
+        loadprompt: "Input processed: n_past=50, embd.size=100\n",
+      });
+      const skip = gradeRaw(
+        baseRaw({
+          turns: [
+            turn(1, "filler_1", "a"),
+            turn(2, "filler_2", "b"),
+            turn(3, "filler_3", "c"),
+          ],
+        }),
+        dSkip,
+      );
+      check(
+        "reuseFracDropTurn skips null reuseFrac and compares to previous numeric",
+        skip.positiveControl?.reuseFracDropTurn === 3,
+        `got ${skip.positiveControl?.reuseFracDropTurn} rf=${JSON.stringify(skip.turns.map((t) => t.reuseFrac))}`,
+      );
     }
 
     // ── 10c. contextFull surface + error-turn ⚠️ flag ─────────────────

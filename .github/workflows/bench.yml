@@ -15,7 +15,7 @@ on:
         required: true
         default: "fase0"
         type: choice
-        options: [fase0, fase4, smoke, tools, mem]
+        options: [fase0, fase4, smoke, tools, mem, forced, sanity]
       model:
         description: "Model to test"
         required: true
@@ -898,6 +898,59 @@ jobs:
             block_format: none
             thinking: "default"
             toolgate: "0"
+          # ── Part-3 CisWire DEVICE campaign harness (kit §10). seed=1 ONLY —
+          # seed≥2 would make forced/sanity a campaign and matrixParityHarness
+          # would demand smoke twins + 24×72min emulator jobs. CISWIREFLAGS
+          # derives compaction/memory/toolhelp; do not set those axes here.
+          # R1 000  R2 110  R3 101  R4 011. Not smoke twins. Not a 6-seed campaign.
+          - phase: forced
+            arm: R1
+            seed: 1
+            ciswireflags: "000"
+            block_format: none
+            thinking: "default"
+          - phase: forced
+            arm: R2
+            seed: 1
+            ciswireflags: "110"
+            block_format: none
+            thinking: "default"
+          - phase: forced
+            arm: R3
+            seed: 1
+            ciswireflags: "101"
+            block_format: none
+            thinking: "default"
+          - phase: forced
+            arm: R4
+            seed: 1
+            ciswireflags: "011"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R1
+            seed: 1
+            ciswireflags: "000"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R2
+            seed: 1
+            ciswireflags: "110"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R3
+            seed: 1
+            ciswireflags: "101"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R4
+            seed: 1
+            ciswireflags: "011"
+            block_format: none
+            thinking: "default"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
     # is skipped for the non-selected ones (see the step-level `if`).
@@ -985,13 +1038,16 @@ jobs:
           TOOLCHOICE: ${{ matrix.toolchoice || 'auto' }}
           TOOLGATE: ${{ matrix.toolgate || '1' }}
           NCTX: ${{ inputs.nctx || '' }}
-          WINBUDGET: ${{ inputs.winbudget || '' }}
+          WINBUDGET: ${{ matrix.winbudget || inputs.winbudget || '' }}
           LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
           RANKING: ${{ inputs.ranking || '' }}
           DIGESTCADENCE: ${{ matrix.digestcadence || inputs.digestcadence || '' }}
           NOREPACK: ${{ inputs.norepack || '' }}
           NGL: ${{ inputs.ngl || '' }}
           MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
+          CISWIREFLAGS: ${{ matrix.ciswireflags || '' }}
+          PAIR_POS: ${{ matrix.pair_pos || '1' }}
+          CLEAR_GATE_AUDIT: ${{ matrix.clear_gate_audit || '' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}

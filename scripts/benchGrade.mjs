@@ -847,6 +847,12 @@ function collectNotes(raw, turns, turnMetrics, compactionActive, extraNotes) {
     );
   }
 
+  // Kit smoke acceptance: result.json notes say thinking=default.
+  // Note only — never fail the grade when thinkingPrefRaw is not default.
+  if (raw.thinkingPrefRaw != null && String(raw.thinkingPrefRaw) !== "") {
+    notes.push(`thinking=${raw.thinkingPrefRaw}`);
+  }
+
   const missingTel = turnMetrics.filter((m) => !m._hadTelemetry).length;
   if (missingTel > 0) {
     notes.push(`no telemetry sidecar found for ${missingTel} turn(s)`);
@@ -863,6 +869,41 @@ function collectNotes(raw, turns, turnMetrics, compactionActive, extraNotes) {
 }
 
 // ── Main grade ──────────────────────────────────────────────────────────
+
+/** First 1-based turn index where digestCharsByTurn[idx] > 0, else null. */
+function digestCharsFirstTurnOf(digestCharsByTurn) {
+  let first = null;
+  for (const key of Object.keys(digestCharsByTurn ?? {})) {
+    const idx = Number(key);
+    const n = digestCharsByTurn[key];
+    if (!Number.isFinite(idx) || typeof n !== "number" || !(n > 0)) continue;
+    if (first == null || idx < first) first = idx;
+  }
+  return first;
+}
+
+/**
+ * First 1-based turn index i>1 whose numeric reuseFrac dropped by more than
+ * 0.1 vs the previous numeric reuseFrac. Null reuseFrac turns are skipped.
+ */
+function reuseFracDropTurnOf(turns, turnMetrics) {
+  let prevRf = null;
+  for (let i = 0; i < turns.length; i++) {
+    const rf = turnMetrics[i]?.reuseFrac;
+    if (typeof rf !== "number" || !Number.isFinite(rf)) continue;
+    const idx = turns[i]?.index;
+    if (
+      prevRf != null &&
+      typeof idx === "number" &&
+      idx > 1 &&
+      rf < prevRf - 0.1
+    ) {
+      return idx;
+    }
+    prevRf = rf;
+  }
+  return null;
+}
 
 /**
  * Grade a parsed raw.json object.
@@ -1101,6 +1142,13 @@ function gradeRaw(raw, baseDir) {
     seed: raw.seed ?? null,
     blockFormat: raw.blockFormat ?? null,
     thinking: raw.thinking ?? null,
+    thinkingPrefRaw: raw.thinkingPrefRaw ?? null,
+    ciswireFlags: raw.ciswireFlags ?? null,
+    pairPosition: raw.pairPosition ?? null,
+    sessionContinuity:
+      raw.sessionContinuity === true || raw.sessionContinuity === false
+        ? raw.sessionContinuity
+        : null,
     compaction: raw.compaction ?? null,
     compactionPrefRaw: raw.compactionPrefRaw ?? null,
     // Pass-through of on-device locale (ci-bench set_prefs seeds "it").
@@ -1145,6 +1193,8 @@ function gradeRaw(raw, baseDir) {
       // everything else is inference from assembled prompt sizes.
       boundaryByTurn,
       digestCharsByTurn,
+      digestCharsFirstTurn: digestCharsFirstTurnOf(digestCharsByTurn),
+      reuseFracDropTurn: reuseFracDropTurnOf(turns, turnMetrics),
       compactorChars,
       summaryChars,
     },
