@@ -49,8 +49,9 @@ wiki.test.raw=173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08 M
 LFM-B-prime=38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a MATCH
 Qwen3.5-4B-Q4_0=298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb MATCH
 mismatches=0
-thermal_guard_sha256=af2819af183e64f447680e7e5058fa8da1f4237fbe65548e427b55e98edab3e2
-thermal_guard_device_sha256=af2819af183e64f447680e7e5058fa8da1f4237fbe65548e427b55e98edab3e2
+thermal_guard_sha256=b07c9847b055a8b4352e024d3324dc7417c97a2d2a39d55bf86a76d6a78ecd71
+launch_with_guard_sha256=c66b9ee915266e9cfd6b30537b752595be334aaa5792c876468dc46f413f79dc
+thermal_guard_device_sha256=NOT_REVALIDATED
 ```
 
 ## validation
@@ -85,7 +86,13 @@ test2_execute_op_htp0_stderr=0
 ## production_command
 
 ```text
-python scratchpad\\agents\\q56-thermal-watchdog\\launch_with_guard.py --serial 192.168.1.152:41679 --tag future_cell --warn-tenths 400 --kill-tenths 430 --interval-s 10 --max-seconds 120 --local-dir scratchpad\\agents\\q56-thermal-watchdog\\raw -- /data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf -p 64 -n 16 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 --load-mode none -fa on --ubatch-size 1024
+python scratchpad\\agents\\q56-thermal-watchdog\\launch_with_guard.py --serial 192.168.1.152:41679 --tag future_cell --warn-tenths 400 --kill-tenths 430 --session-hard-cap-tenths 380 --sensor-failure-limit 3 --interval-s 10 --max-seconds 120 --local-dir scratchpad\\agents\\q56-thermal-watchdog\\raw -- /data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf -p 64 -n 16 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 --load-mode none -fa on --ubatch-size 1024
+requested_warn_tenths=400
+requested_kill_tenths=430
+session_hard_cap_tenths=380
+effective_kill_tenths=380
+effective_kill_temperature_c=38.0
+sensor_failure_limit=3
 ```
 
 ## pulled_lane2_evidence
@@ -110,4 +117,32 @@ recovered_device_log_exceeded_live_capture=1
 test2_jsonl_backends=HTP
 test2_jsonl_devices=auto
 test2_n_gpu_layers=0
+```
+
+## Fixes applied (post-audit)
+
+```text
+1 -> on-device supervisor starts detached guard first; wrapper PID is published before exec and waits for GUARD_TRACKING, removing the heavy-op PID race
+2 -> launcher verifies guard PID, GUARD_READY, and a numeric first sample within two poll intervals; failure kills supervisor/workload and returns 75
+3 -> warn_tenths, kill_tenths, hard_abort_tenths/session_hard_cap_tenths, and effective_kill_tenths are explicit and logged at START; manifest/report state effective kill
+4 -> final sample uses the same WARN/KILL/BATTERY/SENSOR checks before MAX
+5 -> dumpsys is bounded by timeout 5 and elapsed sample time is subtracted from the sleep interval
+6 -> kill -9 is followed by a one-second liveness confirmation; failure logs KILL_FAILED and exits 3
+7 -> inclusive integer-tenths WARN/KILL comparisons retained and documented by explicit threshold fields
+8 -> zero, malformed, missing, and invalid-level samples are sensor failures
+9 -> nohup/setsid detached guard retained
+10 -> exec workload remains the tracked wrapper PID
+11 -> detached on-device guard remains independent of adb
+12 -> guard log open is checked before START; launcher adds /data/local/tmp free-space preflight
+13 -> bounded launcher wall-clock cap retained; guard log growth remains bounded for launched sessions
+14 -> every adb operation uses bounded reconnects of 3 attempts spaced 90 seconds; polling and pulls report exhaustion, and successful reconnects continue to log-pull
+15 -> battery low abort retained and renamed BATTERY_LOW_ABORT in guard logs
+16 -> production command now states requested kill 430, session hard cap 380, and effective kill 380
+17 -> prior validation evidence retained unchanged; no new device evidence claimed
+18 -> first-poll kill behavior retained
+19 -> launcher refuses /data/local/tmp below 500 MB free
+local_shell_syntax=PASS
+local_python_compile=PASS
+local_help_parse=PASS
+validation_status=code-fixed, device re-validation PENDING (needs a cool device ≥ 50% battery: rerun test 1 + test 2 + a new test 3 for the fail-closed path by simulating sensor failure)
 ```
