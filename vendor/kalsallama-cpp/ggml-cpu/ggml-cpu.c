@@ -15,6 +15,7 @@
 #include "ops.h"
 #include "ggml.h"
 #include "common.h"
+#include "repack-q23k.h"
 
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <malloc.h> // using malloc.h with MSC/MINGW
@@ -88,6 +89,11 @@ static bool lm_ggml_cpu_mul_mat_id_should_fuse(
         return false;
     }
     if (!lm_ggml_cpu_get_moe_fused_gemv()) {
+        return false;
+    }
+    // Tiled CPU_REPACK extras are not native blocks. vec_dot on them is silent-wrong
+    // (q4_K/q5_K/q6_K 8x4 on Jelly-class, q2_K_8x8 on AVX512, q23k 8x4, …).
+    if (lm_ggml_cpu_repack_extra_is_tiled(src0->extra)) {
         return false;
     }
     if (ids->ne[1] != 1) {
@@ -3648,6 +3654,14 @@ static int lm_ggml_cpu_try_fuse_moe_ffn(
         n2->op != LM_GGML_OP_GLU ||
         n3->op != LM_GGML_OP_MUL_MAT_ID ||
         n4->op != LM_GGML_OP_MUL) {
+        return 0;
+    }
+
+    // Fused FFN launches native vec_dot on gate/up/down. Any tiled
+    // CPU_REPACK extra is not that layout; skip fusion and let extra MUL_MAT_ID run.
+    if ((n0->src[0] && lm_ggml_cpu_repack_extra_is_tiled(n0->src[0]->extra)) ||
+        (n1->src[0] && lm_ggml_cpu_repack_extra_is_tiled(n1->src[0]->extra)) ||
+        (n3->src[0] && lm_ggml_cpu_repack_extra_is_tiled(n3->src[0]->extra))) {
         return 0;
     }
 

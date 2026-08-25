@@ -5068,59 +5068,37 @@ template <typename BLOC_TYPE, int64_t INTER_SIZE, int64_t NB_COLS, lm_ggml_type 
 
 }  // namespace ggml::cpu::repack
 
-// File-static 8x4 instances: tensor->extra stores these addresses. Identify
-// Q2_K_8x4 / Q3_K_8x4 by pointer equality against these two — never by a
+// File-static tiled CPU_REPACK traits. tensor->extra stores these addresses.
+// Identify tiled extras by pointer equality against this set — never by a
 // virtual call on a foreign extra (KleidiAI/AMX/SpaceMIT share tensor->extra
 // and do not have tensor_traits_base::name()).
 static const ggml::cpu::repack::tensor_traits<block_q2_K, 4, 8, LM_GGML_TYPE_Q8_K> q2_K_8x4_q8_K;
 static const ggml::cpu::repack::tensor_traits<block_q3_K, 4, 8, LM_GGML_TYPE_Q8_K> q3_K_8x4_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q2_K, 8, 8, LM_GGML_TYPE_Q8_K> q2_K_8x8_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q4_K, 4, 8, LM_GGML_TYPE_Q8_K> q4_K_8x4_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q4_K, 8, 8, LM_GGML_TYPE_Q8_K> q4_K_8x8_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q5_K, 4, 8, LM_GGML_TYPE_Q8_K> q5_K_8x4_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q5_K, 8, 8, LM_GGML_TYPE_Q8_K> q5_K_8x8_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q6_K, 4, 8, LM_GGML_TYPE_Q8_K> q6_K_8x4_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q6_K, 8, 8, LM_GGML_TYPE_Q8_K> q6_K_8x8_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_q4_0, 4, 4, LM_GGML_TYPE_Q8_0> q4_0_4x4_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q4_0, 8, 4, LM_GGML_TYPE_Q8_0> q4_0_4x8_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q4_0, 8, 8, LM_GGML_TYPE_Q8_0> q4_0_8x8_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 4, 4, LM_GGML_TYPE_Q8_0> iq4_nl_4x4_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 8, 8, LM_GGML_TYPE_Q8_0> iq4_nl_8x8_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_mxfp4, 4, 4, LM_GGML_TYPE_Q8_0> mxfp4_4x4_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_mxfp4, 8, 8, LM_GGML_TYPE_Q8_0> mxfp4_8x8_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q8_0, 4, 4, LM_GGML_TYPE_Q8_0> q8_0_4x4_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q8_0, 8, 4, LM_GGML_TYPE_Q8_0> q8_0_4x8_q8_0;
+#if defined __riscv_zvfh
+static const ggml::cpu::repack::tensor_traits<block_q4_0, 1, 16, LM_GGML_TYPE_Q8_0> q4_0_16x1_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q4_K, 1, 16, LM_GGML_TYPE_Q8_K> q4_K_16x1_q8_K;
+static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 1, 16, LM_GGML_TYPE_Q8_0> iq4_nl_16x1_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q8_0, 1, 16, LM_GGML_TYPE_Q8_0> q8_0_16x1_q8_0;
+static const ggml::cpu::repack::tensor_traits<block_q2_K, 1, 16, LM_GGML_TYPE_Q8_K> q2_K_16x1_q8_K;
+#endif
 
 static const ggml::cpu::tensor_traits * lm_ggml_repack_get_optimal_repack_type(const struct lm_ggml_tensor * cur) {
-    // instance for Q4
-    static const ggml::cpu::repack::tensor_traits<block_q4_0, 4, 4, LM_GGML_TYPE_Q8_0> q4_0_4x4_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_q4_0, 8, 4, LM_GGML_TYPE_Q8_0> q4_0_4x8_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_q4_0, 8, 8, LM_GGML_TYPE_Q8_0> q4_0_8x8_q8_0;
-
-    // instance for Q4_K
-    static const ggml::cpu::repack::tensor_traits<block_q4_K, 4, 8, LM_GGML_TYPE_Q8_K> q4_K_8x4_q8_K;
-    static const ggml::cpu::repack::tensor_traits<block_q4_K, 8, 8, LM_GGML_TYPE_Q8_K> q4_K_8x8_q8_K;
-
-    // instance for Q5_K
-    static const ggml::cpu::repack::tensor_traits<block_q5_K, 4, 8, LM_GGML_TYPE_Q8_K> q5_K_8x4_q8_K;
-    static const ggml::cpu::repack::tensor_traits<block_q5_K, 8, 8, LM_GGML_TYPE_Q8_K> q5_K_8x8_q8_K;
-
-    // instance for Q6_K
-    static const ggml::cpu::repack::tensor_traits<block_q6_K, 4, 8, LM_GGML_TYPE_Q8_K> q6_K_8x4_q8_K;
-    static const ggml::cpu::repack::tensor_traits<block_q6_K, 8, 8, LM_GGML_TYPE_Q8_K> q6_K_8x8_q8_K;
-
-    // instance for Q2 (8x4 is file-static: q2_K_8x4_q8_K)
-    static const ggml::cpu::repack::tensor_traits<block_q2_K, 8, 8, LM_GGML_TYPE_Q8_K> q2_K_8x8_q8_K;
-
-    // instance for Q3: q3_K_8x4_q8_K is file-static (pointer-eq identity)
-
-    // instance for IQ4
-    static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 4, 4, LM_GGML_TYPE_Q8_0> iq4_nl_4x4_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 8, 8, LM_GGML_TYPE_Q8_0> iq4_nl_8x8_q8_0;
-
-    // instance for MXFP4
-    static const ggml::cpu::repack::tensor_traits<block_mxfp4, 4, 4, LM_GGML_TYPE_Q8_0> mxfp4_4x4_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_mxfp4, 8, 8, LM_GGML_TYPE_Q8_0> mxfp4_8x8_q8_0;
-
-    // instance for Q8_0
-    static const ggml::cpu::repack::tensor_traits<block_q8_0, 4, 4, LM_GGML_TYPE_Q8_0> q8_0_4x4_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_q8_0, 8, 4, LM_GGML_TYPE_Q8_0> q8_0_4x8_q8_0;
-
-    // instances for RISC-V
-    //
-    // These implement outer-product style matrix multiplication kernels with
-    // an interleave of 1.
-#if defined __riscv_zvfh
-    static const ggml::cpu::repack::tensor_traits<block_q4_0, 1, 16, LM_GGML_TYPE_Q8_0> q4_0_16x1_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_q4_K, 1, 16, LM_GGML_TYPE_Q8_K> q4_K_16x1_q8_K;
-    static const ggml::cpu::repack::tensor_traits<block_iq4_nl, 1, 16, LM_GGML_TYPE_Q8_0> iq4_nl_16x1_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_q8_0, 1, 16, LM_GGML_TYPE_Q8_0> q8_0_16x1_q8_0;
-    static const ggml::cpu::repack::tensor_traits<block_q2_K, 1, 16, LM_GGML_TYPE_Q8_K> q2_K_16x1_q8_K;
-#endif
 
     if (cur->type == LM_GGML_TYPE_Q4_0) {
         if (lm_ggml_cpu_has_avx2() || (lm_ggml_cpu_has_sve() && lm_ggml_cpu_has_matmul_int8() && lm_ggml_cpu_get_sve_cnt() == QK8_0)) {
@@ -5296,6 +5274,34 @@ bool lm_ggml_cpu_repack_extra_is_q23k_8x4(const void * extra) {
     return lm_ggml_repack_is_q23k_8x4(extra);
 }
 
+// True iff extra is any CPU_REPACK tiled trait. Native vec_dot on those
+// bytes is silent-wrong. Pointer-eq only — never deref a foreign extra.
+bool lm_ggml_cpu_repack_extra_is_tiled(const void * extra) {
+    if (extra == nullptr) {
+        return false;
+    }
+    static const void * const k_tiled[] = {
+        &q2_K_8x4_q8_K,  &q3_K_8x4_q8_K,  &q2_K_8x8_q8_K,
+        &q4_K_8x4_q8_K,  &q4_K_8x8_q8_K,
+        &q5_K_8x4_q8_K,  &q5_K_8x8_q8_K,
+        &q6_K_8x4_q8_K,  &q6_K_8x8_q8_K,
+        &q4_0_4x4_q8_0,  &q4_0_4x8_q8_0,  &q4_0_8x8_q8_0,
+        &iq4_nl_4x4_q8_0, &iq4_nl_8x8_q8_0,
+        &mxfp4_4x4_q8_0, &mxfp4_8x8_q8_0,
+        &q8_0_4x4_q8_0,  &q8_0_4x8_q8_0,
+#if defined __riscv_zvfh
+        &q4_0_16x1_q8_0, &q4_K_16x1_q8_K, &iq4_nl_16x1_q8_0,
+        &q8_0_16x1_q8_0, &q2_K_16x1_q8_K,
+#endif
+    };
+    for (size_t i = 0; i < sizeof(k_tiled) / sizeof(k_tiled[0]); ++i) {
+        if (extra == k_tiled[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static enum lm_ggml_status lm_ggml_backend_cpu_repack_buffer_init_tensor(lm_ggml_backend_buffer_t buffer, struct lm_ggml_tensor * tensor) {
     tensor->extra = nullptr;
     const ggml::cpu::tensor_traits * tr = lm_ggml_repack_get_optimal_repack_type(tensor);
@@ -5306,14 +5312,14 @@ static enum lm_ggml_status lm_ggml_backend_cpu_repack_buffer_init_tensor(lm_ggml
     }
     tensor->extra = (void *) const_cast<ggml::cpu::tensor_traits *>(tr);
 
-    if (lm_ggml_repack_is_q23k_8x4(tr)) {
-        const size_t tile = (tensor->type == LM_GGML_TYPE_Q2_K) ? sizeof(block_q2_K_8x4) : sizeof(block_q3_K_8x4);
-        const size_t stride = lm_ggml_repack_q23k_8x4_slice_stride(tile, tensor->ne[0], tensor->ne[1]);
-        tensor->nb[2] = stride;
-        if (tensor->ne[3] > 1) {
-            tensor->nb[3] = stride * (size_t) tensor->ne[2];
-        }
-    } else {
+    // q23k: leave nb[] native (lm_ggml_new_tensor). load_all_data copies
+    // n_size = lm_ggml_nbytes from mmap; packed slice padding (and Q3
+    // 912 vs 880) must not leak into that size. The packer is the
+    // single writer of packed nb[2] after it consumes native bytes.
+    // Do not restore-native on q23k either: a later init_tensor must
+    // not wipe that packed stride or MUL_MAT_ID walks experts with
+    // the native slice size.
+    if (!lm_ggml_repack_is_q23k_8x4(tr)) {
         // Restore dense native strides so a later non-8x4 reuse cannot keep a packed nb[2].
         const int64_t blck = lm_ggml_blck_size(tensor->type);
         tensor->nb[0] = lm_ggml_type_size(tensor->type);
@@ -5334,9 +5340,16 @@ static void lm_ggml_backend_cpu_repack_buffer_set_tensor(lm_ggml_backend_buffer_
     LM_GGML_ASSERT(tensor_traits != nullptr);
 
     if (lm_ggml_repack_is_q23k_8x4(tensor_traits)) {
+        // Source is always the native GGUF layout. Packed/padded bytes are
+        // dest-only (get_alloc_size). Do not accept lm_ggml_nbytes if nb[] was
+        // already rewritten to the tiled stride — that hybrid value is not
+        // a legal source size.
         const size_t src_nbytes = lm_ggml_row_size(tensor->type, tensor->ne[0]) *
                                   (size_t) tensor->ne[1] * (size_t) tensor->ne[2] * (size_t) tensor->ne[3];
-        LM_GGML_ASSERT(size == src_nbytes);
+        if (size != src_nbytes) {
+            LM_GGML_ABORT("%s: q23k set size %zu != native source %zu (lm_ggml_nbytes=%zu)",
+                       __func__, size, src_nbytes, lm_ggml_nbytes(tensor));
+        }
     } else {
         LM_GGML_ASSERT(size == lm_ggml_nbytes(tensor));
     }

@@ -35,6 +35,9 @@ void lm_ggml_gemm_q3_K_8x4_q8_K(int n, float * s, size_t bs, const void * vx, co
 
 // True iff extra is the Q2_K_8x4 or Q3_K_8x4 CPU_REPACK trait. Used to refuse native fallthrough.
 bool lm_ggml_cpu_repack_extra_is_q23k_8x4(const void * extra);
+// True iff extra is any CPU_REPACK tiled trait (8x4/8x8/16x1 families).
+// Pointer-equality against the file-static set; never dereference extra.
+bool lm_ggml_cpu_repack_extra_is_tiled(const void * extra);
 
 #ifdef __cplusplus
 }
