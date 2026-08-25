@@ -1,0 +1,7 @@
+hash_action=adb shell sha256sum completed before the mandatory no-touch cooldown
+model=/data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf
+bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419  /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf
+selected_binary=/data/local/tmp/s3oracle/llama-bench
+b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c  /data/local/tmp/s3oracle/llama-bench
+8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807  /data/local/tmp/s3oracle/libllama-bench-impl.so
+kalsahtp_probe=5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507  /data/local/tmp/kalsahtp/llama-bench; rejected -nr 1 before model access

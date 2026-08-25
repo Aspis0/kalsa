@@ -1,0 +1,1 @@
+/data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf -p 128 -n 0 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 -lm mmap -nr 1

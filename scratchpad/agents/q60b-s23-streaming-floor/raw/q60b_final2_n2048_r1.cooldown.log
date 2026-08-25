@@ -1,0 +1,11 @@
+{"time":"2026-08-25T18:07:12+00:00","level":66,"temperature_tenths":325,"voltage_mv":3932,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:08:13+00:00","level":66,"temperature_tenths":316,"voltage_mv":3960,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:09:13+00:00","level":65,"temperature_tenths":309,"voltage_mv":3972,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:10:13+00:00","level":65,"temperature_tenths":304,"voltage_mv":3968,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:11:13+00:00","level":65,"temperature_tenths":300,"voltage_mv":3969,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:12:14+00:00","level":65,"temperature_tenths":298,"voltage_mv":3977,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:13:14+00:00","level":65,"temperature_tenths":296,"voltage_mv":3978,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:14:15+00:00","level":65,"temperature_tenths":294,"voltage_mv":3977,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:15:15+00:00","level":65,"temperature_tenths":292,"voltage_mv":3980,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:16:15+00:00","level":65,"temperature_tenths":291,"voltage_mv":3973,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}
+{"time":"2026-08-25T18:17:15+00:00","level":65,"temperature_tenths":289,"voltage_mv":3972,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false,"plugged":false}

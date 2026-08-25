@@ -1,0 +1,7 @@
+-rw-rw-rw- 1 2000 2000 3326160384 /data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf
+-rw-rw-rw- 1 2000 2000 4213513024 /data/local/tmp/s3oracle/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+-rw-rw-rw- 1 2000 2000 10505424704 /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf
+-rw-rw-rw- 1 2000 2000 2583221408 /data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf
+-rw-rw-rw- 1 2000 2000 6509642624 /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf
+-rw-rw-rw- 1 2000 2000 3580407296 /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf
+-rw-rw-rw- 1 2000 2000 3928037856 /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf
