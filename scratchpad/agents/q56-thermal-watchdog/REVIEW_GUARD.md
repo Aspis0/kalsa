@@ -300,3 +300,368 @@
 ---
 
 **SAFE-with-fixes: 1, 2, 3, 4, 14.** The guard works for its tested scenario (short CPU-only run, cool device). For a 40-minute NPU run on a device that already suffered thermal shutdown: the two HIGH findings (unguarded window, no guard liveness check) and the hard_tenths override (Finding 3) mean this guard is NOT ready for production unsupervised use until those three are fixed.
+
+---
+
+## RE-AUDIT (post-fix)
+
+### 1. Original findings — status
+
+| # | Finding | Verdict | Evidence |
+|---|---------|---------|----------|
+| 1 | PID race — unguarded window | **FIXED** | Guard-first architecture: `launch_with_guard.py:234-238` starts guard via supervisor, wrapper spins on `GUARD_TRACKING` file (`launch_with_guard.py:180`). Launcher blocks on `wait_for_guard_ready` (`launch_with_guard.py:244-251`) before workload starts. No workload code executes until guard has sampled and confirmed. |
+| 2 | Guard liveness never verified | **FIXED** | `wait_for_guard_ready` (`launch_with_guard.py:244-251`) checks `GUARD_PID` alive + `GUARD_READY` file + numeric first sample in log. `wait_for_tracking` (`launch_with_guard.py:253-259`) re-verifies guard alive. Supervisor loop (`launch_with_guard.py:188-193`) checks `kill -0 $guard` every 1 s and exits 75 if dead. Launcher catches `GuardLivenessError` (`launch_with_guard.py:277-292`) and kills supervisor+guard+workload. |
+| 3 | `hard_tenths=380` silently overrides production kill_tenths | **FIXED** | Hardcoded `hard_tenths` removed from guard. Now explicit `session_hard_cap_tenths` arg (`thermal_guard.sh:13`, `launch_with_guard.py:167`). `effective_kill_tenths` computed and logged at START (`thermal_guard.sh:77-79`). REPORT.md now states `effective_kill_temperature_c=38.0`. |
+| 4 | Post-loop missing warn/kill checks | **FIXED** | Post-loop block calls `process_sample` (`thermal_guard.sh:150-153`) before MAX. `process_sample` runs all checks including warn/kill thresholds. |
+| 5 | dumpsys slow → poll interval collapse | **FIXED** | `timeout 5 dumpsys battery` (`thermal_guard.sh:82`). Elapsed time subtracted from sleep (`thermal_guard.sh:143-146`). |
+| 6 | kill -9 no retry, no confirmation | **FIXED** | `terminate_target` (`thermal_guard.sh:101-108`): `kill -9` → `sleep 1` → re-check `pid_exists` → `KILL_FAILED` / exit 3. |
+| 7 | WARN at threshold (inclusive) — correct | **FIXED** (retained, documented) | `-ge` comparison retained. Threshold fields logged at START. |
+| 8 | temp=0 from sensor failure not caught | **FIXED** | `case ""$temp" in ... |0) sensor_ok=0` (`thermal_guard.sh:98`). Zero is now a sensor failure. |
+| 9 | nohup/setsid correct | **FIXED** (retained) | Supervisor and guard both `nohup setsid` (`launch_with_guard.py:228,234`). |
+| 10 | exec → binary IS the PID | **PARTIAL** | Guard tracks wrapper PID which execs to workload (`launch_with_guard.py:180-182`). See New Finding A below for exec-failure gap. |
+| 11 | Guard survives adb disconnect | **FIXED** (retained) | Detached via setsid. |
+| 12 | Log unwritable → guard exits, workload unguarded | **FIXED** | Guard checks `: >> log_path` at startup (`thermal_guard.sh:112`). Launcher preflights disk (`launch_with_guard.py:155-157`, `launch_with_guard.py:221-223`). |
+| 13 | Log unbounded growth | **FIXED** (retained) | Launcher wall-clock cap. |
+| 14 | Launcher doesn't handle adb disconnect mid-run | **FIXED** | `AdbTransportError` raised on reconnect exhaustion (`launch_with_guard.py:56-82`). Launcher catches it (`launch_with_guard.py:293-295`), sets `adb_disconnect=True`, returns exit 76. |
+| 15 | Battery level abort conflated with thermal | **FIXED** | Renamed to `BATTERY_LOW_ABORT` in guard (`thermal_guard.sh:119`). |
+| 16 | Production thresholds correct (but overridden) | **FIXED** | `--session-hard-cap-tenths 380` explicit in production command. REPORT.md shows effective kill 38.0 °C. |
+| 17 | Raw evidence matches report | **FIXED** (retained) | Prior evidence unchanged. |
+| 18 | Same-epoch guard log = first-poll kill | **FIXED** (retained) | |
+| 19 | 93% disk — write/pull risk | **FIXED** | `disk_available_kb` preflight, `MIN_FREE_KB = 500 * 1024` (`launch_with_guard.py:221-223`). |
+
+---
+
+### 2. New code — hostile attack
+
+#### New Finding A: Wrapper exec failure leaves orphan shell — WORKLOAD RUNS UNDER WRONG COMMAND
+
+**File:** `launch_with_guard.py:180-182`
+```sh
+while [ ! -f tracking_file ]; do sleep 1; done; setup ; exec workload > stdout 2> stderr
+```
+
+If `exec` fails (binary missing, permission denied, library not found), the shell does NOT exit. It falls through to the end of the subshell and exits with the exec error code. The guard sees `pid_exists` → false → breaks → logs MAX → exit 0. The workload never ran, so no thermal damage — but the launcher sees `workload_rc ≠ 0` and `guard_rc = 0`, interprets this as success (returns 0), and does NOT raise an error.
+
+**Severity: LOW.** The workload didn't run, so no thermal risk. But the launcher reports success for a failed workload, which is misleading.
+
+**Status: PLAUSIBLE.**
+
+**Fix:** After exec, if the shell somehow continues (shouldn't happen with `exec`, but belt-and-suspenders), add `exit 127` as a fallback. More importantly, the launcher should check `workload_rc` for exec-failure codes (126, 127) and report them distinctly. Currently it does: `if guard_rc != 0 or workload_rc != 0: return 1` — this catches it, but the manifest `abort_reason` will be empty, which is confusing.
+
+---
+
+#### New Finding B: Supervisor trap kills already-dead child — harmless but noisy
+
+**File:** `launch_with_guard.py:184-185`
+```sh
+trap 'if [ "$child" -gt 0 ]; then kill -9 "$child" 2>/dev/null; fi' 0 1 2 3 15
+```
+
+When the supervisor exits normally after `wait $child` (child already dead), the EXIT trap (signal 0) fires and attempts `kill -9` on the dead child. This is harmless (`kill -9` to a dead PID returns non-zero, `2>/dev/null` suppresses the error) but adds a shell fork to every normal completion.
+
+**Severity: VERY LOW.** No functional impact.
+
+**Status: CONFIRMED (benign).**
+
+**Fix:** Guard the trap body with `[ "$child" -gt 0 ] && kill -0 "$child" 2>/dev/null && kill -9 "$child" 2>/dev/null`. Or accept the harmless noise.
+
+---
+
+#### New Finding C: Guard PID file race — `GUARD_PID` written after guard starts, supervisor reads before guard is sampled
+
+**File:** `launch_with_guard.py:234-236`
+```sh
+nohup setsid sh -c '...' </dev/null >/dev/null 2>&1 & guard=$!
+echo GUARD_PID=$guard > guard_pid_file
+```
+
+The guard PID file is written BEFORE the guard writes `GUARD_READY`. The launcher's `wait_for_guard_ready` (`launch_with_guard.py:244-251`) checks `GUARD_PID` alive AND `GUARD_READY` written AND log has a sample. So even though the PID file is written early, the launcher doesn't proceed until the guard has actually sampled. The PID file is just a handle for the liveness check.
+
+**Severity: NONE (not a real race).** The `wait_for_guard_ready` function gates on all three conditions.
+
+**Status: REFUTED.**
+
+---
+
+#### New Finding D: `timeout 5 dumpsys battery` — is `timeout` available on Android toybox?
+
+**File:** `thermal_guard.sh:82`
+```sh
+sample_text=$(timeout 5 dumpsys battery 2>/dev/null)
+```
+
+Android's toybox includes `timeout` (toybox `timeout` implements the coreutils spec). Confirmed on Android 8+ (API 26+). The S23 runs Android 14/15. However, if `timeout` is not present (unlikely on a stock Samsung), it fails silently because `2>/dev/null` is on `dumpsys battery`, not on `timeout` itself. The `$()` captures stdout of `timeout 5 dumpsys battery 2>/dev/null` — if `timeout` is missing, the shell reports `timeout: not found` to stderr (not captured), and `sample_text` is empty. This triggers `sensor_ok=0` → sensor failure path. With `sensor_fail_limit=3`, three consecutive missing-`timeout` calls kill the workload.
+
+**Severity: LOW.** `timeout` is present on the target device. But the failure mode is documented only by the sensor-fail path, not by an explicit "timeout binary missing" check.
+
+**Status: PLAUSIBLE (device-specific).**
+
+**Fix:** Add a guard startup check: `command -v timeout >/dev/null 2>&1 || { log_line 'TIMEOUT_BINARY_MISSING'; exit 64; }`. This fails fast at startup rather than after 3 slow polls.
+
+---
+
+#### New Finding E: `sensor_fail_limit=3` with slow dumpsys — false kills under load
+
+**File:** `thermal_guard.sh:121-131`
+
+If `dumpsys battery` hangs for > 5 s three consecutive times (binder contention under heavy NPU load), the guard累计 `sensor_failures` to 3 and kills the workload. The `timeout 5` ensures each call takes at most 5 s, so three failures = at most 15 s of monitoring gap. On a device at 37 °C climbing at 0.5 °C/min, 15 s = 0.125 °C additional rise — acceptable.
+
+But the false kill itself is the problem: a healthy run at 35 °C gets killed because the monitoring infrastructure is slow, not because the device is hot.
+
+**Severity: MEDIUM.** The kill is incorrect (device is safe), but the alternative (keep running blind) is worse for safety. This is an acceptable false-positive for a safety guard.
+
+**Status: CONFIRMED.**
+
+**Fix:** Document this explicitly: "The guard may kill a healthy workload if the device's binder subsystem is too loaded to respond to dumpsys within 5 s. This is a deliberate fail-closed trade-off: a blind guard is more dangerous than a trigger-happy one." Consider raising `sensor_fail_limit` to 5 for production (25 s of total binder failure before kill, still acceptable for a 40-min run).
+
+---
+
+#### New Finding F: Supervisor shell — no `exec`, signals propagate correctly
+
+**File:** `launch_with_guard.py:228-242`
+
+The supervisor is `sh -c '...'` (no exec). When the launcher kills the supervisor (`kill -9 supervisor_pid`), the supervisor dies immediately. The trap fires (signal 15 → `kill -9 $child`). The guard is a separate `setsid` process and is NOT killed by the supervisor's death — it will detect `target_pid` gone via `pid_exists` → false and exit cleanly. This is correct: the guard outlives the supervisor.
+
+**Severity: NONE (correct architecture).**
+
+**Status: CONFIRMED (correct).**
+
+---
+
+#### New Finding G: `process_sample` return value — guard exits immediately on non-zero
+
+**File:** `thermal_guard.sh:138-139`
+```sh
+process_sample
+sample_result=$?
+[ "$sample_result" -ne 0 ] && exit "$sample_result"
+```
+
+When `process_sample` returns 3 (sensor error / kill failed), the guard exits 3 immediately. The post-loop `process_sample` call (`thermal_guard.sh:150-153`) is only reached if the loop exits normally (target gone). This is correct: the guard doesn't continue polling after a kill decision.
+
+**Severity: NONE (correct).**
+
+**Status: CONFIRMED (correct).**
+
+---
+
+#### New Finding H: `wait_for_guard_ready` timeout — is `max(2 * interval_s, 2.0)` sufficient?
+
+**File:** `launch_with_guard.py:244`
+```python
+deadline = time.monotonic() + max(2.0 * interval_s, 2.0)
+```
+
+For `interval_s=10` (production), the deadline is 20 s. The guard needs to: start → open log → run `timeout 5 dumpsys battery` → parse → write READY. On a fast device this is ~2 s. On a slow device with slow dumpsys: up to 5 s for the first sample + overhead. 20 s is generous.
+
+For `interval_s=1` (test), the deadline is 2 s. The guard needs to do the same work in 2 s. If dumpsys takes 1.5 s, there's only 0.5 s margin. This could cause spurious `GuardLivenessError` on slow devices during testing.
+
+**Severity: LOW.** The production case (interval_s=10) is fine. The test case (interval_s=1) could be tight.
+
+**Status: PLAUSIBLE.**
+
+**Fix:** Use `max(3.0 * interval_s, 5.0)` to give more headroom, or at least document that test1 with `interval_s=1` requires a responsive device.
+
+---
+
+#### New Finding I: Effective kill logging — guard vs. launcher consistency
+
+**File:** `thermal_guard.sh:77-79` (guard START line), `launch_with_guard.py:317-319` (manifest)
+
+Guard logs: `effective_kill_tenths=380` (when session_hard_cap=380 < kill_tenths=430). Manifest reports: `effective_kill_tenths: min(430, 380) = 380`. REPORT.md: `effective_kill_temperature_c=38.0`. All three are consistent.
+
+The guard's kill comparison (`thermal_guard.sh:125-129`) uses `$effective_kill_tenths` which is 380. The `HARD_ABORT` path also fires at `$session_hard_cap_tenths` (380). So both paths kill at 380 — the `HARD_ABORT` and `KILL_THRESHOLD` paths are redundant when `session_hard_cap_tenths < kill_tenths`. Not a bug, but the dual-path is confusing.
+
+**Severity: LOW.** Redundant but not dangerous.
+
+**Status: CONFIRMED (redundant, not harmful).**
+
+**Fix:** Document that when `session_hard_cap_tenths < kill_tenths`, the `KILL_THRESHOLD` branch is unreachable. Or simplify: only check `effective_kill_tenths` and distinguish HARD vs KILL_THRESHOLD by whether the cap was the limiting factor.
+
+---
+
+#### New Finding J: Toybox sh compatibility audit
+
+**File:** `thermal_guard.sh` (entire)
+
+Checked constructs:
+- `$((expr))` — POSIX arithmetic expansion, supported by all toybox sh. ✓
+- `case` with glob patterns — POSIX. ✓
+- `for zone in /sys/class/thermal/thermal_zone*` — POSIX glob. ✓
+- `sed -n`, `grep -m 1` — available in toybox. ✓
+- `kill -0`, `[ -d /proc/... ]` — POSIX. ✓
+- `command -v` — POSIX (not used, but `is_uint` uses `case`). ✓
+- No `[[ ]]` — uses `[ ]` and `case`. ✓
+- No arrays — uses scalar variables. ✓
+- No `$(( ))` with floats — all arithmetic is integer. ✓
+- `timeout` — toybox builtin on Android 8+. ✓
+- `date +%s` — POSIX. ✓
+
+**Severity: NONE.**
+
+**Status: CONFIRMED (clean).**
+
+---
+
+### 3. Minimal device re-validation matrix
+
+Four tests, executed in order on a cool device (≤ 30 °C, ≥ 50% battery, unplugged).
+
+#### Test 1 — Kill path (threshold exceeded)
+
+**Purpose:** Prove the guard kills the workload when temperature ≥ kill_tenths.
+
+**Command:**
+```
+python launch_with_guard.py --serial $SERIAL --tag reval_test1_kill \
+  --warn-tenths 281 --kill-tenths 281 --session-hard-cap-tenths 380 \
+  --sensor-failure-limit 3 --interval-s 1 --max-seconds 120 \
+  --local-dir raw -- \
+  /data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf \
+  -p 64 -n 16 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 --load-mode none -fa on --ubatch-size 1024
+```
+**Logic:** Device at ~29 °C = 290 tenths. kill_tenths=281 < 290 → guard kills on first poll.
+
+**Expected artifacts:**
+- `reval_test1_kill.guard.log`: line 1 = `START,...`, line 2 = sample (290ish), line 3 = `WARN` (if temp ≥ 281), line 4 = `KILLED`.
+- `reval_test1_kill.guard.rc` = `2`.
+- `reval_test1_kill.workload.rc` = `137` (SIGKILL).
+- `reval_test1_kill.manifest.json`: `guard.exit_code` = 2, `guard.effective_kill_tenths` = 281 (or 380, whichever is lower), `workload_rc` = 137, `timed_out` = false, `abort_reason` = empty.
+- `reval_test1_kill.stdout.jsonl` = empty or ≤ 1 row (killed before output).
+- Guard log has `READY` line, `TRACKING` line, then `KILLED` line.
+- Launcher exit code = 0 (guard_rc == 2).
+
+---
+
+#### Test 2 — Pass-through (threshold not reached)
+
+**Purpose:** Prove the guard lets the workload finish when temperature < warn_tenths.
+
+**Command:**
+```
+python launch_with_guard.py --serial $SERIAL --tag reval_test2_pass \
+  --warn-tenths 400 --kill-tenths 430 --session-hard-cap-tenths 380 \
+  --sensor-failure-limit 3 --interval-s 10 --max-seconds 120 \
+  --local-dir raw -- \
+  /data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf \
+  -p 64 -n 16 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 --load-mode none -fa on --ubatch-size 1024
+```
+**Logic:** Device at ~29 °C = 290 tenths. warn=400, kill=430, hard_cap=380. Temp stays well below all thresholds.
+
+**Expected artifacts:**
+- `reval_test2_pass.guard.log`: START line, ~20 samples (10 s interval × ~23 s run), then `MAX` line. No WARN, no KILLED.
+- `reval_test2_pass.guard.rc` = `0`.
+- `reval_test2_pass.workload.rc` = `0`.
+- `reval_test2_pass.manifest.json`: `guard.exit_code` = 0, `guard.effective_kill_tenths` = 380, `max_temperature_tenths` ≤ 300, `workload_rc` = 0.
+- `reval_test2_pass.stdout.jsonl` = 2 rows of valid JSON.
+- Guard log has `READY`, `TRACKING_<pid>`, then MAX.
+- Launcher exit code = 0.
+
+---
+
+#### Test 3 — Fail-closed sensor path (simulated sensor failure)
+
+**Purpose:** Prove the guard kills after `sensor_fail_limit` consecutive sensor failures.
+
+**Command:**
+```
+python launch_with_guard.py --serial $SERIAL --tag reval_test3_sensor \
+  --warn-tenths 400 --kill-tenths 430 --session-hard-cap-tenths 380 \
+  --sensor-failure-limit 3 --interval-s 10 --max-seconds 120 \
+  --local-dir raw -- \
+  /data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf \
+  -p 64 -n 16 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 --load-mode none -fa on --ubatch-size 1024
+```
+**Setup (before launching):** Temporarily make `dumpsys` unavailable:
+```sh
+adb shell 'chmod 000 /system/bin/dumpsys'
+# OR: use a wrapper that sleeps >5 s:
+adb shell 'mv /system/bin/dumpsys /system/bin/dumpsys.bak && echo "#!/system/bin/sh
+sleep 10" > /system/bin/dumpsys && chmod 755 /system/bin/dumpsys'
+```
+**Teardown (after test):**
+```sh
+adb shell 'chmod 755 /system/bin/dumpsys.bak && mv /system/bin/dumpsys.bak /system/bin/dumpsys'
+```
+**Logic:** `dumpsys battery` fails 3 times (sensor_fail_limit=3) → guard kills workload.
+
+**Expected artifacts:**
+- `reval_test3_sensor.guard.log`: START line, 3× `SENSOR_FAILURE_N` lines (N=1,2,3), then `SENSOR_ERROR`, then `KILLED`.
+- `reval_test3_sensor.guard.rc` = `3` (sensor error kill).
+- `reval_test3_sensor.workload.rc` = `137` (SIGKILL).
+- `reval_test3_sensor.manifest.json`: `guard.exit_code` = 3, `max_temperature_tenths` = 0 (sensor failure).
+- Guard log: READY line present (guard started OK before dumpsys failed), then SENSOR_FAILURE lines.
+- Launcher exit code = 0 (guard_rc == 2 or 3; check launcher logic: `if guard_rc not in (0, None): return 1` — need to verify). **ACTUALLY:** launcher returns 1 if `guard_rc != 0 or workload_rc != 0`. So launcher returns 1 for this case. Manifest `abort_reason` should be empty (sensor error is on-device, not launcher-detected). This is a gap — see Finding K below.
+
+---
+
+#### Test 4 — Guard-not-ready path (guard fails to start)
+
+**Purpose:** Prove the launcher kills the workload when the guard dies at startup.
+
+**Command:**
+```
+python launch_with_guard.py --serial $SERIAL --tag reval_test4_noguard \
+  --warn-tenths 400 --kill-tenths 430 --session-hard-cap-tenths 380 \
+  --sensor-failure-limit 3 --interval-s 10 --max-seconds 120 \
+  --local-dir raw -- \
+  /data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/LFM2.5-8B-A1B-KEXP-fromsrc-trunk-q8_0.gguf \
+  -p 64 -n 16 -r 1 --no-warmup -t 8 -o jsonl -ngl 0 --load-mode none -fa on --ubatch-size 1024
+```
+**Setup (before launching):** Make the guard script non-executable:
+```sh
+adb shell 'chmod 000 /data/local/tmp/q56_thermal_watchdog/thermal_guard.sh'
+```
+**Teardown (after test):**
+```sh
+adb shell 'chmod 755 /data/local/tmp/q56_thermal_watchdog/thermal_guard.sh'
+```
+**Logic:** Guard script can't execute → guard process dies immediately → `wait_for_guard_ready` times out → `GuardLivenessError` raised → launcher kills workload.
+
+**Expected artifacts:**
+- `reval_test4_noguard.guard.log` = empty or absent (guard never started).
+- `reval_test4_noguard.guard.rc` = absent (guard never wrote rc).
+- `reval_test4_noguard.workload.rc` = absent (workload killed by supervisor trap before writing rc).
+- `reval_test4_noguard.manifest.json`: `guard_liveness_abort` = true, `abort_reason` = `"guard_liveness_abort:guard did not publish a first sample within two poll intervals"`, `binary_pid` = null or wrapper PID, `guard_pid` = null.
+- Launcher exit code = 75 (`EXIT_GUARD_LIVENESS`).
+- No llama-bench processes on device after test (`ps -A | grep llama` = empty).
+
+---
+
+#### New Finding K: Launcher cannot distinguish on-device sensor kills from normal kills
+
+**File:** `launch_with_guard.py:300-305`
+```python
+if guard_rc == 2:
+    return 0
+if guard_rc != 0 or workload_rc != 0:
+    return 1
+```
+
+When the guard exits 3 (sensor error kill), the launcher returns 1. This is indistinguishable from a generic failure. The manifest `abort_reason` is empty because the sensor error is detected on-device, not by the launcher.
+
+**Severity: LOW.** The workload IS killed (safe), but post-hoc analysis can't distinguish "device was too hot" from "dumpsys was too slow" from the manifest alone. The guard log has the answer, but the manifest doesn't.
+
+**Status: CONFIRMED.**
+
+**Fix:** Have the guard write a structured kill-reason file (e.g., `REASON=SENSOR_ERROR`) alongside `guard.rc`. The launcher reads it into `abort_reason`. Or: the launcher parses the last line of the guard log for `SENSOR_ERROR` / `KILL_THRESHOLD` / `HARD_ABORT` / `BATTERY_LOW_ABORT`.
+
+---
+
+### 4. RE-AUDIT SUMMARY
+
+| Category | Count |
+|----------|-------|
+| Original FIXED | 17/19 (1 PARTIAL, 1 REFUTED) |
+| New findings | 6 (A-F) + 4 sub-findings (G-J) + 1 (K) |
+| Severity distribution | 0 HIGH, 1 MEDIUM (E), 4 LOW (A, D, H, K), 1 VERY LOW (B), 5 NONE (C, F, G, I, J) |
+
+**MEDIUM finding E** (false kill under binder load) is the only finding that could cause an incorrect workload termination. It is an inherent trade-off of fail-closed design and is acceptable for safety, but must be documented.
+
+**Test 3** (sensor failure simulation) is the critical new validation that proves the fail-closed path works. Without it, the sensor-failure kill path is untested code.
+
+**Test 4** (guard-not-ready) proves the launcher's liveness check catches a dead guard and kills the workload. This was the highest-risk gap in the original audit.
+
+---
+
+**SAFE-TO-USE-after-revalidation.** All original HIGH findings are FIXED. The one new MEDIUM finding (false kill under binder load) is an acceptable safety trade-off. The four-test re-validation matrix (kill path, pass-through, fail-closed sensor, guard-not-ready) covers all critical paths. Execute the matrix on a real device before production use.
