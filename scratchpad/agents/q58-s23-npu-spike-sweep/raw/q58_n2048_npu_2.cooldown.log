@@ -1,0 +1,8 @@
+{"time":"2026-08-25T17:18:55+00:00","level":69,"temperature_tenths":370,"voltage_mv":3991,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:19:55+00:00","level":69,"temperature_tenths":352,"voltage_mv":4008,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:20:55+00:00","level":69,"temperature_tenths":343,"voltage_mv":4012,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:21:55+00:00","level":69,"temperature_tenths":337,"voltage_mv":4016,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:22:56+00:00","level":69,"temperature_tenths":331,"voltage_mv":4007,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:23:56+00:00","level":69,"temperature_tenths":327,"voltage_mv":4018,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:24:57+00:00","level":69,"temperature_tenths":323,"voltage_mv":4008,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T17:25:57+00:00","level":69,"temperature_tenths":320,"voltage_mv":4017,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}

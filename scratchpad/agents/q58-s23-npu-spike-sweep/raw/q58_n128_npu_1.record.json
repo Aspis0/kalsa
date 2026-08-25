@@ -1,0 +1,61 @@
+{
+  "tag": "q58_n128_npu_1",
+  "n": 128,
+  "engine": "NPU",
+  "rep": 1,
+  "kill_tenths": 410,
+  "cooldown_samples": [
+    "{\"time\":\"2026-08-25T16:25:20+00:00\",\"level\":81,\"temperature_tenths\":269,\"voltage_mv\":4132,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+  ],
+  "battery_pre": {
+    "level": 81,
+    "temperature_tenths": 269,
+    "voltage_mv": 4132,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "battery_post": {
+    "level": 81,
+    "temperature_tenths": 273,
+    "voltage_mv": 3994,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "thermalservice_pre_file": "q58_n128_npu_1.thermalservice.pre.txt",
+  "thermalservice_post_file": "q58_n128_npu_1.thermalservice.post.txt",
+  "launcher_rc_process": 0,
+  "launcher_elapsed_s": 17.367,
+  "manifest_file": "q58_n128_npu_1.manifest.json",
+  "stdout_file": "q58_n128_npu_1.stdout.jsonl",
+  "stderr_file": "q58_n128_npu_1.stderr.log",
+  "guard_file": "q58_n128_npu_1.guard.log",
+  "execute_op_count": 1764,
+  "offloaded_proof": [
+    "offloaded 33/33 layers to GPU"
+  ],
+  "jsonl": {
+    "rows": 1,
+    "avg_ts": 75.78319,
+    "samples_ts": [
+      76.0138,
+      75.5526
+    ],
+    "n_prompt": 128,
+    "n_gen": 0,
+    "backends": "HTP",
+    "devices": "HTP0",
+    "n_gpu_layers": 99,
+    "model_type": "qwen35 4B Q4_0"
+  },
+  "crash_signature": "",
+  "guard_kill": false,
+  "real_crash": false,
+  "thermalservice_pre_bytes": 1327,
+  "thermalservice_post_bytes": 1327
+}

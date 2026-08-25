@@ -1,0 +1,5 @@
+f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84c  /data/local/tmp/q56_thermal_watchdog/thermal_guard.sh
+5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507  /data/local/tmp/kalsahtp/llama-bench
+f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448  /data/local/tmp/kalsahtp/libggml-hexagon.so
+c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5  /data/local/tmp/kalsahtp/libggml-htp-v73.so
+298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb  /data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf

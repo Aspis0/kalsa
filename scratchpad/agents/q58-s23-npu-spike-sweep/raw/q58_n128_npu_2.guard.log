@@ -1,0 +1,14 @@
+START,1787675216,warn_tenths=400,kill_tenths=410,hard_abort_tenths=0,session_hard_cap_tenths=0,effective_kill_tenths=410,interval_s=1,sensor_fail_limit=4,sensor_timeout_s=10,sensor_failure_window_s=40,sensor_command_override=none,fail_closed_false_kill_accepted=1
+1787675216,311,80
+1787675216,311,80,READY
+1787675216,311,80,TRACKING_2165
+1787675217,311,80
+1787675219,311,80
+1787675220,311,80
+1787675221,311,80
+1787675222,311,80
+1787675224,317,80
+1787675224,317,80
+1787675225,317,80
+1787675226,317,80
+1787675226,317,80,MAX

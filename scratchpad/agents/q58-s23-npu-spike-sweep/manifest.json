@@ -1,0 +1,2122 @@
+{
+  "cell": "q58-s23-npu-spike-sweep",
+  "prereg": "f10d997b",
+  "device": "Galaxy S23 / Hexagon v73",
+  "serial": "192.168.1.152:36269",
+  "mdns_serial": "adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp",
+  "pins": {
+    "thermal_guard_sha256": "f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84c",
+    "launch_with_guard_sha256": "64ef5fb808b7bd2784555b54db3c395aecd1d85021e568c948d1f07b7f783b40",
+    "llama_bench_sha256": "5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507",
+    "libggml_hexagon_sha256": "f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448",
+    "libggml_htp_v73_sha256": "c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5",
+    "qwen_model_sha256": "298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb",
+    "device_sha256": {
+      "/data/local/tmp/q56_thermal_watchdog/thermal_guard.sh": "f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84c",
+      "/data/local/tmp/kalsahtp/llama-bench": "5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507",
+      "/data/local/tmp/kalsahtp/libggml-hexagon.so": "f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448",
+      "/data/local/tmp/kalsahtp/libggml-htp-v73.so": "c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5",
+      "/data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf": "298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb"
+    }
+  },
+  "model": "/data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf",
+  "binary": "/data/local/tmp/kalsahtp/llama-bench",
+  "workload": "-n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl; -v; NPU -ngl 99 -dev HTP0; CPU -ngl 0",
+  "environment": {
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "NPU_GGML_HEXAGON_HOSTBUF": "1",
+    "CPU_GGML_HEXAGON_HOSTBUF": "unset"
+  },
+  "guard": {
+    "warn_tenths": 400,
+    "NPU_kill_tenths": 410,
+    "CPU_kill_tenths": 430,
+    "session_hard_cap_tenths": 0,
+    "interval_s": 1,
+    "sensor_failure_limit": 4,
+    "sensor_timeout_s": 10,
+    "cool_start_tenths": 320,
+    "battery_floor_pct": 45
+  },
+  "preflight_battery": {
+    "level": 81,
+    "temperature_tenths": 269,
+    "voltage_mv": 4132,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "runs": [
+    {
+      "tag": "q58_n128_npu_1",
+      "n": 128,
+      "engine": "NPU",
+      "rep": 1,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:25:20+00:00\",\"level\":81,\"temperature_tenths\":269,\"voltage_mv\":4132,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 81,
+        "temperature_tenths": 269,
+        "voltage_mv": 4132,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 81,
+        "temperature_tenths": 273,
+        "voltage_mv": 3994,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n128_npu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n128_npu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 17.367,
+      "manifest_file": "q58_n128_npu_1.manifest.json",
+      "stdout_file": "q58_n128_npu_1.stdout.jsonl",
+      "stderr_file": "q58_n128_npu_1.stderr.log",
+      "guard_file": "q58_n128_npu_1.guard.log",
+      "execute_op_count": 1764,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 75.78319,
+        "samples_ts": [
+          76.0138,
+          75.5526
+        ],
+        "n_prompt": 128,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n128_cpu_1",
+      "n": 128,
+      "engine": "CPU",
+      "rep": 1,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:25:39+00:00\",\"level\":81,\"temperature_tenths\":273,\"voltage_mv\":3994,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 81,
+        "temperature_tenths": 273,
+        "voltage_mv": 3994,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 80,
+        "temperature_tenths": 311,
+        "voltage_mv": 4074,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n128_cpu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n128_cpu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 53.634,
+      "manifest_file": "q58_n128_cpu_1.manifest.json",
+      "stdout_file": "q58_n128_cpu_1.stdout.jsonl",
+      "stderr_file": "q58_n128_cpu_1.stderr.log",
+      "guard_file": "q58_n128_cpu_1.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 6.007431,
+        "samples_ts": [
+          6.04412,
+          5.97074
+        ],
+        "n_prompt": 128,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n128_cpu_2",
+      "n": 128,
+      "engine": "CPU",
+      "rep": 2,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:26:34+00:00\",\"level\":80,\"temperature_tenths\":311,\"voltage_mv\":4074,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 80,
+        "temperature_tenths": 311,
+        "voltage_mv": 4074,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 80,
+        "temperature_tenths": 311,
+        "voltage_mv": 4074,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n128_cpu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n128_cpu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 18.824,
+      "manifest_file": "q58_n128_cpu_2.manifest.json",
+      "stdout_file": "q58_n128_cpu_2.stdout.jsonl",
+      "stderr_file": "q58_n128_cpu_2.stderr.log",
+      "guard_file": "q58_n128_cpu_2.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 38.685951,
+        "samples_ts": [
+          36.3086,
+          41.0633
+        ],
+        "n_prompt": 128,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n128_npu_2",
+      "n": 128,
+      "engine": "NPU",
+      "rep": 2,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:26:53+00:00\",\"level\":80,\"temperature_tenths\":311,\"voltage_mv\":4074,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 80,
+        "temperature_tenths": 311,
+        "voltage_mv": 4074,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 80,
+        "temperature_tenths": 317,
+        "voltage_mv": 3983,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n128_npu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n128_npu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 15.85,
+      "manifest_file": "q58_n128_npu_2.manifest.json",
+      "stdout_file": "q58_n128_npu_2.stdout.jsonl",
+      "stderr_file": "q58_n128_npu_2.stderr.log",
+      "guard_file": "q58_n128_npu_2.guard.log",
+      "execute_op_count": 1764,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 73.646106,
+        "samples_ts": [
+          73.4166,
+          73.8756
+        ],
+        "n_prompt": 128,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n512_npu_1",
+      "n": 512,
+      "engine": "NPU",
+      "rep": 1,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:27:10+00:00\",\"level\":80,\"temperature_tenths\":317,\"voltage_mv\":3983,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 80,
+        "temperature_tenths": 317,
+        "voltage_mv": 3983,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 80,
+        "temperature_tenths": 317,
+        "voltage_mv": 3983,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n512_npu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n512_npu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 20.414,
+      "manifest_file": "q58_n512_npu_1.manifest.json",
+      "stdout_file": "q58_n512_npu_1.stdout.jsonl",
+      "stderr_file": "q58_n512_npu_1.stderr.log",
+      "guard_file": "q58_n512_npu_1.guard.log",
+      "execute_op_count": 1764,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 126.081691,
+        "samples_ts": [
+          126.953,
+          125.21
+        ],
+        "n_prompt": 512,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n512_cpu_1",
+      "n": 512,
+      "engine": "CPU",
+      "rep": 1,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:27:32+00:00\",\"level\":80,\"temperature_tenths\":322,\"voltage_mv\":4082,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:28:33+00:00\",\"level\":79,\"temperature_tenths\":313,\"voltage_mv\":4101,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 79,
+        "temperature_tenths": 313,
+        "voltage_mv": 4101,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 79,
+        "temperature_tenths": 343,
+        "voltage_mv": 3949,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n512_cpu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n512_cpu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 64.096,
+      "manifest_file": "q58_n512_cpu_1.manifest.json",
+      "stdout_file": "q58_n512_cpu_1.stdout.jsonl",
+      "stderr_file": "q58_n512_cpu_1.stderr.log",
+      "guard_file": "q58_n512_cpu_1.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 19.289335,
+        "samples_ts": [
+          19.702,
+          18.8767
+        ],
+        "n_prompt": 512,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n512_cpu_2",
+      "n": 512,
+      "engine": "CPU",
+      "rep": 2,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:29:37+00:00\",\"level\":79,\"temperature_tenths\":343,\"voltage_mv\":3949,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:30:38+00:00\",\"level\":79,\"temperature_tenths\":324,\"voltage_mv\":4087,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:31:38+00:00\",\"level\":78,\"temperature_tenths\":315,\"voltage_mv\":4101,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 78,
+        "temperature_tenths": 315,
+        "voltage_mv": 4101,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 78,
+        "temperature_tenths": 350,
+        "voltage_mv": 3958,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n512_cpu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n512_cpu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 64.03,
+      "manifest_file": "q58_n512_cpu_2.manifest.json",
+      "stdout_file": "q58_n512_cpu_2.stdout.jsonl",
+      "stderr_file": "q58_n512_cpu_2.stderr.log",
+      "guard_file": "q58_n512_cpu_2.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 19.226679,
+        "samples_ts": [
+          19.6599,
+          18.7934
+        ],
+        "n_prompt": 512,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n512_npu_2",
+      "n": 512,
+      "engine": "NPU",
+      "rep": 2,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:32:42+00:00\",\"level\":78,\"temperature_tenths\":350,\"voltage_mv\":3958,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:33:43+00:00\",\"level\":78,\"temperature_tenths\":335,\"voltage_mv\":4085,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:34:43+00:00\",\"level\":78,\"temperature_tenths\":324,\"voltage_mv\":4090,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:35:43+00:00\",\"level\":78,\"temperature_tenths\":318,\"voltage_mv\":4093,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 78,
+        "temperature_tenths": 318,
+        "voltage_mv": 4093,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 78,
+        "temperature_tenths": 318,
+        "voltage_mv": 4093,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n512_npu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n512_npu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 19.682,
+      "manifest_file": "q58_n512_npu_2.manifest.json",
+      "stdout_file": "q58_n512_npu_2.stdout.jsonl",
+      "stderr_file": "q58_n512_npu_2.stderr.log",
+      "guard_file": "q58_n512_npu_2.guard.log",
+      "execute_op_count": 1764,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 128.801951,
+        "samples_ts": [
+          127.786,
+          129.818
+        ],
+        "n_prompt": 512,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n1024_npu_1",
+      "n": 1024,
+      "engine": "NPU",
+      "rep": 1,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:36:04+00:00\",\"level\":78,\"temperature_tenths\":318,\"voltage_mv\":4093,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 78,
+        "temperature_tenths": 318,
+        "voltage_mv": 4093,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 77,
+        "temperature_tenths": 326,
+        "voltage_mv": 4078,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n1024_npu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n1024_npu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 28.621,
+      "manifest_file": "q58_n1024_npu_1.manifest.json",
+      "stdout_file": "q58_n1024_npu_1.stdout.jsonl",
+      "stderr_file": "q58_n1024_npu_1.stderr.log",
+      "guard_file": "q58_n1024_npu_1.guard.log",
+      "execute_op_count": 3430,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 127.868111,
+        "samples_ts": [
+          126.92,
+          128.816
+        ],
+        "n_prompt": 1024,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n1024_cpu_1",
+      "n": 1024,
+      "engine": "CPU",
+      "rep": 1,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:36:35+00:00\",\"level\":77,\"temperature_tenths\":341,\"voltage_mv\":4067,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:37:35+00:00\",\"level\":77,\"temperature_tenths\":332,\"voltage_mv\":4081,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:38:36+00:00\",\"level\":77,\"temperature_tenths\":319,\"voltage_mv\":4095,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 77,
+        "temperature_tenths": 319,
+        "voltage_mv": 4095,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 76,
+        "temperature_tenths": 352,
+        "voltage_mv": 4051,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n1024_cpu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n1024_cpu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 182.265,
+      "manifest_file": "q58_n1024_cpu_1.manifest.json",
+      "stdout_file": "q58_n1024_cpu_1.stdout.jsonl",
+      "stderr_file": "q58_n1024_cpu_1.stderr.log",
+      "guard_file": "q58_n1024_cpu_1.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 23.941668,
+        "samples_ts": [
+          24.0647,
+          23.8186
+        ],
+        "n_prompt": 1024,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n1024_cpu_2",
+      "n": 1024,
+      "engine": "CPU",
+      "rep": 2,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:41:39+00:00\",\"level\":76,\"temperature_tenths\":352,\"voltage_mv\":4051,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:42:39+00:00\",\"level\":76,\"temperature_tenths\":337,\"voltage_mv\":4079,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:43:40+00:00\",\"level\":76,\"temperature_tenths\":328,\"voltage_mv\":4085,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:44:40+00:00\",\"level\":76,\"temperature_tenths\":322,\"voltage_mv\":4075,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:45:40+00:00\",\"level\":76,\"temperature_tenths\":318,\"voltage_mv\":4084,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 76,
+        "temperature_tenths": 318,
+        "voltage_mv": 4084,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 75,
+        "temperature_tenths": 350,
+        "voltage_mv": 4048,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n1024_cpu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n1024_cpu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 187.9,
+      "manifest_file": "q58_n1024_cpu_2.manifest.json",
+      "stdout_file": "q58_n1024_cpu_2.stdout.jsonl",
+      "stderr_file": "q58_n1024_cpu_2.stderr.log",
+      "guard_file": "q58_n1024_cpu_2.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 28.213246,
+        "samples_ts": [
+          29.5514,
+          26.8751
+        ],
+        "n_prompt": 1024,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n1024_npu_2",
+      "n": 1024,
+      "engine": "NPU",
+      "rep": 2,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:48:49+00:00\",\"level\":75,\"temperature_tenths\":350,\"voltage_mv\":4048,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:49:49+00:00\",\"level\":75,\"temperature_tenths\":335,\"voltage_mv\":4068,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:50:49+00:00\",\"level\":75,\"temperature_tenths\":327,\"voltage_mv\":4061,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:51:49+00:00\",\"level\":75,\"temperature_tenths\":322,\"voltage_mv\":4066,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:52:50+00:00\",\"level\":75,\"temperature_tenths\":317,\"voltage_mv\":4075,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 75,
+        "temperature_tenths": 317,
+        "voltage_mv": 4075,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 74,
+        "temperature_tenths": 331,
+        "voltage_mv": 4056,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n1024_npu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n1024_npu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 88.265,
+      "manifest_file": "q58_n1024_npu_2.manifest.json",
+      "stdout_file": "q58_n1024_npu_2.stdout.jsonl",
+      "stderr_file": "q58_n1024_npu_2.stderr.log",
+      "guard_file": "q58_n1024_npu_2.guard.log",
+      "execute_op_count": 3430,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 82.506653,
+        "samples_ts": [
+          87.6298,
+          77.3835
+        ],
+        "n_prompt": 1024,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n2048_npu_1",
+      "n": 2048,
+      "engine": "NPU",
+      "rep": 1,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:54:20+00:00\",\"level\":74,\"temperature_tenths\":331,\"voltage_mv\":4054,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:55:20+00:00\",\"level\":74,\"temperature_tenths\":320,\"voltage_mv\":4068,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 74,
+        "temperature_tenths": 320,
+        "voltage_mv": 4068,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 74,
+        "temperature_tenths": 341,
+        "voltage_mv": 4039,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n2048_npu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n2048_npu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 111.384,
+      "manifest_file": "q58_n2048_npu_1.manifest.json",
+      "stdout_file": "q58_n2048_npu_1.stdout.jsonl",
+      "stderr_file": "q58_n2048_npu_1.stderr.log",
+      "guard_file": "q58_n2048_npu_1.guard.log",
+      "execute_op_count": 6762,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 92.171058,
+        "samples_ts": [
+          94.7554,
+          89.5867
+        ],
+        "n_prompt": 2048,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n2048_cpu_1",
+      "n": 2048,
+      "engine": "CPU",
+      "rep": 1,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T16:57:16+00:00\",\"level\":74,\"temperature_tenths\":341,\"voltage_mv\":4050,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:58:16+00:00\",\"level\":74,\"temperature_tenths\":327,\"voltage_mv\":4059,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T16:59:17+00:00\",\"level\":74,\"temperature_tenths\":321,\"voltage_mv\":4062,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:00:17+00:00\",\"level\":73,\"temperature_tenths\":316,\"voltage_mv\":4063,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 73,
+        "temperature_tenths": 316,
+        "voltage_mv": 4063,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 71,
+        "temperature_tenths": 369,
+        "voltage_mv": 4005,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n2048_cpu_1.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n2048_cpu_1.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 379.027,
+      "manifest_file": "q58_n2048_cpu_1.manifest.json",
+      "stdout_file": "q58_n2048_cpu_1.stdout.jsonl",
+      "stderr_file": "q58_n2048_cpu_1.stderr.log",
+      "guard_file": "q58_n2048_cpu_1.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 25.0061,
+        "samples_ts": [
+          24.7315,
+          25.2807
+        ],
+        "n_prompt": 2048,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n2048_cpu_2",
+      "n": 2048,
+      "engine": "CPU",
+      "rep": 2,
+      "kill_tenths": 430,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T17:06:37+00:00\",\"level\":71,\"temperature_tenths\":369,\"voltage_mv\":4005,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:07:37+00:00\",\"level\":71,\"temperature_tenths\":350,\"voltage_mv\":4032,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:08:37+00:00\",\"level\":71,\"temperature_tenths\":340,\"voltage_mv\":4037,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:09:38+00:00\",\"level\":71,\"temperature_tenths\":334,\"voltage_mv\":4037,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:10:38+00:00\",\"level\":71,\"temperature_tenths\":329,\"voltage_mv\":4032,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:11:38+00:00\",\"level\":71,\"temperature_tenths\":324,\"voltage_mv\":4040,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:12:38+00:00\",\"level\":71,\"temperature_tenths\":320,\"voltage_mv\":4032,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 71,
+        "temperature_tenths": 320,
+        "voltage_mv": 4032,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 69,
+        "temperature_tenths": 370,
+        "voltage_mv": 3991,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n2048_cpu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n2048_cpu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 375.872,
+      "manifest_file": "q58_n2048_cpu_2.manifest.json",
+      "stdout_file": "q58_n2048_cpu_2.stdout.jsonl",
+      "stderr_file": "q58_n2048_cpu_2.stderr.log",
+      "guard_file": "q58_n2048_cpu_2.guard.log",
+      "execute_op_count": 0,
+      "offloaded_proof": [
+        "offloaded 0/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 25.478337,
+        "samples_ts": [
+          26.042,
+          24.9147
+        ],
+        "n_prompt": 2048,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "auto",
+        "n_gpu_layers": 0,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    },
+    {
+      "tag": "q58_n2048_npu_2",
+      "n": 2048,
+      "engine": "NPU",
+      "rep": 2,
+      "kill_tenths": 410,
+      "cooldown_samples": [
+        "{\"time\":\"2026-08-25T17:18:55+00:00\",\"level\":69,\"temperature_tenths\":370,\"voltage_mv\":3991,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:19:55+00:00\",\"level\":69,\"temperature_tenths\":352,\"voltage_mv\":4008,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:20:55+00:00\",\"level\":69,\"temperature_tenths\":343,\"voltage_mv\":4012,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:21:55+00:00\",\"level\":69,\"temperature_tenths\":337,\"voltage_mv\":4016,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:22:56+00:00\",\"level\":69,\"temperature_tenths\":331,\"voltage_mv\":4007,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:23:56+00:00\",\"level\":69,\"temperature_tenths\":327,\"voltage_mv\":4018,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:24:57+00:00\",\"level\":69,\"temperature_tenths\":323,\"voltage_mv\":4008,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+        "{\"time\":\"2026-08-25T17:25:57+00:00\",\"level\":69,\"temperature_tenths\":320,\"voltage_mv\":4017,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+      ],
+      "battery_pre": {
+        "level": 69,
+        "temperature_tenths": 320,
+        "voltage_mv": 4017,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "battery_post": {
+        "level": 68,
+        "temperature_tenths": 343,
+        "voltage_mv": 3983,
+        "health": 2,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false
+      },
+      "thermalservice_pre_file": "q58_n2048_npu_2.thermalservice.pre.txt",
+      "thermalservice_post_file": "q58_n2048_npu_2.thermalservice.post.txt",
+      "launcher_rc_process": 0,
+      "launcher_elapsed_s": 135.346,
+      "manifest_file": "q58_n2048_npu_2.manifest.json",
+      "stdout_file": "q58_n2048_npu_2.stdout.jsonl",
+      "stderr_file": "q58_n2048_npu_2.stderr.log",
+      "guard_file": "q58_n2048_npu_2.guard.log",
+      "execute_op_count": 6762,
+      "offloaded_proof": [
+        "offloaded 33/33 layers to GPU"
+      ],
+      "jsonl": {
+        "rows": 1,
+        "avg_ts": 84.396365,
+        "samples_ts": [
+          81.8054,
+          86.9874
+        ],
+        "n_prompt": 2048,
+        "n_gen": 0,
+        "backends": "HTP",
+        "devices": "HTP0",
+        "n_gpu_layers": 99,
+        "model_type": "qwen35 4B Q4_0"
+      },
+      "crash_signature": "",
+      "guard_kill": false,
+      "real_crash": false,
+      "thermalservice_pre_bytes": 1327,
+      "thermalservice_post_bytes": 1327,
+      "stop": false
+    }
+  ],
+  "stop": false,
+  "final_battery_file": "final.battery.txt",
+  "final_thermalservice_file": "final.thermalservice.txt",
+  "summary": {
+    "run_count": 16,
+    "normal_count": 16,
+    "crash_signatures": [],
+    "thermalservice_statuses": [
+      0
+    ],
+    "thermalservice_current_headroom_exposed": false,
+    "thermalservice_headroom_thresholds": [
+      "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334"
+    ],
+    "n_max_npu": 512,
+    "max_npu_delta_T_C_individual_for_sizes_le_nmax": 0.6,
+    "max_npu_delta_T_C_mean_for_sizes_le_nmax": 0.5,
+    "thermal_threshold_candidate_C": 39.4,
+    "thermal_threshold_candidate_C_mean_based": 39.5,
+    "battery_start": {
+      "level": 81,
+      "temperature_tenths": 269,
+      "voltage_mv": 4132,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false
+    },
+    "battery_end": {
+      "level": 68,
+      "temperature_tenths": 343,
+      "voltage_mv": 3995,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false
+    },
+    "rows": [
+      {
+        "tag": "q58_n128_npu_1",
+        "n": 128,
+        "engine": "NPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 81,
+          "temperature_tenths": 269,
+          "voltage_mv": 4132,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 81,
+          "temperature_tenths": 273,
+          "voltage_mv": 3994,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 0.4,
+        "thermalservice_pre_file": "q58_n128_npu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n128_npu_1.thermalservice.post.txt",
+        "max_temp_C": 27.3,
+        "wall_s": 16.95,
+        "tps": 75.78319,
+        "execute_op_count": 1764,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "1764 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 3.125,
+        "sec_per_1k": 13.195538482874632,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n128_cpu_1",
+        "n": 128,
+        "engine": "CPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 81,
+          "temperature_tenths": 273,
+          "voltage_mv": 3994,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 80,
+          "temperature_tenths": 311,
+          "voltage_mv": 4074,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 3.8,
+        "thermalservice_pre_file": "q58_n128_cpu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n128_cpu_1.thermalservice.post.txt",
+        "max_temp_C": 28.9,
+        "wall_s": 53.136,
+        "tps": 6.007431,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 29.6875,
+        "sec_per_1k": 166.46050533081444,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n128_cpu_2",
+        "n": 128,
+        "engine": "CPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 80,
+          "temperature_tenths": 311,
+          "voltage_mv": 4074,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 80,
+          "temperature_tenths": 311,
+          "voltage_mv": 4074,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 0.0,
+        "thermalservice_pre_file": "q58_n128_cpu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n128_cpu_2.thermalservice.post.txt",
+        "max_temp_C": 31.1,
+        "wall_s": 18.209,
+        "tps": 38.685951,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 0.0,
+        "sec_per_1k": 25.849177134097076,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n128_npu_2",
+        "n": 128,
+        "engine": "NPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 80,
+          "temperature_tenths": 311,
+          "voltage_mv": 4074,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 80,
+          "temperature_tenths": 317,
+          "voltage_mv": 3983,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 0.6,
+        "thermalservice_pre_file": "q58_n128_npu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n128_npu_2.thermalservice.post.txt",
+        "max_temp_C": 31.7,
+        "wall_s": 15.483,
+        "tps": 73.646106,
+        "execute_op_count": 1764,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "1764 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 4.6875,
+        "sec_per_1k": 13.578450434297231,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n512_npu_1",
+        "n": 512,
+        "engine": "NPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 80,
+          "temperature_tenths": 317,
+          "voltage_mv": 3983,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 80,
+          "temperature_tenths": 317,
+          "voltage_mv": 3983,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 0.0,
+        "thermalservice_pre_file": "q58_n512_npu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n512_npu_1.thermalservice.post.txt",
+        "max_temp_C": 31.7,
+        "wall_s": 20.066,
+        "tps": 126.081691,
+        "execute_op_count": 1764,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "1764 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 0.0,
+        "sec_per_1k": 7.931365704795313,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n512_cpu_1",
+        "n": 512,
+        "engine": "CPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 79,
+          "temperature_tenths": 313,
+          "voltage_mv": 4101,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 79,
+          "temperature_tenths": 343,
+          "voltage_mv": 3949,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 3.0,
+        "thermalservice_pre_file": "q58_n512_cpu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n512_cpu_1.thermalservice.post.txt",
+        "max_temp_C": 34.3,
+        "wall_s": 63.774,
+        "tps": 19.289335,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 5.859375,
+        "sec_per_1k": 51.84211897403409,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n512_cpu_2",
+        "n": 512,
+        "engine": "CPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 78,
+          "temperature_tenths": 315,
+          "voltage_mv": 4101,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 78,
+          "temperature_tenths": 350,
+          "voltage_mv": 3958,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 3.5,
+        "thermalservice_pre_file": "q58_n512_cpu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n512_cpu_2.thermalservice.post.txt",
+        "max_temp_C": 35.0,
+        "wall_s": 63.707,
+        "tps": 19.226679,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 6.8359375,
+        "sec_per_1k": 52.01106233687055,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n512_npu_2",
+        "n": 512,
+        "engine": "NPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 78,
+          "temperature_tenths": 318,
+          "voltage_mv": 4093,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 78,
+          "temperature_tenths": 318,
+          "voltage_mv": 4093,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 0.0,
+        "thermalservice_pre_file": "q58_n512_npu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n512_npu_2.thermalservice.post.txt",
+        "max_temp_C": 31.8,
+        "wall_s": 19.289,
+        "tps": 128.801951,
+        "execute_op_count": 1764,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "1764 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 0.0,
+        "sec_per_1k": 7.763857552126676,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n1024_npu_1",
+        "n": 1024,
+        "engine": "NPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 78,
+          "temperature_tenths": 318,
+          "voltage_mv": 4093,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 77,
+          "temperature_tenths": 326,
+          "voltage_mv": 4078,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 0.8,
+        "thermalservice_pre_file": "q58_n1024_npu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n1024_npu_1.thermalservice.post.txt",
+        "max_temp_C": 32.6,
+        "wall_s": 28.201,
+        "tps": 127.868111,
+        "execute_op_count": 3430,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "3430 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 0.78125,
+        "sec_per_1k": 7.820558168721207,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n1024_cpu_1",
+        "n": 1024,
+        "engine": "CPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 77,
+          "temperature_tenths": 319,
+          "voltage_mv": 4095,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 76,
+          "temperature_tenths": 352,
+          "voltage_mv": 4051,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 3.3,
+        "thermalservice_pre_file": "q58_n1024_cpu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n1024_cpu_1.thermalservice.post.txt",
+        "max_temp_C": 35.3,
+        "wall_s": 181.904,
+        "tps": 23.941668,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 3.22265625,
+        "sec_per_1k": 41.76818423845824,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n1024_cpu_2",
+        "n": 1024,
+        "engine": "CPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 76,
+          "temperature_tenths": 318,
+          "voltage_mv": 4084,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 75,
+          "temperature_tenths": 350,
+          "voltage_mv": 4048,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 3.2,
+        "thermalservice_pre_file": "q58_n1024_cpu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n1024_cpu_2.thermalservice.post.txt",
+        "max_temp_C": 35.0,
+        "wall_s": 187.293,
+        "tps": 28.213246,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 3.125,
+        "sec_per_1k": 35.44434412119754,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n1024_npu_2",
+        "n": 1024,
+        "engine": "NPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 75,
+          "temperature_tenths": 317,
+          "voltage_mv": 4075,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 74,
+          "temperature_tenths": 331,
+          "voltage_mv": 4056,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 1.4,
+        "thermalservice_pre_file": "q58_n1024_npu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n1024_npu_2.thermalservice.post.txt",
+        "max_temp_C": 33.1,
+        "wall_s": 87.907,
+        "tps": 82.506653,
+        "execute_op_count": 3430,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "3430 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 1.3671875,
+        "sec_per_1k": 12.120234716102228,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n2048_npu_1",
+        "n": 2048,
+        "engine": "NPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 74,
+          "temperature_tenths": 320,
+          "voltage_mv": 4068,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 74,
+          "temperature_tenths": 341,
+          "voltage_mv": 4039,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 2.1,
+        "thermalservice_pre_file": "q58_n2048_npu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n2048_npu_1.thermalservice.post.txt",
+        "max_temp_C": 34.1,
+        "wall_s": 111.024,
+        "tps": 92.171058,
+        "execute_op_count": 6762,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "6762 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 1.025390625,
+        "sec_per_1k": 10.849392658593546,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n2048_cpu_1",
+        "n": 2048,
+        "engine": "CPU",
+        "rep": 1,
+        "battery_pre": {
+          "level": 73,
+          "temperature_tenths": 316,
+          "voltage_mv": 4063,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 71,
+          "temperature_tenths": 369,
+          "voltage_mv": 4005,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 5.3,
+        "thermalservice_pre_file": "q58_n2048_cpu_1.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n2048_cpu_1.thermalservice.post.txt",
+        "max_temp_C": 36.9,
+        "wall_s": 378.454,
+        "tps": 25.0061,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 2.587890625,
+        "sec_per_1k": 39.99024238085907,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n2048_cpu_2",
+        "n": 2048,
+        "engine": "CPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 71,
+          "temperature_tenths": 320,
+          "voltage_mv": 4032,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 69,
+          "temperature_tenths": 370,
+          "voltage_mv": 3991,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 5.0,
+        "thermalservice_pre_file": "q58_n2048_cpu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n2048_cpu_2.thermalservice.post.txt",
+        "max_temp_C": 37.2,
+        "wall_s": 375.252,
+        "tps": 25.478337,
+        "execute_op_count": 0,
+        "offloaded_proof": [
+          "offloaded 0/33 layers to GPU"
+        ],
+        "proof": "0 / offloaded 0/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 2.44140625,
+        "sec_per_1k": 39.249029479435805,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      },
+      {
+        "tag": "q58_n2048_npu_2",
+        "n": 2048,
+        "engine": "NPU",
+        "rep": 2,
+        "battery_pre": {
+          "level": 69,
+          "temperature_tenths": 320,
+          "voltage_mv": 4017,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "battery_post": {
+          "level": 68,
+          "temperature_tenths": 343,
+          "voltage_mv": 3983,
+          "health": 2,
+          "ac_powered": false,
+          "usb_powered": false,
+          "wireless_powered": false,
+          "dock_powered": false
+        },
+        "delta_T_C": 2.3,
+        "thermalservice_pre_file": "q58_n2048_npu_2.thermalservice.pre.txt",
+        "thermalservice_post_file": "q58_n2048_npu_2.thermalservice.post.txt",
+        "max_temp_C": 34.4,
+        "wall_s": 134.888,
+        "tps": 84.396365,
+        "execute_op_count": 6762,
+        "offloaded_proof": [
+          "offloaded 33/33 layers to GPU"
+        ],
+        "proof": "6762 / offloaded 33/33 layers to GPU",
+        "thermal_status_pre": 0,
+        "thermal_status_post": 0,
+        "thermal_pre": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "thermal_post": {
+          "status": 0,
+          "headroom_current": null,
+          "headroom_thresholds": "NaN, 0.8666667, 0.93333334, 1.0, 1.1333333, 1.4333333, 2.4333334",
+          "headroom_exposed": false
+        },
+        "c_per_1k": 1.123046875,
+        "sec_per_1k": 11.848851547101583,
+        "workload_rc": 0,
+        "guard_rc": 0,
+        "guard_outcome": "normal",
+        "crash_signature": ""
+      }
+    ],
+    "means": [
+      {
+        "n": 128,
+        "engine": "NPU",
+        "runs": 2,
+        "mean_delta_T_C": 0.5,
+        "mean_max_temp_C": 29.5,
+        "mean_wall_s": 16.2165,
+        "mean_tps": 74.71464800000001,
+        "mean_c_per_1k": 3.90625,
+        "mean_sec_per_1k": 13.386994458585932
+      },
+      {
+        "n": 128,
+        "engine": "CPU",
+        "runs": 2,
+        "mean_delta_T_C": 1.9,
+        "mean_max_temp_C": 30.0,
+        "mean_wall_s": 35.6725,
+        "mean_tps": 22.346691,
+        "mean_c_per_1k": 14.84375,
+        "mean_sec_per_1k": 96.15484123245577
+      },
+      {
+        "n": 512,
+        "engine": "NPU",
+        "runs": 2,
+        "mean_delta_T_C": 0.0,
+        "mean_max_temp_C": 31.75,
+        "mean_wall_s": 19.677500000000002,
+        "mean_tps": 127.441821,
+        "mean_c_per_1k": 0.0,
+        "mean_sec_per_1k": 7.847611628460994
+      },
+      {
+        "n": 512,
+        "engine": "CPU",
+        "runs": 2,
+        "mean_delta_T_C": 3.25,
+        "mean_max_temp_C": 34.65,
+        "mean_wall_s": 63.7405,
+        "mean_tps": 19.258007,
+        "mean_c_per_1k": 6.34765625,
+        "mean_sec_per_1k": 51.92659065545232
+      },
+      {
+        "n": 1024,
+        "engine": "NPU",
+        "runs": 2,
+        "mean_delta_T_C": 1.1,
+        "mean_max_temp_C": 32.85,
+        "mean_wall_s": 58.054,
+        "mean_tps": 105.187382,
+        "mean_c_per_1k": 1.07421875,
+        "mean_sec_per_1k": 9.970396442411717
+      },
+      {
+        "n": 1024,
+        "engine": "CPU",
+        "runs": 2,
+        "mean_delta_T_C": 3.25,
+        "mean_max_temp_C": 35.15,
+        "mean_wall_s": 184.5985,
+        "mean_tps": 26.077457000000003,
+        "mean_c_per_1k": 3.173828125,
+        "mean_sec_per_1k": 38.60626417982789
+      },
+      {
+        "n": 2048,
+        "engine": "NPU",
+        "runs": 2,
+        "mean_delta_T_C": 2.2,
+        "mean_max_temp_C": 34.25,
+        "mean_wall_s": 122.956,
+        "mean_tps": 88.28371150000001,
+        "mean_c_per_1k": 1.07421875,
+        "mean_sec_per_1k": 11.349122102847565
+      },
+      {
+        "n": 2048,
+        "engine": "CPU",
+        "runs": 2,
+        "mean_delta_T_C": 5.15,
+        "mean_max_temp_C": 37.05,
+        "mean_wall_s": 376.853,
+        "mean_tps": 25.2422185,
+        "mean_c_per_1k": 2.5146484375,
+        "mean_sec_per_1k": 39.61963593014744
+      }
+    ]
+  }
+}

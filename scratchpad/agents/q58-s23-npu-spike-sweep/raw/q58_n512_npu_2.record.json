@@ -1,0 +1,64 @@
+{
+  "tag": "q58_n512_npu_2",
+  "n": 512,
+  "engine": "NPU",
+  "rep": 2,
+  "kill_tenths": 410,
+  "cooldown_samples": [
+    "{\"time\":\"2026-08-25T16:32:42+00:00\",\"level\":78,\"temperature_tenths\":350,\"voltage_mv\":3958,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:33:43+00:00\",\"level\":78,\"temperature_tenths\":335,\"voltage_mv\":4085,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:34:43+00:00\",\"level\":78,\"temperature_tenths\":324,\"voltage_mv\":4090,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:35:43+00:00\",\"level\":78,\"temperature_tenths\":318,\"voltage_mv\":4093,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+  ],
+  "battery_pre": {
+    "level": 78,
+    "temperature_tenths": 318,
+    "voltage_mv": 4093,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "battery_post": {
+    "level": 78,
+    "temperature_tenths": 318,
+    "voltage_mv": 4093,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "thermalservice_pre_file": "q58_n512_npu_2.thermalservice.pre.txt",
+  "thermalservice_post_file": "q58_n512_npu_2.thermalservice.post.txt",
+  "launcher_rc_process": 0,
+  "launcher_elapsed_s": 19.682,
+  "manifest_file": "q58_n512_npu_2.manifest.json",
+  "stdout_file": "q58_n512_npu_2.stdout.jsonl",
+  "stderr_file": "q58_n512_npu_2.stderr.log",
+  "guard_file": "q58_n512_npu_2.guard.log",
+  "execute_op_count": 1764,
+  "offloaded_proof": [
+    "offloaded 33/33 layers to GPU"
+  ],
+  "jsonl": {
+    "rows": 1,
+    "avg_ts": 128.801951,
+    "samples_ts": [
+      127.786,
+      129.818
+    ],
+    "n_prompt": 512,
+    "n_gen": 0,
+    "backends": "HTP",
+    "devices": "HTP0",
+    "n_gpu_layers": 99,
+    "model_type": "qwen35 4B Q4_0"
+  },
+  "crash_signature": "",
+  "guard_kill": false,
+  "real_crash": false,
+  "thermalservice_pre_bytes": 1327,
+  "thermalservice_post_bytes": 1327
+}

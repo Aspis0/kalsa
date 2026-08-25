@@ -1,0 +1,63 @@
+{
+  "tag": "q58_n512_cpu_2",
+  "n": 512,
+  "engine": "CPU",
+  "rep": 2,
+  "kill_tenths": 430,
+  "cooldown_samples": [
+    "{\"time\":\"2026-08-25T16:29:37+00:00\",\"level\":79,\"temperature_tenths\":343,\"voltage_mv\":3949,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:30:38+00:00\",\"level\":79,\"temperature_tenths\":324,\"voltage_mv\":4087,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:31:38+00:00\",\"level\":78,\"temperature_tenths\":315,\"voltage_mv\":4101,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+  ],
+  "battery_pre": {
+    "level": 78,
+    "temperature_tenths": 315,
+    "voltage_mv": 4101,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "battery_post": {
+    "level": 78,
+    "temperature_tenths": 350,
+    "voltage_mv": 3958,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "thermalservice_pre_file": "q58_n512_cpu_2.thermalservice.pre.txt",
+  "thermalservice_post_file": "q58_n512_cpu_2.thermalservice.post.txt",
+  "launcher_rc_process": 0,
+  "launcher_elapsed_s": 64.03,
+  "manifest_file": "q58_n512_cpu_2.manifest.json",
+  "stdout_file": "q58_n512_cpu_2.stdout.jsonl",
+  "stderr_file": "q58_n512_cpu_2.stderr.log",
+  "guard_file": "q58_n512_cpu_2.guard.log",
+  "execute_op_count": 0,
+  "offloaded_proof": [
+    "offloaded 0/33 layers to GPU"
+  ],
+  "jsonl": {
+    "rows": 1,
+    "avg_ts": 19.226679,
+    "samples_ts": [
+      19.6599,
+      18.7934
+    ],
+    "n_prompt": 512,
+    "n_gen": 0,
+    "backends": "HTP",
+    "devices": "auto",
+    "n_gpu_layers": 0,
+    "model_type": "qwen35 4B Q4_0"
+  },
+  "crash_signature": "",
+  "guard_kill": false,
+  "real_crash": false,
+  "thermalservice_pre_bytes": 1327,
+  "thermalservice_post_bytes": 1327
+}

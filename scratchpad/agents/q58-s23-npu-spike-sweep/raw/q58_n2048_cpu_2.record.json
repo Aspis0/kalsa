@@ -1,0 +1,67 @@
+{
+  "tag": "q58_n2048_cpu_2",
+  "n": 2048,
+  "engine": "CPU",
+  "rep": 2,
+  "kill_tenths": 430,
+  "cooldown_samples": [
+    "{\"time\":\"2026-08-25T17:06:37+00:00\",\"level\":71,\"temperature_tenths\":369,\"voltage_mv\":4005,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T17:07:37+00:00\",\"level\":71,\"temperature_tenths\":350,\"voltage_mv\":4032,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T17:08:37+00:00\",\"level\":71,\"temperature_tenths\":340,\"voltage_mv\":4037,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T17:09:38+00:00\",\"level\":71,\"temperature_tenths\":334,\"voltage_mv\":4037,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T17:10:38+00:00\",\"level\":71,\"temperature_tenths\":329,\"voltage_mv\":4032,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T17:11:38+00:00\",\"level\":71,\"temperature_tenths\":324,\"voltage_mv\":4040,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T17:12:38+00:00\",\"level\":71,\"temperature_tenths\":320,\"voltage_mv\":4032,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+  ],
+  "battery_pre": {
+    "level": 71,
+    "temperature_tenths": 320,
+    "voltage_mv": 4032,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "battery_post": {
+    "level": 69,
+    "temperature_tenths": 370,
+    "voltage_mv": 3991,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "thermalservice_pre_file": "q58_n2048_cpu_2.thermalservice.pre.txt",
+  "thermalservice_post_file": "q58_n2048_cpu_2.thermalservice.post.txt",
+  "launcher_rc_process": 0,
+  "launcher_elapsed_s": 375.872,
+  "manifest_file": "q58_n2048_cpu_2.manifest.json",
+  "stdout_file": "q58_n2048_cpu_2.stdout.jsonl",
+  "stderr_file": "q58_n2048_cpu_2.stderr.log",
+  "guard_file": "q58_n2048_cpu_2.guard.log",
+  "execute_op_count": 0,
+  "offloaded_proof": [
+    "offloaded 0/33 layers to GPU"
+  ],
+  "jsonl": {
+    "rows": 1,
+    "avg_ts": 25.478337,
+    "samples_ts": [
+      26.042,
+      24.9147
+    ],
+    "n_prompt": 2048,
+    "n_gen": 0,
+    "backends": "HTP",
+    "devices": "auto",
+    "n_gpu_layers": 0,
+    "model_type": "qwen35 4B Q4_0"
+  },
+  "crash_signature": "",
+  "guard_kill": false,
+  "real_crash": false,
+  "thermalservice_pre_bytes": 1327,
+  "thermalservice_post_bytes": 1327
+}

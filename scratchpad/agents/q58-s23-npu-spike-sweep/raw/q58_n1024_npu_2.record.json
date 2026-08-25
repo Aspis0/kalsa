@@ -1,0 +1,65 @@
+{
+  "tag": "q58_n1024_npu_2",
+  "n": 1024,
+  "engine": "NPU",
+  "rep": 2,
+  "kill_tenths": 410,
+  "cooldown_samples": [
+    "{\"time\":\"2026-08-25T16:48:49+00:00\",\"level\":75,\"temperature_tenths\":350,\"voltage_mv\":4048,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:49:49+00:00\",\"level\":75,\"temperature_tenths\":335,\"voltage_mv\":4068,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:50:49+00:00\",\"level\":75,\"temperature_tenths\":327,\"voltage_mv\":4061,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:51:49+00:00\",\"level\":75,\"temperature_tenths\":322,\"voltage_mv\":4066,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}",
+    "{\"time\":\"2026-08-25T16:52:50+00:00\",\"level\":75,\"temperature_tenths\":317,\"voltage_mv\":4075,\"health\":2,\"ac_powered\":false,\"usb_powered\":false,\"wireless_powered\":false,\"dock_powered\":false}"
+  ],
+  "battery_pre": {
+    "level": 75,
+    "temperature_tenths": 317,
+    "voltage_mv": 4075,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "battery_post": {
+    "level": 74,
+    "temperature_tenths": 331,
+    "voltage_mv": 4056,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false
+  },
+  "thermalservice_pre_file": "q58_n1024_npu_2.thermalservice.pre.txt",
+  "thermalservice_post_file": "q58_n1024_npu_2.thermalservice.post.txt",
+  "launcher_rc_process": 0,
+  "launcher_elapsed_s": 88.265,
+  "manifest_file": "q58_n1024_npu_2.manifest.json",
+  "stdout_file": "q58_n1024_npu_2.stdout.jsonl",
+  "stderr_file": "q58_n1024_npu_2.stderr.log",
+  "guard_file": "q58_n1024_npu_2.guard.log",
+  "execute_op_count": 3430,
+  "offloaded_proof": [
+    "offloaded 33/33 layers to GPU"
+  ],
+  "jsonl": {
+    "rows": 1,
+    "avg_ts": 82.506653,
+    "samples_ts": [
+      87.6298,
+      77.3835
+    ],
+    "n_prompt": 1024,
+    "n_gen": 0,
+    "backends": "HTP",
+    "devices": "HTP0",
+    "n_gpu_layers": 99,
+    "model_type": "qwen35 4B Q4_0"
+  },
+  "crash_signature": "",
+  "guard_kill": false,
+  "real_crash": false,
+  "thermalservice_pre_bytes": 1327,
+  "thermalservice_post_bytes": 1327
+}

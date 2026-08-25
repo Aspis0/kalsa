@@ -1,0 +1,4 @@
+{"time":"2026-08-25T16:32:42+00:00","level":78,"temperature_tenths":350,"voltage_mv":3958,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T16:33:43+00:00","level":78,"temperature_tenths":335,"voltage_mv":4085,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T16:34:43+00:00","level":78,"temperature_tenths":324,"voltage_mv":4090,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}
+{"time":"2026-08-25T16:35:43+00:00","level":78,"temperature_tenths":318,"voltage_mv":4093,"health":2,"ac_powered":false,"usb_powered":false,"wireless_powered":false,"dock_powered":false}

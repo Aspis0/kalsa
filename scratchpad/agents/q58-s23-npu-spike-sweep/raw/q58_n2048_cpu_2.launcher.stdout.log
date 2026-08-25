@@ -1,0 +1,464 @@
+{
+  "tag": "q58_n2048_cpu_2",
+  "serial": "192.168.1.152:36269",
+  "supervisor_pid": 25944,
+  "guard_pid": 25945,
+  "binary_pid": 25946,
+  "workload_exec_pid": 25946,
+  "cpuset": "/",
+  "workload": [
+    "/data/local/tmp/kalsahtp/llama-bench",
+    "-m",
+    "/data/local/tmp/kalsahtp/Qwen3.5-4B-Q4_0.gguf",
+    "-p",
+    "2048",
+    "-n",
+    "0",
+    "-r",
+    "2",
+    "--no-warmup",
+    "-t",
+    "8",
+    "-fa",
+    "on",
+    "--load-mode",
+    "none",
+    "-o",
+    "jsonl",
+    "-v",
+    "-ngl",
+    "0"
+  ],
+  "allow_npu": false,
+  "thermal_sensor_cmd": "",
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "unset",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "warn_tenths": 400,
+    "kill_tenths": 430,
+    "hard_abort_tenths": 0,
+    "session_hard_cap_tenths": 0,
+    "effective_kill_tenths": 430,
+    "interval_s": 1,
+    "sensor_fail_limit": 4,
+    "sensor_timeout_s": 10,
+    "sensor_failure_window_s": 40,
+    "fail_closed_false_kill_accepted": true,
+    "ready_verified": true,
+    "tracking_verified": true,
+    "exit_code": 0,
+    "max_temperature_tenths": 372
+  },
+  "workload_rc": 0,
+  "guard_exit_code": 0,
+  "guard_outcome": "normal",
+  "launcher_exit_code": 0,
+  "workload_never_started": false,
+  "timed_out": false,
+  "abort_reason": "",
+  "workload_failure_signature": "",
+  "guard_liveness_abort": false,
+  "adb_disconnect": false,
+  "adb_reconnect_attempts": 0,
+  "wall_seconds_until_poll_end": 375.252,
+  "disk_available_kb": 8466120,
+  "battery_start": {
+    "level": 71,
+    "temperature_tenths": 320,
+    "voltage_mv": 4032,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_end": {
+    "level": 69,
+    "temperature_tenths": 370,
+    "voltage_mv": 3991,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_samples": [
+    {
+      "level": 71,
+      "temperature_tenths": 320,
+      "voltage_mv": 4027,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 321,
+      "voltage_mv": 4034,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 323,
+      "voltage_mv": 4030,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 328,
+      "voltage_mv": 4023,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 333,
+      "voltage_mv": 4016,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 336,
+      "voltage_mv": 3895,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 337,
+      "voltage_mv": 4015,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 338,
+      "voltage_mv": 4014,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 340,
+      "voltage_mv": 4012,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 342,
+      "voltage_mv": 4001,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 71,
+      "temperature_tenths": 343,
+      "voltage_mv": 4010,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 344,
+      "voltage_mv": 4009,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 347,
+      "voltage_mv": 4004,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 349,
+      "voltage_mv": 3999,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 353,
+      "voltage_mv": 3999,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 356,
+      "voltage_mv": 3997,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 356,
+      "voltage_mv": 3998,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 356,
+      "voltage_mv": 3998,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 357,
+      "voltage_mv": 3967,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 358,
+      "voltage_mv": 3985,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 362,
+      "voltage_mv": 3994,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 362,
+      "voltage_mv": 3995,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 362,
+      "voltage_mv": 3988,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 363,
+      "voltage_mv": 3993,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 70,
+      "temperature_tenths": 363,
+      "voltage_mv": 3994,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 363,
+      "voltage_mv": 3994,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 363,
+      "voltage_mv": 3992,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 363,
+      "voltage_mv": 3992,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 365,
+      "voltage_mv": 3986,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 365,
+      "voltage_mv": 3880,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 370,
+      "voltage_mv": 3984,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 372,
+      "voltage_mv": 3947,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 371,
+      "voltage_mv": 3969,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 69,
+      "temperature_tenths": 370,
+      "voltage_mv": 3991,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    }
+  ],
+  "battery_floor_triggered": false,
+  "battery_floor_chunk": null,
+  "battery_poll_error": false,
+  "running_ppl_values": {},
+  "running_ppl_max_chunk": null,
+  "launch_stdout": "LAUNCH_PID=25944\n",
+  "guard_launch_stdout": "GUARD_PID=25945",
+  "execute_op_htp0": false,
+  "pulls": {
+    "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.stdout.jsonl": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.stdout.jsonl: 1 file pulled, 0 skipped. 0.0 MB/s (960 bytes in 0.021s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.stderr.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.stderr.log: 1 file pulled, 0 skipped. 11.9 MB/s (640446 bytes in 0.051s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.workload.start_failure": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.workload.start_failure': No such file or directory\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.workload.exec.pid": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.workload.exec.pid: 1 file pulled, 0 skipped. 0.0 MB/s (19 bytes in 0.038s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q58_n2048_cpu_2.guard.log: 1 file pulled, 0 skipped. 0.1 MB/s (3961 bytes in 0.038s)\n"
+    }
+  }
+}
