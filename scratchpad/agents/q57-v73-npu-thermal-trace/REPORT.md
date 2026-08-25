@@ -143,6 +143,7 @@ guard_rc=0
 launcher_rc=0
 crash_signature=NONE
 
-charge_counter_granularity_caveat=C1,C2 unchanged
+charge_counter_granularity_caveat=C1,C2 unchanged (0 uAh delta); B1=169.09 J vs B2=896.94 J for IDENTICAL work (5.3x) => the dumpsys charge counter (~1 mAh granularity) is unusable at this scale; ALL energy_J and J_per_token rows in Arms B/C are UNRELIABLE - DO NOT CITE (audit REVIEW_BC.md, correction applied)
+protocol_note_cool_start=PREREG a4999d53 gate was <=30.0 C; C2 (31.1 C) and B2 (31.5 C) started under a <=32.0 C gate authorized by the orchestrator in the session re-prompt because this device idles at ~31 C; deviation recorded, not a measurement change
 real_crash_signature=NONE
 ```
