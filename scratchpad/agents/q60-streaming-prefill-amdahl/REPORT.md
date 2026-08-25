@@ -17,3 +17,19 @@ pp512 warm compute_share median = 0.788710
 rule = GO as phase 2 of the HVX K-quant project (NPU-for-streaming ceiling >= 2x).
 
 max_temperature_C: pp128=28.0; pp512=30.0; pp2048=36.0
+
+## Orchestrator arbitration (post-audit, 25/08)
+The frozen rule (`compute_share ≥ 0.50 → GO`) is REFUTED by REVIEW_MATH.md: it assumed
+non-overlapping I/O and compute (Amdahl `1/(1−share)`), while the raw CSVs show read_bytes and
+utime growing in parallel (kernel readahead overlaps I/O with compute). The honest ceiling is
+`wall / max(I/O_floor, compute/k)`; on this device the pp512 warm wall (23.2 s) already equals
+its own I/O floor (22.3 s at the 361–376 MB/s the access pattern delivers) → NPU headroom
+1.00–1.04× (k≥8) self-consistent, ≤1.8× even at the cell's best 634 MB/s; a net LOSS at k≤4.
+Additional unmodelled cost: per-expert tiling/repack into HTP buffers = a second pass over the
+same 8.4 GB per prefill (8–28 s), enough on its own to erase the headroom.
+**Verdict: NO-GO for NPU-for-streaming-MoE on 8 GB / UFS 2.2 class devices.** The measurement
+itself is valid and reusable; the mapping in the PREREG was the error (orchestrator's).
+Open door: v75 + UFS 4.0 (Xiaomi) — one measurement re-gates it: per-rep read_bytes on a model
+≥ 1.2× usable RAM (≈0 → RAM-resident, not streaming; ≈ model size → streaming persists, re-derive
+with the floor at UFS 4.0 bandwidth) + a readable /proc/pressure/io; plus, for any design,
+repack MB/s ≥ stream MB/s as a hard prerequisite.
