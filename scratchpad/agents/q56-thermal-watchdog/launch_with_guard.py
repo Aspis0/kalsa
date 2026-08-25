@@ -30,6 +30,7 @@ DEFAULT_SENSOR_FAILURE_LIMIT = 3
 MIN_FREE_KB = 500 * 1024
 EXIT_GUARD_LIVENESS = 75
 EXIT_ADB_DISCONNECT = 76
+EXIT_WORKLOAD_NOT_STARTED = 77
 
 
 class AdbTransportError(RuntimeError):
@@ -249,6 +250,18 @@ def guard_has_sample(text: str) -> bool:
     return bool(re.search(r"^\d+,\d+,-?\d+(?:$|,)", text, re.MULTILINE))
 
 
+def guard_outcome(guard_rc: int | None, guard_liveness_abort: bool, guard_log: str) -> str:
+    if guard_liveness_abort or guard_rc == 75:
+        return "guard-not-ready"
+    if guard_rc == 0:
+        return "normal"
+    if guard_rc == 2:
+        return "thermal kill"
+    if guard_rc == 3:
+        return "sensor fail-closed"
+    return "other"
+
+
 def wait_for_guard_ready(
     device: Device,
     supervisor_pid: int,
@@ -257,7 +270,7 @@ def wait_for_guard_ready(
     guard_log_file: str,
     interval_s: int,
 ) -> int:
-    deadline = time.monotonic() + max(2.0 * interval_s, 2.0)
+    deadline = time.monotonic() + max(2.0 * interval_s, 10.0)
     while time.monotonic() < deadline:
         guard_text = read_remote_file(device, guard_pid_file)
         guard_pid_text = parse_key_value(guard_text, "GUARD_PID")
@@ -272,7 +285,7 @@ def wait_for_guard_ready(
         if guard_pid_text.isdigit() and parse_key_value(ready_text, "GUARD_READY").isdigit() and guard_has_sample(log_text):
             return int(guard_pid_text)
         time.sleep(0.25)
-    raise GuardLivenessError("guard did not publish a first sample within two poll intervals")
+    raise GuardLivenessError("guard did not publish a first sample within max(2 intervals, 10 seconds)")
 
 
 def wait_for_tracking(device: Device, guard_pid: int, tracking_file: str, interval_s: int) -> None:
@@ -320,6 +333,7 @@ def launch(args: argparse.Namespace) -> int:
     remote_guard_ready_file = f"{REMOTE_DIR}/{remote_tag}.guard.ready"
     remote_guard_tracking_file = f"{REMOTE_DIR}/{remote_tag}.guard.tracking"
     remote_rc_file = f"{REMOTE_DIR}/{remote_tag}.workload.rc"
+    remote_start_failure_file = f"{REMOTE_DIR}/{remote_tag}.workload.start_failure"
     remote_guard_rc_file = f"{REMOTE_DIR}/{remote_tag}.guard.rc"
     remote_supervisor_failure_file = f"{REMOTE_DIR}/{remote_tag}.supervisor.failure"
 
@@ -376,7 +390,8 @@ def launch(args: argparse.Namespace) -> int:
     workload_wrapper = (
         f"while [ ! -f {shlex.quote(remote_guard_tracking_file)} ]; do sleep 1; done; "
         f"{setup} ; exec {quoted_workload} > {shlex.quote(remote_workload_log)} "
-        f"2> {shlex.quote(remote_stderr_log)}"
+        f"2> {shlex.quote(remote_stderr_log)}; exec_rc=$?; "
+        f"echo WORKLOAD_NEVER_STARTED=$exec_rc > {shlex.quote(remote_start_failure_file)}; exit 126"
     )
     guard_args = " ".join(
         shlex.quote(item)
@@ -405,6 +420,7 @@ def launch(args: argparse.Namespace) -> int:
             remote_guard_ready_file,
             remote_guard_tracking_file,
             remote_rc_file,
+            remote_start_failure_file,
             remote_guard_rc_file,
             remote_supervisor_failure_file,
         )
@@ -415,7 +431,7 @@ def launch(args: argparse.Namespace) -> int:
             f"nohup setsid sh -c {shlex.quote(guard_inner)} </dev/null >/dev/null 2>&1 & guard=$!",
             f"echo GUARD_PID=$guard > {shlex.quote(remote_guard_pid_file)}",
             "child=0",
-            "trap 'if [ \"$child\" -gt 0 ]; then kill -9 \"$child\" 2>/dev/null; fi' 0 1 2 3 15",
+            "trap 'if [ \"$child\" -gt 0 ] && kill -0 \"$child\" 2>/dev/null; then kill -9 \"$child\" 2>/dev/null; fi' 0 1 2 3 15",
             f"( {workload_wrapper} ) & child=$!",
             f"echo BINARY_PID=$child > {shlex.quote(remote_pid_file)}",
             f"if [ -r /proc/$child/cpuset ]; then echo CPUSET=$(cat /proc/$child/cpuset) >> {shlex.quote(remote_pid_file)}; else echo CPUSET_UNAVAILABLE >> {shlex.quote(remote_pid_file)}; fi",
@@ -547,6 +563,7 @@ def launch(args: argparse.Namespace) -> int:
     for remote, local_name in [
         (remote_workload_log, f"{remote_tag}.stdout.jsonl"),
         (remote_stderr_log, f"{remote_tag}.stderr.log"),
+        (remote_start_failure_file, f"{remote_tag}.workload.start_failure"),
         (remote_guard_log, f"{remote_tag}.guard.log"),
     ]:
         try:
@@ -559,6 +576,7 @@ def launch(args: argparse.Namespace) -> int:
     guard_local = local_dir / f"{remote_tag}.guard.log"
     stdout_local = local_dir / f"{remote_tag}.stdout.jsonl"
     stderr_local = local_dir / f"{remote_tag}.stderr.log"
+    start_failure_local = local_dir / f"{remote_tag}.workload.start_failure"
     guard_log = guard_local.read_text(encoding="utf-8", errors="replace") if guard_local.exists() else ""
     try:
         guard_text = read_remote_file(device, remote_guard_pid_file) if not adb_disconnect else ""
@@ -567,6 +585,10 @@ def launch(args: argparse.Namespace) -> int:
         adb_disconnect = True
     stdout_log = stdout_local.read_text(encoding="utf-8", errors="replace") if stdout_local.exists() else ""
     stderr_log = stderr_local.read_text(encoding="utf-8", errors="replace") if stderr_local.exists() else ""
+    start_failure_log = start_failure_local.read_text(encoding="utf-8", errors="replace") if start_failure_local.exists() else ""
+    workload_never_started = bool(re.search(r"^WORKLOAD_NEVER_STARTED=", start_failure_log, re.MULTILINE)) or workload_rc in {126, 127}
+    if workload_never_started:
+        abort_reason = "workload_never_started"
     execute_op_htp0 = bool(re.search(r"execute-op.*HTP0|HTP0.*execute-op", stderr_log, re.I))
     execute_op_htp0 = execute_op_htp0 or bool(re.search(r"execute-op.*HTP0|HTP0.*execute-op", stdout_log, re.I))
     running_values.update(running_ppl_values(stdout_log))
@@ -591,6 +613,23 @@ def launch(args: argparse.Namespace) -> int:
     effective_kill_tenths = args.kill_tenths
     if args.session_hard_cap_tenths > 0:
         effective_kill_tenths = min(effective_kill_tenths, args.session_hard_cap_tenths)
+    named_guard_outcome = guard_outcome(guard_rc, guard_liveness_abort, guard_log)
+    if htp_execute_op_detected:
+        launcher_exit_code = 3
+    elif workload_never_started:
+        launcher_exit_code = EXIT_WORKLOAD_NOT_STARTED
+    elif adb_disconnect:
+        launcher_exit_code = EXIT_ADB_DISCONNECT
+    elif guard_liveness_abort:
+        launcher_exit_code = EXIT_GUARD_LIVENESS
+    elif timed_out:
+        launcher_exit_code = 124
+    elif guard_rc == 2:
+        launcher_exit_code = 0
+    elif guard_rc != 0 or workload_rc != 0:
+        launcher_exit_code = 1
+    else:
+        launcher_exit_code = 0
     manifest = {
         "tag": args.tag,
         "serial": device.serial,
@@ -616,12 +655,19 @@ def launch(args: argparse.Namespace) -> int:
             "effective_kill_tenths": effective_kill_tenths,
             "interval_s": args.interval_s,
             "sensor_fail_limit": args.sensor_failure_limit,
+            "sensor_timeout_s": 5,
+            "sensor_failure_window_s": args.sensor_failure_limit * 5,
+            "fail_closed_false_kill_accepted": True,
             "ready_verified": not guard_liveness_abort and guard_pid is not None,
             "tracking_verified": not guard_liveness_abort and pid is not None,
             "exit_code": guard_rc,
             "max_temperature_tenths": max_temp_from_guard_log(guard_log),
         },
         "workload_rc": workload_rc,
+        "guard_exit_code": guard_rc,
+        "guard_outcome": named_guard_outcome,
+        "launcher_exit_code": launcher_exit_code,
+        "workload_never_started": workload_never_started,
         "timed_out": timed_out,
         "abort_reason": abort_reason,
         "guard_liveness_abort": guard_liveness_abort,
@@ -649,18 +695,7 @@ def launch(args: argparse.Namespace) -> int:
 
     if htp_execute_op_detected:
         print("STOP: HTP0 execute-op evidence found in workload logs", file=sys.stderr)
-        return 3
-    if adb_disconnect:
-        return EXIT_ADB_DISCONNECT
-    if guard_liveness_abort:
-        return EXIT_GUARD_LIVENESS
-    if timed_out:
-        return 124
-    if guard_rc == 2:
-        return 0
-    if guard_rc != 0 or workload_rc != 0:
-        return 1
-    return 0
+    return launcher_exit_code
 
 
 def main() -> int:

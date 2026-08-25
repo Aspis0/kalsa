@@ -24,6 +24,8 @@ session_hard_cap_tenths=${6:-0}
 ready_path=${7:-}
 tracking_path=${8:-}
 sensor_fail_limit=${9:-3}
+sensor_timeout_s=5
+sensor_failure_window_s=$((sensor_fail_limit * sensor_timeout_s))
 
 is_uint() {
     case "$1" in
@@ -90,7 +92,7 @@ resolve_target_pid() {
 }
 
 read_sample() {
-    sample_text=$(timeout 5 dumpsys battery 2>/dev/null)
+    sample_text=$(timeout "$sensor_timeout_s" dumpsys battery 2>/dev/null)
     temp=$(printf '%s\n' "$sample_text" | grep -m 1 '^[[:space:]]*temperature:' | sed -n 's/.*temperature:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
     level=$(printf '%s\n' "$sample_text" | grep -m 1 '^[[:space:]]*level:' | sed -n 's/.*level:[[:space:]]*\([0-9][0-9]*\).*/\1/p')
 
@@ -197,7 +199,11 @@ process_sample() {
 }
 
 : >> "$log_path" || exit 73
-log_line "START,$(date +%s),warn_tenths=$warn_tenths,kill_tenths=$kill_tenths,hard_abort_tenths=$session_hard_cap_tenths,session_hard_cap_tenths=$session_hard_cap_tenths,effective_kill_tenths=$effective_kill_tenths,interval_s=$interval_s,sensor_fail_limit=$sensor_fail_limit" || exit 73
+log_line "START,$(date +%s),warn_tenths=$warn_tenths,kill_tenths=$kill_tenths,hard_abort_tenths=$session_hard_cap_tenths,session_hard_cap_tenths=$session_hard_cap_tenths,effective_kill_tenths=$effective_kill_tenths,interval_s=$interval_s,sensor_fail_limit=$sensor_fail_limit,sensor_timeout_s=$sensor_timeout_s,sensor_failure_window_s=$sensor_failure_window_s,fail_closed_false_kill_accepted=1" || exit 73
+if ! command -v timeout >/dev/null 2>&1; then
+    log_line "TIMEOUT_BINARY_MISSING,timeout_required_for_${sensor_timeout_s}s_sensor_reads"
+    exit 64
+fi
 
 while :; do
     poll_started=$(date +%s 2>/dev/null)

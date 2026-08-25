@@ -49,8 +49,8 @@ wiki.test.raw=173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08 M
 LFM-B-prime=38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a MATCH
 Qwen3.5-4B-Q4_0=298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb MATCH
 mismatches=0
-thermal_guard_sha256=b07c9847b055a8b4352e024d3324dc7417c97a2d2a39d55bf86a76d6a78ecd71
-launch_with_guard_sha256=c66b9ee915266e9cfd6b30537b752595be334aaa5792c876468dc46f413f79dc
+thermal_guard_sha256=1397e02f7866e32d8921a2c3db9cd4a09d25ba42719f10933cb9fc82f2e93d58
+launch_with_guard_sha256=a829f5f9d4b54c93455d763d2468643b3000d1cb7044219a752bf12b02a77fb6
 thermal_guard_device_sha256=NOT_REVALIDATED
 ```
 
@@ -93,6 +93,9 @@ session_hard_cap_tenths=380
 effective_kill_tenths=380
 effective_kill_temperature_c=38.0
 sensor_failure_limit=3
+sensor_timeout_s=5
+sensor_failure_window_s=15
+fail_closed_false_kill_accepted=1
 ```
 
 ## pulled_lane2_evidence
@@ -141,6 +144,12 @@ test2_n_gpu_layers=0
 17 -> prior validation evidence retained unchanged; no new device evidence claimed
 18 -> first-poll kill behavior retained
 19 -> launcher refuses /data/local/tmp below 500 MB free
+A -> wrapper records WORKLOAD_NEVER_STARTED on exec failure; launcher marks workload_never_started and returns distinct exit 77
+B -> supervisor EXIT trap now checks kill -0 before attempting cleanup kill
+D -> guard checks command -v timeout at startup, logs TIMEOUT_BINARY_MISSING, and refuses to arm without it
+E -> sensor_fail_limit remains 3 by design; 3 consecutive 5 s reads = 15 s binder-unavailability window, and fail-closed false-kill is explicitly accepted
+H -> guard-ready deadline is max(2 poll intervals, 10 seconds)
+K -> manifest records guard_exit_code and named guard_outcome: 0 normal, 2 thermal kill, 3 sensor fail-closed, 75 guard-not-ready, other otherwise
 local_shell_syntax=PASS
 local_python_compile=PASS
 local_help_parse=PASS
