@@ -1,0 +1,6 @@
+BINARY_PID=14941
+CPUSET=/
+RC=134
+
+STDERR
+Aborted 

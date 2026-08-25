@@ -1,0 +1,1 @@
+/data/local/tmp/q53_v73_npu_correctness/q53b_b512_htp_ppl.log: 1 file pulled, 0 skipped. 30.6 MB/s (27936049 bytes in 0.870s)

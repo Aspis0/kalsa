@@ -177,6 +177,23 @@ For the q50 graph comparison specifically, v73 and v75 both queued the same firs
 4. **Hostbuf confound:** the first v73/v75 comparison differed in `HOSTBUF` and `--no-host`, but the S23 rerun with `HOSTBUF=1 --no-host 1` still died with the same Signature 1 error, while v75 survived with those flags. The remaining observed discriminator is v73 versus v75 and/or the two physical devices; the artifacts do not isolate firmware from hardware generation. [q48 `REPORT.md`](../scratchpad/agents/q48-olmoe-q40-npu/REPORT.md)
 5. **Line number shift:** the unguarded host abort is at `ggml-hexagon.cpp:1583`; q51's extra host code shifts the same read abort to `1584`. The line-number difference is a patch-layout effect, not evidence of a fourth mechanism. [q50 `DIAGNOSIS.md`](../scratchpad/agents/q50-v73-dspqueue-diagnosis/DIAGNOSIS.md) [q51 `REPORT.md`](../scratchpad/agents/q51-f2b-v73-guard/REPORT.md)
 
+### Follow-up observations after the initial draft (2026-08-25, qualified)
+
+- Signature 3 reproduces at `-b 512 -ub 512` on the same model/build: the
+  identical `dspqueue_write failed: 0x00000001` abort in `flush_batch`, after
+  9/32 perplexity chunks (vs 2/32 at `-b 2048 -ub 1024`). The failure is
+  therefore not bound to the large batch size; longer survival at the smaller
+  batch is consistent with, but does not prove, accumulated DSP/queue state
+  (n=1 per configuration). Raw: `scratchpad/agents/q53b-v73-batch-discriminator/raw/`.
+- Device-health observation, reported without causal claim: during a
+  sustained `llama-perplexity` run of a dense/hybrid model placed entirely on
+  HTP0 on the v73 device (Qwen3.5-4B Q4_0, `-b 2048 -ub 1024`), the device
+  dropped off adb twice (after 8/32 and 4/32 chunks; ICMP still answered at
+  the second drop) and was subsequently found very hot, powered off and not
+  booting. Our harness captured battery temperature only before/after each
+  arm, so no in-run thermal trace exists. We flag this so maintainers testing
+  v73 with long HTP workloads use an in-run thermal guard.
+
 ## What this report is not claiming
 
 - No numerical-correctness claim is made for v75. The v75 result is liveness and dispatch evidence; q48 explicitly says the HMX-at-`n=16` result is not a correctness proof. [q48 `REPORT.md`](../scratchpad/agents/q48-olmoe-q40-npu/REPORT.md)

@@ -71,3 +71,22 @@ recommendation; this run had `-v` only on probes).
   complete raw evidence.
 - The NPU menu that remains live is v75-class, itself still owing its own
   correctness cell (Xiaomi window, q55 candidate).
+
+## Lane 2 (session 2) — partial recovery attempt
+
+```
+Model: Qwen3.5-4B-Q4_0 (already on device, sha 298fcb5f… MATCH)
+HTP probe: PID 11993, cpuset /, RC=0, execute-op proof present
+HTP PPL: PID 14265, cpuset /, RC=255 (adb disconnect), 4/32 chunks
+           [1]7.9075 [2]9.4123 [3]9.8187 [4]9.9195
+CPUref: not launched (device offline)
+r: NaN
+gate: NOT_COMPUTED
+status: INCOMPLETE
+```
+
+The live capture and launcher/pull records are in
+`raw/lane2_s2_qwen_htp_ppl_live_capture.txt`,
+`raw/lane2_s2_qwen_htp_ppl_launcher.txt`, and
+`raw/lane2_s2_qwen_htp_ppl_pull.txt`. This section is not a certification
+claim; completion requires the device endpoint to return.

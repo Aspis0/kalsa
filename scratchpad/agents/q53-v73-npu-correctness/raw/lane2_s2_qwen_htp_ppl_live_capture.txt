@@ -1,0 +1,18 @@
+capture = live adb shell grep before adb disconnect
+serial = adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
+pid = 14265
+cpuset = /
+args = -ngl 99 -dev HTP0 -c 2048 -b 2048 -ub 1024 --chunks 32 -v
+start_utc = 2026-08-25T03:38:42.198984Z
+start_battery = 83%
+start_temperature_c = 35.0
+plugged = false
+
+82862:[1]7.9075,2.03.968.810 D ggml-hex: HTP0 clear-buff base 0x6fdd186000 size 67112960
+98278:[2]9.4123,4.09.198.079 D ggml-hex: HTP0 clear-buff base 0x6fdd186000 size 67112960
+113694:[3]9.8187,5.18.578.314 D ggml-hex: HTP0 clear-buff base 0x6fdd186000 size 67112960
+129110:[4]9.9195,6.58.554.235 D ggml-hex: HTP0 clear-buff base 0x6fdd186000 size 67112960
+
+disconnect_utc = 2026-08-25T03:46:11.441006Z
+launcher_adb_rc = 255
+pull_error = adb: error: failed to get feature set: device offline

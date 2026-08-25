@@ -1,0 +1,70 @@
+{
+  "cell": "q53b-v73-batch-discriminator",
+  "prereg_commit": "5e54cf8c",
+  "serial": "adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp",
+  "device": "Galaxy S23 Hexagon v73",
+  "source_commit": "3f545beccee69d9975f466ec7e45fd9aacd8ba90",
+  "build_dir": "/data/local/tmp/kalsahtp",
+  "pins": {
+    "stub_sha256": "5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507",
+    "hexagon_sha256": "f06aa3098f63fd4f419d9943063a07a4718fc32832a919734d0094fccdea6448",
+    "htp_v73_sha256": "c8f9d14a388455ec364e99d4f63dbee773a4bad6de204b61496fe128f125edd5",
+    "lfm_model_sha256": "38a93d7120ef217effba39e4490d341ce02a0ed04fef899d65b03c1322a1b13a",
+    "lfm_model_bytes": 3580407296,
+    "qwen_model_sha256": "298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb",
+    "qwen_model_bytes": 2583221408,
+    "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+    "corpus_bytes": 1290590
+  },
+  "environment": {
+    "ngl_htp": 99,
+    "device_htp": "HTP0",
+    "context": 2048,
+    "threads": 8,
+    "chunks": 32,
+    "fa": "on",
+    "load_mode": "none",
+    "launch": "adb shell",
+    "cpus_visible": "0-7",
+    "hostbuf": "unset",
+    "ndev": 1,
+    "measured_verbose": true
+  },
+  "battery": {
+    "preflight": {"level_pct": 95, "temperature_c": 29.6, "plugged": false},
+    "b512_start": {"timestamp_utc": "2026-08-25T03:12:23.073222Z", "level_pct": 95, "temperature_c": 29.5, "plugged": false},
+    "b512_end": {"timestamp_utc": "2026-08-25T03:33:09.743753Z", "level_pct": 84, "temperature_c": 38.1, "plugged": false}
+  },
+  "b512": {
+    "batch": 512,
+    "ubatch": 512,
+    "pid": 14941,
+    "cpuset": "/",
+    "rc": 134,
+    "completed_chunks": 9,
+    "ppl": null,
+    "r": null,
+    "outcome": "DIES-512",
+    "execute_op_lines": 19376,
+    "error": "HTP0 dspqueue_write failed: 0x00000001",
+    "raw": "raw/q53b_b512_htp_ppl.log",
+    "launcher": "raw/q53b_b512_htp_ppl_launcher.txt"
+  },
+  "b1024": {"status": "not_run_frozen_after_dies_512"},
+  "lane2_session2": {
+    "htp_probe": {"pid": 11993, "cpuset": "/", "rc": 0, "raw": "../q53-v73-npu-correctness/raw/lane2_s2_qwen_htp_probe.log"},
+    "htp_ppl": {"pid": 14265, "cpuset": "/", "adb_rc": 255, "completed_chunks": 4, "status": "adb_disconnect", "raw": "../q53-v73-npu-correctness/raw/lane2_s2_qwen_htp_ppl_live_capture.txt"},
+    "cpuref_ppl": {"status": "not_launched_device_offline"},
+    "r": null,
+    "gate": "not_computed"
+  },
+  "raw_files": [
+    "raw/q53b_b512_htp_ppl.log",
+    "raw/q53b_b512_htp_ppl.json",
+    "raw/q53b_b512_htp_ppl_launcher.txt",
+    "raw/q53b_b512_htp_ppl_pull.txt",
+    "raw/cool_start_last_battery.txt",
+    "raw/q53b_b512_htp_ppl_post_battery.txt",
+    "raw/lane2_s2_qwen_htp_ppl_live_capture.txt"
+  ]
+}

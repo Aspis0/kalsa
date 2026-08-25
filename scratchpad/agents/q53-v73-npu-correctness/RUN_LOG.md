@@ -46,3 +46,22 @@ Serial: adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp
 - Device connectivity: the required serial `adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp` was absent from `adb devices` after 2026-08-24T21:12:45.495108Z; mDNS later advertised the endpoint but TCP connection was actively refused. End declaration: last known 21%/33.8 °C/unplugged before disconnect; final battery read unavailable due adb loss.
 - Secondary generation: unavailable; the same pinned/flagged `llama-cli` cross-build failed twice at Android `llama-ui-embed` compile with missing `inttypes.h`, so no `gen/` outputs were produced.
 - Gate arithmetic: `PPL_HTP_LFM=NaN` (HTP arm terminated without a final estimate), `PPL_CPUref_LFM=32.4892`, `r=NaN`; frozen gate result `FAIL`. Lane 2 has no terminal pair because of device disconnect.
+
+## Lane 2 (session 2) — partial recovery attempt
+
+- HTP probe: `lane2_s2_qwen_htp_probe`, PID 11993, cpuset `/`, RC=0, `-ngl 99
+  -dev HTP0 -c 2048 -b 2048 -ub 1024 --chunks 1 -v`. Start declaration:
+  84%, 34.7 °C, unplugged at 2026-08-25T03:36:15.791760Z. End declaration:
+  84%, 37.0 °C, unplugged at 2026-08-25T03:37:09.657542Z. Execute-op proof
+  is in `raw/lane2_s2_qwen_htp_probe.log`.
+- HTP PPL: `lane2_s2_qwen_htp_ppl`, PID 14265, cpuset `/`, `-ngl 99 -dev
+  HTP0 -c 2048 -b 2048 -ub 1024 --chunks 32 -v`. Start declaration: 83%,
+  35.0 °C, unplugged at 2026-08-25T03:38:42.198984Z. Live capture reached
+  chunks 1–4/32 with values `[1]7.9075,[2]9.4123,[3]9.8187,[4]9.9195`.
+  At 2026-08-25T03:46:11.441006Z the serial went offline; launcher adb_rc=255,
+  post battery unavailable, and remote pull returned `adb: error: failed to
+  get feature set: device offline`. See `raw/lane2_s2_qwen_htp_ppl_live_capture.txt`.
+- CPU-ref: not launched because the device was offline. Repeated
+  `adb connect 192.168.1.152:43741` attempts found the phone pingable and
+  mDNS-advertised but TCP 43741 actively refused connections.
+- Session-2 lane status: incomplete; no PPL pair, r, or gate arithmetic.
