@@ -193,6 +193,15 @@ For the q50 graph comparison specifically, v73 and v75 both queued the same firs
   booting. Our harness captured battery temperature only before/after each
   arm, so no in-run thermal trace exists. We flag this so maintainers testing
   v73 with long HTP workloads use an in-run thermal guard.
+- Update: the device-side log of that run, recovered after the device came
+  back, shows the perplexity run itself COMPLETED (32/32 chunks, final
+  estimate 8.5179 ± 0.12523, 55,730 HTP execute-op lines, log mtime
+  04:14:45Z, 28 min after the adb drop); the boot reason recorded afterwards
+  was `shutdown,lpm` (an OS-initiated shutdown, not a kernel panic). A CPU
+  reference over the same corpus is still pending; the first chunk agrees
+  closely (HTP 7.9075 vs CPU 7.9064 running PPL, +0.014 %). So on this v73
+  device the dense/hybrid full-on-HTP graph did not hit signatures 1–3 in a
+  32-chunk run; the MoE and trunk-only-under-perplexity graphs did.
 
 ## What this report is not claiming
 

@@ -162,7 +162,7 @@ A rule fires ONLY if its lane is ON in the ledger. v0 ships with:
 | GPU 750 prefill | banked | 407/407 kernel suite | ON |
 | GPU 740 cool-mode (R8) | banked (KEXP) | 407/407 | **OFF until #24 sustained** |
 | v73 trunk-NPU (R7) | banked | **q53 FAIL (24/08): HTP arm dies under perplexity batch-2048 load — third v73 death signature (`dspqueue_write 0x1`), r=NaN.** Lane not certifiable; q53b: dies identically at -b 512 (9/32 chunks) → not batch-bound. Also owes the q52 loop gate | **OFF — hard, until a v73 lane survives a correctness cell** |
-| v73 dense-NPU (R6) — **hard OFF, thermal-shutdown incident** | banked | **THERMAL INCIDENT 25/08**: the sustained full-on-NPU hybrid PPL (q53 lane 2) coincided with two adb drops and the S23 shutting down hot and not rebooting — lane CLOSED-INCOMPLETE; never resume in this form; any future v73 NPU run needs the intra-run thermal watchdog (kill ≥43 °C) and a 10-min cap | OFF |
+| v73 dense-NPU (R6) — **hard OFF, thermal-shutdown incident** | banked | **THERMAL INCIDENT 25/08**: the sustained full-on-NPU hybrid PPL (q53 lane 2) coincided with two adb drops and the S23 shutting down hot and not rebooting — lane CLOSED-INCOMPLETE; never resume in this form; any future v73 NPU run needs the intra-run thermal watchdog (kill ≥43 °C) and a 10-min cap. Evidence column: HTP arm 32/32 PPL 8.5179 (recovered log); CPU-ref pending; chunk-1 HTP/CPU agreement +0.014% (q53c, not a gate) | OFF |
 | v75 experts-NPU (R2) | banked (4.82×) | **NO correctness test designed yet** — q48 was liveness+dispatch only; needs its own cell (q55 candidate, Xiaomi window) | OFF |
 | v75 dense/trunk NPU (R3/R4) | banked (R4 single-replica) | uncertified, no cell designed; R4 additionally owes the q52-class loop gate (trunk-B′ lane) | OFF |
 
