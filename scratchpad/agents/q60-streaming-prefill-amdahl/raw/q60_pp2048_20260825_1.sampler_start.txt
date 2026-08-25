@@ -1,0 +1,3 @@
+binary_pid=25321
+sampler_pid=25349
+remote_csv=/data/local/tmp/q60_sampler/q60_pp2048_20260825_1.all.csv

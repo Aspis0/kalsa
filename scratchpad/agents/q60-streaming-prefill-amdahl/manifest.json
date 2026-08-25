@@ -1,0 +1,476 @@
+{
+  "cell": "q60-streaming-prefill-amdahl",
+  "prereg_lock": "14b23056",
+  "device": {
+    "serial": "192.168.1.82:34037",
+    "model": "Jelly Star",
+    "soc_manufacturer": "Mediatek",
+    "soc_model": "MT6789",
+    "logical_cpus": 8
+  },
+  "inventory": {
+    "mem_total_kb": 7968548,
+    "mem_available_kb": 5543816,
+    "data_available_kb": 109947916,
+    "battery_level_pct_start": 75,
+    "battery_temperature_tenths_c_start": 240,
+    "plugged": false,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "ggufs": [
+      {
+        "path": "/data/local/tmp/llamabench/Qwen3.5-2B-Q4_K_M.gguf",
+        "bytes": 1280835840,
+        "sha256": "aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223"
+      },
+      {
+        "path": "/data/local/tmp/llamabench/Qwen3.5-2B-Q4_0.gguf",
+        "bytes": 1214873856,
+        "sha256": "cd70221bebaee0503e0f6717e174250cd7825aa88438b3aabec9ad55731d9bb1"
+      },
+      {
+        "path": "/data/local/tmp/llamabench/Qwen3.5-4B-Q4_K_M.gguf",
+        "bytes": 2834975040,
+        "sha256": "3874209241c9a397e2f62cd3f70f80fd2dfbf0dfccb6838416bdb48a714e8630"
+      },
+      {
+        "path": "/data/local/tmp/llamabench/LFM2.5-2.6B-Q4_K_M.gguf",
+        "bytes": 1674454848,
+        "sha256": "79fdf00351b46cf26f020aead28d01889886be87c55fa0eb907e6f9b00bfee14"
+      },
+      {
+        "path": "/data/local/tmp/llamabench/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+        "bytes": 730895168,
+        "sha256": "b1b3de114215d9507409a662a501a631095a479a419584e8a2ded6304b19b4f5"
+      },
+      {
+        "path": "/data/local/tmp/llamabench/LFM2.5-2.6B-QAD-Q4_0.gguf",
+        "bytes": 1593894944,
+        "sha256": "a247afd6414918eac8e520e9a6137dc271235461ecbe1180462221d5b8d40b03"
+      },
+      {
+        "path": "/data/local/tmp/LFM2.5-8B-A1B-Q4_K_M.gguf",
+        "bytes": 5155564768,
+        "sha256": "4923ec14f06b968b74d663e5949867d2d9c3bf13a20b8be1a9f9af39989b2bb0"
+      },
+      {
+        "path": "/data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+        "bytes": 10505424704,
+        "sha256": "a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc"
+      },
+      {
+        "path": "/data/local/tmp/LFM2.5-8B-A1B-KEXP.gguf",
+        "bytes": 3326160384,
+        "sha256": "9638a381f31fab658af2c8926181d8ced432c4179139904aefc648d75d8d84fd"
+      }
+    ],
+    "llama_bench_binaries": [
+      {
+        "path": "/data/local/tmp/llamabench/llama-bench",
+        "bytes": 121472048,
+        "sha256": "c61b2457f66419677a411f93bbadd6c15a43235fd905013b59eadcdf70a733a4",
+        "selected": true
+      },
+      {
+        "path": "/data/local/tmp/llamabench-vk/llama-bench",
+        "bytes": 159329952,
+        "sha256": "ac41368525404f7eea95098424ad20eb177a4536e091c37e88870722ac245b29",
+        "selected": false
+      },
+      {
+        "path": "/data/local/tmp/llamabench-aff/llama-bench",
+        "bytes": 121458184,
+        "sha256": "450f945d7e250e0e42ae8882fcb3990cdad2b0a487bb5e404ebc4ea40d159566",
+        "selected": false
+      },
+      {
+        "path": "/data/local/tmp/llamabench-kai/baseline/llama-bench",
+        "bytes": 121450152,
+        "sha256": "8d3e289dcb7286c060cbd2b7cb58f2bb3deb020ece5b1c2d307efc5f23e47758",
+        "selected": false
+      },
+      {
+        "path": "/data/local/tmp/llamabench-kai/kleidi/llama-bench",
+        "bytes": 121815920,
+        "sha256": "4486f2d78f6e0b2ba44c45fe274f46f1ddb780d4bcffe5d44947db821419ff7a",
+        "selected": false
+      },
+      {
+        "path": "/data/local/tmp/kalsa26/vk/llama-bench",
+        "bytes": 7592,
+        "sha256": "b4e9476ee03f270c85d0e9eb2dd578089756075d131dd058456bb039182c7b21",
+        "selected": false
+      },
+      {
+        "path": "/data/local/tmp/kalsa26/ocl2/llama-bench",
+        "bytes": 7568,
+        "sha256": "e3ab93f14d88bf9e6509cff5ddb6cdf17cb389ffc3526c4ff19588a0d1aab0e9",
+        "selected": false
+      }
+    ]
+  },
+  "selected_model": {
+    "path": "/data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+    "bytes": 10505424704,
+    "sha256": "a001d324b6edc6a797009fbe6eb94a52a9f32453ee8d06465409875f3e3a6dbc",
+    "streaming_regime": true,
+    "model_note": "resident Marco-Mini MoE; 256 experts, native k=6"
+  },
+  "selected_binary": {
+    "path": "/data/local/tmp/llamabench/llama-bench",
+    "bytes": 121472048,
+    "sha256": "c61b2457f66419677a411f93bbadd6c15a43235fd905013b59eadcdf70a733a4",
+    "no_repack_flag": "-nr 1",
+    "load_mode": "mmap"
+  },
+  "flags": "-p N -n 0 -r 3 --no-warmup -t 8 -o jsonl -ngl 0 -lm mmap -nr 1 (flash_attn default auto; -fa off rejected by this build)",
+  "guard": {
+    "warn_tenths": 400,
+    "kill_tenths": 430,
+    "sensor_failure_limit": 4,
+    "interval_s": 10,
+    "sensor_timeout_s": 10,
+    "thermal_guard_sha256": "f8b664194d7eae7d04ebb3bba8745769cbd79777796803d25eed7974e9bda84c",
+    "launch_with_guard_sha256": "64ef5fb808b7bd2784555b54db3c395aecd1d85021e568c948d1f07b7f783b40"
+  },
+  "sampler": {
+    "interval_s": 1,
+    "clock_ticks_per_second": 100,
+    "sampler_sha256": "1d20d9f37f4b2e11989526a414a12be8914daa160317f192185451719579766c",
+    "sampler_detach_sha256": "9ebbab9a4610f1c05eefe0928ab2f35de38f8e1262c2d49793aab6517841065e",
+    "pressure_io_readable": false
+  },
+  "wake_state": {
+    "original_mWakefulness": "Awake",
+    "original_mStayOn": false,
+    "original_mStayOnWhilePluggedInSetting": 7,
+    "action": "svc power stayon true plus input keyevent 224 heartbeat",
+    "restore": "settings put global stay_on_while_plugged_in 7"
+  },
+  "cold_cache_method": "No unrelated file >= MemTotal existed; pp512 and pp2048 launches were preceded by explicit 30 s relaunch-after-cooldown intervals, while pp128 followed inventory/guard setup; rep1 is cold-designated and reps2-3 warm within each -r3 process. Inventory sha256sum necessarily read the selected model before measurement, so cold designation is not an empty-page-cache guarantee.",
+  "runs": {
+    "q60_pp128_20260825_1": {
+      "n_prompt": 128,
+      "jsonl": "raw/q60_pp128_20260825_1.stdout.jsonl",
+      "stderr": "raw/q60_pp128_20260825_1.stderr.log",
+      "sampler_all": "raw/q60_pp128_20260825_1.all.csv",
+      "guard_max_temperature_tenths": 280,
+      "json": {
+        "build_commit": "91f8c9c",
+        "build_number": 1,
+        "cpu_info": "CPU",
+        "gpu_info": "",
+        "backends": "CPU",
+        "model_filename": "/data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+        "model_type": "qwen3moe ?B Q4_K - Medium",
+        "model_size": 10499468288,
+        "model_n_params": 17250582528,
+        "n_batch": 2048,
+        "n_ubatch": 512,
+        "n_threads": 8,
+        "cpu_mask": "0x0",
+        "cpu_strict": false,
+        "poll": 50,
+        "type_k": "f16",
+        "type_v": "f16",
+        "n_gpu_layers": 0,
+        "n_cpu_moe": 0,
+        "split_mode": "layer",
+        "main_gpu": 0,
+        "no_kv_offload": false,
+        "flash_attn": -1,
+        "devices": "auto",
+        "tensor_split": "0.00",
+        "tensor_buft_overrides": "none",
+        "load_mode": "mmap",
+        "embeddings": false,
+        "no_op_offload": 0,
+        "no_host": false,
+        "no_repack": true,
+        "fit_target": 0,
+        "fit_min_ctx": 0,
+        "n_prompt": 128,
+        "n_gen": 0,
+        "n_depth": 0,
+        "test_time": "2026-08-25T16:49:08Z",
+        "avg_ns": 15010187077,
+        "stddev_ns": 221098691,
+        "avg_ts": 8.528765,
+        "stddev_ts": 0.124569,
+        "samples_ns": [
+          15265489231,
+          14882078770,
+          14882993232
+        ],
+        "samples_ts": [
+          8.38493,
+          8.60095,
+          8.60042
+        ]
+      }
+    },
+    "q60_pp512_20260825_1": {
+      "n_prompt": 512,
+      "jsonl": "raw/q60_pp512_20260825_1.stdout.jsonl",
+      "stderr": "raw/q60_pp512_20260825_1.stderr.log",
+      "sampler_all": "raw/q60_pp512_20260825_1.all.csv",
+      "guard_max_temperature_tenths": 300,
+      "json": {
+        "build_commit": "91f8c9c",
+        "build_number": 1,
+        "cpu_info": "CPU",
+        "gpu_info": "",
+        "backends": "CPU",
+        "model_filename": "/data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+        "model_type": "qwen3moe ?B Q4_K - Medium",
+        "model_size": 10499468288,
+        "model_n_params": 17250582528,
+        "n_batch": 2048,
+        "n_ubatch": 512,
+        "n_threads": 8,
+        "cpu_mask": "0x0",
+        "cpu_strict": false,
+        "poll": 50,
+        "type_k": "f16",
+        "type_v": "f16",
+        "n_gpu_layers": 0,
+        "n_cpu_moe": 0,
+        "split_mode": "layer",
+        "main_gpu": 0,
+        "no_kv_offload": false,
+        "flash_attn": -1,
+        "devices": "auto",
+        "tensor_split": "0.00",
+        "tensor_buft_overrides": "none",
+        "load_mode": "mmap",
+        "embeddings": false,
+        "no_op_offload": 0,
+        "no_host": false,
+        "no_repack": true,
+        "fit_target": 0,
+        "fit_min_ctx": 0,
+        "n_prompt": 512,
+        "n_gen": 0,
+        "n_depth": 0,
+        "test_time": "2026-08-25T16:51:30Z",
+        "avg_ns": 23901852412,
+        "stddev_ns": 698987800,
+        "avg_ts": 21.43317,
+        "stddev_ts": 0.627716,
+        "samples_ns": [
+          23918512079,
+          23194683694,
+          24592361463
+        ],
+        "samples_ts": [
+          21.406,
+          22.074,
+          20.8195
+        ]
+      }
+    },
+    "q60_pp2048_20260825_1": {
+      "n_prompt": 2048,
+      "jsonl": "raw/q60_pp2048_20260825_1.stdout.jsonl",
+      "stderr": "raw/q60_pp2048_20260825_1.stderr.log",
+      "sampler_all": "raw/q60_pp2048_20260825_1.all.csv",
+      "guard_max_temperature_tenths": 360,
+      "json": {
+        "build_commit": "91f8c9c",
+        "build_number": 1,
+        "cpu_info": "CPU",
+        "gpu_info": "",
+        "backends": "CPU",
+        "model_filename": "/data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf",
+        "model_type": "qwen3moe ?B Q4_K - Medium",
+        "model_size": 10499468288,
+        "model_n_params": 17250582528,
+        "n_batch": 2048,
+        "n_ubatch": 512,
+        "n_threads": 8,
+        "cpu_mask": "0x0",
+        "cpu_strict": false,
+        "poll": 50,
+        "type_k": "f16",
+        "type_v": "f16",
+        "n_gpu_layers": 0,
+        "n_cpu_moe": 0,
+        "split_mode": "layer",
+        "main_gpu": 0,
+        "no_kv_offload": false,
+        "flash_attn": -1,
+        "devices": "auto",
+        "tensor_split": "0.00",
+        "tensor_buft_overrides": "none",
+        "load_mode": "mmap",
+        "embeddings": false,
+        "no_op_offload": 0,
+        "no_host": false,
+        "no_repack": true,
+        "fit_target": 0,
+        "fit_min_ctx": 0,
+        "n_prompt": 2048,
+        "n_gen": 0,
+        "n_depth": 0,
+        "test_time": "2026-08-25T16:53:59Z",
+        "avg_ns": 122357157853,
+        "stddev_ns": 3633908229,
+        "avg_ts": 17.099382,
+        "stddev_ts": 2.97288,
+        "samples_ns": [
+          103320454775,
+          116701618699,
+          147049400086
+        ],
+        "samples_ts": [
+          19.8218,
+          17.549,
+          13.9273
+        ]
+      }
+    }
+  },
+  "derived": {
+    "metrics": [
+      {
+        "n_prompt": 128,
+        "rep": 1,
+        "cache_class": "cold-designated",
+        "wall_s": 15.265489231,
+        "compute_cpu_s": 23.68,
+        "compute_share": 0.1939014174527113,
+        "io_share": 0.8060985825472887,
+        "read_MB": 12719.149056,
+        "MB_s": 833.1962941725388,
+        "majflt": 40647,
+        "sampler_rows": 13,
+        "sampler_start_index": 0,
+        "sampler_end_index": 12
+      },
+      {
+        "n_prompt": 128,
+        "rep": 2,
+        "cache_class": "warm",
+        "wall_s": 14.88207877,
+        "compute_cpu_s": 71.54,
+        "compute_share": 0.6008905165874217,
+        "io_share": 0.39910948341257835,
+        "read_MB": 9437.14304,
+        "MB_s": 634.1280130181707,
+        "majflt": 178482,
+        "sampler_rows": 13,
+        "sampler_start_index": 12,
+        "sampler_end_index": 24
+      },
+      {
+        "n_prompt": 128,
+        "rep": 3,
+        "cache_class": "warm",
+        "wall_s": 14.882993232,
+        "compute_cpu_s": 71.42,
+        "compute_share": 0.5998457340425941,
+        "io_share": 0.4001542659574059,
+        "read_MB": 9444.962304,
+        "MB_s": 634.6144325116227,
+        "majflt": 176033,
+        "sampler_rows": 13,
+        "sampler_start_index": 24,
+        "sampler_end_index": 36
+      },
+      {
+        "n_prompt": 512,
+        "rep": 1,
+        "cache_class": "cold-designated",
+        "wall_s": 23.918512079,
+        "compute_cpu_s": 78.95,
+        "compute_share": 0.41259882585524943,
+        "io_share": 0.5874011741447506,
+        "read_MB": 14119.940096,
+        "MB_s": 590.3352202412725,
+        "majflt": 30311,
+        "sampler_rows": 19,
+        "sampler_start_index": 0,
+        "sampler_end_index": 18
+      },
+      {
+        "n_prompt": 512,
+        "rep": 2,
+        "cache_class": "warm",
+        "wall_s": 23.194683694,
+        "compute_cpu_s": 141.93,
+        "compute_share": 0.7648843258245986,
+        "io_share": 0.23511567417540136,
+        "read_MB": 8372.535296,
+        "MB_s": 360.96785825821837,
+        "majflt": 59777,
+        "sampler_rows": 19,
+        "sampler_start_index": 18,
+        "sampler_end_index": 36
+      },
+      {
+        "n_prompt": 512,
+        "rep": 3,
+        "cache_class": "warm",
+        "wall_s": 24.592361463,
+        "compute_cpu_s": 155.17,
+        "compute_share": 0.7887103493164852,
+        "io_share": 0.2112896506835148,
+        "read_MB": 9240.158208,
+        "MB_s": 375.73285598872303,
+        "majflt": 63456,
+        "sampler_rows": 21,
+        "sampler_start_index": 36,
+        "sampler_end_index": 56
+      },
+      {
+        "n_prompt": 2048,
+        "rep": 1,
+        "cache_class": "cold-designated",
+        "wall_s": 103.320454775,
+        "compute_cpu_s": 572.91,
+        "compute_share": 0.6931226750400257,
+        "io_share": 0.30687732495997433,
+        "read_MB": 41093.218304,
+        "MB_s": 397.7258752246912,
+        "majflt": 215969,
+        "sampler_rows": 81,
+        "sampler_start_index": 0,
+        "sampler_end_index": 80
+      },
+      {
+        "n_prompt": 2048,
+        "rep": 2,
+        "cache_class": "warm",
+        "wall_s": 116.701618699,
+        "compute_cpu_s": 710.94,
+        "compute_share": 0.7614932936723825,
+        "io_share": 0.2385067063276175,
+        "read_MB": 38151.790592,
+        "MB_s": 326.917407121851,
+        "majflt": 226507,
+        "sampler_rows": 91,
+        "sampler_start_index": 80,
+        "sampler_end_index": 170
+      },
+      {
+        "n_prompt": 2048,
+        "rep": 3,
+        "cache_class": "warm",
+        "wall_s": 147.049400086,
+        "compute_cpu_s": 920.54,
+        "compute_share": 0.7825091427282547,
+        "io_share": 0.21749085727174533,
+        "read_MB": 38232.932352,
+        "MB_s": 260.00060068004325,
+        "majflt": 165723,
+        "sampler_rows": 106,
+        "sampler_start_index": 170,
+        "sampler_end_index": 275
+      }
+    ],
+    "pp512_warm_compute_share_mean": 0.7767973375705419,
+    "pp512_warm_compute_share_median": 0.7887103493164852,
+    "rule_outcome": "GO as phase 2 of the HVX K-quant project (NPU-for-streaming ceiling >= 2x)."
+  }
+}
