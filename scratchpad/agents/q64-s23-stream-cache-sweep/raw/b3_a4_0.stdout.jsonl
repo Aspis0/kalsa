@@ -1,0 +1,213 @@
+BMOE_LOAD {"mb":307.78,"ms":519.3}
+BMOE_PROGRESS {"step":1,"steps":128,"wall_ms":1050.0,"io_ms":519.3,"compute_ms":530.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1205.3,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" check"}
+BMOE_LOAD {"mb":307.79,"ms":532.9}
+BMOE_PROGRESS {"step":2,"steps":128,"wall_ms":953.9,"io_ms":532.9,"compute_ms":421.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":928.8,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.82,"ms":530.3}
+BMOE_PROGRESS {"step":3,"steps":128,"wall_ms":951.0,"io_ms":530.3,"compute_ms":420.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":955.2,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" power"}
+BMOE_LOAD {"mb":307.75,"ms":519.1}
+BMOE_PROGRESS {"step":4,"steps":128,"wall_ms":858.2,"io_ms":519.1,"compute_ms":337.3,"mgmt_ms":1.7,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1126.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.79,"ms":353.5}
+BMOE_PROGRESS {"step":5,"steps":128,"wall_ms":787.5,"io_ms":353.5,"compute_ms":433.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":919.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" If"}
+BMOE_LOAD {"mb":307.78,"ms":358.3}
+BMOE_PROGRESS {"step":6,"steps":128,"wall_ms":1019.6,"io_ms":358.3,"compute_ms":661.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1111.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.78,"ms":491.5}
+BMOE_PROGRESS {"step":7,"steps":128,"wall_ms":981.8,"io_ms":491.5,"compute_ms":490.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1071.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" load"}
+BMOE_LOAD {"mb":307.81,"ms":542.8}
+BMOE_PROGRESS {"step":8,"steps":128,"wall_ms":1050.0,"io_ms":542.8,"compute_ms":507.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1168.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.80,"ms":363.0}
+BMOE_PROGRESS {"step":9,"steps":128,"wall_ms":802.6,"io_ms":363.0,"compute_ms":438.9,"mgmt_ms":0.8,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":905.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" too"}
+BMOE_LOAD {"mb":307.81,"ms":364.7}
+BMOE_PROGRESS {"step":10,"steps":128,"wall_ms":858.0,"io_ms":364.7,"compute_ms":493.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1077.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" high"}
+BMOE_LOAD {"mb":307.77,"ms":525.0}
+BMOE_PROGRESS {"step":11,"steps":128,"wall_ms":827.1,"io_ms":525.0,"compute_ms":302.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1055.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.81,"ms":536.4}
+BMOE_PROGRESS {"step":12,"steps":128,"wall_ms":1000.1,"io_ms":536.4,"compute_ms":463.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":994.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" we"}
+BMOE_LOAD {"mb":307.77,"ms":355.7}
+BMOE_PROGRESS {"step":13,"steps":128,"wall_ms":806.8,"io_ms":355.7,"compute_ms":450.0,"mgmt_ms":1.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":922.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" reduce"}
+BMOE_LOAD {"mb":307.80,"ms":379.3}
+BMOE_PROGRESS {"step":14,"steps":128,"wall_ms":941.7,"io_ms":379.3,"compute_ms":562.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1262.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" it"}
+BMOE_LOAD {"mb":307.75,"ms":354.0}
+BMOE_PROGRESS {"step":15,"steps":128,"wall_ms":973.8,"io_ms":354.0,"compute_ms":619.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":974.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.78,"ms":747.2}
+BMOE_PROGRESS {"step":16,"steps":128,"wall_ms":1070.8,"io_ms":747.2,"compute_ms":323.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1072.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" If"}
+BMOE_LOAD {"mb":307.80,"ms":353.3}
+BMOE_PROGRESS {"step":17,"steps":128,"wall_ms":701.4,"io_ms":353.3,"compute_ms":348.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":818.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.78,"ms":358.3}
+BMOE_PROGRESS {"step":18,"steps":128,"wall_ms":1007.6,"io_ms":358.3,"compute_ms":648.3,"mgmt_ms":1.0,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1041.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" space"}
+BMOE_LOAD {"mb":307.81,"ms":360.8}
+BMOE_PROGRESS {"step":19,"steps":128,"wall_ms":1189.8,"io_ms":360.8,"compute_ms":828.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1237.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":631.6}
+BMOE_PROGRESS {"step":20,"steps":128,"wall_ms":1033.6,"io_ms":631.6,"compute_ms":401.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":765.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" too"}
+BMOE_LOAD {"mb":307.80,"ms":555.8}
+BMOE_PROGRESS {"step":21,"steps":128,"wall_ms":1115.9,"io_ms":555.8,"compute_ms":560.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":984.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" small"}
+BMOE_LOAD {"mb":307.77,"ms":358.4}
+BMOE_PROGRESS {"step":22,"steps":128,"wall_ms":779.9,"io_ms":358.4,"compute_ms":421.0,"mgmt_ms":0.6,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":938.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.81,"ms":547.6}
+BMOE_PROGRESS {"step":23,"steps":128,"wall_ms":984.2,"io_ms":547.6,"compute_ms":436.5,"mgmt_ms":0.2,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":935.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" we"}
+BMOE_LOAD {"mb":307.77,"ms":368.9}
+BMOE_PROGRESS {"step":24,"steps":128,"wall_ms":983.1,"io_ms":368.9,"compute_ms":614.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1052.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" add"}
+BMOE_LOAD {"mb":307.77,"ms":377.1}
+BMOE_PROGRESS {"step":25,"steps":128,"wall_ms":1167.8,"io_ms":377.1,"compute_ms":790.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1128.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.76,"ms":359.4}
+BMOE_PROGRESS {"step":26,"steps":128,"wall_ms":646.8,"io_ms":359.4,"compute_ms":287.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":959.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" new"}
+BMOE_LOAD {"mb":307.81,"ms":389.6}
+BMOE_PROGRESS {"step":27,"steps":128,"wall_ms":1046.8,"io_ms":389.6,"compute_ms":655.3,"mgmt_ms":1.9,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":987.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" part"}
+BMOE_LOAD {"mb":307.75,"ms":364.0}
+BMOE_PROGRESS {"step":28,"steps":128,"wall_ms":816.7,"io_ms":364.0,"compute_ms":452.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":975.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.77,"ms":533.7}
+BMOE_PROGRESS {"step":29,"steps":128,"wall_ms":941.7,"io_ms":533.7,"compute_ms":407.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1266.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" We"}
+BMOE_LOAD {"mb":307.74,"ms":366.8}
+BMOE_PROGRESS {"step":30,"steps":128,"wall_ms":1202.6,"io_ms":366.8,"compute_ms":835.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.74,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1054.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" do"}
+BMOE_LOAD {"mb":307.77,"ms":366.9}
+BMOE_PROGRESS {"step":31,"steps":128,"wall_ms":865.7,"io_ms":366.9,"compute_ms":497.3,"mgmt_ms":1.4,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1087.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.80,"ms":350.8}
+BMOE_PROGRESS {"step":32,"steps":128,"wall_ms":892.6,"io_ms":350.8,"compute_ms":541.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1157.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" guess"}
+BMOE_LOAD {"mb":307.77,"ms":366.6}
+BMOE_PROGRESS {"step":33,"steps":128,"wall_ms":1126.7,"io_ms":366.6,"compute_ms":760.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":989.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.79,"ms":357.9}
+BMOE_PROGRESS {"step":34,"steps":128,"wall_ms":1045.3,"io_ms":357.9,"compute_ms":687.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1182.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" We"}
+BMOE_LOAD {"mb":307.76,"ms":529.4}
+BMOE_PROGRESS {"step":35,"steps":128,"wall_ms":1002.1,"io_ms":529.4,"compute_ms":472.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1009.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" do"}
+BMOE_LOAD {"mb":307.75,"ms":371.8}
+BMOE_PROGRESS {"step":36,"steps":128,"wall_ms":1063.6,"io_ms":371.8,"compute_ms":689.7,"mgmt_ms":2.1,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1120.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.81,"ms":358.4}
+BMOE_PROGRESS {"step":37,"steps":128,"wall_ms":823.9,"io_ms":358.4,"compute_ms":465.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":992.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" rush"}
+BMOE_LOAD {"mb":307.78,"ms":365.8}
+BMOE_PROGRESS {"step":38,"steps":128,"wall_ms":1100.2,"io_ms":365.8,"compute_ms":734.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1180.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.77,"ms":360.3}
+BMOE_PROGRESS {"step":39,"steps":128,"wall_ms":1175.4,"io_ms":360.3,"compute_ms":815.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1127.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" We"}
+BMOE_LOAD {"mb":307.78,"ms":356.6}
+BMOE_PROGRESS {"step":40,"steps":128,"wall_ms":743.6,"io_ms":356.6,"compute_ms":387.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":878.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" do"}
+BMOE_LOAD {"mb":307.77,"ms":567.4}
+BMOE_PROGRESS {"step":41,"steps":128,"wall_ms":809.1,"io_ms":567.4,"compute_ms":240.6,"mgmt_ms":1.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":862.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.80,"ms":534.9}
+BMOE_PROGRESS {"step":42,"steps":128,"wall_ms":960.7,"io_ms":534.9,"compute_ms":425.4,"mgmt_ms":0.4,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":979.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" change"}
+BMOE_LOAD {"mb":307.79,"ms":364.3}
+BMOE_PROGRESS {"step":43,"steps":128,"wall_ms":819.8,"io_ms":364.3,"compute_ms":455.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":977.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.76,"ms":358.8}
+BMOE_PROGRESS {"step":44,"steps":128,"wall_ms":990.3,"io_ms":358.8,"compute_ms":631.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1071.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" plan"}
+BMOE_LOAD {"mb":307.79,"ms":368.4}
+BMOE_PROGRESS {"step":45,"steps":128,"wall_ms":895.2,"io_ms":368.4,"compute_ms":525.9,"mgmt_ms":0.9,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1078.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" without"}
+BMOE_LOAD {"mb":307.77,"ms":360.1}
+BMOE_PROGRESS {"step":46,"steps":128,"wall_ms":1252.6,"io_ms":360.1,"compute_ms":892.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1320.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.78,"ms":558.9}
+BMOE_PROGRESS {"step":47,"steps":128,"wall_ms":1252.2,"io_ms":558.9,"compute_ms":693.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":917.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" reason"}
+BMOE_LOAD {"mb":307.79,"ms":367.5}
+BMOE_PROGRESS {"step":48,"steps":128,"wall_ms":984.4,"io_ms":367.5,"compute_ms":616.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1068.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":".\n\n"}
+BMOE_LOAD {"mb":307.78,"ms":353.9}
+BMOE_PROGRESS {"step":49,"steps":128,"wall_ms":755.5,"io_ms":353.9,"compute_ms":401.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":896.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"A"}
+BMOE_LOAD {"mb":307.82,"ms":720.7}
+BMOE_PROGRESS {"step":50,"steps":128,"wall_ms":1145.4,"io_ms":720.7,"compute_ms":423.9,"mgmt_ms":0.7,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":947.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" test"}
+BMOE_LOAD {"mb":307.80,"ms":521.7}
+BMOE_PROGRESS {"step":51,"steps":128,"wall_ms":1208.7,"io_ms":521.7,"compute_ms":686.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1166.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":533.6}
+BMOE_PROGRESS {"step":52,"steps":128,"wall_ms":1094.9,"io_ms":533.6,"compute_ms":561.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1165.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.78,"ms":531.5}
+BMOE_PROGRESS {"step":53,"steps":128,"wall_ms":1026.6,"io_ms":531.5,"compute_ms":495.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1061.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.79,"ms":370.5}
+BMOE_PROGRESS {"step":54,"steps":128,"wall_ms":893.0,"io_ms":370.5,"compute_ms":520.8,"mgmt_ms":1.7,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":845.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" race"}
+BMOE_LOAD {"mb":307.77,"ms":363.1}
+BMOE_PROGRESS {"step":55,"steps":128,"wall_ms":1045.2,"io_ms":363.1,"compute_ms":682.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1046.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.79,"ms":362.7}
+BMOE_PROGRESS {"step":56,"steps":128,"wall_ms":824.6,"io_ms":362.7,"compute_ms":461.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1170.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.77,"ms":523.7}
+BMOE_PROGRESS {"step":57,"steps":128,"wall_ms":1157.9,"io_ms":523.7,"compute_ms":634.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1000.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.77,"ms":353.4}
+BMOE_PROGRESS {"step":58,"steps":128,"wall_ms":876.2,"io_ms":353.4,"compute_ms":522.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1147.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.77,"ms":371.8}
+BMOE_PROGRESS {"step":59,"steps":128,"wall_ms":1004.9,"io_ms":371.8,"compute_ms":632.6,"mgmt_ms":0.5,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":982.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" quiet"}
+BMOE_LOAD {"mb":307.78,"ms":357.9}
+BMOE_PROGRESS {"step":60,"steps":128,"wall_ms":771.6,"io_ms":357.9,"compute_ms":413.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":882.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.81,"ms":535.5}
+BMOE_PROGRESS {"step":61,"steps":128,"wall_ms":1049.5,"io_ms":535.5,"compute_ms":513.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1170.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" clear"}
+BMOE_LOAD {"mb":307.79,"ms":360.8}
+BMOE_PROGRESS {"step":62,"steps":128,"wall_ms":877.1,"io_ms":360.8,"compute_ms":516.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1121.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.80,"ms":369.7}
+BMOE_PROGRESS {"step":63,"steps":128,"wall_ms":832.3,"io_ms":369.7,"compute_ms":461.9,"mgmt_ms":0.8,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":969.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" and"}
+BMOE_LOAD {"mb":307.81,"ms":363.7}
+BMOE_PROGRESS {"step":64,"steps":128,"wall_ms":777.1,"io_ms":363.7,"compute_ms":413.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":886.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" steady"}
+BMOE_LOAD {"mb":307.82,"ms":368.7}
+BMOE_PROGRESS {"step":65,"steps":128,"wall_ms":1062.6,"io_ms":368.7,"compute_ms":693.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1108.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" way"}
+BMOE_LOAD {"mb":307.81,"ms":361.1}
+BMOE_PROGRESS {"step":66,"steps":128,"wall_ms":974.4,"io_ms":361.1,"compute_ms":613.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":959.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" to"}
+BMOE_LOAD {"mb":307.79,"ms":365.6}
+BMOE_PROGRESS {"step":67,"steps":128,"wall_ms":883.4,"io_ms":365.6,"compute_ms":517.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1061.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" know"}
+BMOE_LOAD {"mb":307.77,"ms":711.3}
+BMOE_PROGRESS {"step":68,"steps":128,"wall_ms":995.1,"io_ms":711.3,"compute_ms":282.0,"mgmt_ms":1.8,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":966.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.78,"ms":460.8}
+BMOE_PROGRESS {"step":69,"steps":128,"wall_ms":1019.1,"io_ms":460.8,"compute_ms":558.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1143.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.79,"ms":353.9}
+BMOE_PROGRESS {"step":70,"steps":128,"wall_ms":1191.3,"io_ms":353.9,"compute_ms":837.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1090.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.78,"ms":367.4}
+BMOE_PROGRESS {"step":71,"steps":128,"wall_ms":871.5,"io_ms":367.4,"compute_ms":504.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1100.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.78,"ms":376.9}
+BMOE_PROGRESS {"step":72,"steps":128,"wall_ms":868.4,"io_ms":376.9,"compute_ms":491.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1122.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.77,"ms":361.0}
+BMOE_PROGRESS {"step":73,"steps":128,"wall_ms":858.7,"io_ms":361.0,"compute_ms":496.1,"mgmt_ms":1.6,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1171.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" speed"}
+BMOE_LOAD {"mb":307.77,"ms":361.9}
+BMOE_PROGRESS {"step":74,"steps":128,"wall_ms":1051.7,"io_ms":361.9,"compute_ms":689.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1125.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.82,"ms":362.4}
+BMOE_PROGRESS {"step":75,"steps":128,"wall_ms":822.6,"io_ms":362.4,"compute_ms":460.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":922.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.79,"ms":538.1}
+BMOE_PROGRESS {"step":76,"steps":128,"wall_ms":1037.2,"io_ms":538.1,"compute_ms":499.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1075.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":372.4}
+BMOE_PROGRESS {"step":77,"steps":128,"wall_ms":830.2,"io_ms":372.4,"compute_ms":456.1,"mgmt_ms":1.7,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1015.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.78,"ms":378.6}
+BMOE_PROGRESS {"step":78,"steps":128,"wall_ms":800.1,"io_ms":378.6,"compute_ms":421.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":903.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" truth"}
+BMOE_LOAD {"mb":307.77,"ms":382.1}
+BMOE_PROGRESS {"step":79,"steps":128,"wall_ms":842.6,"io_ms":382.1,"compute_ms":460.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1017.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.81,"ms":356.2}
+BMOE_PROGRESS {"step":80,"steps":128,"wall_ms":812.7,"io_ms":356.2,"compute_ms":456.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":975.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.76,"ms":547.7}
+BMOE_PROGRESS {"step":81,"steps":128,"wall_ms":780.7,"io_ms":547.7,"compute_ms":232.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":800.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.73,"ms":357.0}
+BMOE_PROGRESS {"step":82,"steps":128,"wall_ms":1018.6,"io_ms":357.0,"compute_ms":660.0,"mgmt_ms":1.6,"stall_ms":0.0,"read_mb":307.73,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1166.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.80,"ms":357.0}
+BMOE_PROGRESS {"step":83,"steps":128,"wall_ms":855.0,"io_ms":357.0,"compute_ms":497.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1140.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" knowing"}
+BMOE_LOAD {"mb":307.76,"ms":364.9}
+BMOE_PROGRESS {"step":84,"steps":128,"wall_ms":951.1,"io_ms":364.9,"compute_ms":586.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1002.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.82,"ms":354.7}
+BMOE_PROGRESS {"step":85,"steps":128,"wall_ms":1045.8,"io_ms":354.7,"compute_ms":691.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1191.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.77,"ms":467.6}
+BMOE_PROGRESS {"step":86,"steps":128,"wall_ms":763.3,"io_ms":467.6,"compute_ms":294.9,"mgmt_ms":0.7,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1008.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.77,"ms":507.8}
+BMOE_PROGRESS {"step":87,"steps":128,"wall_ms":964.9,"io_ms":507.8,"compute_ms":457.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":979.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.80,"ms":361.7}
+BMOE_PROGRESS {"step":88,"steps":128,"wall_ms":1033.6,"io_ms":361.7,"compute_ms":671.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1152.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" being"}
+BMOE_LOAD {"mb":307.81,"ms":552.7}
+BMOE_PROGRESS {"step":89,"steps":128,"wall_ms":985.9,"io_ms":552.7,"compute_ms":433.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1067.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" sure"}
+BMOE_LOAD {"mb":307.78,"ms":361.6}
+BMOE_PROGRESS {"step":90,"steps":128,"wall_ms":881.0,"io_ms":361.6,"compute_ms":519.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1098.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.82,"ms":362.8}
+BMOE_PROGRESS {"step":91,"steps":128,"wall_ms":1027.7,"io_ms":362.8,"compute_ms":663.5,"mgmt_ms":1.4,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1003.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.76,"ms":565.5}
+BMOE_PROGRESS {"step":92,"steps":128,"wall_ms":1072.6,"io_ms":565.5,"compute_ms":507.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1073.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":525.5}
+BMOE_PROGRESS {"step":93,"steps":128,"wall_ms":1025.8,"io_ms":525.5,"compute_ms":500.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1035.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.78,"ms":502.6}
+BMOE_PROGRESS {"step":94,"steps":128,"wall_ms":1044.6,"io_ms":502.6,"compute_ms":541.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1264.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" being"}
+BMOE_LOAD {"mb":307.78,"ms":539.2}
+BMOE_PROGRESS {"step":95,"steps":128,"wall_ms":1168.9,"io_ms":539.2,"compute_ms":629.2,"mgmt_ms":0.6,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1135.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" calm"}
+BMOE_LOAD {"mb":307.78,"ms":356.9}
+BMOE_PROGRESS {"step":96,"steps":128,"wall_ms":1011.5,"io_ms":356.9,"compute_ms":654.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1107.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.81,"ms":513.1}
+BMOE_PROGRESS {"step":97,"steps":128,"wall_ms":979.7,"io_ms":513.1,"compute_ms":466.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1025.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.78,"ms":394.9}
+BMOE_PROGRESS {"step":98,"steps":128,"wall_ms":1055.3,"io_ms":394.9,"compute_ms":660.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1078.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":351.1}
+BMOE_PROGRESS {"step":99,"steps":128,"wall_ms":765.9,"io_ms":351.1,"compute_ms":414.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":874.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.78,"ms":530.5}
+BMOE_PROGRESS {"step":100,"steps":128,"wall_ms":903.3,"io_ms":530.5,"compute_ms":371.3,"mgmt_ms":1.5,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":697.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" being"}
+BMOE_LOAD {"mb":307.80,"ms":538.9}
+BMOE_PROGRESS {"step":101,"steps":128,"wall_ms":799.6,"io_ms":538.9,"compute_ms":260.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":909.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" right"}
+BMOE_LOAD {"mb":307.78,"ms":361.2}
+BMOE_PROGRESS {"step":102,"steps":128,"wall_ms":1264.5,"io_ms":361.2,"compute_ms":903.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1207.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+=== answer ===
+ check the power. If the load is too high, we reduce it. If the space is too small, we add a new part. We do not guess. We do not rush. We do not change the plan without a reason.
+
+A test is not a race. It is a quiet, clear, and steady way to know. It is not about speed. It is about truth. It is about knowing. It is about being sure. It is about being calm. It is about being right.
+=== perf ===
+generation: 102 tokens, 0.961 s/token (1.041 tok/s)
+compute: 27.1% CPU occupancy (1.0405 cpu-s/token over 4 threads), 0.00 major faults/token
+prefill: 133 tokens, 14.213 s (9.4 tok/s) | model load 9.558 s | TTFT 23.770 s
+moe-stream: read 31394.0 MiB (307.78 MiB/token), decode 0.961 s/token (compute 0.530 + cache mgmt 0.000 + flash I/O 0.430 s/token, 715 MiB/s)

@@ -1,0 +1,1 @@
+adb: error: failed to stat remote object '/data/local/tmp/q64_out/b2_a1_1500.supervisor.failure': No such file or directory

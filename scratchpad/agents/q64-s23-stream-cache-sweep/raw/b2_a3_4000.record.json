@@ -1,0 +1,787 @@
+{
+  "tag": "b2_a3_4000",
+  "base_tag": "b2_a3_4000",
+  "block": 2,
+  "arm": "4000",
+  "cache": "4000",
+  "prompt_name": "q64_p128.txt",
+  "decode_n": 128,
+  "calibration": false,
+  "retry": 0,
+  "command_verbatim": "cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+  "workload_argv": [
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv"
+  ],
+  "launcher_argv": [
+    "C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q64-s23-stream-cache-sweep\\launch_q64.py",
+    "--serial",
+    "adb-R3CW406P8CV-zyLM4b (2)._adb-tls-connect._tcp",
+    "--tag",
+    "b2_a3_4000",
+    "--warn-tenths",
+    "400",
+    "--kill-tenths",
+    "430",
+    "--session-hard-cap-tenths",
+    "0",
+    "--sensor-failure-limit",
+    "4",
+    "--interval-s",
+    "10",
+    "--max-seconds",
+    "720",
+    "--launcher-min-battery",
+    "40",
+    "--local-dir",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q64-s23-stream-cache-sweep\\raw",
+    "--manifest-path",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q64-s23-stream-cache-sweep\\raw\\b2_a3_4000.manifest.json",
+    "--",
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv"
+  ],
+  "battery_pre": {
+    "level": 86,
+    "temperature_tenths": 299,
+    "voltage_mv": 4190,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "timestamp": "2026-08-26T21:36:24.473+00:00"
+  },
+  "battery_post": {
+    "level": 86,
+    "temperature_tenths": 306,
+    "voltage_mv": 4185,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "timestamp": "2026-08-26T21:38:41.815+00:00"
+  },
+  "mem_pre": {
+    "memavailable_kb": 5370892,
+    "timestamp": "2026-08-26T21:36:24.563+00:00"
+  },
+  "mem_post": {
+    "memavailable_kb": 5204792,
+    "timestamp": "2026-08-26T21:38:41.928+00:00"
+  },
+  "monitor": {
+    "process_rc": 0,
+    "binary_pid": 20415,
+    "sampler_pid": 20465,
+    "sampler_remote": "/data/local/tmp/q64_out/b2_a3_4000.sampler.csv",
+    "sampler_argument_pid": 20415,
+    "cpuset_samples": [
+      {
+        "timestamp": "2026-08-26T21:36:37.378+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:38.752+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:40.125+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:41.510+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:42.934+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:44.317+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:45.737+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:47.050+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:48.532+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:49.920+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:51.251+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:52.655+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:53.992+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:55.542+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:56.914+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:58.345+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:36:59.817+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:01.226+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:02.706+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:04.086+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:05.554+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:06.991+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:08.322+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:09.825+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:11.525+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:12.865+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:14.473+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:15.765+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:17.260+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:18.997+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:20.322+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:21.818+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:23.488+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:24.917+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:26.536+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:27.862+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:29.411+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:31.003+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:32.360+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:33.773+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:35.316+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:36.825+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:38.598+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:39.950+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:41.462+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:42.949+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:44.462+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:46.015+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:47.733+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:49.175+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:50.788+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:52.085+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:53.361+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:55.086+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:56.550+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:58.005+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:37:59.793+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:01.207+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:02.882+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:04.267+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:05.764+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:07.382+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:08.799+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:10.266+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:11.932+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:13.249+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:14.802+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:16.093+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:17.506+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:18.928+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:20.416+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:21.804+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:23.215+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:24.965+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:26.512+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:27.886+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:29.384+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:31.024+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:32.303+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:33.717+00:00",
+        "binary_pid": 20415,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 4000 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a3_4000.csv",
+        "is_bmoe_cli": true
+      },
+      {
+        "timestamp": "2026-08-26T21:38:35.153+00:00",
+        "binary_pid": 20415,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": "",
+        "is_bmoe_cli": false
+      },
+      {
+        "timestamp": "2026-08-26T21:38:36.536+00:00",
+        "binary_pid": 20415,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": "",
+        "is_bmoe_cli": false
+      },
+      {
+        "timestamp": "2026-08-26T21:38:37.906+00:00",
+        "binary_pid": 20415,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": "",
+        "is_bmoe_cli": false
+      },
+      {
+        "timestamp": "2026-08-26T21:38:39.235+00:00",
+        "binary_pid": 20415,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": "",
+        "is_bmoe_cli": false
+      }
+    ],
+    "cpuset_violation": false,
+    "monitor_error": ""
+  },
+  "launcher_rc": 0,
+  "workload_rc": 0,
+  "guard_rc": 0,
+  "guard_outcome": "normal",
+  "guard_max_temperature_tenths": 308,
+  "failure_signature": "",
+  "likely_lmk": false,
+  "lmk_evidence": true,
+  "lmk_signal_rc": 0,
+  "dmesg_readable": false,
+  "logcat_readable": true,
+  "pulled": {
+    "csv": true,
+    "stdout": true,
+    "stderr": true,
+    "sampler": true,
+    "pid": true,
+    "guard_pid": true,
+    "guard_ready": true,
+    "guard_tracking": true,
+    "workload_rc": true,
+    "guard_rc": true,
+    "supervisor_failure": false,
+    "guard_log": true
+  },
+  "timestamp_start": "2026-08-26T21:36:24.473+00:00",
+  "timestamp_end": "2026-08-26T21:38:41.815+00:00"
+}

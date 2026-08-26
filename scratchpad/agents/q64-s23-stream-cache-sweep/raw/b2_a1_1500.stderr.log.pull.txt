@@ -1,0 +1,1 @@
+/data/local/tmp/q64_out/b2_a1_1500.stderr.log: 1 file pulled, 0 skipped. 1.4 MB/s (37524 bytes in 0.026s)

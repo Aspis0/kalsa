@@ -1,0 +1,3 @@
+List of devices attached
+adb-R3CW406P8CV-zyLM4b (2)._adb-tls-connect._tcp device product:dm1qsqw model:SM_S911U device:dm1q transport_id:1
+

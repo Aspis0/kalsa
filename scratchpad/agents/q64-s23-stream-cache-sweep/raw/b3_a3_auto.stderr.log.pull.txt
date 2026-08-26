@@ -1,0 +1,1 @@
+/data/local/tmp/q64_out/b3_a3_auto.stderr.log: 1 file pulled, 0 skipped. 1.4 MB/s (37693 bytes in 0.025s)

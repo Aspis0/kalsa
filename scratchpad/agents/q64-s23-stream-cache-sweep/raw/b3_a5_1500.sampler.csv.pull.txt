@@ -1,0 +1,1 @@
+/data/local/tmp/q64_out/b3_a5_1500.sampler.csv: 1 file pulled, 0 skipped. 0.4 MB/s (3223 bytes in 0.008s)

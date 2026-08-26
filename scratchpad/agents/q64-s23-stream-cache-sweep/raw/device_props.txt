@@ -1,0 +1,8 @@
+ro.product.model=SM-S911U
+ro.product.device=dm1q
+ro.product.name=dm1qsqw
+ro.soc.model=SM8550
+ro.build.version.release=16
+ro.build.version.sdk=36
+ro.hardware=qcom
+ro.boot.hardware=qcom

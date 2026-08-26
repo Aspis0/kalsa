@@ -1,0 +1,12 @@
+START,1787780196,warn_tenths=400,kill_tenths=430,hard_abort_tenths=0,session_hard_cap_tenths=0,effective_kill_tenths=430,interval_s=10,sensor_fail_limit=4,sensor_timeout_s=10,sensor_failure_window_s=40,sensor_command_override=none,fail_closed_false_kill_accepted=1
+1787780196,299,86
+1787780196,299,86,READY
+1787780196,299,86,TRACKING_20415
+1787780207,300,86
+1787780222,307,86
+1787780240,308,86
+1787780261,307,86
+1787780281,307,86
+1787780299,307,86
+1787780318,306,86
+1787780318,308,86,MAX

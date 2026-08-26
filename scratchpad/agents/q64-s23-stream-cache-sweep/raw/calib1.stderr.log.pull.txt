@@ -1,0 +1,1 @@
+/data/local/tmp/q64_out/calib1.stderr.log: 1 file pulled, 0 skipped. 2.0 MB/s (37520 bytes in 0.018s)

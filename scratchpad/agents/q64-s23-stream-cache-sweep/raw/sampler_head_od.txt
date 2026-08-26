@@ -1,0 +1,14 @@
+0000000   #   !   /   s   y   s   t   e   m   /   b   i   n   /   s   h
+0000020  \n  \n   #       q   6   4       s   a   m   p   l   e   r   :
+0000040       t   h   e       a   r   g   u   m   e   n   t       i   s
+0000060       B   I   N   A   R   Y   _   P   I   D       a   n   d    
+0000100   i   s       n   e   v   e   r       r   e   p   l   a   c   e
+0000120   d       b   y       a       s   h   e   l   l  \n   #       w
+0000140   r   a   p   p   e   r       P   I   D   .           I   t    
+0000160   r   e   c   o   r   d   s       t   h   e       p   r   o   c
+0000200   e   s   s       o   n   l   y       a   f   t   e   r       b
+0000220   m   o   e   -   c   l   i       h   a   s       e   x   e   c
+0000240   '   d   .  \n  \n   b   i   n   a   r   y   _   p   i   d   =
+0000260   $   1  \n   o   u   t   =   $   2  \n   i   n   t   e   r   v
+0000300   a   l   =   $   {   3   :   -
+0000310

@@ -1,0 +1,14 @@
+0000000   #   !   /   s   y   s   t   e   m   /   b   i   n   /   s   h
+0000020  \n  \n   #       A   n   d   r   o   i   d       t   o   y   b
+0000040   o   x   /   P   O   S   I   X       t   h   e   r   m   a   l
+0000060       g   u   a   r   d   .  \n   #  \n   #       u   s   a   g
+0000100   e   :  \n   #               t   h   e   r   m   a   l   _   g
+0000120   u   a   r   d   .   s   h       <   p   i   d   |   p   i   d
+0000140   _   f   i   l   e   >       <   w   a   r   n   _   t   e   n
+0000160   t   h   s   >       <   k   i   l   l   _   t   e   n   t   h
+0000200   s   >       <   l   o   g   _   p   a   t   h   >       <   i
+0000220   n   t   e   r   v   a   l   _   s   >  \n   #                
+0000240                                                                
+0000260   [   s   e   s   s   i   o   n   _   h   a   r   d   _   c   a
+0000300   p   _   t   e   n   t   h   s
+0000310

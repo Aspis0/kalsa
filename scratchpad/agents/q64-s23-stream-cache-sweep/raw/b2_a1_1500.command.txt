@@ -1,0 +1,1 @@
+cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 1500 --dense-weights anon --io-threads 4 -t 4 -p "$(cat /data/local/tmp/q64_out/q64_p128.txt)" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b2_a1_1500.csv

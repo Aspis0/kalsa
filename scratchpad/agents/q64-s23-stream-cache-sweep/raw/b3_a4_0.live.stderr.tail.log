@@ -1,0 +1,797 @@
+llama_model_loader: - kv  19:                 general.dataset.3.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  20:                     general.dataset.4.name str              = Nemotron RL ReasoningGym v1
+llama_model_loader: - kv  21:                  general.dataset.4.version str              = v1
+llama_model_loader: - kv  22:             general.dataset.4.organization str              = Nvidia
+llama_model_loader: - kv  23:                 general.dataset.4.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  24:                     general.dataset.5.name str              = Nemotron RL Knowledge Mcqa
+llama_model_loader: - kv  25:             general.dataset.5.organization str              = Nvidia
+llama_model_loader: - kv  26:                 general.dataset.5.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  27:                     general.dataset.6.name str              = Nemotron Cascade RL RLHF
+llama_model_loader: - kv  28:             general.dataset.6.organization str              = Nvidia
+llama_model_loader: - kv  29:                 general.dataset.6.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  30:                     general.dataset.7.name str              = DAPO Math 17k
+llama_model_loader: - kv  31:             general.dataset.7.organization str              = BytedTsinghua SIA
+llama_model_loader: - kv  32:                 general.dataset.7.repo_url str              = https://huggingface.co/BytedTsinghua-...
+llama_model_loader: - kv  33:                     general.dataset.8.name str              = Skywork OR1 RL Data
+llama_model_loader: - kv  34:             general.dataset.8.organization str              = Skywork
+llama_model_loader: - kv  35:                 general.dataset.8.repo_url str              = https://huggingface.co/Skywork/Skywor...
+llama_model_loader: - kv  36:                     general.dataset.9.name str              = Nemotron SFT Multilingual v1
+llama_model_loader: - kv  37:                  general.dataset.9.version str              = v1
+llama_model_loader: - kv  38:             general.dataset.9.organization str              = Nvidia
+llama_model_loader: - kv  39:                 general.dataset.9.repo_url str              = https://huggingface.co/nvidia/Nemotro...
+llama_model_loader: - kv  40:                               general.tags arr[str,5]       = ["moe", "mixture-of-experts", "multil...
+llama_model_loader: - kv  41:                          general.languages arr[str,29]      = ["en", "zh", "ar", "de", "es", "fr", ...
+llama_model_loader: - kv  42:                       qwen3moe.block_count u32              = 28
+llama_model_loader: - kv  43:                    qwen3moe.context_length u32              = 32768
+llama_model_loader: - kv  44:                  qwen3moe.embedding_length u32              = 1024
+llama_model_loader: - kv  45:               qwen3moe.feed_forward_length u32              = 3072
+llama_model_loader: - kv  46:              qwen3moe.attention.head_count u32              = 16
+llama_model_loader: - kv  47:           qwen3moe.attention.head_count_kv u32              = 8
+llama_model_loader: - kv  48:                    qwen3moe.rope.freq_base f32              = 1000000.000000
+llama_model_loader: - kv  49:  qwen3moe.attention.layer_norm_rms_epsilon f32              = 0.000001
+llama_model_loader: - kv  50:                      qwen3moe.expert_count u32              = 256
+llama_model_loader: - kv  51:                 qwen3moe.expert_used_count u32              = 8
+llama_model_loader: - kv  52:              qwen3moe.attention.key_length u32              = 128
+llama_model_loader: - kv  53:            qwen3moe.attention.value_length u32              = 128
+llama_model_loader: - kv  54:        qwen3moe.expert_feed_forward_length u32              = 768
+llama_model_loader: - kv  55:                       tokenizer.ggml.model str              = gpt2
+llama_model_loader: - kv  56:                         tokenizer.ggml.pre str              = qwen2
+llama_model_loader: - kv  57:                      tokenizer.ggml.tokens arr[str,151936]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+llama_model_loader: - kv  58:                  tokenizer.ggml.token_type arr[i32,151936]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+llama_model_loader: - kv  59:                      tokenizer.ggml.merges arr[str,151387]  = ["Ä  Ä ", "Ä Ä  Ä Ä ", "i n", "Ä  t",...
+llama_model_loader: - kv  60:                tokenizer.ggml.eos_token_id u32              = 151645
+llama_model_loader: - kv  61:            tokenizer.ggml.padding_token_id u32              = 151643
+llama_model_loader: - kv  62:                tokenizer.ggml.bos_token_id u32              = 151643
+llama_model_loader: - kv  63:               tokenizer.ggml.add_bos_token bool             = false
+llama_model_loader: - kv  64:                    tokenizer.chat_template str              = {%- if tools %}\n    {{- '<|im_start|>...
+llama_model_loader: - kv  65:               general.quantization_version u32              = 2
+llama_model_loader: - kv  66:                          general.file_type u32              = 15
+llama_model_loader: - kv  67:                                general.url str              = https://huggingface.co/mradermacher/M...
+llama_model_loader: - kv  68:              mradermacher.quantize_version str              = 2
+llama_model_loader: - kv  69:                  mradermacher.quantized_by str              = mradermacher
+llama_model_loader: - kv  70:                  mradermacher.quantized_at str              = 2026-04-09T16:13:48+02:00
+llama_model_loader: - kv  71:                  mradermacher.quantized_on str              = marco
+llama_model_loader: - kv  72:                         general.source.url str              = https://huggingface.co/AIDC-AI/Marco-...
+llama_model_loader: - kv  73:                  mradermacher.convert_type str              = hf
+llama_model_loader: - kv  74:                      quantize.imatrix.file str              = Marco-Mini-Instruct-i1-GGUF/Marco-Min...
+llama_model_loader: - kv  75:                   quantize.imatrix.dataset str              = imatrix-training-full-3
+llama_model_loader: - kv  76:             quantize.imatrix.entries_count u32              = 224
+llama_model_loader: - kv  77:              quantize.imatrix.chunks_count u32              = 318
+llama_model_loader: - type  f32:  141 tensors
+llama_model_loader: - type q4_K:  168 tensors
+llama_model_loader: - type q6_K:   29 tensors
+print_info: file format = GGUF V3 (latest)
+print_info: file type   = Q4_K - Medium
+print_info: file size   = 9.78 GiB (4.87 BPW) 
+init_tokenizer: initializing tokenizer for type 2
+load: 0 unused tokens
+load: control token: 151659 '<|fim_prefix|>' is not marked as EOG
+load: control token: 151656 '<|video_pad|>' is not marked as EOG
+load: control token: 151655 '<|image_pad|>' is not marked as EOG
+load: control token: 151653 '<|vision_end|>' is not marked as EOG
+load: control token: 151652 '<|vision_start|>' is not marked as EOG
+load: control token: 151651 '<|quad_end|>' is not marked as EOG
+load: control token: 151649 '<|box_end|>' is not marked as EOG
+load: control token: 151648 '<|box_start|>' is not marked as EOG
+load: control token: 151646 '<|object_ref_start|>' is not marked as EOG
+load: control token: 151644 '<|im_start|>' is not marked as EOG
+load: control token: 151661 '<|fim_suffix|>' is not marked as EOG
+load: control token: 151647 '<|object_ref_end|>' is not marked as EOG
+load: control-looking token: 128247 '</s>' was not control-type; this is probably a bug in the model. its type will be overridden
+load: control token: 151660 '<|fim_middle|>' is not marked as EOG
+load: control token: 151654 '<|vision_pad|>' is not marked as EOG
+load: control token: 151650 '<|quad_start|>' is not marked as EOG
+load: printing all EOG tokens:
+load:   - 128247 ('</s>')
+load:   - 151643 ('<|endoftext|>')
+load:   - 151645 ('<|im_end|>')
+load:   - 151662 ('<|fim_pad|>')
+load:   - 151663 ('<|repo_name|>')
+load:   - 151664 ('<|file_sep|>')
+load: special tokens cache size = 23
+load: token to piece cache size = 0.9310 MB
+print_info: arch                  = qwen3moe
+print_info: vocab_only            = 0
+print_info: no_alloc              = 0
+print_info: n_ctx_train           = 32768
+print_info: n_embd_inp            = 1024
+print_info: n_embd                = 1024
+print_info: n_embd_out            = 1024
+print_info: n_layer               = 28
+print_info: n_layer_all           = 28
+print_info: n_head                = 16
+print_info: n_head_kv             = 8
+print_info: n_rot                 = 128
+print_info: n_swa                 = 0
+print_info: is_swa_any            = 0
+print_info: n_embd_head_k         = 128
+print_info: n_embd_head_v         = 128
+print_info: n_gqa                 = 2
+print_info: n_embd_k_gqa          = 1024
+print_info: n_embd_v_gqa          = 1024
+print_info: f_norm_eps            = 0.0e+00
+print_info: f_norm_rms_eps        = 1.0e-06
+print_info: f_clamp_kqv           = 0.0e+00
+print_info: f_max_alibi_bias      = 0.0e+00
+print_info: f_logit_scale         = 0.0e+00
+print_info: f_attn_scale          = 0.0e+00
+print_info: f_attn_value_scale    = 0.0000
+print_info: n_ff                  = 3072
+print_info: n_expert              = 256
+print_info: n_expert_used         = 8
+print_info: n_expert_groups       = 0
+print_info: n_group_used          = 0
+print_info: causal attn           = 1
+print_info: pooling type          = -1
+print_info: rope type             = 2
+print_info: rope scaling          = linear
+print_info: freq_base_train       = 1000000.0
+print_info: freq_scale_train      = 1
+print_info: n_ctx_orig_yarn       = 32768
+print_info: rope_yarn_log_mul     = 0.0000
+print_info: rope_finetuned        = unknown
+print_info: model type            = ?B
+print_info: model params          = 17.25 B
+print_info: general.name          = Marco Mini Instruct
+print_info: n_ff_exp              = 768
+print_info: vocab type            = BPE
+print_info: n_vocab               = 151936
+print_info: n_merges              = 151387
+print_info: BOS token             = 151643 '<|endoftext|>'
+print_info: EOS token             = 151645 '<|im_end|>'
+print_info: EOT token             = 151645 '<|im_end|>'
+print_info: PAD token             = 151643 '<|endoftext|>'
+print_info: LF token              = 198 'ÄŠ'
+print_info: FIM PRE token         = 151659 '<|fim_prefix|>'
+print_info: FIM SUF token         = 151661 '<|fim_suffix|>'
+print_info: FIM MID token         = 151660 '<|fim_middle|>'
+print_info: FIM PAD token         = 151662 '<|fim_pad|>'
+print_info: FIM REP token         = 151663 '<|repo_name|>'
+print_info: FIM SEP token         = 151664 '<|file_sep|>'
+print_info: EOG token             = 128247 '</s>'
+print_info: EOG token             = 151643 '<|endoftext|>'
+print_info: EOG token             = 151645 '<|im_end|>'
+print_info: EOG token             = 151662 '<|fim_pad|>'
+print_info: EOG token             = 151663 '<|repo_name|>'
+print_info: EOG token             = 151664 '<|file_sep|>'
+print_info: max token length      = 256
+load_tensors: loading model tensors, this can take a while... (mmap = true, direct_io = false)
+load_tensors: layer   0 assigned to device CPU, is_swa = 0
+load_tensors: layer   1 assigned to device CPU, is_swa = 0
+load_tensors: layer   2 assigned to device CPU, is_swa = 0
+load_tensors: layer   3 assigned to device CPU, is_swa = 0
+load_tensors: layer   4 assigned to device CPU, is_swa = 0
+load_tensors: layer   5 assigned to device CPU, is_swa = 0
+load_tensors: layer   6 assigned to device CPU, is_swa = 0
+load_tensors: layer   7 assigned to device CPU, is_swa = 0
+load_tensors: layer   8 assigned to device CPU, is_swa = 0
+load_tensors: layer   9 assigned to device CPU, is_swa = 0
+load_tensors: layer  10 assigned to device CPU, is_swa = 0
+load_tensors: layer  11 assigned to device CPU, is_swa = 0
+load_tensors: layer  12 assigned to device CPU, is_swa = 0
+load_tensors: layer  13 assigned to device CPU, is_swa = 0
+load_tensors: layer  14 assigned to device CPU, is_swa = 0
+load_tensors: layer  15 assigned to device CPU, is_swa = 0
+load_tensors: layer  16 assigned to device CPU, is_swa = 0
+load_tensors: layer  17 assigned to device CPU, is_swa = 0
+load_tensors: layer  18 assigned to device CPU, is_swa = 0
+load_tensors: layer  19 assigned to device CPU, is_swa = 0
+load_tensors: layer  20 assigned to device CPU, is_swa = 0
+load_tensors: layer  21 assigned to device CPU, is_swa = 0
+load_tensors: layer  22 assigned to device CPU, is_swa = 0
+load_tensors: layer  23 assigned to device CPU, is_swa = 0
+load_tensors: layer  24 assigned to device CPU, is_swa = 0
+load_tensors: layer  25 assigned to device CPU, is_swa = 0
+load_tensors: layer  26 assigned to device CPU, is_swa = 0
+load_tensors: layer  27 assigned to device CPU, is_swa = 0
+load_tensors: layer  28 assigned to device CPU, is_swa = 0
+create_tensor: loading tensor token_embd.weight
+create_tensor: loading tensor output_norm.weight
+create_tensor: loading tensor blk.0.attn_norm.weight
+create_tensor: loading tensor blk.0.attn_q.weight
+create_tensor: loading tensor blk.0.attn_k.weight
+create_tensor: loading tensor blk.0.attn_v.weight
+create_tensor: loading tensor blk.0.attn_output.weight
+create_tensor: loading tensor blk.0.attn_k_norm.weight
+create_tensor: loading tensor blk.0.attn_q_norm.weight
+create_tensor: loading tensor blk.0.ffn_norm.weight
+create_tensor: loading tensor blk.0.ffn_gate_inp.weight
+create_tensor: loading tensor blk.0.ffn_gate_exps.weight
+create_tensor: loading tensor blk.0.ffn_down_exps.weight
+create_tensor: loading tensor blk.0.ffn_up_exps.weight
+create_tensor: loading tensor blk.1.attn_norm.weight
+create_tensor: loading tensor blk.1.attn_q.weight
+create_tensor: loading tensor blk.1.attn_k.weight
+create_tensor: loading tensor blk.1.attn_v.weight
+create_tensor: loading tensor blk.1.attn_output.weight
+create_tensor: loading tensor blk.1.attn_k_norm.weight
+create_tensor: loading tensor blk.1.attn_q_norm.weight
+create_tensor: loading tensor blk.1.ffn_norm.weight
+create_tensor: loading tensor blk.1.ffn_gate_inp.weight
+create_tensor: loading tensor blk.1.ffn_gate_exps.weight
+create_tensor: loading tensor blk.1.ffn_down_exps.weight
+create_tensor: loading tensor blk.1.ffn_up_exps.weight
+create_tensor: loading tensor blk.2.attn_norm.weight
+create_tensor: loading tensor blk.2.attn_q.weight
+create_tensor: loading tensor blk.2.attn_k.weight
+create_tensor: loading tensor blk.2.attn_v.weight
+create_tensor: loading tensor blk.2.attn_output.weight
+create_tensor: loading tensor blk.2.attn_k_norm.weight
+create_tensor: loading tensor blk.2.attn_q_norm.weight
+create_tensor: loading tensor blk.2.ffn_norm.weight
+create_tensor: loading tensor blk.2.ffn_gate_inp.weight
+create_tensor: loading tensor blk.2.ffn_gate_exps.weight
+create_tensor: loading tensor blk.2.ffn_down_exps.weight
+create_tensor: loading tensor blk.2.ffn_up_exps.weight
+create_tensor: loading tensor blk.3.attn_norm.weight
+create_tensor: loading tensor blk.3.attn_q.weight
+create_tensor: loading tensor blk.3.attn_k.weight
+create_tensor: loading tensor blk.3.attn_v.weight
+create_tensor: loading tensor blk.3.attn_output.weight
+create_tensor: loading tensor blk.3.attn_k_norm.weight
+create_tensor: loading tensor blk.3.attn_q_norm.weight
+create_tensor: loading tensor blk.3.ffn_norm.weight
+create_tensor: loading tensor blk.3.ffn_gate_inp.weight
+create_tensor: loading tensor blk.3.ffn_gate_exps.weight
+create_tensor: loading tensor blk.3.ffn_down_exps.weight
+create_tensor: loading tensor blk.3.ffn_up_exps.weight
+create_tensor: loading tensor blk.4.attn_norm.weight
+create_tensor: loading tensor blk.4.attn_q.weight
+create_tensor: loading tensor blk.4.attn_k.weight
+create_tensor: loading tensor blk.4.attn_v.weight
+create_tensor: loading tensor blk.4.attn_output.weight
+create_tensor: loading tensor blk.4.attn_k_norm.weight
+create_tensor: loading tensor blk.4.attn_q_norm.weight
+create_tensor: loading tensor blk.4.ffn_norm.weight
+create_tensor: loading tensor blk.4.ffn_gate_inp.weight
+create_tensor: loading tensor blk.4.ffn_gate_exps.weight
+create_tensor: loading tensor blk.4.ffn_down_exps.weight
+create_tensor: loading tensor blk.4.ffn_up_exps.weight
+create_tensor: loading tensor blk.5.attn_norm.weight
+create_tensor: loading tensor blk.5.attn_q.weight
+create_tensor: loading tensor blk.5.attn_k.weight
+create_tensor: loading tensor blk.5.attn_v.weight
+create_tensor: loading tensor blk.5.attn_output.weight
+create_tensor: loading tensor blk.5.attn_k_norm.weight
+create_tensor: loading tensor blk.5.attn_q_norm.weight
+create_tensor: loading tensor blk.5.ffn_norm.weight
+create_tensor: loading tensor blk.5.ffn_gate_inp.weight
+create_tensor: loading tensor blk.5.ffn_gate_exps.weight
+create_tensor: loading tensor blk.5.ffn_down_exps.weight
+create_tensor: loading tensor blk.5.ffn_up_exps.weight
+create_tensor: loading tensor blk.6.attn_norm.weight
+create_tensor: loading tensor blk.6.attn_q.weight
+create_tensor: loading tensor blk.6.attn_k.weight
+create_tensor: loading tensor blk.6.attn_v.weight
+create_tensor: loading tensor blk.6.attn_output.weight
+create_tensor: loading tensor blk.6.attn_k_norm.weight
+create_tensor: loading tensor blk.6.attn_q_norm.weight
+create_tensor: loading tensor blk.6.ffn_norm.weight
+create_tensor: loading tensor blk.6.ffn_gate_inp.weight
+create_tensor: loading tensor blk.6.ffn_gate_exps.weight
+create_tensor: loading tensor blk.6.ffn_down_exps.weight
+create_tensor: loading tensor blk.6.ffn_up_exps.weight
+create_tensor: loading tensor blk.7.attn_norm.weight
+create_tensor: loading tensor blk.7.attn_q.weight
+create_tensor: loading tensor blk.7.attn_k.weight
+create_tensor: loading tensor blk.7.attn_v.weight
+create_tensor: loading tensor blk.7.attn_output.weight
+create_tensor: loading tensor blk.7.attn_k_norm.weight
+create_tensor: loading tensor blk.7.attn_q_norm.weight
+create_tensor: loading tensor blk.7.ffn_norm.weight
+create_tensor: loading tensor blk.7.ffn_gate_inp.weight
+create_tensor: loading tensor blk.7.ffn_gate_exps.weight
+create_tensor: loading tensor blk.7.ffn_down_exps.weight
+create_tensor: loading tensor blk.7.ffn_up_exps.weight
+create_tensor: loading tensor blk.8.attn_norm.weight
+create_tensor: loading tensor blk.8.attn_q.weight
+create_tensor: loading tensor blk.8.attn_k.weight
+create_tensor: loading tensor blk.8.attn_v.weight
+create_tensor: loading tensor blk.8.attn_output.weight
+create_tensor: loading tensor blk.8.attn_k_norm.weight
+create_tensor: loading tensor blk.8.attn_q_norm.weight
+create_tensor: loading tensor blk.8.ffn_norm.weight
+create_tensor: loading tensor blk.8.ffn_gate_inp.weight
+create_tensor: loading tensor blk.8.ffn_gate_exps.weight
+create_tensor: loading tensor blk.8.ffn_down_exps.weight
+create_tensor: loading tensor blk.8.ffn_up_exps.weight
+create_tensor: loading tensor blk.9.attn_norm.weight
+create_tensor: loading tensor blk.9.attn_q.weight
+create_tensor: loading tensor blk.9.attn_k.weight
+create_tensor: loading tensor blk.9.attn_v.weight
+create_tensor: loading tensor blk.9.attn_output.weight
+create_tensor: loading tensor blk.9.attn_k_norm.weight
+create_tensor: loading tensor blk.9.attn_q_norm.weight
+create_tensor: loading tensor blk.9.ffn_norm.weight
+create_tensor: loading tensor blk.9.ffn_gate_inp.weight
+create_tensor: loading tensor blk.9.ffn_gate_exps.weight
+create_tensor: loading tensor blk.9.ffn_down_exps.weight
+create_tensor: loading tensor blk.9.ffn_up_exps.weight
+create_tensor: loading tensor blk.10.attn_norm.weight
+create_tensor: loading tensor blk.10.attn_q.weight
+create_tensor: loading tensor blk.10.attn_k.weight
+create_tensor: loading tensor blk.10.attn_v.weight
+create_tensor: loading tensor blk.10.attn_output.weight
+create_tensor: loading tensor blk.10.attn_k_norm.weight
+create_tensor: loading tensor blk.10.attn_q_norm.weight
+create_tensor: loading tensor blk.10.ffn_norm.weight
+create_tensor: loading tensor blk.10.ffn_gate_inp.weight
+create_tensor: loading tensor blk.10.ffn_gate_exps.weight
+create_tensor: loading tensor blk.10.ffn_down_exps.weight
+create_tensor: loading tensor blk.10.ffn_up_exps.weight
+create_tensor: loading tensor blk.11.attn_norm.weight
+create_tensor: loading tensor blk.11.attn_q.weight
+create_tensor: loading tensor blk.11.attn_k.weight
+create_tensor: loading tensor blk.11.attn_v.weight
+create_tensor: loading tensor blk.11.attn_output.weight
+create_tensor: loading tensor blk.11.attn_k_norm.weight
+create_tensor: loading tensor blk.11.attn_q_norm.weight
+create_tensor: loading tensor blk.11.ffn_norm.weight
+create_tensor: loading tensor blk.11.ffn_gate_inp.weight
+create_tensor: loading tensor blk.11.ffn_gate_exps.weight
+create_tensor: loading tensor blk.11.ffn_down_exps.weight
+create_tensor: loading tensor blk.11.ffn_up_exps.weight
+create_tensor: loading tensor blk.12.attn_norm.weight
+create_tensor: loading tensor blk.12.attn_q.weight
+create_tensor: loading tensor blk.12.attn_k.weight
+create_tensor: loading tensor blk.12.attn_v.weight
+create_tensor: loading tensor blk.12.attn_output.weight
+create_tensor: loading tensor blk.12.attn_k_norm.weight
+create_tensor: loading tensor blk.12.attn_q_norm.weight
+create_tensor: loading tensor blk.12.ffn_norm.weight
+create_tensor: loading tensor blk.12.ffn_gate_inp.weight
+create_tensor: loading tensor blk.12.ffn_gate_exps.weight
+create_tensor: loading tensor blk.12.ffn_down_exps.weight
+create_tensor: loading tensor blk.12.ffn_up_exps.weight
+create_tensor: loading tensor blk.13.attn_norm.weight
+create_tensor: loading tensor blk.13.attn_q.weight
+create_tensor: loading tensor blk.13.attn_k.weight
+create_tensor: loading tensor blk.13.attn_v.weight
+create_tensor: loading tensor blk.13.attn_output.weight
+create_tensor: loading tensor blk.13.attn_k_norm.weight
+create_tensor: loading tensor blk.13.attn_q_norm.weight
+create_tensor: loading tensor blk.13.ffn_norm.weight
+create_tensor: loading tensor blk.13.ffn_gate_inp.weight
+create_tensor: loading tensor blk.13.ffn_gate_exps.weight
+create_tensor: loading tensor blk.13.ffn_down_exps.weight
+create_tensor: loading tensor blk.13.ffn_up_exps.weight
+create_tensor: loading tensor blk.14.attn_norm.weight
+create_tensor: loading tensor blk.14.attn_q.weight
+create_tensor: loading tensor blk.14.attn_k.weight
+create_tensor: loading tensor blk.14.attn_v.weight
+create_tensor: loading tensor blk.14.attn_output.weight
+create_tensor: loading tensor blk.14.attn_k_norm.weight
+create_tensor: loading tensor blk.14.attn_q_norm.weight
+create_tensor: loading tensor blk.14.ffn_norm.weight
+create_tensor: loading tensor blk.14.ffn_gate_inp.weight
+create_tensor: loading tensor blk.14.ffn_gate_exps.weight
+create_tensor: loading tensor blk.14.ffn_down_exps.weight
+create_tensor: loading tensor blk.14.ffn_up_exps.weight
+create_tensor: loading tensor blk.15.attn_norm.weight
+create_tensor: loading tensor blk.15.attn_q.weight
+create_tensor: loading tensor blk.15.attn_k.weight
+create_tensor: loading tensor blk.15.attn_v.weight
+create_tensor: loading tensor blk.15.attn_output.weight
+create_tensor: loading tensor blk.15.attn_k_norm.weight
+create_tensor: loading tensor blk.15.attn_q_norm.weight
+create_tensor: loading tensor blk.15.ffn_norm.weight
+create_tensor: loading tensor blk.15.ffn_gate_inp.weight
+create_tensor: loading tensor blk.15.ffn_gate_exps.weight
+create_tensor: loading tensor blk.15.ffn_down_exps.weight
+create_tensor: loading tensor blk.15.ffn_up_exps.weight
+create_tensor: loading tensor blk.16.attn_norm.weight
+create_tensor: loading tensor blk.16.attn_q.weight
+create_tensor: loading tensor blk.16.attn_k.weight
+create_tensor: loading tensor blk.16.attn_v.weight
+create_tensor: loading tensor blk.16.attn_output.weight
+create_tensor: loading tensor blk.16.attn_k_norm.weight
+create_tensor: loading tensor blk.16.attn_q_norm.weight
+create_tensor: loading tensor blk.16.ffn_norm.weight
+create_tensor: loading tensor blk.16.ffn_gate_inp.weight
+create_tensor: loading tensor blk.16.ffn_gate_exps.weight
+create_tensor: loading tensor blk.16.ffn_down_exps.weight
+create_tensor: loading tensor blk.16.ffn_up_exps.weight
+create_tensor: loading tensor blk.17.attn_norm.weight
+create_tensor: loading tensor blk.17.attn_q.weight
+create_tensor: loading tensor blk.17.attn_k.weight
+create_tensor: loading tensor blk.17.attn_v.weight
+create_tensor: loading tensor blk.17.attn_output.weight
+create_tensor: loading tensor blk.17.attn_k_norm.weight
+create_tensor: loading tensor blk.17.attn_q_norm.weight
+create_tensor: loading tensor blk.17.ffn_norm.weight
+create_tensor: loading tensor blk.17.ffn_gate_inp.weight
+create_tensor: loading tensor blk.17.ffn_gate_exps.weight
+create_tensor: loading tensor blk.17.ffn_down_exps.weight
+create_tensor: loading tensor blk.17.ffn_up_exps.weight
+create_tensor: loading tensor blk.18.attn_norm.weight
+create_tensor: loading tensor blk.18.attn_q.weight
+create_tensor: loading tensor blk.18.attn_k.weight
+create_tensor: loading tensor blk.18.attn_v.weight
+create_tensor: loading tensor blk.18.attn_output.weight
+create_tensor: loading tensor blk.18.attn_k_norm.weight
+create_tensor: loading tensor blk.18.attn_q_norm.weight
+create_tensor: loading tensor blk.18.ffn_norm.weight
+create_tensor: loading tensor blk.18.ffn_gate_inp.weight
+create_tensor: loading tensor blk.18.ffn_gate_exps.weight
+create_tensor: loading tensor blk.18.ffn_down_exps.weight
+create_tensor: loading tensor blk.18.ffn_up_exps.weight
+create_tensor: loading tensor blk.19.attn_norm.weight
+create_tensor: loading tensor blk.19.attn_q.weight
+create_tensor: loading tensor blk.19.attn_k.weight
+create_tensor: loading tensor blk.19.attn_v.weight
+create_tensor: loading tensor blk.19.attn_output.weight
+create_tensor: loading tensor blk.19.attn_k_norm.weight
+create_tensor: loading tensor blk.19.attn_q_norm.weight
+create_tensor: loading tensor blk.19.ffn_norm.weight
+create_tensor: loading tensor blk.19.ffn_gate_inp.weight
+create_tensor: loading tensor blk.19.ffn_gate_exps.weight
+create_tensor: loading tensor blk.19.ffn_down_exps.weight
+create_tensor: loading tensor blk.19.ffn_up_exps.weight
+create_tensor: loading tensor blk.20.attn_norm.weight
+create_tensor: loading tensor blk.20.attn_q.weight
+create_tensor: loading tensor blk.20.attn_k.weight
+create_tensor: loading tensor blk.20.attn_v.weight
+create_tensor: loading tensor blk.20.attn_output.weight
+create_tensor: loading tensor blk.20.attn_k_norm.weight
+create_tensor: loading tensor blk.20.attn_q_norm.weight
+create_tensor: loading tensor blk.20.ffn_norm.weight
+create_tensor: loading tensor blk.20.ffn_gate_inp.weight
+create_tensor: loading tensor blk.20.ffn_gate_exps.weight
+create_tensor: loading tensor blk.20.ffn_down_exps.weight
+create_tensor: loading tensor blk.20.ffn_up_exps.weight
+create_tensor: loading tensor blk.21.attn_norm.weight
+create_tensor: loading tensor blk.21.attn_q.weight
+create_tensor: loading tensor blk.21.attn_k.weight
+create_tensor: loading tensor blk.21.attn_v.weight
+create_tensor: loading tensor blk.21.attn_output.weight
+create_tensor: loading tensor blk.21.attn_k_norm.weight
+create_tensor: loading tensor blk.21.attn_q_norm.weight
+create_tensor: loading tensor blk.21.ffn_norm.weight
+create_tensor: loading tensor blk.21.ffn_gate_inp.weight
+create_tensor: loading tensor blk.21.ffn_gate_exps.weight
+create_tensor: loading tensor blk.21.ffn_down_exps.weight
+create_tensor: loading tensor blk.21.ffn_up_exps.weight
+create_tensor: loading tensor blk.22.attn_norm.weight
+create_tensor: loading tensor blk.22.attn_q.weight
+create_tensor: loading tensor blk.22.attn_k.weight
+create_tensor: loading tensor blk.22.attn_v.weight
+create_tensor: loading tensor blk.22.attn_output.weight
+create_tensor: loading tensor blk.22.attn_k_norm.weight
+create_tensor: loading tensor blk.22.attn_q_norm.weight
+create_tensor: loading tensor blk.22.ffn_norm.weight
+create_tensor: loading tensor blk.22.ffn_gate_inp.weight
+create_tensor: loading tensor blk.22.ffn_gate_exps.weight
+create_tensor: loading tensor blk.22.ffn_down_exps.weight
+create_tensor: loading tensor blk.22.ffn_up_exps.weight
+create_tensor: loading tensor blk.23.attn_norm.weight
+create_tensor: loading tensor blk.23.attn_q.weight
+create_tensor: loading tensor blk.23.attn_k.weight
+create_tensor: loading tensor blk.23.attn_v.weight
+create_tensor: loading tensor blk.23.attn_output.weight
+create_tensor: loading tensor blk.23.attn_k_norm.weight
+create_tensor: loading tensor blk.23.attn_q_norm.weight
+create_tensor: loading tensor blk.23.ffn_norm.weight
+create_tensor: loading tensor blk.23.ffn_gate_inp.weight
+create_tensor: loading tensor blk.23.ffn_gate_exps.weight
+create_tensor: loading tensor blk.23.ffn_down_exps.weight
+create_tensor: loading tensor blk.23.ffn_up_exps.weight
+create_tensor: loading tensor blk.24.attn_norm.weight
+create_tensor: loading tensor blk.24.attn_q.weight
+create_tensor: loading tensor blk.24.attn_k.weight
+create_tensor: loading tensor blk.24.attn_v.weight
+create_tensor: loading tensor blk.24.attn_output.weight
+create_tensor: loading tensor blk.24.attn_k_norm.weight
+create_tensor: loading tensor blk.24.attn_q_norm.weight
+create_tensor: loading tensor blk.24.ffn_norm.weight
+create_tensor: loading tensor blk.24.ffn_gate_inp.weight
+create_tensor: loading tensor blk.24.ffn_gate_exps.weight
+create_tensor: loading tensor blk.24.ffn_down_exps.weight
+create_tensor: loading tensor blk.24.ffn_up_exps.weight
+create_tensor: loading tensor blk.25.attn_norm.weight
+create_tensor: loading tensor blk.25.attn_q.weight
+create_tensor: loading tensor blk.25.attn_k.weight
+create_tensor: loading tensor blk.25.attn_v.weight
+create_tensor: loading tensor blk.25.attn_output.weight
+create_tensor: loading tensor blk.25.attn_k_norm.weight
+create_tensor: loading tensor blk.25.attn_q_norm.weight
+create_tensor: loading tensor blk.25.ffn_norm.weight
+create_tensor: loading tensor blk.25.ffn_gate_inp.weight
+create_tensor: loading tensor blk.25.ffn_gate_exps.weight
+create_tensor: loading tensor blk.25.ffn_down_exps.weight
+create_tensor: loading tensor blk.25.ffn_up_exps.weight
+create_tensor: loading tensor blk.26.attn_norm.weight
+create_tensor: loading tensor blk.26.attn_q.weight
+create_tensor: loading tensor blk.26.attn_k.weight
+create_tensor: loading tensor blk.26.attn_v.weight
+create_tensor: loading tensor blk.26.attn_output.weight
+create_tensor: loading tensor blk.26.attn_k_norm.weight
+create_tensor: loading tensor blk.26.attn_q_norm.weight
+create_tensor: loading tensor blk.26.ffn_norm.weight
+create_tensor: loading tensor blk.26.ffn_gate_inp.weight
+create_tensor: loading tensor blk.26.ffn_gate_exps.weight
+create_tensor: loading tensor blk.26.ffn_down_exps.weight
+create_tensor: loading tensor blk.26.ffn_up_exps.weight
+create_tensor: loading tensor blk.27.attn_norm.weight
+create_tensor: loading tensor blk.27.attn_q.weight
+create_tensor: loading tensor blk.27.attn_k.weight
+create_tensor: loading tensor blk.27.attn_v.weight
+create_tensor: loading tensor blk.27.attn_output.weight
+create_tensor: loading tensor blk.27.attn_k_norm.weight
+create_tensor: loading tensor blk.27.attn_q_norm.weight
+create_tensor: loading tensor blk.27.ffn_norm.weight
+create_tensor: loading tensor blk.27.ffn_gate_inp.weight
+create_tensor: loading tensor blk.27.ffn_gate_exps.weight
+create_tensor: loading tensor blk.27.ffn_down_exps.weight
+create_tensor: loading tensor blk.27.ffn_up_exps.weight
+load_tensors:   CPU_Mapped model buffer size = 10013.07 MiB
+......................................................................................
+llama_context: constructing llama_context
+llama_context: n_seq_max     = 1
+llama_context: n_ctx         = 512
+llama_context: n_ctx_seq     = 512
+llama_context: n_batch       = 512
+llama_context: n_ubatch      = 512
+llama_context: causal_attn   = 1
+llama_context: flash_attn    = disabled
+llama_context: kv_unified    = false
+llama_context: freq_base     = 1000000.0
+llama_context: freq_scale    = 1
+llama_context: n_rs_seq      = 0
+llama_context: n_outputs_max = 512
+llama_context: n_ctx_seq (512) < n_ctx_train (32768) -- the full capacity of the model will not be utilized
+set_abort_callback: call
+llama_context:        CPU  output buffer size =     0.58 MiB
+llama_kv_cache: layer   0: dev = CPU
+llama_kv_cache: layer   1: dev = CPU
+llama_kv_cache: layer   2: dev = CPU
+llama_kv_cache: layer   3: dev = CPU
+llama_kv_cache: layer   4: dev = CPU
+llama_kv_cache: layer   5: dev = CPU
+llama_kv_cache: layer   6: dev = CPU
+llama_kv_cache: layer   7: dev = CPU
+llama_kv_cache: layer   8: dev = CPU
+llama_kv_cache: layer   9: dev = CPU
+llama_kv_cache: layer  10: dev = CPU
+llama_kv_cache: layer  11: dev = CPU
+llama_kv_cache: layer  12: dev = CPU
+llama_kv_cache: layer  13: dev = CPU
+llama_kv_cache: layer  14: dev = CPU
+llama_kv_cache: layer  15: dev = CPU
+llama_kv_cache: layer  16: dev = CPU
+llama_kv_cache: layer  17: dev = CPU
+llama_kv_cache: layer  18: dev = CPU
+llama_kv_cache: layer  19: dev = CPU
+llama_kv_cache: layer  20: dev = CPU
+llama_kv_cache: layer  21: dev = CPU
+llama_kv_cache: layer  22: dev = CPU
+llama_kv_cache: layer  23: dev = CPU
+llama_kv_cache: layer  24: dev = CPU
+llama_kv_cache: layer  25: dev = CPU
+llama_kv_cache: layer  26: dev = CPU
+llama_kv_cache: layer  27: dev = CPU
+llama_kv_cache:        CPU KV buffer size =    56.00 MiB
+llama_kv_cache: size =   56.00 MiB (   512 cells,  28 layers,  1/1 seqs), K (f16):   28.00 MiB, V (f16):   28.00 MiB
+llama_kv_cache: attn_rot_k = 0, n_embd_head_k_all = 128
+llama_kv_cache: attn_rot_v = 0, n_embd_head_k_all = 128
+llama_context: enumerating backends
+llama_context: backend_ptrs.size() = 1
+sched_reserve: reserving ...
+sched_reserve: max_nodes = 2704
+sched_reserve: reserving full memory module
+sched_reserve: worst-case: n_tokens = 512, n_seqs = 1, n_outputs = 1
+resolve_fused_ops: resolving fused Gated Delta Net support:
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+graph_reserve: reserving a graph for ubatch with n_tokens =  512, n_seqs =  1, n_outputs =  512
+sched_reserve:        CPU compute buffer size =   300.75 MiB
+sched_reserve: graph nodes  = 1910
+sched_reserve: graph splits = 1
+sched_reserve: reserve took 3.50 ms, sched copies = 1
+set_n_threads: n_threads = 4, n_threads_batch = 4
+set_abort_callback: call
+bmoe: expert-mmap: dropped 9764 MiB
+bmoe: dense-weights=anon â€” 248 MiB in 254 anon buffers
+bmoe: dense-anon: memcpy=197 odirect=50 ranges_fallback=101
+bmoe: dense-weights=anon â€” dropped 247 MiB of now-unused mmap pages
+bmoe: expert streaming ON  n_expert=256 o_direct=1 io_threads=4 cache=0 MiB shards=1
+
+BMOE_LOAD {"mb":307.78,"ms":519.3}
+BMOE_PROGRESS {"step":1,"steps":128,"wall_ms":1050.0,"io_ms":519.3,"compute_ms":530.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1205.3,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" check"}
+BMOE_LOAD {"mb":307.79,"ms":532.9}
+BMOE_PROGRESS {"step":2,"steps":128,"wall_ms":953.9,"io_ms":532.9,"compute_ms":421.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":928.8,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.82,"ms":530.3}
+BMOE_PROGRESS {"step":3,"steps":128,"wall_ms":951.0,"io_ms":530.3,"compute_ms":420.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":955.2,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" power"}
+BMOE_LOAD {"mb":307.75,"ms":519.1}
+BMOE_PROGRESS {"step":4,"steps":128,"wall_ms":858.2,"io_ms":519.1,"compute_ms":337.3,"mgmt_ms":1.7,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1126.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.79,"ms":353.5}
+BMOE_PROGRESS {"step":5,"steps":128,"wall_ms":787.5,"io_ms":353.5,"compute_ms":433.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":919.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" If"}
+BMOE_LOAD {"mb":307.78,"ms":358.3}
+BMOE_PROGRESS {"step":6,"steps":128,"wall_ms":1019.6,"io_ms":358.3,"compute_ms":661.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1111.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.78,"ms":491.5}
+BMOE_PROGRESS {"step":7,"steps":128,"wall_ms":981.8,"io_ms":491.5,"compute_ms":490.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1071.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" load"}
+BMOE_LOAD {"mb":307.81,"ms":542.8}
+BMOE_PROGRESS {"step":8,"steps":128,"wall_ms":1050.0,"io_ms":542.8,"compute_ms":507.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1168.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.80,"ms":363.0}
+BMOE_PROGRESS {"step":9,"steps":128,"wall_ms":802.6,"io_ms":363.0,"compute_ms":438.9,"mgmt_ms":0.8,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":905.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" too"}
+BMOE_LOAD {"mb":307.81,"ms":364.7}
+BMOE_PROGRESS {"step":10,"steps":128,"wall_ms":858.0,"io_ms":364.7,"compute_ms":493.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1077.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" high"}
+BMOE_LOAD {"mb":307.77,"ms":525.0}
+BMOE_PROGRESS {"step":11,"steps":128,"wall_ms":827.1,"io_ms":525.0,"compute_ms":302.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1055.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.81,"ms":536.4}
+BMOE_PROGRESS {"step":12,"steps":128,"wall_ms":1000.1,"io_ms":536.4,"compute_ms":463.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":994.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" we"}
+BMOE_LOAD {"mb":307.77,"ms":355.7}
+BMOE_PROGRESS {"step":13,"steps":128,"wall_ms":806.8,"io_ms":355.7,"compute_ms":450.0,"mgmt_ms":1.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":922.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" reduce"}
+BMOE_LOAD {"mb":307.80,"ms":379.3}
+BMOE_PROGRESS {"step":14,"steps":128,"wall_ms":941.7,"io_ms":379.3,"compute_ms":562.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1262.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" it"}
+BMOE_LOAD {"mb":307.75,"ms":354.0}
+BMOE_PROGRESS {"step":15,"steps":128,"wall_ms":973.8,"io_ms":354.0,"compute_ms":619.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":974.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.78,"ms":747.2}
+BMOE_PROGRESS {"step":16,"steps":128,"wall_ms":1070.8,"io_ms":747.2,"compute_ms":323.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1072.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" If"}
+BMOE_LOAD {"mb":307.80,"ms":353.3}
+BMOE_PROGRESS {"step":17,"steps":128,"wall_ms":701.4,"io_ms":353.3,"compute_ms":348.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":818.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.78,"ms":358.3}
+BMOE_PROGRESS {"step":18,"steps":128,"wall_ms":1007.6,"io_ms":358.3,"compute_ms":648.3,"mgmt_ms":1.0,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1041.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" space"}
+BMOE_LOAD {"mb":307.81,"ms":360.8}
+BMOE_PROGRESS {"step":19,"steps":128,"wall_ms":1189.8,"io_ms":360.8,"compute_ms":828.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1237.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":631.6}
+BMOE_PROGRESS {"step":20,"steps":128,"wall_ms":1033.6,"io_ms":631.6,"compute_ms":401.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":765.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" too"}
+BMOE_LOAD {"mb":307.80,"ms":555.8}
+BMOE_PROGRESS {"step":21,"steps":128,"wall_ms":1115.9,"io_ms":555.8,"compute_ms":560.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":984.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" small"}
+BMOE_LOAD {"mb":307.77,"ms":358.4}
+BMOE_PROGRESS {"step":22,"steps":128,"wall_ms":779.9,"io_ms":358.4,"compute_ms":421.0,"mgmt_ms":0.6,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":938.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.81,"ms":547.6}
+BMOE_PROGRESS {"step":23,"steps":128,"wall_ms":984.2,"io_ms":547.6,"compute_ms":436.5,"mgmt_ms":0.2,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":935.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" we"}
+BMOE_LOAD {"mb":307.77,"ms":368.9}
+BMOE_PROGRESS {"step":24,"steps":128,"wall_ms":983.1,"io_ms":368.9,"compute_ms":614.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1052.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" add"}
+BMOE_LOAD {"mb":307.77,"ms":377.1}
+BMOE_PROGRESS {"step":25,"steps":128,"wall_ms":1167.8,"io_ms":377.1,"compute_ms":790.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1128.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.76,"ms":359.4}
+BMOE_PROGRESS {"step":26,"steps":128,"wall_ms":646.8,"io_ms":359.4,"compute_ms":287.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":959.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" new"}
+BMOE_LOAD {"mb":307.81,"ms":389.6}
+BMOE_PROGRESS {"step":27,"steps":128,"wall_ms":1046.8,"io_ms":389.6,"compute_ms":655.3,"mgmt_ms":1.9,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":987.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" part"}
+BMOE_LOAD {"mb":307.75,"ms":364.0}
+BMOE_PROGRESS {"step":28,"steps":128,"wall_ms":816.7,"io_ms":364.0,"compute_ms":452.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":975.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.77,"ms":533.7}
+BMOE_PROGRESS {"step":29,"steps":128,"wall_ms":941.7,"io_ms":533.7,"compute_ms":407.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1266.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" We"}
+BMOE_LOAD {"mb":307.74,"ms":366.8}
+BMOE_PROGRESS {"step":30,"steps":128,"wall_ms":1202.6,"io_ms":366.8,"compute_ms":835.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.74,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1054.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" do"}
+BMOE_LOAD {"mb":307.77,"ms":366.9}
+BMOE_PROGRESS {"step":31,"steps":128,"wall_ms":865.7,"io_ms":366.9,"compute_ms":497.3,"mgmt_ms":1.4,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1087.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.80,"ms":350.8}
+BMOE_PROGRESS {"step":32,"steps":128,"wall_ms":892.6,"io_ms":350.8,"compute_ms":541.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1157.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" guess"}
+BMOE_LOAD {"mb":307.77,"ms":366.6}
+BMOE_PROGRESS {"step":33,"steps":128,"wall_ms":1126.7,"io_ms":366.6,"compute_ms":760.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":989.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.79,"ms":357.9}
+BMOE_PROGRESS {"step":34,"steps":128,"wall_ms":1045.3,"io_ms":357.9,"compute_ms":687.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1182.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" We"}
+BMOE_LOAD {"mb":307.76,"ms":529.4}
+BMOE_PROGRESS {"step":35,"steps":128,"wall_ms":1002.1,"io_ms":529.4,"compute_ms":472.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1009.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" do"}
+BMOE_LOAD {"mb":307.75,"ms":371.8}
+BMOE_PROGRESS {"step":36,"steps":128,"wall_ms":1063.6,"io_ms":371.8,"compute_ms":689.7,"mgmt_ms":2.1,"stall_ms":0.0,"read_mb":307.75,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1120.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.81,"ms":358.4}
+BMOE_PROGRESS {"step":37,"steps":128,"wall_ms":823.9,"io_ms":358.4,"compute_ms":465.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":992.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" rush"}
+BMOE_LOAD {"mb":307.78,"ms":365.8}
+BMOE_PROGRESS {"step":38,"steps":128,"wall_ms":1100.2,"io_ms":365.8,"compute_ms":734.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1180.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.77,"ms":360.3}
+BMOE_PROGRESS {"step":39,"steps":128,"wall_ms":1175.4,"io_ms":360.3,"compute_ms":815.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1127.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" We"}
+BMOE_LOAD {"mb":307.78,"ms":356.6}
+BMOE_PROGRESS {"step":40,"steps":128,"wall_ms":743.6,"io_ms":356.6,"compute_ms":387.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":878.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" do"}
+BMOE_LOAD {"mb":307.77,"ms":567.4}
+BMOE_PROGRESS {"step":41,"steps":128,"wall_ms":809.1,"io_ms":567.4,"compute_ms":240.6,"mgmt_ms":1.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":862.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.80,"ms":534.9}
+BMOE_PROGRESS {"step":42,"steps":128,"wall_ms":960.7,"io_ms":534.9,"compute_ms":425.4,"mgmt_ms":0.4,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":979.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" change"}
+BMOE_LOAD {"mb":307.79,"ms":364.3}
+BMOE_PROGRESS {"step":43,"steps":128,"wall_ms":819.8,"io_ms":364.3,"compute_ms":455.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":977.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" the"}
+BMOE_LOAD {"mb":307.76,"ms":358.8}
+BMOE_PROGRESS {"step":44,"steps":128,"wall_ms":990.3,"io_ms":358.8,"compute_ms":631.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1071.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" plan"}
+BMOE_LOAD {"mb":307.79,"ms":368.4}
+BMOE_PROGRESS {"step":45,"steps":128,"wall_ms":895.2,"io_ms":368.4,"compute_ms":525.9,"mgmt_ms":0.9,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1078.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" without"}
+BMOE_LOAD {"mb":307.77,"ms":360.1}
+BMOE_PROGRESS {"step":46,"steps":128,"wall_ms":1252.6,"io_ms":360.1,"compute_ms":892.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1320.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.78,"ms":558.9}
+BMOE_PROGRESS {"step":47,"steps":128,"wall_ms":1252.2,"io_ms":558.9,"compute_ms":693.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":917.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" reason"}
+BMOE_LOAD {"mb":307.79,"ms":367.5}
+BMOE_PROGRESS {"step":48,"steps":128,"wall_ms":984.4,"io_ms":367.5,"compute_ms":616.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1068.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":".\n\n"}
+BMOE_LOAD {"mb":307.78,"ms":353.9}
+BMOE_PROGRESS {"step":49,"steps":128,"wall_ms":755.5,"io_ms":353.9,"compute_ms":401.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":896.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"A"}
+BMOE_LOAD {"mb":307.82,"ms":720.7}
+BMOE_PROGRESS {"step":50,"steps":128,"wall_ms":1145.4,"io_ms":720.7,"compute_ms":423.9,"mgmt_ms":0.7,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":947.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" test"}
+BMOE_LOAD {"mb":307.80,"ms":521.7}
+BMOE_PROGRESS {"step":51,"steps":128,"wall_ms":1208.7,"io_ms":521.7,"compute_ms":686.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1166.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":533.6}
+BMOE_PROGRESS {"step":52,"steps":128,"wall_ms":1094.9,"io_ms":533.6,"compute_ms":561.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1165.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.78,"ms":531.5}
+BMOE_PROGRESS {"step":53,"steps":128,"wall_ms":1026.6,"io_ms":531.5,"compute_ms":495.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1061.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.79,"ms":370.5}
+BMOE_PROGRESS {"step":54,"steps":128,"wall_ms":893.0,"io_ms":370.5,"compute_ms":520.8,"mgmt_ms":1.7,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":845.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" race"}
+BMOE_LOAD {"mb":307.77,"ms":363.1}
+BMOE_PROGRESS {"step":55,"steps":128,"wall_ms":1045.2,"io_ms":363.1,"compute_ms":682.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1046.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.79,"ms":362.7}
+BMOE_PROGRESS {"step":56,"steps":128,"wall_ms":824.6,"io_ms":362.7,"compute_ms":461.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1170.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.77,"ms":523.7}
+BMOE_PROGRESS {"step":57,"steps":128,"wall_ms":1157.9,"io_ms":523.7,"compute_ms":634.1,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1000.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.77,"ms":353.4}
+BMOE_PROGRESS {"step":58,"steps":128,"wall_ms":876.2,"io_ms":353.4,"compute_ms":522.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1147.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" a"}
+BMOE_LOAD {"mb":307.77,"ms":371.8}
+BMOE_PROGRESS {"step":59,"steps":128,"wall_ms":1004.9,"io_ms":371.8,"compute_ms":632.6,"mgmt_ms":0.5,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":982.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" quiet"}
+BMOE_LOAD {"mb":307.78,"ms":357.9}
+BMOE_PROGRESS {"step":60,"steps":128,"wall_ms":771.6,"io_ms":357.9,"compute_ms":413.6,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":882.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.81,"ms":535.5}
+BMOE_PROGRESS {"step":61,"steps":128,"wall_ms":1049.5,"io_ms":535.5,"compute_ms":513.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1170.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" clear"}
+BMOE_LOAD {"mb":307.79,"ms":360.8}
+BMOE_PROGRESS {"step":62,"steps":128,"wall_ms":877.1,"io_ms":360.8,"compute_ms":516.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1121.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":","}
+BMOE_LOAD {"mb":307.80,"ms":369.7}
+BMOE_PROGRESS {"step":63,"steps":128,"wall_ms":832.3,"io_ms":369.7,"compute_ms":461.9,"mgmt_ms":0.8,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":969.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" and"}
+BMOE_LOAD {"mb":307.81,"ms":363.7}
+BMOE_PROGRESS {"step":64,"steps":128,"wall_ms":777.1,"io_ms":363.7,"compute_ms":413.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":886.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" steady"}
+BMOE_LOAD {"mb":307.82,"ms":368.7}
+BMOE_PROGRESS {"step":65,"steps":128,"wall_ms":1062.6,"io_ms":368.7,"compute_ms":693.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1108.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" way"}
+BMOE_LOAD {"mb":307.81,"ms":361.1}
+BMOE_PROGRESS {"step":66,"steps":128,"wall_ms":974.4,"io_ms":361.1,"compute_ms":613.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":959.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" to"}
+BMOE_LOAD {"mb":307.79,"ms":365.6}
+BMOE_PROGRESS {"step":67,"steps":128,"wall_ms":883.4,"io_ms":365.6,"compute_ms":517.7,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1061.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" know"}
+BMOE_LOAD {"mb":307.77,"ms":711.3}
+BMOE_PROGRESS {"step":68,"steps":128,"wall_ms":995.1,"io_ms":711.3,"compute_ms":282.0,"mgmt_ms":1.8,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":966.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.78,"ms":460.8}
+BMOE_PROGRESS {"step":69,"steps":128,"wall_ms":1019.1,"io_ms":460.8,"compute_ms":558.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1143.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.79,"ms":353.9}
+BMOE_PROGRESS {"step":70,"steps":128,"wall_ms":1191.3,"io_ms":353.9,"compute_ms":837.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1090.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.78,"ms":367.4}
+BMOE_PROGRESS {"step":71,"steps":128,"wall_ms":871.5,"io_ms":367.4,"compute_ms":504.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1100.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" not"}
+BMOE_LOAD {"mb":307.78,"ms":376.9}
+BMOE_PROGRESS {"step":72,"steps":128,"wall_ms":868.4,"io_ms":376.9,"compute_ms":491.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1122.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.77,"ms":361.0}
+BMOE_PROGRESS {"step":73,"steps":128,"wall_ms":858.7,"io_ms":361.0,"compute_ms":496.1,"mgmt_ms":1.6,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1171.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" speed"}
+BMOE_LOAD {"mb":307.77,"ms":361.9}
+BMOE_PROGRESS {"step":74,"steps":128,"wall_ms":1051.7,"io_ms":361.9,"compute_ms":689.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1125.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.82,"ms":362.4}
+BMOE_PROGRESS {"step":75,"steps":128,"wall_ms":822.6,"io_ms":362.4,"compute_ms":460.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":922.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.79,"ms":538.1}
+BMOE_PROGRESS {"step":76,"steps":128,"wall_ms":1037.2,"io_ms":538.1,"compute_ms":499.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1075.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":372.4}
+BMOE_PROGRESS {"step":77,"steps":128,"wall_ms":830.2,"io_ms":372.4,"compute_ms":456.1,"mgmt_ms":1.7,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1015.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.78,"ms":378.6}
+BMOE_PROGRESS {"step":78,"steps":128,"wall_ms":800.1,"io_ms":378.6,"compute_ms":421.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":903.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" truth"}
+BMOE_LOAD {"mb":307.77,"ms":382.1}
+BMOE_PROGRESS {"step":79,"steps":128,"wall_ms":842.6,"io_ms":382.1,"compute_ms":460.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1017.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.81,"ms":356.2}
+BMOE_PROGRESS {"step":80,"steps":128,"wall_ms":812.7,"io_ms":356.2,"compute_ms":456.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":975.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.76,"ms":547.7}
+BMOE_PROGRESS {"step":81,"steps":128,"wall_ms":780.7,"io_ms":547.7,"compute_ms":232.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":800.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.73,"ms":357.0}
+BMOE_PROGRESS {"step":82,"steps":128,"wall_ms":1018.6,"io_ms":357.0,"compute_ms":660.0,"mgmt_ms":1.6,"stall_ms":0.0,"read_mb":307.73,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1166.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.80,"ms":357.0}
+BMOE_PROGRESS {"step":83,"steps":128,"wall_ms":855.0,"io_ms":357.0,"compute_ms":497.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1140.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" knowing"}
+BMOE_LOAD {"mb":307.76,"ms":364.9}
+BMOE_PROGRESS {"step":84,"steps":128,"wall_ms":951.1,"io_ms":364.9,"compute_ms":586.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1002.6,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.82,"ms":354.7}
+BMOE_PROGRESS {"step":85,"steps":128,"wall_ms":1045.8,"io_ms":354.7,"compute_ms":691.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1191.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.77,"ms":467.6}
+BMOE_PROGRESS {"step":86,"steps":128,"wall_ms":763.3,"io_ms":467.6,"compute_ms":294.9,"mgmt_ms":0.7,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1008.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.77,"ms":507.8}
+BMOE_PROGRESS {"step":87,"steps":128,"wall_ms":964.9,"io_ms":507.8,"compute_ms":457.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.77,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":979.3,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.80,"ms":361.7}
+BMOE_PROGRESS {"step":88,"steps":128,"wall_ms":1033.6,"io_ms":361.7,"compute_ms":671.8,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.80,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1152.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" being"}
+BMOE_LOAD {"mb":307.81,"ms":552.7}
+BMOE_PROGRESS {"step":89,"steps":128,"wall_ms":985.9,"io_ms":552.7,"compute_ms":433.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1067.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" sure"}
+BMOE_LOAD {"mb":307.78,"ms":361.6}
+BMOE_PROGRESS {"step":90,"steps":128,"wall_ms":881.0,"io_ms":361.6,"compute_ms":519.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1098.0,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.82,"ms":362.8}
+BMOE_PROGRESS {"step":91,"steps":128,"wall_ms":1027.7,"io_ms":362.8,"compute_ms":663.5,"mgmt_ms":1.4,"stall_ms":0.0,"read_mb":307.82,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1003.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.76,"ms":565.5}
+BMOE_PROGRESS {"step":92,"steps":128,"wall_ms":1072.6,"io_ms":565.5,"compute_ms":507.0,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.76,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1073.4,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}
+BMOE_LOAD {"mb":307.79,"ms":525.5}
+BMOE_PROGRESS {"step":93,"steps":128,"wall_ms":1025.8,"io_ms":525.5,"compute_ms":500.2,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.79,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1035.8,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" about"}
+BMOE_LOAD {"mb":307.78,"ms":502.6}
+BMOE_PROGRESS {"step":94,"steps":128,"wall_ms":1044.6,"io_ms":502.6,"compute_ms":541.9,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1264.5,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" being"}
+BMOE_LOAD {"mb":307.78,"ms":539.2}
+BMOE_PROGRESS {"step":95,"steps":128,"wall_ms":1168.9,"io_ms":539.2,"compute_ms":629.2,"mgmt_ms":0.6,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1135.7,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" calm"}
+BMOE_LOAD {"mb":307.78,"ms":356.9}
+BMOE_PROGRESS {"step":96,"steps":128,"wall_ms":1011.5,"io_ms":356.9,"compute_ms":654.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1107.9,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":"."}
+BMOE_LOAD {"mb":307.81,"ms":513.1}
+BMOE_PROGRESS {"step":97,"steps":128,"wall_ms":979.7,"io_ms":513.1,"compute_ms":466.5,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.81,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1025.2,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" It"}
+BMOE_LOAD {"mb":307.78,"ms":394.9}
+BMOE_PROGRESS {"step":98,"steps":128,"wall_ms":1055.3,"io_ms":394.9,"compute_ms":660.3,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":307.78,"cache_hit_pct":-1.0,"majflt":0,"cpu_ms":1078.1,"dense_resident_frac":1.000,"delta_reasoning":"","delta_text":" is"}

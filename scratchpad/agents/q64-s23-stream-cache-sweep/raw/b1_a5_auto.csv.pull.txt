@@ -1,0 +1,1 @@
+/data/local/tmp/q64_out/b1_a5_auto.csv: 1 file pulled, 0 skipped. 0.6 MB/s (18958 bytes in 0.033s)

@@ -1,0 +1,316 @@
+{
+  "tag": "b3_a4_0",
+  "serial": "adb-R3CW406P8CV-zyLM4b (2)._adb-tls-connect._tcp",
+  "supervisor_pid": 8310,
+  "guard_pid": 8311,
+  "binary_pid": 8312,
+  "workload_exec_pid": 8312,
+  "cpuset": "/",
+  "workload": [
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q64_out && LD_LIBRARY_PATH=/data/local/tmp/q64_rt /data/local/tmp/q64_rt/bmoe-cli -m /data/local/tmp/Marco-Mini-Instruct.i1-Q4_K_M.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q64_out/q64_p128.txt)\" -n 128 -c 512 --ubatch 512 --no-think --progress --csv b3_a4_0.csv"
+  ],
+  "allow_npu": false,
+  "thermal_sensor_cmd": "",
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "unset",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "warn_tenths": 400,
+    "kill_tenths": 430,
+    "hard_abort_tenths": 0,
+    "session_hard_cap_tenths": 0,
+    "effective_kill_tenths": 430,
+    "interval_s": 10,
+    "sensor_fail_limit": 4,
+    "sensor_timeout_s": 10,
+    "sensor_failure_window_s": 40,
+    "fail_closed_false_kill_accepted": true,
+    "ready_verified": true,
+    "tracking_verified": true,
+    "exit_code": null,
+    "max_temperature_tenths": 307
+  },
+  "workload_rc": 0,
+  "guard_exit_code": null,
+  "guard_outcome": "other",
+  "launcher_exit_code": 1,
+  "workload_never_started": false,
+  "timed_out": false,
+  "abort_reason": "",
+  "workload_failure_signature": "",
+  "guard_liveness_abort": false,
+  "adb_disconnect": false,
+  "adb_reconnect_attempts": 0,
+  "wall_seconds_until_poll_end": 246.645,
+  "disk_available_kb": 12274116,
+  "battery_start": {
+    "level": 83,
+    "temperature_tenths": 298,
+    "voltage_mv": 4164,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_end": {
+    "level": 83,
+    "temperature_tenths": 306,
+    "voltage_mv": 4151,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_samples": [
+    {
+      "level": 83,
+      "temperature_tenths": 298,
+      "voltage_mv": 4164,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 301,
+      "voltage_mv": 4115,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 305,
+      "voltage_mv": 4150,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4109,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4151,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4152,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 305,
+      "voltage_mv": 4118,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4150,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4153,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 305,
+      "voltage_mv": 4140,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4148,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4125,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4151,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4151,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4147,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4149,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4151,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 307,
+      "voltage_mv": 4108,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 307,
+      "voltage_mv": 4142,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 307,
+      "voltage_mv": 4131,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 83,
+      "temperature_tenths": 306,
+      "voltage_mv": 4151,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    }
+  ],
+  "battery_floor_triggered": false,
+  "battery_floor_chunk": null,
+  "battery_poll_error": false,
+  "running_ppl_values": {},
+  "running_ppl_max_chunk": null,
+  "launch_stdout": "LAUNCH_PID=8310\n",
+  "guard_launch_stdout": "GUARD_PID=8311",
+  "execute_op_htp0": false,
+  "pulls": {
+    "/data/local/tmp/q64_out/b3_a4_0.stdout.jsonl": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q64_out/b3_a4_0.stdout.jsonl: 1 file pulled, 0 skipped. 2.2 MB/s (29826 bytes in 0.013s)\n"
+    },
+    "/data/local/tmp/q64_out/b3_a4_0.stderr.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q64_out/b3_a4_0.stderr.log: 1 file pulled, 0 skipped. 1.7 MB/s (37521 bytes in 0.021s)\n"
+    },
+    "/data/local/tmp/q64_out/b3_a4_0.workload.start_failure": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q64_out/b3_a4_0.workload.start_failure': No such file or directory\n"
+    },
+    "/data/local/tmp/q64_out/b3_a4_0.workload.exec.pid": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q64_out/b3_a4_0.workload.exec.pid: 1 file pulled, 0 skipped. 0.0 MB/s (18 bytes in 0.029s)\n"
+    },
+    "/data/local/tmp/q64_out/b3_a4_0.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q64_out/b3_a4_0.guard.log: 1 file pulled, 0 skipped. 0.1 MB/s (555 bytes in 0.008s)\n"
+    }
+  }
+}
