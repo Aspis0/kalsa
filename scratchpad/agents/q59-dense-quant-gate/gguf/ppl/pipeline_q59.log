@@ -1,0 +1,42 @@
+[2026-08-25T12:45:15] START q59 sequential matrix; one PPL child at a time
+[2026-08-25T12:45:15] WAIT active control/wiki cell to finish
+[2026-08-25T12:54:46] START q59 Amendment 1; one PPL child at a time; wiki=64 chunks; Q8_0=SKIPPED
+[2026-08-25T12:54:46] RUN control/wiki chunks=64
+[2026-08-25T14:00:19] DONE control/wiki rc=0
+[2026-08-25T14:00:19] ETA_AFTER_FIRST_CELL first_wall_s=3927.2 sec_per_chunk=61.362 estimated_total_chunks=668 remaining_s=37062.6 remaining_h=10.30
+[2026-08-25T14:00:19] RUN iq4_nl/wiki chunks=64
+[2026-08-25T15:22:41] DONE iq4_nl/wiki rc=0
+[2026-08-25T15:22:41] RUN control/it chunks=-1
+[2026-08-25T16:22:42] DONE control/it rc=0
+[2026-08-25T16:22:42] RUN iq4_nl/it chunks=-1
+[2026-08-25T17:39:03] DONE iq4_nl/it rc=0
+[2026-08-25T17:39:03] RUN control/es chunks=-1
+[2026-08-25T18:36:06] DONE control/es rc=0
+[2026-08-25T18:36:06] RUN iq4_nl/es chunks=-1
+[2026-08-25T19:49:31] DONE iq4_nl/es rc=0
+[2026-08-25T19:49:31] RUN control/fr chunks=-1
+[2026-08-25T20:47:04] DONE control/fr rc=0
+[2026-08-25T20:47:04] RUN iq4_nl/fr chunks=-1
+[2026-08-25T22:02:35] DONE iq4_nl/fr rc=0
+[2026-08-25T22:02:35] RUN control/zh chunks=-1
+[2026-08-25T23:02:40] DONE control/zh rc=0
+[2026-08-25T23:02:40] RUN iq4_nl/zh chunks=-1
+[2026-08-26T00:18:50] DONE iq4_nl/zh rc=0
+[2026-08-26T00:18:50] PRIMARY_10_DONE
+[2026-08-26T00:18:50] IQ4_NL_DELTA corpus=wiki pct=-1.156548 gate=PASS
+[2026-08-26T00:18:50] IQ4_NL_DELTA corpus=it pct=0.840955 gate=PASS
+[2026-08-26T00:18:50] IQ4_NL_DELTA corpus=es pct=1.392735 gate=FAIL
+[2026-08-26T00:18:50] IQ4_NL_DELTA corpus=fr pct=0.461093 gate=PASS
+[2026-08-26T00:18:50] IQ4_NL_DELTA corpus=zh pct=1.023772 gate=FAIL
+[2026-08-26T00:18:50] IQ4_NL_GATE_FAIL run Q4_0 fallback cells
+[2026-08-26T00:18:50] RUN q4_0/wiki chunks=64
+[2026-08-26T01:32:40] DONE q4_0/wiki rc=0
+[2026-08-26T01:32:40] RUN q4_0/it chunks=-1
+[2026-08-26T02:41:27] DONE q4_0/it rc=0
+[2026-08-26T02:41:27] RUN q4_0/es chunks=-1
+[2026-08-26T03:49:08] DONE q4_0/es rc=0
+[2026-08-26T03:49:08] RUN q4_0/fr chunks=-1
+[2026-08-26T04:58:16] DONE q4_0/fr rc=0
+[2026-08-26T04:58:16] RUN q4_0/zh chunks=-1
+[2026-08-26T06:10:39] DONE q4_0/zh rc=0
+[2026-08-26T06:10:39] DONE q59 Amendment 1

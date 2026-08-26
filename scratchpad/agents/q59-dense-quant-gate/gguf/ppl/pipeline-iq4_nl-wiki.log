@@ -1,0 +1,39 @@
+
+===== 2026-08-25T14:00:19 RUN iq4_nl/wiki =====
+{
+  "arm": "iq4_nl",
+  "corpus": "wiki",
+  "model": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q59-dense-quant-gate\\gguf\\Qwen3.5-4B-fromsrc-IQ4_NL.gguf",
+  "model_bytes": 2689443040,
+  "model_sha256": "d1badf2682c66c4bf3aaa410c8e15a5605746a33ba049ae5a968afe82c71c539",
+  "file": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q41-ppl-gate\\corpus\\wikitext-2-raw\\wiki.test.raw",
+  "file_bytes": 1290590,
+  "file_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+  "cmd": [
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-llama-pc\\bin\\llama-perplexity.exe",
+    "-m",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q59-dense-quant-gate\\gguf\\Qwen3.5-4B-fromsrc-IQ4_NL.gguf",
+    "-f",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q41-ppl-gate\\corpus\\wikitext-2-raw\\wiki.test.raw",
+    "-c",
+    "2048",
+    "-b",
+    "512",
+    "-ub",
+    "512",
+    "-t",
+    "8",
+    "-ngl",
+    "0",
+    "--chunks",
+    "64",
+    "--ppl-stride",
+    "0"
+  ],
+  "rc": 0,
+  "wall_s": 4937.265701099997,
+  "log": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q59-dense-quant-gate\\gguf\\ppl\\ppl-iq4_nl-wiki.log",
+  "ppl": 8.5977,
+  "ppl_err": 0.09062,
+  "n_chunks": 64
+}
