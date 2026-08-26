@@ -1,0 +1,168 @@
+{
+  "lang": "it",
+  "turns": [
+    {
+      "i": 1,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Ciao, mi chiamo Elisabetta Quirino. Per favore tieni a mente il nome.",
+      "planted": ["Elisabetta Quirino"]
+    },
+    {
+      "i": 2,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Lavoro come restauratrice pale d'altare a Urbino, in laboratorio.",
+      "planted": ["restauratrice pale d'altare", "Urbino"]
+    },
+    {
+      "i": 3,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Bevo solo caffè d'orzo, mai caffè di caffè. È una preferenza fissa.",
+      "planted": ["caffè d'orzo"]
+    },
+    {
+      "i": 4,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Vincolo importante: non guidare mercoledì. Quel giorno non prendo mai l'auto.",
+      "planted": ["non guidare mercoledì"]
+    },
+    {
+      "i": 5,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Ho un furetto che si chiama Nibbio. È il mio animale.",
+      "planted": ["furetto Nibbio", "Nibbio"]
+    },
+    {
+      "i": 6,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Il codice del mio progetto personale è Zaffiro-17. Non confonderlo con altri.",
+      "planted": ["Zaffiro-17"]
+    },
+    {
+      "i": 7,
+      "intent": "filler",
+      "axis": ["length"],
+      "user": "Che tempo fa di solito in agosto sulle colline marchigiane? Rispondi in breve."
+    },
+    {
+      "i": 8,
+      "intent": "echo-probe",
+      "axis": ["echo-rate"],
+      "user": "Ripeti i fatti che ti ho detto su di me, usando i nomi e i token esatti.",
+      "probes": ["Elisabetta Quirino", "Urbino", "caffè d'orzo", "Nibbio", "Zaffiro-17", "non guidare mercoledì"]
+    },
+    {
+      "i": 9,
+      "intent": "recall-probe",
+      "axis": ["recall"],
+      "when": "early",
+      "user": "Come mi chiamo e dove lavoro? Rispondi con i nomi esatti.",
+      "probes": ["Elisabetta Quirino", "Urbino", "restauratrice pale d'altare"]
+    },
+    {
+      "i": 10,
+      "intent": "filler",
+      "axis": ["length"],
+      "user": "Consigliami un libro breve di storia dell'arte italiana, una frase sola."
+    },
+    {
+      "i": 11,
+      "intent": "calendar-request",
+      "axis": ["tool-call-rate"],
+      "overlap": "non guidare mercoledì",
+      "user": "Guarda il mio calendario: che impegni ho mercoledì? Devo organizzare la settimana."
+    },
+    {
+      "i": 12,
+      "intent": "filler",
+      "axis": ["length"],
+      "user": "Dimmi un proverbio marchigiano, oppure inventane uno corto se non lo sai."
+    },
+    {
+      "i": 13,
+      "intent": "web-request",
+      "axis": ["tool-call-rate"],
+      "user": "Usa la ricerca web: qual è la mostra in corso alla Galleria Nazionale delle Marche di Urbino questa settimana?"
+    },
+    {
+      "i": 14,
+      "intent": "calendar-request",
+      "axis": ["tool-call-rate"],
+      "overlap": "Urbino",
+      "user": "Controlla l'agenda: ho appuntamenti legati a Urbino o al restauro nei prossimi giorni?"
+    },
+    {
+      "i": 15,
+      "intent": "recall-probe",
+      "axis": ["recall"],
+      "when": "mid",
+      "user": "Cosa bevo di solito, e come si chiama il mio furetto?",
+      "probes": ["caffè d'orzo", "Nibbio"]
+    },
+    {
+      "i": 16,
+      "intent": "drift-probe",
+      "axis": ["drift"],
+      "lang": "en",
+      "user": "What is my job, in one sentence? Answer in the language of this question."
+    },
+    {
+      "i": 17,
+      "intent": "filler",
+      "axis": ["length"],
+      "user": "Dammi un'idea di spuntino salato, due righe al massimo."
+    },
+    {
+      "i": 18,
+      "intent": "calendar-request",
+      "axis": ["tool-call-rate"],
+      "user": "Apri il calendario e dimmi se ho eventi nel weekend. Elenca date se ci sono."
+    },
+    {
+      "i": 19,
+      "intent": "cite-probe",
+      "axis": ["citation-of-context"],
+      "user": "Cita dal contesto della nostra chat il codice del mio progetto e la regola sul mercoledì.",
+      "probes": ["Zaffiro-17", "non guidare mercoledì"]
+    },
+    {
+      "i": 20,
+      "intent": "drift-probe",
+      "axis": ["drift"],
+      "lang": "fr",
+      "user": "Comment je m'appelle ? Réponds dans la langue de cette question, une phrase."
+    },
+    {
+      "i": 21,
+      "intent": "recall-probe",
+      "axis": ["recall"],
+      "when": "late",
+      "user": "Riassumi chi sono: nome, lavoro, città, bevanda, animale, codice progetto, vincolo del mercoledì. Usa i token esatti.",
+      "probes": ["Elisabetta Quirino", "restauratrice pale d'altare", "Urbino", "caffè d'orzo", "Nibbio", "Zaffiro-17", "non guidare mercoledì"]
+    },
+    {
+      "i": 22,
+      "intent": "degrade-probe",
+      "axis": ["length", "question-asking-back"],
+      "user": "In tre bullet: ripetimi i vincoli e le preferenze. Poi una domanda di chiarimento se serve."
+    },
+    {
+      "i": 23,
+      "intent": "filler",
+      "axis": ["length"],
+      "user": "Che colore abbina meglio un pigmento ocra su una pala d'altare barocca? Breve."
+    },
+    {
+      "i": 24,
+      "intent": "degrade-probe",
+      "axis": ["length", "recall"],
+      "user": "Ultima verifica: elenca tutti i fatti su di me che ricordi, senza parafrasare i nomi propri.",
+      "probes": ["Elisabetta Quirino", "Zaffiro-17", "furetto Nibbio"]
+    }
+  ]
+}

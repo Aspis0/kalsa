@@ -1,0 +1,46 @@
+{
+  "hedge": [
+    "potrebbe",
+    "potrebbero",
+    "non sono sicuro",
+    "non sono sicura",
+    "non ne sono sicuro",
+    "non ne sono sicura",
+    "credo",
+    "forse",
+    "magari",
+    "non so",
+    "probabilmente",
+    "sembra",
+    "direi",
+    "eventualmente",
+    "per quanto ne so",
+    "non ho la certezza",
+    "potrebbe darsi",
+    "non posso garantir",
+    "a quanto pare",
+    "suppongo",
+    "immagino"
+  ],
+  "refusal": [
+    "non posso",
+    "non sono in grado",
+    "non ho accesso",
+    "mi rifiuto",
+    "non è possibile",
+    "non riesco a",
+    "non ho modo di",
+    "non posso aiutarti con",
+    "al di fuori delle mie capacità"
+  ],
+  "apology": [
+    "mi dispiace",
+    "scusa",
+    "scusami",
+    "chiedo scusa",
+    "mi scuso",
+    "perdona",
+    "pardon",
+    "sorry"
+  ]
+}

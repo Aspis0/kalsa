@@ -12,7 +12,9 @@
     "postinstall": "scripts/sync-kalsallama.sh overlay && patch-package",
     "telemetry:flush": "node workers/telemetry/flush.mjs",
     "harness:telemetry": "node scripts/telemetryHarness.mjs",
-    "harness:research": "node scripts/researchPlanHarness.mjs"
+    "harness:research": "node scripts/researchPlanHarness.mjs",
+    "harness:campaign": "node scripts/campaign/selftest.mjs",
+    "harness:profile": "node scripts/responseProfile.mjs --selftest"
   },
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",

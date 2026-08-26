@@ -1,0 +1,141 @@
+{
+  "name": "ciswire",
+  "device": "192.168.1.82:34037",
+  "model": "lfm2.5-2.6b",
+  "pkg": "com.kalsa.app",
+  "apk": "/Users/marco/kalsa-apks/32913082455/kalsa-apk-arm64-v8a-debuggable-7c8cce71641c6f929677f0b6ae2fa6bac2577acb/app-release.apk",
+  "resultsDir": "results/ciswire-campaign",
+  "turns": 24,
+  "conversations": 6,
+  "resumePhase": 0,
+  "runOrder": "random",
+  "locale": "it",
+  "arms": [
+    {
+      "id": "R1",
+      "flags": {
+        "kalsa.context.compaction": "off",
+        "kalsa.memory.enabled": "0",
+        "kalsa.ciswire.toolhelp": "0"
+      }
+    },
+    {
+      "id": "R2",
+      "flags": {
+        "kalsa.context.compaction": "ciswire",
+        "kalsa.memory.enabled": "0",
+        "kalsa.ciswire.toolhelp": "0"
+      }
+    },
+    {
+      "id": "R3",
+      "flags": {
+        "kalsa.context.compaction": "off",
+        "kalsa.memory.enabled": "1",
+        "kalsa.ciswire.toolhelp": "0"
+      }
+    },
+    {
+      "id": "R4",
+      "flags": {
+        "kalsa.context.compaction": "off",
+        "kalsa.memory.enabled": "0",
+        "kalsa.ciswire.toolhelp": "1"
+      }
+    },
+    {
+      "id": "R5",
+      "flags": {
+        "kalsa.context.compaction": "ciswire",
+        "kalsa.memory.enabled": "1",
+        "kalsa.ciswire.toolhelp": "0"
+      }
+    },
+    {
+      "id": "R6",
+      "flags": {
+        "kalsa.context.compaction": "ciswire",
+        "kalsa.memory.enabled": "0",
+        "kalsa.ciswire.toolhelp": "1"
+      }
+    },
+    {
+      "id": "R7",
+      "flags": {
+        "kalsa.context.compaction": "off",
+        "kalsa.memory.enabled": "1",
+        "kalsa.ciswire.toolhelp": "1"
+      }
+    },
+    {
+      "id": "R8",
+      "flags": {
+        "kalsa.context.compaction": "ciswire",
+        "kalsa.memory.enabled": "1",
+        "kalsa.ciswire.toolhelp": "1"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "id": "A",
+      "label": "eviction timing/severity: winbudget ≈¼ of Phase-0 measured window (not presence vs none)",
+      "params": { "kalsa.bench.winbudget": "PHASE0" }
+    },
+    {
+      "id": "B",
+      "label": "production cadence (default budget; cadence-3 rebuild + 20-msg cap still evict)",
+      "params": {}
+    }
+  ],
+  "telemetry": [
+    {
+      "prefix": "KALSA_TELEMETRY",
+      "absentZero": ["ciswireFlags"],
+      "sentinels": {},
+      "timingInvalidOnCharge": ["promptMs", "predictedPerSecond", "predictedMs"]
+    },
+    {
+      "prefix": "KALSA_MEMORY",
+      "absentZero": ["ciswireFlags"],
+      "sentinels": {
+        "dnaDeferred": -1,
+        "dnaInjected": -1,
+        "dnaBudgetTokens": -1
+      },
+      "timingInvalidOnCharge": []
+    },
+    {
+      "prefix": "KALSA_MEMORY_EXTRACT",
+      "absentZero": ["ciswireFlags"],
+      "sentinels": {},
+      "timingInvalidOnCharge": []
+    },
+    {
+      "prefix": "KALSA_DIGEST",
+      "absentZero": ["ciswireFlags"],
+      "sentinels": {},
+      "timingInvalidOnCharge": ["durationMs"],
+      "expectedWhen": { "kalsa.context.compaction": "ciswire" }
+    }
+  ],
+  "scorers": [
+    { "id": "recall", "module": "scripts/campaign/scoring.mjs" },
+    { "id": "tool", "module": "scripts/campaign/scoring.mjs" },
+    {
+      "id": "response_profile",
+      "module": "scripts/campaign/scoring.mjs",
+      "lexicon": "campaigns/ciswire/lexicon.json"
+    }
+  ],
+  "watchdog": {
+    "turnTimeoutMs": 2700000,
+    "telemetryGapMs": 1800000,
+    "pollMs": 5000
+  },
+  "recovery": {
+    "thermalPause": 3,
+    "neverUninstall": true,
+    "neverPmClear": true
+  }
+}
