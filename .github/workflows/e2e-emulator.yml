@@ -27,9 +27,9 @@ on:
       thinking:
         description: "Thinking mode"
         required: true
-        default: "off"
+        default: "default"
         type: choice
-        options: ["off", budget256, budget512]
+        options: ["default", budget256, budget512]
 
 concurrency:
   group: e2e-${{ github.ref }}
@@ -153,7 +153,7 @@ jobs:
           script: bash scripts/ci-e2e.sh
         env:
           COMPACTION: ${{ inputs.compaction || 'on' }}
-          THINKING: ${{ inputs.thinking || 'off' }}
+          THINKING: ${{ inputs.thinking || 'default' }}
 
       - name: Upload evidence
         if: always()

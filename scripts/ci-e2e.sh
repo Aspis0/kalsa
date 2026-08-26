@@ -14,6 +14,13 @@ PKG=com.kalsa.app
 # shellcheck source=ci-lib.sh
 source "$(dirname "$0")/ci-lib.sh"
 
+_active_messages_key() {
+  local index_raw id
+  index_raw=$(sql "SELECT value FROM catalystLocalStorage WHERE key='$CONVERSATIONS_INDEX_KEY';" 2>/dev/null || true)
+  id=$(resolve_active_conversation_id "$index_raw")
+  messages_storage_key "$id"
+}
+
 # Robust typing: the AVD IME swallows keystrokes right after focus, and a
 # single retry proved insufficient under load (runs 31236583365/31272714706).
 # 4 attempts, re-tapping the composer between tries — the shape proven in
@@ -96,7 +103,8 @@ for i in $(seq 1 60); do
   ui_texts > "$OUT/poll_$i.txt"
   shot "poll_$i" 2>/dev/null
   # The assistant bubble is persisted only when the turn completes.
-  HIST=$(sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
+  key=$(_active_messages_key)
+  HIST=$(sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='$key';")
   echo "$HIST" > "$OUT/history_$i.json"
   if echo "$HIST" | grep -q '"role":"assistant"'; then
     REPLY=$(echo "$HIST" | sed 's/.*"role":"assistant","text":"//; s/".*//' | head -c 1500)
@@ -112,7 +120,8 @@ capture_kv_reuse 1
 adb logcat -d | grep -iE "RNLlama|llama|ReactNativeJS" | tail -80 > "$OUT/logcat.txt" 2>/dev/null
 shot 99_final
 ui_texts > "$OUT/99_final.txt"
-sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" > "$OUT/history_final.json"
+key=$(_active_messages_key)
+sql "SELECT substr(value,1,4000) FROM catalystLocalStorage WHERE key='$key';" > "$OUT/history_final.json"
 
 {
   echo "model=$MODEL_DIR compaction=$COMPACTION_IN thinking=$THINKING"
@@ -165,7 +174,8 @@ for i in $(seq 1 60); do
   ui_texts > "$OUT/poll2_$i.txt"
   shot "poll2_$i" 2>/dev/null
   # Need a *second* assistant bubble; turn-1 alone must not satisfy this poll.
-  HIST2=$(sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
+  key=$(_active_messages_key)
+  HIST2=$(sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='$key';")
   echo "$HIST2" > "$OUT/history2_$i.json"
   ASSISTANT_N=$(printf '%s' "$HIST2" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
   if [ "${ASSISTANT_N:-0}" -ge 2 ]; then
@@ -181,7 +191,8 @@ capture_kv_reuse 2
 
 shot 06_reply2
 ui_texts > "$OUT/06_reply2.txt"
-sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" > "$OUT/history2_final.json"
+key=$(_active_messages_key)
+sql "SELECT substr(value,1,8000) FROM catalystLocalStorage WHERE key='$key';" > "$OUT/history2_final.json"
 
 {
   echo "elapsed_to_reply2_s=$(( $(date +%s) - SENT2 ))"
@@ -326,7 +337,8 @@ for i in $(seq 1 60); do
   sleep 15
   ui_texts > "$OUT/poll3_$i.txt"
   shot "poll3_$i" 2>/dev/null
-  HIST3=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';")
+  key=$(_active_messages_key)
+  HIST3=$(sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='$key';")
   echo "$HIST3" > "$OUT/history3_$i.json"
   ASSISTANT_N3=$(printf '%s' "$HIST3" | grep -o '"role":"assistant"' | wc -l | tr -d ' \r')
   if [ "${ASSISTANT_N3:-0}" -ge 3 ]; then
@@ -342,7 +354,8 @@ capture_kv_reuse 3
 
 shot 10_reply3
 ui_texts > "$OUT/10_reply3.txt"
-sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='kalsa.messages.v1';" > "$OUT/history3_final.json"
+key=$(_active_messages_key)
+sql "SELECT substr(value,1,12000) FROM catalystLocalStorage WHERE key='$key';" > "$OUT/history3_final.json"
 
 {
   echo "elapsed_to_reply3_s=$(( $(date +%s) - SENT3 ))"
