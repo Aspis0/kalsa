@@ -50,6 +50,8 @@ Qwen Part A and Part B skipped: battery/temperature eligibility not met after OL
 q55 complete under corrected stop rule; no TRUE crash signature, guard kill, or transport loss
 TRUE_STOP_QWEN_PARTA_HTP=launcher_rc=124; workload_rc=137; guard_rc=0; guard_outcome=normal; timed_out=true; abort_reason=launcher_wall_clock_cap; non-guard workload rc>=128; no Qwen CPU-ref or Part B started
 TRUE_CRASH_SIGNATURE=none
+stop_npu_corrected=CDSP0 CRASHED|dspqueue_read failed|dspqueue_write failed|INTERNAL-ERROR|ggml_abort|GGML_ASSERT|Aborted|Segmentation|workload rc >=128 not caused by guard; normal session-open cdsp text is not a stop
+q55_final_state_after_true_stop=exact serial device; 53%; 32.9C; AC/USB/Wireless false; no residual llama-bench/llama-perplexity/thermal_guard process; no device state changed
 QWEN_RESUME_UTC=2026-08-26T10:18:17.147+00:00; transient 32.1C gate was waited out; OLMoE Part A not rerun
 qwen_partA_wait sample=0 level=58 temp_C=31.8 plugged=False
 partA_qwen_htp launcher_rc=124 guard_rc=0 workload_rc=137 max_C=38.0 signature='' stop=1

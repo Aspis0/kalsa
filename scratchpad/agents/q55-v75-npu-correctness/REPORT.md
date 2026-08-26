@@ -43,6 +43,7 @@ TRUE stop events: partA_qwen_htp: launcher_rc=124; workload_rc=137; guard_rc=0; 
 
 status=STOPPED
 thermalservice_headroom_available=false; no dynamic numeric headroom exposed; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]
+final_state=exact serial device; 53% battery; 32.9C; unplugged; no residual llama-bench/llama-perplexity/thermal_guard process
 
 ## Corrections applied after audit (REVIEW_MATH.md, BANK-with-corrections) — orchestrator
 1. Scope wording: with `-nkvo` the K/V STORAGE is host memory; ALL traced compute (28,659
