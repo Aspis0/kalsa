@@ -32,3 +32,23 @@ battery_end_pct = 75
 guard_T2 = PASS
 guard_T1 = PASS (launcher readiness classified guard-not-ready due immediate kill)
 anomalies = no PC MoE GGUF met the clarified >=1.2x MemTotal primary threshold; no model push; selected model is secondary borderline: 6.509642624 GB file is > current MemAvailable but < MemTotal; q61_guard_t2_20260826 rehearsal used HTP-linked binary and is excluded; valid T2 uses kalsa16 CPU/OpenCL build; q61_guard_t1_cpu_20260826 guard killed before launcher readiness classification; guard log and rc/workload kill path are valid; sampler: /proc/pressure/io unreadable in at least one measured run; local recorder cleanup bug after r1 was salvaged from preserved raw files, with no residual device process and no rerun of r1
+
+## Corrections applied after audit (REVIEW_MATH.md, BANK-with-corrections) — orchestrator
+- C1 UNITS: the published headroom tables compared CPU-seconds summed over 8 threads with
+  wall-seconds; every corrected ceiling is ≥ 1.0. The tables above are SUPERSEDED by the audit's
+  corrected values: pp512 warm, user-compute-only, k=2 — cell-best honest (426 MB/s eval rate):
+  **1.27–2.21×, median ≈ 1.74**; io_gate bounds (seq 2046 / rand 1543): 2.55–3.64× = a bound the
+  mmap pattern never reaches, not a forecast.
+- C2 TAUTOLOGY: `finalize_q61.py` sets the self-consistent I/O floor = wall, so its "flash-bound"
+  wording is automatic and uninformative; dropped as a finding.
+- C3 PHASE SPLIT redone by the audit: eval-pass rates 193–427 MB/s; re-read ≤ 0.9× (r3 0.30×,
+  ~70 % cache-resident) — this arm is BORDERLINE (0.57× MemTotal), not a streaming measurement.
+- C4 pp2048 is a launch-level metric (32.8 s untimed pass, majflt ×200 = readahead collapse).
+- C5 SETTLING STATEMENT WITHDRAWN. Honest reading: owner-decision band (1.3–2.0×) on a
+  non-licensed borderline arm; the UFS 4.0 extrapolation of q60b is REFUTED: the same file loads
+  at 1821–1851 MB/s in the prefetch phase but is re-read at 193–427 MB/s in eval → the limit is
+  the mmap page-fault access pattern, not the flash. Faster flash does not rescue mmap streaming.
+- What this cell does NOT measure: BigMoeOnEdge's organized ~1 MiB block reader (the product
+  streamer). The measurement that would settle HVX prerequisite (1): compute share and wall of a
+  pp512 prefill under the PRODUCT streamer on the Xiaomi with a true streaming model
+  (CalaQwen KEXP 13.4 GB > MemTotal 11.4 GB).
