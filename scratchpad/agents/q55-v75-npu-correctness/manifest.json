@@ -3,6 +3,15 @@
   "prereg": "q55 PREREG locked",
   "source_commit": "3f545beccee69d9975f466ec7e45fd9aacd8ba90",
   "status": "STOPPED",
+  "closing_state": {
+    "checked_utc": "2026-08-26T11:08:29Z",
+    "serial_state": "device",
+    "battery_pct": 44,
+    "temperature_C": 34.9,
+    "plugged": false,
+    "residual_llama_or_guard_process": false,
+    "adb_connect_pair_disconnect_used_after_endpoint_assignment": false
+  },
   "device": {
     "model": "23127PN0CG",
     "product": "houji_global",
@@ -29,6 +38,45 @@
   },
   "thermalservice_headroom_available": false,
   "thermalservice_headroom_note": "No dynamic numeric headroom exposed; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]",
+  "cpu_throughput_diagnosis": {
+    "q55_command": "/data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 0",
+    "q55_flags": {
+      "t": 8,
+      "ngl": 0,
+      "dev": "absent",
+      "load_mode": "none",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "repetitions": 2
+    },
+    "q55_binary_json": {
+      "n_threads": 8,
+      "cpu_mask": "0x0",
+      "cpuset": "/"
+    },
+    "q55_environment": {
+      "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp (retained by watchdog launcher)",
+      "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp (retained by watchdog launcher)",
+      "GGML_HEXAGON_NDEV": "1 (retained by watchdog launcher)",
+      "GGML_HEXAGON_VERBOSE": "1 (retained by watchdog launcher)",
+      "GGML_HEXAGON_HOSTBUF": "unset"
+    },
+    "q55_launcher": "nohup setsid sh -c supervisor; supervisor starts (workload_wrapper) in sh -c and uses exec; no nice/taskset/chrt/ionice/setpriority invocation",
+    "q55_affinity_evidence": "/proc/<binary_pid>/cpuset captured as /; llama-bench JSON cpu_mask=0x0; taskset -p output was not captured",
+    "q48_command": "./llama-bench -m \"$MODEL\" -p 512 -n 128 -r 2 --no-warmup -ngl 0 -o jsonl -oe jsonl --load-mode none -fa on --ubatch-size 1024",
+    "q48_flags": {
+      "t": "omitted; default thread selection",
+      "ngl": 0,
+      "dev": "absent",
+      "load_mode": "none",
+      "n_prompt": 512,
+      "n_gen": 128,
+      "repetitions": 2
+    },
+    "q48_cpu_environment": "setup_env_cpu explicitly unset ADSP_LIBRARY_PATH, CDSP_LIBRARY_PATH, GGML_HEXAGON_NDEV, GGML_HEXAGON_VERBOSE, GGML_HEXAGON_HOSTBUF, GGML_HEXAGON_MM_SELECT, and GGML_OPENCL_LOG_ALLOC",
+    "q48_launcher": "direct llama-bench invocation from hostbuf1_driver.sh; no watchdog wrapper, nice/taskset/chrt/ionice/setpriority evidence in the recorded script",
+    "interpretation": "Not an apples-to-apples comparison. q55 first-sample pp512 values were 52.6183 and 53.1056 t/s, with JSON averages 70.541380 and 69.473463 t/s; q48 reported 142.92 and 141.48 t/s for its -n 128/default-thread CPU arm. Records prove different n_gen and thread/environment setup, but do not isolate which difference dominates. No rerun performed."
+  },
   "stop_rule": {
     "case_sensitive_substrings": [
       "CDSP0 CRASHED",
@@ -44,6 +92,16 @@
     "normal_session_open_cdsp_text_is_not_a_stop": true
   },
   "false_stop_correction": "The earlier Part B STOPPED classification was false: Loading driver libcdsprpc.so and HTP0 new session ... _dom=cdsp are normal session-open messages, not crash signatures.",
+  "qwen_12_chunk_characterization": {
+    "n": 12,
+    "htp_ppl": 8.2314,
+    "cpu_ppl": null,
+    "htp_max_chunk": 12,
+    "cpu_max_chunk": 10,
+    "r12": null,
+    "gate": "UNAVAILABLE",
+    "status": "CPU arm stopped before common chunk 12"
+  },
   "setup": {
     "binary": "/data/local/tmp/kalsahtp/llama-perplexity and /data/local/tmp/kalsahtp/llama-bench",
     "stub_sha256": "5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507",
@@ -143,9 +201,13 @@
       "manifest": "raw/partA_olmoe_htp.manifest.json",
       "stdout": "raw/partA_olmoe_htp.stdout.jsonl",
       "stderr": "raw/partA_olmoe_htp.stderr.log",
-      "stop": true,
+      "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null,
+      "guard_kill": false,
+      "non_guard_workload_rc_ge_128": false
     },
     {
       "tag": "partA_olmoe_htp_valid",
@@ -219,9 +281,13 @@
       "manifest": "raw/partA_olmoe_htp_valid.manifest.json",
       "stdout": "raw/partA_olmoe_htp_valid.stdout.jsonl",
       "stderr": "raw/partA_olmoe_htp_valid.stderr.log",
-      "stop": true,
+      "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null,
+      "guard_kill": false,
+      "non_guard_workload_rc_ge_128": false
     },
     {
       "tag": "partA_olmoe_htp_kvhost_retry",
@@ -298,7 +364,11 @@
       "stderr": "raw/partA_olmoe_htp_kvhost_retry.stderr.log",
       "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null,
+      "guard_kill": false,
+      "non_guard_workload_rc_ge_128": false
     },
     {
       "tag": "partA_olmoe_cpu_kvhost",
@@ -372,7 +442,11 @@
       "stderr": "raw/partA_olmoe_cpu_kvhost.stderr.log",
       "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null,
+      "guard_kill": false,
+      "non_guard_workload_rc_ge_128": false
     },
     {
       "tag": "partB_olmoe_npu_1",
@@ -448,7 +522,9 @@
       "guard_kill": false,
       "non_guard_workload_rc_ge_128": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null
     },
     {
       "tag": "partB_olmoe_cpu_1",
@@ -520,7 +596,9 @@
       "non_guard_workload_rc_ge_128": false,
       "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null
     },
     {
       "tag": "partB_olmoe_cpu_2",
@@ -592,7 +670,9 @@
       "non_guard_workload_rc_ge_128": false,
       "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null
     },
     {
       "tag": "partB_olmoe_npu_2",
@@ -667,7 +747,9 @@
       "non_guard_workload_rc_ge_128": false,
       "stop": false,
       "timed_out": false,
-      "abort_reason": ""
+      "abort_reason": "",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null
     },
     {
       "tag": "partA_qwen_htp",
@@ -743,10 +825,92 @@
       "stdout": "raw/partA_qwen_htp.stdout.jsonl",
       "stderr": "raw/partA_qwen_htp.stderr.log",
       "guard_kill": false,
-      "non_guard_workload_rc_ge_128": true,
-      "stop": true,
+      "non_guard_workload_rc_ge_128": false,
+      "stop": false,
       "timed_out": true,
-      "abort_reason": "launcher_wall_clock_cap"
+      "abort_reason": "launcher_wall_clock_cap",
+      "battery_floor_triggered": false,
+      "battery_floor_chunk": null
+    },
+    {
+      "tag": "partA_qwen_cpu_12char",
+      "model_name": "Qwen3.5-4B-Q4_0",
+      "model": "/data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf",
+      "kind": "ppl",
+      "chunks": 12,
+      "npu": false,
+      "args": [
+        "/data/local/tmp/kalsahtp/llama-perplexity",
+        "-m",
+        "/data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf",
+        "-f",
+        "/data/local/tmp/wiki.test.raw",
+        "-c",
+        "2048",
+        "-b",
+        "2048",
+        "-ub",
+        "1024",
+        "-t",
+        "8",
+        "-ngl",
+        "0",
+        "--chunks",
+        "12",
+        "--ppl-stride",
+        "0",
+        "-fa",
+        "on",
+        "--load-mode",
+        "none",
+        "-nkvo"
+      ],
+      "guard_warn_tenths": 400,
+      "guard_kill_tenths": 430,
+      "wall_cap_s": null,
+      "battery_pre": {
+        "utc": "2026-08-26T10:42:17.888+00:00",
+        "level": 53,
+        "temperature_tenths": 318,
+        "voltage_mv": 3890,
+        "charge_counter_uah": 2118000,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false,
+        "plugged": false
+      },
+      "battery_post": {
+        "utc": "2026-08-26T10:59:53.105+00:00",
+        "level": 44,
+        "temperature_tenths": 395,
+        "voltage_mv": 3821,
+        "charge_counter_uah": 1773000,
+        "ac_powered": false,
+        "usb_powered": false,
+        "wireless_powered": false,
+        "dock_powered": false,
+        "plugged": false
+      },
+      "launcher_rc": 0,
+      "guard_rc": 2,
+      "workload_rc": 137,
+      "guard_outcome": "thermal kill",
+      "guard_outcome_corrected": "battery-floor kill (raw launcher label retained above)",
+      "timed_out": false,
+      "abort_reason": "battery_below_45_percent_guard",
+      "max_temperature_tenths": 395,
+      "execute_op_htp0": false,
+      "failure_signature": "",
+      "elapsed_s": 1055.032,
+      "manifest": "raw/partA_qwen_cpu_12char.manifest.json",
+      "stdout": "raw/partA_qwen_cpu_12char.stdout.jsonl",
+      "stderr": "raw/partA_qwen_cpu_12char.stderr.log",
+      "guard_kill": true,
+      "non_guard_workload_rc_ge_128": false,
+      "stop": true,
+      "battery_floor_triggered": true,
+      "battery_floor_chunk": 10
     }
   ],
   "execute_op_proof": {
@@ -812,6 +976,13 @@
       "expert_mul_mat_id": 0,
       "attn_execute_op": 2584,
       "execute_op_any": 19449
+    },
+    "partA_qwen_cpu_12char": {
+      "execute_op_htp0": 0,
+      "mul_mat_id": 0,
+      "expert_mul_mat_id": 0,
+      "attn_execute_op": 0,
+      "execute_op_any": 0
     }
   }
 }

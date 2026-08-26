@@ -30,6 +30,26 @@ NPU_KILL = 410
 CPU_KILL = 430
 WARN = 400
 
+CPU_TPS_DIAGNOSIS = {
+    "q55_command": "/data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 0",
+    "q55_flags": {"t": 8, "ngl": 0, "dev": "absent", "load_mode": "none", "n_prompt": 512, "n_gen": 0, "repetitions": 2},
+    "q55_binary_json": {"n_threads": 8, "cpu_mask": "0x0", "cpuset": "/"},
+    "q55_environment": {
+        "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp (retained by watchdog launcher)",
+        "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp (retained by watchdog launcher)",
+        "GGML_HEXAGON_NDEV": "1 (retained by watchdog launcher)",
+        "GGML_HEXAGON_VERBOSE": "1 (retained by watchdog launcher)",
+        "GGML_HEXAGON_HOSTBUF": "unset",
+    },
+    "q55_launcher": "nohup setsid sh -c supervisor; supervisor starts (workload_wrapper) in sh -c and uses exec; no nice/taskset/chrt/ionice/setpriority invocation",
+    "q55_affinity_evidence": "/proc/<binary_pid>/cpuset captured as /; llama-bench JSON cpu_mask=0x0; taskset -p output was not captured",
+    "q48_command": "./llama-bench -m \"$MODEL\" -p 512 -n 128 -r 2 --no-warmup -ngl 0 -o jsonl -oe jsonl --load-mode none -fa on --ubatch-size 1024",
+    "q48_flags": {"t": "omitted; default thread selection", "ngl": 0, "dev": "absent", "load_mode": "none", "n_prompt": 512, "n_gen": 128, "repetitions": 2},
+    "q48_cpu_environment": "setup_env_cpu explicitly unset ADSP_LIBRARY_PATH, CDSP_LIBRARY_PATH, GGML_HEXAGON_NDEV, GGML_HEXAGON_VERBOSE, GGML_HEXAGON_HOSTBUF, GGML_HEXAGON_MM_SELECT, and GGML_OPENCL_LOG_ALLOC",
+    "q48_launcher": "direct llama-bench invocation from hostbuf1_driver.sh; no watchdog wrapper, nice/taskset/chrt/ionice/setpriority evidence in the recorded script",
+    "interpretation": "Not an apples-to-apples comparison. q55 first-sample pp512 values were 52.6183 and 53.1056 t/s, with JSON averages 70.541380 and 69.473463 t/s; q48 reported 142.92 and 141.48 t/s for its -n 128/default-thread CPU arm. Records prove different n_gen and thread/environment setup, but do not isolate which difference dominates. No rerun performed.",
+}
+
 
 class DeviceDrop(RuntimeError):
     pass
@@ -137,12 +157,12 @@ def thermalservice(tag: str, phase: str) -> str:
     return text
 
 
-def workload_args(model: str, kind: str, npu: bool) -> list[str]:
+def workload_args(model: str, kind: str, npu: bool, chunks: int = 32) -> list[str]:
     if kind == "ppl":
         args = [
             f"{DEV}/llama-perplexity", "-m", model, "-f", CORPUS,
             "-c", "2048", "-b", "2048", "-ub", "1024", "-t", "8",
-            "-ngl", "99" if npu else "0", "--chunks", "32", "--ppl-stride", "0",
+            "-ngl", "99" if npu else "0", "--chunks", str(chunks), "--ppl-stride", "0",
             "-fa", "on", "--load-mode", "none", "-nkvo",
         ]
         if npu:
@@ -182,10 +202,10 @@ def failure_line(text: str) -> str:
     return ""
 
 
-def run_arm(tag: str, model_name: str, model: str, kind: str, npu: bool) -> dict[str, object]:
+def run_arm(tag: str, model_name: str, model: str, kind: str, npu: bool, chunks: int = 32) -> dict[str, object]:
     pre = wait_gate(tag)
     thermalservice(tag, "pre")
-    args = workload_args(model, kind, npu)
+    args = workload_args(model, kind, npu, chunks)
     (RAW / f"{tag}.workload.args.txt").write_text(" ".join(shlex.quote(x) for x in args) + "\n", encoding="utf-8", newline="\n")
     kill = NPU_KILL if npu else CPU_KILL
     max_seconds = 600 if npu else 3600
@@ -213,13 +233,20 @@ def run_arm(tag: str, model_name: str, model: str, kind: str, npu: bool) -> dict
     manifest = parse_manifest(tag)
     stdout = (RAW / f"{tag}.stdout.jsonl").read_text(encoding="utf-8", errors="replace") if (RAW / f"{tag}.stdout.jsonl").exists() else ""
     stderr = (RAW / f"{tag}.stderr.log").read_text(encoding="utf-8", errors="replace") if (RAW / f"{tag}.stderr.log").exists() else ""
+    guard_text = (RAW / f"{tag}.guard.log").read_text(encoding="utf-8", errors="replace") if (RAW / f"{tag}.guard.log").exists() else ""
     combined = stdout + "\n" + stderr + "\n" + result.stdout + "\n" + result.stderr
     signature = failure_line(combined)
+    battery_floor_triggered = bool(manifest.get("battery_floor_triggered")) or "BATTERY_LOW_ABORT" in guard_text
+    battery_floor_chunk = manifest.get("battery_floor_chunk")
+    if battery_floor_chunk is None and battery_floor_triggered:
+        running = [int(m.group(1)) for m in re.finditer(r"\[(\d+)\]", combined)]
+        battery_floor_chunk = max(running) if running else None
     record = {
         "tag": tag,
         "model_name": model_name,
         "model": model,
         "kind": kind,
+        "chunks": chunks,
         "npu": npu,
         "args": args,
         "guard_warn_tenths": WARN,
@@ -232,7 +259,9 @@ def run_arm(tag: str, model_name: str, model: str, kind: str, npu: bool) -> dict
         "workload_rc": manifest.get("workload_rc"),
         "guard_outcome": manifest.get("guard_outcome"),
         "timed_out": manifest.get("timed_out"),
-        "abort_reason": manifest.get("abort_reason"),
+        "abort_reason": manifest.get("abort_reason") or ("battery_below_45_percent_guard" if battery_floor_triggered else ""),
+        "battery_floor_triggered": battery_floor_triggered,
+        "battery_floor_chunk": battery_floor_chunk,
         "max_temperature_tenths": (manifest.get("guard") or {}).get("max_temperature_tenths") if isinstance(manifest.get("guard"), dict) else None,
         "execute_op_htp0": bool(manifest.get("execute_op_htp0")),
         "failure_signature": signature,
@@ -289,7 +318,31 @@ def parse_ppl(tag: str) -> dict[str, object]:
     return result
 
 
+def qwen_12_characterization(records: list[dict[str, object]]) -> dict[str, object] | None:
+    htp = next((r for r in reversed(records) if r.get("tag") == "partA_qwen_htp"), None)
+    cpu = next((r for r in reversed(records) if r.get("tag") == "partA_qwen_cpu_12char"), None)
+    if not htp or not cpu:
+        return None
+    htp_running = parse_ppl(str(htp["tag"])).get("running_ppl", {})
+    cpu_running = parse_ppl(str(cpu["tag"])).get("running_ppl", {})
+    htp_ppl = htp_running.get(12) if isinstance(htp_running, dict) else None
+    cpu_ppl = cpu_running.get(12) if isinstance(cpu_running, dict) else None
+    result_base = {
+        "n": 12,
+        "htp_ppl": htp_ppl,
+        "cpu_ppl": cpu_ppl,
+        "htp_max_chunk": max(htp_running) if isinstance(htp_running, dict) and htp_running else None,
+        "cpu_max_chunk": max(cpu_running) if isinstance(cpu_running, dict) and cpu_running else None,
+    }
+    if not isinstance(htp_ppl, (int, float)) or not isinstance(cpu_ppl, (int, float)) or float(cpu_ppl) == 0:
+        return {**result_base, "r12": None, "gate": "UNAVAILABLE", "status": "CPU arm stopped before common chunk 12"}
+    r12 = float(htp_ppl) / float(cpu_ppl) - 1.0
+    gate = "PASS" if r12 <= 0.02 else ("GREY" if r12 <= 0.05 else "FAIL")
+    return {**result_base, "htp_ppl": float(htp_ppl), "cpu_ppl": float(cpu_ppl), "r12": r12, "gate": gate, "status": "12-chunk characterization"}
+
+
 def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, int]], setup: dict[str, object], status: str) -> None:
+    qwen_char = qwen_12_characterization(records)
     manifest = {
         "cell": "q55-v75-npu-correctness",
         "prereg": "q55 PREREG locked",
@@ -306,12 +359,14 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
         },
         "thermalservice_headroom_available": False,
         "thermalservice_headroom_note": "No dynamic numeric headroom exposed; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]",
+        "cpu_throughput_diagnosis": CPU_TPS_DIAGNOSIS,
         "stop_rule": {
             "case_sensitive_substrings": ["CDSP0 CRASHED", "dspqueue_read failed", "dspqueue_write failed", "INTERNAL-ERROR", "ggml_abort", "GGML_ASSERT", "Aborted", "Segmentation"],
             "workload_rc": "stop only when rc >= 128 and not caused by guard",
             "normal_session_open_cdsp_text_is_not_a_stop": True,
         },
         "false_stop_correction": "The earlier Part B STOPPED classification was false: Loading driver libcdsprpc.so and HTP0 new session ... _dom=cdsp are normal session-open messages, not crash signatures.",
+        "qwen_12_chunk_characterization": qwen_char,
         "setup": setup,
         "models": {"OLMoE": {"path": MODEL_OLMOE, "sha256": OLMOE_SHA}, "Qwen3.5-4B-Q4_0": {"path": MODEL_QWEN, "sha256": QWEN_SHA}, "corpus": {"path": CORPUS, "sha256": CORPUS_SHA}},
         "records": records,
@@ -348,7 +403,16 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
         cpu_candidates = [r for r in records if r.get("kind") == "ppl" and r.get("model_name") == model_name and not r.get("npu") and parse_ppl(str(r.get("tag"))).get("ppl") is not None]
         htp = htp_candidates[-1] if htp_candidates else next((r for r in records if r.get("kind") == "ppl" and r.get("model_name") == model_name and r.get("npu")), None)
         cpu = cpu_candidates[-1] if cpu_candidates else next((r for r in records if r.get("kind") == "ppl" and r.get("model_name") == model_name and not r.get("npu")), None)
-        if htp and cpu:
+        if model_name == "Qwen3.5-4B-Q4_0" and qwen_char is not None:
+            r12_text = "" if qwen_char.get("r12") is None else f"{float(qwen_char['r12']):.8f}"
+            lines.append(
+                f"{model_name}: HTP_running_PPL_n12={qwen_char['htp_ppl']}; CPU_running_PPL_n12={qwen_char['cpu_ppl']}; "
+                f"r12={r12_text}; gate={qwen_char['gate']}; "
+                "12-chunk characterization (HTP arm capped at 10 min), not a 32-chunk certification; "
+                f"HTP_max_chunk={qwen_char['htp_max_chunk']}; CPU_max_chunk={qwen_char['cpu_max_chunk']}; status={qwen_char['status']}; "
+                f"proof={json.dumps(proof.get(str(htp['tag']), {}), sort_keys=True)}"
+            )
+        elif htp and cpu:
             hp = parse_ppl(str(htp["tag"])).get("ppl")
             cp = parse_ppl(str(cpu["tag"])).get("ppl")
             r_value = (float(hp) / float(cp) - 1.0) if isinstance(hp, (int, float)) and isinstance(cp, (int, float)) and float(cp) != 0 else None
@@ -363,7 +427,8 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
             true_stop_events.append(
                 f"{rec.get('tag')}: launcher_rc={rec.get('launcher_rc')}; workload_rc={rec.get('workload_rc')}; "
                 f"guard_rc={rec.get('guard_rc')}; guard_outcome={rec.get('guard_outcome')}; "
-                f"abort_reason={rec.get('abort_reason','')}"
+                f"abort_reason={rec.get('abort_reason','')}; battery_floor_triggered={rec.get('battery_floor_triggered', False)}; "
+                f"battery_floor_chunk={rec.get('battery_floor_chunk')}"
             )
     lines += [
         "", "## Stop-rule correction", "",
@@ -371,6 +436,16 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
         "Correct case-sensitive stop substrings: CDSP0 CRASHED; dspqueue_read failed; dspqueue_write failed; INTERNAL-ERROR; ggml_abort; GGML_ASSERT; Aborted; Segmentation; or workload rc >= 128 not caused by the guard.",
         "TRUE crash signatures: " + ("; ".join(true_signatures) if true_signatures else "none"),
         "TRUE stop events: " + ("; ".join(true_stop_events) if true_stop_events else "none"),
+        "",
+        "## CPU t/s discrepancy diagnosis",
+        "",
+        "q55 exact CPU command: " + CPU_TPS_DIAGNOSIS["q55_command"],
+        "q55 JSON: first-sample pp512 t/s = 52.6183, 53.1056; avg_ts = 70.541380, 69.473463; n_threads=8; cpu_mask=0x0; /proc/<binary_pid>/cpuset=/.",
+        "q55 launcher/priority: nohup setsid sh -c supervisor, then sh -c workload wrapper with exec; no nice/taskset/chrt/ionice/setpriority; taskset -p output was not captured.",
+        "q55 CPU flags/environment: -t 8, -ngl 0, no -dev, --load-mode none, -n 0; ADSP_LIBRARY_PATH/CDSP_LIBRARY_PATH/NDEV/VERBOSE retained by launcher, HOSTBUF unset.",
+        "q48 exact CPU command: " + CPU_TPS_DIAGNOSIS["q48_command"],
+        "q48 CPU setup: -t omitted (default), -ngl 0, no -dev, --load-mode none, -n 128; setup_env_cpu explicitly unset Hexagon variables; direct invocation, no watchdog wrapper evidence.",
+        "Diagnosis: records establish a non-identical comparison (n_gen and thread/environment setup differ); they do not isolate which factor dominates. No rerun performed.",
         "", "## Part B", "", "| model | sequence | ΔT_C | MAX_C | wall_s | t/s |", "|---|---|---:|---:|---:|---:|",
     ]
     for rec in records:

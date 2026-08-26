@@ -56,3 +56,14 @@ QWEN_RESUME_UTC=2026-08-26T10:18:17.147+00:00; transient 32.1C gate was waited o
 qwen_partA_wait sample=0 level=58 temp_C=31.8 plugged=False
 partA_qwen_htp launcher_rc=124 guard_rc=0 workload_rc=137 max_C=38.0 signature='' stop=1
 STOP q55 true stop tag=partA_qwen_htp; no retry; signature=''
+QWEN_CPU_12CHAR_UTC=2026-08-26T10:42:17.688+00:00; exact CPU-ref flags mirror HTP including -nkvo; -ngl 0; --chunks 12; KILL=430; Qwen Part B skipped
+partA_qwen_cpu_12char launcher_rc=0 guard_rc=2 workload_rc=137 max_C=39.5 signature='' stop=1
+q55 closing item complete; Qwen Part B remains skipped
+QWEN_CPU_TRUE_STOP=guard battery-floor kill; guard_log_lines="1787741990,395,44,BATTERY_LOW_ABORT" and "1787741990,395,44,KILLED"; CPU KILL threshold=430 was not reached; max=39.5C; running PPL ended at chunk=10; workload_rc=137; guard_rc=2; no retry authorized
+QWEN_R12=unavailable; HTP running PPL[12]=8.2314; CPU running PPL[12]=not emitted; no ratio/gate computed; label="12-chunk characterization (HTP arm capped at 10 min), not a 32-chunk certification"; Qwen Part B skipped
+CPU_TPS_DIAGNOSIS=q55 exact command="/data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 0"; no -dev; -ngl=0; --load-mode=none; JSON first samples=52.6183,53.1056; JSON avg_ts=70.541380,69.473463
+CPU_TPS_AFFINITY=q55 llama JSON n_threads=8 cpu_mask=0x0; /proc/<binary_pid>/cpuset=/; taskset -p output not captured; q56 launcher source has no nice/taskset/chrt/ionice/setpriority and no restricted cpuset evidence; workload launched by nohup setsid sh -c supervisor -> sh -c wrapper -> exec
+CPU_TPS_ENV=q55 launcher retained ADSP_LIBRARY_PATH/CDSP_LIBRARY_PATH/GGML_HEXAGON_NDEV/GGML_HEXAGON_VERBOSE; HOSTBUF unset; q48 setup_env_cpu explicitly unset those Hexagon variables
+Q48_CPU_COMPARISON=./llama-bench -m "$MODEL" -p 512 -n 128 -r 2 --no-warmup -ngl 0 -o jsonl -oe jsonl --load-mode none -fa on --ubatch-size 1024; -t omitted/default; no -dev; direct invocation; reported 142.92,141.48 t/s
+CPU_TPS_CONCLUSION=record-only comparison is not apples-to-apples because n_gen, thread selection, environment, and launcher differ; records do not isolate the dominant factor; no rerun performed
+FINAL_READ_ONLY_CHECK_UTC=2026-08-26T11:08:29Z; exact_serial_state=device; final_battery=44%; final_temperature=34.9C; AC/USB/Wireless=false; no residual llama or thermal_guard process; no adb connect/pair/disconnect; no device state change
