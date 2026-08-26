@@ -97,3 +97,45 @@ Synthetic `input tap` (deviceId=-1) is silently dropped by HyperOS unless
 (deviceId=7) work. All three automation attempts tonight failed on this, not on app
 code. Enable that toggle on test devices, or drive taps through uiautomator/Appium
 with an accessibility channel.
+
+## P2 — thinking is shown inside the real assistant answer (app bug, not campaign)
+
+**Found:** 2026-08-26, Jelly Star, LFM2.5-2.6B QAD-Q4_0, campaign build `7c8cce7`.
+**Observed during the CisWire device campaign** — the model's reasoning/thinking block
+is being rendered inside the assistant "final answer" bubble rather than being
+hidden/collapsed. The chat bubble shows what should be the internal reasoning as if it
+were the answer to the user.
+
+**Contradicts the app's own copy.** The Settings rationale text says (paraphrase):
+"il ragionamento non viene mai mostrato in chat, solo la risposta finale" — but the
+thinking is leaking into the visible reply.
+
+**Why it matters:** a user sees raw chain-of-thought as if it were the answer, which is
+wrong UX and also contradicts the stated privacy/UX contract.
+
+**Fix direction:** the stream/render path is not stripping the thinking block before
+committing the assistant message (or is emitting the thinking tokens into the same
+message bubble as the answer). The `thinkStripper` / `streamCoalescer` boundary needs to
+be verified to actually separate the reasoning from the final answer, and the final
+message must exclude the thinking text. (Reference implementation by the place that
+strips `<think>`/`<thinking>` — locate the exact gap during the fix.)
+
+## P3 — "Sto scrivendo" shown while the model is still thinking (app bug, not campaign)
+
+**Found:** 2026-08-26, Jelly Star, LFM2.5-2.6B QAD-Q4_0, campaign build `7c8cce7`.
+**Observed during the CisWire device campaign** — while the model is in the
+thinking/reasoning phase (which on this model is long), the UI shows a
+"Sto scrivendo" typing indicator, implying the answer text is being produced when in
+fact the model is still thinking. The composer/status state is set to "writing"
+too early.
+
+**Why it matters:** misleading — the user is told the assistant is producing output
+when it has not started generating the final answer. With the 2.6B's slow, long
+thinking phase (this is exactly why the campaign ignores speed), "Sto scrivendo" can
+show for tens of seconds before any answer token is emitted.
+
+**Fix direction:** the "typing/writing" status should reflect that the model is
+*thinking* (a distinct "sto pensando…" state, or keep the status neutral) and only
+show "sto scrivendo" once actual answer tokens are streaming. The thinking-phase vs
+answer-phase transition needs a distinct UI state rather than mapping both to
+"Sto scrivendo".
