@@ -1,0 +1,6 @@
+1787733217.379685	2026-08-26T08:33:37.379+00:00	ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+1787733217.379685	2026-08-26T08:33:37.379+00:00	
+1787733217.379685	2026-08-26T08:33:37.379+00:00	ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+1787733217.379685	2026-08-26T08:33:37.379+00:00	ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+1787733217.379685	2026-08-26T08:33:37.379+00:00	llama-bench: benchmark 1/1: starting
+1787733220.856683	2026-08-26T08:33:40.856+00:00	llama-bench: benchmark 1/1: prompt run 1/1

@@ -1,0 +1,1 @@
+298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb  /data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf

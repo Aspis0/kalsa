@@ -1,0 +1,9 @@
+{"path":"/data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf","bytes":6509642624,"sha256":"bd63fc0f21a8c3aab4b7531ee30aa37f8e6320dfb65e85de74a9056e2feeb419","is_moe_candidate":true}
+{"path":"/data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf","bytes":3928037856,"sha256":"43379486db3178d89b338358d298ea0721d6c123e0107d91c5d6179371000500","is_moe_candidate":true}
+{"path":"/data/local/tmp/gdn_750/Qwen3.5-2B-Q4_K_M.gguf","bytes":1280835840,"sha256":"aaf42c8b7c3cab2bf3d69c355048d4a0ee9973d48f16c731c0520ee914699223","is_moe_candidate":false}
+{"path":"/data/local/tmp/gdn_750/Qwen3.5-4B-Q4_K_M.gguf","bytes":2740937888,"sha256":"00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4","is_moe_candidate":false}
+{"path":"/data/local/tmp/gdn_750/taskb/Marco-Mini-Instruct-KEXP.gguf","bytes":6385238848,"sha256":"2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777","is_moe_candidate":true}
+{"path":"/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf","bytes":13416430592,"sha256":"ac44e20c1783b9105b83246fd8ce59892b47a265b84e1323a8a501929877721a","is_moe_candidate":true}
+{"path":"/data/local/tmp/kalsa16/LFM2.5-8B-A1B-KEXP.gguf","bytes":3326160384,"sha256":"b07c80870f8a864549f4a419ccbfb4d4282ba2d55a2e8d808b7c377d3fc6c3f4","is_moe_candidate":true}
+{"path":"/data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf","bytes":2583221408,"sha256":"298fcb5fe7a77ccc79745ae24751560c5ac56874caff4bb39b1f2055bd72b8bb","is_moe_candidate":false}
+{"path":"/data/local/tmp/ship_ab/Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf","bytes":8071293600,"sha256":"b04281c27de5d968d577f310d982273b1b13bdbd8117b3ecffffeebfe222f0a7","is_moe_candidate":true}

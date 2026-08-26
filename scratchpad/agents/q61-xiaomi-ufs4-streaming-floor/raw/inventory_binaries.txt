@@ -1,0 +1,24 @@
+{
+  "binaries": [
+    {
+      "path": "/data/local/tmp/gdn_750/bin/llama-bench",
+      "bytes": 6234288,
+      "sha256": "5092a319dd43a4e62095cc49ce15b329be96d0188734e7380d8935fe56b01ea3"
+    },
+    {
+      "path": "/data/local/tmp/kalsa16/llama-bench",
+      "bytes": 7600,
+      "sha256": "b2ae0fa6c413a5049a87b0706f2687cd7035ae5e43985fe40779dc0a7d225b2c"
+    },
+    {
+      "path": "/data/local/tmp/kalsahtp/llama-bench",
+      "bytes": 7536,
+      "sha256": "5db18906bfe159ba97da18404c513886a5b2a07ec715c18dda7a1bc2d6d38507"
+    }
+  ],
+  "kalsa16_impl": {
+    "path": "/data/local/tmp/kalsa16/libllama-bench-impl.so",
+    "bytes": 4253160,
+    "sha256": "8adc148c0909e8ebbbf6ed41970b2c07ac0319db96454ad0dd7b2f281a9b8807"
+  }
+}

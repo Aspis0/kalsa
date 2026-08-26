@@ -1,0 +1,1 @@
+/data/local/tmp/kalsahtp/llama-perplexity -m /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf -f /data/local/tmp/wiki.test.raw -c 2048 -b 2048 -ub 1024 -t 8 -ngl 99 --chunks 32 --ppl-stride 0 -fa on --load-mode none -dev HTP0 -v

@@ -1,0 +1,600 @@
+0.00.443.075 D ggml-hex: HTP0 supports-op MUL| x blk.7.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.075 D create_tensor: loading tensor blk.7.ffn_gate_inp.weight
+0.00.443.080 D ggml-hex: HTP0 supports-op MUL_MAT|blk.7.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.081 D create_tensor: loading tensor blk.7.ffn_gate_exps.weight
+0.00.443.086 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.091 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.091 D create_tensor: loading tensor blk.7.ffn_down_exps.weight
+0.00.443.097 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.102 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.103 D create_tensor: loading tensor blk.7.ffn_up_exps.weight
+0.00.443.108 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.113 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.7.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.114 D create_tensor: loading tensor blk.8.attn_norm.weight
+0.00.443.118 D ggml-hex: HTP0 supports-op MUL| x blk.8.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.119 D create_tensor: loading tensor blk.8.attn_qkv.weight
+0.00.443.121 D create_tensor: loading tensor blk.8.attn_q.weight
+0.00.443.126 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.129 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.130 D create_tensor: loading tensor blk.8.attn_k.weight
+0.00.443.134 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.138 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.138 D create_tensor: loading tensor blk.8.attn_v.weight
+0.00.443.143 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.146 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.147 D create_tensor: loading tensor blk.8.attn_q.bias
+0.00.443.149 D create_tensor: loading tensor blk.8.attn_k.bias
+0.00.443.150 D create_tensor: loading tensor blk.8.attn_v.bias
+0.00.443.152 D create_tensor: loading tensor blk.8.attn_output.weight
+0.00.443.156 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.160 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.161 D create_tensor: loading tensor blk.8.attn_q_norm.weight
+0.00.443.165 D ggml-hex: HTP0 supports-op MUL| x blk.8.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.166 D create_tensor: loading tensor blk.8.attn_k_norm.weight
+0.00.443.170 D ggml-hex: HTP0 supports-op MUL| x blk.8.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.171 D create_tensor: loading tensor blk.8.ffn_norm.weight
+0.00.443.176 D ggml-hex: HTP0 supports-op MUL| x blk.8.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.176 D create_tensor: loading tensor blk.8.ffn_gate_inp.weight
+0.00.443.181 D ggml-hex: HTP0 supports-op MUL_MAT|blk.8.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.182 D create_tensor: loading tensor blk.8.ffn_gate_exps.weight
+0.00.443.187 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.192 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.192 D create_tensor: loading tensor blk.8.ffn_down_exps.weight
+0.00.443.198 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.203 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.204 D create_tensor: loading tensor blk.8.ffn_up_exps.weight
+0.00.443.209 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.214 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.8.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.214 D create_tensor: loading tensor blk.9.attn_norm.weight
+0.00.443.219 D ggml-hex: HTP0 supports-op MUL| x blk.9.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.220 D create_tensor: loading tensor blk.9.attn_qkv.weight
+0.00.443.222 D create_tensor: loading tensor blk.9.attn_q.weight
+0.00.443.226 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.230 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.231 D create_tensor: loading tensor blk.9.attn_k.weight
+0.00.443.235 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.238 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.239 D create_tensor: loading tensor blk.9.attn_v.weight
+0.00.443.243 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.247 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.248 D create_tensor: loading tensor blk.9.attn_q.bias
+0.00.443.249 D create_tensor: loading tensor blk.9.attn_k.bias
+0.00.443.251 D create_tensor: loading tensor blk.9.attn_v.bias
+0.00.443.253 D create_tensor: loading tensor blk.9.attn_output.weight
+0.00.443.257 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.261 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.261 D create_tensor: loading tensor blk.9.attn_q_norm.weight
+0.00.443.266 D ggml-hex: HTP0 supports-op MUL| x blk.9.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.267 D create_tensor: loading tensor blk.9.attn_k_norm.weight
+0.00.443.271 D ggml-hex: HTP0 supports-op MUL| x blk.9.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.272 D create_tensor: loading tensor blk.9.ffn_norm.weight
+0.00.443.276 D ggml-hex: HTP0 supports-op MUL| x blk.9.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.277 D create_tensor: loading tensor blk.9.ffn_gate_inp.weight
+0.00.443.282 D ggml-hex: HTP0 supports-op MUL_MAT|blk.9.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.283 D create_tensor: loading tensor blk.9.ffn_gate_exps.weight
+0.00.443.288 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.293 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.293 D create_tensor: loading tensor blk.9.ffn_down_exps.weight
+0.00.443.299 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.304 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.305 D create_tensor: loading tensor blk.9.ffn_up_exps.weight
+0.00.443.310 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.315 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.9.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.315 D create_tensor: loading tensor blk.10.attn_norm.weight
+0.00.443.321 D ggml-hex: HTP0 supports-op MUL| x blk.10.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.321 D create_tensor: loading tensor blk.10.attn_qkv.weight
+0.00.443.324 D create_tensor: loading tensor blk.10.attn_q.weight
+0.00.443.329 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.332 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.333 D create_tensor: loading tensor blk.10.attn_k.weight
+0.00.443.337 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.341 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.341 D create_tensor: loading tensor blk.10.attn_v.weight
+0.00.443.346 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.349 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.350 D create_tensor: loading tensor blk.10.attn_q.bias
+0.00.443.352 D create_tensor: loading tensor blk.10.attn_k.bias
+0.00.443.353 D create_tensor: loading tensor blk.10.attn_v.bias
+0.00.443.355 D create_tensor: loading tensor blk.10.attn_output.weight
+0.00.443.360 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.363 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.364 D create_tensor: loading tensor blk.10.attn_q_norm.weight
+0.00.443.369 D ggml-hex: HTP0 supports-op MUL| x blk.10.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.369 D create_tensor: loading tensor blk.10.attn_k_norm.weight
+0.00.443.374 D ggml-hex: HTP0 supports-op MUL| x blk.10.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.375 D create_tensor: loading tensor blk.10.ffn_norm.weight
+0.00.443.379 D ggml-hex: HTP0 supports-op MUL| x blk.10.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.380 D create_tensor: loading tensor blk.10.ffn_gate_inp.weight
+0.00.443.385 D ggml-hex: HTP0 supports-op MUL_MAT|blk.10.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.386 D create_tensor: loading tensor blk.10.ffn_gate_exps.weight
+0.00.443.391 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.396 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.396 D create_tensor: loading tensor blk.10.ffn_down_exps.weight
+0.00.443.402 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.407 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.408 D create_tensor: loading tensor blk.10.ffn_up_exps.weight
+0.00.443.413 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.418 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.10.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.419 D create_tensor: loading tensor blk.11.attn_norm.weight
+0.00.443.424 D ggml-hex: HTP0 supports-op MUL| x blk.11.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.424 D create_tensor: loading tensor blk.11.attn_qkv.weight
+0.00.443.427 D create_tensor: loading tensor blk.11.attn_q.weight
+0.00.443.431 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.434 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.435 D create_tensor: loading tensor blk.11.attn_k.weight
+0.00.443.440 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.443 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.444 D create_tensor: loading tensor blk.11.attn_v.weight
+0.00.443.448 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.452 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.452 D create_tensor: loading tensor blk.11.attn_q.bias
+0.00.443.454 D create_tensor: loading tensor blk.11.attn_k.bias
+0.00.443.456 D create_tensor: loading tensor blk.11.attn_v.bias
+0.00.443.458 D create_tensor: loading tensor blk.11.attn_output.weight
+0.00.443.462 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.466 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.467 D create_tensor: loading tensor blk.11.attn_q_norm.weight
+0.00.443.471 D ggml-hex: HTP0 supports-op MUL| x blk.11.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.472 D create_tensor: loading tensor blk.11.attn_k_norm.weight
+0.00.443.476 D ggml-hex: HTP0 supports-op MUL| x blk.11.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.477 D create_tensor: loading tensor blk.11.ffn_norm.weight
+0.00.443.482 D ggml-hex: HTP0 supports-op MUL| x blk.11.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.483 D create_tensor: loading tensor blk.11.ffn_gate_inp.weight
+0.00.443.488 D ggml-hex: HTP0 supports-op MUL_MAT|blk.11.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.488 D create_tensor: loading tensor blk.11.ffn_gate_exps.weight
+0.00.443.494 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.499 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.499 D create_tensor: loading tensor blk.11.ffn_down_exps.weight
+0.00.443.505 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.510 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.511 D create_tensor: loading tensor blk.11.ffn_up_exps.weight
+0.00.443.516 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.521 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.11.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.522 D create_tensor: loading tensor blk.12.attn_norm.weight
+0.00.443.527 D ggml-hex: HTP0 supports-op MUL| x blk.12.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.527 D create_tensor: loading tensor blk.12.attn_qkv.weight
+0.00.443.530 D create_tensor: loading tensor blk.12.attn_q.weight
+0.00.443.534 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.538 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.539 D create_tensor: loading tensor blk.12.attn_k.weight
+0.00.443.543 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.546 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.547 D create_tensor: loading tensor blk.12.attn_v.weight
+0.00.443.552 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.555 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.556 D create_tensor: loading tensor blk.12.attn_q.bias
+0.00.443.558 D create_tensor: loading tensor blk.12.attn_k.bias
+0.00.443.559 D create_tensor: loading tensor blk.12.attn_v.bias
+0.00.443.561 D create_tensor: loading tensor blk.12.attn_output.weight
+0.00.443.566 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.569 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.570 D create_tensor: loading tensor blk.12.attn_q_norm.weight
+0.00.443.575 D ggml-hex: HTP0 supports-op MUL| x blk.12.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.576 D create_tensor: loading tensor blk.12.attn_k_norm.weight
+0.00.443.580 D ggml-hex: HTP0 supports-op MUL| x blk.12.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.581 D create_tensor: loading tensor blk.12.ffn_norm.weight
+0.00.443.586 D ggml-hex: HTP0 supports-op MUL| x blk.12.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.586 D create_tensor: loading tensor blk.12.ffn_gate_inp.weight
+0.00.443.591 D ggml-hex: HTP0 supports-op MUL_MAT|blk.12.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.592 D create_tensor: loading tensor blk.12.ffn_gate_exps.weight
+0.00.443.597 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.602 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.602 D create_tensor: loading tensor blk.12.ffn_down_exps.weight
+0.00.443.608 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.613 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.614 D create_tensor: loading tensor blk.12.ffn_up_exps.weight
+0.00.443.619 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.624 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.12.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.624 D create_tensor: loading tensor blk.13.attn_norm.weight
+0.00.443.630 D ggml-hex: HTP0 supports-op MUL| x blk.13.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.630 D create_tensor: loading tensor blk.13.attn_qkv.weight
+0.00.443.633 D create_tensor: loading tensor blk.13.attn_q.weight
+0.00.443.754 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.758 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.759 D create_tensor: loading tensor blk.13.attn_k.weight
+0.00.443.764 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.767 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.768 D create_tensor: loading tensor blk.13.attn_v.weight
+0.00.443.772 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.776 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.777 D create_tensor: loading tensor blk.13.attn_q.bias
+0.00.443.779 D create_tensor: loading tensor blk.13.attn_k.bias
+0.00.443.780 D create_tensor: loading tensor blk.13.attn_v.bias
+0.00.443.782 D create_tensor: loading tensor blk.13.attn_output.weight
+0.00.443.787 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.790 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.791 D create_tensor: loading tensor blk.13.attn_q_norm.weight
+0.00.443.796 D ggml-hex: HTP0 supports-op MUL| x blk.13.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.796 D create_tensor: loading tensor blk.13.attn_k_norm.weight
+0.00.443.801 D ggml-hex: HTP0 supports-op MUL| x blk.13.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.802 D create_tensor: loading tensor blk.13.ffn_norm.weight
+0.00.443.807 D ggml-hex: HTP0 supports-op MUL| x blk.13.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.808 D create_tensor: loading tensor blk.13.ffn_gate_inp.weight
+0.00.443.813 D ggml-hex: HTP0 supports-op MUL_MAT|blk.13.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.813 D create_tensor: loading tensor blk.13.ffn_gate_exps.weight
+0.00.443.819 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.826 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.827 D create_tensor: loading tensor blk.13.ffn_down_exps.weight
+0.00.443.832 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.837 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.838 D create_tensor: loading tensor blk.13.ffn_up_exps.weight
+0.00.443.844 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.849 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.13.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.849 D create_tensor: loading tensor blk.14.attn_norm.weight
+0.00.443.855 D ggml-hex: HTP0 supports-op MUL| x blk.14.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.855 D create_tensor: loading tensor blk.14.attn_qkv.weight
+0.00.443.858 D create_tensor: loading tensor blk.14.attn_q.weight
+0.00.443.863 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.867 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.868 D create_tensor: loading tensor blk.14.attn_k.weight
+0.00.443.872 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.876 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.876 D create_tensor: loading tensor blk.14.attn_v.weight
+0.00.443.881 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.885 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.885 D create_tensor: loading tensor blk.14.attn_q.bias
+0.00.443.887 D create_tensor: loading tensor blk.14.attn_k.bias
+0.00.443.889 D create_tensor: loading tensor blk.14.attn_v.bias
+0.00.443.891 D create_tensor: loading tensor blk.14.attn_output.weight
+0.00.443.896 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.899 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.900 D create_tensor: loading tensor blk.14.attn_q_norm.weight
+0.00.443.905 D ggml-hex: HTP0 supports-op MUL| x blk.14.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.906 D create_tensor: loading tensor blk.14.attn_k_norm.weight
+0.00.443.910 D ggml-hex: HTP0 supports-op MUL| x blk.14.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.911 D create_tensor: loading tensor blk.14.ffn_norm.weight
+0.00.443.916 D ggml-hex: HTP0 supports-op MUL| x blk.14.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.917 D create_tensor: loading tensor blk.14.ffn_gate_inp.weight
+0.00.443.922 D ggml-hex: HTP0 supports-op MUL_MAT|blk.14.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.443.922 D create_tensor: loading tensor blk.14.ffn_gate_exps.weight
+0.00.443.928 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.933 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.933 D create_tensor: loading tensor blk.14.ffn_down_exps.weight
+0.00.443.939 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.443.944 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.945 D create_tensor: loading tensor blk.14.ffn_up_exps.weight
+0.00.443.951 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.443.955 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.14.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.443.956 D create_tensor: loading tensor blk.15.attn_norm.weight
+0.00.443.961 D ggml-hex: HTP0 supports-op MUL| x blk.15.attn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.443.962 D create_tensor: loading tensor blk.15.attn_qkv.weight
+0.00.443.965 D create_tensor: loading tensor blk.15.attn_q.weight
+0.00.443.970 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.973 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_q.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.974 D create_tensor: loading tensor blk.15.attn_k.weight
+0.00.443.978 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.982 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_k.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.982 D create_tensor: loading tensor blk.15.attn_v.weight
+0.00.443.987 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.443.991 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_v.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.443.991 D create_tensor: loading tensor blk.15.attn_q.bias
+0.00.443.993 D create_tensor: loading tensor blk.15.attn_k.bias
+0.00.443.995 D create_tensor: loading tensor blk.15.attn_v.bias
+0.00.443.997 D create_tensor: loading tensor blk.15.attn_output.weight
+0.00.444.002 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0 x NONE -> NONE|no
+0.00.444.006 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.attn_output.weight x  -> |2048:2048 x 2048:512 -> 2048:512|q4_0 x f32 -> f32|18:1152 x 4:8192 -> 4:8192|HTP0-REPACK x NONE -> NONE|yes
+0.00.444.007 D create_tensor: loading tensor blk.15.attn_q_norm.weight
+0.00.444.012 D ggml-hex: HTP0 supports-op MUL| x blk.15.attn_q_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.444.012 D create_tensor: loading tensor blk.15.attn_k_norm.weight
+0.00.444.017 D ggml-hex: HTP0 supports-op MUL| x blk.15.attn_k_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.444.018 D create_tensor: loading tensor blk.15.ffn_norm.weight
+0.00.444.023 D ggml-hex: HTP0 supports-op MUL| x blk.15.ffn_norm.weight -> |2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|NONE x HTP0 -> NONE|yes
+0.00.444.024 D create_tensor: loading tensor blk.15.ffn_gate_inp.weight
+0.00.444.029 D ggml-hex: HTP0 supports-op MUL_MAT|blk.15.ffn_gate_inp.weight x  -> |2048:64 x 2048:512 -> 64:512|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:256|HTP0 x NONE -> NONE|yes
+0.00.444.030 D create_tensor: loading tensor blk.15.ffn_gate_exps.weight
+0.00.444.036 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.444.041 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_gate_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.444.041 D create_tensor: loading tensor blk.15.ffn_down_exps.weight
+0.00.444.048 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0 x NONE x NONE -> NONE|no
+0.00.444.053 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_down_exps.weight x  x  -> |1024:2048:64:1 x 1024:8:512:1 x 8:512 -> 2048:8:512:1|q4_0 x f32 x i32 -> f32|18:576:1179648:75497472 x 4:4096:32768:16777216 x 4:32 -> 4:8192:65536:33554432|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.444.054 D create_tensor: loading tensor blk.15.ffn_up_exps.weight
+0.00.444.060 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0 x NONE x NONE -> NONE|no
+0.00.444.064 D ggml-hex: HTP0 supports-op MUL_MAT_ID|blk.15.ffn_up_exps.weight x  x  -> |2048:1024:64:1 x 2048:8:512:1 x 8:512 -> 1024:8:512:1|q4_0 x f32 x i32 -> f32|18:1152:1179648:75497472 x 4:8192:65536:33554432 x 4:32 -> 4:4096:32768:16777216|HTP0-REPACK x NONE x NONE -> NONE|yes
+0.00.444.065 D create_tensor: loading tensor blk.0.attn_q.scale
+0.00.444.067 D create_tensor: loading tensor blk.0.attn_k.scale
+0.00.444.069 D create_tensor: loading tensor blk.0.attn_v.scale
+0.00.444.071 D create_tensor: loading tensor blk.0.attn_output.scale
+0.00.444.073 D create_tensor: loading tensor blk.0.ffn_gate_exps.scale
+0.00.444.075 D create_tensor: loading tensor blk.0.ffn_down_exps.scale
+0.00.444.076 D create_tensor: loading tensor blk.0.ffn_up_exps.scale
+0.00.449.337 D create_tensor: loading tensor blk.0.attn_q.input_scale
+0.00.449.355 D create_tensor: loading tensor blk.0.attn_k.input_scale
+0.00.449.357 D create_tensor: loading tensor blk.0.attn_v.input_scale
+0.00.449.360 D create_tensor: loading tensor blk.0.attn_output.input_scale
+0.00.449.363 D create_tensor: loading tensor blk.0.ffn_gate_exps.input_scale
+0.00.449.366 D create_tensor: loading tensor blk.0.ffn_down_exps.input_scale
+0.00.449.368 D create_tensor: loading tensor blk.0.ffn_up_exps.input_scale
+0.00.449.371 D create_tensor: loading tensor blk.1.attn_q.scale
+0.00.449.374 D create_tensor: loading tensor blk.1.attn_k.scale
+0.00.449.376 D create_tensor: loading tensor blk.1.attn_v.scale
+0.00.449.378 D create_tensor: loading tensor blk.1.attn_output.scale
+0.00.449.380 D create_tensor: loading tensor blk.1.ffn_gate_exps.scale
+0.00.449.383 D create_tensor: loading tensor blk.1.ffn_down_exps.scale
+0.00.449.385 D create_tensor: loading tensor blk.1.ffn_up_exps.scale
+0.00.449.388 D create_tensor: loading tensor blk.1.attn_q.input_scale
+0.00.449.390 D create_tensor: loading tensor blk.1.attn_k.input_scale
+0.00.449.391 D create_tensor: loading tensor blk.1.attn_v.input_scale
+0.00.449.393 D create_tensor: loading tensor blk.1.attn_output.input_scale
+0.00.449.395 D create_tensor: loading tensor blk.1.ffn_gate_exps.input_scale
+0.00.449.397 D create_tensor: loading tensor blk.1.ffn_down_exps.input_scale
+0.00.449.398 D create_tensor: loading tensor blk.1.ffn_up_exps.input_scale
+0.00.449.400 D create_tensor: loading tensor blk.2.attn_q.scale
+0.00.449.402 D create_tensor: loading tensor blk.2.attn_k.scale
+0.00.449.404 D create_tensor: loading tensor blk.2.attn_v.scale
+0.00.449.407 D create_tensor: loading tensor blk.2.attn_output.scale
+0.00.449.408 D create_tensor: loading tensor blk.2.ffn_gate_exps.scale
+0.00.449.410 D create_tensor: loading tensor blk.2.ffn_down_exps.scale
+0.00.449.412 D create_tensor: loading tensor blk.2.ffn_up_exps.scale
+0.00.449.414 D create_tensor: loading tensor blk.2.attn_q.input_scale
+0.00.449.416 D create_tensor: loading tensor blk.2.attn_k.input_scale
+0.00.449.418 D create_tensor: loading tensor blk.2.attn_v.input_scale
+0.00.449.420 D create_tensor: loading tensor blk.2.attn_output.input_scale
+0.00.449.421 D create_tensor: loading tensor blk.2.ffn_gate_exps.input_scale
+0.00.449.423 D create_tensor: loading tensor blk.2.ffn_down_exps.input_scale
+0.00.449.425 D create_tensor: loading tensor blk.2.ffn_up_exps.input_scale
+0.00.449.427 D create_tensor: loading tensor blk.3.attn_q.scale
+0.00.449.429 D create_tensor: loading tensor blk.3.attn_k.scale
+0.00.449.430 D create_tensor: loading tensor blk.3.attn_v.scale
+0.00.449.432 D create_tensor: loading tensor blk.3.attn_output.scale
+0.00.449.434 D create_tensor: loading tensor blk.3.ffn_gate_exps.scale
+0.00.449.436 D create_tensor: loading tensor blk.3.ffn_down_exps.scale
+0.00.449.438 D create_tensor: loading tensor blk.3.ffn_up_exps.scale
+0.00.449.440 D create_tensor: loading tensor blk.3.attn_q.input_scale
+0.00.449.442 D create_tensor: loading tensor blk.3.attn_k.input_scale
+0.00.449.443 D create_tensor: loading tensor blk.3.attn_v.input_scale
+0.00.449.445 D create_tensor: loading tensor blk.3.attn_output.input_scale
+0.00.449.447 D create_tensor: loading tensor blk.3.ffn_gate_exps.input_scale
+0.00.449.449 D create_tensor: loading tensor blk.3.ffn_down_exps.input_scale
+0.00.449.450 D create_tensor: loading tensor blk.3.ffn_up_exps.input_scale
+0.00.449.452 D create_tensor: loading tensor blk.4.attn_q.scale
+0.00.449.454 D create_tensor: loading tensor blk.4.attn_k.scale
+0.00.449.456 D create_tensor: loading tensor blk.4.attn_v.scale
+0.00.449.458 D create_tensor: loading tensor blk.4.attn_output.scale
+0.00.449.460 D create_tensor: loading tensor blk.4.ffn_gate_exps.scale
+0.00.449.462 D create_tensor: loading tensor blk.4.ffn_down_exps.scale
+0.00.449.463 D create_tensor: loading tensor blk.4.ffn_up_exps.scale
+0.00.449.466 D create_tensor: loading tensor blk.4.attn_q.input_scale
+0.00.449.467 D create_tensor: loading tensor blk.4.attn_k.input_scale
+0.00.449.469 D create_tensor: loading tensor blk.4.attn_v.input_scale
+0.00.449.471 D create_tensor: loading tensor blk.4.attn_output.input_scale
+0.00.449.472 D create_tensor: loading tensor blk.4.ffn_gate_exps.input_scale
+0.00.449.474 D create_tensor: loading tensor blk.4.ffn_down_exps.input_scale
+0.00.449.476 D create_tensor: loading tensor blk.4.ffn_up_exps.input_scale
+0.00.449.477 D create_tensor: loading tensor blk.5.attn_q.scale
+0.00.449.480 D create_tensor: loading tensor blk.5.attn_k.scale
+0.00.449.481 D create_tensor: loading tensor blk.5.attn_v.scale
+0.00.449.483 D create_tensor: loading tensor blk.5.attn_output.scale
+0.00.449.485 D create_tensor: loading tensor blk.5.ffn_gate_exps.scale
+0.00.449.487 D create_tensor: loading tensor blk.5.ffn_down_exps.scale
+0.00.449.489 D create_tensor: loading tensor blk.5.ffn_up_exps.scale
+0.00.449.491 D create_tensor: loading tensor blk.5.attn_q.input_scale
+0.00.449.493 D create_tensor: loading tensor blk.5.attn_k.input_scale
+0.00.449.494 D create_tensor: loading tensor blk.5.attn_v.input_scale
+0.00.449.496 D create_tensor: loading tensor blk.5.attn_output.input_scale
+0.00.449.498 D create_tensor: loading tensor blk.5.ffn_gate_exps.input_scale
+0.00.449.499 D create_tensor: loading tensor blk.5.ffn_down_exps.input_scale
+0.00.449.501 D create_tensor: loading tensor blk.5.ffn_up_exps.input_scale
+0.00.449.503 D create_tensor: loading tensor blk.6.attn_q.scale
+0.00.449.505 D create_tensor: loading tensor blk.6.attn_k.scale
+0.00.449.506 D create_tensor: loading tensor blk.6.attn_v.scale
+0.00.449.509 D create_tensor: loading tensor blk.6.attn_output.scale
+0.00.449.511 D create_tensor: loading tensor blk.6.ffn_gate_exps.scale
+0.00.449.513 D create_tensor: loading tensor blk.6.ffn_down_exps.scale
+0.00.449.514 D create_tensor: loading tensor blk.6.ffn_up_exps.scale
+0.00.449.517 D create_tensor: loading tensor blk.6.attn_q.input_scale
+0.00.449.518 D create_tensor: loading tensor blk.6.attn_k.input_scale
+0.00.449.520 D create_tensor: loading tensor blk.6.attn_v.input_scale
+0.00.449.522 D create_tensor: loading tensor blk.6.attn_output.input_scale
+0.00.449.523 D create_tensor: loading tensor blk.6.ffn_gate_exps.input_scale
+0.00.449.525 D create_tensor: loading tensor blk.6.ffn_down_exps.input_scale
+0.00.449.527 D create_tensor: loading tensor blk.6.ffn_up_exps.input_scale
+0.00.449.528 D create_tensor: loading tensor blk.7.attn_q.scale
+0.00.449.531 D create_tensor: loading tensor blk.7.attn_k.scale
+0.00.449.532 D create_tensor: loading tensor blk.7.attn_v.scale
+0.00.449.534 D create_tensor: loading tensor blk.7.attn_output.scale
+0.00.449.536 D create_tensor: loading tensor blk.7.ffn_gate_exps.scale
+0.00.449.538 D create_tensor: loading tensor blk.7.ffn_down_exps.scale
+0.00.449.540 D create_tensor: loading tensor blk.7.ffn_up_exps.scale
+0.00.449.543 D create_tensor: loading tensor blk.7.attn_q.input_scale
+0.00.449.544 D create_tensor: loading tensor blk.7.attn_k.input_scale
+0.00.449.546 D create_tensor: loading tensor blk.7.attn_v.input_scale
+0.00.449.548 D create_tensor: loading tensor blk.7.attn_output.input_scale
+0.00.449.549 D create_tensor: loading tensor blk.7.ffn_gate_exps.input_scale
+0.00.449.551 D create_tensor: loading tensor blk.7.ffn_down_exps.input_scale
+0.00.449.553 D create_tensor: loading tensor blk.7.ffn_up_exps.input_scale
+0.00.449.555 D create_tensor: loading tensor blk.8.attn_q.scale
+0.00.449.557 D create_tensor: loading tensor blk.8.attn_k.scale
+0.00.449.558 D create_tensor: loading tensor blk.8.attn_v.scale
+0.00.449.561 D create_tensor: loading tensor blk.8.attn_output.scale
+0.00.449.563 D create_tensor: loading tensor blk.8.ffn_gate_exps.scale
+0.00.449.565 D create_tensor: loading tensor blk.8.ffn_down_exps.scale
+0.00.449.567 D create_tensor: loading tensor blk.8.ffn_up_exps.scale
+0.00.449.569 D create_tensor: loading tensor blk.8.attn_q.input_scale
+0.00.449.571 D create_tensor: loading tensor blk.8.attn_k.input_scale
+0.00.449.572 D create_tensor: loading tensor blk.8.attn_v.input_scale
+0.00.449.574 D create_tensor: loading tensor blk.8.attn_output.input_scale
+0.00.449.576 D create_tensor: loading tensor blk.8.ffn_gate_exps.input_scale
+0.00.449.578 D create_tensor: loading tensor blk.8.ffn_down_exps.input_scale
+0.00.449.579 D create_tensor: loading tensor blk.8.ffn_up_exps.input_scale
+0.00.449.581 D create_tensor: loading tensor blk.9.attn_q.scale
+0.00.449.584 D create_tensor: loading tensor blk.9.attn_k.scale
+0.00.449.586 D create_tensor: loading tensor blk.9.attn_v.scale
+0.00.449.588 D create_tensor: loading tensor blk.9.attn_output.scale
+0.00.449.589 D create_tensor: loading tensor blk.9.ffn_gate_exps.scale
+0.00.449.591 D create_tensor: loading tensor blk.9.ffn_down_exps.scale
+0.00.449.593 D create_tensor: loading tensor blk.9.ffn_up_exps.scale
+0.00.449.596 D create_tensor: loading tensor blk.9.attn_q.input_scale
+0.00.449.597 D create_tensor: loading tensor blk.9.attn_k.input_scale
+0.00.449.599 D create_tensor: loading tensor blk.9.attn_v.input_scale
+0.00.449.601 D create_tensor: loading tensor blk.9.attn_output.input_scale
+0.00.449.603 D create_tensor: loading tensor blk.9.ffn_gate_exps.input_scale
+0.00.449.605 D create_tensor: loading tensor blk.9.ffn_down_exps.input_scale
+0.00.449.606 D create_tensor: loading tensor blk.9.ffn_up_exps.input_scale
+0.00.449.608 D create_tensor: loading tensor blk.10.attn_q.scale
+0.00.449.611 D create_tensor: loading tensor blk.10.attn_k.scale
+0.00.449.612 D create_tensor: loading tensor blk.10.attn_v.scale
+0.00.449.615 D create_tensor: loading tensor blk.10.attn_output.scale
+0.00.449.617 D create_tensor: loading tensor blk.10.ffn_gate_exps.scale
+0.00.449.620 D create_tensor: loading tensor blk.10.ffn_down_exps.scale
+0.00.449.621 D create_tensor: loading tensor blk.10.ffn_up_exps.scale
+0.00.449.624 D create_tensor: loading tensor blk.10.attn_q.input_scale
+0.00.449.626 D create_tensor: loading tensor blk.10.attn_k.input_scale
+0.00.449.627 D create_tensor: loading tensor blk.10.attn_v.input_scale
+0.00.449.629 D create_tensor: loading tensor blk.10.attn_output.input_scale
+0.00.449.631 D create_tensor: loading tensor blk.10.ffn_gate_exps.input_scale
+0.00.449.633 D create_tensor: loading tensor blk.10.ffn_down_exps.input_scale
+0.00.449.635 D create_tensor: loading tensor blk.10.ffn_up_exps.input_scale
+0.00.449.637 D create_tensor: loading tensor blk.11.attn_q.scale
+0.00.449.640 D create_tensor: loading tensor blk.11.attn_k.scale
+0.00.449.641 D create_tensor: loading tensor blk.11.attn_v.scale
+0.00.449.644 D create_tensor: loading tensor blk.11.attn_output.scale
+0.00.449.645 D create_tensor: loading tensor blk.11.ffn_gate_exps.scale
+0.00.449.647 D create_tensor: loading tensor blk.11.ffn_down_exps.scale
+0.00.449.649 D create_tensor: loading tensor blk.11.ffn_up_exps.scale
+0.00.449.652 D create_tensor: loading tensor blk.11.attn_q.input_scale
+0.00.449.654 D create_tensor: loading tensor blk.11.attn_k.input_scale
+0.00.449.656 D create_tensor: loading tensor blk.11.attn_v.input_scale
+0.00.449.657 D create_tensor: loading tensor blk.11.attn_output.input_scale
+0.00.449.659 D create_tensor: loading tensor blk.11.ffn_gate_exps.input_scale
+0.00.449.661 D create_tensor: loading tensor blk.11.ffn_down_exps.input_scale
+0.00.449.663 D create_tensor: loading tensor blk.11.ffn_up_exps.input_scale
+0.00.449.665 D create_tensor: loading tensor blk.12.attn_q.scale
+0.00.449.667 D create_tensor: loading tensor blk.12.attn_k.scale
+0.00.449.669 D create_tensor: loading tensor blk.12.attn_v.scale
+0.00.449.671 D create_tensor: loading tensor blk.12.attn_output.scale
+0.00.449.673 D create_tensor: loading tensor blk.12.ffn_gate_exps.scale
+0.00.449.675 D create_tensor: loading tensor blk.12.ffn_down_exps.scale
+0.00.449.677 D create_tensor: loading tensor blk.12.ffn_up_exps.scale
+0.00.449.680 D create_tensor: loading tensor blk.12.attn_q.input_scale
+0.00.449.681 D create_tensor: loading tensor blk.12.attn_k.input_scale
+0.00.449.683 D create_tensor: loading tensor blk.12.attn_v.input_scale
+0.00.449.685 D create_tensor: loading tensor blk.12.attn_output.input_scale
+0.00.449.687 D create_tensor: loading tensor blk.12.ffn_gate_exps.input_scale
+0.00.449.689 D create_tensor: loading tensor blk.12.ffn_down_exps.input_scale
+0.00.449.691 D create_tensor: loading tensor blk.12.ffn_up_exps.input_scale
+0.00.449.693 D create_tensor: loading tensor blk.13.attn_q.scale
+0.00.449.696 D create_tensor: loading tensor blk.13.attn_k.scale
+0.00.449.697 D create_tensor: loading tensor blk.13.attn_v.scale
+0.00.449.699 D create_tensor: loading tensor blk.13.attn_output.scale
+0.00.449.701 D create_tensor: loading tensor blk.13.ffn_gate_exps.scale
+0.00.449.703 D create_tensor: loading tensor blk.13.ffn_down_exps.scale
+0.00.449.705 D create_tensor: loading tensor blk.13.ffn_up_exps.scale
+0.00.449.708 D create_tensor: loading tensor blk.13.attn_q.input_scale
+0.00.449.710 D create_tensor: loading tensor blk.13.attn_k.input_scale
+0.00.449.712 D create_tensor: loading tensor blk.13.attn_v.input_scale
+0.00.449.714 D create_tensor: loading tensor blk.13.attn_output.input_scale
+0.00.449.716 D create_tensor: loading tensor blk.13.ffn_gate_exps.input_scale
+0.00.449.718 D create_tensor: loading tensor blk.13.ffn_down_exps.input_scale
+0.00.449.720 D create_tensor: loading tensor blk.13.ffn_up_exps.input_scale
+0.00.449.722 D create_tensor: loading tensor blk.14.attn_q.scale
+0.00.449.724 D create_tensor: loading tensor blk.14.attn_k.scale
+0.00.449.725 D create_tensor: loading tensor blk.14.attn_v.scale
+0.00.449.728 D create_tensor: loading tensor blk.14.attn_output.scale
+0.00.449.730 D create_tensor: loading tensor blk.14.ffn_gate_exps.scale
+0.00.449.732 D create_tensor: loading tensor blk.14.ffn_down_exps.scale
+0.00.449.734 D create_tensor: loading tensor blk.14.ffn_up_exps.scale
+0.00.449.737 D create_tensor: loading tensor blk.14.attn_q.input_scale
+0.00.449.738 D create_tensor: loading tensor blk.14.attn_k.input_scale
+0.00.449.740 D create_tensor: loading tensor blk.14.attn_v.input_scale
+0.00.449.742 D create_tensor: loading tensor blk.14.attn_output.input_scale
+0.00.449.744 D create_tensor: loading tensor blk.14.ffn_gate_exps.input_scale
+0.00.449.747 D create_tensor: loading tensor blk.14.ffn_down_exps.input_scale
+0.00.449.749 D create_tensor: loading tensor blk.14.ffn_up_exps.input_scale
+0.00.449.751 D create_tensor: loading tensor blk.15.attn_q.scale
+0.00.449.754 D create_tensor: loading tensor blk.15.attn_k.scale
+0.00.449.755 D create_tensor: loading tensor blk.15.attn_v.scale
+0.00.449.758 D create_tensor: loading tensor blk.15.attn_output.scale
+0.00.449.760 D create_tensor: loading tensor blk.15.ffn_gate_exps.scale
+0.00.449.762 D create_tensor: loading tensor blk.15.ffn_down_exps.scale
+0.00.449.765 D create_tensor: loading tensor blk.15.ffn_up_exps.scale
+0.00.449.767 D create_tensor: loading tensor blk.15.attn_q.input_scale
+0.00.449.769 D create_tensor: loading tensor blk.15.attn_k.input_scale
+0.00.449.771 D create_tensor: loading tensor blk.15.attn_v.input_scale
+0.00.449.774 D create_tensor: loading tensor blk.15.attn_output.input_scale
+0.00.449.776 D create_tensor: loading tensor blk.15.ffn_gate_exps.input_scale
+0.00.449.778 D create_tensor: loading tensor blk.15.ffn_down_exps.input_scale
+0.00.449.780 D create_tensor: loading tensor blk.15.ffn_up_exps.input_scale
+0.00.449.786 D done_getting_tensors: tensor 'token_embd.weight' (q4_0) (and 113 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+0.00.450.281 D ggml-hex: HTP0 allocated buffer: base 0x6f49e4f000 size 8925184 fd 22 pinned 0
+0.00.450.604 D ggml-hex: HTP0 mapped buffer: base 0x6f49e4f000 size 8925184 fd 22 pinned 0
+0.00.450.611 D ggml-hex: HTP0 init-tensor output_norm.weight : base 0x6f49e4f000 data 0x6f49e4f000 nbytes 8192 usage 0
+0.00.450.612 D ggml-hex: HTP0 init-tensor blk.0.attn_norm.weight : base 0x6f49e4f000 data 0x6f49e51000 nbytes 8192 usage 0
+0.00.450.612 D ggml-hex: HTP0 init-tensor blk.0.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f49e53000 nbytes 8192 usage 0
+0.00.450.613 D ggml-hex: HTP0 init-tensor blk.0.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f49e55000 nbytes 8192 usage 0
+0.00.450.613 D ggml-hex: HTP0 init-tensor blk.0.ffn_norm.weight : base 0x6f49e4f000 data 0x6f49e57000 nbytes 8192 usage 0
+0.00.450.614 D ggml-hex: HTP0 init-tensor blk.0.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f49e59000 nbytes 524288 usage 0
+0.00.450.615 D ggml-hex: HTP0 init-tensor blk.1.attn_norm.weight : base 0x6f49e4f000 data 0x6f49ed9000 nbytes 8192 usage 0
+0.00.450.616 D ggml-hex: HTP0 init-tensor blk.1.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f49edb000 nbytes 8192 usage 0
+0.00.450.616 D ggml-hex: HTP0 init-tensor blk.1.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f49edd000 nbytes 8192 usage 0
+0.00.450.617 D ggml-hex: HTP0 init-tensor blk.1.ffn_norm.weight : base 0x6f49e4f000 data 0x6f49edf000 nbytes 8192 usage 0
+0.00.450.618 D ggml-hex: HTP0 init-tensor blk.1.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f49ee1000 nbytes 524288 usage 0
+0.00.450.619 D ggml-hex: HTP0 init-tensor blk.2.attn_norm.weight : base 0x6f49e4f000 data 0x6f49f61000 nbytes 8192 usage 0
+0.00.450.619 D ggml-hex: HTP0 init-tensor blk.2.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f49f63000 nbytes 8192 usage 0
+0.00.450.620 D ggml-hex: HTP0 init-tensor blk.2.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f49f65000 nbytes 8192 usage 0
+0.00.450.621 D ggml-hex: HTP0 init-tensor blk.2.ffn_norm.weight : base 0x6f49e4f000 data 0x6f49f67000 nbytes 8192 usage 0
+0.00.450.622 D ggml-hex: HTP0 init-tensor blk.2.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f49f69000 nbytes 524288 usage 0
+0.00.450.622 D ggml-hex: HTP0 init-tensor blk.3.attn_norm.weight : base 0x6f49e4f000 data 0x6f49fe9000 nbytes 8192 usage 0
+0.00.450.623 D ggml-hex: HTP0 init-tensor blk.3.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f49feb000 nbytes 8192 usage 0
+0.00.450.624 D ggml-hex: HTP0 init-tensor blk.3.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f49fed000 nbytes 8192 usage 0
+0.00.450.624 D ggml-hex: HTP0 init-tensor blk.3.ffn_norm.weight : base 0x6f49e4f000 data 0x6f49fef000 nbytes 8192 usage 0
+0.00.450.625 D ggml-hex: HTP0 init-tensor blk.3.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f49ff1000 nbytes 524288 usage 0
+0.00.450.626 D ggml-hex: HTP0 init-tensor blk.4.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a071000 nbytes 8192 usage 0
+0.00.450.626 D ggml-hex: HTP0 init-tensor blk.4.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a073000 nbytes 8192 usage 0
+0.00.450.627 D ggml-hex: HTP0 init-tensor blk.4.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a075000 nbytes 8192 usage 0
+0.00.450.627 D ggml-hex: HTP0 init-tensor blk.4.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a077000 nbytes 8192 usage 0
+0.00.450.628 D ggml-hex: HTP0 init-tensor blk.4.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a079000 nbytes 524288 usage 0
+0.00.450.628 D ggml-hex: HTP0 init-tensor blk.5.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a0f9000 nbytes 8192 usage 0
+0.00.450.629 D ggml-hex: HTP0 init-tensor blk.5.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a0fb000 nbytes 8192 usage 0
+0.00.450.630 D ggml-hex: HTP0 init-tensor blk.5.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a0fd000 nbytes 8192 usage 0
+0.00.450.630 D ggml-hex: HTP0 init-tensor blk.5.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a0ff000 nbytes 8192 usage 0
+0.00.450.631 D ggml-hex: HTP0 init-tensor blk.5.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a101000 nbytes 524288 usage 0
+0.00.450.631 D ggml-hex: HTP0 init-tensor blk.6.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a181000 nbytes 8192 usage 0
+0.00.450.632 D ggml-hex: HTP0 init-tensor blk.6.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a183000 nbytes 8192 usage 0
+0.00.450.633 D ggml-hex: HTP0 init-tensor blk.6.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a185000 nbytes 8192 usage 0
+0.00.450.633 D ggml-hex: HTP0 init-tensor blk.6.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a187000 nbytes 8192 usage 0
+0.00.450.633 D ggml-hex: HTP0 init-tensor blk.6.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a189000 nbytes 524288 usage 0
+0.00.450.634 D ggml-hex: HTP0 init-tensor blk.7.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a209000 nbytes 8192 usage 0
+0.00.450.634 D ggml-hex: HTP0 init-tensor blk.7.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a20b000 nbytes 8192 usage 0
+0.00.450.635 D ggml-hex: HTP0 init-tensor blk.7.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a20d000 nbytes 8192 usage 0
+0.00.450.635 D ggml-hex: HTP0 init-tensor blk.7.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a20f000 nbytes 8192 usage 0
+0.00.450.635 D ggml-hex: HTP0 init-tensor blk.7.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a211000 nbytes 524288 usage 0
+0.00.450.636 D ggml-hex: HTP0 init-tensor blk.8.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a291000 nbytes 8192 usage 0
+0.00.450.636 D ggml-hex: HTP0 init-tensor blk.8.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a293000 nbytes 8192 usage 0
+0.00.450.637 D ggml-hex: HTP0 init-tensor blk.8.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a295000 nbytes 8192 usage 0
+0.00.450.637 D ggml-hex: HTP0 init-tensor blk.8.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a297000 nbytes 8192 usage 0
+0.00.450.637 D ggml-hex: HTP0 init-tensor blk.8.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a299000 nbytes 524288 usage 0
+0.00.450.638 D ggml-hex: HTP0 init-tensor blk.9.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a319000 nbytes 8192 usage 0
+0.00.450.638 D ggml-hex: HTP0 init-tensor blk.9.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a31b000 nbytes 8192 usage 0
+0.00.450.638 D ggml-hex: HTP0 init-tensor blk.9.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a31d000 nbytes 8192 usage 0
+0.00.450.639 D ggml-hex: HTP0 init-tensor blk.9.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a31f000 nbytes 8192 usage 0
+0.00.450.639 D ggml-hex: HTP0 init-tensor blk.9.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a321000 nbytes 524288 usage 0
+0.00.450.640 D ggml-hex: HTP0 init-tensor blk.10.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a3a1000 nbytes 8192 usage 0
+0.00.450.640 D ggml-hex: HTP0 init-tensor blk.10.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a3a3000 nbytes 8192 usage 0
+0.00.450.640 D ggml-hex: HTP0 init-tensor blk.10.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a3a5000 nbytes 8192 usage 0
+0.00.450.641 D ggml-hex: HTP0 init-tensor blk.10.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a3a7000 nbytes 8192 usage 0
+0.00.450.641 D ggml-hex: HTP0 init-tensor blk.10.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a3a9000 nbytes 524288 usage 0
+0.00.450.642 D ggml-hex: HTP0 init-tensor blk.11.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a429000 nbytes 8192 usage 0
+0.00.450.642 D ggml-hex: HTP0 init-tensor blk.11.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a42b000 nbytes 8192 usage 0
+0.00.450.642 D ggml-hex: HTP0 init-tensor blk.11.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a42d000 nbytes 8192 usage 0
+0.00.450.643 D ggml-hex: HTP0 init-tensor blk.11.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a42f000 nbytes 8192 usage 0
+0.00.450.643 D ggml-hex: HTP0 init-tensor blk.11.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a431000 nbytes 524288 usage 0
+0.00.450.643 D ggml-hex: HTP0 init-tensor blk.12.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a4b1000 nbytes 8192 usage 0
+0.00.450.644 D ggml-hex: HTP0 init-tensor blk.12.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a4b3000 nbytes 8192 usage 0
+0.00.450.644 D ggml-hex: HTP0 init-tensor blk.12.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a4b5000 nbytes 8192 usage 0
+0.00.450.644 D ggml-hex: HTP0 init-tensor blk.12.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a4b7000 nbytes 8192 usage 0
+0.00.450.645 D ggml-hex: HTP0 init-tensor blk.12.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a4b9000 nbytes 524288 usage 0
+0.00.450.645 D ggml-hex: HTP0 init-tensor blk.13.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a539000 nbytes 8192 usage 0
+0.00.450.646 D ggml-hex: HTP0 init-tensor blk.13.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a53b000 nbytes 8192 usage 0
+0.00.450.646 D ggml-hex: HTP0 init-tensor blk.13.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a53d000 nbytes 8192 usage 0
+0.00.450.647 D ggml-hex: HTP0 init-tensor blk.13.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a53f000 nbytes 8192 usage 0
+0.00.450.647 D ggml-hex: HTP0 init-tensor blk.13.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a541000 nbytes 524288 usage 0
+0.00.450.647 D ggml-hex: HTP0 init-tensor blk.14.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a5c1000 nbytes 8192 usage 0
+0.00.450.648 D ggml-hex: HTP0 init-tensor blk.14.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a5c3000 nbytes 8192 usage 0
+0.00.450.648 D ggml-hex: HTP0 init-tensor blk.14.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a5c5000 nbytes 8192 usage 0
+0.00.450.649 D ggml-hex: HTP0 init-tensor blk.14.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a5c7000 nbytes 8192 usage 0
+0.00.450.649 D ggml-hex: HTP0 init-tensor blk.14.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a5c9000 nbytes 524288 usage 0
+0.00.450.649 D ggml-hex: HTP0 init-tensor blk.15.attn_norm.weight : base 0x6f49e4f000 data 0x6f4a649000 nbytes 8192 usage 0
+0.00.450.650 D ggml-hex: HTP0 init-tensor blk.15.attn_q_norm.weight : base 0x6f49e4f000 data 0x6f4a64b000 nbytes 8192 usage 0
+0.00.450.650 D ggml-hex: HTP0 init-tensor blk.15.attn_k_norm.weight : base 0x6f49e4f000 data 0x6f4a64d000 nbytes 8192 usage 0
+0.00.450.651 D ggml-hex: HTP0 init-tensor blk.15.ffn_norm.weight : base 0x6f49e4f000 data 0x6f4a64f000 nbytes 8192 usage 0
+0.00.450.651 D ggml-hex: HTP0 init-tensor blk.15.ffn_gate_inp.weight : base 0x6f49e4f000 data 0x6f4a651000 nbytes 524288 usage 0

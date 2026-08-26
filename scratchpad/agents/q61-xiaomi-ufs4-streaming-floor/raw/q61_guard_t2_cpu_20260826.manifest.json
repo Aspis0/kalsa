@@ -1,0 +1,141 @@
+{
+  "tag": "q61_guard_t2_cpu_20260826",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "supervisor_pid": 18951,
+  "guard_pid": 18952,
+  "binary_pid": 18953,
+  "workload_exec_pid": 18953,
+  "cpuset": "/",
+  "workload": [
+    "/system/bin/env",
+    "LD_LIBRARY_PATH=/data/local/tmp/kalsa16",
+    "/data/local/tmp/kalsa16/llama-bench",
+    "-m",
+    "/data/local/tmp/kalsahtp/models/Qwen3.5-4B-Q4_0.gguf",
+    "-p",
+    "64",
+    "-n",
+    "16",
+    "-r",
+    "1",
+    "--no-warmup",
+    "-t",
+    "8",
+    "-o",
+    "jsonl",
+    "-ngl",
+    "0"
+  ],
+  "allow_npu": false,
+  "thermal_sensor_cmd": "",
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "unset",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "warn_tenths": 400,
+    "kill_tenths": 430,
+    "hard_abort_tenths": 0,
+    "session_hard_cap_tenths": 0,
+    "effective_kill_tenths": 430,
+    "interval_s": 1,
+    "sensor_fail_limit": 4,
+    "sensor_timeout_s": 10,
+    "sensor_failure_window_s": 40,
+    "fail_closed_false_kill_accepted": true,
+    "ready_verified": true,
+    "tracking_verified": true,
+    "exit_code": 0,
+    "max_temperature_tenths": 271
+  },
+  "workload_rc": 0,
+  "guard_exit_code": 0,
+  "guard_outcome": "normal",
+  "launcher_exit_code": 0,
+  "workload_never_started": false,
+  "timed_out": false,
+  "abort_reason": "",
+  "workload_failure_signature": "",
+  "guard_liveness_abort": false,
+  "adb_disconnect": false,
+  "adb_reconnect_attempts": 0,
+  "wall_seconds_until_poll_end": 16.028,
+  "disk_available_kb": 313281160,
+  "battery_start": {
+    "level": 79,
+    "temperature_tenths": 271,
+    "voltage_mv": 4150,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_end": {
+    "level": 79,
+    "temperature_tenths": 271,
+    "voltage_mv": 4150,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_samples": [
+    {
+      "level": 79,
+      "temperature_tenths": 271,
+      "voltage_mv": 4150,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 79,
+      "temperature_tenths": 271,
+      "voltage_mv": 4150,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    }
+  ],
+  "battery_floor_triggered": false,
+  "battery_floor_chunk": null,
+  "battery_poll_error": false,
+  "running_ppl_values": {},
+  "running_ppl_max_chunk": null,
+  "launch_stdout": "LAUNCH_PID=18951\n",
+  "guard_launch_stdout": "GUARD_PID=18952",
+  "execute_op_htp0": false,
+  "pulls": {
+    "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.stdout.jsonl": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.stdout.jsonl: 1 file pulled, 0 skipped. 0.3 MB/s (1989 bytes in 0.006s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.stderr.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.stderr.log: 1 file pulled, 0 skipped. 0.0 MB/s (217 bytes in 0.051s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.workload.start_failure": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.workload.start_failure': No such file or directory\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.workload.exec.pid": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.workload.exec.pid: 1 file pulled, 0 skipped. 0.0 MB/s (19 bytes in 0.023s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/q61_guard_t2_cpu_20260826.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (577 bytes in 0.013s)\n"
+    }
+  }
+}

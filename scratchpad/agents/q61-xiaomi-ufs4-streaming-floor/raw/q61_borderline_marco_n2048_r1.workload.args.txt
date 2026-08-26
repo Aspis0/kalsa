@@ -1,0 +1,1 @@
+/system/bin/env LD_LIBRARY_PATH=/data/local/tmp/kalsa16 /data/local/tmp/kalsa16/llama-bench -m /data/local/tmp/Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf -p 2048 -n 0 -r 1 --no-warmup -t 8 -o jsonl --progress -ngl 0 -mmp 1 -nr
