@@ -12,7 +12,20 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-08-24)
+# ⭐ STATO CORRENTE — vista compatta (2026-08-24; aggiornata 26/08 sera)
+
+> **26/08 sera — owner via 28/08 → ~07/09.** Piano dei 10 giorni FIRMATO:
+> `docs/PLAN-10DAYS-2026-08-28.md` v2 (audit DeepSeek applicato, `a3ffca83`): QDC 8 Elite
+> prima (kill-date g4) → baseline S23 plugged → ≤3 pick upstream OpenCL → ottimizzazione
+> prefill q2/q3 (gate doppio) → cella crossover router su Marco1c; HVX (28c) solo sotto
+> regola pre-delegata (§8: v79 sopravvive agli esperti ∧ q63 FAIL ∧ GO scritto). Bancati
+> oggi: **#32 q59** (IQ4_NL FAIL, owner A), **#33 q62** (streamer di prodotto compute-bound,
+> prerequisito HVX (1) OK). **In volo**: q63 ricetta IQ4_NL-M (PC, lock `7477247a`, ~12 h,
+> validità binario PASS, C1 leggibile HTP) → riga #34 al bank + erratum q59 (arm IQ4_NL non
+> pura, 37 Q5_K). **S23 pronto** (Phase 1 prep `550f73f9`): 12 GB liberi, OLMoE Q4_K_M +
+> Marco-KEXP a bordo con sha, toolchain `s3oracle` certificata 407/407 + 925/925; manca solo il
+> riferimento termico plugged (giorno 1) per lockare `s23-plugged-baseline`. Xiaomi via con
+> l'owner: q62 secondario e ogni cella v75 dopo il 07/09 (o QDC).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
