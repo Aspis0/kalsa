@@ -1,0 +1,10 @@
+total 136296
+-rwxr-xr-x 1 shell shell      561 2026-08-16 06:16 DEVICE.sha256
+-rwxr-xr-x 1 shell shell     2475 2026-08-16 06:17 MANIFEST.md
+-rwxr-xr-x 1 shell shell  6362168 2026-08-16 06:16 bmoe-cli
+-rwxr-xr-x 1 shell shell  1794776 2026-08-16 06:16 libc++_shared.so
+-rwxr-xr-x 1 shell shell  6604920 2026-08-16 06:16 libggml-base.so
+-rwxr-xr-x 1 shell shell  5006968 2026-08-16 06:16 libggml-cpu.so
+-rwxr-xr-x 1 shell shell   630048 2026-08-16 06:16 libggml.so
+-rwxr-xr-x 1 shell shell 78405896 2026-08-16 06:16 libllama-common.so
+-rwxr-xr-x 1 shell shell 40605088 2026-08-16 06:16 libllama.so

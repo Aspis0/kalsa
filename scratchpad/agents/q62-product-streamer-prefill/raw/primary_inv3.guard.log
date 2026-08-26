@@ -1,0 +1,10 @@
+START,1787765741,warn_tenths=400,kill_tenths=430,hard_abort_tenths=0,session_hard_cap_tenths=0,effective_kill_tenths=430,interval_s=10,sensor_fail_limit=4,sensor_timeout_s=10,sensor_failure_window_s=40,sensor_command_override=none,fail_closed_false_kill_accepted=1
+1787765741,299,51
+1787765741,299,51,READY
+1787765741,299,51,TRACKING_9196
+1787765752,298,50
+1787765762,298,50
+1787765772,298,50
+1787765784,306,50
+1787765794,306,50
+1787765795,312,51,MAX

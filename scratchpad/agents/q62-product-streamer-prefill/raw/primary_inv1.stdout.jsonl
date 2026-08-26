@@ -1,0 +1,9 @@
+BMOE_LOAD {"mb":351.16,"ms":334.4}
+BMOE_PROGRESS {"step":1,"steps":1,"wall_ms":1299.9,"io_ms":334.4,"compute_ms":965.4,"mgmt_ms":0.1,"stall_ms":0.0,"read_mb":351.16,"cache_hit_pct":-1.0,"majflt":2,"cpu_ms":1412.3,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" We"}
+=== answer ===
+ We
+=== perf ===
+generation: 1 tokens, 1.300 s/token (0.769 tok/s)
+compute: 27.2% CPU occupancy (1.4123 cpu-s/token over 4 threads), 2.00 major faults/token
+prefill: 486 tokens, 38.049 s (12.8 tok/s) | model load 7.669 s | TTFT 45.717 s
+moe-stream: read 351.2 MiB (351.16 MiB/token), decode 1.300 s/token (compute 0.965 + cache mgmt 0.000 + flash I/O 0.334 s/token, 1050 MiB/s)

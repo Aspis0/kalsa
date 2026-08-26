@@ -1,0 +1,8 @@
+ro.product.model=23127PN0CG
+ro.product.device=houji
+ro.product.name=houji_global
+ro.soc.model=SM8650
+ro.build.version.release=16
+ro.build.version.sdk=36
+ro.hardware=qcom
+ro.boot.hardware=qcom

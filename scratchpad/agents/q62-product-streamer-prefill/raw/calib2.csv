@@ -1,0 +1,6 @@
+# bmoe_metrics v2
+# engine=0.19.0
+# model=Qwen3.6-35B-A3B-KEXP.gguf arch=qwen35moe n_layer=40 n_expert=256 n_expert_used=8 threads=4 n_ctx=512 n_ubatch=512 chatml=0
+# moe_stream=1 cache_mb=0 cache_auto=0 cache_floor_mb=1536 cache_ceil_mb=0 force_cache=0 load_all=0 io_threads=4 o_direct=1 overlap=0 io_two_wave=0 prefetch=0 route_ahead=0 predict_prefetch=0 predict_log=0 predict_spec_max=2 prefetch_sync=0 dense_weights=anon drop_cold_frac=0 drop_renorm=1 drop_prefill=0 n_gpu_layers=0 flash_attn=0 moe_cpu_experts=auto
+# temp=0 top_k=40 top_p=0.95 seed=4294967295 compute_trace_layers=0 spec=off spec_draft_max=0 mtp_p_min=0 ngram_min_match=0
+step,steps,wall_ms,io_ms,compute_ms,read_bytes,cache_hit_pct,stall_ms,mgmt_ms,majflt,cpu_ms,dense_resident_frac,turn,majflt_mib,cache_budget_mib,rss_mib,rss_anon_mib,rss_file_mib,swap_mib,mem_available_mib,mem_free_mib,swap_free_mib,loop_overhead_ms,mtp_batch,mtp_draft_ms,drain_ms,adopt_ms,ra_issue_ms,ra_wd_ms

@@ -1,0 +1,3 @@
+# io_trace v1
+# model=/data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf arch=qwen35moe n_layer=40 n_threads=4 io_threads=4 o_direct=1 overlap=0
+turn,phase,step,layer,expert,proj,lane,spec,offset,req_bytes,read_bytes,latency_ns

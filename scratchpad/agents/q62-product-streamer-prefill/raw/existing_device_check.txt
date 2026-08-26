@@ -1,0 +1,11 @@
+-rwxr-xr-x 1 shell shell    8937 2026-08-25 10:18 /data/local/tmp/q62_guard/thermal_guard.sh
+-rwxr-xr-x 1 shell shell 6362168 2026-08-16 06:16 /data/local/tmp/q62_rt/bmoe-cli
+
+/data/local/tmp/q62_out:
+total 948
+-rw-rw-rw- 1 shell shell   1839 2026-08-26 13:23 calib1.csv
+-rw-rw-rw- 1 shell shell 953117 2026-08-26 13:23 calib1_iotrace.txt
+-rw-rw-rw- 1 shell shell    956 2026-08-26 13:25 calib2.csv
+-rw-rw-rw- 1 shell shell    233 2026-08-26 13:25 calib2_iotrace.txt
+-rw-rw-rw- 1 shell shell   2047 2026-08-26 13:25 q62_pp512.txt
+0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c  /data/local/tmp/q62_rt/bmoe-cli

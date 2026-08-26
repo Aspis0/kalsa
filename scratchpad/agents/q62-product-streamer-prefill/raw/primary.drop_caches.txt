@@ -1,0 +1,1 @@
+/system/bin/sh: can't create /proc/sys/vm/drop_caches: Permission denied

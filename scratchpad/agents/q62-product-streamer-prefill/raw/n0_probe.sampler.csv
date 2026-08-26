@@ -1,0 +1,2 @@
+epoch,uptime_s,utime_ticks,stime_ticks,majflt,read_bytes,memavailable_kb,cpuset,cpus_allowed_list
+1787765403,243655.91,0,0,0,0,6710680,/,0-7

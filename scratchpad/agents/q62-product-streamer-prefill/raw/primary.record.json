@@ -1,0 +1,160 @@
+{
+  "tag": "primary",
+  "base_tag": "primary",
+  "retry": 0,
+  "cache_mb": 0,
+  "prompt": 512,
+  "reps": 3,
+  "command_verbatim": "cd /data/local/tmp/q62_out && exec env LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p 512 -n 0 -r 3 --no-warmup -c 512 --ubatch 512 --no-think --progress --csv /data/local/tmp/q62_out/primary.csv --io-trace /data/local/tmp/q62_out/primary_iotrace.txt",
+  "workload_argv": [
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q62_out && exec env LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p 512 -n 0 -r 3 --no-warmup -c 512 --ubatch 512 --no-think --progress --csv /data/local/tmp/q62_out/primary.csv --io-trace /data/local/tmp/q62_out/primary_iotrace.txt"
+  ],
+  "launcher_argv": [
+    "C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q62-product-streamer-prefill\\launch_q62.py",
+    "--serial",
+    "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+    "--tag",
+    "primary",
+    "--warn-tenths",
+    "400",
+    "--kill-tenths",
+    "430",
+    "--session-hard-cap-tenths",
+    "0",
+    "--sensor-failure-limit",
+    "4",
+    "--interval-s",
+    "10",
+    "--max-seconds",
+    "900",
+    "--launcher-min-battery",
+    "40",
+    "--local-dir",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q62-product-streamer-prefill\\raw",
+    "--manifest-path",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q62-product-streamer-prefill\\raw\\primary.manifest.json",
+    "--",
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q62_out && exec env LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p 512 -n 0 -r 3 --no-warmup -c 512 --ubatch 512 --no-think --progress --csv /data/local/tmp/q62_out/primary.csv --io-trace /data/local/tmp/q62_out/primary_iotrace.txt"
+  ],
+  "battery_pre": {
+    "level": 54,
+    "temperature_tenths": 279,
+    "voltage_mv": 3922,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "timestamp": "2026-08-26T17:01:02.842+00:00"
+  },
+  "battery_post": {
+    "level": 54,
+    "temperature_tenths": 279,
+    "voltage_mv": 3922,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "timestamp": "2026-08-26T17:01:28.017+00:00"
+  },
+  "mem_pre": {
+    "memavailable_kb": 4949288,
+    "timestamp": "2026-08-26T17:01:02.981+00:00"
+  },
+  "mem_post": {
+    "memavailable_kb": 4925660,
+    "timestamp": "2026-08-26T17:01:28.101+00:00"
+  },
+  "monitor": {
+    "process_rc": 1,
+    "binary_pid": 13818,
+    "sampler_pid": 13868,
+    "sampler_remote": "/data/local/tmp/q62_sampler/primary.sampler.csv",
+    "cpuset_samples": [
+      {
+        "timestamp": "2026-08-26T17:01:15.472+00:00",
+        "pid": 13818,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "sh -c : ; nohup setsid sh -c '/data/local/tmp/q62_guard/thermal_guard.sh /data/local/tmp/q62_guard/primary.pid 400 430 /data/local/tmp/q62_guard/primary.guard.log 10 0 /data/local/tmp/q62_guard/primary.guard.ready /data/local/tmp/q62_guard/primary.guard.tracking 4; rc=$?; if [ \"$rc\" -ne 126 ]; then echo $rc > /data/local/tmp/q62_guard/primary.guard.rc; fi; exit $rc' </dev/null >/dev/null 2>&1 & guard=$! ; echo GUARD_PID=$guard > /data/local/tmp/q62_guard/primary.guard.pid ; child=0 ; trap 'if [ \"$child\" -gt 0 ] && kill -0 \"$child\" 2>/dev/null; then kill -9 \"$child\" 2>/dev/null; fi' 0 1 2 3 15 ; ( while [ ! -f /data/local/tmp/q62_guard/primary.guard.ready ] || [ ! -f /data/local/tmp/q62_guard/primary.guard.tracking ]; do sleep 1; done; cd /data/local/tmp/kalsahtp ; export LD_LIBRARY_PATH=/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64 ; export ADSP_LIBRARY_PATH=/data/local/tmp/kalsahtp ; export CDSP_LIBRARY_PATH=/data/local/tmp/kalsahtp ; export GGML_HEXAGON_NDEV=1 ; export GGML_HEXAGON_VERBOSE=1 ; unset GGML_HEXAGON_HOSTBUF ; unset GGML_OPENCL_LOG_ALLOC ; exec /system/bin/sh -c 'cd /data/local/tmp/q62_out && exec env LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p 512 -n 0 -r 3 --no-warmup -c 512 --ubatch 512 --no-think --progress --csv /data/local/tmp/q62_out/primary.csv --io-trace /data/local/tmp/q62_out/primary_iotrace.txt' > /data/local/tmp/q62_guard/primary.stdout.jsonl 2> /data/local/tmp/q62_guard/primary.stderr.log; exec_rc=$?; echo WORKLOAD_NEVER_STARTED=$exec_rc > /data/local/tmp/q62_guard/primary.workload.start_failure; exit 126 ) & child=$! ; echo WORKLOAD_PID=$child > /data/local/tmp/q62_guard/primary.workload.exec.pid ; echo BINARY_PID=$child > /data/local/tmp/q62_guard/primary.pid ; if [ -r /proc/$child/cpuset ]; then echo CPUSET=$(cat /proc/$child/cpuset) >> /data/local/tmp/q62_guard/primary.pid; else echo CPUSET_UNAVAILABLE >> /data/local/tmp/q62_guard/primary.pid; fi ; while [ ! -f /data/local/tmp/q62_guard/primary.guard.tracking ]; do if ! kill -0 $guard 2>/dev/null; then echo GUARD_DIED_BEFORE_TRACKING > /data/local/tmp/q62_guard/primary.supervisor.failure; exit 75; fi; sleep 1; done ; wait $child; rc=$? ; echo $rc > /data/local/tmp/q62_guard/primary.workload.rc ; trap - 0 ; exit $rc"
+      },
+      {
+        "timestamp": "2026-08-26T17:01:17.043+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:01:18.521+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:01:20.062+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:01:21.500+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:01:22.908+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:01:24.454+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:01:25.894+00:00",
+        "pid": 13818,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      }
+    ],
+    "cpuset_violation": false,
+    "monitor_error": ""
+  },
+  "launcher_manifest": "raw/primary.manifest.json",
+  "launcher_rc": 1,
+  "workload_rc": 1,
+  "guard_rc": 0,
+  "guard_outcome": "normal",
+  "failure_signature": "",
+  "pulled": {
+    "csv": false,
+    "iotrace": false,
+    "sampler": true,
+    "pid": true,
+    "guard_pid": true,
+    "guard_ready": true,
+    "guard_tracking": true,
+    "workload_rc": true,
+    "guard_rc": true,
+    "supervisor_failure": false
+  },
+  "timestamp_start": "2026-08-26T17:01:02.842+00:00",
+  "timestamp_end": "2026-08-26T17:01:28.017+00:00"
+}

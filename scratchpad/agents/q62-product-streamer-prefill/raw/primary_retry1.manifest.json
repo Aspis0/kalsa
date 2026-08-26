@@ -1,0 +1,116 @@
+{
+  "tag": "primary_retry1",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "supervisor_pid": 15142,
+  "guard_pid": 15143,
+  "binary_pid": 15144,
+  "workload_exec_pid": 15144,
+  "cpuset": "/",
+  "workload": [
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q62_out && exec env LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p 512 -n 0 -r 3 --no-warmup -c 512 --ubatch 512 --no-think --progress --csv /data/local/tmp/q62_out/primary_retry1.csv --io-trace /data/local/tmp/q62_out/primary_retry1_iotrace.txt"
+  ],
+  "allow_npu": false,
+  "thermal_sensor_cmd": "",
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "unset",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "warn_tenths": 400,
+    "kill_tenths": 430,
+    "hard_abort_tenths": 0,
+    "session_hard_cap_tenths": 0,
+    "effective_kill_tenths": 430,
+    "interval_s": 10,
+    "sensor_fail_limit": 4,
+    "sensor_timeout_s": 10,
+    "sensor_failure_window_s": 40,
+    "fail_closed_false_kill_accepted": true,
+    "ready_verified": true,
+    "tracking_verified": true,
+    "exit_code": 0,
+    "max_temperature_tenths": 279
+  },
+  "workload_rc": 1,
+  "guard_exit_code": 0,
+  "guard_outcome": "normal",
+  "launcher_exit_code": 1,
+  "workload_never_started": false,
+  "timed_out": false,
+  "abort_reason": "",
+  "workload_failure_signature": "",
+  "guard_liveness_abort": false,
+  "adb_disconnect": false,
+  "adb_reconnect_attempts": 0,
+  "wall_seconds_until_poll_end": 13.082,
+  "disk_available_kb": 313150816,
+  "battery_start": {
+    "level": 54,
+    "temperature_tenths": 279,
+    "voltage_mv": 3922,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_end": {
+    "level": 54,
+    "temperature_tenths": 279,
+    "voltage_mv": 3922,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_samples": [
+    {
+      "level": 54,
+      "temperature_tenths": 279,
+      "voltage_mv": 3922,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    }
+  ],
+  "battery_floor_triggered": false,
+  "battery_floor_chunk": null,
+  "battery_poll_error": false,
+  "running_ppl_values": {},
+  "running_ppl_max_chunk": null,
+  "launch_stdout": "LAUNCH_PID=15142\n",
+  "guard_launch_stdout": "GUARD_PID=15143",
+  "execute_op_htp0": false,
+  "pulls": {
+    "/data/local/tmp/q62_guard/primary_retry1.stdout.jsonl": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q62_guard/primary_retry1.stdout.jsonl: 1 file pulled, 0 skipped. 1.1 MB/s (11173 bytes in 0.009s)\n"
+    },
+    "/data/local/tmp/q62_guard/primary_retry1.stderr.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q62_guard/primary_retry1.stderr.log: 1 file pulled, 0 skipped. 0.0 MB/s (16 bytes in 0.007s)\n"
+    },
+    "/data/local/tmp/q62_guard/primary_retry1.workload.start_failure": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q62_guard/primary_retry1.workload.start_failure': No such file or directory\n"
+    },
+    "/data/local/tmp/q62_guard/primary_retry1.workload.exec.pid": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q62_guard/primary_retry1.workload.exec.pid: 1 file pulled, 0 skipped. 0.0 MB/s (19 bytes in 0.005s)\n"
+    },
+    "/data/local/tmp/q62_guard/primary_retry1.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q62_guard/primary_retry1.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (380 bytes in 0.008s)\n"
+    }
+  }
+}

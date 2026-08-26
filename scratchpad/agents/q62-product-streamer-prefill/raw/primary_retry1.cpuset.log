@@ -1,0 +1,8 @@
+{"timestamp":"2026-08-26T17:01:49.825+00:00","pid":15144,"cpuset":"/","cpus_allowed_list":"0-7","cmdline":"/data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p 512 -n 0 -r 3 --no-warmup -c 512 --ubatch 512 --no-think --progress --csv /data/local/tmp/q62_out/primary_retry1.csv --io-trace /data/local/tmp/q62_out/primary_retry1_iotrace.txt"}
+{"timestamp":"2026-08-26T17:01:51.454+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}
+{"timestamp":"2026-08-26T17:01:52.939+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}
+{"timestamp":"2026-08-26T17:01:54.480+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}
+{"timestamp":"2026-08-26T17:01:55.998+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}
+{"timestamp":"2026-08-26T17:01:57.516+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}
+{"timestamp":"2026-08-26T17:01:59.122+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}
+{"timestamp":"2026-08-26T17:02:00.588+00:00","pid":15144,"cpuset":"NA","cpus_allowed_list":"NA","cmdline":""}

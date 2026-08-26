@@ -1,0 +1,1 @@
+/data/local/tmp/q62_out/primary_inv3_iotrace.txt: 1 file pulled, 0 skipped. 13.4 MB/s (1077698 bytes in 0.076s)

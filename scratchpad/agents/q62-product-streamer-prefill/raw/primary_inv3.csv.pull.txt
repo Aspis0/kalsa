@@ -1,0 +1,1 @@
+/data/local/tmp/q62_out/primary_inv3.csv: 1 file pulled, 0 skipped. 0.1 MB/s (1837 bytes in 0.029s)

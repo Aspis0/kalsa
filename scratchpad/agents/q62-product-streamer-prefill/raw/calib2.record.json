@@ -1,0 +1,211 @@
+{
+  "tag": "calib2",
+  "base_tag": "calib2",
+  "retry": 0,
+  "cache_mb": 0,
+  "prompt_file": "q62_pp512.txt",
+  "decode_n": 1,
+  "cache_ceil_mb": 0,
+  "reps": 1,
+  "command_verbatim": "cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt",
+  "workload_argv": [
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+  ],
+  "launcher_argv": [
+    "C:\\Users\\gualt\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q62-product-streamer-prefill\\launch_q62.py",
+    "--serial",
+    "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+    "--tag",
+    "calib2",
+    "--warn-tenths",
+    "400",
+    "--kill-tenths",
+    "430",
+    "--session-hard-cap-tenths",
+    "0",
+    "--sensor-failure-limit",
+    "4",
+    "--interval-s",
+    "10",
+    "--max-seconds",
+    "900",
+    "--launcher-min-battery",
+    "45",
+    "--local-dir",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q62-product-streamer-prefill\\raw",
+    "--manifest-path",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q62-product-streamer-prefill\\raw\\calib2.manifest.json",
+    "--",
+    "/system/bin/sh",
+    "-c",
+    "cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+  ],
+  "battery_pre": {
+    "level": 52,
+    "temperature_tenths": 282,
+    "voltage_mv": 3908,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "timestamp": "2026-08-26T17:25:44.187+00:00"
+  },
+  "battery_post": {
+    "level": 52,
+    "temperature_tenths": 282,
+    "voltage_mv": 3908,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "timestamp": "2026-08-26T17:26:12.935+00:00"
+  },
+  "mem_pre": {
+    "memavailable_kb": 6336244,
+    "timestamp": "2026-08-26T17:25:44.278+00:00"
+  },
+  "mem_post": {
+    "memavailable_kb": 6853684,
+    "timestamp": "2026-08-26T17:26:13.047+00:00"
+  },
+  "monitor": {
+    "process_rc": 1,
+    "binary_pid": 25615,
+    "sampler_pid": 25680,
+    "sampler_remote": "/data/local/tmp/q62_sampler/calib2.sampler.csv",
+    "cpuset_samples": [
+      {
+        "timestamp": "2026-08-26T17:25:49.503+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:50.901+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:52.261+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:53.748+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:55.236+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:56.740+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:58.264+00:00",
+        "pid": 25615,
+        "cpuset": "/",
+        "cpus_allowed_list": "0-7",
+        "cmdline": "/system/bin/sh -c cd /data/local/tmp/q62_out && LD_LIBRARY_PATH=/data/local/tmp/q62_rt /data/local/tmp/q62_rt/bmoe-cli -m /data/local/tmp/gdn_750/taskb/Qwen3.6-35B-A3B-KEXP.gguf --moe-stream --cache-mb 0 --dense-weights anon --io-threads 4 -t 4 -p \"$(cat /data/local/tmp/q62_out/q62_pp512.txt)\" -n 1 -c 512 --ubatch 512 --no-think --progress --csv calib2.csv --io-trace calib2_iotrace.txt"
+      },
+      {
+        "timestamp": "2026-08-26T17:25:59.811+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:01.314+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:02.865+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:04.414+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:06.064+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:07.689+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:09.231+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      },
+      {
+        "timestamp": "2026-08-26T17:26:10.781+00:00",
+        "pid": 25615,
+        "cpuset": "NA",
+        "cpus_allowed_list": "NA",
+        "cmdline": ""
+      }
+    ],
+    "cpuset_violation": false,
+    "monitor_error": ""
+  },
+  "launcher_manifest": "raw/calib2.manifest.json",
+  "launcher_rc": 1,
+  "workload_rc": 1,
+  "guard_rc": 0,
+  "guard_outcome": "normal",
+  "failure_signature": "",
+  "pulled": {
+    "csv": true,
+    "iotrace": true,
+    "sampler": true,
+    "pid": true,
+    "guard_pid": true,
+    "guard_ready": true,
+    "guard_tracking": true,
+    "workload_rc": true,
+    "guard_rc": true,
+    "supervisor_failure": false
+  },
+  "timestamp_start": "2026-08-26T17:25:44.187+00:00",
+  "timestamp_end": "2026-08-26T17:26:12.935+00:00"
+}

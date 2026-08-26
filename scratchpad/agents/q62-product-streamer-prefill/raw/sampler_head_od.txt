@@ -1,0 +1,14 @@
+0000000   #   !   /   s   y   s   t   e   m   /   b   i   n   /   s   h
+0000020  \n  \n   #       q   6   1       o   n   e   -   s   e   c   o
+0000040   n   d       p   r   o   c   e   s   s       s   a   m   p   l
+0000060   e   r   ,       m   i   n   i   m   a   l   l   y       a   d
+0000100   a   p   t   e   d       f   o   r       q   6   2       b   m
+0000120   o   e   -   c   l   i   .  \n   #       F   i   e   l   d   s
+0000140       r   e   t   a   i   n   e   d       f   r   o   m       q
+0000160   6   1   :       u   t   i   m   e   ,       s   t   i   m   e
+0000200   ,       m   a   j   f   l   t   ,       r   e   a   d   _   b
+0000220   y   t   e   s   ,       M   e   m   A   v   a   i   l   a   b
+0000240   l   e   .  \n   #       A   d   d   i   t   i   o   n   a   l
+0000260       f   i   e   l   d   s       a   r   e       t   h   e    
+0000300   q   6   2       c   p   u   s
+0000310
