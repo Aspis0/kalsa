@@ -1,0 +1,15 @@
+START,1787738883,warn_tenths=400,kill_tenths=410,hard_abort_tenths=0,session_hard_cap_tenths=0,effective_kill_tenths=410,interval_s=1,sensor_fail_limit=4,sensor_timeout_s=10,sensor_failure_window_s=40,sensor_command_override=none,fail_closed_false_kill_accepted=1
+1787738883,319,59
+1787738883,319,59,READY
+1787738883,319,59,TRACKING_29231
+1787738884,319,59
+1787738886,319,59
+1787738887,319,59
+1787738887,319,59
+1787738889,319,59
+1787738891,319,59
+1787738892,319,59
+1787738893,319,59
+1787738896,319,59
+1787738896,319,59
+1787738896,319,59,MAX

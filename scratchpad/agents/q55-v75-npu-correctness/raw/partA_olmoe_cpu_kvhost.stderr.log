@@ -1,0 +1,9 @@
+0.00.269.629 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+0.00.279.347 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 0, abort
+0.08.467.349 I cmn          init: llama threadpool init, n_threads = 8
+0.10.347.703 I 
+0.10.347.900 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.10.347.944 I perplexity: tokenizing the input ..
+0.12.869.826 I perplexity: tokenization took 1062.45 ms
+0.12.870.773 I perplexity: calculating perplexity over 32 chunks, n_ctx=2048, batch_size=2048, n_seq=1
+0.52.573.803 I perplexity: 25.72 seconds per pass - ETA 26.28.583.712 I Final estimate: PPL = 8.9233 +/- 0.12926

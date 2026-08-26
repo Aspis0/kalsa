@@ -143,7 +143,7 @@ def workload_args(model: str, kind: str, npu: bool) -> list[str]:
             f"{DEV}/llama-perplexity", "-m", model, "-f", CORPUS,
             "-c", "2048", "-b", "2048", "-ub", "1024", "-t", "8",
             "-ngl", "99" if npu else "0", "--chunks", "32", "--ppl-stride", "0",
-            "-fa", "on", "--load-mode", "none",
+            "-fa", "on", "--load-mode", "none", "-nkvo",
         ]
         if npu:
             args += ["-dev", "HTP0", "-v"]
@@ -262,7 +262,7 @@ def parse_ppl(tag: str) -> dict[str, object]:
         if path.exists():
             texts.append(path.read_text(encoding="utf-8", errors="replace"))
     text = "\n".join(texts)
-    matches = list(re.finditer(r"Final estimate:\s*PPL\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*\\+/-\s*([0-9]+(?:\.[0-9]+)?)", text))
+    matches = list(re.finditer(r"Final estimate:\s*PPL\s*=\s*([0-9]+(?:\.[0-9]+)?)\s*\+/-\s*([0-9]+(?:\.[0-9]+)?)", text))
     running: dict[int, float] = {}
     for match in re.finditer(r"\[(\d+)\]([0-9]+(?:\.[0-9]+)?)", text):
         running[int(match.group(1))] = float(match.group(2))
@@ -281,6 +281,15 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
         "status": status,
         "device": {"model": "23127PN0CG", "product": "houji_global", "serial": SERIAL, "soc": "SM8650 / Hexagon v75", "storage": "UFS 4.0", "ram_GB_nominal": 12},
         "guard": {"warn_tenths": WARN, "npu_kill_tenths": NPU_KILL, "cpu_kill_tenths": CPU_KILL, "npu_wall_cap_s": 600, "cool_start_C": 32.0, "battery_floor_pct": 45, "validated_in_q61": True},
+        "arbitration": {
+            "single_authorized_retry": True,
+            "kv_cache_on_host": True,
+            "deviation": "KV cache on host: attention K/V stay on CPU; the experts MUL_MAT_ID and dense matmuls still execute on HTP0 — proof required via execute-op lines",
+            "pre_retry_memavailable_kb": 6818768,
+            "pre_retry_memavailable_gate": "PASS (>5.0 GB); no processes closed and no device state changed",
+        },
+        "thermalservice_headroom_available": False,
+        "thermalservice_headroom_note": "No dynamic numeric headroom exposed; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]",
         "setup": setup,
         "models": {"OLMoE": {"path": MODEL_OLMOE, "sha256": OLMOE_SHA}, "Qwen3.5-4B-Q4_0": {"path": MODEL_QWEN, "sha256": QWEN_SHA}, "corpus": {"path": CORPUS, "sha256": CORPUS_SHA}},
         "records": records,
@@ -309,8 +318,9 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
             wall, tps = out
         ppl = parse_ppl(str(rec["tag"])) if rec.get("kind") == "ppl" else {}
         max_t = rec.get("max_temperature_tenths")
-        lines.append(f"| {rec.get('tag')} | {rec.get('model_name')} | {int(bool(rec.get('npu')))} | {rec.get('guard_rc')} | {rec.get('workload_rc')} | {rec.get('launcher_rc')} | {ppl.get('ppl','')} | {ppl.get('ppl_std','')} | {'' if max_t is None else int(max_t)/10:.1f} | {'' if delta is None else f'{delta:.1f}'} | {'' if wall is None else f'{wall:.6f}'} | {'' if tps is None else f'{tps:.6f}'} | {rec.get('failure_signature','')} |")
-    lines += ["", "## Part A", ""]
+        max_text = "" if max_t is None else f"{int(max_t)/10:.1f}"
+        lines.append(f"| {rec.get('tag')} | {rec.get('model_name')} | {int(bool(rec.get('npu')))} | {rec.get('guard_rc')} | {rec.get('workload_rc')} | {rec.get('launcher_rc')} | {ppl.get('ppl','')} | {ppl.get('ppl_std','')} | {max_text} | {'' if delta is None else f'{delta:.1f}'} | {'' if wall is None else f'{wall:.6f}'} | {'' if tps is None else f'{tps:.6f}'} | {rec.get('failure_signature','')} |")
+    lines += ["", "## Arbitration deviation", "", "KV cache on host: attention K/V stay on CPU; the experts MUL_MAT_ID and dense matmuls still execute on HTP0 — proof required via execute-op lines.", "Pre-retry MemAvailable=6818768 kB (>5.0 GB); no processes were closed and no device state changed.", "", "## Part A", ""]
     for model_name in ("OLMoE", "Qwen3.5-4B-Q4_0"):
         htp_candidates = [r for r in records if r.get("kind") == "ppl" and r.get("model_name") == model_name and r.get("npu") and parse_ppl(str(r.get("tag"))).get("ppl") is not None]
         cpu_candidates = [r for r in records if r.get("kind") == "ppl" and r.get("model_name") == model_name and not r.get("npu") and parse_ppl(str(r.get("tag"))).get("ppl") is not None]
@@ -324,7 +334,14 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
             lines.append(f"{model_name}: PPL_HTP={hp}; PPL_CPU={cp}; r={'' if r_value is None else f'{r_value:.8f}'}; gate={gate}; proof={json.dumps(proof.get(str(htp['tag']), {}), sort_keys=True)}")
         else:
             lines.append(f"{model_name}: not completed")
-    lines += ["", "## Part B", "", "| model | sequence | ΔT_C | MAX_C | wall_s | t/s |", "|---|---|---:|---:|---:|---:|"]
+    lines += [
+        "", "## Stop reason", "",
+        "q55 STOPPED by the locked NPU rule after Part B OLMoE NPU arm: a literal CDSP line was present; no further arm or retry was started.",
+        "Exact stop lines:",
+        "ggml-hex: Loading driver libcdsprpc.so",
+        "ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b0244c2d0",
+        "", "## Part B", "", "| model | sequence | ΔT_C | MAX_C | wall_s | t/s |", "|---|---|---:|---:|---:|---:|",
+    ]
     for rec in records:
         if rec.get("kind") != "bench":
             continue
@@ -334,8 +351,9 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
         delta = (int(qt) - int(pt)) / 10 if isinstance(pt, int) and isinstance(qt, int) else None
         wall, tps = parse_jsonl_result(str(rec["tag"]))
         max_t = rec.get("max_temperature_tenths")
-        lines.append(f"| {rec.get('model_name')} | {'NPU' if rec.get('npu') else 'CPU'} | {'' if delta is None else f'{delta:.1f}'} | {'' if max_t is None else f'{int(max_t)/10:.1f}'} | {'' if wall is None else f'{wall:.6f}'} | {'' if tps is None else f'{tps:.6f}'} |")
-    lines += ["", f"status={status}", "thermalservice_headroom_numeric=inspect raw/*.thermalservice.pre.txt and post.txt; recorded per arm", ""]
+        max_text = "" if max_t is None else f"{int(max_t)/10:.1f}"
+        lines.append(f"| {rec.get('model_name')} | {'NPU' if rec.get('npu') else 'CPU'} | {'' if delta is None else f'{delta:.1f}'} | {max_text} | {'' if wall is None else f'{wall:.6f}'} | {'' if tps is None else f'{tps:.6f}'} |")
+    lines += ["", f"status={status}", "thermalservice_headroom_available=false; no dynamic numeric headroom exposed; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]", ""]
     (CELL / "REPORT.md").write_text("\n".join(lines), encoding="utf-8", newline="\n")
 
 
@@ -386,14 +404,14 @@ def main() -> int:
         append_log(f"setup_verified_utc={now()}; corpus/model shas match; v75 setup shas recorded; source_commit={SOURCE_COMMIT}")
         write_outputs(records, proof, setup, "SETUP_VERIFIED")
         sequence = [
-            ("partA_olmoe_htp_valid", "OLMoE", MODEL_OLMOE, "ppl", True),
-            ("partA_olmoe_cpu", "OLMoE", MODEL_OLMOE, "ppl", False),
-            ("partA_qwen_htp", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "ppl", True),
-            ("partA_qwen_cpu", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "ppl", False),
+            ("partA_olmoe_htp_kvhost_retry", "OLMoE", MODEL_OLMOE, "ppl", True),
+            ("partA_olmoe_cpu_kvhost", "OLMoE", MODEL_OLMOE, "ppl", False),
             ("partB_olmoe_npu_1", "OLMoE", MODEL_OLMOE, "bench", True),
             ("partB_olmoe_cpu_1", "OLMoE", MODEL_OLMOE, "bench", False),
             ("partB_olmoe_cpu_2", "OLMoE", MODEL_OLMOE, "bench", False),
             ("partB_olmoe_npu_2", "OLMoE", MODEL_OLMOE, "bench", True),
+            ("partA_qwen_htp", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "ppl", True),
+            ("partA_qwen_cpu", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "ppl", False),
             ("partB_qwen_npu_1", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "bench", True),
             ("partB_qwen_cpu_1", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "bench", False),
             ("partB_qwen_cpu_2", "Qwen3.5-4B-Q4_0", MODEL_QWEN, "bench", False),

@@ -1,0 +1,11 @@
+probe_utc=2026-08-26T09:20:27Z
+serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp
+MemTotal:       11436476 kB
+MemAvailable:    6818768 kB
+battery_level=74%
+battery_temperature=277 (27.7 C)
+AC powered: false
+USB powered: false
+Wireless powered: false
+pre_retry_memavailable_gate=PASS (>5.0 GB)
+state_change=none; no processes closed

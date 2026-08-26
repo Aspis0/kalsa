@@ -1,0 +1,146 @@
+{
+  "tag": "partB_olmoe_npu_1",
+  "serial": "adb-625689a2-9xEOfw._adb-tls-connect._tcp",
+  "supervisor_pid": 29229,
+  "guard_pid": 29230,
+  "binary_pid": 29231,
+  "workload_exec_pid": 29231,
+  "cpuset": "/",
+  "workload": [
+    "/data/local/tmp/kalsahtp/llama-bench",
+    "-m",
+    "/data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf",
+    "-p",
+    "512",
+    "-n",
+    "0",
+    "-r",
+    "2",
+    "--no-warmup",
+    "-t",
+    "8",
+    "-fa",
+    "on",
+    "--load-mode",
+    "none",
+    "-o",
+    "jsonl",
+    "-ngl",
+    "99",
+    "-dev",
+    "HTP0",
+    "-v"
+  ],
+  "allow_npu": true,
+  "thermal_sensor_cmd": "",
+  "environment": {
+    "LD_LIBRARY_PATH": "/data/local/tmp/kalsahtp:/vendor/lib64:/system/vendor/lib64:/system/lib64",
+    "ADSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "CDSP_LIBRARY_PATH": "/data/local/tmp/kalsahtp",
+    "GGML_HEXAGON_NDEV": "1",
+    "GGML_HEXAGON_VERBOSE": "1",
+    "GGML_HEXAGON_HOSTBUF": "1",
+    "GGML_OPENCL_LOG_ALLOC": "unset"
+  },
+  "guard": {
+    "warn_tenths": 400,
+    "kill_tenths": 410,
+    "hard_abort_tenths": 0,
+    "session_hard_cap_tenths": 0,
+    "effective_kill_tenths": 410,
+    "interval_s": 1,
+    "sensor_fail_limit": 4,
+    "sensor_timeout_s": 10,
+    "sensor_failure_window_s": 40,
+    "fail_closed_false_kill_accepted": true,
+    "ready_verified": true,
+    "tracking_verified": true,
+    "exit_code": 0,
+    "max_temperature_tenths": 319
+  },
+  "workload_rc": 0,
+  "guard_exit_code": 0,
+  "guard_outcome": "normal",
+  "launcher_exit_code": 0,
+  "workload_never_started": false,
+  "timed_out": false,
+  "abort_reason": "",
+  "workload_failure_signature": "",
+  "guard_liveness_abort": false,
+  "adb_disconnect": false,
+  "adb_reconnect_attempts": 0,
+  "wall_seconds_until_poll_end": 17.481,
+  "disk_available_kb": 313245396,
+  "battery_start": {
+    "level": 59,
+    "temperature_tenths": 319,
+    "voltage_mv": 3932,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_end": {
+    "level": 59,
+    "temperature_tenths": 319,
+    "voltage_mv": 3932,
+    "health": 2,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "returncode": 0
+  },
+  "battery_samples": [
+    {
+      "level": 59,
+      "temperature_tenths": 319,
+      "voltage_mv": 3932,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    },
+    {
+      "level": 59,
+      "temperature_tenths": 319,
+      "voltage_mv": 3932,
+      "health": 2,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "returncode": 0
+    }
+  ],
+  "battery_floor_triggered": false,
+  "battery_floor_chunk": null,
+  "battery_poll_error": false,
+  "running_ppl_values": {},
+  "running_ppl_max_chunk": null,
+  "launch_stdout": "LAUNCH_PID=29229\n",
+  "guard_launch_stdout": "GUARD_PID=29230",
+  "execute_op_htp0": true,
+  "pulls": {
+    "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.stdout.jsonl": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.stdout.jsonl: 1 file pulled, 0 skipped. 0.1 MB/s (965 bytes in 0.013s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.stderr.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.stderr.log: 1 file pulled, 0 skipped. 17.8 MB/s (2163679 bytes in 0.116s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.workload.start_failure": {
+      "returncode": 1,
+      "output": "adb: error: failed to stat remote object '/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.workload.start_failure': No such file or directory\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.workload.exec.pid": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.workload.exec.pid: 1 file pulled, 0 skipped. 0.0 MB/s (19 bytes in 0.015s)\n"
+    },
+    "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.guard.log": {
+      "returncode": 0,
+      "output": "/data/local/tmp/q56_thermal_watchdog/partB_olmoe_npu_1.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (541 bytes in 0.013s)\n"
+    }
+  }
+}

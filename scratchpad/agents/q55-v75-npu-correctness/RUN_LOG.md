@@ -29,3 +29,14 @@ q55_final_state=exact serial device; 74%; 28.1C; AC/USB/Wireless false; no resid
 setup_verified_utc=2026-08-26T09:08:54.273+00:00; corpus/model shas match; v75 setup shas recorded; source_commit=3f545beccee69d9975f466ec7e45fd9aacd8ba90
 partA_olmoe_htp_valid launcher_rc=1 guard_rc=0 workload_rc=1 max_C=27.9 signature=''
 STOP q55 tag=partA_olmoe_htp_valid; no retry; signature=''
+arbitration_utc=2026-08-26T09:20:27Z; one authorized retry only; exact serial remained online; MemAvailable=6818768 kB (>5.0 GB) PASS; battery=74%; temperature=27.7C; AC/USB/Wireless=false; no processes closed; no device state changed
+arbitration_deviation=KV cache on host: attention K/V stay on CPU; the experts MUL_MAT_ID and dense matmuls still execute on HTP0 — proof required via execute-op lines
+setup_verified_utc=2026-08-26T09:21:32.729+00:00; corpus/model shas match; v75 setup shas recorded; source_commit=3f545beccee69d9975f466ec7e45fd9aacd8ba90
+partA_olmoe_htp_kvhost_retry launcher_rc=0 guard_rc=0 workload_rc=0 max_C=31.2 signature=''
+partA_olmoe_cpu_kvhost launcher_rc=0 guard_rc=0 workload_rc=0 max_C=39.4 signature=''
+partB_olmoe_npu_1 launcher_rc=0 guard_rc=0 workload_rc=0 max_C=31.9 signature='ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b0244c2d0'
+STOP q55 tag=partB_olmoe_npu_1; no retry; signature='ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b0244c2d0'
+exact_stop_line=ggml-hex: Loading driver libcdsprpc.so
+exact_stop_line=ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b0244c2d0
+thermalservice_headroom_available=false; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]
+q55_arbitration_final_state=exact serial device; 59%; 31.9C; AC/USB/Wireless false; no residual llama-bench/llama-perplexity/thermal_guard process
