@@ -78,6 +78,15 @@ R3 is switchable; if R3 turns on, re-run the decision with a loop/behavioural ga
 (same standard applied to B′), not with a lower PPL bar. IQ4_NL keeps the same status B′ has:
 **NPU lab variant, not lineup**.
 
+## 3a. Owner decision (2026-08-26, afternoon)
+
+**A — Q4_K_M stays.** Pure IQ4_NL for everyone (B) rejected: it taxes every IT/ES/FR/ZH user for
+a prefill gain only v75-class devices could see, and lane R3 is off today. Road D opened instead:
+**q63 "IQ4_NL-M"** — an HTP-readable *recipe* (IQ4_NL base + Q8_0 on the tensors Q4_K_M promotes
+to Q6_K/Q5_K; the "M" mix, not the base type, is what IQ4_NL lacks), same source / quantizer /
+gate as q59 with the control cells reused. PASS 5/5 → per-device ship (v75-class only) after a
+q52-class behavioural loop gate; FAIL → dense-on-NPU waits for the HVX K-quant kernel (PLAN 28c).
+
 ## 3b. Audit trail
 
 - `AUDIT_MATH.md` (Reviewer Math, DeepSeek V4 flash, thinking max, 2026-08-26): every gate Δ%,
