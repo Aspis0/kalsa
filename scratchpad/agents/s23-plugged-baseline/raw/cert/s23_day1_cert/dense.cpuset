@@ -1,0 +1,108 @@
+sample=1787776065 pid=4467
+Name:	sh
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: 3f
+sample=1787776066 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776067 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776068 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776069 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776070 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776071 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776072 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776073 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: bf
+sample=1787776074 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: ff
+sample=1787776076 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: ff
+sample=1787776077 pid=4467
+Name:	timeout
+State:	S (sleeping)
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+cpuset=/
+pid 4467's current affinity mask: ff
