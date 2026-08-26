@@ -166,8 +166,18 @@ def parse_manifest(tag: str) -> dict[str, object]:
 
 
 def failure_line(text: str) -> str:
+    stop_substrings = (
+        "CDSP0 CRASHED",
+        "dspqueue_read failed",
+        "dspqueue_write failed",
+        "INTERNAL-ERROR",
+        "ggml_abort",
+        "GGML_ASSERT",
+        "Aborted",
+        "Segmentation",
+    )
     for line in text.splitlines():
-        if re.search(r"dspqueue|INTERNAL-ERROR|ggml_abort|ggml_assert|\bAborted\b|\bSegmentation\b|\bCDSP\b", line, re.IGNORECASE):
+        if any(marker in line for marker in stop_substrings):
             return line.strip()
     return ""
 
@@ -221,6 +231,8 @@ def run_arm(tag: str, model_name: str, model: str, kind: str, npu: bool) -> dict
         "guard_rc": manifest.get("guard_exit_code"),
         "workload_rc": manifest.get("workload_rc"),
         "guard_outcome": manifest.get("guard_outcome"),
+        "timed_out": manifest.get("timed_out"),
+        "abort_reason": manifest.get("abort_reason"),
         "max_temperature_tenths": (manifest.get("guard") or {}).get("max_temperature_tenths") if isinstance(manifest.get("guard"), dict) else None,
         "execute_op_htp0": bool(manifest.get("execute_op_htp0")),
         "failure_signature": signature,
@@ -231,12 +243,16 @@ def run_arm(tag: str, model_name: str, model: str, kind: str, npu: bool) -> dict
     }
     (RAW / f"{tag}.record.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="\n")
     print(json.dumps(record, indent=2), flush=True)
-    if npu and (signature or result.returncode != 0 or record["guard_rc"] != 0 or record["workload_rc"] != 0):
-        record["stop"] = True
-    elif signature or result.returncode != 0 or record["guard_rc"] != 0 or record["workload_rc"] != 0:
-        record["stop"] = True
-    else:
-        record["stop"] = False
+    guard_outcome = str(record.get("guard_outcome") or "").lower()
+    guard_kill = guard_outcome in {"thermal-kill", "guard-kill", "killed"} or record.get("guard_rc") == 2
+    try:
+        workload_rc = int(record.get("workload_rc"))
+    except (TypeError, ValueError):
+        workload_rc = None
+    non_guard_high_rc = workload_rc is not None and workload_rc >= 128 and not guard_kill
+    record["guard_kill"] = guard_kill
+    record["non_guard_workload_rc_ge_128"] = non_guard_high_rc
+    record["stop"] = bool(signature or guard_kill or non_guard_high_rc)
     return record
 
 
@@ -290,6 +306,12 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
         },
         "thermalservice_headroom_available": False,
         "thermalservice_headroom_note": "No dynamic numeric headroom exposed; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]",
+        "stop_rule": {
+            "case_sensitive_substrings": ["CDSP0 CRASHED", "dspqueue_read failed", "dspqueue_write failed", "INTERNAL-ERROR", "ggml_abort", "GGML_ASSERT", "Aborted", "Segmentation"],
+            "workload_rc": "stop only when rc >= 128 and not caused by guard",
+            "normal_session_open_cdsp_text_is_not_a_stop": True,
+        },
+        "false_stop_correction": "The earlier Part B STOPPED classification was false: Loading driver libcdsprpc.so and HTP0 new session ... _dom=cdsp are normal session-open messages, not crash signatures.",
         "setup": setup,
         "models": {"OLMoE": {"path": MODEL_OLMOE, "sha256": OLMOE_SHA}, "Qwen3.5-4B-Q4_0": {"path": MODEL_QWEN, "sha256": QWEN_SHA}, "corpus": {"path": CORPUS, "sha256": CORPUS_SHA}},
         "records": records,
@@ -334,12 +356,21 @@ def write_outputs(records: list[dict[str, object]], proof: dict[str, dict[str, i
             lines.append(f"{model_name}: PPL_HTP={hp}; PPL_CPU={cp}; r={'' if r_value is None else f'{r_value:.8f}'}; gate={gate}; proof={json.dumps(proof.get(str(htp['tag']), {}), sort_keys=True)}")
         else:
             lines.append(f"{model_name}: not completed")
+    true_signatures = [str(rec.get("failure_signature")) for rec in records if rec.get("failure_signature")]
+    true_stop_events = []
+    for rec in records:
+        if rec.get("failure_signature") or rec.get("guard_kill") or rec.get("non_guard_workload_rc_ge_128"):
+            true_stop_events.append(
+                f"{rec.get('tag')}: launcher_rc={rec.get('launcher_rc')}; workload_rc={rec.get('workload_rc')}; "
+                f"guard_rc={rec.get('guard_rc')}; guard_outcome={rec.get('guard_outcome')}; "
+                f"abort_reason={rec.get('abort_reason','')}"
+            )
     lines += [
-        "", "## Stop reason", "",
-        "q55 STOPPED by the locked NPU rule after Part B OLMoE NPU arm: a literal CDSP line was present; no further arm or retry was started.",
-        "Exact stop lines:",
-        "ggml-hex: Loading driver libcdsprpc.so",
-        "ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b0244c2d0",
+        "", "## Stop-rule correction", "",
+        "The earlier Part B STOPPED classification was false: Loading driver libcdsprpc.so and HTP0 new session ... _dom=cdsp are normal session-open messages, not crash signatures.",
+        "Correct case-sensitive stop substrings: CDSP0 CRASHED; dspqueue_read failed; dspqueue_write failed; INTERNAL-ERROR; ggml_abort; GGML_ASSERT; Aborted; Segmentation; or workload rc >= 128 not caused by the guard.",
+        "TRUE crash signatures: " + ("; ".join(true_signatures) if true_signatures else "none"),
+        "TRUE stop events: " + ("; ".join(true_stop_events) if true_stop_events else "none"),
         "", "## Part B", "", "| model | sequence | ΔT_C | MAX_C | wall_s | t/s |", "|---|---|---:|---:|---:|---:|",
     ]
     for rec in records:

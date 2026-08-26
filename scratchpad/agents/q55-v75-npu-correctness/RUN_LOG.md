@@ -40,3 +40,17 @@ exact_stop_line=ggml-hex: Loading driver libcdsprpc.so
 exact_stop_line=ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v75.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb400007b0244c2d0
 thermalservice_headroom_available=false; raw thresholds include [NaN, NaN, NaN, 1.0, NaN, NaN, 1.95]
 q55_arbitration_final_state=exact serial device; 59%; 31.9C; AC/USB/Wireless false; no residual llama-bench/llama-perplexity/thermal_guard process
+FALSE_STOP_CORRECTION_UTC=2026-08-26T10:15:21.134+00:00; normal session-open messages containing cdsp are not stops; correct case-sensitive stop substrings=CDSP0 CRASHED|dspqueue_read failed|dspqueue_write failed|INTERNAL-ERROR|ggml_abort|GGML_ASSERT|Aborted|Segmentation; workload rc >=128 only when not caused by guard
+partB_olmoe_npu_1 reused as B-arm-1; OLMoE Part A not rerun
+partB_olmoe_cpu_1 launcher_rc=0 guard_rc=0 workload_rc=0 max_C=31.1 signature='' stop=0
+partB_olmoe_cpu_2 launcher_rc=0 guard_rc=0 workload_rc=0 max_C=31.1 signature='' stop=0
+partB_olmoe_npu_2 launcher_rc=0 guard_rc=0 workload_rc=0 max_C=32.1 signature='' stop=0
+qwen_partA_eligibility eligibility level=58 temp_C=32.1 plugged=False eligible=0
+Qwen Part A and Part B skipped: battery/temperature eligibility not met after OLMoE Part B
+q55 complete under corrected stop rule; no TRUE crash signature, guard kill, or transport loss
+TRUE_STOP_QWEN_PARTA_HTP=launcher_rc=124; workload_rc=137; guard_rc=0; guard_outcome=normal; timed_out=true; abort_reason=launcher_wall_clock_cap; non-guard workload rc>=128; no Qwen CPU-ref or Part B started
+TRUE_CRASH_SIGNATURE=none
+QWEN_RESUME_UTC=2026-08-26T10:18:17.147+00:00; transient 32.1C gate was waited out; OLMoE Part A not rerun
+qwen_partA_wait sample=0 level=58 temp_C=31.8 plugged=False
+partA_qwen_htp launcher_rc=124 guard_rc=0 workload_rc=137 max_C=38.0 signature='' stop=1
+STOP q55 true stop tag=partA_qwen_htp; no retry; signature=''

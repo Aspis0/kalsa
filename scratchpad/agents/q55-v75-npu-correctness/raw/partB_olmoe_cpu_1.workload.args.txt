@@ -1,0 +1,1 @@
+/data/local/tmp/kalsahtp/llama-bench -m /data/local/tmp/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 0
