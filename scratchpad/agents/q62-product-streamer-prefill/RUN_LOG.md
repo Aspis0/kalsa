@@ -183,3 +183,324 @@
 2026-08-26T13:50:00-04:00 AUDIT_MATH applied PC-only; numbers unchanged. Added B-M1 max-lane-per-layer caveat (no timestamps; step=485; PREFILL model PLAUSIBLE NOT VERIFIED; decode io_ms=334.4 vs trace max-lane 328.3 ms, 1.9%, serialized Σlat=1275 ms refuted), A-N1 wrapper-pid provenance, A-N2 effective 480–511 window with n=1, C-margin inv2 upper io share=0.477, D-N1 +4096 B/read in 19161/19542 reads (+1.05%), G-trend, and PREREG settling line.
 
 2026-08-26T13:50:00-04:00 audit status: DONE_PRIMARY_AUDITED; no device runs and no numeric changes.
+
+2026-08-26T23:42:17-04:00 Secondary follow-up start; Amendment 1; owner GO; primary records preserved
+
+2026-08-26T23:42:18-04:00 existing device check: bmoe-cli ls/sha passed; verified runtime/model/guard not redone
+
+2026-08-26T23:42:18-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_pp512.txt sha256=57b73e41eb26bef794de4c522cedb7e3702b4b97ca6e6292137ee3a5b8e5c948 bytes=1892
+
+2026-08-26T23:42:18-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=1891 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam
+
+2026-08-26T23:42:18-04:00 secondary uses existing decode fallback n=1; no n0 probe repeated
+
+2026-08-26T23:42:19-04:00 GATE secondary_inv1 level=68 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-26T23:42:19-04:00 WAIT_TEMP secondary_inv1 temp_tenths=349; waiting 30s
+
+2026-08-26T23:42:49-04:00 GATE secondary_inv1 level=68 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-26T23:42:49-04:00 WAIT_TEMP secondary_inv1 temp_tenths=349; waiting 30s
+
+2026-08-26T23:43:19-04:00 GATE secondary_inv1 level=68 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-26T23:43:19-04:00 WAIT_TEMP secondary_inv1 temp_tenths=349; waiting 30s
+
+2026-08-26T23:43:49-04:00 GATE secondary_inv1 level=68 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-26T23:43:49-04:00 WAIT_TEMP secondary_inv1 temp_tenths=349; waiting 30s
+
+2026-08-26T23:44:19-04:00 GATE secondary_inv1 level=68 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-26T23:44:19-04:00 WAIT_TEMP secondary_inv1 temp_tenths=339; waiting 30s
+
+2026-08-26T23:44:49-04:00 GATE secondary_inv1 level=68 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-26T23:44:49-04:00 WAIT_TEMP secondary_inv1 temp_tenths=339; waiting 30s
+
+2026-08-26T23:45:20-04:00 GATE secondary_inv1 level=68 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-26T23:45:20-04:00 WAIT_TEMP secondary_inv1 temp_tenths=339; waiting 30s
+
+2026-08-26T23:45:50-04:00 GATE secondary_inv1 level=68 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-26T23:45:50-04:00 WAIT_TEMP secondary_inv1 temp_tenths=339; waiting 30s
+
+2026-08-26T23:46:20-04:00 GATE secondary_inv1 level=68 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-26T23:46:20-04:00 WAIT_TEMP secondary_inv1 temp_tenths=329; waiting 30s
+
+2026-08-26T23:46:50-04:00 GATE secondary_inv1 level=67 temp_tenths=326 plugged=False required_battery>=40
+
+2026-08-26T23:46:50-04:00 WAIT_TEMP secondary_inv1 temp_tenths=326; waiting 30s
+
+2026-08-26T23:47:20-04:00 GATE secondary_inv1 level=67 temp_tenths=326 plugged=False required_battery>=40
+
+2026-08-26T23:47:20-04:00 WAIT_TEMP secondary_inv1 temp_tenths=326; waiting 30s
+
+2026-08-26T23:47:51-04:00 GATE secondary_inv1 level=67 temp_tenths=322 plugged=False required_battery>=40
+
+2026-08-26T23:47:51-04:00 WAIT_TEMP secondary_inv1 temp_tenths=322; waiting 30s
+
+2026-08-26T23:48:21-04:00 GATE secondary_inv1 level=67 temp_tenths=319 plugged=False required_battery>=40
+
+2026-08-26T23:48:31-04:00 INVOCATION secondary_inv1 cache_mb=2000 prompt_file=q62_pp512.txt decode_n=1 battery_pre=67 temp_pre_tenths=319 MemAvailable_pre_kb=4380080 allow_plugged=False
+
+2026-08-26T23:49:28-04:00 secondary_inv1 launcher completed process_rc=0 binary_pid=15709 sampler_pid=15734
+
+2026-08-26T23:49:39-04:00 COOLDOWN secondary_inv1_to_inv2 begin; required gap=60s
+
+2026-08-26T23:50:39-04:00 COOLDOWN secondary_inv1_to_inv2 complete
+
+2026-08-26T23:50:39-04:00 GATE secondary_inv2 level=67 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-26T23:50:39-04:00 WAIT_TEMP secondary_inv2 temp_tenths=329; waiting 30s
+
+2026-08-26T23:51:09-04:00 GATE secondary_inv2 level=67 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-26T23:51:09-04:00 WAIT_TEMP secondary_inv2 temp_tenths=329; waiting 30s
+
+2026-08-26T23:51:40-04:00 GATE secondary_inv2 level=67 temp_tenths=319 plugged=False required_battery>=40
+
+2026-08-26T23:51:50-04:00 INVOCATION secondary_inv2 cache_mb=2000 prompt_file=q62_pp512.txt decode_n=1 battery_pre=67 temp_pre_tenths=319 MemAvailable_pre_kb=6587120 allow_plugged=False
+
+2026-08-26T23:52:44-04:00 secondary_inv2 launcher completed process_rc=0 binary_pid=20421 sampler_pid=20455
+
+2026-08-26T23:52:55-04:00 COOLDOWN secondary_inv2_to_inv3 begin; required gap=60s
+
+2026-08-26T23:53:55-04:00 COOLDOWN secondary_inv2_to_inv3 complete
+
+2026-08-26T23:53:56-04:00 GATE secondary_inv3 level=66 temp_tenths=322 plugged=False required_battery>=40
+
+2026-08-26T23:53:56-04:00 WAIT_TEMP secondary_inv3 temp_tenths=322; waiting 30s
+
+2026-08-26T23:54:26-04:00 GATE secondary_inv3 level=66 temp_tenths=319 plugged=False required_battery>=40
+
+2026-08-26T23:54:36-04:00 INVOCATION secondary_inv3 cache_mb=2000 prompt_file=q62_pp512.txt decode_n=1 battery_pre=66 temp_pre_tenths=319 MemAvailable_pre_kb=6820500 allow_plugged=False
+
+2026-08-26T23:55:32-04:00 secondary_inv3 launcher completed process_rc=0 binary_pid=23575 sampler_pid=23617
+
+2026-08-26T23:55:43-04:00 secondary arm complete: 3 separate invocations; cache_mb=2000
+
+2026-08-26T23:55:43-04:00 optional prompt candidate created path=q62_p2048.txt bytes=7572; calibration target <=2047 tokens with n=1,n_ctx=2048
+
+2026-08-26T23:55:44-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_p2048.txt sha256=08145d6aa1e537800c6aa6ef655019026eaef3372cef21c79ab2984651fe3f88 bytes=7572
+
+2026-08-26T23:55:44-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=7570 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam
+
+2026-08-26T23:55:45-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_p2048.txt sha256=08145d6aa1e537800c6aa6ef655019026eaef3372cef21c79ab2984651fe3f88 bytes=7572
+
+2026-08-26T23:55:45-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=7570 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam
+
+2026-08-26T23:55:45-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=331 plugged=False required_battery>=40
+
+2026-08-26T23:55:45-04:00 WAIT_TEMP optional_p2048_calib1 temp_tenths=331; waiting 30s
+
+2026-08-26T23:56:15-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-26T23:56:15-04:00 WAIT_TEMP optional_p2048_calib1 temp_tenths=329; waiting 30s
+
+2026-08-26T23:56:45-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-26T23:56:45-04:00 WAIT_TEMP optional_p2048_calib1 temp_tenths=329; waiting 30s
+
+2026-08-26T23:57:15-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-26T23:57:15-04:00 WAIT_TEMP optional_p2048_calib1 temp_tenths=329; waiting 30s
+
+2026-08-26T23:57:46-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-26T23:57:46-04:00 WAIT_TEMP optional_p2048_calib1 temp_tenths=323; waiting 30s
+
+2026-08-26T23:58:16-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-26T23:58:16-04:00 WAIT_TEMP optional_p2048_calib1 temp_tenths=323; waiting 30s
+
+2026-08-26T23:58:46-04:00 GATE optional_p2048_calib1 level=65 temp_tenths=319 plugged=False required_battery>=40
+
+2026-08-26T23:58:56-04:00 INVOCATION optional_p2048_calib1 cache_mb=0 prompt_file=q62_p2048.txt decode_n=1 battery_pre=65 temp_pre_tenths=319 MemAvailable_pre_kb=6796464 allow_plugged=False
+
+2026-08-27T00:01:41-04:00 optional_p2048_calib1 launcher completed process_rc=0 binary_pid=27214 sampler_pid=27251
+
+2026-08-27T00:01:52-04:00 CALIB optional_p2048_calib1 prompt_tokens=1947 source=CSV summary n_prompt field; numbers discarded
+
+2026-08-27T00:01:52-04:00 optional prompt adjusted after engine_count=1947; bytes=7973
+
+2026-08-27T00:01:53-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_p2048.txt sha256=66271b4753fcaec9f289898ab8c9b1562627b225931fd857f17b6ba0c188975d bytes=7973
+
+2026-08-27T00:01:53-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=7972 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at
+
+2026-08-27T00:01:53-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=350 plugged=False required_battery>=40
+
+2026-08-27T00:01:53-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=350; waiting 30s
+
+2026-08-27T00:02:23-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=350 plugged=False required_battery>=40
+
+2026-08-27T00:02:23-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=350; waiting 30s
+
+2026-08-27T00:02:53-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-27T00:02:53-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=349; waiting 30s
+
+2026-08-27T00:03:24-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-27T00:03:24-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=349; waiting 30s
+
+2026-08-27T00:03:54-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-27T00:03:54-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=349; waiting 30s
+
+2026-08-27T00:04:24-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-27T00:04:24-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=339; waiting 30s
+
+2026-08-27T00:04:54-04:00 GATE optional_p2048_calib2 level=64 temp_tenths=336 plugged=False required_battery>=40
+
+2026-08-27T00:04:54-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=336; waiting 30s
+
+2026-08-27T00:05:24-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=336 plugged=False required_battery>=40
+
+2026-08-27T00:05:24-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=336; waiting 30s
+
+2026-08-27T00:05:54-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=336 plugged=False required_battery>=40
+
+2026-08-27T00:05:54-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=336; waiting 30s
+
+2026-08-27T00:06:25-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=336 plugged=False required_battery>=40
+
+2026-08-27T00:06:25-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=336; waiting 30s
+
+2026-08-27T00:06:55-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-27T00:06:55-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=329; waiting 30s
+
+2026-08-27T00:07:25-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-27T00:07:25-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=329; waiting 30s
+
+2026-08-27T00:07:55-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-27T00:07:55-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=329; waiting 30s
+
+2026-08-27T00:08:26-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=329 plugged=False required_battery>=40
+
+2026-08-27T00:08:26-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=329; waiting 30s
+
+2026-08-27T00:08:56-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-27T00:08:56-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=323; waiting 30s
+
+2026-08-27T00:09:26-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-27T00:09:26-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=323; waiting 30s
+
+2026-08-27T00:09:56-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-27T00:09:56-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=323; waiting 30s
+
+2026-08-27T00:10:26-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-27T00:10:26-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=323; waiting 30s
+
+2026-08-27T00:10:57-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=323 plugged=False required_battery>=40
+
+2026-08-27T00:10:57-04:00 WAIT_TEMP optional_p2048_calib2 temp_tenths=323; waiting 30s
+
+2026-08-27T00:11:27-04:00 GATE optional_p2048_calib2 level=63 temp_tenths=318 plugged=False required_battery>=40
+
+2026-08-27T00:11:39-04:00 INVOCATION optional_p2048_calib2 cache_mb=0 prompt_file=q62_p2048.txt decode_n=1 battery_pre=63 temp_pre_tenths=318 MemAvailable_pre_kb=5583128 allow_plugged=False
+
+2026-08-27T00:12:05-04:00 optional_p2048_calib2 launcher completed process_rc=1 binary_pid=7980 sampler_pid=8010
+
+2026-08-27T00:12:16-04:00 STOPPED exception=RuntimeError: optional_p2048_calib2: launcher rc=1
+
+2026-08-27T00:13:41-04:00 Secondary follow-up start; Amendment 1; owner GO; primary records preserved
+
+2026-08-27T00:13:42-04:00 existing device check: bmoe-cli ls/sha passed; verified runtime/model/guard not redone
+
+2026-08-27T00:13:42-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_pp512.txt sha256=57b73e41eb26bef794de4c522cedb7e3702b4b97ca6e6292137ee3a5b8e5c948 bytes=1892
+
+2026-08-27T00:13:43-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=1891 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam
+
+2026-08-27T00:13:43-04:00 secondary uses existing decode fallback n=1; no n0 probe repeated
+
+2026-08-27T00:13:43-04:00 secondary arm already complete in prior follow-up; preserving 3 existing invocations
+
+2026-08-27T00:13:43-04:00 optional prompt candidate preserved for resume path=q62_p2048.txt bytes=7973
+
+2026-08-27T00:13:43-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_p2048.txt sha256=66271b4753fcaec9f289898ab8c9b1562627b225931fd857f17b6ba0c188975d bytes=7973
+
+2026-08-27T00:13:43-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=7972 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at
+
+2026-08-27T00:13:43-04:00 optional p2048 resume: calib2 n_ctx rejection; trimmed candidate 1%; remaining calibration load=3 bytes=7894
+
+2026-08-27T00:13:44-04:00 prompt pushed remote=/data/local/tmp/q62_out/q62_p2048.txt sha256=a748f3c4fa0977517f9e74d3aef64e62c74f1c2d5a71cae949eb080cb585bb8a bytes=7894
+
+2026-08-27T00:13:44-04:00 prompt dry echo passed; p_arg_count=1 p_arg_chars=7893 p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work. We note each one at   Clear tests use one fresh task at a time. A new task may have a new set of page and file state,   Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma  The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a  Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th  The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam  A test can be calm and clear. We set one aim, list each step, and keep the same plan from start   On a small hand set, heat, charge, free space, and load can shift the work.
+
+2026-08-27T00:13:44-04:00 GATE optional_p2048_calib3 level=63 temp_tenths=319 plugged=False required_battery>=40
+
+2026-08-27T00:13:55-04:00 INVOCATION optional_p2048_calib3 cache_mb=0 prompt_file=q62_p2048.txt decode_n=1 battery_pre=63 temp_pre_tenths=319 MemAvailable_pre_kb=6793948 allow_plugged=False
+
+2026-08-27T00:17:30-04:00 optional_p2048_calib3 launcher completed process_rc=0 binary_pid=11187 sampler_pid=11224
+
+2026-08-27T00:17:41-04:00 CALIB optional_p2048_calib3 prompt_tokens=2033 source=CSV summary n_prompt field; numbers discarded
+
+2026-08-27T00:17:41-04:00 CALIB optional p2048 accepted prompt_tokens=2033 source=CSV summary n_prompt field; calibration numbers discarded
+
+2026-08-27T00:17:41-04:00 optional p2048 calibration complete prompt_tokens=2033; final prompt sha256=66271b4753fcaec9f289898ab8c9b1562627b225931fd857f17b6ba0c188975d is superseded by calibrated push
+
+2026-08-27T00:17:41-04:00 GATE optional_p2048 level=61 temp_tenths=349 plugged=False required_battery>=40
+
+2026-08-27T00:17:41-04:00 WAIT_TEMP optional_p2048 temp_tenths=349; waiting 30s
+
+2026-08-27T00:18:11-04:00 GATE optional_p2048 level=61 temp_tenths=347 plugged=False required_battery>=40
+
+2026-08-27T00:18:11-04:00 WAIT_TEMP optional_p2048 temp_tenths=347; waiting 30s
+
+2026-08-27T00:18:42-04:00 GATE optional_p2048 level=61 temp_tenths=347 plugged=False required_battery>=40
+
+2026-08-27T00:18:42-04:00 WAIT_TEMP optional_p2048 temp_tenths=347; waiting 30s
+
+2026-08-27T00:19:12-04:00 GATE optional_p2048 level=61 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-27T00:19:12-04:00 WAIT_TEMP optional_p2048 temp_tenths=339; waiting 30s
+
+2026-08-27T00:19:42-04:00 GATE optional_p2048 level=61 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-27T00:19:42-04:00 WAIT_TEMP optional_p2048 temp_tenths=339; waiting 30s
+
+2026-08-27T00:20:12-04:00 GATE optional_p2048 level=61 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-27T00:20:12-04:00 WAIT_TEMP optional_p2048 temp_tenths=339; waiting 30s
+
+2026-08-27T00:20:43-04:00 GATE optional_p2048 level=61 temp_tenths=339 plugged=False required_battery>=40
+
+2026-08-27T00:20:43-04:00 WAIT_TEMP optional_p2048 temp_tenths=339; waiting 30s
+
+2026-08-27T00:21:13-04:00 GATE optional_p2048 level=61 temp_tenths=327 plugged=False required_battery>=40
+
+2026-08-27T00:21:13-04:00 WAIT_TEMP optional_p2048 temp_tenths=327; waiting 30s
+
+2026-08-27T00:21:43-04:00 GATE optional_p2048 level=61 temp_tenths=327 plugged=False required_battery>=40
+
+2026-08-27T00:21:43-04:00 WAIT_TEMP optional_p2048 temp_tenths=327; waiting 30s
+
+2026-08-27T00:22:14-04:00 GATE optional_p2048 level=61 temp_tenths=327 plugged=False required_battery>=40
+
+2026-08-27T00:22:14-04:00 WAIT_TEMP optional_p2048 temp_tenths=327; waiting 30s
+
+2026-08-27T00:22:44-04:00 GATE optional_p2048 level=61 temp_tenths=318 plugged=False required_battery>=40
+
+2026-08-27T00:22:55-04:00 INVOCATION optional_p2048 cache_mb=0 prompt_file=q62_p2048.txt decode_n=1 battery_pre=61 temp_pre_tenths=318 MemAvailable_pre_kb=6849524 allow_plugged=False
+
+2026-08-27T00:26:07-04:00 optional_p2048 launcher completed process_rc=0 binary_pid=19350 sampler_pid=19384
+
+2026-08-27T00:26:18-04:00 optional p2048 arm complete: 1 invocation; cache_mb=0
+
+2026-08-27T00:27:00-04:00 follow-up finalization correction: device recheck included bmoe-cli SHA and model size; the 13 GB model SHA was not rehashed per locked instruction. Secondary 3/3 and optional 1/1 completed; all raw CSV, io-trace, sampler, guard, gate, memory, and cpuset evidence pulled.
+2026-08-27T00:48:13-04:00 APPENDIX AUDIT G-1: formal deviation recorded: run_q62.py used >=40% for the follow-up arms versus the locked >=45%; actual battery levels 68% -> 60% were all >=45%, so no invocation was admitted that the locked gate would reject.
+2026-08-27T00:48:13-04:00 APPENDIX AUDIT G-2: final optional prompt prompts/q62_p2048.txt is 7894 B with sha256 a748f3c4fa0977517f9e74d3aef64e62c74f1c2d5a71cae949eb080cb585bb8a; device copy /data/local/tmp/q62_out/q62_p2048.txt rechecked and matches. Superseded 7973 B candidate sha256 66271b4753fcaec9f289898ab8c9b1562627b225931fd857f17b6ba0c188975d retained as raw/q62_p2048.superseded_candidate.sha256.txt.
+2026-08-27T00:48:13-04:00 APPENDIX AUDIT G-3/G-4: report wording corrected to "consistent with no measurable prefill effect (deltas −8.05/−4.49/+5.85 %, within this device's ±6–14 % run scatter)"; pooled mean defined as mean of per-invocation deltas in seconds / mean primary wall; optional arm labeled n=1, exploratory.
+2026-08-27T00:48:13-04:00 APPENDIX AUDIT margins: study-wide narrowest margin is secondary inv3 upper-bound io share 0.494, 1.1% below 0.5; secondary inv1/inv2 are mixed under serialized upper bound, robustness False/False/True. Secondary settling min headroom(k=4)=1.938 under serialized bound and >=2.0 under lower/point; primary settling statement remains primary-only.
+2026-08-27T00:48:13-04:00 APPENDIX AUDIT finalization: finalize_q62.py regenerated REPORT.md and a second regeneration produced the identical SHA256 dc44cb0e6e5c60de57ea66c060d65546d595938b783b9ac75133d04fbb2b9006; STATUS.txt set to DONE_ALL_AUDITED.

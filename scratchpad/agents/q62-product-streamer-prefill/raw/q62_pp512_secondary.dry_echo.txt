@@ -1,0 +1,15 @@
+p_arg_count=1
+p_arg_chars=1891
+p_arg_preview=A test can be calm and clear. We set one aim, list each step, and keep the same plan from start 
+
+On a small hand set, heat, charge, free space, and load can shift the work. We note each one at 
+
+Clear tests use one fresh task at a time. A new task may have a new set of page and file state, 
+
+Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and ma
+
+The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a
+
+Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end th
+
+The text in a prompt has more than one size. It has chars, words, and tok. These are not the sam

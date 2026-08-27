@@ -2,10 +2,28 @@
 -rwxr-xr-x 1 shell shell 6362168 2026-08-16 06:16 /data/local/tmp/q62_rt/bmoe-cli
 
 /data/local/tmp/q62_out:
-total 948
--rw-rw-rw- 1 shell shell   1839 2026-08-26 13:23 calib1.csv
--rw-rw-rw- 1 shell shell 953117 2026-08-26 13:23 calib1_iotrace.txt
--rw-rw-rw- 1 shell shell    956 2026-08-26 13:25 calib2.csv
--rw-rw-rw- 1 shell shell    233 2026-08-26 13:25 calib2_iotrace.txt
--rw-rw-rw- 1 shell shell   2047 2026-08-26 13:25 q62_pp512.txt
+total 12048
+-rw-rw-rw- 1 shell shell    1839 2026-08-26 13:23 calib1.csv
+-rw-rw-rw- 1 shell shell  953117 2026-08-26 13:23 calib1_iotrace.txt
+-rw-rw-rw- 1 shell shell     956 2026-08-26 13:25 calib2.csv
+-rw-rw-rw- 1 shell shell     233 2026-08-26 13:25 calib2_iotrace.txt
+-rw-rw-rw- 1 shell shell    1840 2026-08-27 00:01 optional_p2048_calib1.csv
+-rw-rw-rw- 1 shell shell 4869352 2026-08-27 00:01 optional_p2048_calib1_iotrace.txt
+-rw-rw-rw- 1 shell shell     957 2026-08-27 00:11 optional_p2048_calib2.csv
+-rw-rw-rw- 1 shell shell     233 2026-08-27 00:11 optional_p2048_calib2_iotrace.txt
+-rw-rw-rw- 1 shell shell    1839 2026-08-26 13:31 primary_inv1.csv
+-rw-rw-rw- 1 shell shell 1078050 2026-08-26 13:31 primary_inv1_iotrace.txt
+-rw-rw-rw- 1 shell shell    1838 2026-08-26 13:34 primary_inv2.csv
+-rw-rw-rw- 1 shell shell 1077644 2026-08-26 13:34 primary_inv2_iotrace.txt
+-rw-rw-rw- 1 shell shell    1837 2026-08-26 13:36 primary_inv3.csv
+-rw-rw-rw- 1 shell shell 1077698 2026-08-26 13:36 primary_inv3_iotrace.txt
+-rw-rw-rw- 1 shell shell    7973 2026-08-27 00:01 q62_p2048.txt
+-rw-rw-rw- 1 shell shell    1892 2026-08-26 13:29 q62_pp512.txt
+-rw-rw-rw- 1 shell shell    1856 2026-08-26 23:49 secondary_inv1.csv
+-rw-rw-rw- 1 shell shell 1065398 2026-08-26 23:49 secondary_inv1_iotrace.txt
+-rw-rw-rw- 1 shell shell    1855 2026-08-26 23:52 secondary_inv2.csv
+-rw-rw-rw- 1 shell shell 1065113 2026-08-26 23:52 secondary_inv2_iotrace.txt
+-rw-rw-rw- 1 shell shell    1857 2026-08-26 23:55 secondary_inv3.csv
+-rw-rw-rw- 1 shell shell 1064809 2026-08-26 23:55 secondary_inv3_iotrace.txt
+model_bytes=13416430592
 0ac612def6b82586d695bfb11acf42cce23bd99fc4ccd3aeddb51a0cd15cf93c  /data/local/tmp/q62_rt/bmoe-cli

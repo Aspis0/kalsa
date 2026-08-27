@@ -1,0 +1,59 @@
+A test can be calm and clear. We set one aim, list each step, and keep the same plan from start to end. A good log lets a new mind see what was done, what was seen, and what was not known. It can show a bad run with the same care as a good run.
+
+On a small hand set, heat, charge, free space, and load can shift the work. We note each one at the start. We note the same facts at the end. If the heat is too high, we wait. If the charge is too low, we stop. If the link is live but the tool is not, we keep that fact in the log.
+
+Clear tests use one fresh task at a time. A new task may have a new set of page and file state, so the start and end time must be kept. A rest of one min can help the chip and its heat sink cool. It does not make the past go away. It just marks the gap from one task to the next.
+
+Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and math time may both be high, while the full wall time is less than their sum. We keep each time in its own row. We do not say that one sum is the wall time when two jobs ran at once.
+
+The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a count. We name the unit for each cell. We use the tool own read count and time to find the rate seen by the eval step. We then use that rate to find the least wall time that the read work could need.
+
+Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end the task with a known safe rule. A low charge mark can end the set of runs. These marks let a user tell a safe stop from a tool fault or a bad link. A gap of one min can help the set stay in its set range.
+
+The text in a prompt has more than one size. It has chars, words, and tok. These are not the same. The tok count from the tool is the one we use for a gate. We save the text and its hash for a later check.
+
+A test can be calm and clear. We set one aim, list each step, and keep the same plan from start to end. A good log lets a new mind see what was done, what was seen, and what was not known. It can show a bad run with the same care as a good run.
+
+On a small hand set, heat, charge, free space, and load can shift the work. We note each one at the start. We note the same facts at the end. If the heat is too high, we wait. If the charge is too low, we stop. If the link is live but the tool is not, we keep that fact in the log.
+
+Clear tests use one fresh task at a time. A new task may have a new set of page and file state, so the start and end time must be kept. A rest of one min can help the chip and its heat sink cool. It does not make the past go away. It just marks the gap from one task to the next.
+
+Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and math time may both be high, while the full wall time is less than their sum. We keep each time in its own row. We do not say that one sum is the wall time when two jobs ran at once.
+
+The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a count. We name the unit for each cell. We use the tool own read count and time to find the rate seen by the eval step. We then use that rate to find the least wall time that the read work could need.
+
+Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end the task with a known safe rule. A low charge mark can end the set of runs. These marks let a user tell a safe stop from a tool fault or a bad link. A gap of one min can help the set stay in its set range.
+
+The text in a prompt has more than one size. It has chars, words, and tok. These are not the same. The tok count from the tool is the one we use for a gate. We save the text and its hash for a later check.
+
+A test can be calm and clear. We set one aim, list each step, and keep the same plan from start to end. A good log lets a new mind see what was done, what was seen, and what was not known. It can show a bad run with the same care as a good run.
+
+On a small hand set, heat, charge, free space, and load can shift the work. We note each one at the start. We note the same facts at the end. If the heat is too high, we wait. If the charge is too low, we stop. If the link is live but the tool is not, we keep that fact in the log.
+
+Clear tests use one fresh task at a time. A new task may have a new set of page and file state, so the start and end time must be kept. A rest of one min can help the chip and its heat sink cool. It does not make the past go away. It just marks the gap from one task to the next.
+
+Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and math time may both be high, while the full wall time is less than their sum. We keep each time in its own row. We do not say that one sum is the wall time when two jobs ran at once.
+
+The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a count. We name the unit for each cell. We use the tool own read count and time to find the rate seen by the eval step. We then use that rate to find the least wall time that the read work could need.
+
+Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end the task with a known safe rule. A low charge mark can end the set of runs. These marks let a user tell a safe stop from a tool fault or a bad link. A gap of one min can help the set stay in its set range.
+
+The text in a prompt has more than one size. It has chars, words, and tok. These are not the same. The tok count from the tool is the one we use for a gate. We save the text and its hash for a later check.
+
+A test can be calm and clear. We set one aim, list each step, and keep the same plan from start to end. A good log lets a new mind see what was done, what was seen, and what was not known. It can show a bad run with the same care as a good run.
+
+On a small hand set, heat, charge, free space, and load can shift the work. We note each one at the start. We note the same facts at the end. If the heat is too high, we wait. If the charge is too low, we stop. If the link is live but the tool is not, we keep that fact in the log.
+
+Clear tests use one fresh task at a time. A new task may have a new set of page and file state, so the start and end time must be kept. A rest of one min can help the chip and its heat sink cool. It does not make the past go away. It just marks the gap from one task to the next.
+
+Data can move while math runs. A read may fill a buf as a core does a sum. Thus read time and math time may both be high, while the full wall time is less than their sum. We keep each time in its own row. We do not say that one sum is the wall time when two jobs ran at once.
+
+The same rule holds for read size and read rate. A byte count is not a time, and a rate is not a count. We name the unit for each cell. We use the tool own read count and time to find the rate seen by the eval step. We then use that rate to find the least wall time that the read work could need.
+
+Heat and power are part of the test. A warn mark can show a rise in heat. A kill mark can end the task with a known safe rule. A low charge mark can end the set of runs. These marks let a user tell a safe stop from a tool fault or a bad link. A gap of one min can help the set stay in its set range.
+
+The text in a prompt has more than one size. It has chars, words, and tok. These are not the same. The tok count from the tool is the one we use for a gate. We save the text and its hash for a later check.
+
+A test can be calm and clear. We set one aim, list each step, and keep the same plan from start to end. A good log lets a new mind see what was done, what was seen, and what was not known. It can show a bad run with the same care as a good run.
+
+On a small hand set, heat, charge, free space, and load can shift the work.

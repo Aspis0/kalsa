@@ -228,3 +228,150 @@ every number reproduced to the printed precision from raw/. The one structural l
 
 VERDICT: BANK-WITH-CORRECTIONS B-M1 (state the max-lane model + decode io_ms=334.4 vs 328.3 ms cross-check + step≡485 degeneracy in the bank statement), A-N1/A-N2 (wrapper-pid provenance wording; unify the 480–511 window wording), C-margin (report the inv2/upper 4.5% margin to the 0.5 boundary), D-N1 (+4 KiB/read over-read), G-trend (report the −13.85% wall drift and the component accounting), plus a one-line settling verdict (headroom(k=4) min 2.095 ≥ 2.0 → real ceiling)
 VERDICT: BANK-WITH-CORRECTIONS B-M1, A-N1, A-N2, C-margin, D-N1, G-trend, settling-verdict-line
+---
+
+# q62 APPENDIX re-audit — secondary (`--cache-mb 2000`) and optional (p2048) arms
+
+Second hostile pass, same method: independent Python re-derivation from `raw/` for
+`secondary_inv{1,2,3}` and `optional_p2048`, plus `finalize_q62.py` rerun in a fresh temp copy
+-> **REPORT.md byte-identical** with the appended arms (7 metrics, status DONE_OPTIONAL). No repo
+mutation; only this file is written.
+
+## A-prime. Walls and counts — CONFIRMED
+
+| item | re-derived | source |
+|---|---|---|
+| secondary walls | 34.987 / 34.206 / 34.699 s | CSV `prefill_s` = stdout perf lines (`prefill: 486 tokens, 34.987 s ...`) |
+| optional wall | 159.936 s (2033 tokens, 12.71 tps = engine print 12.7) | CSV summary + perf line |
+| TTFT arithmetic | 34.987+10.176=45.163 exact; 34.206+8.289=42.495 exact; 34.699+7.446=42.145 vs printed 42.146 (1 ms rounding); 159.936+8.161=168.097 exact | stdout perf lines |
+| rc / guard | all 4 runs workload_rc=0, guard_rc=0; guard max temp 32.2 / 32.2 / 33.0 / 34.7 C (322/322/330/347 tenths, MAX rows) | guard.log; matches REPORT.md:100-106 |
+| unplugged / battery | AC=false USB=false; pre 68/67/66/61 -> post 67/66/66/60 (68..60 range) | pre/post.battery.txt |
+| cool start | 31.9 / 31.9 / 31.9 / 31.8 C; WAIT_TEMP loops to <=320 tenths (gate <=32 C) | RUN_LOG.md:245,263,277,445 |
+| prompt tokens | secondary n_prompt=486 (same 1892-B file, sha 57b73e41...); optional n_prompt=2033 | CSV summaries + raw hashes |
+| optional window | code enforces 2016..2047 (run_q62.py:876); RUN_LOG "<=2047 tokens with n=1, n_ctx=2048"; 2033 inside both. calib1=1947 discarded, calib2 rc=1 (n_ctx: prompt+1>2048) discarded, calib3=2033 discarded (calibrations never measured) | RUN_LOG.md:350-453; REPORT.md:124 |
+
+## B-prime. io-trace derivation — CONFIRMED (exact to print)
+
+| inv | rows | sumlat s | lanes 0-3 s | point (sum_l max-lane) s | lower (sumlat/4) s |
+|---|---|---|---|---|---|
+| sec_inv1 | 19542 | 17.899308 | 4.472693/4.472311/4.479551/4.474753 | 4.496277 | 4.474827 |
+| sec_inv2 | 19542 | 17.646286 | 4.411847/4.411011/4.410162/4.413265 | 4.428204 | 4.411571 |
+| sec_inv3 | 19542 | 17.155753 | 4.286872/4.291554/4.289173/4.288154 | 4.309557 | 4.288938 |
+| optional | 90684 | 64.912462 | 16.262921/16.225016/16.218765/16.205759 | 16.268917 | 16.228115 |
+
+- step degeneracy reproduced (all prefill rows step=485; optional step=2032); trace headers
+  carry `overlap=0` in both arms; CSV comment headers confirm `cache_mb=2000` / `cache_mb=0`,
+  `io_two_wave=0`.
+- Decode exclusion verified: secondary phase-1 = **672 rows, 257,818,624 B = 245.875 MiB** =
+  BMOE_PROGRESS read_mb 245.88 — 288 fewer reads than the primary decode (960-672), 105.28 MiB
+  saved (-30.0% vs 351.156 MiB): the cache demonstrably serves decode slices while prefill read
+  bytes stay byte-identical (7,495,897,088) — exactly the PREREG expectation (pp512 touches ~all
+  experts; cache cannot help prefill reads). Optional phase-1 = 960 rows, 368,214,016 B =
+  351.15625 MiB (cache 0, matches primary decode). Decode MiB/s 817/770/823/798 verified vs
+  REPORT.md:92-96.
+- Max-lane model caveat (primary B-M1) carries over unchanged (no timestamps; same scheduler;
+  decode io cross-check again brackets the model). One new NOTE: optional decode lane sums are
+  imbalanced (lane2 0.3138 s vs 0.418-0.421 s, -25%) — a decode-phase queue-drain artifact,
+  excluded from every prefill number; no impact.
+
+## C-prime. Shares, wording, headroom — CONFIRMED; the mixed flags are HONEST
+
+| inv | lower share | point share | upper share | wording per bound (L/P/U) | robust |
+|---|---|---|---|---|---|
+| sec_inv1 | 0.127900 | 0.128513 | **0.511599** | compute / compute / **mixed** | **False** |
+| sec_inv2 | 0.128971 | 0.129457 | **0.515883** | compute / compute / **mixed** | **False** |
+| sec_inv3 | 0.123604 | 0.124198 | 0.494416 | compute / compute / compute | True (margin 1.1%) |
+| optional | 0.101466 | 0.101721 | 0.405865 | compute / compute / compute | True |
+
+- The brief's MUST-flag is already satisfied: REPORT.md:47-49 mark secondary inv1/inv2 upper as
+  "mixed" with "wording robust across bounds: False" — the serialized-upper regime is NOT
+  overclaimed; my recomputation confirms both 0.5116 and 0.5159 exceed 0.5.
+- **New study-wide narrowest margin**: secondary inv3 upper = 17.155753/34.699 = 0.494416, only
+  1.1% below the 0.5 boundary — narrower than the primary inv2 4.5% margin still quoted at
+  REPORT.md:55. Add the secondary margins to that line.
+- Headroom k=2/4/8: all cells re-derived, exact vs REPORT.md:62-77. k=4 point =
+  4.589855 / 4.594833 / 4.567244 / 4.452962 (brief's 4.45-4.60 range confirmed). Settling rule:
+  secondary upper_k4 = 1.954657 / **1.938425** / 2.022587 -> min across bounds **1.938 in
+  (1.3, 2.0) = owner-decision zone under the serialized bound** (>=2.0 real ceiling under
+  point/lower); optional min = 2.463872 >= 2.0 -> real ceiling under every bound. REPORT.md:77
+  prints the minima but not the secondary owner-decision reading — add one line.
+
+## D-prime. Bytes and rates — CONFIRMED
+
+- Secondary prefill sum read_bytes = 7,495,897,088 B = 7148.644531 MiB, identical to primary
+  (the +4096 B/read over-read reproduces: 19,161/19,542 rows). Optional = 34,783,309,824 B =
+  33,171.949219 MiB (over-read 88,635/90,684 rows). Optional demand is 17.11 MiB/token vs 15.42
+  MiB/token at pp512 (+11% distinct-slice traffic per token; plausible for a 4x-longer prompt,
+  not a discrepancy).
+- Effective prefill rates (trace bytes / point): 1667.134 / 1692.762 / 1739.366 / 2138.023 MB/s
+  (= 1589.903 / 1614.344 / 1658.789 / 2038.977 MiB/s) — exact vs REPORT.md:92-96. Units: the
+  `read_mb` fields are MiB (245.880 = 245.875 rounded; 351.160 = 351.156 rounded), decimal MB
+  shown separately — consistent with the primary-arm finding.
+
+## E-prime. Tautology / sampler — CONFIRMED
+
+No read_mb/wall identity anywhere (finalize unmodified in that respect). Sampler wrapper-pid
+regression re-declared FAIL_WRONG_PID_SHELL_WRAPPER for all four runs (REPORT.md:100-106; rows
+140/41/38/38 verified against the CSVs, cpu_s 0.020/0.030/0.010/0.010 s, read_bytes <= 28 KB vs
+>= 245 MB engine-side) and no derived number uses the sampler — confirmed: the sampler appears
+only in the cross-check table and the FAIL status.
+
+## F-prime. finalize_q62.py — reproducible; one stale-sha defect reproduced
+
+Extended finalize rerun in a temp copy: **REPORT.md byte-identical** (7 metrics, DONE_OPTIONAL).
+New code paths inspected: optional record regex (finalize_q62.py:335), optional calibration
+capture (:435-450), cache comparison (:551-563), optional sha fallback (:447-450), DONE_OPTIONAL
+gate (:452-456). The comparison mean-percent is the **pooled** figure (mean delta -0.9173 s /
+primary mean wall 35.548 = -2.58%), not the mean of the three per-run percentages (-2.29%) —
+correct arithmetic (verified: -3.062, -1.608, +1.918 s; -8.05%/-4.49%/+5.85%; mean -0.9173 s)
+but the definition is undocumented; say which one (and why) in the bank statement. Dead
+`classify()` still present (NOTE, harmless).
+
+## G-prime. Integrity findings (new, appendix-specific)
+
+- **G-1 (MAJOR, zero numeric impact): battery gate silently relaxed 45 -> 40.** PREREG requires
+  "battery >= 45 %"; the primary path ran min_battery=45 (run_q62.py:943,961,976); the follow-up
+  hardcodes **40** for secondary, optional and all optional calibrations (run_q62.py:860,862,
+  901,910,912) with no deviation declaration in RUN_LOG (first >=40 gate: RUN_LOG.md:197) and no
+  entry in the manifest deviations list. Observed levels 68..60 all satisfy >=45 anyway, so no
+  run was admitted that the locked gate would have rejected — numbers unaffected, but the lock
+  was bent silently. Declare it in the deviations list.
+- **G-2 (MAJOR, audit-trail integrity; numbers unaffected): the recorded optional-prompt hash is
+  STALE.** manifest `attempt_2.optional_prompt.sha256` = `66271b47...`; `raw/q62_p2048.pc.sha256
+  .txt` and `raw/q62_p2048.device.sha256sum.txt` both record `66271b47...` — that is the
+  7973-byte candidate **superseded** at 00:13:44 (RUN_LOG.md:451 literally: "final prompt
+  sha256=66271b47... is superseded by calibrated push"). The file that actually ran for calib3
+  AND the main optional run is the 7894-byte `a748f3c4...` (== local `prompts/q62_p2048.txt`;
+  device copy re-pushed at 00:13:44, RUN_LOG.md:441-444). finalize reproduces the stale sha
+  because `optional_p2048_calib3.pc.sha256.txt` is empty and it falls back to the superseded
+  file (finalize_q62.py:447-450). The measurement is self-consistent (the engine counted
+  n_prompt=2033 on the exact content it ran; calib3 and main run agree), but the recorded
+  PC/device hash pair does not match the executed file. Fix: re-record the device sha of the
+  final push (or store the supersede chain in the manifest) and point optional_prompt.sha256 at
+  `a748f3c4...`.
+- **G-3 (MINOR): "no effect on prefill" wording.** REPORT.md:17 prints only the numeric
+  comparison and no overclaim string exists anywhere (grep for "no effect" = none). For banking,
+  attach the interpretation: deltas -8.05/-4.49/+5.85% (mean -2.58%) are **within the run-to-run
+  scatter of this device** (the primary arm itself drifted -13.85% across its three runs;
+  secondary span 2.3%); pairing is by index across two sessions ~10 h apart, not randomized; the
+  cache demonstrably works (-30% decode reads). Correct wording: "consistent with no measurable
+  prefill effect", not "no effect".
+- **G-4 (MINOR): optional single run not labelled exploratory.** REPORT.md:123 discloses "1
+  invocation completed" and REPORT.md:124 the calibration chain, but nothing labels the single
+  optional point as exploratory / n=1 / no-dispersion. Add the label.
+- **G-5 (NOTE):** REPORT.md:116 cool-start row shows only the primary's 30.4 C; appendix arms
+  started at 31.8-31.9 C (all <= 32 C gate). List both.
+- **G-6 (NOTE):** the optional calibration window 2016..2047 exists only in code
+  (run_q62.py:876); RUN_LOG.md:350 states only the <=2047 half. State the accepted window in
+  REPORT.
+
+## Appendix verdict
+
+No BLOCKER. Every appended number re-derived and correct; the mixed-bound robustness is already
+flagged honestly (the one thing the brief demanded). Corrections needed before banking: G-1
+(declare the battery-gate 45->40 change), G-2 (repair the stale optional prompt sha trail),
+G-3 (attach the noise-context interpretation and define the pooled mean), G-4 (exploratory
+label), C-prime (secondary margins 1.1-4.6% + the 1.938 owner-decision settling cell),
+F-prime (pooled mean-percent definition).
+
+VERDICT: BANK-WITH-CORRECTIONS G-1, G-2, G-3, G-4, C-prime-margins, settling-line-secondary, pooled-mean-definition

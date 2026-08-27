@@ -1,0 +1,11 @@
+BMOE_LOAD {"mb":245.88,"ms":301.1}
+BMOE_PROGRESS {"step":1,"steps":1,"wall_ms":650.4,"io_ms":301.1,"compute_ms":319.1,"mgmt_ms":30.2,"stall_ms":0.0,"read_mb":245.88,"cache_hit_pct":1.4,"majflt":9,"cpu_ms":1361.9,"dense_resident_frac":-1.000,"delta_reasoning":"","delta_text":" We"}
+=== answer ===
+ We
+=== perf ===
+generation: 1 tokens, 0.650 s/token (1.537 tok/s)
+compute: 52.3% CPU occupancy (1.3619 cpu-s/token over 4 threads), 9.00 major faults/token
+prefill: 486 tokens, 34.987 s (13.9 tok/s) | model load 10.176 s | TTFT 45.163 s
+moe-stream: read 245.9 MiB (245.88 MiB/token), decode 0.650 s/token (compute 0.319 + cache mgmt 0.030 + flash I/O 0.301 s/token, 817 MiB/s)
+moe-cache: 1.4% hit, resident 1999.2 MiB
+moe-cache: 4897 evictions, 222 re-reads (222.0/token) — bytes the cache had already paid for once

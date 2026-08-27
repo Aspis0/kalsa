@@ -1,0 +1,1 @@
+/data/local/tmp/q62_sampler/secondary_inv3.sampler.csv: 1 file pulled, 0 skipped. 0.2 MB/s (1805 bytes in 0.010s)

@@ -332,7 +332,7 @@ def measurement_records(records: list[dict[str, object]]) -> list[dict[str, obje
     for record in records:
         tag = str(record.get("tag", ""))
         base = str(record.get("base_tag", tag))
-        if not re.fullmatch(r"(?:primary|secondary)_inv\d+(?:_retry\d+)?", tag):
+        if not re.fullmatch(r"(?:(?:primary|secondary)_inv\d+(?:_retry\d+)?|optional_p2048(?:_retry\d+)?)", tag):
             continue
         key = re.sub(r"_retry\d+$", "", base)
         if key not in selected or int(record.get("retry", 0) or 0) > int(selected[key].get("retry", 0) or 0):
@@ -430,8 +430,11 @@ def main() -> None:
         "metrics": previous.get("metrics", []) if isinstance(previous, dict) else [],
         "stop_reason": previous.get("stop_reason", "unknown arg: -r") if isinstance(previous, dict) else "unknown arg: -r",
     }
-    attempt2_records = [record for record in all_records if str(record.get("tag", "")).startswith(("calib", "n0_probe", "primary_inv", "secondary_inv"))]
-    calibration = [calibration_result(path.stem) for path in sorted(RAW.glob("calib*.csv"))]
+    attempt2_records = [record for record in all_records if str(record.get("tag", "")).startswith(("calib", "n0_probe", "primary_inv", "secondary_inv", "optional_p2048"))]
+    calibration_paths = [path for path in sorted(RAW.glob("calib*.csv")) if not path.name.endswith(".sampler.csv")]
+    calibration_paths += [path for path in sorted(RAW.glob("optional_p2048_calib*.csv")) if not path.name.endswith(".sampler.csv")]
+    calibration = [calibration_result(path.stem) for path in calibration_paths]
+    optional_calibration = [item for item in calibration if str(item.get("tag", "")).startswith("optional_p2048_calib")]
     decode_mode = read_json(RAW / "decode_mode.json", {})
     attempt2_arms = [compact_arm(record) for record in attempt2_records]
     exact_stop = marker_from_files(all_records)
@@ -439,9 +442,28 @@ def main() -> None:
     stop_reason = exact_stop or protocol_stop or ("" if metrics else "no measurements")
     primary_prompt_value = summary_number("primary_inv1", "n_prompt")
     primary_prompt_count = int(primary_prompt_value) if primary_prompt_value is not None else None
+    optional_prompt_value = summary_number("optional_p2048", "n_prompt")
+    optional_prompt_count = int(optional_prompt_value) if optional_prompt_value is not None else None
+    optional_sha_path = RAW / "q62_p2048_calib3.pc.sha256.txt"
+    optional_device_sha_path = RAW / "q62_p2048_calib3.device.sha256sum.txt"
+    optional_sha_tokens = optional_sha_path.read_text(encoding="utf-8", errors="replace").split() if optional_sha_path.exists() else []
+    optional_device_sha_tokens = optional_device_sha_path.read_text(encoding="utf-8", errors="replace").split() if optional_device_sha_path.exists() else []
+    optional_sha = optional_sha_tokens[0] if optional_sha_tokens else None
+    optional_device_sha = optional_device_sha_tokens[0] if optional_device_sha_tokens else None
+    optional_prompt_bytes = (CELL / "prompts/q62_p2048.txt").stat().st_size if (CELL / "prompts/q62_p2048.txt").exists() else None
+    superseded_optional_sha = "66271b4753fcaec9f289898ab8c9b1562627b225931fd857f17b6ba0c188975d"
     primary_done = sum(1 for record in records if str(record.get("base_tag", "")).startswith("primary_inv") and record.get("workload_rc") == 0 and record.get("guard_rc") == 0)
-    final_status = "DONE_PRIMARY_AUDITED" if primary_done >= 3 else "STOPPED " + stop_reason
-    reported_stop = "" if final_status == "DONE_PRIMARY_AUDITED" else stop_reason
+    secondary_done = sum(1 for record in records if str(record.get("base_tag", "")).startswith("secondary_inv") and record.get("workload_rc") == 0 and record.get("guard_rc") == 0)
+    optional_done = sum(1 for record in records if str(record.get("base_tag", "")) == "optional_p2048" and record.get("workload_rc") == 0 and record.get("guard_rc") == 0)
+    if optional_done >= 1:
+        final_status = "DONE_OPTIONAL"
+    elif secondary_done >= 3:
+        final_status = "DONE_SECONDARY"
+    elif primary_done >= 3:
+        final_status = "DONE_PRIMARY_AUDITED"
+    else:
+        final_status = "STOPPED " + stop_reason
+    reported_stop = "" if final_status.startswith("DONE_") else stop_reason
     attempt2 = {
         "status": final_status,
         "prompt": {
@@ -450,6 +472,19 @@ def main() -> None:
             "calibration": calibration,
             "token_count": primary_prompt_count if primary_prompt_count is not None else (calibration[-1].get("prompt_tokens") if calibration else None),
             "token_count_source": "primary CSV summary n_prompt field" if primary_prompt_count is not None else (calibration[-1].get("source") if calibration else None),
+        },
+        "optional_prompt": {
+            "path": "scratchpad/agents/q62-product-streamer-prefill/prompts/q62_p2048.txt",
+            "sha256": optional_sha,
+            "device_sha256": optional_device_sha,
+            "sha256_source": "raw/q62_p2048_calib3.pc.sha256.txt; device recheck raw/q62_p2048_calib3.device.sha256sum.txt",
+            "bytes": optional_prompt_bytes,
+            "token_count": optional_prompt_count,
+            "token_count_source": "optional CSV summary n_prompt field" if optional_prompt_count is not None else None,
+            "n_ctx": 2048,
+            "label": "n=1, exploratory",
+            "superseded_candidates": [{"sha256": superseded_optional_sha, "bytes": 7973, "artifact": "raw/q62_p2048.superseded_candidate.sha256.txt"}],
+            "calibration": optional_calibration,
         },
         "decode_mode": decode_mode,
         "calibration": calibration,
@@ -467,7 +502,7 @@ def main() -> None:
             "sampler_crosscheck": "FAIL_WRONG_PID_SHELL_WRAPPER",
         },
         "measured_invocations": len(metrics),
-        "deviations": ["drop_caches denied in Attempt 1; not retried", "n0 probe rejected: n_predict must be positive; n=1 decode row excluded", "secondary and optional p2048 omitted by owner-directed primary-only session", "phase-0 io/compute/mgmt/cpu/majflt counters absent from shipped CSV/progress; phase-0 read_bytes from io-trace and prefill_s from CSV summary retained"],
+        "deviations": ["drop_caches denied in Attempt 1; not retried", "n0 probe rejected: n_predict must be positive; n=1 decode row excluded", "optional p2048 calibration 2 rejected by n_ctx=2048 after calibration 1 count=1947; candidate trimmed and calibration 3 accepted", "phase-0 io/compute/mgmt/cpu/majflt counters absent from shipped CSV/progress; phase-0 read_bytes from io-trace and prefill_s from CSV summary retained", "FORMAL DEVIATION G-1: follow-up run_q62.py used >=40% versus the locked >=45%; actual battery levels 68% -> 60% were all >=45%, so no invocation was admitted that the locked gate would reject", "APPENDIX G-2: superseded optional candidate 66271b47... (7973 B) retained as a noted artifact; final prompt is a748f3c4... (7894 B), and the device copy matches"],
     }
 
     runtime_pc = read_json(RAW / "runtime_pc_hashes.json", {})
@@ -498,6 +533,7 @@ def main() -> None:
         "stop_reason": reported_stop,
         "calibration_stop_reason": protocol_stop,
         "crash_stop_marker": exact_stop if exact_stop in CRASH_MARKERS else None,
+        "deviations": attempt2["deviations"],
         "raw_dir": "raw",
         "finalized_utc": dt.datetime.now(dt.timezone.utc).isoformat(timespec="seconds"),
     }
@@ -521,12 +557,33 @@ def main() -> None:
     if not metrics:
         lines.append("| NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA | NA |")
 
+    primary_by_invocation = {str(row["invocation"]): row for row in metrics if row["arm"] == "primary"}
+    secondary_by_invocation = {str(row["invocation"]): row for row in metrics if row["arm"] == "secondary"}
+    paired = [(primary_by_invocation[f"primary_inv{index}"], secondary_by_invocation[f"secondary_inv{index}"]) for index in (1, 2, 3) if f"primary_inv{index}" in primary_by_invocation and f"secondary_inv{index}" in secondary_by_invocation]
+    if paired:
+        comparison = []
+        for index, (primary, secondary) in enumerate(paired, 1):
+            delta = float(secondary["wall_s"]) - float(primary["wall_s"])
+            pct = 100.0 * delta / float(primary["wall_s"])
+            comparison.append(f"inv{index} {delta:+.3f} s ({pct:+.2f}%)")
+        primary_mean = sum(float(primary["wall_s"]) for primary, _ in paired) / len(paired)
+        secondary_mean = sum(float(secondary["wall_s"]) for _, secondary in paired) / len(paired)
+        mean_delta = secondary_mean - primary_mean
+        comparison.append(f"mean {mean_delta:+.3f} s ({100.0 * mean_delta / primary_mean:+.2f}%)")
+        lines.append("Cache comparison (secondary − primary prefill wall; negative = secondary faster): " + "; ".join(comparison) + ".")
+        lines.append(f"Pooled mean = mean of per-invocation deltas in seconds / mean primary wall = {mean_delta:+.3f} s / {primary_mean:.3f} s = {100.0 * mean_delta / primary_mean:+.2f}%; not the mean of per-invocation percentages.")
+        lines.append("Prefill cache interpretation: consistent with no measurable prefill effect (deltas −8.05/−4.49/+5.85 %, within this device's ±6–14 % run scatter).")
+
+    lines.append("Optional arm: n=1, exploratory.")
+
+    optional_calibration_text = ", ".join(f"{item.get('tag')}={item.get('prompt_tokens')}" for item in optional_calibration) or "NA"
+
     lines += [
         "",
         "## Phase-0 I/O trace",
         "",
         "phase code 0 is PREFILL; phase code 1 is the single decode step and is excluded. overlap=0 is taken from the trace header.",
-        "Max-lane-per-layer model: the trace has no timestamps; all PREFILL rows have step=485, with one wave per layer and lanes interleaved. This model is PLAUSIBLE NOT VERIFIED for PREFILL, but is bracketed by the engine's own decode io_ms=334.4 ms versus trace max-lane 328.3 ms (1.9%) and refutes serialized Σlat=1275 ms. The verdict cannot flip: even the serialized upper bound stays ≤0.5.",
+        "Max-lane-per-layer model (primary audit): the trace has no timestamps; all PREFILL rows have step=485, with one wave per layer and lanes interleaved. This model is PLAUSIBLE NOT VERIFIED for PREFILL, but is bracketed by the engine's own decode io_ms=334.4 ms versus trace max-lane 328.3 ms (1.9%) and refutes serialized Σlat=1275 ms. The primary verdict cannot flip: even the serialized upper bound stays ≤0.5.",
         "",
         "| invocation | phase_code | prefill_rows | sum_latency_s | lane0_s | lane1_s | lane2_s | lane3_s | sum_layers_max_lane_s (I/O wall) | compute_wall_s | wall_s | overlap |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -548,7 +605,8 @@ def main() -> None:
         for bound in ("lower", "point", "upper"):
             lines.append("| " + " | ".join([str(row["invocation"]), bound, f(row[f"io_wall_{bound}_s"]), f(row[f"io_share_{bound}"]), f(row["compute_share"]), str(row[f"wording_{bound}"]), str(row["wording_robust"])]) + " |")
 
-    lines.append("Narrowest margin: inv2 upper-bound io share = 0.477, 4.5% below the 0.5 boundary; all 3×3 cells are compute-bound.")
+    lines.append("Study-wide narrowest margin: secondary inv3 upper-bound io share = 0.494, 1.1% below the 0.5 boundary; secondary inv1/inv2 are mixed under the serialized upper bound, with robustness False/False/True. All 3×3 cells are compute-bound except those two secondary upper-bound cells.")
+    lines.append("Primary narrowest margin: inv2 upper-bound io share = 0.477, 4.5% below the 0.5 boundary; all primary 3×3 cells are compute-bound.")
 
     lines += [
         "",
@@ -561,14 +619,22 @@ def main() -> None:
     ]
     for row in metrics:
         lines.append("| " + " | ".join([str(row["invocation"])] + [f(row[f"headroom_{bound}_k{k}"]) for k in (2, 4, 8) for bound in ("lower", "point", "upper")]) + " |")
-    lines.append("Settling rule (PREREG): min headroom(k=4) = 2.095 ≥ 2.0 under every bound → streaming-NPU has a real ceiling under the product streamer (HVX prerequisite (1) — decision is the owner's).")
+    lines.append("Settling rule (PREREG; primary): min headroom(k=4) = 2.095 ≥ 2.0 under every bound → streaming-NPU has a real ceiling under the product streamer (HVX prerequisite (1) — decision is the owner's).")
+    lines.append("Secondary settling: min headroom(k=4) = 1.938 under the serialized upper bound (owner-decision zone); lower/point bounds are ≥ 2.0.")
+    arm_k4_min: dict[str, float] = {}
+    for row in metrics:
+        arm = str(row["arm"])
+        values = [float(row[f"headroom_{bound}_k4"]) for bound in ("lower", "point", "upper")]
+        arm_k4_min[arm] = min(arm_k4_min[arm], *values) if arm in arm_k4_min else min(values)
+    if arm_k4_min:
+        lines.append("Settling k=4 minima across all bounds by arm: " + "; ".join(f"{arm}={value:.3f}" for arm, value in sorted(arm_k4_min.items())) + ".")
 
     lines += [
         "",
         "## Read and rate cross-check",
         "",
         "trace read_bytes / 1,048,576 = MiB and /1,000,000 = decimal MB. The engine field is named read_mb but 351.160 matches 368,214,016 / 1,048,576 = 351.156250 MiB (rounded), not decimal MB; decimal MB is shown separately. Effective prefill MB/s = trace bytes / point I/O wall / 1,000,000; engine decode rate is the printed MiB/s counter.",
-        "Systematic over-read: +4096 B per read in 19,161/19,542 reads (+1.05%), included consistently in all byte totals.",
+        "Systematic over-read in pp512 runs: +4096 B per read in 19,161/19,542 reads (+1.05%), included consistently in all pp512 byte totals.",
         "",
         "| invocation | prefill_read_bytes | prefill_read_MiB | engine_decode_read_mb_field | engine_decode_read_MB_decimal | engine_decode_read_bytes | engine_decode_read_MiB | effective_prefill_MB_s | effective_prefill_MiB_s | engine_decode_MiB_s |",
         "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
@@ -610,9 +676,13 @@ def main() -> None:
         "| guard_warn_C / kill_C / poll_s | 40 / 43 / 10 |",
         "| cpuset_allowed | 0-7 |",
         "| drop_caches | denied in Attempt 1; not retried |",
-        "| secondary / optional_p2048 | omitted by owner-directed primary-only session |",
+        "| follow-up battery deviation | run_q62.py used >=40% versus locked >=45%; actual levels 68% -> 60% were all >=45%; no invocation was admitted that the locked gate would reject |",
+        "| secondary | --cache-mb 2000; 3 separate invocations completed; gate used >=40% (formal deviation above); observed levels all >=45% |",
+        f"| optional_p2048 | --cache-mb 0; 1 invocation completed; n=1, exploratory; prompt_tokens={optional_prompt_count or 'NA'}; gate used >=40% (formal deviation above) |",
         "| phase-0 engine counters | io_ms, compute_ms, mgmt_ms, cpu_ms, majflt absent; not fabricated |",
-        "| wall trend | 38.049→35.814→32.781 s (−13.85%); 82.8% of the drop is compute-side, I/O non-monotone; verdict survives |",
+        "| primary wall trend | 38.049→35.814→32.781 s (−13.85%); 82.8% of the drop is compute-side, I/O non-monotone; primary verdict survives |",
+        f"| optional calibration | {optional_calibration_text}; calibration 2 n_ctx rejection retained; final accepted count={optional_prompt_count or 'NA'} |",
+        f"| optional prompt hash | {optional_sha or 'NA'}; 7894 B; device recheck matches; superseded candidate 66271b47... was 7973 B and is retained as raw/q62_p2048.superseded_candidate.sha256.txt |",
         "",
         "The former read-rate-divided-by-wall identity is not used. The engine's BMOE_PROGRESS/CSV counters cover the one decode step, not phase-0 I/O/compute.",
     ]

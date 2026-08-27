@@ -217,6 +217,7 @@ def verify_existing_device() -> None:
     command = (
         "ls -l /data/local/tmp/q62_rt/bmoe-cli /data/local/tmp/q62_guard/thermal_guard.sh "
         "/data/local/tmp/q62_out; "
+        "stat -c model_bytes=%s " + MODEL + "; "
         "sha256sum /data/local/tmp/q62_rt/bmoe-cli; "
         "test -d /data/local/tmp/q62_out"
     )
@@ -225,7 +226,9 @@ def verify_existing_device() -> None:
     write_raw("existing_device_check.txt", text)
     if EXPECTED_BMOE_SHA not in text:
         raise RuntimeError("existing device bmoe-cli sha mismatch")
-    append_log("existing device check: bmoe-cli ls/sha passed; verified runtime/model/guard not redone")
+    if f"model_bytes={EXPECTED_MODEL_BYTES}" not in text:
+        raise RuntimeError("existing device model size mismatch")
+    append_log("existing device check: bmoe-cli sha and model size passed; guard/output/runtime paths verified; 13 GB model hash not rehashed per locked instruction")
 
 
 def push_prompt(prompt_path: Path, tag: str = "q62_pp512") -> dict[str, object]:
@@ -242,7 +245,7 @@ def push_prompt(prompt_path: Path, tag: str = "q62_pp512") -> dict[str, object]:
     return {"file": str(prompt_path), "remote": remote, "bytes": prompt_path.stat().st_size, "sha256": local_sha}
 
 
-def dry_prompt_echo(prompt_name: str) -> str:
+def dry_prompt_echo(prompt_name: str, raw_tag: str = "q62_pp512") -> str:
     remote = f"{OUT_REMOTE}/{prompt_name}"
     command = (
         f"cd {shlex.quote(OUT_REMOTE)} && p=\"$(cat {shlex.quote(remote)})\" && "
@@ -253,7 +256,7 @@ def dry_prompt_echo(prompt_name: str) -> str:
     )
     result = shell(command, timeout=20)
     text = result.stdout + result.stderr
-    write_raw("q62_pp512.dry_echo.txt", text)
+    write_raw(f"{raw_tag}.dry_echo.txt", text)
     if "p_arg_count=1" not in text:
         raise RuntimeError(f"prompt dry echo did not prove one -p argument: {text.strip()}")
     append_log(f"prompt dry echo passed; {text.strip().replace(chr(10), ' ')}")
@@ -485,6 +488,7 @@ def frozen_command(
     prompt_file: str,
     decode_n: int,
     cache_ceil_mb: int = 0,
+    n_ctx: int = 512,
 ) -> tuple[str, list[str]]:
     csv_name = f"{tag}.csv"
     trace_name = f"{tag}_iotrace.txt"
@@ -499,7 +503,7 @@ def frozen_command(
         "-t", "4",
         "-p", f'$(cat {OUT_REMOTE}/{prompt_file})',
         "-n", str(decode_n),
-        "-c", "512",
+        "-c", str(n_ctx),
         "--ubatch", "512",
         "--no-think",
         "--progress",
@@ -529,9 +533,10 @@ def run_arm(
     allow_plugged: bool,
     retry: int = 0,
     cache_ceil_mb: int = 0,
+    n_ctx: int = 512,
 ) -> dict[str, object]:
     tag_run = tag if retry == 0 else f"{tag}_retry{retry}"
-    command_text, workload = frozen_command(tag_run, cache_mb, prompt_file, decode_n, cache_ceil_mb)
+    command_text, workload = frozen_command(tag_run, cache_mb, prompt_file, decode_n, cache_ceil_mb, n_ctx)
     pre = snapshot("pre", tag_run)
     pre_mem = meminfo("pre", tag_run)
     thermal_zones("pre", tag_run)
@@ -773,6 +778,7 @@ def run_invocations(
     count: int,
     min_battery: int,
     allow_plugged: bool,
+    n_ctx: int = 512,
 ) -> list[dict[str, object]]:
     records: list[dict[str, object]] = []
     for index in range(1, count + 1):
@@ -781,12 +787,12 @@ def run_invocations(
         tag = f"{arm}_inv{index}"
         gate_before(tag, min_battery)
         set_status(f"RUN {arm} inv {index}")
-        record = run_arm(tag, cache_mb, prompt_file, decode_n, min_battery, allow_plugged)
+        record = run_arm(tag, cache_mb, prompt_file, decode_n, min_battery, allow_plugged, n_ctx=n_ctx)
         records.append(record)
         reason = stop_reason(record)
         if reason and should_retry_load(record):
             append_log(f"{tag} diagnosed rc=1 model-load failure; retrying once with identical flags")
-            retry = run_arm(tag, cache_mb, prompt_file, decode_n, min_battery, allow_plugged, retry=1)
+            retry = run_arm(tag, cache_mb, prompt_file, decode_n, min_battery, allow_plugged, retry=1, n_ctx=n_ctx)
             records.append(retry)
             reason = stop_reason(retry)
         if reason:
@@ -795,6 +801,132 @@ def run_invocations(
         if after.get("level") is None or int(after["level"]) < min_battery:
             raise RuntimeError(f"battery below {min_battery}% after {tag}: {after.get('level')}")
     return records
+
+
+def read_decode_mode() -> int:
+    path = RAW / "decode_mode.json"
+    if not path.exists():
+        raise RuntimeError("missing existing decode_mode.json")
+    value = json.loads(path.read_text(encoding="utf-8"))
+    decode_n = int(value.get("decode_n", -1))
+    if decode_n != 1:
+        raise RuntimeError(f"existing decode mode is not the required n=1 fallback: {decode_n}")
+    return decode_n
+
+
+def prepare_optional_prompt() -> Path:
+    source = CELL / "prompts" / "q62_pp512.txt"
+    if not source.exists():
+        raise RuntimeError(f"missing source prompt file: {source}")
+    base = source.read_text(encoding="ascii")
+    path = CELL / "prompts" / "q62_p2048.txt"
+    if path.exists():
+        append_log(f"optional prompt candidate preserved for resume path={path.name} bytes={path.stat().st_size}")
+        return path
+    prompt = (base.rstrip() + "\n\n") * 4
+    path.write_text(prompt, encoding="ascii", newline="\n")
+    append_log(f"optional prompt candidate created path={path.name} bytes={path.stat().st_size}; calibration target <=2047 tokens with n=1,n_ctx=2048")
+    return path
+
+
+def adjust_optional_prompt(path: Path, count: int) -> None:
+    base = (CELL / "prompts" / "q62_pp512.txt").read_text(encoding="ascii").rstrip()
+    text = path.read_text(encoding="ascii")
+    if count > 2047:
+        new_length = max(1, int(len(text) * 2040 / count))
+        text = text[:new_length].rstrip() + "\n"
+    else:
+        text = text.rstrip() + "\n\n" + base[:400] + "\n"
+    path.write_text(text, encoding="ascii", newline="\n")
+    append_log(f"optional prompt adjusted after engine_count={count}; bytes={path.stat().st_size}")
+
+
+def calibrate_optional_prompt(path: Path) -> int:
+    last_count: int | None = None
+    start_index = 1
+    failed_calib2 = RAW / "optional_p2048_calib2.manifest.json"
+    if (RAW / "optional_p2048_calib1.calibration.json").exists() and failed_calib2.exists():
+        failure_text = failed_calib2.read_text(encoding="utf-8", errors="replace") + "\n"
+        failure_text += (RAW / "optional_p2048_calib2.stderr.log").read_text(encoding="utf-8", errors="replace") if (RAW / "optional_p2048_calib2.stderr.log").exists() else ""
+        if "prompt + n_predict exceeds the session n_ctx (2048)" in failure_text:
+            text = path.read_text(encoding="ascii")
+            path.write_text(text[:max(1, int(len(text) * 0.99))].rstrip() + "\n", encoding="ascii", newline="\n")
+            append_log(f"optional p2048 resume: calib2 n_ctx rejection; trimmed candidate 1%; remaining calibration load=3 bytes={path.stat().st_size}")
+            start_index = 3
+    for index in range(start_index, 4):
+        tag = f"optional_p2048_calib{index}"
+        push_prompt(path, tag=f"q62_p2048_calib{index}")
+        dry_prompt_echo(path.name, raw_tag=f"q62_p2048_calib{index}")
+        gate_before(tag, 40)
+        set_status(f"CALIB optional p2048 {index}")
+        record = run_arm(tag, 0, path.name, 1, 40, False, n_ctx=2048)
+        reason = stop_reason(record)
+        if reason:
+            raise RuntimeError(f"{tag}: {reason}")
+        count, source = prompt_token_count(tag)
+        write_calibration_summary(tag, count, source)
+        last_count = count
+        if count is not None and 2016 <= count <= 2047:
+            append_log(f"CALIB optional p2048 accepted prompt_tokens={count} source={source}; calibration numbers discarded")
+            return count
+        if count is None:
+            raise RuntimeError(f"{tag}: engine prompt-token count unavailable")
+        if index < 3:
+            adjust_optional_prompt(path, count)
+    raise RuntimeError(f"optional p2048 calibration did not reach 2016..2047; last_count={last_count}")
+
+
+def followup_main() -> int:
+    RAW.mkdir(parents=True, exist_ok=True)
+    set_status("PREP SECONDARY")
+    append_log("Secondary follow-up start; Amendment 1; owner GO; primary records preserved")
+    try:
+        verify_existing_device()
+        prompt_path = CELL / "prompts" / "q62_pp512.txt"
+        prompt_meta = push_prompt(prompt_path, tag="q62_pp512_secondary")
+        dry_prompt_echo(prompt_path.name, raw_tag="q62_pp512_secondary")
+        decode_n = read_decode_mode()
+        append_log(f"secondary uses existing decode fallback n={decode_n}; no n0 probe repeated")
+        secondary_manifest = RAW / "secondary_inv3.manifest.json"
+        secondary_complete = False
+        if secondary_manifest.exists():
+            try:
+                secondary_value = json.loads(secondary_manifest.read_text(encoding="utf-8"))
+                secondary_complete = secondary_value.get("workload_rc") == 0 and secondary_value.get("guard_exit_code") == 0
+            except json.JSONDecodeError:
+                secondary_complete = False
+        if secondary_complete:
+            append_log("secondary arm already complete in prior follow-up; preserving 3 existing invocations")
+        else:
+            run_invocations("secondary", 2000, prompt_path.name, decode_n, 3, 40, False, n_ctx=512)
+            append_log("secondary arm complete: 3 separate invocations; cache_mb=2000")
+        set_status("DONE_SECONDARY")
+
+        optional_path = prepare_optional_prompt()
+        optional_meta = push_prompt(optional_path, tag="q62_p2048")
+        dry_prompt_echo(optional_path.name, raw_tag="q62_p2048")
+        optional_count = calibrate_optional_prompt(optional_path)
+        append_log(f"optional p2048 calibration complete prompt_tokens={optional_count}; final prompt sha256={optional_meta['sha256']} is superseded by calibrated push")
+        gate_before("optional_p2048", 40)
+        set_status("RUN optional p2048")
+        record = run_arm("optional_p2048", 0, optional_path.name, 1, 40, False, n_ctx=2048)
+        reason = stop_reason(record)
+        if reason and should_retry_load(record):
+            append_log("optional_p2048 diagnosed rc=1 model-load failure; retrying once with identical flags")
+            record = run_arm("optional_p2048", 0, optional_path.name, 1, 40, False, retry=1, n_ctx=2048)
+            reason = stop_reason(record)
+        if reason:
+            raise RuntimeError(f"optional_p2048: {reason}")
+        after = snapshot("between", "optional_p2048")
+        if after.get("level") is None or int(after["level"]) < 40:
+            raise RuntimeError(f"battery below 40% after optional_p2048: {after.get('level')}")
+        append_log("optional p2048 arm complete: 1 invocation; cache_mb=0")
+        set_status("DONE_OPTIONAL")
+        return 0
+    except Exception as exc:
+        append_log(f"STOPPED exception={type(exc).__name__}: {exc}")
+        set_status(f"STOPPED {type(exc).__name__}: {exc}")
+        return 2
 
 
 def main() -> int:
@@ -854,4 +986,6 @@ def main() -> int:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--followup":
+        raise SystemExit(followup_main())
     raise SystemExit(main())

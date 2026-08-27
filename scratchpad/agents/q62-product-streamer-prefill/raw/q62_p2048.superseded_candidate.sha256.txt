@@ -1,0 +1,3 @@
+66271b4753fcaec9f289898ab8c9b1562627b225931fd857f17b6ba0c188975d  C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q62-product-streamer-prefill\prompts\q62_p2048.txt
+bytes=7973
+status=superseded candidate; final run file is a748f3c4... (7894 B)
