@@ -1,5 +1,5 @@
-timestamp=2026-08-27T12:48:33.4616831-04:00
-FreePhysicalMemory_GB=12.34
+timestamp=2026-08-27T14:25:31.8448807-04:00
+FreePhysicalMemory_GB=14.81
 RequiredMinimum_GB=8
 flags=DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
 VsDevCmd=BuildTools-2022 -arch=x64
@@ -21,30 +21,30 @@ PriorityClass : Normal
 Name          : ApplicationFrameHost
 Id            : 22204
 CPU           : 3.296875
-WorkingSet64  : 42147840
+WorkingSet64  : 35852288
 PriorityClass : Normal
 
 Name          : claude
 Id            : 16532
-CPU           : 1144.9375
-WorkingSet64  : 358633472
+CPU           : 1229.671875
+WorkingSet64  : 334286848
 PriorityClass : Normal
 
 Name          : claude
 Id            : 35704
-CPU           : 1266.546875
-WorkingSet64  : 412557312
+CPU           : 1429
+WorkingSet64  : 406749184
 PriorityClass : Normal
 
 Name          : OfficeClickToRun
 Id            : 6660
 CPU           : 
-WorkingSet64  : 37986304
+WorkingSet64  : 25821184
 PriorityClass : 
 
 Name          : UDClientService
 Id            : 7104
 CPU           : 
-WorkingSet64  : 21876736
+WorkingSet64  : 21704704
 PriorityClass : 
 

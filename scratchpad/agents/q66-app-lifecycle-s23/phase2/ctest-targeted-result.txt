@@ -1,5 +1,5 @@
-started=2026-08-27T12:57:44.0145862-04:00
-ended=2026-08-27T12:58:00.1354875-04:00
-wall_seconds=16.1209013
+started=2026-08-27T14:37:21.5965889-04:00
+ended=2026-08-27T14:37:37.3042329-04:00
+wall_seconds=15.707644
 exit_code=0
 regex=^(test-sampling|test-reasoning-budget|test-chat.*|test-arg-parser)$

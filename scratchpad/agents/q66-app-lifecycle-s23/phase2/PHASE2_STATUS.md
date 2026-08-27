@@ -163,3 +163,110 @@ Total Test time (real) =  15.02 sec
 ```
 
 `test-arg-parser` is the existing targeted coverage selected for the common-parameter/load-related surface; no separately named `load_mode` test exists in the configured suite. No source fix was required after the corrected q63-parity recipe. Branch `app-pin-compat` remains clean at `cb9fdd1f867afa53565a0547ceb8f86a79822857`, and that head is present at `origin/app-pin-compat`. No Android/NDK/device/Gradle work was performed in this phase.
+
+## Hostile-review fixes and final validation (2026-08-27)
+
+The review in `REVIEW_PHASE2.md` was read and addressed on `app-pin-compat`. The
+final pushed head is `3b372c74906c94bd0919fafdcf73254fc15aafcd`.
+
+### Fix decisions
+
+- **F1:** The fork's two-argument `common_chat_templates_get_caps(tmpls, variant)`
+  and `common_chat_templates_has_variant(tmpls, variant)` declarations/definitions
+  were checked against llama.rn `scripts/patches/chat.h.patch` and
+  `chat.cpp.patch`. Signatures are equivalent and the wrapper calls the equivalent
+  `""`/`"tool_use"` variants. Phase 3 must remove the **caps hunks** from both
+  bootstrap patches before regenerating `cpp/`; unrelated JSON/extra-fields and
+  FunctionGemma hunks remain required. This is a hard Phase 3 prerequisite.
+- **F2/F3:** The repository-wide assignment sweep found only the common-parameter
+  post-parse mutation in `examples/training/finetune.cpp`; it now recomputes
+  `load_mode` after forcing mmap off. `common_load_mode_from_flags()` and the
+  conversion switch preserve all eight mmap/mlock/direct-IO combinations, rather
+  than silently dropping mlock.
+- **F4/F5/F6:** Reasoning forcing advances `force_pos` in `apply()`, not
+  `accept()`, and the sampler no longer consumes generation-prompt/prefill tokens;
+  counting starts on generated tokens. Immediate activation is allowed without a
+  start sequence. The normal default path remains IDLE until its start matcher fires.
+- **F11:** Invalid `load_mode` now throws
+  `std::invalid_argument("invalid llama_load_mode")` instead of silently retaining
+  default mmap behavior.
+- **F16:** Added regression coverage for apply-time forced-position advancement,
+  `common_sampler_init()` budget/forced-open behavior, all load-mode mappings plus
+  out-of-enum rejection, and singular/plural `thinking_end_tags` synchronization.
+  The sampler regression uses a fixed seed and `no_perf=true` because standalone
+  construction does not initialize the ggml timing clock.
+
+### Final build
+
+Fresh build tree: `C:\Users\gualt\kals-pin\build-phase2-native-q63f`.
+The detached child ran the q63 MSVC recipe itself (`VsDevCmd.bat -arch=x64`),
+Release CPU/native CMake/Ninja, `-DLLAMA_BUILD_TESTS=ON`,
+`CMAKE_BUILD_PARALLEL_LEVEL=2`, `NINJAFLAGS=-j2`, CMake `--parallel 2`, and
+Idle priority. The pre-launch gate was `FREE_RAM_GB=14.85` (minimum 8); free RAM
+stayed above 13.6 GiB. `build-native-msvc-result.txt` records:
+
+```text
+started=2026-08-27T14:25:32.8874691-04:00
+ended=2026-08-27T14:33:50.1205508-04:00
+wall_seconds=497.2330817
+pid=13808
+exit_code=0
+priority=IDLE_PRIORITY_CLASS
+recipe=VsDevCmd.bat -arch=x64; MSVC CMake/Ninja; CMAKE_BUILD_PARALLEL_LEVEL=2; NINJAFLAGS=-j2
+```
+
+The clean Ninja log contains `501` completed entries. Build stderr contains only
+the existing bootstrap warning:
+
+```text
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+```
+
+### Final tests
+
+The full configured suite has 58 tests. The final detached/Idle/serial run is in
+`build-native-msvc-result-all-ctest.txt` and exited 8 because one existing host
+capability skip is not registered as a CTest skip:
+
+```text
+started=2026-08-27T14:34:10.5538234-04:00
+ended=2026-08-27T14:36:24.8656255-04:00
+wall_seconds=134.3118021
+pid=51776
+exit_code=8
+priority=IDLE_PRIORITY_CLASS
+```
+
+`Testing/Temporary/LastTestsFailed.log` contains exactly:
+
+```text
+45:test-repack-q23k-load
+```
+
+Full result: **57 passed, 1 failed out of 58**. The sole failure is verbatim:
+
+```text
+**** SKIP: no Q2_K_8x4/Q3_K_8x4 trait selected (neon=0 dotprod=0 extra=null). This host cannot cover the 3-D q23k load contract. Run on armv8.2+dotprod. exit=77 ****
+test-repack-q23k-load neon=0 dotprod=0 loader_set=0
+```
+
+It is not caused by the backports and no test code was changed to mask it. The
+required wrapper-reachable targeted set passed 7/7 (`ctest-targeted.log`):
+
+```text
+1/7 Test #16: test-sampling ....................   Passed    1.95 sec
+2/7 Test #17: test-reasoning-budget ............   Passed    0.02 sec
+3/7 Test #22: test-chat ........................   Passed   10.93 sec
+4/7 Test #26: test-chat-peg-parser .............   Passed    0.11 sec
+5/7 Test #29: test-chat-auto-parser ............   Passed    1.24 sec
+6/7 Test #30: test-chat-template ...............   Passed    0.28 sec
+7/7 Test #35: test-arg-parser ..................   Passed    0.16 sec
+
+100% tests passed, 0 tests failed out of 7
+Total Test time (real) =  14.75 sec
+```
+
+The branch is clean and `origin/app-pin-compat` points to
+`3b372c74906c94bd0919fafdcf73254fc15aafcd`. No NDK, Android, device, Gradle,
+ai-chat, or authoritative WIP checkout was touched.

@@ -1,13 +1,14 @@
-param([switch]$Diagnostics, [switch]$VcvarsDiagnostics, [switch]$NinjaOnly, [switch]$PsDiagnostics, [switch]$Q63Exact)
+param([switch]$Diagnostics, [switch]$VcvarsDiagnostics, [switch]$NinjaOnly, [switch]$PsDiagnostics, [switch]$Q63Exact, [switch]$AllCTest)
 $ErrorActionPreference = 'Stop'
 
 $phase2 = 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2'
 $cmd = 'C:\Windows\System32\cmd.exe'
-$batch = if ($Q63Exact) { Join-Path $phase2 'run-native-msvc-exact.cmd' } elseif ($NinjaOnly) { Join-Path $phase2 'run-native-ninja.cmd' } elseif ($PsDiagnostics) { Join-Path $phase2 'test-vcvars-ps.cmd' } elseif ($VcvarsDiagnostics) { Join-Path $phase2 'test-vcvars64-return.cmd' } elseif ($Diagnostics) { Join-Path $phase2 'test-vsdev-return.cmd' } else { Join-Path $phase2 'run-native-msvc.cmd' }
-$result = Join-Path $phase2 'build-native-msvc-result.txt'
-$gate = Join-Path $phase2 'build-native-msvc-gate.txt'
-$stdout = Join-Path $phase2 'build-native-msvc.log'
-$stderr = Join-Path $phase2 'build-native-msvc.err'
+$batch = if ($AllCTest) { Join-Path $phase2 'run-all-ctest.cmd' } elseif ($Q63Exact) { Join-Path $phase2 'run-native-msvc-exact.cmd' } elseif ($NinjaOnly) { Join-Path $phase2 'run-native-ninja.cmd' } elseif ($PsDiagnostics) { Join-Path $phase2 'test-vcvars-ps.cmd' } elseif ($VcvarsDiagnostics) { Join-Path $phase2 'test-vcvars64-return.cmd' } elseif ($Diagnostics) { Join-Path $phase2 'test-vsdev-return.cmd' } else { Join-Path $phase2 'run-native-msvc.cmd' }
+$suffix = if ($AllCTest) { '-all-ctest' } else { '' }
+$result = Join-Path $phase2 ("build-native-msvc-result$suffix.txt")
+$gate = Join-Path $phase2 ("build-native-msvc-gate$suffix.txt")
+$stdout = Join-Path $phase2 ("build-native-msvc$suffix.log")
+$stderr = Join-Path $phase2 ("build-native-msvc$suffix.err")
 
 $os = Get-CimInstance Win32_OperatingSystem
 $free = [math]::Round($os.FreePhysicalMemory / 1MB, 2)

@@ -362,3 +362,183 @@ Must-fix before Phase 3 (in priority order):
 **FINAL VERDICT: PASS-with-fixes**
 
 COMPLETE — REVIEW_PHASE2 (q66-app-lifecycle-s23, diff a0cabca6b..cb9fdd1f8, reviewed 2026-08-27)
+
+## RE-REVIEW — fix delta cb9fdd1f..3b372c74906c94bd0919fafdcf73254fc15aafcd (2026-08-27)
+
+Delta: 3 commits (`283047c55` fixes, `2435326dd` sampler test, `3b372c749` timing init),
+13 files, +181/−36. `app-pin-compat` tip = `3b372c749`, matching PHASE2_STATUS.md.
+PHASE2_STATUS.md "Hostile-review fixes" section read in full. Method: delta diff read in
+full; every verdict re-verified against the new tree (`git show 3b372c749:…`), independent
+re-sweeps rerun (mutator grep, `activate_immediately` in tools/, prefill_tokens uses,
+#22488 provenance via `git log -S`), and each new test mentally reverted to check its
+assertion trips.
+
+### F1 — PARTIALLY-FIXED (documented Phase-3 prerequisite; collision still latent in tree)
+
+The fork-side symbols remain (`common/chat.h:367-378` struct + decls; `common/chat.cpp`
+2-arg impls — untouched by the delta except the new public sync helper at
+`common/chat.h:286-288`, which does not disturb the chat.h.patch hunk-3 context at
+:350-357). What fixes this finding is the PHASE2_STATUS.md record: "Phase 3 must remove the
+caps hunks from both bootstrap patches before regenerating cpp/ … hard Phase 3
+prerequisite". Verified accurate against the fetched patches: chat.h.patch hunk 3 and
+chat.cpp.patch hunk 5 are exactly the duplicate-adders; the JSON/extra-fields hunks (h1/h2)
+and FunctionGemma hunks (h3/h4 of chat.cpp.patch) stay required — the record scopes this
+correctly. Not FIXED because the failure mode is still one unguarded `npm run bootstrap`
+away and nothing machine-enforced (no patch-set change, no bootstrap guard) prevents it.
+Acceptable disposition given the patch files live in the llama.rn repo, outside fork scope.
+
+### F2 — FIXED (all post-parse mutators caught)
+
+`examples/training/finetune.cpp:33` now recomputes
+`params.load_mode = common_load_mode_from_flags(use_mmap=false, use_mlock, use_direct_io)`
+→ 0 = NONE → to_llama yields mmap=false ✓ guard semantics restored. Independent re-sweep at
+`3b372c749` (`git grep` over common/src/tools/examples, excluding mparams-level and loader
+files): the ONLY remaining common_params-level post-parse assignment is finetune's — the
+PHASE2_STATUS claim ("repository-wide assignment sweep found only finetune") is verified
+true. `examples/diffusion/diffusion-cli.cpp:120-122` reads the bools but is CLI-parsed
+(arg.cpp lambdas keep bools↔mode mirrored via the new helper), so it stays coherent;
+`src/llama.cpp:415` and `common/fit.cpp` operate at llama_model_params level (unaffected).
+Centralizing the derivation in `common_load_mode_from_flags`
+(`common/common.cpp:1552-1555`, declared `common/common.h:918`) removes the three-way
+copy-paste that made the original drift possible.
+
+### F3 — FIXED (all eight flag combinations expressible; loader negotiation restored)
+
+`include/llama.h:205-216`: enum extended to the full bit combination set
+(mmap=1|mlock=2|dio=4 → 8 values, NONE..MMAP_DIRECT_IO_MLOCK=7); wrapper-facing values
+0-4 unchanged (wrapper uses name equality only — re-verified q66c JSIParams.cpp:363-379 —
+so no wrapper impact). `common/common.cpp` switch now maps 5/6/7 and `default:` throws.
+`--mlock --direct-io` → mode 7 → mparams mmap=true+dio=true+mlock=true → the loader's own
+negotiation (`src/llama-model-loader.cpp:569-580`) picks dio-vs-mmap and mlock applies —
+original bool semantics restored. `--mmap --direct-io` on a non-dio platform → mode 5 →
+mmap+dio → loader falls back to mmap ✓. F3's silent drops are gone.
+
+### F4 — PARTIALLY-FIXED for the wrapper path; REGRESSION-INTRODUCED for the fork's own flows (see F19)
+
+The flagged drift (budget consumed by generation-prompt tokens under
+activate_immediately) is gone — the rbudget prefill loop was deleted
+(`common/sampling.cpp`: the `for (…prefill_tokens) llama_sampler_accept(rbudget, …)` block
+removed; `prefill_tokens` now feeds only the grammar prefill at :289). But the removal is
+wholesale, and provenance matters: `git log -S "reasoning-budget accepted prefill token"`
+shows the loop came from upstream-lineage commit `d77599234` (#22488, "common : do not
+pass prompt tokens to reasoning budget sampler") — i.e. the fork's own upstream ancestry
+DELIBERATELY feeds the generation prompt to the rbudget, so that a start tag embedded in
+the generation prompt (R1/DeepSeek- and Qwen3-style templates append `<think>`) activates
+COUNTING without activate_immediately. Post-fix, the rbudget sees only `is_generated`
+tokens (`common/sampling.cpp:462`) and starts IDLE, so for every flow that never sets
+activate_immediately the budget silently never arms. This is a re-review criterion
+failure: the corrected machine is #20297-shaped but NOT upstream-lineage-equivalent, and
+NOT default-path byte-identical (details under F19).
+
+### F5 — FIXED (state machine now #20297-equivalent; default generated-start-tag path byte-identical)
+
+`common/reasoning-budget.cpp`: FORCING case in accept() is now a no-op with an explanatory
+comment; `apply()` advances `force_pos` after masking (:158-165) — exactly upstream
+#20297's ordering, so init-in-FORCING (budget=0 + immediate) forces forced[0] on the first
+generation step. For the normal IDLE→COUNTING→FORCING path the observable forced stream is
+unchanged (one forced token per generation step in both orderings; the only ordering
+difference is clone-mid-forcing state, which the updated
+`test_reasoning_budget_clone_mid_forcing`/`force_manual` comments now describe correctly).
+`test_forcing_advances_on_apply` trips on revert (old apply() doesn't advance → second
+`get_forced_token` returns 102, expected 101 → GGML_ASSERT fires).
+
+### F6 — FIXED (gate relaxed, with a regression test that trips on revert)
+
+`common/sampling.cpp:301`: gate is now
+`(!params.reasoning_budget_start.empty() || params.reasoning_budget_activate_immediately) && …`
+— immediate activation no longer requires a start sequence, matching the upstream
+#20297 gate's intent. `test_common_sampler_init_reasoning_budget`
+(`tests/test-reasoning-budget.cpp:170-186`) builds `common_params_sampling` with EMPTY
+start + `activate_immediately=true` and asserts COUNTING after init and FORCING after one
+generated accept — reverting the gate leaves no rbudget, `common_sampler_reasoning_budget_get_state`
+(new, `common/sampling.h:94-96`) returns IDLE, the assert trips ✓. The new null-model
+tolerance in `common_sampler_init` (`common/sampling.cpp:188-190`) is test accommodation;
+production callers always pass a model and the null path never reaches a model-dependent
+sampler with the test's param set — noted, not a defect.
+
+### F11 — FIXED (loud failure instead of silent mmap fallback)
+
+`common/common.cpp`: switch gained `default: throw std::invalid_argument("invalid
+llama_load_mode");` (`<stdexcept>` included at :27). `tests/test-arg-parser.cpp`
+`test_load_mode_mapping` casts 99 into `load_mode`, expects the throw, and asserts
+`rejected` — reverting to silent fall-through trips the assert. Throw site is reachable
+only via deliberate casts today (all 8 enum values are now mapped), and model-load callers
+already propagate exceptions, so no new crash surface.
+
+### F16 — PARTIALLY-FIXED (real assertions added; the one property that regressed is the one the new tests cannot see)
+
+New, revert-tripping coverage, verified by mental revert per test:
+- `test_load_mode_mapping` (8 enum→bool cases + out-of-enum rejection) — trips on switch or
+  helper revert ✓; also would have caught the original F11.
+- `test_thinking_end_tags_compat` (`tests/test-chat.cpp:5992-6005`, both sync directions) —
+  trips if the sync shim is removed or reordered ✓.
+- `test_forcing_advances_on_apply` — trips on accept/apply reorder revert ✓.
+- `test_common_sampler_init_reasoning_budget` — trips on gate revert ✓.
+Gaps: (a) the sampler-level test builds EMPTY `generation_prompt`, so re-introducing
+prefill consumption would NOT trip any test — precisely the property whose removal produced
+F19; (b) no test exercises the fork-server prompt-embedded-start-tag flow (the regressed
+path); (c) the finetune fix has no harness (acceptable for an example). Also noted
+honestly in PHASE2_STATUS: full suite 57/58 with the pre-existing hardware-gated
+`test-repack-q23k-load` skip (exit 77 on non-dotprod host), unmasked and unrelated.
+
+### F19 — NEW — REGRESSION-INTRODUCED: prompt-embedded start tags no longer arm the reasoning budget in flows that never set activate_immediately
+
+Chain of evidence at `3b372c749`:
+1. The prefill feed existed in the fork's upstream lineage and was deliberate:
+   `d77599234` (#22488) shaped it to pass the generation prompt (not the user prompt) to
+   the rbudget — `git log -S "reasoning-budget accepted prefill token"` →
+   `d77599234`, `283047c55` (the fix that removed it).
+2. The fork's server maps `reasoning_budget_start/end/message` + `reasoning_control` from
+   chat params (`tools/server/server-common.cpp:1120-1130`) but NEVER
+   `reasoning_budget_activate_immediately` — `git grep activate_immediately 3b372c749 --
+   tools/` is EMPTY (the fork's reasoning_control rework dropped the #20297 activation
+   plumbing; the field is wrapper-only).
+3. Templates that embed the start tag in the generation prompt (DeepSeek-R1 `<think>` after
+   `<｜Assistant｜>`, Qwen3 `<think>\n\n\n` on add_generation_prompt) therefore relied on
+   the prefill loop as the ONLY arming mechanism: IDLE matcher consumed the prompt-embedded
+   start tag → COUNTING at generation start → budget enforced and the runtime
+   `reasoning_control` force (`common/reasoning-budget.cpp:260`, requires COUNTING) worked.
+4. Post-fix: rbudget starts IDLE, sees only generated tokens (`common/sampling.cpp:462`),
+   the start tag never appears in generated text → IDLE forever → budget enforcement AND
+   the runtime end-reasoning button are silent no-ops for those templates. Same death for
+   the wrapper path whenever the JS layer sends `thinking_start_tag` but leaves
+   `thinking_forced_open=false` while the template embeds the tag.
+5. Byte-identity check: this is a DEFAULT-path behavior change (activate_immediately=false
+   is the default) — the re-review criterion for F4/F5 fails on this flow.
+
+Minimal correct remediation (one condition, preserves both semantics): restore the prefill
+loop gated on the chosen initial state —
+`if (initial_state == REASONING_BUDGET_IDLE) { for (…prefill_tokens) accept(…); }` —
+IDLE flows re-arm via #22488 semantics, COUNTING (immediate) flows skip prefill so the
+budget is not consumed (F4 stays fixed, F5 stays fixed). Alternative/complement: map
+`llama_params["reasoning_budget_activate_immediately"] = chat_params.thinking_forced_open`
+in `server-common.cpp` plus a matching server-schema field. A regression test needs a
+NON-empty generation_prompt to lock the property.
+
+## RE-REVIEW scorecard
+
+| Finding | Verdict |
+|---|---|
+| F1 bootstrap patch collision | PARTIALLY-FIXED (accurate Phase-3 prerequisite recorded; latent in tree) |
+| F2 post-parse mutator (finetune) | FIXED (independent re-sweep: no other mutator exists) |
+| F3 dio combo expressiveness | FIXED (8-value bit-combo enum + helper + tests) |
+| F4 immediate-activation prompt consumption | PARTIALLY-FIXED — wrapper path clean, but fix method regressed F19 |
+| F5 budget=0 forcing consumed by prefill | FIXED (apply()-advance, upstream-#20297-equivalent, revert-tripping test) |
+| F6 activation without start tokens | FIXED (gate + revert-tripping test) |
+| F11 silent out-of-enum fallback | FIXED (throw + test) |
+| F16 test honesty | PARTIALLY-FIXED (4 real tests; prefill-consumption property and fork-server flow uncovered) |
+| F19 (new) | REGRESSION-INTRODUCED — reasoning budget silently dead for prompt-embedded start tags |
+
+F2, F3, F5, F6, F11 are clean, tested fixes. F1 is acceptably documented but unenforced.
+F4's fix works for the wrapper's immediate-activation path yet removes upstream-lineage
+(#22488) behavior the fork's own server depends on, silently disarming the reasoning-budget
+feature — a default-path regression introduced by this very delta, in the subsystem the
+delta claims to make coherent. The explicit re-review criteria for F4/F5 ("upstream-equivalent
+AND still default-path byte-identical") therefore fail, and F16 cannot catch the regression
+as written.
+
+**RE-REVIEW VERDICT: FAIL** — remediate F19 (one-line gated prefill loop or server-side
+activate_immediately mapping + a non-empty-generation_prompt regression test), then this
+delta passes; every other finding is resolved.
+
+COMPLETE — REVIEW_PHASE2 re-review (fix delta cb9fdd1f..3b372c749, reviewed 2026-08-27)

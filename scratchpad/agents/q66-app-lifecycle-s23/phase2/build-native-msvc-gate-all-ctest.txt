@@ -1,0 +1,50 @@
+timestamp=2026-08-27T14:34:09.5337121-04:00
+FreePhysicalMemory_GB=14.36
+RequiredMinimum_GB=8
+flags=DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+VsDevCmd=BuildTools-2022 -arch=x64
+CMAKE_BUILD_PARALLEL_LEVEL=2
+NINJAFLAGS=-j2
+
+Name          : AcrobatNotificationClient
+Id            : 3348
+CPU           : 1.234375
+WorkingSet64  : 1363968
+PriorityClass : Normal
+
+Name          : AdobeNotificationClient
+Id            : 14560
+CPU           : 0.484375
+WorkingSet64  : 1851392
+PriorityClass : Normal
+
+Name          : ApplicationFrameHost
+Id            : 22204
+CPU           : 3.296875
+WorkingSet64  : 35852288
+PriorityClass : Normal
+
+Name          : claude
+Id            : 16532
+CPU           : 1237.9375
+WorkingSet64  : 334278656
+PriorityClass : Normal
+
+Name          : claude
+Id            : 35704
+CPU           : 1439.03125
+WorkingSet64  : 403959808
+PriorityClass : Normal
+
+Name          : OfficeClickToRun
+Id            : 6660
+CPU           : 
+WorkingSet64  : 25837568
+PriorityClass : 
+
+Name          : UDClientService
+Id            : 7104
+CPU           : 
+WorkingSet64  : 21794816
+PriorityClass : 
+
