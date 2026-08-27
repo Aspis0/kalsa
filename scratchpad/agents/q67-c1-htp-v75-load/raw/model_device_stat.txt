@@ -1,0 +1,1 @@
+/data/local/tmp/q67/CANDIDATE_1.gguf 3098664160

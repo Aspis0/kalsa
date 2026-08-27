@@ -1,0 +1,800 @@
+0.00.964.386 D ggml-hex: HTP0 supports-op MUL_MAT|blk.17.ssm_out.weight x final_output-17 -> linear_attn_out-17|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.386 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.389 D ggml-hex: HTP0 supports-op MUL|norm-17 x blk.17.post_attention_norm.weight -> attn_post_norm-17|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.390 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.394 D ggml-hex: HTP0 supports-op MUL_MAT|blk.17.ffn_gate.weight x attn_post_norm-17 -> ffn_gate-17|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.395 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.399 D ggml-hex: HTP0 supports-op MUL_MAT|blk.17.ffn_up.weight x attn_post_norm-17 -> ffn_up-17|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.400 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.404 D ggml-hex: HTP0 supports-op MUL_MAT|blk.17.ffn_down.weight x ffn_swiglu-17 -> ffn_out-17|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.404 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.407 D ggml-hex: HTP0 supports-op MUL|norm-18 x blk.18.attn_norm.weight -> attn_norm-18|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.408 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.413 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_qkv.weight x attn_norm-18 -> node_1051|2560:8192 x 2560:1024 -> 8192:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.413 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.417 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-18 x blk.18.ssm_conv1d.weight -> conv_output_raw-18|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.417 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.421 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ssm_alpha.weight x attn_norm-18 -> node_1072|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.421 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.424 D ggml-hex: HTP0 supports-op ADD|alpha-18 x blk.18.ssm_dt.bias -> node_1074|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.425 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.428 D ggml-hex: HTP0 supports-op MUL|a_softplus-18 x blk.18.ssm_a -> gate-18|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.429 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.432 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ssm_beta.weight x attn_norm-18 -> node_1078|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.433 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.436 D ggml-hex: HTP0 supports-op MUL|norm-18 x blk.18.ssm_norm.weight -> node_1088|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.437 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.441 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.attn_gate.weight x attn_norm-18 -> z-18|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.441 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.445 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ssm_out.weight x final_output-18 -> linear_attn_out-18|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.445 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.449 D ggml-hex: HTP0 supports-op MUL|norm-18 x blk.18.post_attention_norm.weight -> attn_post_norm-18|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.449 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.454 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ffn_gate.weight x attn_post_norm-18 -> ffn_gate-18|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.454 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.459 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ffn_up.weight x attn_post_norm-18 -> ffn_up-18|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.459 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.463 D ggml-hex: HTP0 supports-op MUL_MAT|blk.18.ffn_down.weight x ffn_swiglu-18 -> ffn_out-18|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.463 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.467 D ggml-hex: HTP0 supports-op MUL|norm-19 x blk.19.attn_norm.weight -> attn_norm-19|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.467 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.471 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_q.weight x attn_norm-19 -> Qcur_full-19|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.472 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.475 D ggml-hex: HTP0 supports-op MUL|norm-19 x blk.19.attn_q_norm.weight -> Qcur_normed-19|256:16:1024:1 x 256:1 -> 256:16:1024:1|f32 x f32 -> f32|4:1024:16384:16777216 x 4:1024 -> 4:1024:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.476 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.480 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_v.weight x attn_norm-19 -> Vcur-19|2560:1024 x 2560:1024 -> 1024:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.480 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.484 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_k.weight x attn_norm-19 -> Kcur-19|2560:1024 x 2560:1024 -> 1024:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.484 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.488 D ggml-hex: HTP0 supports-op MUL|norm-19 x blk.19.attn_k_norm.weight -> Kcur_normed-19|256:4:1024:1 x 256:1 -> 256:4:1024:1|f32 x f32 -> f32|4:1024:4096:4194304 x 4:1024 -> 4:1024:4096:4194304|NONE x HTP0 -> NONE|yes
+0.00.964.489 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.493 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.attn_output.weight x attn_gated-19 -> attn_output-19|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.493 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.496 D ggml-hex: HTP0 supports-op MUL|norm-19 x blk.19.post_attention_norm.weight -> attn_post_norm-19|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.497 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.501 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.ffn_gate.weight x attn_post_norm-19 -> ffn_gate-19|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.502 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.506 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.ffn_up.weight x attn_post_norm-19 -> ffn_up-19|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.507 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.511 D ggml-hex: HTP0 supports-op MUL_MAT|blk.19.ffn_down.weight x ffn_swiglu-19 -> ffn_out-19|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.511 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.514 D ggml-hex: HTP0 supports-op MUL|norm-20 x blk.20.attn_norm.weight -> attn_norm-20|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.515 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.519 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_qkv.weight x attn_norm-20 -> node_1153|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.520 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.524 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-20 x blk.20.ssm_conv1d.weight -> conv_output_raw-20|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.524 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.527 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ssm_alpha.weight x attn_norm-20 -> node_1174|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.528 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.531 D ggml-hex: HTP0 supports-op ADD|alpha-20 x blk.20.ssm_dt.bias -> node_1176|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.532 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.535 D ggml-hex: HTP0 supports-op MUL|a_softplus-20 x blk.20.ssm_a -> gate-20|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.536 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.539 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ssm_beta.weight x attn_norm-20 -> node_1180|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.539 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.543 D ggml-hex: HTP0 supports-op MUL|norm-20 x blk.20.ssm_norm.weight -> node_1190|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.544 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.548 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.attn_gate.weight x attn_norm-20 -> z-20|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.548 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.552 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ssm_out.weight x final_output-20 -> linear_attn_out-20|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.552 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.556 D ggml-hex: HTP0 supports-op MUL|norm-20 x blk.20.post_attention_norm.weight -> attn_post_norm-20|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.556 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.561 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ffn_gate.weight x attn_post_norm-20 -> ffn_gate-20|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.561 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.566 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ffn_up.weight x attn_post_norm-20 -> ffn_up-20|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.566 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.570 D ggml-hex: HTP0 supports-op MUL_MAT|blk.20.ffn_down.weight x ffn_swiglu-20 -> ffn_out-20|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.570 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.573 D ggml-hex: HTP0 supports-op MUL|norm-21 x blk.21.attn_norm.weight -> attn_norm-21|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.574 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.578 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_qkv.weight x attn_norm-21 -> node_1216|2560:8192 x 2560:1024 -> 8192:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.579 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.582 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-21 x blk.21.ssm_conv1d.weight -> conv_output_raw-21|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.583 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.586 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ssm_alpha.weight x attn_norm-21 -> node_1237|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.587 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.590 D ggml-hex: HTP0 supports-op ADD|alpha-21 x blk.21.ssm_dt.bias -> node_1239|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.591 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.594 D ggml-hex: HTP0 supports-op MUL|a_softplus-21 x blk.21.ssm_a -> gate-21|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.594 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.598 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ssm_beta.weight x attn_norm-21 -> node_1243|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.599 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.603 D ggml-hex: HTP0 supports-op MUL|norm-21 x blk.21.ssm_norm.weight -> node_1253|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.603 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.607 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.attn_gate.weight x attn_norm-21 -> z-21|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.608 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.611 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ssm_out.weight x final_output-21 -> linear_attn_out-21|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.612 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.615 D ggml-hex: HTP0 supports-op MUL|norm-21 x blk.21.post_attention_norm.weight -> attn_post_norm-21|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.616 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.620 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ffn_gate.weight x attn_post_norm-21 -> ffn_gate-21|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.621 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.625 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ffn_up.weight x attn_post_norm-21 -> ffn_up-21|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.626 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.629 D ggml-hex: HTP0 supports-op MUL_MAT|blk.21.ffn_down.weight x ffn_swiglu-21 -> ffn_out-21|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.630 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.633 D ggml-hex: HTP0 supports-op MUL|norm-22 x blk.22.attn_norm.weight -> attn_norm-22|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.634 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.638 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_qkv.weight x attn_norm-22 -> node_1279|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.639 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.642 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-22 x blk.22.ssm_conv1d.weight -> conv_output_raw-22|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.643 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.646 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ssm_alpha.weight x attn_norm-22 -> node_1300|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.647 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.650 D ggml-hex: HTP0 supports-op ADD|alpha-22 x blk.22.ssm_dt.bias -> node_1302|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.650 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.654 D ggml-hex: HTP0 supports-op MUL|a_softplus-22 x blk.22.ssm_a -> gate-22|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.654 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.657 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ssm_beta.weight x attn_norm-22 -> node_1306|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.658 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.662 D ggml-hex: HTP0 supports-op MUL|norm-22 x blk.22.ssm_norm.weight -> node_1316|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.662 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.666 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.attn_gate.weight x attn_norm-22 -> z-22|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.667 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.670 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ssm_out.weight x final_output-22 -> linear_attn_out-22|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.671 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.675 D ggml-hex: HTP0 supports-op MUL|norm-22 x blk.22.post_attention_norm.weight -> attn_post_norm-22|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.675 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.680 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ffn_gate.weight x attn_post_norm-22 -> ffn_gate-22|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.680 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.685 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ffn_up.weight x attn_post_norm-22 -> ffn_up-22|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.685 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.689 D ggml-hex: HTP0 supports-op MUL_MAT|blk.22.ffn_down.weight x ffn_swiglu-22 -> ffn_out-22|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.690 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.693 D ggml-hex: HTP0 supports-op MUL|norm-23 x blk.23.attn_norm.weight -> attn_norm-23|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.693 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.698 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_q.weight x attn_norm-23 -> Qcur_full-23|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.698 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.702 D ggml-hex: HTP0 supports-op MUL|norm-23 x blk.23.attn_q_norm.weight -> Qcur_normed-23|256:16:1024:1 x 256:1 -> 256:16:1024:1|f32 x f32 -> f32|4:1024:16384:16777216 x 4:1024 -> 4:1024:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.702 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.706 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_v.weight x attn_norm-23 -> Vcur-23|2560:1024 x 2560:1024 -> 1024:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.706 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.710 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_k.weight x attn_norm-23 -> Kcur-23|2560:1024 x 2560:1024 -> 1024:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.711 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.714 D ggml-hex: HTP0 supports-op MUL|norm-23 x blk.23.attn_k_norm.weight -> Kcur_normed-23|256:4:1024:1 x 256:1 -> 256:4:1024:1|f32 x f32 -> f32|4:1024:4096:4194304 x 4:1024 -> 4:1024:4096:4194304|NONE x HTP0 -> NONE|yes
+0.00.964.715 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.719 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.attn_output.weight x attn_gated-23 -> attn_output-23|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.720 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.723 D ggml-hex: HTP0 supports-op MUL|norm-23 x blk.23.post_attention_norm.weight -> attn_post_norm-23|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.723 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.728 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.ffn_gate.weight x attn_post_norm-23 -> ffn_gate-23|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.728 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.733 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.ffn_up.weight x attn_post_norm-23 -> ffn_up-23|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.733 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.737 D ggml-hex: HTP0 supports-op MUL_MAT|blk.23.ffn_down.weight x ffn_swiglu-23 -> ffn_out-23|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.737 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.741 D ggml-hex: HTP0 supports-op MUL|norm-24 x blk.24.attn_norm.weight -> attn_norm-24|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.741 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.746 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_qkv.weight x attn_norm-24 -> node_1381|2560:8192 x 2560:1024 -> 8192:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.747 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.750 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-24 x blk.24.ssm_conv1d.weight -> conv_output_raw-24|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.750 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.754 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ssm_alpha.weight x attn_norm-24 -> node_1402|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.754 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.757 D ggml-hex: HTP0 supports-op ADD|alpha-24 x blk.24.ssm_dt.bias -> node_1404|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.758 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.761 D ggml-hex: HTP0 supports-op MUL|a_softplus-24 x blk.24.ssm_a -> gate-24|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.762 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.765 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ssm_beta.weight x attn_norm-24 -> node_1408|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.766 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.769 D ggml-hex: HTP0 supports-op MUL|norm-24 x blk.24.ssm_norm.weight -> node_1418|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.770 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.774 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.attn_gate.weight x attn_norm-24 -> z-24|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.775 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.778 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ssm_out.weight x final_output-24 -> linear_attn_out-24|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.779 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.782 D ggml-hex: HTP0 supports-op MUL|norm-24 x blk.24.post_attention_norm.weight -> attn_post_norm-24|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.783 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.787 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ffn_gate.weight x attn_post_norm-24 -> ffn_gate-24|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.788 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.792 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ffn_up.weight x attn_post_norm-24 -> ffn_up-24|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.793 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.796 D ggml-hex: HTP0 supports-op MUL_MAT|blk.24.ffn_down.weight x ffn_swiglu-24 -> ffn_out-24|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.797 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.800 D ggml-hex: HTP0 supports-op MUL|norm-25 x blk.25.attn_norm.weight -> attn_norm-25|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.801 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.805 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_qkv.weight x attn_norm-25 -> node_1444|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.806 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.810 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-25 x blk.25.ssm_conv1d.weight -> conv_output_raw-25|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.810 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.813 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ssm_alpha.weight x attn_norm-25 -> node_1465|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.814 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.817 D ggml-hex: HTP0 supports-op ADD|alpha-25 x blk.25.ssm_dt.bias -> node_1467|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.818 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.821 D ggml-hex: HTP0 supports-op MUL|a_softplus-25 x blk.25.ssm_a -> gate-25|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.822 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.825 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ssm_beta.weight x attn_norm-25 -> node_1471|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.826 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.829 D ggml-hex: HTP0 supports-op MUL|norm-25 x blk.25.ssm_norm.weight -> node_1481|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.830 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.834 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.attn_gate.weight x attn_norm-25 -> z-25|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.834 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.838 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ssm_out.weight x final_output-25 -> linear_attn_out-25|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.839 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.842 D ggml-hex: HTP0 supports-op MUL|norm-25 x blk.25.post_attention_norm.weight -> attn_post_norm-25|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.842 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.847 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ffn_gate.weight x attn_post_norm-25 -> ffn_gate-25|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.847 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.852 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ffn_up.weight x attn_post_norm-25 -> ffn_up-25|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.852 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.856 D ggml-hex: HTP0 supports-op MUL_MAT|blk.25.ffn_down.weight x ffn_swiglu-25 -> ffn_out-25|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.856 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.860 D ggml-hex: HTP0 supports-op MUL|norm-26 x blk.26.attn_norm.weight -> attn_norm-26|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.861 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.865 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_qkv.weight x attn_norm-26 -> node_1507|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.866 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.869 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-26 x blk.26.ssm_conv1d.weight -> conv_output_raw-26|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.870 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.873 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ssm_alpha.weight x attn_norm-26 -> node_1528|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.873 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.877 D ggml-hex: HTP0 supports-op ADD|alpha-26 x blk.26.ssm_dt.bias -> node_1530|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.877 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.880 D ggml-hex: HTP0 supports-op MUL|a_softplus-26 x blk.26.ssm_a -> gate-26|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.881 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.884 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ssm_beta.weight x attn_norm-26 -> node_1534|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.885 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.889 D ggml-hex: HTP0 supports-op MUL|norm-26 x blk.26.ssm_norm.weight -> node_1544|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.889 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.893 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.attn_gate.weight x attn_norm-26 -> z-26|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.894 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.897 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ssm_out.weight x final_output-26 -> linear_attn_out-26|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.898 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.901 D ggml-hex: HTP0 supports-op MUL|norm-26 x blk.26.post_attention_norm.weight -> attn_post_norm-26|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.902 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.906 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ffn_gate.weight x attn_post_norm-26 -> ffn_gate-26|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.907 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.911 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ffn_up.weight x attn_post_norm-26 -> ffn_up-26|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.912 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.915 D ggml-hex: HTP0 supports-op MUL_MAT|blk.26.ffn_down.weight x ffn_swiglu-26 -> ffn_out-26|9216:2560 x 9216:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:5184 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.916 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.919 D ggml-hex: HTP0 supports-op MUL|norm-27 x blk.27.attn_norm.weight -> attn_norm-27|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.919 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.924 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_q.weight x attn_norm-27 -> Qcur_full-27|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.925 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.928 D ggml-hex: HTP0 supports-op MUL|norm-27 x blk.27.attn_q_norm.weight -> Qcur_normed-27|256:16:1024:1 x 256:1 -> 256:16:1024:1|f32 x f32 -> f32|4:1024:16384:16777216 x 4:1024 -> 4:1024:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.929 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.932 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_v.weight x attn_norm-27 -> Vcur-27|2560:1024 x 2560:1024 -> 1024:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.933 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.936 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_k.weight x attn_norm-27 -> Kcur-27|2560:1024 x 2560:1024 -> 1024:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.937 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.941 D ggml-hex: HTP0 supports-op MUL|norm-27 x blk.27.attn_k_norm.weight -> Kcur_normed-27|256:4:1024:1 x 256:1 -> 256:4:1024:1|f32 x f32 -> f32|4:1024:4096:4194304 x 4:1024 -> 4:1024:4096:4194304|NONE x HTP0 -> NONE|yes
+0.00.964.942 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.945 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.attn_output.weight x attn_gated-27 -> attn_output-27|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.946 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.949 D ggml-hex: HTP0 supports-op MUL|norm-27 x blk.27.post_attention_norm.weight -> attn_post_norm-27|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.950 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.954 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.ffn_gate.weight x attn_post_norm-27 -> ffn_gate-27|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.955 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.959 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.ffn_up.weight x attn_post_norm-27 -> ffn_up-27|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.960 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.963 D ggml-hex: HTP0 supports-op MUL_MAT|blk.27.ffn_down.weight x ffn_swiglu-27 -> ffn_out-27|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.964 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.967 D ggml-hex: HTP0 supports-op MUL|norm-28 x blk.28.attn_norm.weight -> attn_norm-28|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.964.968 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.972 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.attn_qkv.weight x attn_norm-28 -> node_1609|2560:8192 x 2560:1024 -> 8192:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.973 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.976 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-28 x blk.28.ssm_conv1d.weight -> conv_output_raw-28|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.964.977 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.980 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.ssm_alpha.weight x attn_norm-28 -> node_1630|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.981 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.984 D ggml-hex: HTP0 supports-op ADD|alpha-28 x blk.28.ssm_dt.bias -> node_1632|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.984 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.988 D ggml-hex: HTP0 supports-op MUL|a_softplus-28 x blk.28.ssm_a -> gate-28|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.964.988 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.992 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.ssm_beta.weight x attn_norm-28 -> node_1636|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.964.992 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.964.996 D ggml-hex: HTP0 supports-op MUL|norm-28 x blk.28.ssm_norm.weight -> node_1646|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.964.996 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.000 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.attn_gate.weight x attn_norm-28 -> z-28|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.001 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.005 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.ssm_out.weight x final_output-28 -> linear_attn_out-28|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.005 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.008 D ggml-hex: HTP0 supports-op MUL|norm-28 x blk.28.post_attention_norm.weight -> attn_post_norm-28|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.009 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.014 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.ffn_gate.weight x attn_post_norm-28 -> ffn_gate-28|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.014 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.019 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.ffn_up.weight x attn_post_norm-28 -> ffn_up-28|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.019 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.023 D ggml-hex: HTP0 supports-op MUL_MAT|blk.28.ffn_down.weight x ffn_swiglu-28 -> ffn_out-28|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.023 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.423 D ggml-hex: HTP0 supports-op MUL|norm-29 x blk.29.attn_norm.weight -> attn_norm-29|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.424 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.430 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.attn_qkv.weight x attn_norm-29 -> node_1672|2560:8192 x 2560:1024 -> 8192:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.431 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.434 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-29 x blk.29.ssm_conv1d.weight -> conv_output_raw-29|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.965.435 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.438 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.ssm_alpha.weight x attn_norm-29 -> node_1693|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.439 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.443 D ggml-hex: HTP0 supports-op ADD|alpha-29 x blk.29.ssm_dt.bias -> node_1695|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.965.443 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.447 D ggml-hex: HTP0 supports-op MUL|a_softplus-29 x blk.29.ssm_a -> gate-29|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.965.447 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.451 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.ssm_beta.weight x attn_norm-29 -> node_1699|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.452 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.456 D ggml-hex: HTP0 supports-op MUL|norm-29 x blk.29.ssm_norm.weight -> node_1709|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.965.456 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.460 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.attn_gate.weight x attn_norm-29 -> z-29|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.461 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.465 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.ssm_out.weight x final_output-29 -> linear_attn_out-29|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.465 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.469 D ggml-hex: HTP0 supports-op MUL|norm-29 x blk.29.post_attention_norm.weight -> attn_post_norm-29|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.469 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.474 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.ffn_gate.weight x attn_post_norm-29 -> ffn_gate-29|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.474 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.479 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.ffn_up.weight x attn_post_norm-29 -> ffn_up-29|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.479 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.483 D ggml-hex: HTP0 supports-op MUL_MAT|blk.29.ffn_down.weight x ffn_swiglu-29 -> ffn_out-29|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.483 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.487 D ggml-hex: HTP0 supports-op MUL|norm-30 x blk.30.attn_norm.weight -> attn_norm-30|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.487 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.492 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.attn_qkv.weight x attn_norm-30 -> node_1735|2560:8192 x 2560:1024 -> 8192:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.493 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.496 D ggml-hex: HTP0 supports-op SSM_CONV|conv_input-30 x blk.30.ssm_conv1d.weight -> conv_output_raw-30|1027:8192 x 4:8192 -> 8192:1024|f32 x f32 -> f32|4:4108 x 4:16 -> 4:32768|NONE x HTP0 -> NONE|yes
+0.00.965.497 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.500 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.ssm_alpha.weight x attn_norm-30 -> node_1756|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.500 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.504 D ggml-hex: HTP0 supports-op ADD|alpha-30 x blk.30.ssm_dt.bias -> node_1758|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.965.504 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.508 D ggml-hex: HTP0 supports-op MUL|a_softplus-30 x blk.30.ssm_a -> gate-30|32:1024 x 32:1 -> 32:1024|f32 x f32 -> f32|4:128 x 4:128 -> 4:128|NONE x HTP0 -> NONE|yes
+0.00.965.508 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.511 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.ssm_beta.weight x attn_norm-30 -> node_1762|2560:32 x 2560:1024 -> 32:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:128|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.512 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.516 D ggml-hex: HTP0 supports-op MUL|norm-30 x blk.30.ssm_norm.weight -> node_1772|128:32:1024:1 x 128:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512 -> 4:512:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.965.516 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.520 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.attn_gate.weight x attn_norm-30 -> z-30|2560:4096 x 2560:1024 -> 4096:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:16384|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.521 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.524 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.ssm_out.weight x final_output-30 -> linear_attn_out-30|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.525 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.528 D ggml-hex: HTP0 supports-op MUL|norm-30 x blk.30.post_attention_norm.weight -> attn_post_norm-30|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.529 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.533 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.ffn_gate.weight x attn_post_norm-30 -> ffn_gate-30|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.534 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.538 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.ffn_up.weight x attn_post_norm-30 -> ffn_up-30|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.539 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.542 D ggml-hex: HTP0 supports-op MUL_MAT|blk.30.ffn_down.weight x ffn_swiglu-30 -> ffn_out-30|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.543 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.546 D ggml-hex: HTP0 supports-op MUL|norm-31 x blk.31.attn_norm.weight -> attn_norm-31|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.547 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.551 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.attn_q.weight x attn_norm-31 -> Qcur_full-31|2560:8192 x 2560:1024 -> 8192:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:32768|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.551 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.555 D ggml-hex: HTP0 supports-op MUL|norm-31 x blk.31.attn_q_norm.weight -> Qcur_normed-31|256:16:1024:1 x 256:1 -> 256:16:1024:1|f32 x f32 -> f32|4:1024:16384:16777216 x 4:1024 -> 4:1024:16384:16777216|NONE x HTP0 -> NONE|yes
+0.00.965.556 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.559 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.attn_v.weight x attn_norm-31 -> Vcur-31|2560:1024 x 2560:1024 -> 1024:1024|q8_0 x f32 -> f32|34:2720 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.560 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.564 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.attn_k.weight x attn_norm-31 -> Kcur-31|2560:1024 x 2560:1024 -> 1024:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:4096|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.564 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.568 D ggml-hex: HTP0 supports-op MUL|norm-31 x blk.31.attn_k_norm.weight -> Kcur_normed-31|256:4:1024:1 x 256:1 -> 256:4:1024:1|f32 x f32 -> f32|4:1024:4096:4194304 x 4:1024 -> 4:1024:4096:4194304|NONE x HTP0 -> NONE|yes
+0.00.965.568 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.572 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.attn_output.weight x attn_gated-31 -> attn_output-31|4096:2560 x 4096:1024 -> 2560:1024|iq4_nl x f32 -> f32|18:2304 x 4:16384 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.573 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.576 D ggml-hex: HTP0 supports-op MUL|norm-31 x blk.31.post_attention_norm.weight -> attn_post_norm-31|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.577 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.581 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.ffn_gate.weight x attn_post_norm-31 -> ffn_gate-31|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.582 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.586 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.ffn_up.weight x attn_post_norm-31 -> ffn_up-31|2560:9216 x 2560:1024 -> 9216:1024|iq4_nl x f32 -> f32|18:1440 x 4:10240 -> 4:36864|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.587 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.590 D ggml-hex: HTP0 supports-op MUL_MAT|blk.31.ffn_down.weight x ffn_swiglu-31 -> ffn_out-31|9216:2560 x 9216:1024 -> 2560:1024|q8_0 x f32 -> f32|34:9792 x 4:36864 -> 4:10240|HTP0-REPACK x NONE -> NONE|yes
+0.00.965.591 D ggml-hex: HTP0 device-supports-buft HTP0 (1)
+0.00.965.594 D ggml-hex: HTP0 supports-op MUL|norm x output_norm.weight -> h_nextn|2560:1024 x 2560:1 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x HTP0 -> NONE|yes
+0.00.965.599 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-0 x qkv_mixed_transposed-0 -> conv_input-0|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.602 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-0 -> conv_output_silu-0|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.605 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-0 -> q_conv_predelta-0|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.608 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-0 -> k_conv_predelta-0|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.610 D ggml-hex: HTP0 supports-op SOFTPLUS|node_36 -> a_softplus-0|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.613 D ggml-hex: HTP0 supports-op SIGMOID|beta-0 -> beta_sigmoid-0|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.622 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-0 x k_conv_predelta-0 x v_conv_predelta-0 x gate-0 (reshaped) x beta_sigmoid-0 x state_predelta-0 -> node_44|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.625 D ggml-hex: HTP0 supports-op SILU|z-0 (reshaped) -> node_53|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.629 D ggml-hex: HTP0 supports-op MUL|node_50 x node_53 -> node_54|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.632 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-0 (reshaped) x model.input_embed -> attn_residual-0|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.636 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-0 x ffn_up-0 -> ffn_swiglu-0|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.639 D ggml-hex: HTP0 supports-op ADD|ffn_out-0 x attn_residual-0 -> l_out-0|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.643 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-1 x qkv_mixed_transposed-1 -> conv_input-1|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.646 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-1 -> conv_output_silu-1|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.649 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-1 -> q_conv_predelta-1|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.652 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-1 -> k_conv_predelta-1|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.654 D ggml-hex: HTP0 supports-op SOFTPLUS|node_99 -> a_softplus-1|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.657 D ggml-hex: HTP0 supports-op SIGMOID|beta-1 -> beta_sigmoid-1|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.665 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-1 x k_conv_predelta-1 x v_conv_predelta-1 x gate-1 (reshaped) x beta_sigmoid-1 x state_predelta-1 -> node_107|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.668 D ggml-hex: HTP0 supports-op SILU|z-1 (reshaped) -> node_116|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.672 D ggml-hex: HTP0 supports-op MUL|node_113 x node_116 -> node_117|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.675 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-1 (reshaped) x l_out-0 -> attn_residual-1|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.679 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-1 x ffn_up-1 -> ffn_swiglu-1|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.682 D ggml-hex: HTP0 supports-op ADD|ffn_out-1 x attn_residual-1 -> l_out-1|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.686 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-2 x qkv_mixed_transposed-2 -> conv_input-2|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.689 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-2 -> conv_output_silu-2|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.692 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-2 -> q_conv_predelta-2|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.694 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-2 -> k_conv_predelta-2|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.697 D ggml-hex: HTP0 supports-op SOFTPLUS|node_162 -> a_softplus-2|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.700 D ggml-hex: HTP0 supports-op SIGMOID|beta-2 -> beta_sigmoid-2|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.707 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-2 x k_conv_predelta-2 x v_conv_predelta-2 x gate-2 (reshaped) x beta_sigmoid-2 x state_predelta-2 -> node_170|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.710 D ggml-hex: HTP0 supports-op SILU|z-2 (reshaped) -> node_179|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.714 D ggml-hex: HTP0 supports-op MUL|node_176 x node_179 -> node_180|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.717 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-2 (reshaped) x l_out-1 -> attn_residual-2|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.721 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-2 x ffn_up-2 -> ffn_swiglu-2|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.724 D ggml-hex: HTP0 supports-op ADD|ffn_out-2 x attn_residual-2 -> l_out-2|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.728 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-3 x leaf_55 -> Qcur-3|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.732 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-3 x leaf_55 -> Kcur-3|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.965.735 D ggml-hex: HTP0 supports-op ADD|attn_output-3 x l_out-2 -> attn_residual-3|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.739 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-3 x ffn_up-3 -> ffn_swiglu-3|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.742 D ggml-hex: HTP0 supports-op ADD|ffn_out-3 x attn_residual-3 -> l_out-3|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.745 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-4 x qkv_mixed_transposed-4 -> conv_input-4|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.748 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-4 -> conv_output_silu-4|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.751 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-4 -> q_conv_predelta-4|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.754 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-4 -> k_conv_predelta-4|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.756 D ggml-hex: HTP0 supports-op SOFTPLUS|node_264 -> a_softplus-4|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.759 D ggml-hex: HTP0 supports-op SIGMOID|beta-4 -> beta_sigmoid-4|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.767 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-4 x k_conv_predelta-4 x v_conv_predelta-4 x gate-4 (reshaped) x beta_sigmoid-4 x state_predelta-4 -> node_272|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.770 D ggml-hex: HTP0 supports-op SILU|z-4 (reshaped) -> node_281|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.774 D ggml-hex: HTP0 supports-op MUL|node_278 x node_281 -> node_282|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.777 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-4 (reshaped) x l_out-3 -> attn_residual-4|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.780 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-4 x ffn_up-4 -> ffn_swiglu-4|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.784 D ggml-hex: HTP0 supports-op ADD|ffn_out-4 x attn_residual-4 -> l_out-4|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.787 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-5 x qkv_mixed_transposed-5 -> conv_input-5|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.790 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-5 -> conv_output_silu-5|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.793 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-5 -> q_conv_predelta-5|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.796 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-5 -> k_conv_predelta-5|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.798 D ggml-hex: HTP0 supports-op SOFTPLUS|node_327 -> a_softplus-5|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.801 D ggml-hex: HTP0 supports-op SIGMOID|beta-5 -> beta_sigmoid-5|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.809 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-5 x k_conv_predelta-5 x v_conv_predelta-5 x gate-5 (reshaped) x beta_sigmoid-5 x state_predelta-5 -> node_335|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.812 D ggml-hex: HTP0 supports-op SILU|z-5 (reshaped) -> node_344|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.815 D ggml-hex: HTP0 supports-op MUL|node_341 x node_344 -> node_345|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.819 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-5 (reshaped) x l_out-4 -> attn_residual-5|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.822 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-5 x ffn_up-5 -> ffn_swiglu-5|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.826 D ggml-hex: HTP0 supports-op ADD|ffn_out-5 x attn_residual-5 -> l_out-5|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.829 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-6 x qkv_mixed_transposed-6 -> conv_input-6|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.832 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-6 -> conv_output_silu-6|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.835 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-6 -> q_conv_predelta-6|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.838 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-6 -> k_conv_predelta-6|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.840 D ggml-hex: HTP0 supports-op SOFTPLUS|node_390 -> a_softplus-6|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.843 D ggml-hex: HTP0 supports-op SIGMOID|beta-6 -> beta_sigmoid-6|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.850 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-6 x k_conv_predelta-6 x v_conv_predelta-6 x gate-6 (reshaped) x beta_sigmoid-6 x state_predelta-6 -> node_398|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.853 D ggml-hex: HTP0 supports-op SILU|z-6 (reshaped) -> node_407|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.857 D ggml-hex: HTP0 supports-op MUL|node_404 x node_407 -> node_408|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.860 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-6 (reshaped) x l_out-5 -> attn_residual-6|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.864 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-6 x ffn_up-6 -> ffn_swiglu-6|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.867 D ggml-hex: HTP0 supports-op ADD|ffn_out-6 x attn_residual-6 -> l_out-6|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.871 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-7 x leaf_55 -> Qcur-7|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.875 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-7 x leaf_55 -> Kcur-7|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.965.878 D ggml-hex: HTP0 supports-op ADD|attn_output-7 x l_out-6 -> attn_residual-7|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.881 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-7 x ffn_up-7 -> ffn_swiglu-7|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.885 D ggml-hex: HTP0 supports-op ADD|ffn_out-7 x attn_residual-7 -> l_out-7|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.888 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-8 x qkv_mixed_transposed-8 -> conv_input-8|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.891 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-8 -> conv_output_silu-8|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.894 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-8 -> q_conv_predelta-8|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.897 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-8 -> k_conv_predelta-8|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.899 D ggml-hex: HTP0 supports-op SOFTPLUS|node_492 -> a_softplus-8|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.902 D ggml-hex: HTP0 supports-op SIGMOID|beta-8 -> beta_sigmoid-8|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.910 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-8 x k_conv_predelta-8 x v_conv_predelta-8 x gate-8 (reshaped) x beta_sigmoid-8 x state_predelta-8 -> node_500|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.913 D ggml-hex: HTP0 supports-op SILU|z-8 (reshaped) -> node_509|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.917 D ggml-hex: HTP0 supports-op MUL|node_506 x node_509 -> node_510|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.920 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-8 (reshaped) x l_out-7 -> attn_residual-8|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.923 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-8 x ffn_up-8 -> ffn_swiglu-8|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.927 D ggml-hex: HTP0 supports-op ADD|ffn_out-8 x attn_residual-8 -> l_out-8|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.930 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-9 x qkv_mixed_transposed-9 -> conv_input-9|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.933 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-9 -> conv_output_silu-9|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.936 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-9 -> q_conv_predelta-9|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.939 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-9 -> k_conv_predelta-9|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.941 D ggml-hex: HTP0 supports-op SOFTPLUS|node_555 -> a_softplus-9|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.944 D ggml-hex: HTP0 supports-op SIGMOID|beta-9 -> beta_sigmoid-9|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.952 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-9 x k_conv_predelta-9 x v_conv_predelta-9 x gate-9 (reshaped) x beta_sigmoid-9 x state_predelta-9 -> node_563|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.965.954 D ggml-hex: HTP0 supports-op SILU|z-9 (reshaped) -> node_572|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.965.958 D ggml-hex: HTP0 supports-op MUL|node_569 x node_572 -> node_573|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.965.962 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-9 (reshaped) x l_out-8 -> attn_residual-9|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.965 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-9 x ffn_up-9 -> ffn_swiglu-9|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.965.968 D ggml-hex: HTP0 supports-op ADD|ffn_out-9 x attn_residual-9 -> l_out-9|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.965.972 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-10 x qkv_mixed_transposed-10 -> conv_input-10|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.965.975 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-10 -> conv_output_silu-10|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.965.978 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-10 -> q_conv_predelta-10|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.981 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-10 -> k_conv_predelta-10|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.965.983 D ggml-hex: HTP0 supports-op SOFTPLUS|node_618 -> a_softplus-10|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.965.986 D ggml-hex: HTP0 supports-op SIGMOID|beta-10 -> beta_sigmoid-10|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.965.997 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-10 x k_conv_predelta-10 x v_conv_predelta-10 x gate-10 (reshaped) x beta_sigmoid-10 x state_predelta-10 -> node_626|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.000 D ggml-hex: HTP0 supports-op SILU|z-10 (reshaped) -> node_635|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.004 D ggml-hex: HTP0 supports-op MUL|node_632 x node_635 -> node_636|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.008 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-10 (reshaped) x l_out-9 -> attn_residual-10|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.011 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-10 x ffn_up-10 -> ffn_swiglu-10|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.014 D ggml-hex: HTP0 supports-op ADD|ffn_out-10 x attn_residual-10 -> l_out-10|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.018 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-11 x leaf_55 -> Qcur-11|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.022 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-11 x leaf_55 -> Kcur-11|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.966.025 D ggml-hex: HTP0 supports-op ADD|attn_output-11 x l_out-10 -> attn_residual-11|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.028 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-11 x ffn_up-11 -> ffn_swiglu-11|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.032 D ggml-hex: HTP0 supports-op ADD|ffn_out-11 x attn_residual-11 -> l_out-11|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.035 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-12 x qkv_mixed_transposed-12 -> conv_input-12|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.038 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-12 -> conv_output_silu-12|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.041 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-12 -> q_conv_predelta-12|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.044 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-12 -> k_conv_predelta-12|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.047 D ggml-hex: HTP0 supports-op SOFTPLUS|node_720 -> a_softplus-12|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.049 D ggml-hex: HTP0 supports-op SIGMOID|beta-12 -> beta_sigmoid-12|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.057 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-12 x k_conv_predelta-12 x v_conv_predelta-12 x gate-12 (reshaped) x beta_sigmoid-12 x state_predelta-12 -> node_728|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.060 D ggml-hex: HTP0 supports-op SILU|z-12 (reshaped) -> node_737|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.064 D ggml-hex: HTP0 supports-op MUL|node_734 x node_737 -> node_738|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.068 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-12 (reshaped) x l_out-11 -> attn_residual-12|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.071 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-12 x ffn_up-12 -> ffn_swiglu-12|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.075 D ggml-hex: HTP0 supports-op ADD|ffn_out-12 x attn_residual-12 -> l_out-12|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.078 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-13 x qkv_mixed_transposed-13 -> conv_input-13|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.081 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-13 -> conv_output_silu-13|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.084 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-13 -> q_conv_predelta-13|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.087 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-13 -> k_conv_predelta-13|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.090 D ggml-hex: HTP0 supports-op SOFTPLUS|node_783 -> a_softplus-13|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.093 D ggml-hex: HTP0 supports-op SIGMOID|beta-13 -> beta_sigmoid-13|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.100 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-13 x k_conv_predelta-13 x v_conv_predelta-13 x gate-13 (reshaped) x beta_sigmoid-13 x state_predelta-13 -> node_791|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.103 D ggml-hex: HTP0 supports-op SILU|z-13 (reshaped) -> node_800|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.107 D ggml-hex: HTP0 supports-op MUL|node_797 x node_800 -> node_801|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.110 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-13 (reshaped) x l_out-12 -> attn_residual-13|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.114 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-13 x ffn_up-13 -> ffn_swiglu-13|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.117 D ggml-hex: HTP0 supports-op ADD|ffn_out-13 x attn_residual-13 -> l_out-13|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.121 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-14 x qkv_mixed_transposed-14 -> conv_input-14|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.124 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-14 -> conv_output_silu-14|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.127 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-14 -> q_conv_predelta-14|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.130 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-14 -> k_conv_predelta-14|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.132 D ggml-hex: HTP0 supports-op SOFTPLUS|node_846 -> a_softplus-14|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.135 D ggml-hex: HTP0 supports-op SIGMOID|beta-14 -> beta_sigmoid-14|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.142 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-14 x k_conv_predelta-14 x v_conv_predelta-14 x gate-14 (reshaped) x beta_sigmoid-14 x state_predelta-14 -> node_854|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.145 D ggml-hex: HTP0 supports-op SILU|z-14 (reshaped) -> node_863|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.149 D ggml-hex: HTP0 supports-op MUL|node_860 x node_863 -> node_864|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.153 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-14 (reshaped) x l_out-13 -> attn_residual-14|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.156 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-14 x ffn_up-14 -> ffn_swiglu-14|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.160 D ggml-hex: HTP0 supports-op ADD|ffn_out-14 x attn_residual-14 -> l_out-14|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.163 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-15 x leaf_55 -> Qcur-15|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.167 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-15 x leaf_55 -> Kcur-15|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.966.171 D ggml-hex: HTP0 supports-op ADD|attn_output-15 x l_out-14 -> attn_residual-15|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.174 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-15 x ffn_up-15 -> ffn_swiglu-15|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.178 D ggml-hex: HTP0 supports-op ADD|ffn_out-15 x attn_residual-15 -> l_out-15|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.181 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-16 x qkv_mixed_transposed-16 -> conv_input-16|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.184 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-16 -> conv_output_silu-16|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.187 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-16 -> q_conv_predelta-16|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.190 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-16 -> k_conv_predelta-16|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.193 D ggml-hex: HTP0 supports-op SOFTPLUS|node_948 -> a_softplus-16|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.196 D ggml-hex: HTP0 supports-op SIGMOID|beta-16 -> beta_sigmoid-16|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.203 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-16 x k_conv_predelta-16 x v_conv_predelta-16 x gate-16 (reshaped) x beta_sigmoid-16 x state_predelta-16 -> node_956|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.206 D ggml-hex: HTP0 supports-op SILU|z-16 (reshaped) -> node_965|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.210 D ggml-hex: HTP0 supports-op MUL|node_962 x node_965 -> node_966|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.214 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-16 (reshaped) x l_out-15 -> attn_residual-16|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.217 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-16 x ffn_up-16 -> ffn_swiglu-16|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.221 D ggml-hex: HTP0 supports-op ADD|ffn_out-16 x attn_residual-16 -> l_out-16|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.224 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-17 x qkv_mixed_transposed-17 -> conv_input-17|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.227 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-17 -> conv_output_silu-17|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.230 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-17 -> q_conv_predelta-17|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.233 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-17 -> k_conv_predelta-17|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.235 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1011 -> a_softplus-17|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.239 D ggml-hex: HTP0 supports-op SIGMOID|beta-17 -> beta_sigmoid-17|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.246 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-17 x k_conv_predelta-17 x v_conv_predelta-17 x gate-17 (reshaped) x beta_sigmoid-17 x state_predelta-17 -> node_1019|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.249 D ggml-hex: HTP0 supports-op SILU|z-17 (reshaped) -> node_1028|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.253 D ggml-hex: HTP0 supports-op MUL|node_1025 x node_1028 -> node_1029|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.256 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-17 (reshaped) x l_out-16 -> attn_residual-17|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.260 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-17 x ffn_up-17 -> ffn_swiglu-17|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.263 D ggml-hex: HTP0 supports-op ADD|ffn_out-17 x attn_residual-17 -> l_out-17|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.267 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-18 x qkv_mixed_transposed-18 -> conv_input-18|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.270 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-18 -> conv_output_silu-18|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.273 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-18 -> q_conv_predelta-18|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.276 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-18 -> k_conv_predelta-18|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.278 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1074 -> a_softplus-18|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.281 D ggml-hex: HTP0 supports-op SIGMOID|beta-18 -> beta_sigmoid-18|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.288 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-18 x k_conv_predelta-18 x v_conv_predelta-18 x gate-18 (reshaped) x beta_sigmoid-18 x state_predelta-18 -> node_1082|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.291 D ggml-hex: HTP0 supports-op SILU|z-18 (reshaped) -> node_1091|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.295 D ggml-hex: HTP0 supports-op MUL|node_1088 x node_1091 -> node_1092|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.299 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-18 (reshaped) x l_out-17 -> attn_residual-18|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.302 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-18 x ffn_up-18 -> ffn_swiglu-18|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.305 D ggml-hex: HTP0 supports-op ADD|ffn_out-18 x attn_residual-18 -> l_out-18|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.309 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-19 x leaf_55 -> Qcur-19|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.313 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-19 x leaf_55 -> Kcur-19|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.966.316 D ggml-hex: HTP0 supports-op ADD|attn_output-19 x l_out-18 -> attn_residual-19|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.320 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-19 x ffn_up-19 -> ffn_swiglu-19|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.323 D ggml-hex: HTP0 supports-op ADD|ffn_out-19 x attn_residual-19 -> l_out-19|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.327 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-20 x qkv_mixed_transposed-20 -> conv_input-20|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.330 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-20 -> conv_output_silu-20|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.333 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-20 -> q_conv_predelta-20|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.335 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-20 -> k_conv_predelta-20|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.338 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1176 -> a_softplus-20|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.341 D ggml-hex: HTP0 supports-op SIGMOID|beta-20 -> beta_sigmoid-20|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.348 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-20 x k_conv_predelta-20 x v_conv_predelta-20 x gate-20 (reshaped) x beta_sigmoid-20 x state_predelta-20 -> node_1184|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.351 D ggml-hex: HTP0 supports-op SILU|z-20 (reshaped) -> node_1193|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.355 D ggml-hex: HTP0 supports-op MUL|node_1190 x node_1193 -> node_1194|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.358 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-20 (reshaped) x l_out-19 -> attn_residual-20|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.362 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-20 x ffn_up-20 -> ffn_swiglu-20|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.365 D ggml-hex: HTP0 supports-op ADD|ffn_out-20 x attn_residual-20 -> l_out-20|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.369 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-21 x qkv_mixed_transposed-21 -> conv_input-21|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.371 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-21 -> conv_output_silu-21|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.374 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-21 -> q_conv_predelta-21|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.377 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-21 -> k_conv_predelta-21|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.380 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1239 -> a_softplus-21|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.383 D ggml-hex: HTP0 supports-op SIGMOID|beta-21 -> beta_sigmoid-21|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.390 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-21 x k_conv_predelta-21 x v_conv_predelta-21 x gate-21 (reshaped) x beta_sigmoid-21 x state_predelta-21 -> node_1247|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.393 D ggml-hex: HTP0 supports-op SILU|z-21 (reshaped) -> node_1256|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.397 D ggml-hex: HTP0 supports-op MUL|node_1253 x node_1256 -> node_1257|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.400 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-21 (reshaped) x l_out-20 -> attn_residual-21|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.404 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-21 x ffn_up-21 -> ffn_swiglu-21|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.407 D ggml-hex: HTP0 supports-op ADD|ffn_out-21 x attn_residual-21 -> l_out-21|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.411 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-22 x qkv_mixed_transposed-22 -> conv_input-22|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.413 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-22 -> conv_output_silu-22|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.416 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-22 -> q_conv_predelta-22|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.419 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-22 -> k_conv_predelta-22|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.422 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1302 -> a_softplus-22|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.425 D ggml-hex: HTP0 supports-op SIGMOID|beta-22 -> beta_sigmoid-22|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.432 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-22 x k_conv_predelta-22 x v_conv_predelta-22 x gate-22 (reshaped) x beta_sigmoid-22 x state_predelta-22 -> node_1310|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.435 D ggml-hex: HTP0 supports-op SILU|z-22 (reshaped) -> node_1319|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.439 D ggml-hex: HTP0 supports-op MUL|node_1316 x node_1319 -> node_1320|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.442 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-22 (reshaped) x l_out-21 -> attn_residual-22|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.446 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-22 x ffn_up-22 -> ffn_swiglu-22|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.449 D ggml-hex: HTP0 supports-op ADD|ffn_out-22 x attn_residual-22 -> l_out-22|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.453 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-23 x leaf_55 -> Qcur-23|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.457 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-23 x leaf_55 -> Kcur-23|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.966.460 D ggml-hex: HTP0 supports-op ADD|attn_output-23 x l_out-22 -> attn_residual-23|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.463 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-23 x ffn_up-23 -> ffn_swiglu-23|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.467 D ggml-hex: HTP0 supports-op ADD|ffn_out-23 x attn_residual-23 -> l_out-23|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.470 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-24 x qkv_mixed_transposed-24 -> conv_input-24|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.473 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-24 -> conv_output_silu-24|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.476 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-24 -> q_conv_predelta-24|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.479 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-24 -> k_conv_predelta-24|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.481 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1404 -> a_softplus-24|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.484 D ggml-hex: HTP0 supports-op SIGMOID|beta-24 -> beta_sigmoid-24|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.492 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-24 x k_conv_predelta-24 x v_conv_predelta-24 x gate-24 (reshaped) x beta_sigmoid-24 x state_predelta-24 -> node_1412|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.495 D ggml-hex: HTP0 supports-op SILU|z-24 (reshaped) -> node_1421|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.499 D ggml-hex: HTP0 supports-op MUL|node_1418 x node_1421 -> node_1422|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.502 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-24 (reshaped) x l_out-23 -> attn_residual-24|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.506 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-24 x ffn_up-24 -> ffn_swiglu-24|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.509 D ggml-hex: HTP0 supports-op ADD|ffn_out-24 x attn_residual-24 -> l_out-24|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.513 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-25 x qkv_mixed_transposed-25 -> conv_input-25|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.515 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-25 -> conv_output_silu-25|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.518 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-25 -> q_conv_predelta-25|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.521 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-25 -> k_conv_predelta-25|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.524 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1467 -> a_softplus-25|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.527 D ggml-hex: HTP0 supports-op SIGMOID|beta-25 -> beta_sigmoid-25|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.534 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-25 x k_conv_predelta-25 x v_conv_predelta-25 x gate-25 (reshaped) x beta_sigmoid-25 x state_predelta-25 -> node_1475|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.537 D ggml-hex: HTP0 supports-op SILU|z-25 (reshaped) -> node_1484|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.541 D ggml-hex: HTP0 supports-op MUL|node_1481 x node_1484 -> node_1485|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.544 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-25 (reshaped) x l_out-24 -> attn_residual-25|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.548 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-25 x ffn_up-25 -> ffn_swiglu-25|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.551 D ggml-hex: HTP0 supports-op ADD|ffn_out-25 x attn_residual-25 -> l_out-25|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.554 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-26 x qkv_mixed_transposed-26 -> conv_input-26|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.557 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-26 -> conv_output_silu-26|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.560 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-26 -> q_conv_predelta-26|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.563 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-26 -> k_conv_predelta-26|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.566 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1530 -> a_softplus-26|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.569 D ggml-hex: HTP0 supports-op SIGMOID|beta-26 -> beta_sigmoid-26|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.576 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-26 x k_conv_predelta-26 x v_conv_predelta-26 x gate-26 (reshaped) x beta_sigmoid-26 x state_predelta-26 -> node_1538|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.579 D ggml-hex: HTP0 supports-op SILU|z-26 (reshaped) -> node_1547|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.583 D ggml-hex: HTP0 supports-op MUL|node_1544 x node_1547 -> node_1548|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.586 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-26 (reshaped) x l_out-25 -> attn_residual-26|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.589 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-26 x ffn_up-26 -> ffn_swiglu-26|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.593 D ggml-hex: HTP0 supports-op ADD|ffn_out-26 x attn_residual-26 -> l_out-26|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.596 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-27 x leaf_55 -> Qcur-27|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.600 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-27 x leaf_55 -> Kcur-27|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.966.604 D ggml-hex: HTP0 supports-op ADD|attn_output-27 x l_out-26 -> attn_residual-27|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.607 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-27 x ffn_up-27 -> ffn_swiglu-27|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.610 D ggml-hex: HTP0 supports-op ADD|ffn_out-27 x attn_residual-27 -> l_out-27|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.614 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-28 x qkv_mixed_transposed-28 -> conv_input-28|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.617 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-28 -> conv_output_silu-28|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.620 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-28 -> q_conv_predelta-28|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.623 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-28 -> k_conv_predelta-28|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.625 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1632 -> a_softplus-28|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.628 D ggml-hex: HTP0 supports-op SIGMOID|beta-28 -> beta_sigmoid-28|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.636 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-28 x k_conv_predelta-28 x v_conv_predelta-28 x gate-28 (reshaped) x beta_sigmoid-28 x state_predelta-28 -> node_1640|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.639 D ggml-hex: HTP0 supports-op SILU|z-28 (reshaped) -> node_1649|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.643 D ggml-hex: HTP0 supports-op MUL|node_1646 x node_1649 -> node_1650|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.646 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-28 (reshaped) x l_out-27 -> attn_residual-28|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.650 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-28 x ffn_up-28 -> ffn_swiglu-28|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.653 D ggml-hex: HTP0 supports-op ADD|ffn_out-28 x attn_residual-28 -> l_out-28|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.656 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-29 x qkv_mixed_transposed-29 -> conv_input-29|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.659 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-29 -> conv_output_silu-29|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.662 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-29 -> q_conv_predelta-29|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.665 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-29 -> k_conv_predelta-29|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.667 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1695 -> a_softplus-29|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.670 D ggml-hex: HTP0 supports-op SIGMOID|beta-29 -> beta_sigmoid-29|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.678 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-29 x k_conv_predelta-29 x v_conv_predelta-29 x gate-29 (reshaped) x beta_sigmoid-29 x state_predelta-29 -> node_1703|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.681 D ggml-hex: HTP0 supports-op SILU|z-29 (reshaped) -> node_1712|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.685 D ggml-hex: HTP0 supports-op MUL|node_1709 x node_1712 -> node_1713|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.689 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-29 (reshaped) x l_out-28 -> attn_residual-29|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.692 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-29 x ffn_up-29 -> ffn_swiglu-29|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.695 D ggml-hex: HTP0 supports-op ADD|ffn_out-29 x attn_residual-29 -> l_out-29|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.699 D ggml-hex: HTP0 supports-op CONCAT|conv_states_reshaped-30 x qkv_mixed_transposed-30 -> conv_input-30|3:8192 x 1024:8192 -> 1027:8192|f32 x f32 -> f32|4:12 x 32768:4! -> 4:4108|NONE x NONE -> NONE|yes
+0.00.966.702 D ggml-hex: HTP0 supports-op SILU|conv_output_raw-30 -> conv_output_silu-30|8192:1024 -> 8192:1024|f32 -> f32|4:32768 -> 4:32768|NONE -> NONE|yes
+0.00.966.705 D ggml-hex: HTP0 supports-op L2_NORM|q_conv-30 -> q_conv_predelta-30|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.707 D ggml-hex: HTP0 supports-op L2_NORM|k_conv-30 -> k_conv_predelta-30|128:16:1024:1 -> 128:16:1024:1|f32 -> f32|4:512:32768:33554432! -> 4:512:8192:8388608|NONE -> NONE|yes
+0.00.966.710 D ggml-hex: HTP0 supports-op SOFTPLUS|node_1758 -> a_softplus-30|32:1024 -> 32:1024|f32 -> f32|4:128 -> 4:128|NONE -> NONE|yes
+0.00.966.713 D ggml-hex: HTP0 supports-op SIGMOID|beta-30 -> beta_sigmoid-30|1:32:1024:1 -> 1:32:1024:1|f32 -> f32|4:4:128:131072 -> 4:4:128:131072|NONE -> NONE|yes
+0.00.966.720 D ggml-hex: HTP0 supports-op GATED_DELTA_NET|q_conv_predelta-30 x k_conv_predelta-30 x v_conv_predelta-30 x gate-30 (reshaped) x beta_sigmoid-30 x state_predelta-30 -> node_1766|128:16:1024:1 x 128:16:1024:1 x 128:32:1024:1 x 1:32:1024:1 x 1:32:1024:1 x 128:128:32:1 -> 4096:1152|f32 x f32 x f32 x f32 x f32 x f32 -> f32|4:512:8192:8388608 x 4:512:8192:8388608 x 4:512:32768:33554432! x 4:4:128:131072 x 4:4:128:131072 x 4:512:65536:2097152 -> 4:16384|NONE x NONE x NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.723 D ggml-hex: HTP0 supports-op SILU|z-30 (reshaped) -> node_1775|128:32:1024:1 -> 128:32:1024:1|f32 -> f32|4:512:16384:16777216 -> 4:512:16384:16777216|NONE -> NONE|yes
+0.00.966.727 D ggml-hex: HTP0 supports-op MUL|node_1772 x node_1775 -> node_1776|128:32:1024:1 x 128:32:1024:1 -> 128:32:1024:1|f32 x f32 -> f32|4:512:16384:16777216 x 4:512:16384:16777216 -> 4:512:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.730 D ggml-hex: HTP0 supports-op ADD|linear_attn_out-30 (reshaped) x l_out-29 -> attn_residual-30|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.734 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-30 x ffn_up-30 -> ffn_swiglu-30|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.737 D ggml-hex: HTP0 supports-op ADD|ffn_out-30 x attn_residual-30 -> l_out-30|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.741 D ggml-hex: HTP0 supports-op ROPE|Qcur_normed-31 x leaf_55 -> Qcur-31|256:16:1024:1 x 4096:1 -> 256:16:1024:1|f32 x i32 -> f32|4:1024:16384:16777216 x 4:16384 -> 4:1024:16384:16777216|NONE x NONE -> NONE|yes
+0.00.966.745 D ggml-hex: HTP0 supports-op ROPE|Kcur_normed-31 x leaf_55 -> Kcur-31|256:4:1024:1 x 4096:1 -> 256:4:1024:1|f32 x i32 -> f32|4:1024:4096:4194304 x 4:16384 -> 4:1024:4096:4194304|NONE x NONE -> NONE|yes
+0.00.966.748 D ggml-hex: HTP0 supports-op ADD|attn_output-31 x l_out-30 -> attn_residual-31|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.751 D ggml-hex: HTP0 supports-op SWIGLU|ffn_gate-31 x ffn_up-31 -> ffn_swiglu-31|9216:1024 x 9216:1024 -> 9216:1024|f32 x f32 -> f32|4:36864 x 4:36864 -> 4:36864|NONE x NONE -> NONE|yes
+0.00.966.755 D ggml-hex: HTP0 supports-op ADD|ffn_out-31 x attn_residual-31 -> l_out-31|2560:1024 x 2560:1024 -> 2560:1024|f32 x f32 -> f32|4:10240 x 4:10240 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.757 D ggml-hex: HTP0 supports-op RMS_NORM|l_out-31 -> norm|2560:1024 -> 2560:1024|f32 -> f32|4:10240 -> 4:10240|NONE -> NONE|yes
+0.00.966.761 D ggml-hex: HTP0 supports-op GET_ROWS|h_nextn x leaf_498 -> result_norm|2560:1024 x 1024:1 -> 2560:1024|f32 x i32 -> f32|4:10240 x 4:4096 -> 4:10240|NONE x NONE -> NONE|yes
+0.00.966.764 D ggml-hex: HTP0 supports-op MUL|attn_pregate-31 x gate_sigmoid-31 -> attn_gated-31|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.767 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-31 -> gate_sigmoid-31|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.770 D ggml-hex: HTP0 supports-op CONT|Qcur_full-31 (view) -> gate_reshaped-31|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.781 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-31 (view) (permuted) x cache_k_l31 (view) (permuted) x cache_v_l31 (view) (permuted) x attn_inp_kq_mask -> node_1812|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.785 D ggml-hex: HTP0 supports-op MUL|attn_pregate-27 x gate_sigmoid-27 -> attn_gated-27|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.788 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-27 -> gate_sigmoid-27|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.791 D ggml-hex: HTP0 supports-op CONT|Qcur_full-27 (view) -> gate_reshaped-27|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.811 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-27 (view) (permuted) x cache_k_l27 (view) (permuted) x cache_v_l27 (view) (permuted) x attn_inp_kq_mask -> node_1584|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.817 D ggml-hex: HTP0 supports-op MUL|attn_pregate-23 x gate_sigmoid-23 -> attn_gated-23|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.819 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-23 -> gate_sigmoid-23|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.822 D ggml-hex: HTP0 supports-op CONT|Qcur_full-23 (view) -> gate_reshaped-23|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.832 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-23 (view) (permuted) x cache_k_l23 (view) (permuted) x cache_v_l23 (view) (permuted) x attn_inp_kq_mask -> node_1356|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.837 D ggml-hex: HTP0 supports-op MUL|attn_pregate-19 x gate_sigmoid-19 -> attn_gated-19|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.839 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-19 -> gate_sigmoid-19|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.842 D ggml-hex: HTP0 supports-op CONT|Qcur_full-19 (view) -> gate_reshaped-19|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.857 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-19 (view) (permuted) x cache_k_l19 (view) (permuted) x cache_v_l19 (view) (permuted) x attn_inp_kq_mask -> node_1128|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.862 D ggml-hex: HTP0 supports-op MUL|attn_pregate-15 x gate_sigmoid-15 -> attn_gated-15|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.864 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-15 -> gate_sigmoid-15|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.867 D ggml-hex: HTP0 supports-op CONT|Qcur_full-15 (view) -> gate_reshaped-15|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.877 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-15 (view) (permuted) x cache_k_l15 (view) (permuted) x cache_v_l15 (view) (permuted) x attn_inp_kq_mask -> node_900|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.881 D ggml-hex: HTP0 supports-op MUL|attn_pregate-11 x gate_sigmoid-11 -> attn_gated-11|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.884 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-11 -> gate_sigmoid-11|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.887 D ggml-hex: HTP0 supports-op CONT|Qcur_full-11 (view) -> gate_reshaped-11|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.898 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-11 (view) (permuted) x cache_k_l11 (view) (permuted) x cache_v_l11 (view) (permuted) x attn_inp_kq_mask -> node_672|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.903 D ggml-hex: HTP0 supports-op MUL|attn_pregate-7 x gate_sigmoid-7 -> attn_gated-7|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.906 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-7 -> gate_sigmoid-7|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.909 D ggml-hex: HTP0 supports-op CONT|Qcur_full-7 (view) -> gate_reshaped-7|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.920 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-7 (view) (permuted) x cache_k_l7 (view) (permuted) x cache_v_l7 (view) (permuted) x attn_inp_kq_mask -> node_444|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.966.925 D ggml-hex: HTP0 supports-op MUL|attn_pregate-3 x gate_sigmoid-3 -> attn_gated-3|4096:1024 x 4096:1024 -> 4096:1024|f32 x f32 -> f32|4:16384 x 4:16384 -> 4:16384|NONE x NONE -> NONE|yes
+0.00.966.927 D ggml-hex: HTP0 supports-op SIGMOID|gate_reshaped-3 -> gate_sigmoid-3|4096:1024 -> 4096:1024|f32 -> f32|4:16384 -> 4:16384|NONE -> NONE|yes
+0.00.966.930 D ggml-hex: HTP0 supports-op CONT|Qcur_full-3 (view) -> gate_reshaped-3|256:16:1024:1 -> 4096:1024|f32 -> f32|4:2048:32768:33554432! -> 4:16384|NONE -> NONE|yes
+0.00.966.942 D ggml-hex: HTP0 supports-op FLASH_ATTN_EXT|Qcur-3 (view) (permuted) x cache_k_l3 (view) (permuted) x cache_v_l3 (view) (permuted) x attn_inp_kq_mask -> node_216|256:1024:16:1 x 256:2048:4:1 x 256:2048:4:1 x 2048:1024 -> 256:16:1024:1|f32 x f16 x f16 x f16 -> f32|4:16384:1024:16777216! x 2:2048:512:4194304! x 2:2048:512:4194304! x 2:4096 -> 4:1024:16384:16777216|NONE x NONE x NONE x NONE -> NONE|yes
+0.00.967.161 I sched_reserve:       HTP0 compute buffer size =   148.02 MiB
+0.00.967.162 I sched_reserve:        CPU compute buffer size =   980.00 MiB
+0.00.967.162 I sched_reserve: graph nodes  = 1831
+0.00.967.163 I sched_reserve: graph splits = 163
+0.00.967.164 I sched_reserve: reserve took 150.56 ms, sched copies = 1
+0.00.967.257 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+0.00.967.273 I common_memory_breakdown_print: | memory breakdown [MiB] | total   free    self   model   context   compute    unaccounted |
+0.00.967.274 I common_memory_breakdown_print: |   - HTP0 (Hexagon)     |     0 =    0 + (2219 =  2219 +       0 +       0) +       -2219 |
+0.00.967.274 I common_memory_breakdown_print: |   - Host               |                 1890 =   647 +     114 +    1128                |
+0.00.967.275 I common_memory_breakdown_print: |   - CPU_REPACK         |                  644 =   644 +       0 +       0                |
+0.00.967.277 D ggml-hex: HTP0 synchronize
+0.01.066.943 I common_params_fit_impl: projected to use 2219 MiB of device memory vs. 0 MiB of free device memory
+0.01.066.994 I common_params_fit_impl: cannot meet free memory target of 1024 MiB, need to reduce device memory by 3243 MiB
+0.01.066.996 I common_params_fit_impl: context size set by user to 2048 -> no change
+0.01.067.086 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.01.067.092 I common_fit_params: fitting params to free memory took 0.92 seconds
+0.01.139.048 I llama_model_loader: loaded meta data with 34 key-value pairs and 441 tensors from /data/local/tmp/q67/CANDIDATE_1.gguf (version GGUF V3 (latest))
+0.01.139.097 I llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+0.01.139.101 I llama_model_loader: - kv   0:                       general.architecture str              = qwen35
+0.01.139.102 I llama_model_loader: - kv   1:                               general.type str              = model
+0.01.139.104 I llama_model_loader: - kv   2:                               general.name str              = Source
+0.01.139.105 I llama_model_loader: - kv   3:                         general.size_label str              = 4.3B
+0.01.139.107 I llama_model_loader: - kv   4:                         qwen35.block_count u32              = 33
+0.01.139.108 I llama_model_loader: - kv   5:                      qwen35.context_length u32              = 262144
+0.01.139.110 I llama_model_loader: - kv   6:                    qwen35.embedding_length u32              = 2560
+0.01.139.111 I llama_model_loader: - kv   7:                 qwen35.feed_forward_length u32              = 9216
+0.01.139.112 I llama_model_loader: - kv   8:                qwen35.attention.head_count u32              = 16
+0.01.139.113 I llama_model_loader: - kv   9:             qwen35.attention.head_count_kv u32              = 4
+0.01.139.121 I llama_model_loader: - kv  10:             qwen35.rope.dimension_sections arr[i32,4]       = [11, 11, 10, 0]
+0.01.139.125 I llama_model_loader: - kv  11:                      qwen35.rope.freq_base f32              = 10000000.000000
+0.01.139.128 I llama_model_loader: - kv  12:    qwen35.attention.layer_norm_rms_epsilon f32              = 0.000001
+0.01.139.129 I llama_model_loader: - kv  13:                qwen35.attention.key_length u32              = 256
+0.01.139.130 I llama_model_loader: - kv  14:              qwen35.attention.value_length u32              = 256
+0.01.139.131 I llama_model_loader: - kv  15:                     qwen35.ssm.conv_kernel u32              = 4
+0.01.139.132 I llama_model_loader: - kv  16:                      qwen35.ssm.state_size u32              = 128
+0.01.139.133 I llama_model_loader: - kv  17:                     qwen35.ssm.group_count u32              = 16
+0.01.139.134 I llama_model_loader: - kv  18:                  qwen35.ssm.time_step_rank u32              = 32
+0.01.139.135 I llama_model_loader: - kv  19:                      qwen35.ssm.inner_size u32              = 4096
+0.01.139.136 I llama_model_loader: - kv  20:             qwen35.full_attention_interval u32              = 4
+0.01.139.137 I llama_model_loader: - kv  21:                qwen35.rope.dimension_count u32              = 64
+0.01.139.138 I llama_model_loader: - kv  22:                qwen35.nextn_predict_layers u32              = 1
+0.01.139.139 I llama_model_loader: - kv  23:                       tokenizer.ggml.model str              = gpt2
+0.01.139.141 I llama_model_loader: - kv  24:                         tokenizer.ggml.pre str              = qwen35
+0.01.178.141 I llama_model_loader: - kv  25:                      tokenizer.ggml.tokens arr[str,248320]  = ["!", "\"", "#", "$", "%", "&", "'", ...
+0.01.187.095 I llama_model_loader: - kv  26:                  tokenizer.ggml.token_type arr[i32,248320]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+0.01.226.755 I llama_model_loader: - kv  27:                      tokenizer.ggml.merges arr[str,247587]  = ["Ä  Ä ", "Ä Ä  Ä Ä ", "i n", "Ä  t",...
+0.01.226.832 I llama_model_loader: - kv  28:                tokenizer.ggml.eos_token_id u32              = 248046
+0.01.226.834 I llama_model_loader: - kv  29:            tokenizer.ggml.padding_token_id u32              = 248044
+0.01.226.836 I llama_model_loader: - kv  30:               tokenizer.ggml.add_bos_token bool             = false
+0.01.226.841 I llama_model_loader: - kv  31:                    tokenizer.chat_template str              = {%- set image_count = namespace(value...
+0.01.226.842 I llama_model_loader: - kv  32:               general.quantization_version u32              = 2
+0.01.226.843 I llama_model_loader: - kv  33:                          general.file_type u32              = 25
+0.01.226.845 I llama_model_loader: - type  f32:  184 tensors
+0.01.226.847 I llama_model_loader: - type q8_0:   35 tensors
+0.01.226.848 I llama_model_loader: - type iq4_nl:  222 tensors
+0.01.226.850 I print_info: file format = GGUF V3 (latest)
+0.01.226.851 I print_info: file type   = IQ4_NL - 4.5 bpw
+0.01.226.853 I print_info: file size   = 2.88 GiB (5.71 BPW) 
+0.01.226.863 I llama_prepare_model_devices: using device HTP0 (Hexagon) (unknown id) - 0 MiB free

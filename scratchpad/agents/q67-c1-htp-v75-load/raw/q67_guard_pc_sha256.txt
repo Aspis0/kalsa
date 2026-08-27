@@ -1,0 +1,1 @@
+388bf28bc972a37543497d926ba6ab9874e68baf455d917efbf921efd37217f8  q67_thermal_guard.sh

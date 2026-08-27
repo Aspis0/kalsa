@@ -1,0 +1,91 @@
+{
+  "tag": "a1_htp",
+  "arm": "A1 HTP correctness",
+  "engine": "HTP",
+  "status": "DONE",
+  "command_verbatim": "llama-perplexity -m /data/local/tmp/q67/CANDIDATE_1.gguf -ngl 99 -dev HTP0 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none --chunks 32 -nkvo -v",
+  "binary_pid": 30832,
+  "workload_exec_pid": 30832,
+  "guard_pid": 30831,
+  "cpuset": "/",
+  "gate_pre": {
+    "level": 57,
+    "temperature_tenths": 334,
+    "voltage_mv": 4043,
+    "ac_powered": true,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "mem_available_kb": 5148684,
+    "plugged": true,
+    "captured_at": "2026-08-27T02:30:38-04:00"
+  },
+  "state_post": {
+    "level": 57,
+    "temperature_tenths": 333,
+    "voltage_mv": 4021,
+    "ac_powered": true,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "mem_available_kb": 7029008,
+    "plugged": true,
+    "captured_at": "2026-08-27T02:30:56-04:00"
+  },
+  "battery_samples": [
+    {
+      "level": 57,
+      "temperature_tenths": 334,
+      "voltage_mv": 4043,
+      "ac_powered": true,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false,
+      "mem_available_kb": 5035908,
+      "plugged": true,
+      "captured_at": "2026-08-27T02:30:41-04:00"
+    }
+  ],
+  "warn_tenths": 400,
+  "kill_tenths": 410,
+  "wall_cap_s": 600,
+  "workload_rc": 0,
+  "guard_rc": null,
+  "guard_kill": false,
+  "guard_max_temp_tenths": 334,
+  "cap_datum": false,
+  "stop_reason": "",
+  "execute_op_htp0_count": 722,
+  "execute_op_attn_count": 96,
+  "execute_op_count": 722,
+  "running_ppl_values": {},
+  "final_ppl": null,
+  "max_chunk": null,
+  "bench_json_rows": 0,
+  "bench_first_sample_ts": null,
+  "bench_avg_ts": null,
+  "temperature_delta_tenths": -1,
+  "raw": {
+    "stdout": "raw/a1_htp.stdout.log",
+    "stderr": "raw/a1_htp.stderr.log",
+    "running_ppl": "raw/a1_htp.running_ppl.log",
+    "guard": "raw/a1_htp.guard.csv"
+  },
+  "pulls": {
+    "stdout": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/a1_htp.stdout.log: 1 file pulled, 0 skipped. 0.0 MB/s (1 bytes in 0.011s)\n"
+    },
+    "stderr": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/a1_htp.stderr.log: 1 file pulled, 0 skipped. 22.6 MB/s (6201683 bytes in 0.261s)\n"
+    },
+    "guard": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/a1_htp.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (213 bytes in 0.009s)\n"
+    }
+  }
+}

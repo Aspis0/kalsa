@@ -1,0 +1,103 @@
+{
+  "tag": "b_npu",
+  "arm": "B pp512 NPU",
+  "engine": "HTP",
+  "status": "DONE",
+  "command_verbatim": "llama-bench -m /data/local/tmp/q67/CANDIDATE_1.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 99 -dev HTP0 -v",
+  "binary_pid": 32645,
+  "workload_exec_pid": 32645,
+  "guard_pid": 32644,
+  "cpuset": "/",
+  "gate_pre": {
+    "level": 57,
+    "temperature_tenths": 333,
+    "voltage_mv": 4021,
+    "ac_powered": true,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "mem_available_kb": 7297496,
+    "plugged": true,
+    "captured_at": "2026-08-27T02:31:13-04:00"
+  },
+  "state_post": {
+    "level": 57,
+    "temperature_tenths": 340,
+    "voltage_mv": 3986,
+    "ac_powered": true,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "mem_available_kb": 7400584,
+    "plugged": true,
+    "captured_at": "2026-08-27T02:31:32-04:00"
+  },
+  "battery_samples": [
+    {
+      "level": 57,
+      "temperature_tenths": 333,
+      "voltage_mv": 4021,
+      "ac_powered": true,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false,
+      "mem_available_kb": 4856712,
+      "plugged": true,
+      "captured_at": "2026-08-27T02:31:16-04:00"
+    },
+    {
+      "level": 57,
+      "temperature_tenths": 340,
+      "voltage_mv": 3986,
+      "ac_powered": true,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false,
+      "mem_available_kb": 3525500,
+      "plugged": true,
+      "captured_at": "2026-08-27T02:31:26-04:00"
+    }
+  ],
+  "warn_tenths": 400,
+  "kill_tenths": 410,
+  "wall_cap_s": 600,
+  "workload_rc": 0,
+  "guard_rc": null,
+  "guard_kill": false,
+  "guard_max_temp_tenths": 333,
+  "cap_datum": false,
+  "stop_reason": "",
+  "execute_op_htp0_count": 1812,
+  "execute_op_attn_count": 192,
+  "execute_op_count": 1812,
+  "running_ppl_values": {},
+  "final_ppl": null,
+  "max_chunk": null,
+  "bench_json_rows": 1,
+  "bench_first_sample_ts": 199.685,
+  "bench_avg_ts": 201.719477,
+  "temperature_delta_tenths": 7,
+  "raw": {
+    "stdout": "raw/b_npu.stdout.log",
+    "stderr": "raw/b_npu.stderr.log",
+    "running_ppl": "raw/b_npu.running_ppl.log",
+    "guard": "raw/b_npu.guard.csv"
+  },
+  "pulls": {
+    "stdout": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/b_npu.stdout.log: 1 file pulled, 0 skipped. 0.1 MB/s (960 bytes in 0.014s)\n"
+    },
+    "stderr": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/b_npu.stderr.log: 1 file pulled, 0 skipped. 14.7 MB/s (4426648 bytes in 0.287s)\n"
+    },
+    "guard": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/b_npu.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (213 bytes in 0.012s)\n"
+    }
+  }
+}

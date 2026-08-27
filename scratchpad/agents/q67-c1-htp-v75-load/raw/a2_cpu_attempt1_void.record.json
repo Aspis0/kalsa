@@ -1,0 +1,91 @@
+{
+  "tag": "a2_cpu",
+  "arm": "A2 CPU-ref",
+  "engine": "CPU",
+  "status": "DONE",
+  "command_verbatim": "llama-perplexity -m /data/local/tmp/q67/CANDIDATE_1.gguf -ngl 0 -t 8 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none --chunks 32 -nkvo -v",
+  "binary_pid": 32448,
+  "workload_exec_pid": 32448,
+  "guard_pid": 32447,
+  "cpuset": "/",
+  "gate_pre": {
+    "level": 57,
+    "temperature_tenths": 333,
+    "voltage_mv": 4021,
+    "ac_powered": true,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "mem_available_kb": 7026340,
+    "plugged": true,
+    "captured_at": "2026-08-27T02:30:57-04:00"
+  },
+  "state_post": {
+    "level": 57,
+    "temperature_tenths": 333,
+    "voltage_mv": 4021,
+    "ac_powered": true,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "mem_available_kb": 7303384,
+    "plugged": true,
+    "captured_at": "2026-08-27T02:31:13-04:00"
+  },
+  "battery_samples": [
+    {
+      "level": 57,
+      "temperature_tenths": 333,
+      "voltage_mv": 4021,
+      "ac_powered": true,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false,
+      "mem_available_kb": 6919660,
+      "plugged": true,
+      "captured_at": "2026-08-27T02:30:59-04:00"
+    }
+  ],
+  "warn_tenths": 400,
+  "kill_tenths": 430,
+  "wall_cap_s": 600,
+  "workload_rc": 0,
+  "guard_rc": null,
+  "guard_kill": false,
+  "guard_max_temp_tenths": 333,
+  "cap_datum": false,
+  "stop_reason": "",
+  "execute_op_htp0_count": 0,
+  "execute_op_attn_count": 0,
+  "execute_op_count": 0,
+  "running_ppl_values": {},
+  "final_ppl": null,
+  "max_chunk": null,
+  "bench_json_rows": 0,
+  "bench_first_sample_ts": null,
+  "bench_avg_ts": null,
+  "temperature_delta_tenths": 0,
+  "raw": {
+    "stdout": "raw/a2_cpu.stdout.log",
+    "stderr": "raw/a2_cpu.stderr.log",
+    "running_ppl": "raw/a2_cpu.running_ppl.log",
+    "guard": "raw/a2_cpu.guard.csv"
+  },
+  "pulls": {
+    "stdout": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/a2_cpu.stdout.log: 1 file pulled, 0 skipped. 0.0 MB/s (1 bytes in 0.012s)\n"
+    },
+    "stderr": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/a2_cpu.stderr.log: 1 file pulled, 0 skipped. 11.3 MB/s (848508 bytes in 0.072s)\n"
+    },
+    "guard": {
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "/data/local/tmp/q67/a2_cpu.guard.log: 1 file pulled, 0 skipped. 0.0 MB/s (213 bytes in 0.014s)\n"
+    }
+  }
+}

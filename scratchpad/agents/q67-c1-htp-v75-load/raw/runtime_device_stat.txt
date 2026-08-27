@@ -1,0 +1,2 @@
+/data/local/tmp/kalsahtp/llama-perplexity 7560
+/data/local/tmp/kalsahtp/llama-bench 7536

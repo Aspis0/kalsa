@@ -1,0 +1,5 @@
+START,1787812239,warn_tenths=400,kill_tenths=410,interval_s=10,sensor_fail_limit=4,sensor_timeout_s=10,battery_floor=40
+1787812239,334,57
+1787812239,334,57,READY
+1787812239,334,57,TRACKING_30832
+1787812250,333,57
