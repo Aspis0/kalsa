@@ -1,0 +1,18 @@
+Traceback (most recent call last):
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\run_q63_scheduler.py", line 359, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\run_q63_scheduler.py", line 334, in main
+    run_candidate_ppl(manifest, "C1", C1, dump1)
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\run_q63_scheduler.py", line 225, in run_candidate_ppl
+    run_ppl_cell(manifest, arm, corpus)
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\run_q63_scheduler.py", line 125, in run_ppl_cell
+    command = ppl_command(arm, corpus)
+              ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\run_q63_scheduler.py", line 113, in ppl_command
+    model, data = ppl_model(arm), CORPORA[corpus]
+                  ^^^^^^^^^^^^^^
+  File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\run_q63_scheduler.py", line 105, in ppl_model
+    return {"control-validity": CONTROL, "control-recheck": CONTROL, "candidate1": C1, "candidate2": C2}[arm]
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^
+KeyError: 'c1'

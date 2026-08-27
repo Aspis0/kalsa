@@ -1,0 +1,31 @@
+{
+  "cmd": [
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\build-pc-quantize\\bin\\llama-quantize.exe",
+    "--pure",
+    "--output-tensor-type",
+    "Q8_0",
+    "--token-embedding-type",
+    "Q8_0",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q59-dense-quant-gate\\gguf\\Qwen3.5-4B-fromsrc-BF16.gguf",
+    "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q63-dense-htp-recipe\\CANDIDATE_2.gguf",
+    "IQ4_NL",
+    "8"
+  ],
+  "input": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q59-dense-quant-gate\\gguf\\Qwen3.5-4B-fromsrc-BF16.gguf",
+  "input_bytes": 8665619680,
+  "input_sha256": "9ba85223a9db256879b525d747090407a4b9aad3d920e4098519a401bba0149b",
+  "log": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q63-dense-htp-recipe\\quantize-c2.log",
+  "n_chunks": null,
+  "output": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q63-dense-htp-recipe\\CANDIDATE_2.gguf",
+  "output_bytes": 2765741280,
+  "phase": "QUANT C2",
+  "ppl": null,
+  "ppl_err": null,
+  "rc": 0,
+  "sha256": {
+    "input": "9ba85223a9db256879b525d747090407a4b9aad3d920e4098519a401bba0149b",
+    "output": "0836af5e4e61d459a32a36d17e0f8cef2c658d39bad00f962e0e6b4509c36ded"
+  },
+  "status": "COMPLETE",
+  "wall_s": null
+}

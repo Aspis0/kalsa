@@ -1,0 +1,10 @@
+{
+  "flags": [
+    "DETACHED_PROCESS",
+    "CREATE_NEW_PROCESS_GROUP",
+    "CREATE_NO_WINDOW"
+  ],
+  "pid": 55912,
+  "priority": "IDLE",
+  "scheduler": "C:\\Users\\gualt\\Desktop\\Kalsa\\moe-experiments\\scratchpad\\agents\\q63-dense-htp-recipe\\run_q63_scheduler.py"
+}

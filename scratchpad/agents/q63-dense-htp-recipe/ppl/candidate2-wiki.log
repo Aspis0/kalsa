@@ -1,0 +1,13 @@
+CMD C:\Users\gualt\Desktop\Kalsa\moe-experiments\build-llama-pc\bin\llama-perplexity.exe -m C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q63-dense-htp-recipe\CANDIDATE_2.gguf -f C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q41-ppl-gate\corpus\wikitext-2-raw\wiki.test.raw -c 2048 -b 512 -ub 512 -t 8 -ngl 0 --chunks 64 --ppl-stride 0
+warning: no usable GPU found, --gpu-layers option will be ignored
+warning: one possible reason is that llama.cpp was compiled without GPU support
+warning: consult docs/build.md for compilation instructions
+0.04.708.403 I 
+0.04.708.462 I system_info: n_threads = 8 (n_threads_batch = 8) / 22 | CPU : SSE3 = 1 | SSSE3 = 1 | AVX = 1 | AVX2 = 1 | F16C = 1 | FMA = 1 | LLAMAFILE = 1 | OPENMP = 1 | REPACK = 1 | 
+0.04.708.465 I perplexity: tokenizing the input ..
+0.05.752.765 I perplexity: tokenization took 1044.28 ms
+0.05.753.780 I perplexity: calculating perplexity over 64 chunks, n_ctx=2048, batch_size=512, n_seq=1
+1.16.553.217 I perplexity: 70.80 seconds per pass - ETA 1 hours 15.52 minutes
+[1]8.4112,[2]9.5922,[3]9.9833,[4]10.0250,[5]10.0574,[6]8.5871,[7]7.7096,[8]7.6154,[9]7.9778,[10]8.0347,[11]8.1483,[12]8.4579,[13]8.5484,[14]8.5872,[15]8.5978,[16]8.7838,[17]8.7980,[18]8.9008,[19]8.7905,[20]8.6661,[21]8.6795,[22]8.7153,[23]8.7637,[24]8.7671,[25]8.8199,[26]8.7834,[27]8.9855,[28]9.0754,[29]9.0544,[30]8.9956,[31]8.8597,[32]8.6946,[33]8.6242,[34]8.6438,[35]8.6821,[36]8.6820,[37]8.5417,[38]8.4616,[39]8.3662,[40]8.2330,[41]8.1648,[42]8.2284,[43]8.3966,[44]8.5212,[45]8.5726,[46]8.6104,[47]8.6456,[48]8.6614,[49]8.6997,[50]8.6679,[51]8.7179,[52]8.6423,[53]8.6036,[54]8.5603,[55]8.4886,[56]8.4503,[57]8.3556,[58]8.3244,[59]8.2971,[60]8.2775,[61]8.3166,[62]8.3423,[63]8.3748,[64]8.4235,
+75.48.468.434 I Final estimate: PPL = 8.4235 +/- 0.08773
+
