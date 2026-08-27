@@ -89,3 +89,17 @@ Corrected A1/A2: identical in every flag, env, guard limit, order and derivation
 `-f /data/local/tmp/wiki.test.raw`. One rerun of A1 then A2 (attempt 2); attempt 1 logs kept in
 raw/ as `*_attempt1_void*`. The supervisor MUST emit the guard CSV + rc files this time (attempt 1
 recorded them NA). No other change.
+
+## Amendment 2 (2026-08-27, LOCKED at commit time — POST-A1-RESULT, declared)
+A1 attempt 2 was guard-killed at 41.1 °C (NPU KILL 41.0; plugged charging runs warmer) after
+486 s with **20 valid PPL chunks** and no crash signature; per the locked stop rule the cell
+stopped and A2 never ran → r VOID. This amendment reopens ONLY the CPU reference:
+- A2 is deterministic and independent — knowledge of A1's running PPL cannot bias it; the stop
+  rule's purpose (protect NPU/firmware after kills) does not apply to a CPU arm. Auditors must
+  weigh this as a **post-result amendment**; the result is labelled "r20 characterization under
+  Amendment 2", never a certification.
+- A2 exactly as locked (+`-f` per Amendment 1) with `--chunks 20` (chunks beyond A1's 20 are
+  useless for r). Guard CPU WARN 40.0 / KILL 43.0 unchanged; cool-start ≤ 35.0 °C with wait
+  extended to ≤ 40 min for this arm only (plugged cooldown from 41 °C is slow — declared).
+- Derivation unchanged: r at last common chunk n (= min(20, A2 reached), need ≥ 8), q55 letters.
+  A1 attempt-2 20-chunk data stands as the HTP side. No further NPU arms in this cell.
