@@ -214,9 +214,9 @@ def derive(a1: dict[str, object] | None, a2: dict[str, object] | None) -> dict[s
     }
 
 
-def cooldown_rows() -> list[tuple[str, str, str, str, str, str]]:
+def cooldown_rows(tag: str = "a2_cpu_amendment2") -> list[tuple[str, str, str, str, str, str]]:
     pattern = re.compile(
-        r"COOLDOWN a2_cpu_amendment2 poll=(\d+) elapsed_s=(\d+) level=(\S+) "
+        rf"COOLDOWN {re.escape(tag)} poll=(\d+) elapsed_s=(\d+) level=(\S+) "
         r"temp_tenths=(\S+) MemAvailable_kb=(\S+) plugged=(\S+)"
     )
     rows: list[tuple[str, str, str, str, str, str]] = []
@@ -236,14 +236,22 @@ def main() -> None:
     attempt2_runs = attempt2.get("runs", []) if isinstance(attempt2, dict) else []
     amendment2 = manifest.get("amendment2", {})
     amendment2_runs = amendment2.get("runs", []) if isinstance(amendment2, dict) else []
+    amendment3 = manifest.get("amendment3", {})
+    amendment3_runs = amendment3.get("runs", []) if isinstance(amendment3, dict) else []
+    amendment4 = manifest.get("amendment4", {})
+    amendment4_runs = amendment4.get("runs", []) if isinstance(amendment4, dict) else []
     if not isinstance(attempt1_runs, list):
         attempt1_runs = []
     if not isinstance(attempt2_runs, list):
         attempt2_runs = []
     if not isinstance(amendment2_runs, list):
         amendment2_runs = []
+    if not isinstance(amendment3_runs, list):
+        amendment3_runs = []
+    if not isinstance(amendment4_runs, list):
+        amendment4_runs = []
     b_runs = [row for row in manifest.get("runs", []) if isinstance(row, dict) and str(row.get("tag", "")).startswith("b_")]
-    for row in attempt1_runs + attempt2_runs + amendment2_runs + b_runs:
+    for row in attempt1_runs + attempt2_runs + amendment2_runs + amendment3_runs + amendment4_runs + b_runs:
         if isinstance(row, dict):
             update_row(row, walls)
     a1_old = next((row for row in attempt1_runs if row.get("tag") == "a1_htp"), None)
@@ -251,8 +259,12 @@ def main() -> None:
     a1_new = next((row for row in attempt2_runs if row.get("tag") == "a1_htp_attempt2"), None)
     a2_new = next((row for row in attempt2_runs if row.get("tag") == "a2_cpu_attempt2"), None)
     a2_post = next((row for row in amendment2_runs if row.get("tag") == "a2_cpu_amendment2"), None)
+    a3_post = next((row for row in amendment3_runs if row.get("tag") == "a2_cpu_amendment3"), None)
+    a4_post = next((row for row in amendment4_runs if row.get("tag") == "a2_cpu_amendment4"), None)
     new_derivation = derive(a1_new, a2_new)
     post_derivation = derive(a1_new, a2_post)
+    post3_derivation = derive(a1_new, a3_post)
+    post4_derivation = derive(a1_new, a4_post)
     manifest["attempt1"]["verdict_letter"] = "VOID"
     manifest["attempt1"]["common_chunks"] = 0
     manifest["attempt1"]["r"] = None
@@ -272,14 +284,34 @@ def main() -> None:
         "a2_chunks_reached": len(post_derivation["cpu"]),
         "verdict": "STOPPED" if isinstance(a2_post, dict) and a2_post.get("stop_reason") else post_derivation["gate"],
     }
-    manifest["runs"] = b_runs + attempt2_runs + amendment2_runs
-    manifest["numeric_verdict"] = "STOPPED" if isinstance(a2_post, dict) and a2_post.get("stop_reason") else post_derivation["gate"]
+    manifest["amendment3"]["label"] = "r characterization under Amendments 2+3 (post-result, CPU-ref only)"
+    manifest["amendment3"]["derivation"] = {
+        "common_chunks": len(post3_derivation["common"]),
+        "last_common_n": post3_derivation["n"],
+        "r": post3_derivation["r"],
+        "q55_letter": post3_derivation["gate"],
+        "a2_chunks_reached": len(post3_derivation["cpu"]),
+        "verdict": "STOPPED",
+    }
+    manifest["amendment4"]["label"] = "r characterization under Amendments 2-4 (post-result, CPU-ref only)"
+    manifest["amendment4"]["derivation"] = {
+        "common_chunks": len(post4_derivation["common"]),
+        "last_common_n": post4_derivation["n"],
+        "r": post4_derivation["r"],
+        "q55_letter": post4_derivation["gate"],
+        "a2_chunks_reached": len(post4_derivation["cpu"]),
+        "verdict": "STOPPED",
+    }
+    manifest["runs"] = b_runs + attempt2_runs + amendment2_runs + amendment3_runs + amendment4_runs
+    manifest["numeric_verdict"] = "STOPPED"
     if manifest.get("status") == "DONE":
         manifest["stop_reason"] = None
     manifest["deviations"] = [
         "Attempt 1 A1/A2 omitted -f /data/local/tmp/wiki.test.raw; shipped binary evaluated 0 tokens and produced 0 common PPL chunks. Frozen letter: VOID (common chunks < 8).",
         "Amendment 1 reran A1 with -f /data/local/tmp/wiki.test.raw; A1 hit the NPU guard kill at 41.1 C (guard rc 2), so the frozen stop rule prevented A2. B arms were not rerun and remain the original attempt-1 measurements.",
         "Amendment 2 reopened only A2 post-result with --chunks 20; A2 hit the CPU guard kill at 43.0 C after 4 chunks, so r20 is VOID (n < 8) and no retry was made.",
+        "Amendment 3 verified AC powered=false and remained unplugged; after the declared 40-minute cooldown, MemAvailable remained below 4194304 kB, so A2 attempt 3 was not started and r remains VOID.",
+        "Amendment 4 issued exactly one adb reboot; the same wireless ADB serial reattached in 281 s, but after the required 3-minute idle and 921 s post-boot gate window, MemAvailable remained below 4194304 kB. A2 attempt 4 was not started and r remains VOID.",
         "Attempt-2 supervisor emitted guard CSV and guard rc files; cpuset evidence is from binary_pid and is recorded as /.",
     ]
     write(MANIFEST, json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
@@ -370,6 +402,27 @@ def main() -> None:
         f"q55 letter = {post_derivation['gate']} (PASS <= 2%; GREY 2-5%; FAIL > 5% or NaN).",
         "A2 guard-killed before chunk 8; r remains VOID; no retry.",
         "",
+        "## r characterization under Amendments 2+3 (post-result, CPU-ref only)",
+        "",
+        "UNPLUGGED verification: AC powered=false; USB powered=false; Wireless powered=false; Dock powered=false; battery 99%; temperature 33.9 C.",
+        "",
+        "| cooldown poll | elapsed_s | battery_% | temp_C | MemAvailable_kB | plugged |",
+        "|---:|---:|---:|---:|---:|---|",
+    ]
+    for poll, elapsed, level, temp, mem, plugged in cooldown_rows("a2_cpu_amendment3"):
+        lines.append(f"| {poll} | {elapsed} | {level} | {int(temp) / 10:.1f} | {mem} | {plugged} |")
+    lines += [
+        "",
+        "A2 attempt 3: NOT-RUN; unplugged verified; cool-start temperature passed; MemAvailable gate not met by 2404 s; no workload/guard invocation.",
+        "n = NA; r = VOID (A2 attempt 3 not started); q55 letter = VOID; final verdict = STOPPED.",
+        "",
+        "## r characterization under Amendments 2-4 (post-result, CPU-ref only)",
+        "",
+        "Amendment 4: exactly one adb reboot; same wireless ADB serial reattached after 281 s; idle 180 s; no new IP or adb connect.",
+        "UNPLUGGED verification after idle: AC powered=false; USB powered=false; Wireless powered=false; Dock powered=false; battery 96%; temperature 32.3 C.",
+        "Pre-arm gate window: polls through boot elapsed 921 s; final battery 95%; temperature 30.9 C; MemAvailable 3607860 kB; plugged=false.",
+        "A2 attempt 4: NOT-RUN; MemAvailable gate remained below 4194304 kB; r = VOID; n = NA; q55 letter = VOID; final verdict = STOPPED; cell closed.",
+        "",
         "## B pp512 (attempt 1; stands)",
         "",
         "| arm | status | first_sample_t/s | jsonl_avg_t/s | dT_C | max_C |",
@@ -397,20 +450,21 @@ def main() -> None:
         "Corrected command addition: -f /data/local/tmp/wiki.test.raw; all other A1/A2 flags and environment unchanged.",
         "A1 HTP guard: WARN 40.0 C / KILL 41.0 C; A2 CPU guard: WARN 40.0 C / KILL 43.0 C; poll 10 s; cap 600 s.",
         "Cool-start <= 35.0 C; MemAvailable >= 4194304 kB; cpuset evidence from binary_pid.",
-        "STOPPED: A1 NPU guard kill at 41.1 C, guard rc 2; Amendment 2 A2 CPU guard kill at 43.0 C after 4 chunks, guard rc 2; r20 VOID; no retry; B was not rerun.",
+        "STOPPED: A1 NPU guard kill at 41.1 C, guard rc 2; Amendment 2 A2 CPU guard kill at 43.0 C after 4 chunks, guard rc 2; Amendment 3 A2 not started after 2404 s gate wait; Amendment 4 one reboot then A2 not started after 921 s post-boot gate wait; r VOID; no further attempt; B was not rerun.",
     ]
     write(HERE / "REPORT.md", "\n".join(lines) + "\n")
     if manifest.get("status") == "DONE":
         write(HERE / "STATUS.txt", "DONE\n")
     else:
-        write(HERE / "STATUS.txt", "STOPPED A2_CPU_GUARD_KILL_43.0C; r20_VOID_n4; NO_RETRY\n")
+        write(HERE / "STATUS.txt", "STOPPED A4_POSTBOOT_MEMAVAILABLE_GATE_TIMEOUT_921s; r_VOID_nNA; CELL_CLOSED\n")
     with RUN_LOG.open("a", encoding="utf-8", newline="\n") as handle:
         handle.write(
-            f"{dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec='seconds')} FINALIZE_ATTEMPT2 "
-            f"r20_common_chunks={len(post_derivation['common'])} last_common_n={post_n if post_n is not None else 'NA'} "
-            f"r20={post_r if post_r is not None else 'VOID'} q55_gate={post_derivation['gate']} verdict={manifest['numeric_verdict']} "
-            "attempt1_letter=VOID A1_guard_kill_41.1C_rc2 A2_guard_kill_43.0C_rc2 "
-            "A2_chunks=4 no_retry=true B_untouched=true\n"
+            f"{dt.datetime.now(dt.timezone.utc).astimezone().isoformat(timespec='seconds')} FINALIZE_ATTEMPT4 "
+            f"r4_common_chunks={len(post4_derivation['common'])} last_common_n={post4_derivation['n'] if post4_derivation['n'] is not None else 'NA'} "
+            f"r4={post4_derivation['r'] if post4_derivation['r'] is not None else 'VOID'} q55_gate={post4_derivation['gate']} verdict={manifest['numeric_verdict']} "
+            "attempt1_letter=VOID A1_guard_kill_41.1C_rc2 A2_attempt2_guard_kill_43.0C_rc2 "
+            "A2_attempt3_not_started_mem_gate_timeout=true reboot_count=1 A2_attempt4_not_started_mem_gate_timeout=true "
+            "no_further_attempt=true B_untouched=true\n"
         )
 
 

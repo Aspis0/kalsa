@@ -1,0 +1,1 @@
+time=2026-08-27T08:06:16-04:00 command=adb -s adb-625689a2-9xEOfw._adb-tls-connect._tcp reboot returncode=0

@@ -216,6 +216,10 @@ def canonical_command(tag: str) -> str:
         return "llama-perplexity -m /data/local/tmp/q67/CANDIDATE_1.gguf -f /data/local/tmp/wiki.test.raw -ngl 0 -t 8 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none --chunks 32 -nkvo -v"
     if tag == "a2_cpu_amendment2":
         return "llama-perplexity -m /data/local/tmp/q67/CANDIDATE_1.gguf -f /data/local/tmp/wiki.test.raw -ngl 0 -t 8 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none --chunks 20 -nkvo -v"
+    if tag == "a2_cpu_amendment3":
+        return "llama-perplexity -m /data/local/tmp/q67/CANDIDATE_1.gguf -f /data/local/tmp/wiki.test.raw -ngl 0 -t 8 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none --chunks 20 -nkvo -v"
+    if tag == "a2_cpu_amendment4":
+        return "llama-perplexity -m /data/local/tmp/q67/CANDIDATE_1.gguf -f /data/local/tmp/wiki.test.raw -ngl 0 -t 8 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none --chunks 20 -nkvo -v"
     if tag == "b_npu":
         return "llama-bench -m /data/local/tmp/q67/CANDIDATE_1.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 99 -dev HTP0 -v"
     return "llama-bench -m /data/local/tmp/q67/CANDIDATE_1.gguf -p 512 -n 0 -r 2 --no-warmup -t 8 -fa on --load-mode none -o jsonl -ngl 0"
@@ -227,6 +231,10 @@ def workload_args(tag: str) -> list[str]:
     if tag in ("a2_cpu", "a2_cpu_attempt2"):
         return ["./llama-perplexity", "-m", MODEL, "-f", "/data/local/tmp/wiki.test.raw", "-ngl", "0", "-t", "8", "-c", "2048", "-b", "2048", "-ub", "1024", "-fa", "on", "--load-mode", "none", "--chunks", "32", "-nkvo", "-v"]
     if tag == "a2_cpu_amendment2":
+        return ["./llama-perplexity", "-m", MODEL, "-f", "/data/local/tmp/wiki.test.raw", "-ngl", "0", "-t", "8", "-c", "2048", "-b", "2048", "-ub", "1024", "-fa", "on", "--load-mode", "none", "--chunks", "20", "-nkvo", "-v"]
+    if tag == "a2_cpu_amendment3":
+        return ["./llama-perplexity", "-m", MODEL, "-f", "/data/local/tmp/wiki.test.raw", "-ngl", "0", "-t", "8", "-c", "2048", "-b", "2048", "-ub", "1024", "-fa", "on", "--load-mode", "none", "--chunks", "20", "-nkvo", "-v"]
+    if tag == "a2_cpu_amendment4":
         return ["./llama-perplexity", "-m", MODEL, "-f", "/data/local/tmp/wiki.test.raw", "-ngl", "0", "-t", "8", "-c", "2048", "-b", "2048", "-ub", "1024", "-fa", "on", "--load-mode", "none", "--chunks", "20", "-nkvo", "-v"]
     base = ["./llama-bench", "-m", MODEL, "-p", "512", "-n", "0", "-r", "2", "--no-warmup", "-t", "8", "-fa", "on", "--load-mode", "none", "-o", "jsonl"]
     return base + (["-ngl", "99", "-dev", "HTP0", "-v"] if tag == "b_npu" else ["-ngl", "0"])
@@ -467,7 +475,7 @@ def launch_one(tag: str, gate: dict[str, object]) -> dict[str, object]:
     status = "CAP_DATUM" if cap_datum and not stop_reason else ("STOPPED" if stop_reason else "DONE")
     record = {
         "tag": tag,
-        "arm": "A1 HTP correctness" if tag in ("a1_htp", "a1_htp_attempt2") else "A2 CPU-ref" if tag in ("a2_cpu", "a2_cpu_attempt2", "a2_cpu_amendment2") else "B pp512 NPU" if tag == "b_npu" else "B pp512 CPU",
+        "arm": "A1 HTP correctness" if tag in ("a1_htp", "a1_htp_attempt2") else "A2 CPU-ref" if tag in ("a2_cpu", "a2_cpu_attempt2", "a2_cpu_amendment2", "a2_cpu_amendment3", "a2_cpu_amendment4") else "B pp512 NPU" if tag == "b_npu" else "B pp512 CPU",
         "engine": "HTP" if tag in ("a1_htp", "a1_htp_attempt2", "b_npu") else "CPU",
         "status": status,
         "command_verbatim": canonical_command(tag),

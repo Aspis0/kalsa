@@ -48,3 +48,108 @@
 2026-08-27T03:21:16-04:00 AMENDMENT2_CAPTURED tag=a2_cpu_amendment2 guard_csv=raw/a2_cpu_amendment2.guard.csv guard_rc=raw/a2_cpu_amendment2.guard.rc running_ppl_per_chunk=raw/a2_cpu_amendment2.running_ppl.csv chunks=4
 2026-08-27T03:21:16-04:00 AMENDMENT2_R_VOID chunks_below_8; no_retry=true
 2026-08-27T03:23:17-04:00 FINALIZE_ATTEMPT2 r20_common_chunks=4 last_common_n=4 r20=VOID q55_gate=VOID verdict=STOPPED attempt1_letter=VOID A1_guard_kill_41.1C_rc2 A2_guard_kill_43.0C_rc2 A2_chunks=4 no_retry=true B_untouched=true
+2026-08-27T07:21:26-04:00 UNPLUGGED_VERIFY a2_cpu_amendment3 AC_powered=False USB_powered=False Wireless_powered=False Dock_powered=False level=99 temp_tenths=337
+2026-08-27T07:21:26-04:00 AMENDMENT3_START commit=62e29f09 A2_only=true attempt=3 chunks=20 addition=-f_/data/local/tmp/wiki.test.raw AC_powered=false A1_stands=true B_untouched=true cooldown_poll_s=300 cooldown_max_s=2400
+2026-08-27T07:21:26-04:00 GATE a2_cpu_amendment3 level=99 temp_tenths=337 plugged=False MemAvailable_kb=3962932
+2026-08-27T07:21:26-04:00 COOLDOWN a2_cpu_amendment3 poll=1 elapsed_s=0 level=99 temp_tenths=337 MemAvailable_kb=3962932 plugged=False
+2026-08-27T07:21:26-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:26:27-04:00 GATE a2_cpu_amendment3 level=99 temp_tenths=309 plugged=False MemAvailable_kb=3952384
+2026-08-27T07:26:27-04:00 COOLDOWN a2_cpu_amendment3 poll=2 elapsed_s=301 level=99 temp_tenths=309 MemAvailable_kb=3952384 plugged=False
+2026-08-27T07:26:27-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:31:27-04:00 GATE a2_cpu_amendment3 level=99 temp_tenths=299 plugged=False MemAvailable_kb=3914084
+2026-08-27T07:31:27-04:00 COOLDOWN a2_cpu_amendment3 poll=3 elapsed_s=601 level=99 temp_tenths=299 MemAvailable_kb=3914084 plugged=False
+2026-08-27T07:31:27-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:36:28-04:00 GATE a2_cpu_amendment3 level=99 temp_tenths=294 plugged=False MemAvailable_kb=3919512
+2026-08-27T07:36:28-04:00 COOLDOWN a2_cpu_amendment3 poll=4 elapsed_s=902 level=99 temp_tenths=294 MemAvailable_kb=3919512 plugged=False
+2026-08-27T07:36:28-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:41:28-04:00 GATE a2_cpu_amendment3 level=99 temp_tenths=289 plugged=False MemAvailable_kb=3747716
+2026-08-27T07:41:28-04:00 COOLDOWN a2_cpu_amendment3 poll=5 elapsed_s=1202 level=99 temp_tenths=289 MemAvailable_kb=3747716 plugged=False
+2026-08-27T07:41:28-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:46:29-04:00 GATE a2_cpu_amendment3 level=98 temp_tenths=287 plugged=False MemAvailable_kb=3575788
+2026-08-27T07:46:29-04:00 COOLDOWN a2_cpu_amendment3 poll=6 elapsed_s=1503 level=98 temp_tenths=287 MemAvailable_kb=3575788 plugged=False
+2026-08-27T07:46:29-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:51:29-04:00 GATE a2_cpu_amendment3 level=98 temp_tenths=284 plugged=False MemAvailable_kb=3612176
+2026-08-27T07:51:29-04:00 COOLDOWN a2_cpu_amendment3 poll=7 elapsed_s=1803 level=98 temp_tenths=284 MemAvailable_kb=3612176 plugged=False
+2026-08-27T07:51:29-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T07:56:30-04:00 GATE a2_cpu_amendment3 level=98 temp_tenths=284 plugged=False MemAvailable_kb=3824108
+2026-08-27T07:56:30-04:00 COOLDOWN a2_cpu_amendment3 poll=8 elapsed_s=2104 level=98 temp_tenths=284 MemAvailable_kb=3824108 plugged=False
+2026-08-27T07:56:30-04:00 COOLDOWN_WAIT a2_cpu_amendment3 next_poll_s=300 unplugged=true
+2026-08-27T08:01:31-04:00 GATE a2_cpu_amendment3 level=98 temp_tenths=279 plugged=False MemAvailable_kb=3861284
+2026-08-27T08:01:31-04:00 COOLDOWN a2_cpu_amendment3 poll=9 elapsed_s=2404 level=98 temp_tenths=279 MemAvailable_kb=3861284 plugged=False
+2026-08-27T08:01:31-04:00 NOT-RUN a2_cpu_amendment3 cool-start wait exceeded 40 min
+2026-08-27T08:01:31-04:00 AMENDMENT3_STOPPED reason=cooldown_or_gate
+2026-08-27T08:02:33-04:00 FINALIZE_ATTEMPT2 r3_common_chunks=0 last_common_n=NA r3=VOID q55_gate=VOID verdict=STOPPED attempt1_letter=VOID A1_guard_kill_41.1C_rc2 A2_attempt2_guard_kill_43.0C_rc2 A2_attempt3_not_started_mem_gate_timeout=true no_further_attempt=true B_untouched=true
+2026-08-27T08:06:05-04:00 AMENDMENT4_REBOOT_REQUEST pre_reboot_level=97 pre_reboot_temp_tenths=279 pre_reboot_MemAvailable_kb=3854756 pre_reboot_AC_powered=False
+2026-08-27T08:06:16-04:00 AMENDMENT4_REBOOT_ISSUED returncode=0 exactly_one=true
+2026-08-27T08:10:57-04:00 AMENDMENT4_ADB_REATTACHED boot_completed=1 elapsed_s=281 serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp
+2026-08-27T08:10:57-04:00 AMENDMENT4_IDLE_START duration_s=180
+2026-08-27T08:13:57-04:00 AMENDMENT4_IDLE_END duration_s=180
+2026-08-27T08:13:58-04:00 UNPLUGGED_VERIFY a2_cpu_amendment4 AC_powered=False USB_powered=False Wireless_powered=False Dock_powered=False level=96 temp_tenths=323
+2026-08-27T08:13:58-04:00 GATE a2_cpu_amendment4 level=96 temp_tenths=323 plugged=False MemAvailable_kb=4061968
+2026-08-27T08:13:58-04:00 PREARM_GATE a2_cpu_amendment4 poll=1 boot_elapsed_s=281 level=96 temp_tenths=323 MemAvailable_kb=4061968 plugged=False
+2026-08-27T08:13:58-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:14:29-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=323 plugged=False MemAvailable_kb=4021608
+2026-08-27T08:14:29-04:00 PREARM_GATE a2_cpu_amendment4 poll=2 boot_elapsed_s=312 level=95 temp_tenths=323 MemAvailable_kb=4021608 plugged=False
+2026-08-27T08:14:29-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:14:59-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3636304
+2026-08-27T08:14:59-04:00 PREARM_GATE a2_cpu_amendment4 poll=3 boot_elapsed_s=342 level=95 temp_tenths=319 MemAvailable_kb=3636304 plugged=False
+2026-08-27T08:14:59-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:15:30-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3773000
+2026-08-27T08:15:30-04:00 PREARM_GATE a2_cpu_amendment4 poll=4 boot_elapsed_s=373 level=95 temp_tenths=319 MemAvailable_kb=3773000 plugged=False
+2026-08-27T08:15:30-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:16:00-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3763816
+2026-08-27T08:16:00-04:00 PREARM_GATE a2_cpu_amendment4 poll=5 boot_elapsed_s=403 level=95 temp_tenths=319 MemAvailable_kb=3763816 plugged=False
+2026-08-27T08:16:00-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:16:30-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3723360
+2026-08-27T08:16:30-04:00 PREARM_GATE a2_cpu_amendment4 poll=6 boot_elapsed_s=433 level=95 temp_tenths=319 MemAvailable_kb=3723360 plugged=False
+2026-08-27T08:16:30-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:17:01-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3650712
+2026-08-27T08:17:01-04:00 PREARM_GATE a2_cpu_amendment4 poll=7 boot_elapsed_s=464 level=95 temp_tenths=319 MemAvailable_kb=3650712 plugged=False
+2026-08-27T08:17:01-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:17:31-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3621476
+2026-08-27T08:17:31-04:00 PREARM_GATE a2_cpu_amendment4 poll=8 boot_elapsed_s=494 level=95 temp_tenths=319 MemAvailable_kb=3621476 plugged=False
+2026-08-27T08:17:31-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:18:02-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3610280
+2026-08-27T08:18:02-04:00 PREARM_GATE a2_cpu_amendment4 poll=9 boot_elapsed_s=525 level=95 temp_tenths=319 MemAvailable_kb=3610280 plugged=False
+2026-08-27T08:18:02-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:18:32-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3588076
+2026-08-27T08:18:32-04:00 PREARM_GATE a2_cpu_amendment4 poll=10 boot_elapsed_s=555 level=95 temp_tenths=319 MemAvailable_kb=3588076 plugged=False
+2026-08-27T08:18:32-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:19:03-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3579120
+2026-08-27T08:19:03-04:00 PREARM_GATE a2_cpu_amendment4 poll=11 boot_elapsed_s=586 level=95 temp_tenths=319 MemAvailable_kb=3579120 plugged=False
+2026-08-27T08:19:03-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:19:33-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3568160
+2026-08-27T08:19:33-04:00 PREARM_GATE a2_cpu_amendment4 poll=12 boot_elapsed_s=616 level=95 temp_tenths=319 MemAvailable_kb=3568160 plugged=False
+2026-08-27T08:19:33-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:20:04-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=319 plugged=False MemAvailable_kb=3529656
+2026-08-27T08:20:04-04:00 PREARM_GATE a2_cpu_amendment4 poll=13 boot_elapsed_s=647 level=95 temp_tenths=319 MemAvailable_kb=3529656 plugged=False
+2026-08-27T08:20:04-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:20:34-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3527556
+2026-08-27T08:20:34-04:00 PREARM_GATE a2_cpu_amendment4 poll=14 boot_elapsed_s=677 level=95 temp_tenths=309 MemAvailable_kb=3527556 plugged=False
+2026-08-27T08:20:34-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:21:05-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3504852
+2026-08-27T08:21:05-04:00 PREARM_GATE a2_cpu_amendment4 poll=15 boot_elapsed_s=708 level=95 temp_tenths=309 MemAvailable_kb=3504852 plugged=False
+2026-08-27T08:21:05-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:21:35-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3451912
+2026-08-27T08:21:35-04:00 PREARM_GATE a2_cpu_amendment4 poll=16 boot_elapsed_s=738 level=95 temp_tenths=309 MemAvailable_kb=3451912 plugged=False
+2026-08-27T08:21:35-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:22:06-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3417088
+2026-08-27T08:22:06-04:00 PREARM_GATE a2_cpu_amendment4 poll=17 boot_elapsed_s=769 level=95 temp_tenths=309 MemAvailable_kb=3417088 plugged=False
+2026-08-27T08:22:06-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:22:36-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3415860
+2026-08-27T08:22:36-04:00 PREARM_GATE a2_cpu_amendment4 poll=18 boot_elapsed_s=799 level=95 temp_tenths=309 MemAvailable_kb=3415860 plugged=False
+2026-08-27T08:22:36-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:23:07-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3413140
+2026-08-27T08:23:07-04:00 PREARM_GATE a2_cpu_amendment4 poll=19 boot_elapsed_s=830 level=95 temp_tenths=309 MemAvailable_kb=3413140 plugged=False
+2026-08-27T08:23:07-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:23:37-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3592040
+2026-08-27T08:23:37-04:00 PREARM_GATE a2_cpu_amendment4 poll=20 boot_elapsed_s=860 level=95 temp_tenths=309 MemAvailable_kb=3592040 plugged=False
+2026-08-27T08:23:37-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:24:08-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3583044
+2026-08-27T08:24:08-04:00 PREARM_GATE a2_cpu_amendment4 poll=21 boot_elapsed_s=891 level=95 temp_tenths=309 MemAvailable_kb=3583044 plugged=False
+2026-08-27T08:24:08-04:00 PREARM_GATE_WAIT a2_cpu_amendment4 next_poll_s=30
+2026-08-27T08:24:38-04:00 GATE a2_cpu_amendment4 level=95 temp_tenths=309 plugged=False MemAvailable_kb=3607860
+2026-08-27T08:24:38-04:00 PREARM_GATE a2_cpu_amendment4 poll=22 boot_elapsed_s=921 level=95 temp_tenths=309 MemAvailable_kb=3607860 plugged=False
+2026-08-27T08:24:38-04:00 AMENDMENT4_STOPPED reason=prearm_gate_timeout boot_elapsed_s=921 MemAvailable_kb=3607860 temp_tenths=309 level=95
+2026-08-27T08:24:56-04:00 AMENDMENT4_ADB_DEVICES_POLL polls=3 interval_s=20 target_serial=adb-625689a2-9xEOfw._adb-tls-connect._tcp state=device new_ip=false adb_connect=false
+2026-08-27T08:26:15-04:00 FINALIZE_ATTEMPT4 r4_common_chunks=0 last_common_n=NA r4=VOID q55_gate=VOID verdict=STOPPED attempt1_letter=VOID A1_guard_kill_41.1C_rc2 A2_attempt2_guard_kill_43.0C_rc2 A2_attempt3_not_started_mem_gate_timeout=true reboot_count=1 A2_attempt4_not_started_mem_gate_timeout=true no_further_attempt=true B_untouched=true

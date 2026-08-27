@@ -1679,12 +1679,14 @@
     }
   ],
   "status": "STOPPED",
-  "stop_reason": "FAIL_LOAD rc=137",
+  "stop_reason": "Amendment 4 pre-arm gate timeout/failure",
   "numeric_verdict": "STOPPED",
   "deviations": [
     "Attempt 1 A1/A2 omitted -f /data/local/tmp/wiki.test.raw; shipped binary evaluated 0 tokens and produced 0 common PPL chunks. Frozen letter: VOID (common chunks < 8).",
     "Amendment 1 reran A1 with -f /data/local/tmp/wiki.test.raw; A1 hit the NPU guard kill at 41.1 C (guard rc 2), so the frozen stop rule prevented A2. B arms were not rerun and remain the original attempt-1 measurements.",
     "Amendment 2 reopened only A2 post-result with --chunks 20; A2 hit the CPU guard kill at 43.0 C after 4 chunks, so r20 is VOID (n < 8) and no retry was made.",
+    "Amendment 3 verified AC powered=false and remained unplugged; after the declared 40-minute cooldown, MemAvailable remained below 4194304 kB, so A2 attempt 3 was not started and r remains VOID.",
+    "Amendment 4 issued exactly one adb reboot; the same wireless ADB serial reattached in 281 s, but after the required 3-minute idle and 921 s post-boot gate window, MemAvailable remained below 4194304 kB. A2 attempt 4 was not started and r remains VOID.",
     "Attempt-2 supervisor emitted guard CSV and guard rc files; cpuset evidence is from binary_pid and is recorded as /."
   ],
   "attempt1": {
@@ -3769,6 +3771,66 @@
       "r": null,
       "q55_letter": "VOID",
       "a2_chunks_reached": 4,
+      "verdict": "STOPPED"
+    }
+  },
+  "amendment3": {
+    "commit": "62e29f09",
+    "label": "r characterization under Amendments 2+3 (post-result, CPU-ref only)",
+    "status": "STOPPED",
+    "chunks_limit": 20,
+    "unplugged_verification": {
+      "level": 99,
+      "temperature_tenths": 337,
+      "voltage_mv": 4359,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false,
+      "verified_at": "2026-08-27T07:21:26-04:00",
+      "unplugged_verified": true
+    },
+    "raw_unplugged_battery": "raw/a2_cpu_amendment3.unplugged_battery.txt",
+    "runs": [],
+    "derivation": {
+      "common_chunks": 0,
+      "last_common_n": null,
+      "r": null,
+      "q55_letter": "VOID",
+      "a2_chunks_reached": 0,
+      "verdict": "STOPPED"
+    }
+  },
+  "amendment4": {
+    "commit": "15dc8556",
+    "label": "r characterization under Amendments 2-4 (post-result, CPU-ref only)",
+    "status": "STOPPED",
+    "chunks_limit": 20,
+    "reboot": {
+      "issued": true,
+      "count": 1,
+      "command": "adb -s adb-625689a2-9xEOfw._adb-tls-connect._tcp reboot",
+      "raw": "raw/a2_cpu_amendment4.reboot.log"
+    },
+    "runs": [],
+    "boot_reattach_elapsed_s": 281,
+    "unplugged_verification": {
+      "level": 96,
+      "temperature_tenths": 323,
+      "voltage_mv": 4320,
+      "ac_powered": false,
+      "usb_powered": false,
+      "wireless_powered": false,
+      "dock_powered": false,
+      "verified_at": "2026-08-27T08:13:58-04:00",
+      "unplugged_verified": true
+    },
+    "derivation": {
+      "common_chunks": 0,
+      "last_common_n": null,
+      "r": null,
+      "q55_letter": "VOID",
+      "a2_chunks_reached": 0,
       "verdict": "STOPPED"
     }
   }

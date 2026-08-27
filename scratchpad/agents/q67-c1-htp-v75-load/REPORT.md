@@ -49,6 +49,32 @@ r20 = VOID (A2 guard-killed before chunk 8)
 q55 letter = VOID (PASS <= 2%; GREY 2-5%; FAIL > 5% or NaN).
 A2 guard-killed before chunk 8; r remains VOID; no retry.
 
+## r characterization under Amendments 2+3 (post-result, CPU-ref only)
+
+UNPLUGGED verification: AC powered=false; USB powered=false; Wireless powered=false; Dock powered=false; battery 99%; temperature 33.9 C.
+
+| cooldown poll | elapsed_s | battery_% | temp_C | MemAvailable_kB | plugged |
+|---:|---:|---:|---:|---:|---|
+| 1 | 0 | 99 | 33.7 | 3962932 | False |
+| 2 | 301 | 99 | 30.9 | 3952384 | False |
+| 3 | 601 | 99 | 29.9 | 3914084 | False |
+| 4 | 902 | 99 | 29.4 | 3919512 | False |
+| 5 | 1202 | 99 | 28.9 | 3747716 | False |
+| 6 | 1503 | 98 | 28.7 | 3575788 | False |
+| 7 | 1803 | 98 | 28.4 | 3612176 | False |
+| 8 | 2104 | 98 | 28.4 | 3824108 | False |
+| 9 | 2404 | 98 | 27.9 | 3861284 | False |
+
+A2 attempt 3: NOT-RUN; unplugged verified; cool-start temperature passed; MemAvailable gate not met by 2404 s; no workload/guard invocation.
+n = NA; r = VOID (A2 attempt 3 not started); q55 letter = VOID; final verdict = STOPPED.
+
+## r characterization under Amendments 2-4 (post-result, CPU-ref only)
+
+Amendment 4: exactly one adb reboot; same wireless ADB serial reattached after 281 s; idle 180 s; no new IP or adb connect.
+UNPLUGGED verification after idle: AC powered=false; USB powered=false; Wireless powered=false; Dock powered=false; battery 96%; temperature 32.3 C.
+Pre-arm gate window: polls through boot elapsed 921 s; final battery 95%; temperature 30.9 C; MemAvailable 3607860 kB; plugged=false.
+A2 attempt 4: NOT-RUN; MemAvailable gate remained below 4194304 kB; r = VOID; n = NA; q55 letter = VOID; final verdict = STOPPED; cell closed.
+
 ## B pp512 (attempt 1; stands)
 
 | arm | status | first_sample_t/s | jsonl_avg_t/s | dT_C | max_C |
@@ -61,4 +87,4 @@ A2 guard-killed before chunk 8; r remains VOID; no retry.
 Corrected command addition: -f /data/local/tmp/wiki.test.raw; all other A1/A2 flags and environment unchanged.
 A1 HTP guard: WARN 40.0 C / KILL 41.0 C; A2 CPU guard: WARN 40.0 C / KILL 43.0 C; poll 10 s; cap 600 s.
 Cool-start <= 35.0 C; MemAvailable >= 4194304 kB; cpuset evidence from binary_pid.
-STOPPED: A1 NPU guard kill at 41.1 C, guard rc 2; Amendment 2 A2 CPU guard kill at 43.0 C after 4 chunks, guard rc 2; r20 VOID; no retry; B was not rerun.
+STOPPED: A1 NPU guard kill at 41.1 C, guard rc 2; Amendment 2 A2 CPU guard kill at 43.0 C after 4 chunks, guard rc 2; Amendment 3 A2 not started after 2404 s gate wait; Amendment 4 one reboot then A2 not started after 921 s post-boot gate wait; r VOID; no further attempt; B was not rerun.
