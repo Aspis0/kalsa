@@ -125,7 +125,18 @@ export function extractProfile(reply, opts = {}) {
 
 export function profileJsonl(file, opts = {}) {
   const lines = readFileSync(file, "utf8").split(/\n/).filter((l) => l.trim());
-  const turns = lines.map((l) => JSON.parse(l));
+  const raw = lines.map((l) => JSON.parse(l));
+  // H3 (audit GLM): RECOVERY rows are markers (abort/thermal), not turns —
+  // they dilute echo-rate/hedge-rate with zero-token rows. Dedup by turn i:
+  // last real write wins (resume re-attempts keep the final attempt).
+  const byTurn = new Map();
+  for (const rec of raw) {
+    if (rec.event === "RECOVERY" || rec.event === "COLLECT_FAIL") continue;
+    const i = rec.i ?? rec.turn;
+    if (i === undefined || i === null) continue;
+    byTurn.set(i, rec);
+  }
+  const turns = [...byTurn.values()].sort((a, b) => (a.i ?? a.turn) - (b.i ?? b.turn));
   let prior = "";
   const perTurn = [];
   for (const rec of turns) {

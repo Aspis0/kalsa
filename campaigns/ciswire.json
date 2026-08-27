@@ -80,7 +80,9 @@
     {
       "id": "A",
       "label": "eviction timing/severity: winbudget ≈¼ of Phase-0 measured window (not presence vs none)",
-      "params": { "kalsa.bench.winbudget": "PHASE0" }
+      "params": {
+        "kalsa.bench.winbudget": "PHASE0"
+      }
     },
     {
       "id": "B",
@@ -91,13 +93,21 @@
   "telemetry": [
     {
       "prefix": "KALSA_TELEMETRY",
-      "absentZero": ["ciswireFlags"],
+      "absentZero": [
+        "ciswireFlags"
+      ],
       "sentinels": {},
-      "timingInvalidOnCharge": ["promptMs", "predictedPerSecond", "predictedMs"]
+      "timingInvalidOnCharge": [
+        "promptMs",
+        "predictedPerSecond",
+        "predictedMs"
+      ]
     },
     {
       "prefix": "KALSA_MEMORY",
-      "absentZero": ["ciswireFlags"],
+      "absentZero": [
+        "ciswireFlags"
+      ],
       "sentinels": {
         "dnaDeferred": -1,
         "dnaInjected": -1,
@@ -107,21 +117,35 @@
     },
     {
       "prefix": "KALSA_MEMORY_EXTRACT",
-      "absentZero": ["ciswireFlags"],
+      "absentZero": [
+        "ciswireFlags"
+      ],
       "sentinels": {},
       "timingInvalidOnCharge": []
     },
     {
       "prefix": "KALSA_DIGEST",
-      "absentZero": ["ciswireFlags"],
+      "absentZero": [
+        "ciswireFlags"
+      ],
       "sentinels": {},
-      "timingInvalidOnCharge": ["durationMs"],
-      "expectedWhen": { "kalsa.context.compaction": "ciswire" }
+      "timingInvalidOnCharge": [
+        "durationMs"
+      ],
+      "expectedWhen": {
+        "kalsa.context.compaction": "ciswire"
+      }
     }
   ],
   "scorers": [
-    { "id": "recall", "module": "scripts/campaign/scoring.mjs" },
-    { "id": "tool", "module": "scripts/campaign/scoring.mjs" },
+    {
+      "id": "recall",
+      "module": "scripts/campaign/scoring.mjs"
+    },
+    {
+      "id": "tool",
+      "module": "scripts/campaign/scoring.mjs"
+    },
     {
       "id": "response_profile",
       "module": "scripts/campaign/scoring.mjs",
@@ -134,8 +158,9 @@
     "pollMs": 5000
   },
   "recovery": {
-    "thermalPause": 3,
+    "thermalPause": 5,
     "neverUninstall": true,
-    "neverPmClear": true
+    "neverPmClear": true,
+    "thermalMaxC": 45
   }
 }

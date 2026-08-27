@@ -104,7 +104,11 @@ campaign_wait_engine() {
 campaign_send_turn() {
   local msg="${1:?}" dest="$OUT/.messages.json"
   local needle try t interrupted_resends
-  needle=$(printf '%s' "$msg" | awk '{s=$0} END {if (length(s)>48) print substr(s,1,48); else print s}')
+  # M7 (audit GLM): needle must be cut by CHARACTERS, not bytes — awk substr
+  # on multibyte (it/fr accents) splits a codepoint, so the composer check and
+  # campaign_user_landed would never match and the turn would re-share
+  # (duplicate user turn). Python cuts by chars.
+  needle=$(python3 -c 'import sys; s = sys.argv[1]; print(s[:48])' "$msg")
   for try in 1 2 3; do
     local eng_off
     interrupted_resends=0
@@ -114,6 +118,10 @@ campaign_send_turn() {
     t=0
     while [ "$t" -lt 24 ]; do
       _campaign_composer_has "$needle" && break
+      if campaign_thermal_should_pause; then
+        CAMPAIGN_TURN_STATUS="thermal"
+        return 1
+      fi
       sleep 3
       t=$((t + 3))
     done
@@ -122,6 +130,10 @@ campaign_send_turn() {
     device_tap_send || { log "Invia miss try=$try"; continue; }
     t=0
     while [ "$t" -lt 45 ]; do
+      if campaign_thermal_should_pause; then
+        CAMPAIGN_TURN_STATUS="thermal"
+        return 1
+      fi
       if campaign_user_landed "$dest" "$msg"; then
         if python3 -c '
 import json,sys
@@ -188,15 +200,18 @@ campaign_wait_turn() {
     case "$count" in ''|*[!0-9]*) count=0 ;; esac
 
     campaign_snapshot_messages "$OUT/.messages.json"
-    if campaign_last_assistant_interrupted "$OUT/.messages.json"; then
-      log "interrupted bubble — turn complete"
-      CAMPAIGN_TURN_STATUS="interrupted"
-      return 0
-    fi
-
+    # H2 (audit GLM): the interrupted-bubble check must run AFTER count>prev —
+    # at turn N+1 following an interrupted turn N, the stale bubble of N is the
+    # last assistant message and would "complete" N+1 at the first poll (~5s)
+    # with N's text. Only a NEW bubble (count advanced) means a fresh turn.
     if campaign_slice_has_telemetry "$dest"; then
       last_progress="$now"
       if [ "$count" -gt "$prev" ]; then
+        if campaign_last_assistant_interrupted "$OUT/.messages.json"; then
+          log "interrupted bubble — turn complete"
+          CAMPAIGN_TURN_STATUS="interrupted"
+          return 0
+        fi
         CAMPAIGN_TURN_STATUS="ok"
         return 0
       fi
@@ -230,7 +245,7 @@ campaign_collect_file() {
   if [ "${CAMPAIGN_TURN_STATUS:-}" = "interrupted" ]; then
     interrupted=true
   fi
-  node "$CAMPAIGN_ROOT/collector.mjs" \
+  if node "$CAMPAIGN_ROOT/collector.mjs" \
     --logcat "$slice" \
     --messages "$messages" \
     --charging "$charging" \
@@ -243,6 +258,35 @@ campaign_collect_file() {
     --telemetry "$tel_schema" \
     --interrupted "$interrupted" \
     --out "$out" \
-    ${CAMPAIGN_RETRIED:+--retried} \
-    || die "collector failed turn ${CAMPAIGN_TURN_I:-?}"
+    ${CAMPAIGN_RETRIED:+--retried}; then
+    return 0
+  fi
+  # M3 (audit GLM): the turn is COMPLETE at this point — dying here would
+  # leave the checkpoint at i-1 and the resume would RE-SEND the same user
+  # turn (duplicate). Write a partial record so the checkpoint advances.
+  log "WARN: collector failed turn ${CAMPAIGN_TURN_I:-?} — writing partial record (checkpoint must advance, no re-send)"
+  local partial="$OUT/.partial-turn.json"
+  python3 -c '
+import json, sys
+messages = json.loads(open(sys.argv[1], encoding="utf-8").read() or "[]")
+users = [m.get("text") or "" for m in messages if isinstance(m, dict) and m.get("role") == "user"]
+asst = [m.get("text") or "" for m in messages if isinstance(m, dict) and m.get("role") == "assistant"]
+json.dump({
+  "i": int(sys.argv[2] or 0),
+  "arm": sys.argv[3],
+  "variant": sys.argv[4],
+  "conv": sys.argv[5],
+  "event": "COLLECT_FAIL",
+  "user": users[-1] if users else "",
+  "assistant": asst[-1] if asst else "",
+  "telemetry": {},
+  "charging": sys.argv[6] == "true",
+  "timingValid": False,
+  "retried": False,
+  "recovery": "collect-failed",
+  "scores": None,
+}, open(sys.argv[7], "w"))
+' "$messages" "${CAMPAIGN_TURN_I:-0}" "${CAMPAIGN_ARM_ID:-}" "${CAMPAIGN_VARIANT_ID:-}" "${CAMPAIGN_CONV_ID:-}" "$charging" "$partial"
+  node "$CAMPAIGN_ROOT/datastore.mjs" --append "$OUT" "${CAMPAIGN_ARM_ID:-}" "${CAMPAIGN_CONV_ID:-}" "$partial"
+  return 0
 }

@@ -75,7 +75,8 @@ CAMPAIGN_TURN_TIMEOUT_MS="$(_json "$CONFIG" watchdog.turnTimeoutMs)"
 CAMPAIGN_TELEMETRY_GAP_MS="$(_json "$CONFIG" watchdog.telemetryGapMs)"
 CAMPAIGN_POLL_MS="$(_json "$CONFIG" watchdog.pollMs)"
 CAMPAIGN_THERMAL_PAUSE="$(_json "$CONFIG" recovery.thermalPause)"
-export CAMPAIGN_TURN_TIMEOUT_MS CAMPAIGN_TELEMETRY_GAP_MS CAMPAIGN_POLL_MS CAMPAIGN_THERMAL_PAUSE
+CAMPAIGN_THERMAL_MAX_C="$(_json "$CONFIG" recovery.thermalMaxC)"
+export CAMPAIGN_TURN_TIMEOUT_MS CAMPAIGN_TELEMETRY_GAP_MS CAMPAIGN_POLL_MS CAMPAIGN_THERMAL_PAUSE CAMPAIGN_THERMAL_MAX_C
 
 DATE_STAMP=$(date +%Y-%m-%d)
 RESULTS_REL="$(_json "$CONFIG" resultsDir)"
@@ -155,7 +156,12 @@ campaign_run_script_turns() {
   SCRIPT="$script_json"
   for i in $(seq "$start" "$n"); do
     user=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["turns"][int(sys.argv[2])]["user"])' "$SCRIPT" "$((i - 1))")
-    campaign_one_turn "$i" "$user"
+    # Robustness: a single turn must never kill the whole campaign loop (set -e).
+    # A failed turn (non-zero from campaign_one_turn) must NOT advance the
+    # conversation: return 1 so mode_run skips the profile write and the next
+    # pass resumes from this exact turn. The old `|| true` silently burned
+    # turns — c1-B completed 2/24 (the bug that pollutes profiles).
+    campaign_one_turn "$i" "$user" || return 1
   done
 }
 
@@ -234,8 +240,17 @@ mode_run() {
   local plan="$OUT/.resume-plan.txt"
   node "$CAMPAIGN_ROOT/resume.mjs" --root "$OUT" --cells "$cells_file" --nconv "$nconv" --nturns "$nturns" \
     >"$plan" || die "resume.mjs exit $?"
-  while read -r arm_id v conv_id action start_turn; do
-    [ "$action" = "skip" ] && continue
+  # N1 (re-audit GLM): adb/sql calls inside the loop forward stdin, which is
+  # the plan FILE itself (done < "$plan") — one call kills the loop after the
+  # first cell. Read the plan into an array BEFORE the loop: the loop body's
+  # stdin stays free, and no fd juggling (bash 3.2 closes function fds).
+  plan_lines=()
+  while IFS= read -r pline; do
+    plan_lines+=("$pline")
+  done < "$plan"
+  for pline in "${plan_lines[@]}"; do
+    read -r arm_id v conv_id action start_turn <<< "$pline"
+    [ -z "$arm_id" ] && continue
     CAMPAIGN_ARM_ID="$arm_id"
     CAMPAIGN_VARIANT_ID="$v"
     CAMPAIGN_CONV_ID="$conv_id"
@@ -244,13 +259,29 @@ mode_run() {
     if [ "$action" = "resume" ]; then
       log "resume $arm_id $v $conv_id from turn $start_turn"
       campaign_restore_same_conv
+    elif [ "$action" = "invalid" ]; then
+      # N2/N3 (re-audit GLM): cell has holes — quarantine the jsonl (data
+      # preserved, not analyzed), wipe the device chat, restart from turn 1.
+      # Never restore_same_conv cross-cell (wrong chat on device) and never
+      # resume inside a holey conversation (re-sends real turns).
+      campaign_quarantine_conv
+      campaign_arm_begin
+      start_turn=1
+      log "invalid $arm_id $v $conv_id — quarantined, restart from turn 1"
     else
       campaign_arm_begin
       start_turn=1
     fi
-    campaign_run_script_turns "$SCRIPT" "$nturns" "$start_turn"
-    campaign_profile_jsonl "$OUT/$CAMPAIGN_ARM_ID/${CAMPAIGN_CONV_ID}.jsonl"
-  done < "$plan"
+    # Robustness: one conversation (or one profile pass) must never stop the
+    # campaign. Wrap the body so a cell failure logs and continues to the next
+    # cell — the data for THIS cell is already written turn-by-turn by
+    # campaign_store_turn, so a failure here only skips the profile.
+    if campaign_run_script_turns "$SCRIPT" "$nturns" "$start_turn"; then
+      campaign_profile_jsonl "$OUT/$CAMPAIGN_ARM_ID/${CAMPAIGN_CONV_ID}.jsonl"
+    else
+      log "WARN: conversation $CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID did not complete cleanly"
+    fi
+  done
 }
 
 case "$MODE" in

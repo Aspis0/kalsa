@@ -33,6 +33,25 @@ EOF
   sql_write "DELETE FROM catalystLocalStorage WHERE key='kalsa.memory.facts';" "kalsa.memory.facts" "__ABSENT__"
 }
 
+# N2/N3 (re-audit GLM): a cell with holes must NOT be resumed — its jsonl is
+# quarantined (preserved, excluded from analysis), the device chat gets wiped
+# by campaign_arm_begin, and the conversation restarts from turn 1 clean.
+# Called on action=invalid from the resume plan, before campaign_arm_begin.
+campaign_quarantine_conv() {
+  local src="$OUT/$CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID.jsonl"
+  local qdir="$OUT/quarantine"
+  if [ -f "$src" ]; then
+    mkdir -p "$qdir"
+    local dest="$qdir/$CAMPAIGN_ARM_ID-$CAMPAIGN_CONV_ID-$(date +%Y%m%d-%H%M%S).jsonl"
+    mv "$src" "$dest"
+    log "quarantined $src -> $dest (holes: resume would poison chat / duplicate turns)"
+  fi
+  local prof="$OUT/$CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID.profile.json"
+  [ -f "$prof" ] && mv "$prof" "$qdir/" 2>/dev/null || true
+  local ev="$OUT/$CAMPAIGN_ARM_ID/$CAMPAIGN_CONV_ID.eviction.json"
+  [ -f "$ev" ] && mv "$ev" "$qdir/" 2>/dev/null || true
+}
+
 campaign_launch() {
   adb shell am start -n "$CAMPAIGN_ACTIVITY" </dev/null >/dev/null 2>&1
   sleep 5

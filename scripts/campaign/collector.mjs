@@ -64,6 +64,7 @@ export function collectTurn(opts) {
     charging,
     timingValid: !charging,
     retried: Boolean(opts.retried),
+    interrupted: interrupted || null,
     recovery: opts.recovery || null,
     scores: opts.scores || null,
     evictionHint: evictionHint(telemetryStamped),

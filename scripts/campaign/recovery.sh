@@ -7,7 +7,13 @@
 set -uo pipefail
 
 CAMPAIGN_SERIAL="${CAMPAIGN_SERIAL:-192.168.1.82:34037}"
-CAMPAIGN_THERMAL_PAUSE="${CAMPAIGN_THERMAL_PAUSE:-3}"
+# Critical status threshold (≥5 = real overheating). Status 2-3 is the Jelly's
+# steady state on AC power (42-44°C battery) — NOT a reason to pause. The real
+# safety gate is battery temp > THERMAL_MAX_C (47°C — the Jelly's charging+
+# working equilibrium is 43-44°C; 43 was measured to block every send, so the
+# gate sits above the working equilibrium and below MediaTek's ~47-48°C throttle).
+CAMPAIGN_THERMAL_PAUSE="${CAMPAIGN_THERMAL_PAUSE:-5}"
+CAMPAIGN_THERMAL_MAX_C="${CAMPAIGN_THERMAL_MAX_C:-45}"
 
 campaign_connect() {
   local serial="${1:-$CAMPAIGN_SERIAL}" attempt delay
@@ -128,25 +134,54 @@ campaign_relaunch_or_reinstall() {
 }
 
 campaign_thermal_should_pause() {
-  local st
+  local st bt
   st=$(device_thermal_status)
   case "$st" in
     ''|unknown|*[!0-9]*) return 1 ;;
   esac
-  [ "$st" -ge "$CAMPAIGN_THERMAL_PAUSE" ]
+  # Pause only on REAL heat: battery temp > max (43°C) or a critical system
+  # status (≥5, genuine overheating). Status 2-3 while charging is the Jelly's
+  # normal equilibrium — work through it; the battery temp is the honest gate.
+  [ "$st" -ge "$CAMPAIGN_THERMAL_PAUSE" ] && return 0
+  bt=$(device_battery_temp_c)
+  case "$bt" in
+    ''|unknown|*[!0-9.]*) return 1 ;;
+  esac
+  python3 -c "exit(0 if float('$bt') > $CAMPAIGN_THERMAL_MAX_C else 1)"
+}
+
+# True while the phone is genuinely HOT: system thermal status at/above
+# threshold OR battery temperature at/above 40°C (the Jelly stays hot even
+# at status 2 because charging adds heat). Keeping the phone cool is the
+# priority (owner: slow but safe, always cool) — so resume only when BOTH
+# are below limits.
+campaign_thermal_still_hot() {
+  local st bt
+  st=$(device_thermal_status)
+  case "$st" in
+    ''|unknown|*[!0-9]*) return 0 ;;
+  esac
+  [ "$st" -ge "$CAMPAIGN_THERMAL_PAUSE" ] && return 0
+  bt=$(device_battery_temp_c)
+  case "$bt" in
+    ''|*[!0-9.]) return 0 ;;
+  esac
+  python3 -c "exit(0 if float('$bt') > $CAMPAIGN_THERMAL_MAX_C else 1)"
 }
 
 # Stop, cooldown, caller resumes SAME arm/conv only.
 campaign_thermal_cooldown() {
-  local waited=0 cap=1200
-  log "RECOVERY reason=thermal — pause (status>=$CAMPAIGN_THERMAL_PAUSE)"
+  local waited=0 cap=7200
+  log "RECOVERY reason=thermal — pause (battery > ${CAMPAIGN_THERMAL_MAX_C}°C or status >= $CAMPAIGN_THERMAL_PAUSE; resume when cool — Jelly's charging equilibrium 41-43°C is fine to work through)"
   campaign_force_stop
   while [ "$waited" -lt "$cap" ]; do
-    sleep 30
-    waited=$((waited + 30))
-    campaign_thermal_should_pause || { log "thermal cool after ${waited}s"; return 0; }
+    sleep 60
+    waited=$((waited + 60))
+    campaign_thermal_should_pause || { log "thermal cool after ${waited}s (battery <= ${CAMPAIGN_THERMAL_MAX_C}°C, status < $CAMPAIGN_THERMAL_PAUSE)"; return 0; }
     log "thermal still hot (${waited}s)"
   done
-  log "thermal still paused after ${cap}s"
-  return 1
+  log "thermal still paused after ${cap}s — waiting again, safer than resuming hot (owner: slow but safe)"
+  # Do NOT die; loop again with a fresh budget. The phone cools eventually;
+  # resuming hot is what risks the hardware. Keep waiting.
+  campaign_thermal_cooldown
 }

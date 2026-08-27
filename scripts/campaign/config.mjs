@@ -74,7 +74,7 @@ export function validateCampaign(cfg) {
   }
   if (!cfg.recovery) err.push("recovery required");
   else {
-    if ((cfg.recovery.thermalPause ?? 0) < 3) err.push("recovery.thermalPause must be >= 3");
+    if ((cfg.recovery.thermalPause ?? 0) < 2) err.push("recovery.thermalPause must be >= 2");
     if (cfg.recovery.neverUninstall !== true) err.push("recovery.neverUninstall must be true");
     if (cfg.recovery.neverPmClear !== true) err.push("recovery.neverPmClear must be true");
   }

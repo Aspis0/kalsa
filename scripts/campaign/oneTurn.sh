@@ -4,8 +4,18 @@ set -uo pipefail
 
 campaign_score_record() {
   local rec="${1:?}"
-  node "$CAMPAIGN_ROOT/scoring.mjs" --score-turn "$rec" --config "$CONFIG" --repo "$REPO" \
-    || die "scorer failed turn ${CAMPAIGN_TURN_I:-?}"
+  # N4 (re-audit GLM): the turn is COMPLETE at this point — dying here leaves
+  # the checkpoint at i-1 and the resume re-sends the user turn (duplicate).
+  # Score failure -> scores:null + WARN, never die post-completion.
+  if ! node "$CAMPAIGN_ROOT/scoring.mjs" --score-turn "$rec" --config "$CONFIG" --repo "$REPO"; then
+    log "WARN: scorer failed turn ${CAMPAIGN_TURN_I:-?} — keeping record with scores:null"
+    python3 -c '
+import json, sys
+rec = json.load(open(sys.argv[1]))
+rec["scores"] = None
+json.dump(rec, open(sys.argv[1], "w"))
+' "$rec"
+  fi
 }
 
 campaign_store_turn() {
@@ -21,14 +31,15 @@ campaign_recover_status() {
   local status="${1:?}"
   case "$status" in
     timeout|hang)
-      if campaign_restore_same_conv; then
-        return 1
-      fi
-      if [ "$(campaign_adb_state)" != "device" ]; then
-        die "device gone after $status turn $CAMPAIGN_TURN_I"
-      fi
-      log "restore after $status failed — skip turn $CAMPAIGN_TURN_I"
-      return 2
+      # A timeout/hang is usually a lost engine (zombie: app alive but
+      # activeModel null / jsReady false). Restoring the KV context alone does
+      # NOT reload the model — only relaunching the app does. So mirror the
+      # pid-death path: pull the DB, relaunch/reinstall, wait ready. This is
+      # what breaks the infinite hang loop.
+      campaign_pull_db "$OUT/db-before-restart" || die "RKStorage pull failed turn $CAMPAIGN_TURN_I"
+      campaign_relaunch_or_reinstall || die "reinstall/relaunch failed turn $CAMPAIGN_TURN_I"
+      campaign_wait_ready || die "ready timeout after $status turn $CAMPAIGN_TURN_I"
+      return 0
       ;;
     thermal)
       campaign_thermal_cooldown || die "thermal cooldown failed turn $CAMPAIGN_TURN_I"
@@ -78,14 +89,31 @@ campaign_one_turn() {
   slice="$OUT/.slice.txt"
   log "turn $i send: ${user:0:80}"
   if ! campaign_send_turn "$user"; then
-    log "WARN: share-send failed turn $i (user never landed in SQL)"
-    adb shell input keyevent 26 </dev/null >/dev/null 2>&1 || true
-    sleep 1
-    adb shell input keyevent 82 </dev/null >/dev/null 2>&1 || true
-    sleep 1
-    if ! campaign_send_turn "$user"; then
-      log "WARN: share-send retry failed turn $i — skip"
-      return 0
+    if [ "${CAMPAIGN_TURN_STATUS:-}" = "thermal" ]; then
+      log "turn $i send aborted by thermal — cooldown then retry"
+      campaign_thermal_cooldown || return 0
+      CAMPAIGN_TURN_STATUS=""
+      # M5 (audit GLM): after cooldown the share may already have landed (race
+      # between the thermal check and the land-check, poll 3s). Re-sharing
+      # would duplicate the user turn — check landing first.
+      if campaign_user_landed "$OUT/.messages.json" "$user"; then
+        log "turn $i already landed before thermal retry — skip re-share"
+      elif campaign_send_turn "$user"; then
+        log "turn $i send ok after thermal recovery"
+      else
+        log "WARN: share-send failed turn $i after thermal recovery"
+        return 1
+      fi
+    else
+      log "WARN: share-send failed turn $i (user never landed in SQL)"
+      adb shell input keyevent 26 </dev/null >/dev/null 2>&1 || true
+      sleep 1
+      adb shell input keyevent 82 </dev/null >/dev/null 2>&1 || true
+      sleep 1
+      if ! campaign_send_turn "$user"; then
+        log "WARN: share-send retry failed turn $i — skip"
+        return 0
+      fi
     fi
   fi
   if campaign_wait_turn "$prev" "$slice" "$offset"; then

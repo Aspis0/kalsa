@@ -72,6 +72,14 @@ device_thermal_status() {
   case "$v" in ''|*[!0-9]*) printf '%s\n' unknown ;; *) printf '%s\n' "$v" ;; esac
 }
 
+# Battery temperature in °C (dumpsys battery 'temperature' is in deci-°C,
+# e.g. 420 = 42.0°C). 'unknown' on any parse failure.
+device_battery_temp_c() {
+  local t
+  t=$(adb shell dumpsys battery 2>/dev/null | tr -d '\r' | grep -m1 -E '^\s*temperature:' | sed -E 's/.*temperature:[[:space:]]*([0-9]+).*/\1/' || true)
+  case "$t" in ''|*[!0-9]*) printf '%s\n' unknown ;; *) python3 -c "print(f'{int('$t')/10:.1f}')" ;; esac
+}
+
 device_termux_wakelock_setup() {
   adb shell "run-as com.termux files/usr/bin/bash -lc 'export PATH=/data/data/com.termux/files/usr/bin:\$PATH; termux-wake-lock'" >/dev/null 2>&1 \
     && log "termux-wake-lock: on" \
