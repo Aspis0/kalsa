@@ -1,41 +1,80 @@
 #!/usr/bin/env bash
-# Prove that patches/llama.rn+*.patch reached the BINARY, not just the sources.
+# Prove that the app patch and the pinned engine reached the release binaries.
 #
-# llama.rn ships prebuilt jniLibs; unless rnllamaBuildFromSource=true the
-# patched cpp/ is never compiled and every native patch is a no-op that still
-# looks applied (`patch-package ✔`). This asserts a marker string from our patch
-# is present in the built librnllama.so — the native equivalent of a mutation
-# test, and the check whose absence wasted a night of experiments (2026-08-09).
+# The JSI marker is compiled into librnllama_jni*.so; the q23k marker is
+# compiled into the librnllama*.so engine libraries. Keep these checks
+# separate because the two libraries are intentionally linked separately.
 #
-# Default marker is "kalsa-native-patches" (appended to systemInfo in
-# RNLlamaJSI.cpp). Override with an argument for legacy checks (e.g. KALSA_KVDIAG0).
+#   assert-native-patch.sh [patch-marker] [engine-marker]
 #
-#   assert-native-patch.sh [marker]        default marker: kalsa-native-patches
 set -uo pipefail
 
-MARKER="${1:-kalsa-native-patches}"
+PATCH_MARKER="${1:-kalsa-native-patches}"
+ENGINE_MARKER="${2:-q23k}"
 FOUND_ANY=0
-MATCHED=0
+WRAPPER_COUNT=0
+ENGINE_COUNT=0
+FAILED=0
 
-while IFS= read -r so; do
+STRING_TOOL="${KALSA_STRINGS_TOOL:-}"
+if [[ -z "$STRING_TOOL" ]] && command -v strings >/dev/null 2>&1; then
+  STRING_TOOL="$(command -v strings)"
+fi
+if [[ -z "$STRING_TOOL" ]]; then
+  for sdk in "${ANDROID_NDK_ROOT:-}" "${ANDROID_NDK_HOME:-}" "${ANDROID_HOME:-}" "${ANDROID_SDK_ROOT:-}"; do
+    [[ -n "$sdk" ]] || continue
+    sdk_path="$sdk"
+    if command -v cygpath >/dev/null 2>&1; then
+      sdk_path="$(cygpath -u "$sdk" 2>/dev/null || printf '%s' "$sdk")"
+    fi
+    if [[ -d "$sdk_path" ]]; then
+      STRING_TOOL="$(find "$sdk_path" -type f -name 'llvm-strings*' -print 2>/dev/null | sort | tail -n 1)"
+      [[ -n "$STRING_TOOL" ]] && break
+    fi
+  done
+fi
+if [[ -z "$STRING_TOOL" ]]; then
+  echo "[assert] FATAL: neither strings nor NDK llvm-strings is available"
+  exit 1
+fi
+echo "[assert] string tool: $STRING_TOOL"
+
+while IFS= read -r -d '' so; do
   FOUND_ANY=1
-  if strings "$so" 2>/dev/null | grep -qF "$MARKER"; then
-    echo "[assert] $MARKER present in $so"
-    MATCHED=1
-  else
-    echo "[assert] $MARKER MISSING in $so"
+  base="${so##*/}"
+  if [[ "$base" == librnllama_jni*.so ]]; then
+    WRAPPER_COUNT=$((WRAPPER_COUNT + 1))
+    if "$STRING_TOOL" "$so" 2>/dev/null | grep -F "$PATCH_MARKER" >/dev/null; then
+      echo "[assert] $PATCH_MARKER present in $so"
+    else
+      echo "[assert] $PATCH_MARKER MISSING in $so"
+      FAILED=1
+    fi
+  elif [[ "$base" == librnllama*.so ]]; then
+    ENGINE_COUNT=$((ENGINE_COUNT + 1))
+    if "$STRING_TOOL" "$so" 2>/dev/null | grep -F "$ENGINE_MARKER" >/dev/null; then
+      echo "[assert] $ENGINE_MARKER present in $so"
+    else
+      echo "[assert] $ENGINE_MARKER MISSING in $so"
+      FAILED=1
+    fi
   fi
-done < <(find android -name "librnllama.so" -path "*release*" 2>/dev/null)
+done < <(find android -type f -name 'librnllama*.so' -path '*release*' -print0 2>/dev/null | sort -z -u)
 
-if [ "$FOUND_ANY" -eq 0 ]; then
-  echo "[assert] FATAL: no release librnllama.so found under android/ — did the build run?"
+if [[ "$FOUND_ANY" -eq 0 ]]; then
+  echo "[assert] FATAL: no release librnllama*.so found under android/ — did the build run?"
   exit 1
 fi
-if [ "$MATCHED" -eq 0 ]; then
-  echo "[assert] FATAL: the native patch is NOT in the binary."
-  echo "[assert] llama.rn used its prebuilt jniLibs: source-build is the default"
-  echo "[assert] (plugins/withLlamaFromSource.js). Unset KALSA_LLAMA_FROM_SOURCE"
-  echo "[assert] or set it to 1; only KALSA_LLAMA_FROM_SOURCE=0 restores prebuilt."
+if [[ "$WRAPPER_COUNT" -eq 0 ]]; then
+  echo "[assert] FATAL: no release librnllama_jni*.so found under android/"
   exit 1
 fi
-echo "[assert] native patch verified in the shipped binary"
+if [[ "$ENGINE_COUNT" -eq 0 ]]; then
+  echo "[assert] FATAL: no release engine librnllama*.so found under android/"
+  exit 1
+fi
+if [[ "$FAILED" -ne 0 ]]; then
+  echo "[assert] FATAL: native patch or pinned-engine marker missing from release binaries."
+  exit 1
+fi
+echo "[assert] native patch and q23k engine verified in all release binaries"
