@@ -116,4 +116,21 @@ Battery idle range: **25.3–25.5 °C**. Readable thermal values were 86/95; 9 `
 | 93 | ac | 24800 |
 | 94 | battery | 25300 |
 
-Cool-start class: **not established**. The observed unplugged idle is <=32 °C, but §0 requires a plugged idle sample to declare `cool_start_class=plugged-warm` or apply the plugged contingency. No CPU/GPU load was run.
+Unplugged-only observation: cool-start class was **not established** from that sample. The observed unplugged idle is <=32 °C, but §0 requires a plugged idle sample to set the class. No CPU/GPU load was run.
+
+## Plugged idle reference — compact recapture
+
+The first 30-minute capture was lost when the terminal buffer truncated before persistence. Per the status instruction, this is the one compact recapture used for the datum. It contains 25 samples at nominal 30 s cadence, with all 95 mapped thermal zones on every row, in `raw/plugged_idle_reference.csv`. Due to wireless ADB round-trip latency, the timestamp span was 14m50s; the settled last-10-minute window contains 17 samples spanning 9m54s. No device file was written.
+
+Start verification: AC powered `true`, USB powered `false`, wireless powered `false`, battery level 100%, status `5` (full), screen `OFF` (`Display State=OFF`, Dozing). These values remained unchanged through the capture.
+
+| window | samples | battery temperature | battery level | charge state |
+|---|---:|---:|---:|---|
+| full compact recapture | 25 | 27.6–28.0 °C | 100% → 100% | AC/full → AC/full |
+| settled last 10 min | 17 | **27.7–28.0 °C**, median **T_idle_plugged = 27.8 °C** | 100% → 100% | status 5 → 5 |
+
+Settled drift was **0.0 °C end-minus-start** (27.7 → 27.7 °C); settled range was 0.3 °C. Full recapture drift was -0.2 °C (27.9 → 27.7 °C). The maximum numeric thermal-zone reading was 37.0 °C; battery temperature did not rise monotonically past 38 °C.
+
+Delta versus the unplugged reference (25.3–25.5 °C): **+2.3 to +2.5 °C** for the plugged median, or **+2.4 °C** versus the 25.4 °C midpoint.
+
+The plugged result establishes `cool_start_class=cool` under the draft scheme (`T_idle_plugged < 32 °C`). The previously pending class is now filled in the preregistration draft; the draft remains **NOT LOCKED**.

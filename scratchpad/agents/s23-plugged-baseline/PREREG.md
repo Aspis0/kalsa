@@ -32,11 +32,13 @@ The model-load time is excluded from pp/tg measurements but recorded separately.
 
 Every planned cell, correctness suite, and thermal profile runs with the q56 guard: WARN 40 °C, KILL 43 °C, poll 10 s. The exact reusable guard is `scratchpad/agents/q56-thermal-watchdog/thermal_guard.sh`; wrapper style is `scratchpad/agents/q56-thermal-watchdog/launch_with_guard.py` (reuse only after removing/disabled reconnect behavior; this task permits no re-pairing or IP connect).
 
-The plan §0 cool-start class is **to fill on day 1 when plugged**. The available five-sample observation was <=32 °C battery temperature, but AC/USB/wireless were false for every sample, so it is not used to set the class. Once a valid plugged sample is obtained:
+The plan §0 cool-start class is now **`cool`**, filled from `T_idle_plugged = 27.8 °C` (median of the settled last-10-minute window in `THERMAL_SNAPSHOT.md`). The compact recapture was AC-powered, screen-off, and remained below 32 °C. The first full 30-minute capture was lost to terminal truncation; the compact recapture is the recorded datum. Per the draft scheme:
 
-- idle <32 °C: `cool_start_class=cool`;
+- idle <32 °C: `cool_start_class=cool` — **selected**; `T_idle_plugged=27.8 °C`;
 - idle >=32 °C and <38 °C: `cool_start_class=plugged-warm`, relative gate = idle + 3 °C, hard max 36 °C, KILL 43 °C;
 - idle >=38 °C: suspend GPU/NPU speed cells; correctness only, <=5 min.
+
+Recorded offsets for this draft: the selected cool class has no plugged-warm relative offset; the fallback plugged-warm relative gate would be `27.8 + 3.0 = 30.8 °C`, with hard max 36 °C and KILL 43 °C.
 
 Record screen state, battery level, battery temperature, all thermal zones, and plugged state in every manifest. Planned thermal-only profiles (guard on, plugged declared): 5 min CPU load, then cooldown/idle record, then 5 min GPU load. These are thermal profiles, not performance claims.
 
@@ -50,7 +52,7 @@ Thermal guard (WARN 40 / KILL 43), cool-start ≤ 32 °C, battery ≥ 45 %, unpl
 
 For future speed cells, the plan requires **plugged declared**. The owner-approved preparation permitted only the two model pushes and correctness certification recorded here; no further pushes or deletions are permitted. Stop immediately on any listed token, guard kill, cpuset failure, battery/plug failure, ADB loss, or model hash mismatch. Do not retry by reconnecting or re-pairing.
 
-Day-1 preparation status: cleanup complete; model hashes match; current `s3oracle` is certified `407/407` MoE and `925/925` dense under the q56 guard. Storage after staging was `104G` total, `92G` used, `12G` available, `89%`. Cool-start remains **to fill on day 1 when plugged**.
+Day-1 preparation status: cleanup complete; model hashes match; current `s3oracle` is certified `407/407` MoE and `925/925` dense under the q56 guard. Storage after staging was `104G` total, `92G` used, `12G` available, `89%`. Plugged reference recorded: `T_idle_plugged=27.8 °C`, `cool_start_class=cool`. This preregistration remains **DRAFT — NOT LOCKED**.
 
 ## Outputs and budget
 
