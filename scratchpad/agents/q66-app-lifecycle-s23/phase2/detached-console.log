@@ -1,0 +1,2 @@
+VsDevCmd_errorlevel=
+where cl >> "%LOG%" 2>> "%ERR%"

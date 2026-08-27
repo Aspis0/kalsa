@@ -1,0 +1,7 @@
+started=2026-08-27T12:48:34.5494850-04:00
+ended=2026-08-27T12:57:06.6329253-04:00
+wall_seconds=512.0834403
+pid=17692
+exit_code=0
+priority=IDLE_PRIORITY_CLASS
+recipe=VsDevCmd.bat -arch=x64; MSVC CMake/Ninja; CMAKE_BUILD_PARALLEL_LEVEL=2; NINJAFLAGS=-j2

@@ -1,0 +1,31 @@
+
+[models/templates/openai-gpt-oss-120b.jinja]
+<|channel|>final<|message|>Hello, world!
+What's up?
+
+
+[models/templates/openai-gpt-oss-120b.jinja]
+<|channel|>commentary<|message|>Hello, world!
+What's up?
+
+
+[models/templates/openai-gpt-oss-120b.jinja]
+<|channel|>analysis<|message|>I'm
+thinking<|end|><|start|>assistant<|channel|>final<|message|>Hello, world!
+What's up?
+
+
+[models/templates/openai-gpt-oss-120b.jinja]
+<|channel|>analysis<|message|>I'm
+thinking<|end|><|start|>assistant<|channel|>final<|message|>Hello, world!
+What's up?
+
+
+[models/templates/openai-gpt-oss-120b.jinja]
+<|channel|>analysis<|message|>I'm
+thinking
+
+
+[models/templates/openai-gpt-oss-120b.jinja]
+ to=functions.special_function<|channel|>analysis<|message|>{"arg1": 1}
+

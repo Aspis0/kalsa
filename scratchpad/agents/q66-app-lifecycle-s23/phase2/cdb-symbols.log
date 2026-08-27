@@ -1,0 +1,131 @@
+Opened log file 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\cdb-symbols.log'
+
+Microsoft (R) Windows Debugger Version 10.0.18362.1 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+CommandLine: C:\Users\gualt\kals-pin\build-phase2-native\bin\test-chat.exe --template Qwen3.5-4B.jinja
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'
+Symbol search path is: srv*
+Executable search path is: 
+ModLoad: 00007ff7`a82b0000 00007ff7`a8d8c000   image00007ff7`a82b0000
+ModLoad: 00007ffd`4ee60000 00007ffd`4f0c6000   ntdll.dll
+ModLoad: 00007ffd`4d0b0000 00007ffd`4d179000   C:\WINDOWS\System32\KERNEL32.DLL
+ModLoad: 00007ffd`4c5f0000 00007ffd`4c9ef000   C:\WINDOWS\System32\KERNELBASE.dll
+ModLoad: 00007ffd`4cc00000 00007ffd`4ccbc000   C:\WINDOWS\System32\ADVAPI32.dll
+ModLoad: 00007ffd`4d000000 00007ffd`4d0a9000   C:\WINDOWS\System32\msvcrt.dll
+ModLoad: 00007ffd`4e2b0000 00007ffd`4e35a000   C:\WINDOWS\System32\sechost.dll
+ModLoad: 00007ffd`4d390000 00007ffd`4d4a8000   C:\WINDOWS\System32\RPCRT4.dll
+ModLoad: 00007ffd`4c260000 00007ffd`4c3ac000   C:\WINDOWS\System32\ucrtbase.dll
+ModLoad: 00007ffd`1ab70000 00007ffd`1abf9000   C:\WINDOWS\SYSTEM32\MSVCP140.dll
+ModLoad: 00007ffd`4dc00000 00007ffd`4dc82000   C:\WINDOWS\System32\WS2_32.dll
+ModLoad: 00007ffd`02f20000 00007ffd`02f50000   C:\WINDOWS\SYSTEM32\VCOMP140.DLL
+ModLoad: 00007ffd`1ac00000 00007ffd`1ac1e000   C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll
+ModLoad: 00007ffd`1ab60000 00007ffd`1ab6c000   C:\WINDOWS\SYSTEM32\VCRUNTIME140_1.dll
+ModLoad: 0000026b`69a20000 0000026b`69a2c000   C:\WINDOWS\SYSTEM32\VCRUNTIME140_1.dll
+(40b4.9978): Break instruction exception - code 80000003 (first chance)
+ntdll!LdrpDoDebuggerBreak+0x35:
+00007ffd`4ef7d78d cc              int     3
+0:000> sxe 0xc0000409; g; ln test_chat+0xbd954; ln test_chat+0xc2309; ln test_chat+0xe62de; ln test_chat+0xbce00; u test_chat+0xbd900 test_chat+0xbda20; q
+ModLoad: 00007ffd`4a7c0000 00007ffd`4a7db000   C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): C++ EH exception - code e06d7363 (first chance)
+(40b4.9978): Security check failure or stack buffer overrun - code c0000409 (!!! second chance !!!)
+*** WARNING: Unable to verify checksum for C:\Users\gualt\kals-pin\build-phase2-native\bin\test-chat.exe
+test_chat+0xbd900:
+00007ff7`a836d900 01488b          add     dword ptr [rax-75h],ecx
+00007ff7`a836d903 442430          and     al,30h
+00007ff7`a836d906 0fb680b0000000  movzx   eax,byte ptr [rax+0B0h]
+00007ff7`a836d90d 85c0            test    eax,eax
+00007ff7`a836d90f 7407            je      test_chat+0xbd918 (00007ff7`a836d918)
+00007ff7`a836d911 ff15c1b37800    call    qword ptr [test_chat+0x848cd8 (00007ff7`a8af8cd8)]
+00007ff7`a836d917 90              nop
+00007ff7`a836d918 32c0            xor     al,al
+00007ff7`a836d91a 4883c428        add     rsp,28h
+00007ff7`a836d91e c3              ret
+00007ff7`a836d91f cc              int     3
+00007ff7`a836d920 4c894c2420      mov     qword ptr [rsp+20h],r9
+00007ff7`a836d925 4c89442418      mov     qword ptr [rsp+18h],r8
+00007ff7`a836d92a 4889542410      mov     qword ptr [rsp+10h],rdx
+00007ff7`a836d92f 48894c2408      mov     qword ptr [rsp+8],rcx
+00007ff7`a836d934 4883ec28        sub     rsp,28h
+00007ff7`a836d938 488b442430      mov     rax,qword ptr [rsp+30h]
+00007ff7`a836d93d c6402801        mov     byte ptr [rax+28h],1
+00007ff7`a836d941 488b442430      mov     rax,qword ptr [rsp+30h]
+00007ff7`a836d946 0fb64029        movzx   eax,byte ptr [rax+29h]
+00007ff7`a836d94a 85c0            test    eax,eax
+00007ff7`a836d94c 7407            je      test_chat+0xbd955 (00007ff7`a836d955)
+00007ff7`a836d94e ff1584b37800    call    qword ptr [test_chat+0x848cd8 (00007ff7`a8af8cd8)]
+00007ff7`a836d954 90              nop
+00007ff7`a836d955 32c0            xor     al,al
+00007ff7`a836d957 4883c428        add     rsp,28h
+00007ff7`a836d95b c3              ret
+00007ff7`a836d95c cc              int     3
+00007ff7`a836d95d cc              int     3
+00007ff7`a836d95e cc              int     3
+00007ff7`a836d95f cc              int     3
+00007ff7`a836d960 44884c2420      mov     byte ptr [rsp+20h],r9b
+00007ff7`a836d965 4c89442418      mov     qword ptr [rsp+18h],r8
+00007ff7`a836d96a 4889542410      mov     qword ptr [rsp+10h],rdx
+00007ff7`a836d96f 48894c2408      mov     qword ptr [rsp+8],rcx
+00007ff7`a836d974 4881ec98000000  sub     rsp,98h
+00007ff7`a836d97b 488d442448      lea     rax,[rsp+48h]
+00007ff7`a836d980 4889442430      mov     qword ptr [rsp+30h],rax
+00007ff7`a836d985 488b8c24b0000000 mov     rcx,qword ptr [rsp+0B0h]
+00007ff7`a836d98d e8de94feff      call    test_chat+0xa6e70 (00007ff7`a8356e70)
+00007ff7`a836d992 488bd0          mov     rdx,rax
+00007ff7`a836d995 488b4c2430      mov     rcx,qword ptr [rsp+30h]
+00007ff7`a836d99a e8d18c0000      call    test_chat+0xc6670 (00007ff7`a8376670)
+00007ff7`a836d99f 4889442438      mov     qword ptr [rsp+38h],rax
+00007ff7`a836d9a4 488b8c24a8000000 mov     rcx,qword ptr [rsp+0A8h]
+00007ff7`a836d9ac e8bf94feff      call    test_chat+0xa6e70 (00007ff7`a8356e70)
+00007ff7`a836d9b1 4889442440      mov     qword ptr [rsp+40h],rax
+00007ff7`a836d9b6 0fb68424c0000000 movzx   eax,byte ptr [rsp+0C0h]
+00007ff7`a836d9be 88442420        mov     byte ptr [rsp+20h],al
+00007ff7`a836d9c2 440fb68c24b8000000 movzx r9d,byte ptr [rsp+0B8h]
+00007ff7`a836d9cb 4c8b442438      mov     r8,qword ptr [rsp+38h]
+00007ff7`a836d9d0 488b542440      mov     rdx,qword ptr [rsp+40h]
+00007ff7`a836d9d5 488b8c24a0000000 mov     rcx,qword ptr [rsp+0A0h]
+00007ff7`a836d9dd e83e960000      call    test_chat+0xc7020 (00007ff7`a8377020)
+00007ff7`a836d9e2 488b8c24b0000000 mov     rcx,qword ptr [rsp+0B0h]
+00007ff7`a836d9ea e861cf0000      call    test_chat+0xca950 (00007ff7`a837a950)
+00007ff7`a836d9ef 90              nop
+00007ff7`a836d9f0 488b8424a0000000 mov     rax,qword ptr [rsp+0A0h]
+00007ff7`a836d9f8 4881c498000000  add     rsp,98h
+00007ff7`a836d9ff c3              ret
+00007ff7`a836da00 44884c2420      mov     byte ptr [rsp+20h],r9b
+00007ff7`a836da05 4c89442418      mov     qword ptr [rsp+18h],r8
+00007ff7`a836da0a 4889542410      mov     qword ptr [rsp+10h],rdx
+00007ff7`a836da0f 48894c2408      mov     qword ptr [rsp+8],rcx
+00007ff7`a836da14 4881ec98000000  sub     rsp,98h
+00007ff7`a836da1b 488d442448      lea     rax,[rsp+48h]
+00007ff7`a836da20 4889442430      mov     qword ptr [rsp+30h],rax
+quit:
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'

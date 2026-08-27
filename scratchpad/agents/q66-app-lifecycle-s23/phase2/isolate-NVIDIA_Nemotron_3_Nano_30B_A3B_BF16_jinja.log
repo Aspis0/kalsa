@@ -1,0 +1,32 @@
+
+[models/templates/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.jinja]
+Hello, world!
+What's up?
+
+
+[models/templates/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.jinja]
+I'm
+thinking
+</think>
+Hello, world!
+What's up?
+
+
+[models/templates/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.jinja]
+I'm
+thinking
+</think>
+Hello, world!
+What's up?
+
+
+[models/templates/NVIDIA-Nemotron-3-Nano-30B-A3B-BF16.jinja]
+<tool_call>
+<function=special_function>
+<parameter=arg1>
+1
+</parameter>
+</function>
+</tool_call>
+
+

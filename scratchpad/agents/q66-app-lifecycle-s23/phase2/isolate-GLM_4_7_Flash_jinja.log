@@ -1,0 +1,15 @@
+
+[models/templates/GLM-4.7-Flash.jinja]
+Hello, world!
+What's up?
+
+
+[models/templates/GLM-4.7-Flash.jinja]
+I'm
+thinking</think>Hello, world!
+What's up?
+
+
+[models/templates/GLM-4.7-Flash.jinja]
+<tool_call>special_function<arg_key>arg1</arg_key><arg_value>1</arg_value></tool_call>
+

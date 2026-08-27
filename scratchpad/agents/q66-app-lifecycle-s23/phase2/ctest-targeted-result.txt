@@ -1,0 +1,5 @@
+started=2026-08-27T12:57:44.0145862-04:00
+ended=2026-08-27T12:58:00.1354875-04:00
+wall_seconds=16.1209013
+exit_code=0
+regex=^(test-sampling|test-reasoning-budget|test-chat.*|test-arg-parser)$

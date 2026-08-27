@@ -1,0 +1,23 @@
+
+[models/templates/meta-llama-Llama-3.1-8B-Instruct.jinja]
+Hello, world!
+What's up?
+
+
+[models/templates/meta-llama-Llama-3.1-8B-Instruct.jinja]
+```json
+"42"
+```
+
+
+[models/templates/meta-llama-Llama-3.1-8B-Instruct.jinja]
+"42"
+
+
+
+[models/templates/meta-llama-Llama-3.1-8B-Instruct.jinja]
+world!
+What's up?
+
+
+[chat] All template tests passed!

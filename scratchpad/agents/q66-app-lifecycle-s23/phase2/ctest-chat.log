@@ -1,0 +1,92 @@
+Internal ctest changing into directory: C:/Users/gualt/kals-pin/build-phase2
+Test project C:/Users/gualt/kals-pin/build-phase2
+    Start 23: test-chat
+Could not find executable C:/Users/gualt/kals-pin/build-phase2/bin/test-chat
+Looked in the following places:
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat.exe
+Unable to find executable: C:/Users/gualt/kals-pin/build-phase2/bin/test-chat
+1/4 Test #23: test-chat ........................***Not Run   0.00 sec
+    Start 27: test-chat-peg-parser
+Could not find executable C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-peg-parser
+Looked in the following places:
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-peg-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat-peg-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat-peg-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat-peg-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat-peg-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat-peg-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat-peg-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat-peg-parser.exe
+Unable to find executable: C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-peg-parser
+2/4 Test #27: test-chat-peg-parser .............***Not Run   0.00 sec
+    Start 30: test-chat-auto-parser
+Could not find executable C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-auto-parser
+Looked in the following places:
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-auto-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat-auto-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat-auto-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat-auto-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat-auto-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat-auto-parser.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat-auto-parser
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat-auto-parser.exe
+Unable to find executable: C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-auto-parser
+3/4 Test #30: test-chat-auto-parser ............***Not Run   0.00 sec
+    Start 31: test-chat-template
+Could not find executable C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-template
+Looked in the following places:
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-template.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-chat-template.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-chat-template.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-chat-template.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-chat-template.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-chat-template.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat-template
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-chat-template.exe
+Unable to find executable: C:/Users/gualt/kals-pin/build-phase2/bin/test-chat-template
+4/4 Test #31: test-chat-template ...............***Not Run   0.00 sec
+
+0% tests passed, 4 tests failed out of 4
+
+Label Time Summary:
+main    =   0.00 sec*proc (4 tests)
+
+Total Test time (real) =   0.04 sec
+
+The following tests FAILED:
+	 23 - test-chat (Not Run)
+	 27 - test-chat-peg-parser (Not Run)
+	 30 - test-chat-auto-parser (Not Run)
+	 31 - test-chat-template (Not Run)
+Errors while running CTest

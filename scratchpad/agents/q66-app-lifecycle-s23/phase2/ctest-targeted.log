@@ -1,0 +1,22 @@
+Test project C:/Users/gualt/kals-pin/build-phase2-native-q63c
+    Start 16: test-sampling
+1/7 Test #16: test-sampling ....................   Passed    2.08 sec
+    Start 17: test-reasoning-budget
+2/7 Test #17: test-reasoning-budget ............   Passed    0.09 sec
+    Start 22: test-chat
+3/7 Test #22: test-chat ........................   Passed   10.31 sec
+    Start 26: test-chat-peg-parser
+4/7 Test #26: test-chat-peg-parser .............   Passed    0.19 sec
+    Start 29: test-chat-auto-parser
+5/7 Test #29: test-chat-auto-parser ............   Passed    1.33 sec
+    Start 30: test-chat-template
+6/7 Test #30: test-chat-template ...............   Passed    0.35 sec
+    Start 35: test-arg-parser
+7/7 Test #35: test-arg-parser ..................   Passed    0.36 sec
+
+100% tests passed, 0 tests failed out of 7
+
+Label Time Summary:
+main    =  14.71 sec*proc (7 tests)
+
+Total Test time (real) =  15.02 sec

@@ -1,0 +1,32 @@
+Internal ctest changing into directory: C:/Users/gualt/kals-pin/build-phase2
+Test project C:/Users/gualt/kals-pin/build-phase2
+    Start 18: test-reasoning-budget
+Could not find executable C:/Users/gualt/kals-pin/build-phase2/bin/test-reasoning-budget
+Looked in the following places:
+C:/Users/gualt/kals-pin/build-phase2/bin/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/test-reasoning-budget.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/Release/test-reasoning-budget.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/Debug/test-reasoning-budget.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/MinSizeRel/test-reasoning-budget.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/RelWithDebInfo/test-reasoning-budget.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/Deployment/test-reasoning-budget.exe
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-reasoning-budget
+C:/Users/gualt/kals-pin/build-phase2/bin/Development/test-reasoning-budget.exe
+Unable to find executable: C:/Users/gualt/kals-pin/build-phase2/bin/test-reasoning-budget
+1/1 Test #18: test-reasoning-budget ............***Not Run   0.00 sec
+
+0% tests passed, 1 tests failed out of 1
+
+Label Time Summary:
+main    =   0.00 sec*proc (1 test)
+
+Total Test time (real) =   0.03 sec
+
+The following tests FAILED:
+	 18 - test-reasoning-budget (Not Run)
+Errors while running CTest

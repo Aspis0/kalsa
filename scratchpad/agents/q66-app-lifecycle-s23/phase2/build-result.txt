@@ -1,0 +1,5 @@
+started=2026-08-27T11:17:34.3168905-04:00
+ended=2026-08-27T11:17:59.1683319-04:00
+wall_seconds=24.8514414
+exit_code=
+priority=Idle

@@ -1,0 +1,10 @@
+timestamp=2026-08-27T11:34:10.5357502-04:00
+pid=32588
+worker_exit_code=0
+application=C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe
+arguments=-NoProfile -NonInteractive -Command "Set-Content -LiteralPath 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\detached-command-test-v2.txt' -Value detached-command-ok"
+flags=DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+worker_stdout=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached-v2-worker.out
+worker_stderr=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached-v2-worker.err
+build_stdout=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached-v2.log
+build_stderr=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached-v2.err

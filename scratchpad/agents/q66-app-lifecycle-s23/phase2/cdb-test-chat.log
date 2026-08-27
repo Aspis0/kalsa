@@ -1,0 +1,80 @@
+Opened log file 'C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\cdb-test-chat.log'
+
+Microsoft (R) Windows Debugger Version 10.0.18362.1 AMD64
+Copyright (c) Microsoft Corporation. All rights reserved.
+
+CommandLine: C:\Users\gualt\kals-pin\build-phase2-native\bin\test-chat.exe --template Qwen3.5-4B.jinja
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script successfully loaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'
+Symbol search path is: srv*
+Executable search path is: 
+ModLoad: 00007ff7`a82b0000 00007ff7`a8d8c000   image00007ff7`a82b0000
+ModLoad: 00007ffd`4ee60000 00007ffd`4f0c6000   ntdll.dll
+ModLoad: 00007ffd`4d0b0000 00007ffd`4d179000   C:\WINDOWS\System32\KERNEL32.DLL
+ModLoad: 00007ffd`4c5f0000 00007ffd`4c9ef000   C:\WINDOWS\System32\KERNELBASE.dll
+ModLoad: 00007ffd`4cc00000 00007ffd`4ccbc000   C:\WINDOWS\System32\ADVAPI32.dll
+ModLoad: 00007ffd`4d000000 00007ffd`4d0a9000   C:\WINDOWS\System32\msvcrt.dll
+ModLoad: 00007ffd`4e2b0000 00007ffd`4e35a000   C:\WINDOWS\System32\sechost.dll
+ModLoad: 00007ffd`4d390000 00007ffd`4d4a8000   C:\WINDOWS\System32\RPCRT4.dll
+ModLoad: 00007ffd`4c260000 00007ffd`4c3ac000   C:\WINDOWS\System32\ucrtbase.dll
+ModLoad: 00007ffd`1ac00000 00007ffd`1ac1e000   C:\WINDOWS\SYSTEM32\VCRUNTIME140.dll
+ModLoad: 00007ffd`4dc00000 00007ffd`4dc82000   C:\WINDOWS\System32\WS2_32.dll
+ModLoad: 00007ffd`1ab70000 00007ffd`1abf9000   C:\WINDOWS\SYSTEM32\MSVCP140.dll
+ModLoad: 00007ffc`fbe40000 00007ffc`fbe70000   C:\WINDOWS\SYSTEM32\VCOMP140.DLL
+ModLoad: 00007ffd`1ab60000 00007ffd`1ab6c000   C:\WINDOWS\SYSTEM32\VCRUNTIME140_1.dll
+ModLoad: 0000021b`d89a0000 0000021b`d89ac000   C:\WINDOWS\SYSTEM32\VCRUNTIME140_1.dll
+(acc0.8174): Break instruction exception - code 80000003 (first chance)
+ntdll!LdrpDoDebuggerBreak+0x35:
+00007ffd`4ef7d78d cc              int     3
+0:000> sxe 0xc0000409; g; .lastevent; kb; q
+ModLoad: 00007ffd`4a7c0000 00007ffd`4a7db000   C:\WINDOWS\SYSTEM32\kernel.appcore.dll
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): C++ EH exception - code e06d7363 (first chance)
+(acc0.8174): Security check failure or stack buffer overrun - code c0000409 (!!! second chance !!!)
+*** WARNING: Unable to verify checksum for C:\Users\gualt\kals-pin\build-phase2-native\bin\test-chat.exe
+Last event: acc0.8174: Security check failure or stack buffer overrun - code c0000409 (!!! second chance !!!)
+  debugger time: Thu Aug 27 12:20:29.385 2026 (UTC - 4:00)
+RetAddr           : Args to Child                                                           : Call Site
+00007ff7`a836d954 : 00000000`00000003 00000000`00000003 0000cc13`16fdcbfc 000000d2`540b7980 : ucrtbase!abort+0x4e
+00007ff7`a8372309 : 000000d2`540b75c0 00000000`00000002 000000d2`540b7460 000000d2`540b6ec0 : test_chat+0xbd954
+00007ff7`a83962de : 000000d2`540b79d0 000000d2`540b75c0 00000000`00000001 000000d2`540b7a18 : test_chat+0xc2309
+00007ff7`a836ce00 : 000000d2`540b79d0 000000d2`540b7901 000000d2`540b7948 00000000`00000001 : test_chat+0xe62de
+00007ff7`a83209c4 : 000000d2`540b7b28 0000021b`d8c271f0 000000d2`540b7b38 00007ff7`a838b101 : test_chat+0xbce00
+00007ff7`a8320e20 : 000000d2`540b7d40 0000021b`d8c271f0 0000021b`d8c275c0 00007ff7`a838b177 : test_chat+0x709c4
+00007ff7`a8321e90 : 000000d2`540b91b0 000000d2`540b8e80 000000d2`540b9101 00000000`00000001 : test_chat+0x70e20
+00007ff7`a839770d : 0000021b`d8ab0f50 000000d2`540b9810 00007ff7`a8b0cf00 0000021b`d8abb4a0 : test_chat+0x71e90
+00007ff7`a83294a0 : 000000d2`540ddae0 00007ff7`a8c87b10 000000d2`540b99e5 00000000`00000000 : test_chat+0xe770d
+00007ff7`a835190d : 000000d2`540ff900 00007ff7`a8b0a278 00007ff7`a83187fd 00007ff7`a8af9508 : test_chat+0x794a0
+00007ff7`a8a6670c : 00007ff7`00000003 0000021b`d8a3c2b0 00000000`00000000 00000000`00000000 : test_chat+0xa190d
+00007ffd`4d0dccb7 : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : test_chat+0x7b670c
+00007ffd`4ef0ad6c : 00000000`00000000 00000000`00000000 000004f0`fffffb30 000004d0`fffffb30 : KERNEL32!BaseThreadInitThunk+0x17
+00000000`00000000 : 00000000`00000000 00000000`00000000 00000000`00000000 00000000`00000000 : ntdll!RtlUserThreadStart+0x2c
+quit:
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\atlmfc.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\concurrency.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\cpp_rest.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\stl.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Data.Json.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Geolocation.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Devices.Sensors.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\Windows.Media.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\windows.natvis'
+NatVis script unloaded from 'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\Visualizers\winrt.natvis'

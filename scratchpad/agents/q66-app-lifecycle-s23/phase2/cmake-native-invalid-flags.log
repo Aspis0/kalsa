@@ -1,0 +1,12 @@
+-- Warning: ccache not found - consider installing it for faster compilation or disable this warning with GGML_CCACHE=OFF
+-- CMAKE_SYSTEM_PROCESSOR: AMD64
+-- CMAKE_GENERATOR_PLATFORM: 
+-- GGML_SYSTEM_ARCH: x86
+-- Including CPU backend
+-- x86 detected
+-- Adding CPU backend variant ggml-cpu: /arch:AVX2 GGML_AVX2;GGML_FMA;GGML_F16C
+-- ggml version: 0.16.0
+-- ggml commit:  cb9fdd1f8
+-- Configuring done (1.0s)
+-- Generating done (0.8s)
+-- Build files have been written to: C:/Users/gualt/kals-pin/build-phase2-native

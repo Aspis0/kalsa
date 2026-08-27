@@ -1,0 +1,6 @@
+started=2026-08-27T11:38:52.2621004-04:00
+ended=2026-08-27T11:38:54.0083838-04:00
+wall_seconds=1.7462834
+pid=21760
+exit_code=1
+priority=IDLE_PRIORITY_CLASS

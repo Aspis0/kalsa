@@ -1,0 +1,11 @@
+timestamp=2026-08-27T11:32:09.0954094-04:00
+pid=57308
+worker_exit_code=0
+command=-NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-fork-detached-worker.ps1"
+worker=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-fork-detached-worker.ps1
+flags=DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+priority=worker sets CMake Idle
+worker_stdout=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached-worker.out
+worker_stderr=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached-worker.err
+stdout=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached.log
+stderr=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase2\build-detached.err
