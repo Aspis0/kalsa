@@ -1,0 +1,25 @@
+[assert] q23k MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_jni.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_jni_v8.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_jni_v8_2.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_jni_v8_2_dotprod.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_jni_v8_2_dotprod_i8mm.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_jni_v8_2_i8mm.so
+[assert] q23k MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8.so
+[assert] q23k MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2.so
+[assert] q23k MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2_dotprod.so
+[assert] q23k MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2_dotprod_i8mm.so
+[assert] q23k MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama_v8_2_i8mm.so
+[assert] q23k MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_jni.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_jni_v8.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_jni_v8_2.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_jni_v8_2_dotprod.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_jni_v8_2_dotprod_i8mm.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_jni_v8_2_i8mm.so
+[assert] q23k MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_v8.so
+[assert] q23k MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_v8_2.so
+[assert] q23k MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_v8_2_dotprod.so
+[assert] q23k MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_v8_2_dotprod_i8mm.so
+[assert] q23k MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama_v8_2_i8mm.so
+[assert] FATAL: native patch or pinned-engine marker missing from release binaries.

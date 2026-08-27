@@ -233,3 +233,82 @@ post-build gate result.
 
 Status: `APK BUILT; POST-BUILD ASSERTION FAILED (script searches the wrong
 native library)`. No merge and no S23 installation occurred.
+
+## 2026-08-27 — closing assert/workflow and S23 smoke
+
+### Branch and CI
+
+- `Aspis0/llama.rn:kalsa-pin`: `a67a2639f53cbbe8486e2c236aaec91cf4bad183`
+- `Aspis0/kalsa:engine-pin-kalsallama`: `a5ae74bc781155c20ad1590383fb01bbe152859d`
+- The app branch is clean and pushed. No merge to `main` was made.
+- Assertion fix commit: `75bd714e9c501baf52cf38ecd01d24d0f61163ee`.
+  `scripts/assert-native-patch.sh` now scans every release
+  `librnllama*.so`, classifies `librnllama_jni*.so` as wrapper libraries,
+  requires `kalsa-native-patches` there, and requires `q23k` in every engine
+  library. It also falls back to the NDK `llvm-strings` tool when GNU
+  `strings` is unavailable.
+- Local assertion: **PASS**, exit `0`; log:
+  `phase3/assert-native-patch-final.log`. It verified 24 release libraries:
+  six JNI wrappers plus six engine libraries in both merged and stripped
+  native output trees.
+- Workflow commit: `a5ae74bc781155c20ad1590383fb01bbe152859d`.
+  Run URL: https://github.com/Aspis0/kalsa/actions/runs/33119894980
+  The push-triggered run was started once and was still `in_progress` at the
+  time of this record; its head SHA is the workflow commit above.
+
+### APK and install
+
+- APK:
+  `C:\q66p3b\android\app\build\outputs\apk\release\app-release.apk`
+- Size: `120102355` bytes.
+- SHA-256:
+  `8621E6F1FA7038C80ADD4E0EB0978267DD492426959DAE0DBE77B85517A40B70`
+- Device serial used verbatim:
+  `adb-R3CW406P8CV-zyLM4b (2)._adb-tls-connect._tcp` (Galaxy S23,
+  `SM-S911U`). No `adb connect` and no Xiaomi/Jelly access.
+- Package: `com.kalsa.app`.
+- Pre-install backup was made before `adb install -r`:
+  `device-backup\preinstall-2026-08-27\base.apk`, SHA-256
+  `C6340B67AEC2B9B7E65E4BFBEA8FD8A00582B99E3513704133A99356A510B186`,
+  142813690 bytes. The exact `pm list`, `dumpsys package`, and `pm path`
+  record is in `device-backup\preinstall-2026-08-27\preinstall-record.txt`.
+- Install result: `Performing Streamed Install` / `Success`. Post-install
+  `versionName=0.1.0`, `versionCode=1`, `minSdk=35`, `targetSdk=36`; the
+  release APK is not debuggable. `-r` was used, so app data was retained.
+- The smallest already-present app-private model was used:
+  `files/models/qwen3.5-2b/Qwen3.5-2B-Q4_K_M.gguf` (1280835840 bytes).
+  The UI selected `Qwen 3.5 2B · Q4_K_M · Pronto · locale`. No model was
+  copied, moved, or deleted. The `/data/local/tmp` Marco and OLMoE copies
+  were left untouched.
+
+### Smoke evidence
+
+- Launch: `am start -n com.kalsa.app/.MainActivity`; the activity opened and
+  held focus. After selecting the 2B model, a short prompt `Ping` produced a
+  visible assistant response in the UI (the response began `“Ping” è un
+  metrica di rete...`).
+- Engine-init log:
+  `device-smoke-2026-08-27\logcat-model-2b.txt` records successful loading of
+  `librnllama_jni_v8_2_dotprod_i8mm.so` and `librnllama.so`, followed by
+  `RNLlama: loadModel`, `Context initialized with n_seq_max = 1`, and
+  `probeStateCache: prompt state cache enabled (recurrent/hybrid model)`.
+- Generation log:
+  `device-smoke-2026-08-27\logcat-generation-20s.txt` records
+  `KALSA_SEND ... activeModel:"qwen3.5-2b"`, `allow:true`, and three
+  successful `KALSA_TELEMETRY` rounds, including `tokensPredicted:295`.
+- Runtime logcat had no engine `q23k` or `mmap_prefetch` text line. The
+  Android `MMAP_TRYLOCK` lines were from `app_process`, not the engine.
+  Packaged-library assertion is the authoritative marker check: `q23k` was
+  present in all 12 engine copies and `kalsa-native-patches` in all 12 JNI
+  wrapper copies. No app-specific `Fatal`, `SIGABRT`, `SIGSEGV`, or abort
+  failure was observed; unrelated system `libpenguin`/transition messages
+  were not engine failures.
+- Foreground lifecycle summary:
+  `device-smoke-2026-08-27\lifecycle-summary.txt`; PID `10186`, focused
+  `MainActivity`, `TOTAL PSS=3014564 kB`, `Private Dirty=1709524 kB`,
+  `oom_score_adj=0`.
+- Close: `am force-stop com.kalsa.app`; subsequent `pidof com.kalsa.app`
+  returned empty. Evidence: `device-smoke-2026-08-27\closed-summary.txt`.
+
+Final status: **DONE — assertion PASS, APK installed and smoke-tested on the
+Galaxy S23, with the CI workflow triggered.**
