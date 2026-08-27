@@ -427,3 +427,21 @@ not a kalsallama-engine result.
 
 The fallback engine is llama.rn 0.12.8's generated vendored tree plus the
 app's JSI/RN patch, not the kalsallama checkout. No installation was performed.
+
+## 2026-08-27 Phase-1 integration complete
+
+Both mapper reports ended with their required `COMPLETE` marker and were
+integrated into [ENGINE_PIN_GAP.md](ENGINE_PIN_GAP.md). The consolidated
+recommendation is **R1**: keep llama.rn 0.12.8, pin the literal
+`third_party/llama.cpp` submodule to kalsallama `a0cabca6b`, regenerate with
+bootstrap/prefixing, and backport only the verified wrapper-compatibility gaps.
+Estimated total is **24–40 focused engineering hours / 4–7 working days**
+including Android build, device smoke, and lifecycle validation.
+
+The integration spot-check corrected the mapper count from ten to nine actual
+kalsallama compile blockers: `llama_log_callback_default` and
+`llama_get_ctx_other` are already present in the fork's generated-source closure;
+`logit_bias` is a shared vector shape and is a separate semantic risk. The
+fallback APK above remains preserved with its SHA-256, but it is not a
+kalsallama-engine artifact. No Phase 2/3 implementation, app-repo change,
+authoritative-engine change, or S23 install was performed.
