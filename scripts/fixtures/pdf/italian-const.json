@@ -1,0 +1,136 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "real/italian-const.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "italian-const",
+      "pageNumber": 1,
+      "itemCountFull": 9,
+      "itemCount": 9,
+      "items": [
+        {
+          "str": "COSTITUZIONE",
+          "width": 189.05845199999993,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            578.5558
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            550.1814
+          ]
+        },
+        {
+          "str": "DELLA REPUBBLICA",
+          "width": 232.68389600000003,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            550.1814
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            516.5504
+          ]
+        },
+        {
+          "str": "REGOLAMENTO",
+          "width": 192.17933200000007,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            516.5504
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            489.4935
+          ]
+        },
+        {
+          "str": "DEL SENATO",
+          "width": 150.84996400000003,
+          "transform": [
+            22.292,
+            0,
+            0,
+            22.292,
+            667.5353,
+            489.4935
+          ]
+        },
+        {
+          "str": "",
+          "hasEOL": true,
+          "width": 0,
+          "transform": [
+            13,
+            0,
+            0,
+            13,
+            548.7457,
+            336.7914
+          ]
+        },
+        {
+          "str": "Senato della Repubblica",
+          "width": 130.871,
+          "transform": [
+            13,
+            0,
+            0,
+            13,
+            548.7457,
+            336.7914
+          ]
+        }
+      ]
+    },
+    {
+      "source": "italian-const",
+      "pageNumber": 2,
+      "itemCountFull": 0,
+      "itemCount": 0,
+      "items": []
+    }
+  ]
+}

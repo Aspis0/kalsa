@@ -1,0 +1,42 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "01-ascii-plain.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "ascii",
+      "pageNumber": 1,
+      "itemCountFull": 2,
+      "itemCount": 2,
+      "items": [
+        {
+          "str": "Hello World from pdf.js spike",
+          "hasEOL": true,
+          "width": 305.4,
+          "transform": [
+            24,
+            0,
+            0,
+            24,
+            50,
+            700
+          ]
+        },
+        {
+          "str": "Line two: ASCII only text.",
+          "width": 268.12800000000004,
+          "transform": [
+            24,
+            0,
+            0,
+            24,
+            50,
+            660
+          ]
+        }
+      ]
+    }
+  ]
+}

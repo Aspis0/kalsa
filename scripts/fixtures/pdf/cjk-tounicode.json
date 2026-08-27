@@ -1,0 +1,29 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "06-cjk-with-tounicode.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "cjk-tounicode",
+      "pageNumber": 1,
+      "itemCountFull": 1,
+      "itemCount": 1,
+      "items": [
+        {
+          "str": "日本",
+          "width": 48,
+          "transform": [
+            24,
+            0,
+            0,
+            24,
+            50,
+            700
+          ]
+        }
+      ]
+    }
+  ]
+}
