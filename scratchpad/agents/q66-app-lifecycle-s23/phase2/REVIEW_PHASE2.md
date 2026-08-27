@@ -542,3 +542,127 @@ activate_immediately mapping + a non-empty-generation_prompt regression test), t
 delta passes; every other finding is resolved.
 
 COMPLETE — REVIEW_PHASE2 re-review (fix delta cb9fdd1f..3b372c749, reviewed 2026-08-27)
+
+## FINAL PASS — round-2 delta 3b372c749..d1cc3b77c2e205aecc4c87e216816524de435028 (2026-08-27)
+
+Delta: single commit `d1cc3b77c` ("Restore upstream reasoning-budget prompt prefill"),
+2 files (+88/−1): `common/sampling.cpp` (IDLE-gated prefill feed) +
+`tests/test-reasoning-budget.cpp` (fixture-based regression test). Branch tip verified
+`d1cc3b77c`, clean tree. PHASE2_STATUS.md "Final re-review correction: F19, F16, and F1
+gate" section read in full; `check-bootstrap-chat-symbols.ps1` read in full; upstream
+`d77599234` (#22488) diff re-extracted from the clone for exactness comparison.
+
+### (1) Restored prefill loop vs upstream #22488 — EXACT for the IDLE path, no half-restoration
+
+`git show d77599234:common/sampling.cpp` post-diff shape: 5-arg
+`common_reasoning_budget_init` (initial_state defaulted IDLE) followed by the unconditioned
+loop `for (prefill_tokens) { accept; LOG_DBG("reasoning-budget accepted prefill token (%d)"); }`.
+The round-2 restoration (`common/sampling.cpp:319-330`) is that loop byte-for-byte — same
+body, same LOG_DBG string, same `prefill_tokens` source (the fork's verbatim #22488
+computation incl. leading-space filter, untouched since the base), same position after
+init — wrapped in exactly one gate: `if (initial_state == REASONING_BUDGET_IDLE)`.
+For every flow that existed at #22488 the local `initial_state` is IDLE (the parameter did
+not exist in the #22488-era call), so the gate is a no-op there → upstream-equal by
+construction. Budget state after prefill: IDLE matcher consumes the prompt-embedded start
+tag → COUNTING with `remaining = budget` (IDLE accepts never decrement) → upstream-equal.
+The gate's only exclusion — COUNTING (immediate activation), which #22488 never had — is
+the deliberate, in-code-commented F4 fix ("feeding its prompt would incorrectly consume
+generation budget"), not a hybrid of the IDLE semantics. The FORCING promotion
+(budget=0) happens inside init and is also excluded from the feed — F5 stays fixed.
+
+### (2) New non-empty-generation_prompt test — trips on re-deletion (mentally reverted and checked)
+
+`test_common_sampler_prefills_generation_prompt`
+(`tests/test-reasoning-budget.cpp:191-256`): loads the in-tree fixture
+`models/ggml-vocab-llama-bpe.gguf` (verified present, 7.8 MB) vocab-only + mmap-off,
+builds `common_params_sampling` with `generation_prompt = "Hello"`,
+`reasoning_budget_start` = the SAME filtered token sequence `common_sampler_init` derives
+(the test mirrors the production leading-space filter line-for-line), `budget = 1`,
+immediate activation deliberately left off. Assertions:
+- after init: `REASONING_BUDGET_COUNTING` — only reachable if the prefill feed armed the
+  IDLE matcher on the prompt-embedded start sequence;
+- after one generated accept (token id chosen outside prefill ∪ {end}): `REASONING_BUDGET_FORCING`.
+
+Mental revert (delete the restored loop): rbudget never sees the prompt → state stays
+IDLE after init → the FIRST GGML_ASSERT trips → process aborts → ctest fails. A second,
+independent trip exists at the FORCING assert. This is exactly the F19 property, now
+directly pinned with a non-empty prompt — closing round-2's F16 gap. Hostile notes:
+(a) the mirrored filter is duplicated logic — if production's filter ever changes, the
+test's derived sequence could diverge spuriously (acceptable: the mirror is 4 lines and
+commented); (b) the COUNTING-skip property (no prompt consumption under immediate
+activation with a NON-empty prompt — the F4 half) remains only implicitly covered by the
+empty-prompt test — minor residual, does not affect this delta's verdict; (c) the
+round-2 q63g run is recorded: "OK (12 tests passed)".
+
+### (3) check-bootstrap-chat-symbols.ps1 — a REAL gate for the F1 chat class; one sibling residue documented below
+
+Mechanics verified against the actual llama.rn v0.12.8 patch content and the fork's text:
+five `Assert-OneMatch` checks (struct definition; 2-arg has_variant decl + def; 2-arg
+get_caps decl + def), each requiring EXACTLY ONE match in the generated
+`cpp/common/chat.{h,cpp}`, throwing (→ non-zero exit, `$ErrorActionPreference='Stop'`)
+on 0 or ≥2. The patterns are overload-specific — the get_caps pattern requires the
+`common_chat_template_caps` return type + the `, const std::string &` tail, so the
+pre-existing 1-arg map API cannot satisfy or mask them (explicitly commented in the
+script). Replay of the F1 collision: bootstrap applies chat.h.patch hunk 3 +
+chat.cpp.patch hunk 5 onto fork content that already defines the symbols → every count
+becomes 2 → gate fails BEFORE any native compile. Conversely both legitimate Phase-3
+resolutions (drop patch hunks, or drop fork-side symbols) yield count=1 → PASS. The
+fork-tree dry run is recorded (all counts=1, GATE=PASS). This is a genuine gate, not
+theater — with two caveats: it is a MANUAL step (must be invoked post-bootstrap; command
+documented in PHASE2_STATUS.md), and its scope is chat-only — see the sibling residue.
+
+### F1 sibling residue (new finding F20 — documentation gap, no code defect): common.h.patch hunks 2-3 would silently duplicate if hunk 1 alone is removed
+
+Verified against the fork text at `d1cc3b77c`:
+- Hunk 1 (activate_immediately into the reasoning block) FAILS loudly — fork's block text
+  diverges (missing `// reasoning budget sampler parameters` context line, fork comment
+  insertion, field already present) → GNU patch exits non-zero → bootstrap aborts. In the
+  CURRENT patch state hunks 2-3 are therefore unreachable → no silent duplicate today.
+- Hunk 2 context (`struct common_params {` + the n_predict/n_ctx/n_batch lines) matches the
+  fork VERBATIM (`common/common.h:452-455`) → if Phase 3 deletes hunk 1 alone, hunk 2
+  applies silently and inserts `bool vocab_only = false;` → duplicate member (fork has it
+  at :578) → compile error far from cause, invisible to the chat-symbol gate.
+- Hunk 3 context (`no_host` + blank + `single_turn` + blank + cache_type lines; the
+  ggml→lm_ggml rewrite makes the fork's `ggml_type cache_type_k = GGML_TYPE_F16;` match the
+  patch's prefixed context) also matches → silent duplicate `progress_callback` pair
+  (fork :733-734).
+- `sampling.cpp.patch` fails loudly against the round-1/2 fork text (gate line and init
+  call rewritten) → loud abort, no silent branch duplication.
+Residue: PHASE2_STATUS/ENGINE_PIN_GAP still say "caps hunks" / "rebase that hunk" — the
+correct Phase-3 instruction is DELETE ALL THREE common.h.patch hunks (and
+sampling.cpp.patch), or extend the gate with common.h member counts. Conditional risk
+(require a specific Phase-3 mistake), no defect in this delta — recorded, not
+verdict-blocking.
+
+### (4) Wrapper path and default-path byte-identity — still clean
+
+The delta touches only `common/sampling.cpp` (rbudget prefill block) and a test file —
+zero header/API/surface changes since `3b372c749`, so every GAP_JSI call-site verdict from
+the round-1/2 reviews stands unchanged (load_mode, vocab_only, progress aliases,
+activate_immediately, vector-of-vectors end, plural thinking_end_tags, has_variant, 2-arg
+get_caps, text_len — none touched). Wrapper reasoning flows re-derived: `thinking_forced_open
+→ activate_immediately → COUNTING` skips the feed (budget starts at generation, F4 fixed);
+`forced_open=false` + JS start tag → IDLE + #22488 feed → arms on a prompt-embedded tag
+(F19 fixed); both consistent with the wrapper passing `generation_prompt` to completion
+(PHASE2_STATUS round-2 re-verified the q66c call paths read-only). Default-path
+byte-identity vs the fork base `a0cabca6b`: for every flow that existed at base
+(activate_immediately absent ⇒ IDLE), the round-1 gate reduces to the original condition,
+the explicit IDLE equals the old default argument, and the restored feed is byte-identical
+— so base behavior is preserved exactly; the only intentional deviations remain the two
+new flows (immediate activation semantics, budget=0 forcing), both correct per #20297.
+
+## FINAL-PASS scorecard
+
+| Residue | Verdict |
+|---|---|
+| F19 prefill restoration | FIXED — exactly #22488 for IDLE, gated exclusion for COUNTING, revert-tripping fixture test |
+| F16 coverage gap | FIXED for the regressed property (non-empty-prompt test trips on deletion); minor: immediate-path no-consumption still implicit |
+| F1 chat-class collision | CLOSED — real, replay-verified gate + recorded dry run + Phase-3 prerequisite |
+| F1 sibling (new F20) | OPEN documentation gap: common.h.patch hunks 2-3 silent-duplicate risk if hunk 1 alone is deleted; currently loud-fail; not verdict-blocking |
+
+**FINAL VERDICT: PASS** — with the Phase-3 checklist addendum: delete ALL of
+common.h.patch (hunks 1-3) and sampling.cpp.patch, not just the caps hunks; optionally
+extend the symbol gate with common.h member counts and a non-empty-prompt
+immediate-activation no-consumption test.
+
+COMPLETE — REVIEW_PHASE2 final pass (round-2 delta 3b372c749..d1cc3b77c, reviewed 2026-08-27)
