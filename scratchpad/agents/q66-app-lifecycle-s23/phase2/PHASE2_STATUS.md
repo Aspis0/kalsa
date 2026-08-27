@@ -270,3 +270,142 @@ Total Test time (real) =  14.75 sec
 The branch is clean and `origin/app-pin-compat` points to
 `3b372c74906c94bd0919fafdcf73254fc15aafcd`. No NDK, Android, device, Gradle,
 ai-chat, or authoritative WIP checkout was touched.
+
+## Final re-review correction: F19, F16, and F1 gate (2026-08-27)
+
+The prior F4/F16 disposition above is superseded by this correction. The
+reviewer's appended F19 verdict was read before editing. The upstream commits
+were inspected directly in the clone:
+
+- `acb7c790698fa28a0fbfc0468804926815b94de3` (`#20297`, reasoning budget)
+  establishes the explicit initial-state path and the reasoning state-machine
+  semantics. The fork's forced position remains advanced by `apply()`, not
+  `accept()`, so an immediate budget-zero path does not skip its first forced
+  token.
+- `d77599234ea6e498775aeadbce665eece5bd98cd` (`#22488`) moves generation
+  prompt tokenization into `common_sampler_init()` and feeds those tokens to
+  the reasoning sampler. This feed is required for a start tag embedded in the
+  generation prompt to arm the normal default (`IDLE`) path.
+
+`common/sampling.cpp` now restores that upstream feed with the required state
+gate: when the selected initial state is `REASONING_BUDGET_IDLE`, every
+filtered `generation_prompt` prefill token is accepted by the reasoning
+sampler; when `thinking_forced_open` selected `COUNTING`, the prompt is not
+fed, so immediate activation starts the budget at generation. This preserves
+the wrapper's immediate path and the fork/server's prompt-embedded-start-tag
+path without an API hybrid.
+
+The wrapper path was re-checked read-only in the app tree: `JSIParams.cpp`
+maps `thinking_forced_open` to `reasoning_budget_activate_immediately`, while
+`RNLlamaJSI.cpp` passes `generation_prompt` to completion. Thus the gate is
+consistent with both wrapper call paths.
+
+### F16 regression coverage
+
+`tests/test-reasoning-budget.cpp` now includes
+`test_common_sampler_prefills_generation_prompt()`. It loads the existing
+`models/ggml-vocab-llama-bpe.gguf` fixture, uses non-empty generation prompt
+`"Hello"`, derives the same filtered prompt-token sequence as production, and
+uses it as the start sequence. The upstream-exact assertions are:
+
+```text
+after non-immediate prompt prefill: REASONING_BUDGET_COUNTING
+after first generated token with budget=1: REASONING_BUDGET_FORCING
+```
+
+Deleting the restored prefill loop leaves the sampler `IDLE` and trips the
+first assertion. The q63g transcript reports:
+
+```text
+Testing reasoning budget sampler... OK (12 tests passed)
+Testing UTF-8 boundary detection... OK
+```
+
+### F1 Phase-3 machine gate
+
+Added [check-bootstrap-chat-symbols.ps1](check-bootstrap-chat-symbols.ps1).
+Phase 3 must run it after bootstrap against the generated `cpp/common`
+directory and before compilation:
+
+```text
+powershell -NoProfile -ExecutionPolicy Bypass -File phase2/check-bootstrap-chat-symbols.ps1 -CppCommonRoot <generated-tree>\cpp\common
+```
+
+It fails on missing or duplicate `common_chat_template_caps`,
+`common_chat_templates_has_variant`, and variant `common_chat_templates_get_caps`
+declarations/definitions. Its equivalent fork-tree check passed:
+
+```text
+chat_caps_struct=1
+chat_has_variant_declaration=1
+chat_has_variant_definition=1
+chat_get_caps_variant_declaration=1
+chat_get_caps_variant_definition=1
+BOOTSTRAP_CHAT_SYMBOL_GATE=PASS
+```
+
+This remains a hard Phase-3 prerequisite: remove the duplicate caps/variant
+additions from `scripts/patches/chat.h.patch` and `chat.cpp.patch`, while
+retaining their unrelated hunks, or the gate must stop the build.
+
+### Corrected final native validation
+
+The final clean tree is `C:\Users\gualt\kals-pin\build-phase2-native-q63g`.
+The detached child initialized `VsDevCmd.bat -arch=x64` itself and ran Release
+CPU/native CMake/Ninja with `-DLLAMA_BUILD_TESTS=ON`, CMake `--parallel 2`,
+`CMAKE_BUILD_PARALLEL_LEVEL=2`, and `NINJAFLAGS=-j2` at
+`IDLE_PRIORITY_CLASS`. The pre-launch RAM gate was `13.87 GiB` free (minimum
+8 GiB); the minimum observed during build was `12.96 GiB`. The q63g Ninja log
+reached 501 completed entries.
+
+`build-native-msvc-result.txt`:
+
+```text
+started=2026-08-27T14:59:48.5730465-04:00
+ended=2026-08-27T15:08:01.6420618-04:00
+wall_seconds=493.0690153
+pid=12392
+exit_code=0
+priority=IDLE_PRIORITY_CLASS
+recipe=VsDevCmd.bat -arch=x64; MSVC CMake/Ninja; CMAKE_BUILD_PARALLEL_LEVEL=2; NINJAFLAGS=-j2
+```
+
+Build stderr contained only the existing environment warning:
+
+```text
+'vswhere.exe' is not recognized as an internal or external command,
+operable program or batch file.
+```
+
+The full detached, Idle, serial CTest run is recorded in
+`build-native-msvc-result-all-ctest.txt` and
+`C:\Users\gualt\kals-pin\build-phase2-native-q63g\Testing\Temporary\LastTest.log`:
+
+```text
+started=2026-08-27T15:08:19.4903509-04:00
+ended=2026-08-27T15:10:34.9936587-04:00
+wall_seconds=135.5033078
+pid=61052
+exit_code=8
+priority=IDLE_PRIORITY_CLASS
+recipe=VsDevCmd.bat -arch=x64; MSVC CMake/Ninja; CMAKE_BUILD_PARALLEL_LEVEL=2; NINJAFLAGS=-j2
+```
+
+Full result: **57 passed, 1 failed out of 58**. The only failure is the
+pre-existing x86 hardware-gated q23k test, which returns 77 and is counted as
+failure by this CTest setup:
+
+```text
+**** SKIP: no Q2_K_8x4/Q3_K_8x4 trait selected (neon=0 dotprod=0 extra=null). This host cannot cover the 3-D q23k load contract. Run on armv8.2+dotprod. exit=77 ****
+test-repack-q23k-load neon=0 dotprod=0 loader_set=0
+```
+
+All seven wrapper-reachable tests in the full run passed:
+`test-sampling`, `test-reasoning-budget`, `test-chat`,
+`test-chat-peg-parser`, `test-chat-auto-parser`, `test-chat-template`, and
+`test-arg-parser`. No Android/NDK/Gradle work was run in this Phase-2
+validation.
+
+Final fork commit: `d1cc3b77c2e205aecc4c87e216816524de435028`
+(`Restore upstream reasoning-budget prompt prefill`), pushed to
+`origin/app-pin-compat`; the clone is clean.
