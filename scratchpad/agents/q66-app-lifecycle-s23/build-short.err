@@ -1,0 +1,842 @@
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':llama.rn:buildCMakeRelWithDebInfo[arm64-v8a]'.
+> com.android.ide.common.process.ProcessException: ninja: Entering directory `C:\kq66\node_modules\llama.rn\android\.cxx\RelWithDebInfo\2v2q56x4\arm64-v8a'
+  [0/2] Re-checking globbed directories...
+  [1/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-hparams.cpp.o
+  [2/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-cparams.cpp.o
+  [3/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-io.cpp.o
+  [4/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/amx/mmq.cpp.o
+  [5/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-impl.cpp.o
+  [6/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory.cpp.o
+  [7/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-model-saver.cpp.o
+  [8/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-arch.cpp.o
+  [9/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-chat.cpp.o
+  [10/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/amx/amx.cpp.o
+  [11/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory-hybrid.cpp.o
+  [12/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache-dsa.cpp.o
+  [13/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-batch.cpp.o
+  [14/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-adapter.cpp.o
+  [15/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory-hybrid-iswa.cpp.o
+  [16/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory-recurrent.cpp.o
+  [17/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama.cpp.o
+  [18/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/build-info.cpp.o
+  [19/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache-iswa.cpp.o
+  [20/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-graph.cpp.o
+  [21/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-mmap.cpp.o
+  [22/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-context.cpp.o
+  [23/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache-dsv4.cpp.o
+  [24/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-grammar.cpp.o
+  [25/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/unicode-data.cpp.o
+  [26/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/log.cpp.o
+  [27/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-model-loader.cpp.o
+  [28/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/ngram-cache.cpp.o
+  [29/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/fit.cpp.o
+  [30/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache.cpp.o
+  [31/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/deepseekocr.cpp.o
+  [32/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/ngram-map.cpp.o
+  [33/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-vocab.cpp.o
+  [34/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-sampler.cpp.o
+  [35/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/jinja/string.cpp.o
+  [36/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/conformer.cpp.o
+  [37/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/cogvlm.cpp.o
+  [38/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-auto-parser-helpers.cpp.o
+  [39/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/jinja/parser.cpp.o
+  [40/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/jinja/lexer.cpp.o
+  [41/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/exaone4_5.cpp.o
+  [42/2036] Building C object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/anyascii.c.o
+  [43/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/common.cpp.o
+  [44/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/reasoning-budget.cpp.o
+  [45/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/llama-model.cpp.o
+  [46/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/jinja/runtime.cpp.o
+  [47/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/deepseekocr2.cpp.o
+  [48/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/gemma4ua.cpp.o
+  [49/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-auto-parser-generator.cpp.o
+  [50/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/ngram-mod.cpp.o
+  [51/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/dotsocr.cpp.o
+  [52/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/unicode.cpp.o
+  [53/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/gemma4a.cpp.o
+  [54/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/unicode.cpp.o
+  [55/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-peg-parser.cpp.o
+  [56/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/trie.cpp.o
+  [57/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/gemma4v.cpp.o
+  [58/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/sampling.cpp.o
+  [59/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/jinja/caps.cpp.o
+  [60/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/glm4v.cpp.o
+  [61/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/granite-speech.cpp.o
+  [62/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/granite4-vision.cpp.o
+  [63/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/kimivl.cpp.o
+  [64/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/hunyuanvl.cpp.o
+  [65/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/internvl.cpp.o
+  [66/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/minicpmv.cpp.o
+  [67/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/gemma4uv.cpp.o
+  [68/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/llava.cpp.o
+  [69/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/kimik25.cpp.o
+  [70/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/mimovl.cpp.o
+  [71/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/llama4.cpp.o
+  [72/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/mimo-audio.cpp.o
+  [73/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/pixtral.cpp.o
+  [74/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/paddleocr.cpp.o
+  [75/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/speculative.cpp.o
+  [76/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/minimax-m3.cpp.o
+  [77/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/mobilenetv5.cpp.o
+  [78/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/qwen3vl.cpp.o
+  [79/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/step3vl.cpp.o
+  [80/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/nemotron-v2-vl.cpp.o
+  [81/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/whisper-enc.cpp.o
+  [82/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/yasa2.cpp.o
+  [83/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/qwen3a.cpp.o
+  [84/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/qwen2vl.cpp.o
+  [85/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/youtuvl.cpp.o
+  [86/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/json-schema-to-grammar.cpp.o
+  [87/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/models/siglip.cpp.o
+  [88/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/mtmd-image.cpp.o
+  [89/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/arcee.cpp.o
+  [90/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/afmoe.cpp.o
+  [91/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/baichuan.cpp.o
+  [92/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/arwkv7.cpp.o
+  [93/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/arctic.cpp.o
+  [94/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/mtmd-audio.cpp.o
+  [95/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/apertus.cpp.o
+  [96/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/bert.cpp.o
+  [97/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-diff-analyzer.cpp.o
+  [98/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/bitnet.cpp.o
+  [99/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/bailingmoe.cpp.o
+  [100/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/bailingmoe2.cpp.o
+  [101/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/chameleon.cpp.o
+  [102/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/codeshell.cpp.o
+  [103/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/cohere2moe.cpp.o
+  [104/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/mtmd.cpp.o
+  [105/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/jinja/value.cpp.o
+  [106/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/cogvlm.cpp.o
+  [107/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/deci.cpp.o
+  [108/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/cohere2.cpp.o
+  [109/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/chatglm.cpp.o
+  [110/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/command-r.cpp.o
+  [111/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/bloom.cpp.o
+  [112/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/deepseek2ocr.cpp.o
+  [113/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/deepseek2.cpp.o
+  [114/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/dbrx.cpp.o
+  [115/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/clip.cpp.o
+  [116/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/rn-slot.cpp.o
+  [117/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/delta-net-base.cpp.o
+  [118/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/deepseek32.cpp.o
+  [119/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/deepseek.cpp.o
+  [120/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/dream.cpp.o
+  [121/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/tools/mtmd/mtmd-helper.cpp.o
+  [122/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/ernie4-5-moe.cpp.o
+  [123/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/falcon.cpp.o
+  [124/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/rn-completion.cpp.o
+  [125/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/eagle3.cpp.o
+  [126/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/exaone-moe.cpp.o
+  [127/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/exaone4.cpp.o
+  [128/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma3n.cpp.o
+  [129/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/dots1.cpp.o
+  [130/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma2.cpp.o
+  [131/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/exaone.cpp.o
+  [132/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/ernie4-5.cpp.o
+  [133/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/eurobert.cpp.o
+  [134/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/rn-llama.cpp.o
+  [135/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/dflash.cpp.o
+  [136/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/falcon-h1.cpp.o
+  [137/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma.cpp.o
+  [138/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma4-assistant.cpp.o
+  [139/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma-embedding.cpp.o
+  [140/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/glm4-moe.cpp.o
+  [141/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/glm4.cpp.o
+  [142/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/deepseek4.cpp.o
+  [143/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat.cpp.o
+  [144/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/common/peg-parser.cpp.o
+  [145/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma3.cpp.o
+  [146/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gpt2.cpp.o
+  [147/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gemma4.cpp.o
+  [148/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/hunyuan-moe.cpp.o
+  [149/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/glm-dsa.cpp.o
+  [150/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/gptneox.cpp.o
+  [151/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/hunyuan-dense.cpp.o
+  [152/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/hunyuan-vl.cpp.o
+  [153/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/granite-hybrid.cpp.o
+  [154/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/rn-slot-manager.cpp.o
+  [155/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/grok.cpp.o
+  [156/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/jamba.cpp.o
+  [157/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/kimi-linear.cpp.o
+  [158/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/lfm2.cpp.o
+  [159/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/granite-moe.cpp.o
+  [160/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/llada-moe.cpp.o
+  [161/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/internlm2.cpp.o
+  [162/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/jais2.cpp.o
+  [163/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/grovemoe.cpp.o
+  [164/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/granite.cpp.o
+  [165/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/jais.cpp.o
+  [166/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/jina-bert-v2.cpp.o
+  [167/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/rn-tts.cpp.o
+  C:/kq66/node_modules/llama.rn/cpp/rn-tts.cpp:195:31: warning: 'codecvt_utf8<char32_t>' is deprecated [-Wdeprecated-declarations]
+    195 |     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
+        |                               ^
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/codecvt:194:28: note: 'codecvt_utf8<char32_t>' has been explicitly marked deprecated here
+    194 | class _LIBCPP_TEMPLATE_VIS _LIBCPP_DEPRECATED_IN_CXX17 codecvt_utf8 : public __codecvt_utf8<_Elem> {
+        |                            ^
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/__config:942:41: note: expanded from macro '_LIBCPP_DEPRECATED_IN_CXX17'
+    942 | #    define _LIBCPP_DEPRECATED_IN_CXX17 _LIBCPP_DEPRECATED
+        |                                         ^
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/__config:915:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+    915 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+        |                                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/rn-tts.cpp:195:10: warning: 'wstring_convert<std::codecvt_utf8<char32_t>, char32_t>' is deprecated [-Wdeprecated-declarations]
+    195 |     std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> converter;
+        |          ^
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/locale:3114:28: note: 'wstring_convert<std::codecvt_utf8<char32_t>, char32_t>' has been explicitly marked deprecated here
+   3114 | class _LIBCPP_TEMPLATE_VIS _LIBCPP_DEPRECATED_IN_CXX17 wstring_convert {
+        |                            ^
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/__config:942:41: note: expanded from macro '_LIBCPP_DEPRECATED_IN_CXX17'
+    942 | #    define _LIBCPP_DEPRECATED_IN_CXX17 _LIBCPP_DEPRECATED
+        |                                         ^
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/__config:915:49: note: expanded from macro '_LIBCPP_DEPRECATED'
+    915 | #      define _LIBCPP_DEPRECATED __attribute__((__deprecated__))
+        |                                                 ^
+  2 warnings generated.
+  [168/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/jina-bert-v3.cpp.o
+  [169/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/llama-embed.cpp.o
+  [170/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/maincoder.cpp.o
+  [171/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mamba-base.cpp.o
+  [172/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/lfm2moe.cpp.o
+  [173/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/minicpm.cpp.o
+  [174/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/llama.cpp.o
+  [175/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/llada.cpp.o
+  [176/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mamba2.cpp.o
+  [177/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/modern-bert.cpp.o
+  [178/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mistral4.cpp.o
+  [179/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/llama4.cpp.o
+  [180/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mamba.cpp.o
+  [181/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/nemotron-h-moe.cpp.o
+  [182/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/neo-bert.cpp.o
+  [183/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mellum.cpp.o
+  [184/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/nemotron.cpp.o
+  [185/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/minicpm3.cpp.o
+  [186/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mimo2.cpp.o
+  [187/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/minimax-m2.cpp.o
+  [188/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory.cpp.o
+  [189/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mpt.cpp.o
+  [190/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/mistral3.cpp.o
+  [191/2036] Building CXX object rnllama/CMakeFiles/rnllama.dir/C_/kq66/node_modules/llama.rn/cpp/models/nemotron-h.cpp.o
+  [192/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/plamo3.cpp.o
+  [193/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/plamo2.cpp.o
+  [194/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/plm.cpp.o
+  [195/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory-hybrid.cpp.o
+  [196/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen3.cpp.o
+  [197/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen35.cpp.o
+  [198/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen.cpp.o
+  [199/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen2.cpp.o
+  [200/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen2vl.cpp.o
+  [201/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen3vlmoe.cpp.o
+  [202/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory-hybrid-iswa.cpp.o
+  [203/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-memory-recurrent.cpp.o
+  [204/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen2moe.cpp.o
+  [205/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen3next.cpp.o
+  [206/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen3moe.cpp.o
+  [207/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache-iswa.cpp.o
+  [208/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/refact.cpp.o
+  [209/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen35moe.cpp.o
+  [210/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/rwkv6.cpp.o
+  [211/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/qwen3vl.cpp.o
+  [212/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/rnd1.cpp.o
+  [213/2036] Building C object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/arch/arm/quants.c.o
+  [214/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/rwkv6-base.cpp.o
+  [215/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/rwkv6qwen2.cpp.o
+  [216/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/smallthinker.cpp.o
+  [217/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/smollm3.cpp.o
+  [218/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/seed-oss.cpp.o
+  [219/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/rwkv7.cpp.o
+  [220/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/rwkv7-base.cpp.o
+  [221/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache.cpp.o
+  [222/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/stablelm.cpp.o
+  [223/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/starcoder.cpp.o
+  [224/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/t5.cpp.o
+  [225/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/starcoder2.cpp.o
+  [226/2036] Building C object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-alloc.c.o
+  [227/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/xverse.cpp.o
+  [228/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/arch/arm/repack.cpp.o
+  [229/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/talkie.cpp.o
+  [230/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/t5encoder.cpp.o
+  [231/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/step35.cpp.o
+  [232/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-model-saver.cpp.o
+  [233/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-mmap.cpp.o
+  [234/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/common/build-info.cpp.o
+  [235/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8.dir/C_/kq66/node_modules/llama.rn/cpp/models/wavtokenizer-dec.cpp.o
+  [236/2036] Building C object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml.c.o
+  [237/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama.cpp.o
+  [238/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/unicode-data.cpp.o
+  [239/2036] Building C object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/quants.c.o
+  [240/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-threading.cpp.o
+  [241/2036] Building C object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.c.o
+  [242/2036] Building C object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-quants.c.o
+  [243/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-backend-dl.cpp.o
+  [244/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-backend-reg.cpp.o
+  [245/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-backend.cpp.o
+  [246/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-model-loader.cpp.o
+  [247/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-opt.cpp.o
+  [248/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/binary-ops.cpp.o
+  [249/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/traits.cpp.o
+  [250/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/unicode.cpp.o
+  [251/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-model.cpp.o
+  [252/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-vocab.cpp.o
+  [253/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-auto-parser-helpers.cpp.o
+  [254/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-sampler.cpp.o
+  [255/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/amx/mmq.cpp.o
+  [256/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/ggml-cpu.cpp.o
+  [257/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-arch.cpp.o
+  [258/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/vec.cpp.o
+  [259/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/unary-ops.cpp.o
+  [260/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/repack.cpp.o
+  [261/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-backend-meta.cpp.o
+  [262/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/amx/amx.cpp.o
+  [263/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-peg-parser.cpp.o
+  [264/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-hparams.cpp.o
+  [265/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/gguf.cpp.o
+  [266/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-cparams.cpp.o
+  [267/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-auto-parser-generator.cpp.o
+  [268/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-adapter.cpp.o
+  [269/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-impl.cpp.o
+  [270/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-chat.cpp.o
+  [271/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-io.cpp.o
+  [272/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/ggml-cpu/ops.cpp.o
+  [273/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache-dsa.cpp.o
+  [274/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-batch.cpp.o
+  [275/2036] Building CXX object CMakeFiles/rnllama_jni.dir/RNLlamaJSI.cpp.o
+  [276/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/ThreadPool.cpp.o
+  [277/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp.o
+  [278/2036] Building CXX object CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp.o
+  [279/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-context.cpp.o
+  [280/2036] Building CXX object CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/ThreadPool.cpp.o
+  [281/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/RNLlamaJSI.cpp.o
+  [282/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-graph.cpp.o
+  [283/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp.o
+  [284/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-grammar.cpp.o
+  [285/2036] Building CXX object CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIUtils.cpp.o
+  [286/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/ThreadPool.cpp.o
+  [287/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIUtils.cpp.o
+  [288/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIUtils.cpp.o
+  [289/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIContext.cpp.o
+  [290/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp.o
+  [291/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/llama-kv-cache-dsv4.cpp.o
+  [292/2036] Building CXX object CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o
+  FAILED: CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -MF CMakeFiles\rnllama_jni.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\JSIParams.cpp.o.d -o CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:32: error: no member named 'load_mode' in 'common_params'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                        ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:21: error: no member named 'load_mode' in 'common_params'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:45: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                                             ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:33: error: no member named 'load_mode' in 'common_params'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:21: error: no member named 'load_mode' in 'common_params'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:46: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                                              ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:21: error: no member named 'load_mode' in 'common_params'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:21: error: no member named 'load_mode' in 'common_params'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:21: error: no member named 'load_mode' in 'common_params'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:21: error: no member named 'load_mode' in 'common_params'
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_NONE'; did you mean 'LLAMA_SPLIT_MODE_NONE'?
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |                                 ^~~~~~~~~~~~~~~~~~~~
+        |                                 LLAMA_SPLIT_MODE_NONE
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/llama.h:199:9: note: 'LLAMA_SPLIT_MODE_NONE' declared here
+    199 |         LLAMA_SPLIT_MODE_NONE   = 0, // single GPU
+        |         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:516:17: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    516 |         sparams.reasoning_budget_activate_immediately = false;
+        |         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:547:50: error: no matching member function for call to 'push_back'
+    547 |                     sparams.reasoning_budget_end.push_back(std::move(reasoningBudgetEnd));
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:637:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'const value_type' (aka 'const int') for 1st argument
+    637 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(const_reference __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:639:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'value_type' (aka 'int') for 1st argument
+    639 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(value_type&& __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:554:29: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    554 |                     sparams.reasoning_budget_activate_immediately = getPropertyAsBool(
+        |                     ~~~~~~~ ^
+  19 errors generated.
+  [293/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/ThreadPool.cpp.o
+  [294/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/RNLlamaJSI.cpp.o
+  [295/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat-diff-analyzer.cpp.o
+  [296/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8-a -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -MF CMakeFiles\rnllama_jni_v8.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\JSIParams.cpp.o.d -o CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:32: error: no member named 'load_mode' in 'common_params'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                        ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:21: error: no member named 'load_mode' in 'common_params'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:45: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                                             ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:33: error: no member named 'load_mode' in 'common_params'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:21: error: no member named 'load_mode' in 'common_params'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:46: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                                              ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:21: error: no member named 'load_mode' in 'common_params'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:21: error: no member named 'load_mode' in 'common_params'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:21: error: no member named 'load_mode' in 'common_params'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:21: error: no member named 'load_mode' in 'common_params'
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_NONE'; did you mean 'LLAMA_SPLIT_MODE_NONE'?
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |                                 ^~~~~~~~~~~~~~~~~~~~
+        |                                 LLAMA_SPLIT_MODE_NONE
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/llama.h:199:9: note: 'LLAMA_SPLIT_MODE_NONE' declared here
+    199 |         LLAMA_SPLIT_MODE_NONE   = 0, // single GPU
+        |         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:516:17: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    516 |         sparams.reasoning_budget_activate_immediately = false;
+        |         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:547:50: error: no matching member function for call to 'push_back'
+    547 |                     sparams.reasoning_budget_end.push_back(std::move(reasoningBudgetEnd));
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:637:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'const value_type' (aka 'const int') for 1st argument
+    637 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(const_reference __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:639:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'value_type' (aka 'int') for 1st argument
+    639 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(value_type&& __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:554:29: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    554 |                     sparams.reasoning_budget_activate_immediately = getPropertyAsBool(
+        |                     ~~~~~~~ ^
+  19 errors generated.
+  [297/2036] Building CXX object CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIContext.cpp.o
+  [298/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_2_dotprod_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8.2-a+dotprod -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -MF CMakeFiles\rnllama_jni_v8_2_dotprod.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\JSIParams.cpp.o.d -o CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:32: error: no member named 'load_mode' in 'common_params'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                        ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:21: error: no member named 'load_mode' in 'common_params'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:45: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                                             ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:33: error: no member named 'load_mode' in 'common_params'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:21: error: no member named 'load_mode' in 'common_params'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:46: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                                              ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:21: error: no member named 'load_mode' in 'common_params'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:21: error: no member named 'load_mode' in 'common_params'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:21: error: no member named 'load_mode' in 'common_params'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:21: error: no member named 'load_mode' in 'common_params'
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_NONE'; did you mean 'LLAMA_SPLIT_MODE_NONE'?
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |                                 ^~~~~~~~~~~~~~~~~~~~
+        |                                 LLAMA_SPLIT_MODE_NONE
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/llama.h:199:9: note: 'LLAMA_SPLIT_MODE_NONE' declared here
+    199 |         LLAMA_SPLIT_MODE_NONE   = 0, // single GPU
+        |         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:516:17: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    516 |         sparams.reasoning_budget_activate_immediately = false;
+        |         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:547:50: error: no matching member function for call to 'push_back'
+    547 |                     sparams.reasoning_budget_end.push_back(std::move(reasoningBudgetEnd));
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:637:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'const value_type' (aka 'const int') for 1st argument
+    637 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(const_reference __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:639:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'value_type' (aka 'int') for 1st argument
+    639 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(value_type&& __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:554:29: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    554 |                     sparams.reasoning_budget_activate_immediately = getPropertyAsBool(
+        |                     ~~~~~~~ ^
+  19 errors generated.
+  [299/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIUtils.cpp.o
+  [300/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/RNLlamaJSI.cpp.o
+  [301/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSITaskManager.cpp.o
+  [302/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_i8mm.dir/RNLlamaJSI.cpp.o
+  [303/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIUtils.cpp.o
+  [304/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIContext.cpp.o
+  [305/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_2_i8mm_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8.2-a+i8mm -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -MF CMakeFiles\rnllama_jni_v8_2_i8mm.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\JSIParams.cpp.o.d -o CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:32: error: no member named 'load_mode' in 'common_params'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                        ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:21: error: no member named 'load_mode' in 'common_params'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:45: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                                             ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:33: error: no member named 'load_mode' in 'common_params'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:21: error: no member named 'load_mode' in 'common_params'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:46: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                                              ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:21: error: no member named 'load_mode' in 'common_params'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:21: error: no member named 'load_mode' in 'common_params'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:21: error: no member named 'load_mode' in 'common_params'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:21: error: no member named 'load_mode' in 'common_params'
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_NONE'; did you mean 'LLAMA_SPLIT_MODE_NONE'?
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |                                 ^~~~~~~~~~~~~~~~~~~~
+        |                                 LLAMA_SPLIT_MODE_NONE
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/llama.h:199:9: note: 'LLAMA_SPLIT_MODE_NONE' declared here
+    199 |         LLAMA_SPLIT_MODE_NONE   = 0, // single GPU
+        |         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:516:17: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    516 |         sparams.reasoning_budget_activate_immediately = false;
+        |         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:547:50: error: no matching member function for call to 'push_back'
+    547 |                     sparams.reasoning_budget_end.push_back(std::move(reasoningBudgetEnd));
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:637:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'const value_type' (aka 'const int') for 1st argument
+    637 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(const_reference __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:639:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'value_type' (aka 'int') for 1st argument
+    639 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(value_type&& __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:554:29: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    554 |                     sparams.reasoning_budget_activate_immediately = getPropertyAsBool(
+        |                     ~~~~~~~ ^
+  19 errors generated.
+  [306/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_2_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8.2-a -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -MF CMakeFiles\rnllama_jni_v8_2.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\JSIParams.cpp.o.d -o CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:32: error: no member named 'load_mode' in 'common_params'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                        ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:21: error: no member named 'load_mode' in 'common_params'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:363:45: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    363 |         bool useMmap = cparams.load_mode == LLAMA_LOAD_MODE_MMAP ||
+        |                                             ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:364:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    364 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:33: error: no member named 'load_mode' in 'common_params'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:21: error: no member named 'load_mode' in 'common_params'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:365:46: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    365 |         bool useMlock = cparams.load_mode == LLAMA_LOAD_MODE_MLOCK ||
+        |                                              ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:366:34: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    366 |             cparams.load_mode == LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                  ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:21: error: no member named 'load_mode' in 'common_params'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:370:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP_MLOCK'
+    370 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:21: error: no member named 'load_mode' in 'common_params'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:372:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MMAP'
+    372 |             cparams.load_mode = LLAMA_LOAD_MODE_MMAP;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:21: error: no member named 'load_mode' in 'common_params'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:374:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_MLOCK'
+    374 |             cparams.load_mode = LLAMA_LOAD_MODE_MLOCK;
+        |                                 ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:21: error: no member named 'load_mode' in 'common_params'
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |             ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:376:33: error: use of undeclared identifier 'LLAMA_LOAD_MODE_NONE'; did you mean 'LLAMA_SPLIT_MODE_NONE'?
+    376 |             cparams.load_mode = LLAMA_LOAD_MODE_NONE;
+        |                                 ^~~~~~~~~~~~~~~~~~~~
+        |                                 LLAMA_SPLIT_MODE_NONE
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/llama.h:199:9: note: 'LLAMA_SPLIT_MODE_NONE' declared here
+    199 |         LLAMA_SPLIT_MODE_NONE   = 0, // single GPU
+        |         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:516:17: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    516 |         sparams.reasoning_budget_activate_immediately = false;
+        |         ~~~~~~~ ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:547:50: error: no matching member function for call to 'push_back'
+    547 |                     sparams.reasoning_budget_end.push_back(std::move(reasoningBudgetEnd));
+        |                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:637:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'const value_type' (aka 'const int') for 1st argument
+    637 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(const_reference __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~~~~
+  C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot/usr/include/c++/v1/vector:639:60: note: candidate function not viable: no known conversion from '__libcpp_remove_reference_t<vector<int, allocator<int>> &>' (aka 'std::vector<int>') to 'value_type' (aka 'int') for 1st argument
+    639 |   _LIBCPP_CONSTEXPR_SINCE_CXX20 _LIBCPP_HIDE_FROM_ABI void push_back(value_type&& __x);
+        |                                                            ^         ~~~~~~~~~~~~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/JSIParams.cpp:554:29: error: no member named 'reasoning_budget_activate_immediately' in 'common_params_sampling'
+    554 |                     sparams.reasoning_budget_activate_immediately = getPropertyAsBool(
+        |                     ~~~~~~~ ^
+  19 errors generated.
+  [307/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIContext.cpp.o
+  [308/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIContext.cpp.o
+  [309/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/JSIContext.cpp.o
+  [310/2036] Building CXX object CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o
+  FAILED: CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -MF CMakeFiles\rnllama_jni.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\RNLlamaJSI.cpp.o.d -o CMakeFiles/rnllama_jni.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:256:46: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    256 |         for (const auto& endTag : chatParams.thinking_end_tags) {
+        |                                              ^~~~~~~~~~~~~~~~~
+        |                                              thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:257:23: error: member reference base type 'const char' is not a structure or union
+    257 |             if (endTag.empty()) {
+        |                 ~~~~~~^~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:878:47: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    878 |                               if (!chatParams.thinking_end_tags.empty()) {
+        |                                               ^~~~~~~~~~~~~~~~~
+        |                                               thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:879:121: error: no member named 'thinking_end_tags' in 'common_chat_params'
+    879 |                                   result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tags.front()));
+        |                                                                                                              ~~~~~~~~~~ ^
+  4 errors generated.
+  [311/2036] Building CXX object CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8-a -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -MF CMakeFiles\rnllama_jni_v8.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\RNLlamaJSI.cpp.o.d -o CMakeFiles/rnllama_jni_v8.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:256:46: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    256 |         for (const auto& endTag : chatParams.thinking_end_tags) {
+        |                                              ^~~~~~~~~~~~~~~~~
+        |                                              thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:257:23: error: member reference base type 'const char' is not a structure or union
+    257 |             if (endTag.empty()) {
+        |                 ~~~~~~^~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:878:47: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    878 |                               if (!chatParams.thinking_end_tags.empty()) {
+        |                                               ^~~~~~~~~~~~~~~~~
+        |                                               thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:879:121: error: no member named 'thinking_end_tags' in 'common_chat_params'
+    879 |                                   result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tags.front()));
+        |                                                                                                              ~~~~~~~~~~ ^
+  4 errors generated.
+  [312/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_2_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8.2-a -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -MF CMakeFiles\rnllama_jni_v8_2.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\RNLlamaJSI.cpp.o.d -o CMakeFiles/rnllama_jni_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:256:46: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    256 |         for (const auto& endTag : chatParams.thinking_end_tags) {
+        |                                              ^~~~~~~~~~~~~~~~~
+        |                                              thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:257:23: error: member reference base type 'const char' is not a structure or union
+    257 |             if (endTag.empty()) {
+        |                 ~~~~~~^~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:878:47: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    878 |                               if (!chatParams.thinking_end_tags.empty()) {
+        |                                               ^~~~~~~~~~~~~~~~~
+        |                                               thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:879:121: error: no member named 'thinking_end_tags' in 'common_chat_params'
+    879 |                                   result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tags.front()));
+        |                                                                                                              ~~~~~~~~~~ ^
+  4 errors generated.
+  [313/2036] Building CXX object rnllama/CMakeFiles/rnllama_v8_2.dir/C_/kq66/node_modules/llama.rn/cpp/common/chat.cpp.o
+  [314/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_2_dotprod_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8.2-a+dotprod -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -MF CMakeFiles\rnllama_jni_v8_2_dotprod.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\RNLlamaJSI.cpp.o.d -o CMakeFiles/rnllama_jni_v8_2_dotprod.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:256:46: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    256 |         for (const auto& endTag : chatParams.thinking_end_tags) {
+        |                                              ^~~~~~~~~~~~~~~~~
+        |                                              thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:257:23: error: member reference base type 'const char' is not a structure or union
+    257 |             if (endTag.empty()) {
+        |                 ~~~~~~^~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:878:47: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    878 |                               if (!chatParams.thinking_end_tags.empty()) {
+        |                                               ^~~~~~~~~~~~~~~~~
+        |                                               thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:879:121: error: no member named 'thinking_end_tags' in 'common_chat_params'
+    879 |                                   result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tags.front()));
+        |                                                                                                              ~~~~~~~~~~ ^
+  4 errors generated.
+  [315/2036] Building CXX object CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o
+  FAILED: CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o 
+  C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\clang++.exe --target=aarch64-none-linux-android35 --sysroot=C:/Users/gualt/AppData/Local/Android/Sdk/ndk/27.1.12297006/toolchains/llvm/prebuilt/windows-x86_64/sysroot -Drnllama_jni_v8_2_i8mm_EXPORTS -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common -IC:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/jinja -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/17ce023710fe0e2c2e91ee5846acc1a1/workspace/transformed/fbjni-0.7.0/prefab/modules/fbjni/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/jsi/include -isystem C:/Users/gualt/.gradle/caches/9.3.1/transforms/b37ffe1efa1b10ee957b7bd9b0325943/workspace/transformed/react-android-0.86.2-release/prefab/modules/reactnative/include -g -DANDROID -fdata-sections -ffunction-sections -funwind-tables -fstack-protector-strong -no-canonical-prefixes -D__BIONIC_NO_PAGE_SIZE_MACRO -D_FORTIFY_SOURCE=2 -Wformat -Werror=format-security   -O2 -g -DNDEBUG -fPIC -pthread -march=armv8.2-a+i8mm -O3 -DNDEBUG -fvisibility=hidden -fvisibility-inlines-hidden -ffunction-sections -fdata-sections -MD -MT CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -MF CMakeFiles\rnllama_jni_v8_2_i8mm.dir\C_\kq66\node_modules\llama.rn\cpp\jsi\RNLlamaJSI.cpp.o.d -o CMakeFiles/rnllama_jni_v8_2_i8mm.dir/C_/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp.o -c C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:256:46: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    256 |         for (const auto& endTag : chatParams.thinking_end_tags) {
+        |                                              ^~~~~~~~~~~~~~~~~
+        |                                              thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:257:23: error: member reference base type 'const char' is not a structure or union
+    257 |             if (endTag.empty()) {
+        |                 ~~~~~~^~~~~~
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:878:47: error: no member named 'thinking_end_tags' in 'common_chat_params'; did you mean 'thinking_end_tag'?
+    878 |                               if (!chatParams.thinking_end_tags.empty()) {
+        |                                               ^~~~~~~~~~~~~~~~~
+        |                                               thinking_end_tag
+  C:/kq66/node_modules/llama.rn/android/src/main/../../../cpp/common/chat.h:280:41: note: 'thinking_end_tag' declared here
+    280 |     std::string                         thinking_end_tag;    // e.g., "</think>"
+        |                                         ^
+  C:/kq66/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp:879:121: error: no member named 'thinking_end_tags' in 'common_chat_params'
+    879 |                                   result.setProperty(rt, "thinking_end_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_end_tags.front()));
+        |                                                                                                              ~~~~~~~~~~ ^
+  4 errors generated.
+  ninja: build stopped: subcommand failed.
+  
+  C++ build system [build] failed while executing:
+      @echo off
+      "C:\\Users\\gualt\\AppData\\Local\\Android\\Sdk\\cmake\\3.22.1\\bin\\ninja.exe" ^
+        -C ^
+        "C:\\kq66\\node_modules\\llama.rn\\android\\.cxx\\RelWithDebInfo\\2v2q56x4\\arm64-v8a" ^
+        rnllama ^
+        rnllama_jni ^
+        rnllama_jni_v8 ^
+        rnllama_jni_v8_2 ^
+        rnllama_jni_v8_2_dotprod ^
+        rnllama_jni_v8_2_dotprod_i8mm ^
+        rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl ^
+        rnllama_jni_v8_2_i8mm ^
+        rnllama_v8 ^
+        rnllama_v8_2 ^
+        rnllama_v8_2_dotprod ^
+        rnllama_v8_2_dotprod_i8mm ^
+        rnllama_v8_2_dotprod_i8mm_hexagon_opencl ^
+        rnllama_v8_2_i8mm
+    from C:\kq66\node_modules\llama.rn\android
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights from a Build Scan (powered by Develocity).
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 5m 13s

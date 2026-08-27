@@ -1,0 +1,29 @@
+Submodule path 'third_party/llama.cpp': checked out '91f8c9c5fb038c086e13e9cd823c29b33b07ba54'
+
+==========================================
+Hexagon SDK Setup
+==========================================
+
+Docker not available. You can:
+  1. Install Docker for consistent builds (recommended)
+  2. Install Hexagon SDK manually for native Linux builds
+
+Downloading Hexagon SDK v6.4.0.2...
+
+
+Extracting Hexagon SDK...
+Hexagon SDK installed to: /c/Users/gualt/.hexagon-sdk/6.4.0.2
+
+The build scripts will automatically detect and use the SDK.
+
+To build with Docker (recommended):
+  ./scripts/build-android-docker.sh
+
+Or build natively on Linux:
+  USE_DOCKER=no ./scripts/build-hexagon-htp.sh
+  npm run build:android-libs
+
+==========================================
+
+Embedding headers into ggml-metal.metal...
+Headers embedded successfully

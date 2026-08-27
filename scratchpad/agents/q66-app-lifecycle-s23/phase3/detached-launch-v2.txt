@@ -1,0 +1,8 @@
+WORKER_END=2026-08-27T17:36:40.1492953-04:00
+WORKER_PID=15812
+WORKER_EXIT=0
+WORKER_STDOUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\detached-worker-v2.out
+WORKER_STDERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\detached-worker-v2.err
+GRADLE_STOP_EXIT=0
+GRADLE_STOP_LOG=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\gradle-stop-v2.log
+END=2026-08-27T17:36:42.2360726-04:00

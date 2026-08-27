@@ -1,0 +1,22 @@
+APPLY:./scripts/patches/common.cpp.patch
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file common/common.cpp
+Hunk #1 succeeded at 1561 (offset 108 lines).
+Hunk #2 succeeded at 1632 with fuzz 2 (offset 150 lines).
+APPLY:./scripts/patches/ggml-hexagon.cpp.patch
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-hexagon/ggml-hexagon.cpp
+Hunk #1 succeeded at 4252 (offset 1181 lines).
+APPLY:./scripts/patches/ggml-metal-flash-attn-smem.patch
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-metal/ggml-metal-ops.cpp
+Hunk #1 succeeded at 2833 (offset 1 line).
+APPLY:./scripts/patches/ggml-metal-mul-mv-id-tiitg.patch
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-metal/ggml-metal.metal
+Hunk #1 succeeded at 13716 (offset 361 lines).
+Hunk #2 succeeded at 13730 (offset 361 lines).
+Hunk #3 succeeded at 13747 (offset 362 lines).
+APPLY:./scripts/patches/ggml-quants.c.patch
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-quants.c

@@ -1,0 +1,24 @@
+{
+  "synthetic": true,
+  "source": "hand-constructed Hangul TextItems (not from a real PDF dump)",
+  "changed": "Per-glyph Hangul with space items between syllables, mirroring jp-stat spacing but for Korean.",
+  "why": "Verifies CJK space-drop excludes Hangul so word boundaries (spaces) are preserved: 한 국 어 must not become 한국어 as a single glued run when spaces are intentional word separators. Real Japanese de-space still uses isCjkCodePoint without Hangul.",
+  "pdfjsVersion": "n/a (synthetic)",
+  "pages": [
+    {
+      "pageNumber": 1,
+      "items": [
+        { "str": "한", "width": 12, "transform": [12, 0, 0, 12, 50, 700] },
+        { "str": " ", "width": 4, "transform": [12, 0, 0, 12, 62, 700] },
+        { "str": "국", "width": 12, "transform": [12, 0, 0, 12, 66, 700] },
+        { "str": " ", "width": 4, "transform": [12, 0, 0, 12, 78, 700] },
+        { "str": "어", "width": 12, "transform": [12, 0, 0, 12, 82, 700] },
+        { "str": " ", "width": 4, "transform": [12, 0, 0, 12, 94, 700] },
+        { "str": "문", "width": 12, "transform": [12, 0, 0, 12, 98, 700] },
+        { "str": " ", "width": 4, "transform": [12, 0, 0, 12, 110, 700] },
+        { "str": "장", "width": 12, "hasEOL": true, "transform": [12, 0, 0, 12, 114, 700] },
+        { "str": "Extra body text for text-layer threshold pad.", "width": 200, "transform": [12, 0, 0, 12, 50, 680] }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+APK=C:\q66p3b\android\app\build\outputs\apk\release\app-release.apk
+SHA256=8621E6F1FA7038C80ADD4E0EB0978267DD492426959DAE0DBE77B85517A40B70
+SCAN_TOOL=C:\Users\gualt\AppData\Local\Android\Sdk\ndk\27.1.12297006\toolchains\llvm\prebuilt\windows-x86_64\bin\llvm-strings.exe
+
+MARKER=kalsa-native-patches
+FOUND_IN=lib/arm64-v8a/librnllama_jni.so,librnllama_jni_v8.so,librnllama_jni_v8_2.so,librnllama_jni_v8_2_dotprod.so,librnllama_jni_v8_2_i8mm.so,librnllama_jni_v8_2_dotprod_i8mm.so
+
+MARKER=q23k
+FOUND_IN=lib/arm64-v8a/librnllama.so,librnllama_v8.so,librnllama_v8_2.so,librnllama_v8_2_dotprod.so,librnllama_v8_2_i8mm.so,librnllama_v8_2_dotprod_i8mm.so
+EXAMPLES=lm_ggml_cpu_repack_extra_is_q23k_8x4; q23k set size %zu != native source %zu; q23k_8x4 tiled src0 reached native compute
+
+MARKER=mmap_prefetch
+LITERAL_STRINGS=ABSENT_IN_PACKAGED_ARM64_LIBS
+NM_SYMBOLS=ABSENT_IN_PACKAGED_ARM64_LIBS
+SOURCE_CHECK=present in staged cpp/llama.h and cpp/llama-model.cpp; no literal string was emitted by the stripped packaged libraries

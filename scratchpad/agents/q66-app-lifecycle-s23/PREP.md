@@ -445,3 +445,145 @@ kalsallama compile blockers: `llama_log_callback_default` and
 fallback APK above remains preserved with its SHA-256, but it is not a
 kalsallama-engine artifact. No Phase 2/3 implementation, app-repo change,
 authoritative-engine change, or S23 install was performed.
+
+## 2026-08-27 Phase 3 — pinned llama.rn/app branches
+
+Phase 3 was performed only in isolated clones/worktrees. The original
+`ai-chat` checkout and the authoritative engine WIP were not modified.
+
+### Fork
+
+The Aspis0 fork is `https://github.com/Aspis0/llama.rn`, branch `kalsa-pin`,
+HEAD `bf8f5a0e04cee3d08fa9f954b94d8d08d83fc90f`, based on v0.12.8
+(`ce7f5fff26d563e506a7333a5d8791218d0de266`). Its
+`third_party/llama.cpp` submodule points to
+`https://github.com/Aspis0/kalsallama.git` at
+`d1cc3b77c2e205aecc4c87e216816524de435028`.
+
+The fork branch was pushed only to Aspis0. Bootstrap generated the vendored
+tree in Git Bash, including the q23k repack header and the kalsallama mmap
+prefetch sources. The redundant `chat.h.patch`, `chat.cpp.patch`,
+`common.h.patch`, and `sampling.cpp.patch` files were deleted in full; common
+trie copies were guarded. The chat/common duplicate-symbol gate passed. The
+fork includes its JS distribution so a Git dependency can load the Expo
+plugin. Source installs skip the upstream native-artifact download via the
+fork's `--source` postinstall path.
+
+### App branch
+
+The isolated app worktree branch `engine-pin-kalsallama` is at
+`9376c3d39e3b4f6b95393e6c473b9e6c1045e31d` and pins
+`github:Aspis0/llama.rn#bf8f5a0e04cee3d08fa9f954b94d8d08d83fc90f`.
+`npm install` completed and patch-package applied the app patch successfully.
+No merge or push of the app branch was performed.
+
+### Engine-pin build attempt
+
+Fresh short staging was `C:\q66p3`. Prebuild succeeded. The one authorized
+build attempt passed the 8 GiB RAM gate (`12.69 GiB` free), ran Idle with
+`org.gradle.workers.max=2`, `CMAKE_BUILD_PARALLEL_LEVEL=2`, and `NINJAFLAGS=-j2`,
+and took 162.7 seconds. It failed before native compilation because the
+presence of the local Hexagon SDK auto-enabled the DSP path, but its QAIC
+artifacts were absent:
+
+```text
+> Task :llama.rn:configureCMakeRelWithDebInfo[arm64-v8a] FAILED
+C/C++: CMake Error at rnllama/CMakeLists.txt:165 (message):
+C/C++:   Hexagon host QAIC artifacts are missing.  Run scripts/build-hexagon-htp.sh
+C/C++:   to generate
+C/C++:   C:/q66p3/node_modules/llama.rn/android/src/main/rnllama/../../../../cpp/ggml-hexagon/htp/v73/.
+```
+
+Evidence is in `PHASE3_STATUS.md` and `phase3/gradle-assemble-release.log`.
+The post-build assertion consequently returned 1 with
+`[assert] FATAL: no release librnllama.so found under android/ — did the build run?`.
+There is no engine-pin APK or SHA-256. An explicit-JAVA_HOME
+`gradlew --stop` returned 0 and reported no Gradle daemons running.
+
+`PHASE 3: BLOCKED — Android build stopped at missing Hexagon QAIC artifacts;
+no kalsallama APK was produced. No S23 installation was attempted.`
+
+## 2026-08-27 Phase 3 follow-up — CPU-only opt-in gate
+
+The first fork gate commit was
+`1b10deac65f19f30113836197348d7dc5e6bf976`. Static inspection of its generated
+Ninja graph found the top-level Hexagon JNI wrapper was still enumerated, so
+the final fork commit
+`f377da227688f14c200a1c0170c919c06c500409` also guards that JNI invocation.
+The final app branch commit is
+`9ea074eb5b10f90b0477bf9c6f4d9f0dc008771e`, pushed as
+`engine-pin-kalsallama`. Both branches are clean.
+
+The final policy is explicit and documented in the fork: the Hexagon/OpenCL
+variant is deferred; `-PrnllamaHexagon=true` opts in; QAIC regeneration is later
+work per ENGINE_PIN_GAP §3. CPU targets remain untouched.
+
+The fresh short staging was `C:\q66p3b`. It was copied and prebuilt from the
+app branch before the final top-level JNI-only guard was discovered, using the
+first gate pin `1b10deac65f19f30113836197348d7dc5e6bf976`; q23k was present and
+the CPU-only CMake option was verified. The one new build attempt used
+`-PrnllamaHexagon=false`, Idle priority, two Gradle workers, CMake/Ninja level
+2, and started with `12.36 GiB` free RAM.
+
+During native compilation free RAM fell to `7.33 GiB`, then `6.61 GiB`. The
+PC-gentle hard limit required stopping the exact build tree; no retry was made.
+This was a resource-safety interruption, not a compiler error. The live logs
+are `phase3/gradle-assemble-release-v2.log` and
+`phase3/gradle-assemble-release-v2.err`; the explicit `gradlew --stop` returned
+0 with `No Gradle daemons are running.`
+
+No APK was produced, so no APK SHA-256 or packaged marker scan is available.
+The post-build assertion returned:
+
+```text
+[assert] FATAL: no release librnllama.so found under android/ — did the build run?
+```
+
+`PHASE3_STATUS.md` contains the full branch, staging, launcher, cleanup, and
+marker evidence. No merge and no S23 installation occurred.
+
+## 2026-08-27 — corrected-RAM-policy link-serialized retry
+
+The ≥8 GiB rule was applied only before starting. The runtime safety floor was
+`<3.0 GiB` free physical RAM or `>95%` commit charge. The one retry ran from
+`C:\q66p3b` with `phase3/monitor-build-v3.ps1`; the detached worker used its
+own process group, Idle priority, Gradle `--no-daemon`,
+`-Dorg.gradle.workers.max=2`, `CMAKE_BUILD_PARALLEL_LEVEL=2`, and
+`NINJAFLAGS=-j2`, sampling RAM every 60 seconds.
+
+The fork fix is `Aspis0/llama.rn:kalsa-pin`
+`a67a2639f53cbbe8486e2c236aaec91cf4bad183`; the app branch is
+`Aspis0/kalsa:engine-pin-kalsallama`
+`4c78b76b9201cb85da24b9cea2d11bffa9b2b9e3`. The fork’s top-level Android
+CMake now sets Ninja `compile_pool=2` and `link_pool=1`; the staged file hash
+is `60370D0AD176A02953DDE05F56249F33DA714364E0965C9CCAF04B3C4BB625B4`.
+The generated Ninja file contains both pools. CPU-only was selected with
+`-PrnllamaHexagon=false`; Hexagon/OpenCL and QAIC regeneration remain deferred
+per `ENGINE_PIN_GAP.md` §3, with `-PrnllamaHexagon=true` as the opt-in.
+
+The pre-start gate was `15.71 GiB` free / `73.6%` commit. The lowest recorded
+sample was `8.51 GiB` free and the highest was `88.1%` commit. Full monitor
+evidence: `phase3/ram-monitor-v3.log`.
+
+Build completed successfully:
+
+- Wall: `1400.7` seconds (`23m 20s`), Gradle exit `0`, Idle priority.
+- Log: `phase3/gradle-assemble-release-v2.log`.
+- `gradlew --stop`: exit `0`, `No Gradle daemons are running.`
+- APK: `C:\q66p3b\android\app\build\outputs\apk\release\app-release.apk`
+- Size: `120102355` bytes.
+- SHA-256:
+  `8621E6F1FA7038C80ADD4E0EB0978267DD492426959DAE0DBE77B85517A40B70`
+
+The required existing `scripts/assert-native-patch.sh` was run after the
+build and returned exit `1`; exact output is in
+`phase3/assert-native-patch-v3.log`. It searches only `librnllama.so`, while
+the marker compiled from `cpp/jsi/RNLlamaJSI.cpp` is in the six packaged
+`librnllama_jni*.so` files. The independent scan
+`phase3/marker-scan-v3.txt` found `kalsa-native-patches` in all six JNI
+libraries and q23k strings in all six core libraries. Literal/symbol
+`mmap_prefetch` was absent from the stripped packaged libraries, although the
+feature is present in staged `cpp/llama.h` and `cpp/llama-model.cpp`.
+
+Final Phase 3 state: `APK BUILT; ASSERTION SCRIPT FAILED (wrong library glob)`.
+No merge and no S23 installation occurred.

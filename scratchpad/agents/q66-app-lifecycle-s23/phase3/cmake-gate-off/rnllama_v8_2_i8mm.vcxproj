@@ -1,0 +1,632 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{E5FA4B1A-81B5-334C-B7A1-003E84AD8FE3}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Keyword>Win32Proj</Keyword>
+    <Platform>x64</Platform>
+    <ProjectName>rnllama_v8_2_i8mm</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rnllama_v8_2_i8mm.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">rnllama_v8_2_i8mm</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rnllama_v8_2_i8mm.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">rnllama_v8_2_i8mm</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">rnllama_v8_2_i8mm.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">rnllama_v8_2_i8mm</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">true</GenerateManifest>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">rnllama_v8_2_i8mm.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">rnllama_v8_2_i8mm</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.dll</TargetExt>
+    <LinkIncremental Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</LinkIncremental>
+    <GenerateManifest Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">true</GenerateManifest>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) -pthread -march=armv8.2-a+i8mm -fvectorize -ffp-model=fast -fno-finite-math-only -flto -O3 -ffunction-sections -fdata-sections</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;NDEBUG;CMAKE_INTDIR="Debug";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;NDEBUG;CMAKE_INTDIR=\"Debug\";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>LOG_LIB-NOTFOUND.lib;android.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 -Wl,--gc-sections -flto</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/Debug/rnllama_v8_2_i8mm.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/Debug/rnllama_v8_2_i8mm.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) -pthread -march=armv8.2-a+i8mm -fvectorize -ffp-model=fast -fno-finite-math-only -flto -O3 -ffunction-sections -fdata-sections</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;CMAKE_INTDIR="Release";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;CMAKE_INTDIR=\"Release\";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>LOG_LIB-NOTFOUND.lib;android.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 -Wl,--gc-sections -flto</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/Release/rnllama_v8_2_i8mm.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/Release/rnllama_v8_2_i8mm.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) -pthread -march=armv8.2-a+i8mm -fvectorize -ffp-model=fast -fno-finite-math-only -flto -O3 -ffunction-sections -fdata-sections</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;CMAKE_INTDIR="MinSizeRel";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;CMAKE_INTDIR=\"MinSizeRel\";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>LOG_LIB-NOTFOUND.lib;android.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 -Wl,--gc-sections -flto</AdditionalOptions>
+      <GenerateDebugInformation>false</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/MinSizeRel/rnllama_v8_2_i8mm.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/MinSizeRel/rnllama_v8_2_i8mm.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>%(AdditionalOptions) -pthread -march=armv8.2-a+i8mm -fvectorize -ffp-model=fast -fno-finite-math-only -flto -O3 -ffunction-sections -fdata-sections</AdditionalOptions>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <RuntimeTypeInfo>true</RuntimeTypeInfo>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level3</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;CMAKE_INTDIR="RelWithDebInfo";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;LM_GGML_USE_CPU;LM_GGML_USE_CPU_REPACK;_GNU_SOURCE;CMAKE_INTDIR=\"RelWithDebInfo\";rnllama_v8_2_i8mm_EXPORTS</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\common\jinja;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\ggml-cpu;C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\..\..\..\..\cpp\tools\mtmd;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Link>
+      <AdditionalDependencies>LOG_LIB-NOTFOUND.lib;android.lib;kernel32.lib;user32.lib;gdi32.lib;winspool.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;comdlg32.lib;advapi32.lib</AdditionalDependencies>
+      <AdditionalLibraryDirectories>%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64 -Wl,--gc-sections -flto</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <IgnoreSpecificDefaultLibraries>%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <ImportLibrary>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/RelWithDebInfo/rnllama_v8_2_i8mm.lib</ImportLibrary>
+      <ProgramDataBaseFile>C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/RelWithDebInfo/rnllama_v8_2_i8mm.pdb</ProgramDataBaseFile>
+      <SubSystem>Console</SubSystem>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="C:\Users\gualt\llama-rn-pin\android\src\main\rnllama\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule C:/Users/gualt/llama-rn-pin/android/src/main/rnllama/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe -SC:/Users/gualt/llama-rn-pin/android/src/main/rnllama -BC:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off --check-stamp-file C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompilerABI.c;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompilerABI.cpp;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCompilerIdDetection.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompileFeatures.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerABI.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerId.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeFindBinUtils.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeGenericSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeInitializeConfigs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeLanguageInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseLibraryArchitecture.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystem.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCompilerCommon.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CompilerId\VS-10.vcxproj.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageMessage.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython\Support.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython3.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Internal\FeatureTesting.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-Determine-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\WindowsPaths.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCXXCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeRCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeSystem.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule C:/Users/gualt/llama-rn-pin/android/src/main/rnllama/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe -SC:/Users/gualt/llama-rn-pin/android/src/main/rnllama -BC:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off --check-stamp-file C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompilerABI.c;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompilerABI.cpp;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCompilerIdDetection.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompileFeatures.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerABI.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerId.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeFindBinUtils.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeGenericSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeInitializeConfigs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeLanguageInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseLibraryArchitecture.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystem.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCompilerCommon.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CompilerId\VS-10.vcxproj.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageMessage.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython\Support.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython3.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Internal\FeatureTesting.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-Determine-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\WindowsPaths.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCXXCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeRCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeSystem.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule C:/Users/gualt/llama-rn-pin/android/src/main/rnllama/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe -SC:/Users/gualt/llama-rn-pin/android/src/main/rnllama -BC:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off --check-stamp-file C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompilerABI.c;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompilerABI.cpp;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCompilerIdDetection.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompileFeatures.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerABI.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerId.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeFindBinUtils.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeGenericSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeInitializeConfigs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeLanguageInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseLibraryArchitecture.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystem.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCompilerCommon.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CompilerId\VS-10.vcxproj.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageMessage.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython\Support.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython3.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Internal\FeatureTesting.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-Determine-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\WindowsPaths.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCXXCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeRCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeSystem.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule C:/Users/gualt/llama-rn-pin/android/src/main/rnllama/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\bin\cmake.exe -SC:/Users/gualt/llama-rn-pin/android/src/main/rnllama -BC:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off --check-stamp-file C:/Users/gualt/Desktop/Kalsa/moe-experiments/scratchpad/agents/q66-app-lifecycle-s23/phase3/cmake-gate-off/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCCompilerABI.c;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXCompilerABI.cpp;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCXXInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCommonLanguageInclude.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeCompilerIdDetection.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompileFeatures.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerABI.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineCompilerId.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeDetermineSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeFindBinUtils.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeGenericSystem.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeInitializeConfigs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeLanguageInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitIncludeInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseImplicitLinkInfo.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeParseLibraryArchitecture.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCCompiler.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeRCInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystem.cmake.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInformation.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeSystemSpecificInitialize.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCXXCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestCompilerCommon.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CMakeTestRCCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ADSP-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMCC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\ARMClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\AppleClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Borland-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Bruce-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\CMakeCommonCompilerMacros.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Clang-DetermineCompilerInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Comeau-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Compaq-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Cray-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Embarcadero-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Fujitsu-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\FujitsuClang-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GHS-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\GNU-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\HP-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IAR-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-C-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IBMCPP-CXX-DetermineVersionInternal.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Intel-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\IntelLLVM-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\MSVC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVHPC-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\NVIDIA-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\OpenWatcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PGI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\PathScale-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SCO-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SDCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\SunPro-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TI-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\TinyCC-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\VisualAge-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\Watcom-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XL-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\XLClang-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-C-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Compiler\zOS-CXX-DetermineCompiler.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\CompilerId\VS-10.vcxproj.in;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageHandleStandardArgs.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPackageMessage.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython\Support.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\FindPython3.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Internal\FeatureTesting.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-Determine-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-C.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC-CXX.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows-MSVC.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\Windows.cmake;C:\Users\gualt\AppData\Local\Android\Sdk\cmake\3.22.1\share\cmake-3.22\Modules\Platform\WindowsPaths.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeCXXCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeRCCompiler.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\3.22.1-g37088a8-dirty\CMakeSystem.cmake;C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\cmake.verify_globs;%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml.c" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-alloc.c" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-backend.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-backend-dl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-backend-meta.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-backend-reg.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-opt.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-threading.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-quants.c" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\gguf.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\ggml-cpu.c">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/ggml-cpu/ggml-cpu.c.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\quants.c">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/ggml-cpu/quants.c.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\binary-ops.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\ggml-cpu.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/ggml-cpu/ggml-cpu.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\ops.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\repack.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/ggml-cpu/repack.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\traits.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\unary-ops.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\vec.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\amx\amx.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\amx\mmq.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-adapter.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-arch.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-batch.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-chat.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-context.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-cparams.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-grammar.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-graph.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-hparams.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-impl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-io.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-kv-cache-dsa.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-kv-cache-dsv4.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-kv-cache-iswa.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-kv-cache.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-memory-hybrid-iswa.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-memory-hybrid.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-memory-recurrent.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-memory.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-mmap.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-model-loader.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-model-saver.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-model.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-sampler.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama-vocab.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\llama.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/llama.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\unicode-data.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\unicode.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/unicode.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\build-info.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\chat-auto-parser-generator.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\chat-auto-parser-helpers.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\chat-diff-analyzer.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\chat-peg-parser.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\chat.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\common.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\fit.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\json-schema-to-grammar.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\log.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\ngram-cache.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\ngram-map.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\ngram-mod.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\peg-parser.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\reasoning-budget.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\sampling.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\speculative.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\trie.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\unicode.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/common/unicode.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\anyascii.c" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\jinja\caps.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\jinja\lexer.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\jinja\parser.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\jinja\runtime.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\jinja\string.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\common\jinja\value.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\cogvlm.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/tools/mtmd/models/cogvlm.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\conformer.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\deepseekocr.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\deepseekocr2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\dotsocr.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\exaone4_5.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\gemma4a.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\gemma4ua.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\gemma4uv.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\gemma4v.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\glm4v.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\granite-speech.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\granite4-vision.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\hunyuanvl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\internvl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\kimik25.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\kimivl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\llama4.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/tools/mtmd/models/llama4.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\llava.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\mimovl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\minicpmv.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\mobilenetv5.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\nemotron-v2-vl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\paddleocr.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/tools/mtmd/models/paddleocr.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\pixtral.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\qwen2vl.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/tools/mtmd/models/qwen2vl.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\qwen3a.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\qwen3vl.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/tools/mtmd/models/qwen3vl.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\siglip.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\step3vl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\whisper-enc.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\yasa2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\models\youtuvl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\clip.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\mtmd-audio.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\mtmd-helper.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\mtmd-image.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\tools\mtmd\mtmd.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\rn-llama.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\rn-completion.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\rn-tts.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\rn-slot.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\rn-slot-manager.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\afmoe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\apertus.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\arcee.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\arctic.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\arwkv7.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\baichuan.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\bailingmoe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\bailingmoe2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\bert.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\bitnet.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\bloom.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\chameleon.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\chatglm.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\codeshell.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\cogvlm.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/models/cogvlm.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\cohere2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\cohere2moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\command-r.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\dbrx.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\deci.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\deepseek.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\deepseek2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\deepseek2ocr.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\deepseek32.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\deepseek4.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\delta-net-base.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\dflash.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\dots1.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\dream.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\eagle3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\ernie4-5-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\ernie4-5.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\eurobert.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\exaone-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\exaone.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\exaone4.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\falcon-h1.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\falcon.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma-embedding.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma3n.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma4-assistant.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gemma4.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\glm-dsa.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\glm4-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\glm4.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gpt2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\gptneox.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\granite-hybrid.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\granite-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\granite.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\grok.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\grovemoe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\hunyuan-dense.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\hunyuan-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\hunyuan-vl.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\internlm2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\jais.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\jais2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\jamba.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\jina-bert-v2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\jina-bert-v3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\kimi-linear.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\lfm2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\lfm2moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\llada-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\llada.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\llama-embed.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\llama.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/models/llama.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\llama4.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/models/llama4.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\maincoder.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mamba-base.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mamba.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mamba2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mellum.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mimo2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\minicpm.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\minicpm3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\minimax-m2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mistral3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mistral4.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\modern-bert.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\mpt.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\nemotron-h-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\nemotron-h.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\nemotron.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\neo-bert.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\nomic-bert-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\nomic-bert.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\olmo.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\olmo2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\olmoe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\openai-moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\openelm.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\orion.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\paddleocr.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/models/paddleocr.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\pangu-embed.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\phi2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\phi3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\phimoe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\plamo.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\plamo2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\plamo3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\plm.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen2moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen2vl.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/models/qwen2vl.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen35.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen35moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen3moe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen3next.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen3vl.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/models/qwen3vl.cpp.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\qwen3vlmoe.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\refact.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\rnd1.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\rwkv6-base.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\rwkv6.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\rwkv6qwen2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\rwkv7-base.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\rwkv7.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\seed-oss.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\smallthinker.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\smollm3.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\stablelm.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\starcoder.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\starcoder2.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\step35.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\t5.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\t5encoder.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\talkie.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\wavtokenizer-dec.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\models\xverse.cpp" />
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\arch\arm\quants.c">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/ggml-cpu/arch/arm/quants.c.obj</ObjectFileName>
+    </ClCompile>
+    <ClCompile Include="C:\Users\gualt\llama-rn-pin\cpp\ggml-cpu\arch\arm\repack.cpp">
+      <ObjectFileName>$(IntDir)/C_/Users/gualt/llama-rn-pin/cpp/ggml-cpu/arch/arm/repack.cpp.obj</ObjectFileName>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\cmake-gate-off\ZERO_CHECK.vcxproj">
+      <Project>{69A4971E-DF84-3865-94C3-3AC3F0458A2A}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,43 @@
+name: Telemetry / bug report
+description: Manual diagnostic report from Kalsa (paste the sanitized preview from Settings → Report a problem).
+title: "[telemetry] "
+labels: ["telemetry"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Paste the **sanitized** report copied from the app (Settings → Report a problem → Copy).
+        Do **not** paste chat contents, documents, API keys, or screenshots of private data.
+        The app opens this form with an empty URL (no query params) on purpose.
+  - type: textarea
+    id: report_json
+    attributes:
+      label: Sanitized report (JSON)
+      description: Fields expected — v, app, appVersion, platform, deviceBucket, osMajor, error.code, error.detail?, error.signal?, context.*, dateBucket, manual.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      description: Short description in your own words (optional). No secrets.
+    validations:
+      required: false
+  - type: input
+    id: app_version
+    attributes:
+      label: App version
+      description: From Settings → About (e.g. 0.1.0)
+    validations:
+      required: false
+  - type: dropdown
+    id: repro
+    attributes:
+      label: Can you reproduce it?
+      options:
+        - "Yes"
+        - "Sometimes"
+        - "No / once"
+    validations:
+      required: false

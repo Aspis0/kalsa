@@ -1,0 +1,8 @@
+START=2026-08-27T16:29:24.2773279-04:00
+END=2026-08-27T16:32:06.9363396-04:00
+WALL_SECONDS=162.7
+GRADLE_PID=62360
+GRADLE_PRIORITY=Idle
+EXIT=1
+STDOUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\gradle-assemble-release.log
+STDERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\gradle-assemble-release.err

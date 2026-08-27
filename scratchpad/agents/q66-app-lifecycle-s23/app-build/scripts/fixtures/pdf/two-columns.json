@@ -1,0 +1,94 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "03-two-columns.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "two-columns",
+      "pageNumber": 1,
+      "itemCountFull": 6,
+      "itemCount": 6,
+      "items": [
+        {
+          "str": "Left column word A",
+          "hasEOL": true,
+          "width": 102.708,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            700
+          ]
+        },
+        {
+          "str": "Left column word B",
+          "hasEOL": true,
+          "width": 102.708,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            684
+          ]
+        },
+        {
+          "str": "Left column word C",
+          "hasEOL": true,
+          "width": 103.368,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            50,
+            668
+          ]
+        },
+        {
+          "str": "Right column alpha",
+          "hasEOL": true,
+          "width": 102.70800000000001,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            320,
+            700
+          ]
+        },
+        {
+          "str": "Right column beta",
+          "hasEOL": true,
+          "width": 96.70800000000001,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            320,
+            684
+          ]
+        },
+        {
+          "str": "Right column gamma",
+          "width": 113.364,
+          "transform": [
+            12,
+            0,
+            0,
+            12,
+            320,
+            668
+          ]
+        }
+      ]
+    }
+  ]
+}

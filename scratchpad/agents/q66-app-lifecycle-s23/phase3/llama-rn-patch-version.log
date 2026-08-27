@@ -1,0 +1,7 @@
+APPLY:./scripts/patches/common.cpp.patch
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file common/common.cpp
+Reversed (or previously applied) patch detected!  Assume -R? [n] 
+Apply anyway? [n] 
+Skipping patch.
+2 out of 2 hunks ignored -- saving rejects to file common/common.cpp.rej

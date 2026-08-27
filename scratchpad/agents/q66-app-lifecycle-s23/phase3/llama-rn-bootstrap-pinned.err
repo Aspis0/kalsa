@@ -1,0 +1,10 @@
+npm warn deprecated @flyerhq/react-native-keyboard-accessory-view@2.4.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+'"node"' is not recognized as an internal or external command,
+operable program or batch file.
+npm error code 1
+npm error path C:\Users\gualt\llama-rn-pin\example
+npm error command failed
+npm error command C:\WINDOWS\system32\cmd.exe /d /s /c patch-package
+npm error A complete log of this run can be found in: C:\Users\gualt\AppData\Local\npm-cache\_logs\2026-08-27T19_41_28_969Z-debug-0.log
+./scripts/bootstrap.sh: line 524: ./scripts/patches/*.patch: No such file or directory
+./scripts/bootstrap.sh: line 545: cd: third_party/llama.cpp: No such file or directory

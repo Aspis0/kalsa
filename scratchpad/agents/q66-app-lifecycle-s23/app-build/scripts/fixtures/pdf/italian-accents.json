@@ -1,0 +1,42 @@
+{
+  "generatedBy": "spike-pdf/dump-golden.js",
+  "pdfjsVersion": "3.11.174",
+  "sourcePdf": "02-italian-accents.pdf",
+  "note": "Verbatim pdf.js getTextContent() items (trimmed). Do not hand-edit values.",
+  "maxItemsPerPage": 200,
+  "pages": [
+    {
+      "source": "italian-accents",
+      "pageNumber": 1,
+      "itemCountFull": 2,
+      "itemCount": 2,
+      "items": [
+        {
+          "str": "Caffè e città: più di un'idea è ciò che conta.",
+          "hasEOL": true,
+          "width": 342.6300000000001,
+          "transform": [
+            18,
+            0,
+            0,
+            18,
+            50,
+            700
+          ]
+        },
+        {
+          "str": "Perché l'unità è più importante dell'ego.",
+          "width": 314.02799999999996,
+          "transform": [
+            18,
+            0,
+            0,
+            18,
+            50,
+            670
+          ]
+        }
+      ]
+    }
+  ]
+}

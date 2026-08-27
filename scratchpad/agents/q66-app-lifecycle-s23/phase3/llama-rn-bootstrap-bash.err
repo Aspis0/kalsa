@@ -1,0 +1,56 @@
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0  7 673.9M   7 50.03M   0      0 40.51M      0   00:16   00:01   00:15 48.93M 16 673.9M  16 108.3M   0      0 48.45M      0   00:13   00:02   00:11 53.54M 25 673.9M  25 168.6M   0      0 52.09M      0   00:12   00:03   00:09 55.75M 34 673.9M  34 231.2M   0      0 54.57M      0   00:12   00:04   00:08 57.45M 43 673.9M  43 293.5M   0      0 55.89M      0   00:12   00:05   00:07 58.25M 51 673.9M  51 350.2M   0      0 56.00M      0   00:12   00:06   00:06 59.82M 60 673.9M  60 410.8M   0      0 56.64M      0   00:11   00:07   00:04 60.29M 70 673.9M  70 472.6M   0      0 57.23M      0   00:11   00:08   00:03 60.54M 78 673.9M  78 531.1M   0      0 57.37M      0   00:11   00:09   00:02 59.73M 86 673.9M  86 583.4M   0      0 56.87M      0   00:11   00:10   00:01 57.90M 96 673.9M  96 648.0M   0      0 57.50M      0   00:11   00:11         59.36M100 673.9M 100 673.9M   0      0 57.64M      0   00:11   00:11         59.36M100 673.9M 100 673.9M   0      0 57.63M      0   00:11   00:11         59.36M100 673.9M 100 673.9M   0      0 57.63M      0   00:11   00:11         59.36M
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-clang++: Cannot create symlink to ‘hexagon-clang’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-strip: Cannot create symlink to ‘hexagon-llvm-objcopy’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-clang-cpp: Cannot create symlink to ‘hexagon-clang’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/llvm-lib: Cannot create symlink to ‘llvm-ar’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-readelf: Cannot create symlink to ‘hexagon-llvm-readelf’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-nm: Cannot create symlink to ‘llvm-nm’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-llvm-readelf: Cannot create symlink to ‘llvm-readobj’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-clang: Cannot create symlink to ‘clang-19’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-size: Cannot create symlink to ‘llvm-size’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-ranlib: Cannot create symlink to ‘llvm-ar’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-ar: Cannot create symlink to ‘llvm-ar’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/bin/hexagon-clang-cl: Cannot create symlink to ‘hexagon-clang’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v71t/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v69/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v68/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v77/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v79/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v75/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v73/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v81/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/target/hexagon/lib/v71/G0/pic/libc++.so: Cannot create symlink to ‘libc++.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libprotobuf-lite.so: Cannot create symlink to ‘libprotobuf-lite.so.3.10.1.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libCladeToAsan.so: Cannot create symlink to ‘libCladeToAsan.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libpython3.11.so: Cannot create symlink to ‘libpython3.11.so.1.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libLW.so: Cannot create symlink to ‘libLW.so.3’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libMCLDMapReader.so: Cannot create symlink to ‘libMCLDMapReader.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libclang.so: Cannot create symlink to ‘libclang.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libprotobuf.so: Cannot create symlink to ‘libprotobuf.so.3.10.1.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libDiagOpt.so: Cannot create symlink to ‘libDiagOpt.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/liblldb.so.19.0: Cannot create symlink to ‘liblldb.so.19.0.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libedit.so.0: Cannot create symlink to ‘libedit.so.0.0.47’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libMemoryAnalyzer.so: Cannot create symlink to ‘libMemoryAnalyzer.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libprotoc.so: Cannot create symlink to ‘libprotoc.so.3.10.1.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libSectionBudgetingV2.so: Cannot create symlink to ‘libSectionBudgetingV2.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/libedit.so: Cannot create symlink to ‘libedit.so.0.0.47’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/liblldb.so: Cannot create symlink to ‘liblldb.so.19.0’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/pkgconfig/python3-embed.pc: Cannot create symlink to ‘python-3.11-embed.pc’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/libexec/python: Cannot create symlink to ‘python3’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/libexec/python3: Cannot create symlink to ‘python3.11’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM_aarch64/vers_libs/libsdsprpc.so: Cannot create symlink to ‘libsdsprpc.so.1’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM_aarch64/vers_libs/libcdsprpc.so: Cannot create symlink to ‘libcdsprpc.so.1’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM_aarch64/vers_libs/libsdsprpc.so.1: Cannot create symlink to ‘libsdsprpc.so.1.0.0’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM_aarch64/vers_libs/libadsprpc.so.1: Cannot create symlink to ‘libadsprpc.so.1.0.0’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM_aarch64/vers_libs/libadsprpc.so: Cannot create symlink to ‘libadsprpc.so.1’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM/vers_libs/libsdsprpc.so: Cannot create symlink to ‘libsdsprpc.so.1’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM/vers_libs/libcdsprpc.so: Cannot create symlink to ‘libcdsprpc.so.1’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM/vers_libs/libsdsprpc.so.1: Cannot create symlink to ‘libsdsprpc.so.1.0.0’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM/vers_libs/libadsprpc.so.1: Cannot create symlink to ‘libadsprpc.so.1.0.0’: No such file or directory
+tar: 6.4.0.2/ipc/fastrpc/remote/ship/UbuntuARM/vers_libs/libadsprpc.so: Cannot create symlink to ‘libadsprpc.so.1’: No such file or directory
+tar: 6.4.0.2/tools/HEXAGON_Tools/19.0.04/Tools/lib/python3.11/site-packages/lldb/_lldb.cpython-311-x86_64-linux-gnu.so: Cannot create symlink to ‘../../../liblldb.so’: No such file or directory
+tar: Exiting with failure status due to previous errors
+cp: cannot stat './third_party/llama.cpp/ggml/src/ggml-cpu/repack-q23k.h': No such file or directory

@@ -1,0 +1,52 @@
+
+==========================================
+Hexagon SDK Setup
+==========================================
+
+Docker not available. You can:
+  1. Install Docker for consistent builds (recommended)
+  2. Install Hexagon SDK manually for native Linux builds
+
+✓ Hexagon SDK installed: /c/Users/gualt/.hexagon-sdk/6.4.0.2
+
+==========================================
+
+Embedding headers into ggml-metal.metal...
+Headers embedded successfully
+Generating ggml-metal-embed.s...
+ggml-metal-embed.s generated (38906 lines)
+Replacement completed successfully!
+Skipping example npm install (LLAMA_RN_SKIP_EXAMPLE_INSTALL=1)
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file common/common.cpp
+Hunk #1 succeeded at 1561 (offset 108 lines).
+Hunk #2 succeeded at 1632 with fuzz 2 (offset 150 lines).
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-hexagon/ggml-hexagon.cpp
+Hunk #1 succeeded at 4252 (offset 1181 lines).
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-metal/ggml-metal-ops.cpp
+Hunk #1 succeeded at 2833 (offset 1 line).
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-metal/ggml-metal.metal
+Hunk #1 succeeded at 13716 (offset 361 lines).
+Hunk #2 succeeded at 13730 (offset 361 lines).
+Hunk #3 succeeded at 13747 (offset 362 lines).
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml-quants.c
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file ggml.c
+Hunk #2 succeeded at 152 with fuzz 1 (offset 24 lines).
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file common/jinja/caps.cpp
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file common/jinja/value.cpp
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file llama-mmap.cpp
+Hunk #1 succeeded at 460 (offset 169 lines).
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file common/log.cpp
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file tools/mtmd/mtmd-audio.cpp
+(Stripping trailing CRs from patch; use --binary to disable.)
+patching file tools/mtmd/mtmd-helper.cpp

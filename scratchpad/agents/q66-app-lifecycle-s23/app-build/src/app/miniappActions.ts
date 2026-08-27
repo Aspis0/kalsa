@@ -1,0 +1,152 @@
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
+
+import type { AskAssistantMiniapp } from "../domain/askAssistant";
+import { getStrings, type Locale } from "../i18n";
+
+/**
+ * Helper ed export dei miniapp, estratti dal monolite App.tsx originale.
+ * Generalizzati: niente plate_grid / SVG bio — solo CSV e JSON generici.
+ */
+
+function asMiniappRows(value: unknown): Array<Record<string, unknown>> {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(0, 200)
+    .map((row) =>
+      row && typeof row === "object" && !Array.isArray(row) ? (row as Record<string, unknown>) : null,
+    )
+    .filter((row): row is Record<string, unknown> => Boolean(row));
+}
+
+export function quoteMiniappCsvCell(value: unknown): string {
+  const text = String(value ?? "");
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
+}
+
+export function flattenMiniappBlocks(blocks: unknown, limit = 160): Array<Record<string, unknown>> {
+  const queue = Array.isArray(blocks) ? [...blocks] : [];
+  const flattened: Array<Record<string, unknown>> = [];
+  while (queue.length && flattened.length < limit) {
+    const item = queue.shift();
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const block = item as Record<string, unknown>;
+    flattened.push(block);
+    for (const childKey of ["blocks", "children"]) {
+      const children = block[childKey];
+      if (Array.isArray(children)) queue.push(...children.slice(0, 40));
+    }
+    for (const groupKey of ["tabs", "items"]) {
+      const groups = block[groupKey];
+      if (!Array.isArray(groups)) continue;
+      for (const group of groups.slice(0, 24)) {
+        if (!group || typeof group !== "object" || Array.isArray(group)) continue;
+        const groupBlocks = (group as Record<string, unknown>).blocks;
+        if (Array.isArray(groupBlocks)) queue.push(...groupBlocks.slice(0, 40));
+      }
+    }
+  }
+  return flattened;
+}
+
+export function summarizeMiniappForPrompt(miniapp: AskAssistantMiniapp): string {
+  const blocks = flattenMiniappBlocks(miniapp.blocks, 80);
+  const summary = {
+    actions: Array.isArray(miniapp.actions) ? miniapp.actions.slice(0, 12) : [],
+    blocks: blocks.map((block) => ({
+      checks: Array.isArray(block.checks) ? block.checks.slice(0, 24) : undefined,
+      columns: Array.isArray(block.columns) ? block.columns.slice(0, 24) : undefined,
+      metrics: Array.isArray(block.metrics) ? block.metrics.slice(0, 24) : undefined,
+      rows: Array.isArray(block.rows) ? block.rows.slice(0, 80) : undefined,
+      title: block.title,
+      type: block.type,
+      visibleIn: block.visibleIn,
+    })),
+    computed: miniapp.computed,
+    kind: miniapp.kind,
+    state: miniapp.state,
+    title: miniapp.title,
+  };
+  const json = JSON.stringify(summary);
+  return json.length > 12000 ? `${json.slice(0, 12000)}... [truncated]` : json;
+}
+
+export function buildMiniappCsv(miniapp: AskAssistantMiniapp, locale: Locale): string {
+  const blocks = flattenMiniappBlocks(miniapp.blocks);
+  const tableBlock = blocks.find((block) =>
+    ["data_table", "result_table", "table", "input_table", "editable_table"].includes(String(block.type || "")),
+  );
+  const rows = asMiniappRows(tableBlock?.rows);
+  if (!rows.length) return getStrings(locale).miniapp.noExportableRows;
+  const columns = Array.from(new Set(rows.flatMap((row) => Object.keys(row)))).slice(0, 24);
+  return [
+    columns.map(quoteMiniappCsvCell).join(","),
+    ...rows.map((row) => columns.map((column) => quoteMiniappCsvCell(row[column])).join(",")),
+  ].join("\n");
+}
+
+export function miniappExportFileName(miniapp: AskAssistantMiniapp, extension: string): string {
+  const slug =
+    String(miniapp.kind || miniapp.title || "miniapp")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "") || "miniapp";
+  return `kalsa-${slug}-${Date.now()}.${extension}`;
+}
+
+export type MiniappActionCallbacks = {
+  setAskAssistantDraft: (value: string) => void;
+  setFeedback: (value: string) => void;
+  setMobileError: (value: string) => void;
+  locale: Locale;
+};
+
+export async function handleAskAssistantMiniappAction(
+  action: Record<string, unknown>,
+  miniapp: AskAssistantMiniapp,
+  callbacks: MiniappActionCallbacks,
+): Promise<void> {
+  const actionId = String(action.id || "").trim().toLowerCase();
+  const strings = getStrings(callbacks.locale);
+
+  if (actionId === "generate_report") {
+    callbacks.setFeedback(strings.miniapp.reportHint);
+    return;
+  }
+
+  if (actionId === "export_csv") {
+    try {
+      const directory = FileSystem.cacheDirectory ?? FileSystem.documentDirectory;
+      if (!directory) throw new Error("missing_export_directory");
+      const uri = `${directory}${miniappExportFileName(miniapp, "csv")}`;
+      await FileSystem.writeAsStringAsync(uri, buildMiniappCsv(miniapp, callbacks.locale), {
+        encoding: "utf8",
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(uri, {
+          dialogTitle: strings.miniapp.exportCsvTitle,
+          mimeType: "text/csv",
+        });
+      }
+      callbacks.setFeedback(strings.miniapp.csvExported);
+    } catch {
+      callbacks.setMobileError(strings.miniapp.exportFailed);
+    }
+    return;
+  }
+
+  // export_json (and export_png/export_jpeg/export_svg) are fully handled by
+  // AskAssistantMiniappRenderer itself (capture/write + share); it no longer forwards
+  // those actions here, so there is intentionally no handler for them in this file.
+  // Adding one back would reintroduce a double file-write / double share-sheet bug.
+
+  // export_plate_map is intercepted earlier, in the renderer's LEGACY_LAB_ACTION_IDS
+  // dispatcher (AskAssistantMiniappRenderer.tsx), so it can never reach this function —
+  // no handler needed here.
+
+  // Fallthrough: any other action id (model-defined "requiresAi"/custom actions) has no
+  // local handler — this is the only kind of action id that can actually reach here, since
+  // every other known id is handled above or intercepted earlier in the renderer. Surface
+  // feedback instead of a silent no-op tap.
+  callbacks.setMobileError(strings.miniapp.actionNotSupported);
+}

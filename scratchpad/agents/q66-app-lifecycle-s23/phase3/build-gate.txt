@@ -1,0 +1,722 @@
+START=2026-08-27T16:29:23.5719340-04:00
+STAGE=C:\q66p3
+FREE_PHYSICAL_GIB=12.69
+REQUIRED_MIN_GIB=8
+DETACHED_FLAGS=DETACHED_PROCESS|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+PROCESS_GATE_BEGIN
+
+
+Id            : 984
+ProcessName   : node
+CPU           : 0.140625
+WorkingSet64  : 46698496
+PriorityClass : Normal
+
+Id            : 3256
+ProcessName   : node
+CPU           : 14.546875
+WorkingSet64  : 51789824
+PriorityClass : Normal
+
+Id            : 4244
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 48164864
+PriorityClass : Normal
+
+Id            : 4780
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 25350144
+PriorityClass : Normal
+
+Id            : 6416
+ProcessName   : node
+CPU           : 22.5
+WorkingSet64  : 166830080
+PriorityClass : Normal
+
+Id            : 6864
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 47087616
+PriorityClass : Normal
+
+Id            : 7132
+ProcessName   : node
+CPU           : 0.265625
+WorkingSet64  : 38494208
+PriorityClass : Normal
+
+Id            : 7852
+ProcessName   : node
+CPU           : 1.453125
+WorkingSet64  : 40988672
+PriorityClass : Normal
+
+Id            : 7916
+ProcessName   : node
+CPU           : 47.1875
+WorkingSet64  : 52068352
+PriorityClass : Normal
+
+Id            : 8168
+ProcessName   : node
+CPU           : 0.15625
+WorkingSet64  : 47104000
+PriorityClass : Normal
+
+Id            : 10480
+ProcessName   : node
+CPU           : 6.3125
+WorkingSet64  : 111542272
+PriorityClass : Normal
+
+Id            : 10584
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48164864
+PriorityClass : Normal
+
+Id            : 10980
+ProcessName   : node
+CPU           : 2.25
+WorkingSet64  : 50024448
+PriorityClass : Normal
+
+Id            : 11412
+ProcessName   : node
+CPU           : 17.84375
+WorkingSet64  : 50974720
+PriorityClass : Normal
+
+Id            : 12516
+ProcessName   : node
+CPU           : 24
+WorkingSet64  : 52469760
+PriorityClass : Normal
+
+Id            : 13776
+ProcessName   : node
+CPU           : 31.53125
+WorkingSet64  : 51802112
+PriorityClass : Normal
+
+Id            : 14088
+ProcessName   : node
+CPU           : 1.125
+WorkingSet64  : 51200000
+PriorityClass : Normal
+
+Id            : 14228
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 48242688
+PriorityClass : Normal
+
+Id            : 15580
+ProcessName   : node
+CPU           : 16.046875
+WorkingSet64  : 58359808
+PriorityClass : Normal
+
+Id            : 16308
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 47104000
+PriorityClass : Normal
+
+Id            : 16500
+ProcessName   : node
+CPU           : 1.125
+WorkingSet64  : 51458048
+PriorityClass : Normal
+
+Id            : 17612
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 48340992
+PriorityClass : Normal
+
+Id            : 17896
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 63672320
+PriorityClass : Normal
+
+Id            : 18324
+ProcessName   : node
+CPU           : 0.0625
+WorkingSet64  : 63713280
+PriorityClass : Normal
+
+Id            : 18524
+ProcessName   : node
+CPU           : 0.0625
+WorkingSet64  : 48709632
+PriorityClass : Normal
+
+Id            : 18936
+ProcessName   : node
+CPU           : 1.203125
+WorkingSet64  : 45654016
+PriorityClass : Normal
+
+Id            : 19128
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 46923776
+PriorityClass : Normal
+
+Id            : 19412
+ProcessName   : node
+CPU           : 19.265625
+WorkingSet64  : 57888768
+PriorityClass : Normal
+
+Id            : 20172
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 48332800
+PriorityClass : Normal
+
+Id            : 20704
+ProcessName   : node
+CPU           : 1.15625
+WorkingSet64  : 84164608
+PriorityClass : Normal
+
+Id            : 20852
+ProcessName   : node
+CPU           : 20.546875
+WorkingSet64  : 52137984
+PriorityClass : Normal
+
+Id            : 21172
+ProcessName   : node
+CPU           : 0.140625
+WorkingSet64  : 48422912
+PriorityClass : Normal
+
+Id            : 21600
+ProcessName   : node
+CPU           : 2.5
+WorkingSet64  : 50003968
+PriorityClass : Normal
+
+Id            : 23804
+ProcessName   : node
+CPU           : 0.21875
+WorkingSet64  : 42414080
+PriorityClass : Normal
+
+Id            : 24212
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 63782912
+PriorityClass : Normal
+
+Id            : 24968
+ProcessName   : node
+CPU           : 18.234375
+WorkingSet64  : 50515968
+PriorityClass : Normal
+
+Id            : 25084
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48640000
+PriorityClass : Normal
+
+Id            : 25360
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 48644096
+PriorityClass : Normal
+
+Id            : 25364
+ProcessName   : node
+CPU           : 34.34375
+WorkingSet64  : 52232192
+PriorityClass : Normal
+
+Id            : 26136
+ProcessName   : node
+CPU           : 19.84375
+WorkingSet64  : 51720192
+PriorityClass : Normal
+
+Id            : 26460
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48762880
+PriorityClass : Normal
+
+Id            : 26480
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 48635904
+PriorityClass : Normal
+
+Id            : 27244
+ProcessName   : node
+CPU           : 1.84375
+WorkingSet64  : 48377856
+PriorityClass : Normal
+
+Id            : 27844
+ProcessName   : node
+CPU           : 16.828125
+WorkingSet64  : 57720832
+PriorityClass : Normal
+
+Id            : 28004
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 47108096
+PriorityClass : Normal
+
+Id            : 28400
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 48222208
+PriorityClass : Normal
+
+Id            : 28876
+ProcessName   : node
+CPU           : 6.3125
+WorkingSet64  : 54689792
+PriorityClass : Normal
+
+Id            : 28944
+ProcessName   : node
+CPU           : 26.109375
+WorkingSet64  : 50466816
+PriorityClass : Normal
+
+Id            : 29468
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 46673920
+PriorityClass : Normal
+
+Id            : 29728
+ProcessName   : node
+CPU           : 0.140625
+WorkingSet64  : 48218112
+PriorityClass : Normal
+
+Id            : 29868
+ProcessName   : node
+CPU           : 11.46875
+WorkingSet64  : 48402432
+PriorityClass : Normal
+
+Id            : 29936
+ProcessName   : node
+CPU           : 2.328125
+WorkingSet64  : 38629376
+PriorityClass : Normal
+
+Id            : 30316
+ProcessName   : node
+CPU           : 0.140625
+WorkingSet64  : 41062400
+PriorityClass : Normal
+
+Id            : 30380
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 47095808
+PriorityClass : Normal
+
+Id            : 30896
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48336896
+PriorityClass : Normal
+
+Id            : 31168
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 48320512
+PriorityClass : Normal
+
+Id            : 31632
+ProcessName   : node
+CPU           : 20.0625
+WorkingSet64  : 52199424
+PriorityClass : Normal
+
+Id            : 31692
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 48209920
+PriorityClass : Normal
+
+Id            : 32148
+ProcessName   : node
+CPU           : 2.21875
+WorkingSet64  : 53354496
+PriorityClass : Normal
+
+Id            : 33148
+ProcessName   : node
+CPU           : 19.90625
+WorkingSet64  : 52445184
+PriorityClass : Normal
+
+Id            : 33192
+ProcessName   : node
+CPU           : 1.265625
+WorkingSet64  : 48386048
+PriorityClass : Normal
+
+Id            : 33232
+ProcessName   : node
+CPU           : 13
+WorkingSet64  : 57241600
+PriorityClass : Normal
+
+Id            : 33564
+ProcessName   : node
+CPU           : 12.296875
+WorkingSet64  : 53444608
+PriorityClass : Normal
+
+Id            : 34312
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 48332800
+PriorityClass : Normal
+
+Id            : 34800
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48205824
+PriorityClass : Normal
+
+Id            : 35600
+ProcessName   : node
+CPU           : 17.96875
+WorkingSet64  : 53596160
+PriorityClass : Normal
+
+Id            : 35676
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 48480256
+PriorityClass : Normal
+
+Id            : 36012
+ProcessName   : node
+CPU           : 14.671875
+WorkingSet64  : 51798016
+PriorityClass : Normal
+
+Id            : 36020
+ProcessName   : node
+CPU           : 0.0625
+WorkingSet64  : 52080640
+PriorityClass : Normal
+
+Id            : 36240
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 47104000
+PriorityClass : Normal
+
+Id            : 37604
+ProcessName   : node
+CPU           : 0.0625
+WorkingSet64  : 46534656
+PriorityClass : Normal
+
+Id            : 37672
+ProcessName   : node
+CPU           : 2.8125
+WorkingSet64  : 38993920
+PriorityClass : Normal
+
+Id            : 38620
+ProcessName   : node
+CPU           : 0.21875
+WorkingSet64  : 42536960
+PriorityClass : Normal
+
+Id            : 38816
+ProcessName   : node
+CPU           : 1.4375
+WorkingSet64  : 48390144
+PriorityClass : Normal
+
+Id            : 39008
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48332800
+PriorityClass : Normal
+
+Id            : 39236
+ProcessName   : node
+CPU           : 14.171875
+WorkingSet64  : 48287744
+PriorityClass : Normal
+
+Id            : 39324
+ProcessName   : node
+CPU           : 21.515625
+WorkingSet64  : 51802112
+PriorityClass : Normal
+
+Id            : 39608
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 48340992
+PriorityClass : Normal
+
+Id            : 40624
+ProcessName   : node
+CPU           : 0.125
+WorkingSet64  : 47108096
+PriorityClass : Normal
+
+Id            : 40680
+ProcessName   : node
+CPU           : 3.546875
+WorkingSet64  : 102141952
+PriorityClass : Normal
+
+Id            : 40984
+ProcessName   : node
+CPU           : 14.828125
+WorkingSet64  : 51494912
+PriorityClass : Normal
+
+Id            : 41244
+ProcessName   : node
+CPU           : 14.578125
+WorkingSet64  : 54038528
+PriorityClass : Normal
+
+Id            : 41324
+ProcessName   : node
+CPU           : 8.984375
+WorkingSet64  : 55738368
+PriorityClass : Normal
+
+Id            : 41644
+ProcessName   : node
+CPU           : 1.171875
+WorkingSet64  : 51245056
+PriorityClass : Normal
+
+Id            : 41796
+ProcessName   : node
+CPU           : 16.03125
+WorkingSet64  : 52097024
+PriorityClass : Normal
+
+Id            : 43324
+ProcessName   : node
+CPU           : 1.1875
+WorkingSet64  : 56745984
+PriorityClass : Normal
+
+Id            : 43908
+ProcessName   : node
+CPU           : 34.640625
+WorkingSet64  : 135258112
+PriorityClass : Normal
+
+Id            : 44108
+ProcessName   : node
+CPU           : 2.1875
+WorkingSet64  : 50012160
+PriorityClass : Normal
+
+Id            : 44352
+ProcessName   : node
+CPU           : 9.609375
+WorkingSet64  : 48209920
+PriorityClass : Normal
+
+Id            : 44732
+ProcessName   : node
+CPU           : 0.09375
+WorkingSet64  : 48164864
+PriorityClass : Normal
+
+Id            : 45772
+ProcessName   : node
+CPU           : 1.296875
+WorkingSet64  : 45633536
+PriorityClass : Normal
+
+Id            : 46148
+ProcessName   : node
+CPU           : 0.140625
+WorkingSet64  : 25350144
+PriorityClass : Normal
+
+Id            : 47140
+ProcessName   : node
+CPU           : 25.703125
+WorkingSet64  : 50593792
+PriorityClass : Normal
+
+Id            : 47464
+ProcessName   : node
+CPU           : 0.65625
+WorkingSet64  : 55652352
+PriorityClass : Normal
+
+Id            : 47484
+ProcessName   : node
+CPU           : 0.0625
+WorkingSet64  : 41066496
+PriorityClass : Normal
+
+Id            : 49456
+ProcessName   : node
+CPU           : 1.40625
+WorkingSet64  : 42766336
+PriorityClass : Normal
+
+Id            : 50100
+ProcessName   : node
+CPU           : 30.296875
+WorkingSet64  : 52858880
+PriorityClass : Normal
+
+Id            : 50276
+ProcessName   : node
+CPU           : 27.28125
+WorkingSet64  : 103280640
+PriorityClass : Normal
+
+Id            : 50304
+ProcessName   : node
+CPU           : 16.140625
+WorkingSet64  : 53706752
+PriorityClass : Normal
+
+Id            : 50396
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 47108096
+PriorityClass : Normal
+
+Id            : 51728
+ProcessName   : node
+CPU           : 1.53125
+WorkingSet64  : 40439808
+PriorityClass : Normal
+
+Id            : 52100
+ProcessName   : node
+CPU           : 19.71875
+WorkingSet64  : 51826688
+PriorityClass : Normal
+
+Id            : 52240
+ProcessName   : node
+CPU           : 0.140625
+WorkingSet64  : 46673920
+PriorityClass : Normal
+
+Id            : 52344
+ProcessName   : node
+CPU           : 22.09375
+WorkingSet64  : 52662272
+PriorityClass : Normal
+
+Id            : 52720
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 46669824
+PriorityClass : Normal
+
+Id            : 52948
+ProcessName   : node
+CPU           : 18.40625
+WorkingSet64  : 54140928
+PriorityClass : Normal
+
+Id            : 53204
+ProcessName   : node
+CPU           : 18.8125
+WorkingSet64  : 53469184
+PriorityClass : Normal
+
+Id            : 53312
+ProcessName   : node
+CPU           : 0.15625
+WorkingSet64  : 48336896
+PriorityClass : Normal
+
+Id            : 53444
+ProcessName   : node
+CPU           : 0.109375
+WorkingSet64  : 48168960
+PriorityClass : Normal
+
+Id            : 53744
+ProcessName   : node
+CPU           : 16.71875
+WorkingSet64  : 50368512
+PriorityClass : Normal
+
+Id            : 53932
+ProcessName   : node
+CPU           : 18.390625
+WorkingSet64  : 50569216
+PriorityClass : Normal
+
+Id            : 54256
+ProcessName   : node
+CPU           : 18.8125
+WorkingSet64  : 52789248
+PriorityClass : Normal
+
+Id            : 54928
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 41066496
+PriorityClass : Normal
+
+Id            : 56924
+ProcessName   : node
+CPU           : 0.078125
+WorkingSet64  : 48222208
+PriorityClass : Normal
+
+Id            : 56992
+ProcessName   : node
+CPU           : 14.578125
+WorkingSet64  : 65949696
+PriorityClass : Normal
+
+Id            : 58576
+ProcessName   : node
+CPU           : 18.46875
+WorkingSet64  : 57679872
+PriorityClass : Normal
+
+Id            : 59088
+ProcessName   : node
+CPU           : 0.0625
+WorkingSet64  : 63717376
+PriorityClass : Normal
+
+Id            : 60544
+ProcessName   : node
+CPU           : 0.296875
+WorkingSet64  : 65331200
+PriorityClass : Normal
+
+Id            : 60652
+ProcessName   : node
+CPU           : 0.21875
+WorkingSet64  : 43646976
+PriorityClass : Normal
+PROCESS_GATE_END

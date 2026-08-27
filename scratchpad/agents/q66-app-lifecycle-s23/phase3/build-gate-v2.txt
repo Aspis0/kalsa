@@ -1,0 +1,782 @@
+START=2026-08-27T17:13:18.6026498-04:00
+STAGE=C:\q66p3b
+FREE_PHYSICAL_GIB=15.63
+REQUIRED_MIN_GIB=8
+DETACHED_FLAGS=CREATE_NEW_PROCESS_GROUP|CREATE_NO_WINDOW|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+PROCESS_GATE_BEGIN
+
+
+Id            : 3492
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 7028736
+PriorityClass : Normal
+
+Id            : 3720
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 4620
+ProcessName   : cmd
+CPU           : 0.078125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 4680
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 4708
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 8024
+ProcessName   : cmd
+CPU           : 0.078125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 9288
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6033408
+PriorityClass : Normal
+
+Id            : 11632
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6045696
+PriorityClass : Normal
+
+Id            : 12636
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 14100
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 14196
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5070848
+PriorityClass : Normal
+
+Id            : 15432
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 8691712
+PriorityClass : Normal
+
+Id            : 15712
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 7999488
+PriorityClass : Normal
+
+Id            : 16296
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 17224
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 17284
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 17880
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 393216
+PriorityClass : BelowNormal
+
+Id            : 18332
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 18820
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 18960
+ProcessName   : cmd
+CPU           : 0.078125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 19680
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 20584
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6045696
+PriorityClass : Normal
+
+Id            : 20612
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 21020
+ProcessName   : cmd
+CPU           : 0
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 21052
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 21624
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 7532544
+PriorityClass : Normal
+
+Id            : 21740
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 7184384
+PriorityClass : Normal
+
+Id            : 22268
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 23080
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 24232
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 24240
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 25028
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 25520
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 25980
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 26240
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 26280
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 26868
+ProcessName   : cmd
+CPU           : 0.078125
+WorkingSet64  : 6074368
+PriorityClass : Normal
+
+Id            : 27236
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 27584
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 27700
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 27884
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 28504
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5070848
+PriorityClass : Normal
+
+Id            : 29296
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 29588
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 29676
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 29836
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 30700
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5455872
+PriorityClass : Normal
+
+Id            : 30812
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 30884
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 5443584
+PriorityClass : Normal
+
+Id            : 31488
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 31764
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 31780
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 31872
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 32036
+ProcessName   : cmd
+CPU           : 0.078125
+WorkingSet64  : 5971968
+PriorityClass : Normal
+
+Id            : 32772
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6688768
+PriorityClass : Normal
+
+Id            : 33108
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 8691712
+PriorityClass : Normal
+
+Id            : 33252
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 33368
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 33620
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 33664
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 33848
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6074368
+PriorityClass : Normal
+
+Id            : 34540
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6057984
+PriorityClass : Normal
+
+Id            : 35020
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 35436
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 35656
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6066176
+PriorityClass : Normal
+
+Id            : 36080
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 37184
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 8724480
+PriorityClass : Normal
+
+Id            : 37204
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 37944
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 38280
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 38328
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 38580
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 38932
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5455872
+PriorityClass : Normal
+
+Id            : 39072
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 39516
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 39680
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6123520
+PriorityClass : Normal
+
+Id            : 39920
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 40608
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6066176
+PriorityClass : Normal
+
+Id            : 40852
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 40896
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 41112
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 5984256
+PriorityClass : Normal
+
+Id            : 41136
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 7471104
+PriorityClass : Normal
+
+Id            : 41688
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 42604
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5971968
+PriorityClass : Normal
+
+Id            : 42624
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5455872
+PriorityClass : Normal
+
+Id            : 42776
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6025216
+PriorityClass : Normal
+
+Id            : 43124
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 43440
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6045696
+PriorityClass : Normal
+
+Id            : 43456
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6066176
+PriorityClass : Normal
+
+Id            : 43724
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 44244
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 46544
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 46976
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 47252
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 47540
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 48336
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 48524
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 49068
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 49072
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 50832
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 5984256
+PriorityClass : Normal
+
+Id            : 51108
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 51500
+ProcessName   : cmd
+CPU           : 0.109375
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 51540
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 7409664
+PriorityClass : Normal
+
+Id            : 51556
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 51640
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6037504
+PriorityClass : Normal
+
+Id            : 51784
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6025216
+PriorityClass : Normal
+
+Id            : 52372
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5070848
+PriorityClass : Normal
+
+Id            : 52680
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6041600
+PriorityClass : Normal
+
+Id            : 53924
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 54052
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6066176
+PriorityClass : Normal
+
+Id            : 54212
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 54332
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 54836
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 54912
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 55220
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5971968
+PriorityClass : Normal
+
+Id            : 55816
+ProcessName   : cmd
+CPU           : 0.0625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 56032
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6033408
+PriorityClass : Normal
+
+Id            : 56716
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 56768
+ProcessName   : cmd
+CPU           : 0.046875
+WorkingSet64  : 6053888
+PriorityClass : Normal
+
+Id            : 57300
+ProcessName   : cmd
+CPU           : 0.078125
+WorkingSet64  : 7032832
+PriorityClass : Normal
+
+Id            : 57724
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5984256
+PriorityClass : Normal
+
+Id            : 57820
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 5074944
+PriorityClass : Normal
+
+Id            : 58216
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6062080
+PriorityClass : Normal
+
+Id            : 58264
+ProcessName   : cmd
+CPU           : 0.03125
+WorkingSet64  : 6049792
+PriorityClass : Normal
+
+Id            : 59328
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 5500928
+PriorityClass : Normal
+
+Id            : 59576
+ProcessName   : cmd
+CPU           : 0.015625
+WorkingSet64  : 8691712
+PriorityClass : Normal
+
+Id            : 16640
+ProcessName   : powershell
+CPU           : 0.8125
+WorkingSet64  : 91328512
+PriorityClass : Normal
+
+Id            : 57648
+ProcessName   : powershell
+CPU           : 494.359375
+WorkingSet64  : 36999168
+PriorityClass : Normal
+
+Id            : 61320
+ProcessName   : powershell
+CPU           : 0.71875
+WorkingSet64  : 82919424
+PriorityClass : Normal
+PROCESS_GATE_END

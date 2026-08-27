@@ -1,0 +1,6 @@
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/merged_native_libs/release/mergeReleaseNativeLibs/out/lib/arm64-v8a/librnllama.so
+[assert] kalsa-native-patches MISSING in android/app/build/intermediates/stripped_native_libs/release/stripReleaseDebugSymbols/out/lib/arm64-v8a/librnllama.so
+[assert] FATAL: the native patch is NOT in the binary.
+[assert] llama.rn used its prebuilt jniLibs: source-build is the default
+[assert] (plugins/withLlamaFromSource.js). Unset KALSA_LLAMA_FROM_SOURCE
+[assert] or set it to 1; only KALSA_LLAMA_FROM_SOURCE=0 restores prebuilt.
