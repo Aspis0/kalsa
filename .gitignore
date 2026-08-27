@@ -47,3 +47,5 @@ scratchpad/agents/q28-hexagon-sdk/downloads/
 deps/hexagon/
 deps/cmake/
 worktree-mali-probe/
+scratchpad/agents/q66-app-lifecycle-s23/app-build/
+scratchpad/agents/q66-app-lifecycle-s23/llama.rn-src/
