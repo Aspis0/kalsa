@@ -1,0 +1,101 @@
+name: Build Kalsa APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [engine-pin-kalsallama]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-kalsa-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout with submodules
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Set up Android toolchain
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android native build packages
+        run: sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0" "cmake;3.22.1" "ndk;27.1.12297006"
+
+      - name: Make public Git dependencies use HTTPS
+        run: |
+          git config --global --add url."https://github.com/".insteadOf "ssh://git@github.com/"
+          git config --global --add url."https://github.com/".insteadOf "git@github.com:"
+
+      - name: Install JS dependencies
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
+        run: npm ci
+
+      - name: Prebuild Android native project
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
+        run: npx expo prebuild --platform android --no-install
+
+      - name: Build arm64 release APK
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
+          CMAKE_BUILD_PARALLEL_LEVEL: "2"
+          NINJAFLAGS: "-j2"
+        run: |
+          cd android
+          ./gradlew assembleRelease --console=plain --no-daemon \
+            -PreactNativeArchitectures=arm64-v8a \
+            -PrnllamaBuildFromSource=true \
+            -PrnllamaHexagon=false \
+            -Dorg.gradle.workers.max=2
+
+      - name: Stop Gradle daemons
+        if: always()
+        run: cd android && ./gradlew --stop || true
+
+      - name: Assert native patch and pinned engine
+        run: bash scripts/assert-native-patch.sh
+
+      - name: Hash APK and write job summary
+        id: apk-info
+        run: |
+          set -euo pipefail
+          APK=android/app/build/outputs/apk/release/app-release.apk
+          SHA=$(sha256sum "$APK" | awk '{print $1}')
+          SIZE=$(stat -c%s "$APK")
+          echo "$SHA  $APK" > kalsa-apk.sha256
+          {
+            echo "## Kalsa arm64 release APK"
+            echo ""
+            echo "- APK: $APK"
+            echo "- Size: ${SIZE} bytes"
+            echo "- SHA-256: $SHA"
+            echo "- Engine: llama.rn fork pinned by package-lock; q23k gate passed"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kalsa-apk-arm64-v8a-${{ github.sha }}
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            kalsa-apk.sha256
+          if-no-files-found: error
+          retention-days: 14
