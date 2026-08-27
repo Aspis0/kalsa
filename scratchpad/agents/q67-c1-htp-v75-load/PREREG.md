@@ -113,3 +113,15 @@ wait ≤ 40 min, MemAvailable ≥ 4.0 GiB, battery ≥ 40 %). Derivation unchang
 chunk n = min(20, A2 reached), n ≥ 8 required, q55 letters, label "r characterization under
 Amendments 2+3 (post-result, CPU-ref only)". A1's 20 HTP chunks stand. If guard-killed again
 before chunk 8 → r stays VOID, cell closes, no further attempts.
+
+## Amendment 4 (2026-08-27, LOCKED at commit time — FINAL attempt, precondition remedy only)
+Amendment 3's A2 attempt never started: MemAvailable stayed < 4.0 GiB for 2404 s (resident apps
+— a known Xiaomi trait). All measurement gates stay EXACTLY as locked (floor 4.0 GiB included:
+it is not lowered). This amendment only sanctions ONE device reboot (`adb reboot`) to clear
+residents — a declared device-state change replacing the forbidden "close processes" path with a
+clean slate. After reboot: wait for full boot + adb reattach (≤ 10 min), idle 3 min, then the
+standard pre-arm gates (unplugged verified, cool-start ≤ 35.0 °C, MemAvailable ≥ 4.0 GiB,
+battery ≥ 40 %). If adb does not reattach or the floor is still unmet within 15 min of boot →
+r stays VOID, cell CLOSES, no further attempts, no exceptions. A2 attempt 4 otherwise identical
+to Amendment 3 (CPU-ref, `-f`, `--chunks 20`, guard 40.0/43.0, CSV+rc, running-PPL captured);
+derivation and letters unchanged.
