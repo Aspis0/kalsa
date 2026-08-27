@@ -78,3 +78,14 @@ push at a time). Outputs: `RUN_LOG.md` (timestamped), `manifest.json` (shas, dev
 battery/temps, exact commands, binary shas), `raw/` (running-PPL logs, execute-op counts, guard
 CSV, jsonl, stderr), `REPORT.md` numbers only. Audit before bank (math = DeepSeek on r and
 chunk arithmetic, doc = mimo, short form); bank alongside q63 (PLAN #35) or as its appendix.
+
+## Amendment 1 (2026-08-27, LOCKED at commit time — before any corrected-arm number exists)
+Attempt 1 of A1/A2 executed the locked command, which **omitted `-f /data/local/tmp/wiki.test.raw`**
+(orchestrator transcription defect from the q55 excerpt): the binary reported 0 input tokens, 0
+chunks — the measurement never started. Per the frozen derivation this is **VOID** (common chunks
+< 8), not FAIL-NUMERICS; the letter in REPORT attempt 1 is corrected at arbitration. B arms are
+untouched and stand (LOAD proof + pp512).
+Corrected A1/A2: identical in every flag, env, guard limit, order and derivation, adding only
+`-f /data/local/tmp/wiki.test.raw`. One rerun of A1 then A2 (attempt 2); attempt 1 logs kept in
+raw/ as `*_attempt1_void*`. The supervisor MUST emit the guard CSV + rc files this time (attempt 1
+recorded them NA). No other change.
