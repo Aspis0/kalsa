@@ -103,3 +103,13 @@ stopped and A2 never ran → r VOID. This amendment reopens ONLY the CPU referen
   extended to ≤ 40 min for this arm only (plugged cooldown from 41 °C is slow — declared).
 - Derivation unchanged: r at last common chunk n (= min(20, A2 reached), need ≥ 8), q55 letters.
   A1 attempt-2 20-chunk data stands as the HTP side. No further NPU arms in this cell.
+
+## Amendment 3 (2026-08-27, LOCKED at commit time — owner unplugged the device: "Xiaomi staccato vai")
+Amendment 2's A2 was guard-killed at 43.0 °C at chunk 4: the PLUGGED-charging device cannot
+sustain a dense-4B CPU PPL. The owner has now UNPLUGGED the Xiaomi — q55 conditions restored.
+One final A2 attempt (attempt 3), UNPLUGGED (declared, verified via dumpsys battery AC=false):
+identical to Amendment 2 (`-f`, `--chunks 20`, guard CPU 40.0/43.0, CSV+rc, cool-start ≤ 35.0 °C
+wait ≤ 40 min, MemAvailable ≥ 4.0 GiB, battery ≥ 40 %). Derivation unchanged: r at last common
+chunk n = min(20, A2 reached), n ≥ 8 required, q55 letters, label "r characterization under
+Amendments 2+3 (post-result, CPU-ref only)". A1's 20 HTP chunks stand. If guard-killed again
+before chunk 8 → r stays VOID, cell closes, no further attempts.
