@@ -82,6 +82,7 @@ function compileTemp(tempRoot) {
     process.execPath,
     [
       tscJs,
+      path.join(tempRoot, "src/context/ngramRank.ts"),
       path.join(tempRoot, "src/context/retriever.ts"),
       path.join(tempRoot, "src/context/retrievalLoop.ts"),
       "--outDir",
@@ -134,6 +135,11 @@ function buildMutated(mutator) {
 
   writeFileSync(path.join(srcDir, "retriever.ts"), mutator(retSrc), "utf8");
   writeFileSync(path.join(srcDir, "retrievalLoop.ts"), loopSrc, "utf8");
+  const ngramSrc = readFileSync(
+    path.join(projectRoot, "src/context/ngramRank.ts"),
+    "utf8",
+  );
+  writeFileSync(path.join(srcDir, "ngramRank.ts"), ngramSrc, "utf8");
 
   compileTemp(tempRoot);
   return {

@@ -1,0 +1,25 @@
+{
+  "phase": "fase0",
+  "arm": "none_budget512",
+  "seed": 1,
+  "blockFormat": "none",
+  "thinking": "budget512",
+  "compaction": "ciswire",
+  "turns": [
+    {"index":"1.1","prompt":"IlGattoDiMarcoSiChiamaLeopoldo","elapsed_s":98,"reply_len":120,"reply_excerpt":"Ok."},
+    {"index":"1.2","prompt":"ParlamiInBreveDiComeFunzionaInternet","elapsed_s":102,"reply_len":300,"reply_excerpt":"Internet e una rete..."},
+    {"index":"1.3","prompt":"ComeSiChiamaIlGattoDiMarco","elapsed_s":95,"reply_len":40,"reply_excerpt":"Non lo so."},
+    {"index":"2.1","prompt":"IlGattoDiMarcoSiChiamaLeopoldo","elapsed_s":100,"reply_len":110,"reply_excerpt":"Ok."},
+    {"index":"2.2","prompt":"ParlamiInBreveDiComeFunzionaInternet","elapsed_s":99,"reply_len":290,"reply_excerpt":"Internet e una rete..."},
+    {"index":"2.3","prompt":"ComeSiChiamaIlGattoDiMarco","elapsed_s":97,"reply_len":45,"reply_excerpt":"Si chiama Leopoldo."},
+    {"index":"3.1","prompt":"IlGattoDiMarcoSiChiamaLeopoldo","elapsed_s":101,"reply_len":115,"reply_excerpt":"Ok."},
+    {"index":"3.2","prompt":"ParlamiInBreveDiComeFunzionaInternet","elapsed_s":103,"reply_len":295,"reply_excerpt":"Internet e una rete..."},
+    {"index":"3.3","prompt":"ComeSiChiamaIlGattoDiMarco","elapsed_s":96,"reply_len":38,"reply_excerpt":"Non lo so."}
+  ],
+  "probes": [
+    {"name":"fact_run1","expected":"Leopoldo","found":false},
+    {"name":"fact_run2","expected":"Leopoldo","found":true},
+    {"name":"fact_run3","expected":"Leopoldo","found":false}
+  ],
+  "recall": 0.3333
+}

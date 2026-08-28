@@ -8,4 +8,6 @@ Lì lavorano Grok (goal in `GROK_GOAL.md`) e la campagna sperimentale (scripts/,
 reports/, traces/). Questo stub esiste solo per non rompere i riferimenti storici; non
 aggiornare il piano qui.
 
-Contesto nel repo app: `docs/ROADMAP_BIGGER_MODELS.md` (documento genitore, 2026-08-03).
+Il documento genitore (`docs/ROADMAP_BIGGER_MODELS.md`) è stato **rimosso il 2026-08-19**:
+il suo contenuto è materia del repo `moe-experiments`. Quel che riguardava Kalsa come app —
+la priorità "target 6GB" e il riferimento qualità/quant — vive in `docs/KALSA.md`.

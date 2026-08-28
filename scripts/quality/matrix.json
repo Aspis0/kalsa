@@ -1,0 +1,276 @@
+{
+  "version": 3,
+  "note": "Cells for the quality bake-off. Each cell is one llama-server launch. The baseline is Kalsa's PRODUCTION configuration, not a bare prompt: system prompt, Kalsa's sampler, and the per-model thinking budget from ModelRegistry. Running without those measured a configuration the product never uses, and it showed — Qwen3.5-2B failed to terminate on 6 of 6 questions with no system prompt and unlimited thinking, which cannot happen in production because production caps the budget. Thinking is never off; the budget is the axis. 2026-08-22: the owner wants 8-10 tok/s on the Jelly. Quantizing the 2.6B further cannot reach it — LiquidAI ships nothing below Q4_0 (1594 MB, 5.7 tok/s predicted), and the only same-phone evidence says effective bandwidth FALLS with heavier packing (KEXP q2_K/q3_K reaches 5.98 GB/s against q4_K_M's 9.11), so a q2_K build would likely be slower than today. The lever is a smaller model, so LFM2.5-1.2B enters the race, plus the QAD quantization-aware builds of both sizes.",
+  "defaults": {
+    "nCtx": 16384,
+    "maxTokens": 8192,
+    "nGpuLayers": 99,
+    "seed": 1234,
+    "temp": 0.7,
+    "topK": 40,
+    "topP": 0.95,
+    "system": {
+      "en": "You are Kalsa, a private AI assistant running entirely on this device. No cloud, no account, no tracking. Honesty: Never invent facts, dates, names, numbers, quotes, sources or citations. If you don't know or are not sure, say so plainly and never guess. Distinguish clearly between what you know and what you infer. Answer concisely. Use short paragraphs and bullet lists when helpful. You are a small on-device model: keep answers short (under 200 words unless asked for more). If a task is too long or complex, break it down or suggest how to proceed. If asked for harmful content (violence, illegal acts, hate, personal data of others), decline briefly and offer a safe alternative.",
+      "it": "Sei Kalsa, un assistente AI privato che gira interamente su questo dispositivo. Nessun cloud, nessun account, nessun tracciamento. Onestà: Non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti. Se non sai o non sei sicuro, dillo chiaramente e non indovinare. Distingui chiaramente tra ciò che sai e ciò che inferisci. Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. Se ti chiedono contenuti dannosi (violenza, atti illegali, odio, dati personali di terzi), rifiuta in breve e offri un'alternativa sicura.",
+      "es": "Eres Kalsa, un asistente de IA privado que funciona enteramente en este dispositivo. Sin nube, sin cuenta, sin rastreo. Honestidad: Nunca inventes hechos, fechas, nombres, números, citas, fuentes ni referencias. Si no lo sabes o no estás seguro, dilo claramente y nunca adivines. Distingue con claridad entre lo que sabes y lo que infieres. Responde de forma concisa. Usa párrafos breves y listas con viñetas cuando ayuden. Eres un modelo pequeño que corre en el dispositivo: manten las respuestas cortas (menos de 200 palabras, salvo que se pida más). Si una tarea es demasiado larga o compleja, divídela o sugiere cómo proceder. Si te piden contenido dañino (violencia, actos ilegales, odio, datos personales de terceros), recházalo brevemente y ofrece una alternativa segura.",
+      "fr": "Tu es Kalsa, un assistant IA privé qui fonctionne entièrement sur cet appareil. Pas de cloud, pas de compte, pas de traçage. Honnêteté : N'invente jamais de faits, de dates, de noms, de nombres, de citations, de sources ni de références. Si tu ne sais pas ou n'es pas sûr, dis-le clairement et ne devine jamais. Distingue clairement ce que tu sais de ce que tu déduis. Réponds de façon concise. Utilise des paragraphes courts et des listes à puces quand c'est utile. Tu es un petit modèle qui tourne sur l'appareil : garde les réponses courtes (moins de 200 mots, sauf demande explicite). Si une tâche est trop longue ou complexe, découpe-la ou propose une marche à suivre. Si l'on te demande du contenu nuisible (violence, actes illégaux, haine, données personnelles de tiers), refuse brièvement et propose une alternative sûre."
+    },
+    "samplingNote": "Kalsa's own chat sampler, LlamaService.ts:2834. No repeat penalty, because Kalsa does not send one — a penalty here would hide a termination failure that a real user would hit.",
+    "systemNote": "One system prompt PER LANGUAGE, matched to the language of the question. Sending an English prompt with an Italian question is not a neutral choice: measured on 2026-08-21, LFM2.5-8B-A1B then answered 16 of 26 Italian, Spanish and French questions in English — 62% — and produced code-switched nonsense such as \"3 books at 12.50 ciascuno, which totals 37.50 ciascuni\". The prompt's language dominates the answer's. Measuring drift under a mismatched prompt measures the harness. The Italian text is Kalsa's own (i18n/it.ts:988-1005); the language and miniapp clauses are dropped from all four, the first because it would make the drift measurement circular, the second because this harness scores prose and sends no tools.",
+    "budgetNote": "Per-model, from ModelRegistry.ts: LFM2.5 entries are short=256, Qwen3.5-2B is short=512. resolveThinkingParams sends `short` in \"default\" mode, which is production. The 256 was chosen early for speed and never measured; the think512 and free cells are what measures it. The ladder is deliberately complete on the three LFM2.5 tiers — 256, 512, unrestricted — because the point of measuring it is to decide whether to move the number, and two points cannot show where the curve flattens. Qwen3.5-2B gets a 256 cell too, to ask whether it could live at the LFM budget rather than at its own. Measured 2026-08-21: raising the budget buys nothing on any LFM2.5 tier — 256 vs 512 and 256 vs unrestricted are all indistinguishable. That leaves only one direction worth testing, so 128 cells were added: if quality holds there too, the budget is pure latency the phone is paying for nothing. 128 then measured as free too — no detectable loss against 256 on any tier (2.6B 2-0 p=0.50, 8B-A1B 4-0 p=0.125, KEXP 4-3 p=1.00) while cutting median answer time on the Jelly by a third. So the ladder continues down to 64: the useful number is not the largest budget that works, it is the smallest, and nobody has looked for where it breaks."
+  },
+  "models": {
+    "lfm25-2.6b": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "shortBudget": 256,
+      "note": "backbone proxy for the VL-3B we ship for quality; ModelRegistry short=256"
+    },
+    "lfm25-8b-a1b": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-8B-A1B-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "shortBudget": 256,
+      "note": "MoE, 1B active; ModelRegistry short=256"
+    },
+    "lfm25-8b-kexp": {
+      "path": "/Users/marco/Desktop/LFM2.5-8B-A1B-KEXP.gguf",
+      "quant": "KEXP",
+      "shortBudget": 256,
+      "note": "q2_K/q3_K experts, 3.33 GB — the fast tier we ship; ModelRegistry short=256"
+    },
+    "qwen35-2b": {
+      "path": "/Users/marco/kalsa-models/Qwen3.5-2B-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "shortBudget": 512,
+      "note": "the competitor; ModelRegistry gives it short=512, double the LFM2.5 entries"
+    },
+    "lfm25-1.2b": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-1.2B-Instruct-Q4_K_M.gguf",
+      "quant": "Q4_K_M",
+      "shortBudget": 256,
+      "note": "731 MB — 12.5 tok/s predicted on the Jelly from the 9.11 GB/s constant, against the 2.6B's measured 5.47"
+    },
+    "lfm25-1.2b-qad": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-1.2B-Instruct-QAD-Q4_0.gguf",
+      "quant": "QAD-Q4_0",
+      "shortBudget": 256,
+      "note": "696 MB, quantization-aware distilled — quality recovered at the same bytes, and Q4_0 is the ARM-repackable format"
+    },
+    "lfm25-2.6b-qad": {
+      "path": "/Users/marco/kalsa-models/LFM2.5-2.6B-QAD-Q4_0.gguf",
+      "quant": "QAD-Q4_0",
+      "shortBudget": 256,
+      "note": "1594 MB — the same 2.6B 5% smaller; tests whether QAD is a free quality upgrade over Q4_K_M"
+    }
+  },
+  "cells": [
+    {
+      "id": "prod-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "prod-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "prod-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "prod-qwen",
+      "model": "qwen35-2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "kv-q8-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "q8_0",
+      "kvV": "q8_0",
+      "budget": 256
+    },
+    {
+      "id": "kv-q4-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "q4_0",
+      "kvV": "q4_0",
+      "budget": 256
+    },
+    {
+      "id": "kv-q8-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "q8_0",
+      "kvV": "q8_0",
+      "budget": 256
+    },
+    {
+      "id": "kv-q4-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "q4_0",
+      "kvV": "q4_0",
+      "budget": 256
+    },
+    {
+      "id": "think512-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "think512-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "think512-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "free-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "free-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "free-qwen",
+      "model": "qwen35-2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "pin-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256,
+      "system": {
+        "en": "You are Kalsa, a private AI assistant running entirely on this device. No cloud, no account, no tracking. Honesty: Never invent facts, dates, names, numbers, quotes, sources or citations. If you don't know or are not sure, say so plainly and never guess. Distinguish clearly between what you know and what you infer. Answer concisely. Use short paragraphs and bullet lists when helpful. You are a small on-device model: keep answers short (under 200 words unless asked for more). If a task is too long or complex, break it down or suggest how to proceed. If asked for harmful content (violence, illegal acts, hate, personal data of others), decline briefly and offer a safe alternative. Language rule: write your answer in the same language as the question, even when you are unsure or cannot answer.",
+        "it": "Sei Kalsa, un assistente AI privato che gira interamente su questo dispositivo. Nessun cloud, nessun account, nessun tracciamento. Onestà: Non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti. Se non sai o non sei sicuro, dillo chiaramente e non indovinare. Distingui chiaramente tra ciò che sai e ciò che inferisci. Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. Se ti chiedono contenuti dannosi (violenza, atti illegali, odio, dati personali di terzi), rifiuta in breve e offri un'alternativa sicura. Regola di lingua: scrivi la risposta nella stessa lingua della domanda, anche quando non sei sicuro o non puoi rispondere.",
+        "es": "Eres Kalsa, un asistente de IA privado que funciona enteramente en este dispositivo. Sin nube, sin cuenta, sin rastreo. Honestidad: Nunca inventes hechos, fechas, nombres, números, citas, fuentes ni referencias. Si no lo sabes o no estás seguro, dilo claramente y nunca adivines. Distingue con claridad entre lo que sabes y lo que infieres. Responde de forma concisa. Usa párrafos breves y listas con viñetas cuando ayuden. Eres un modelo pequeño que corre en el dispositivo: manten las respuestas cortas (menos de 200 palabras, salvo que se pida más). Si una tarea es demasiado larga o compleja, divídela o sugiere cómo proceder. Si te piden contenido dañino (violencia, actos ilegales, odio, datos personales de terceros), recházalo brevemente y ofrece una alternativa segura. Regla de idioma: escribe la respuesta en el mismo idioma de la pregunta, incluso cuando no estés seguro o no puedas responder.",
+        "fr": "Tu es Kalsa, un assistant IA privé qui fonctionne entièrement sur cet appareil. Pas de cloud, pas de compte, pas de traçage. Honnêteté : N'invente jamais de faits, de dates, de noms, de nombres, de citations, de sources ni de références. Si tu ne sais pas ou n'es pas sûr, dis-le clairement et ne devine jamais. Distingue clairement ce que tu sais de ce que tu déduis. Réponds de façon concise. Utilise des paragraphes courts et des listes à puces quand c'est utile. Tu es un petit modèle qui tourne sur l'appareil : garde les réponses courtes (moins de 200 mots, sauf demande explicite). Si une tâche est trop longue ou complexe, découpe-la ou propose une marche à suivre. Si l'on te demande du contenu nuisible (violence, actes illégaux, haine, données personnelles de tiers), refuse brièvement et propose une alternative sûre. Règle de langue : rédige la réponse dans la même langue que la question, même lorsque tu n'es pas sûr ou ne peux pas répondre."
+      }
+    },
+    {
+      "id": "pin-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256,
+      "system": {
+        "en": "You are Kalsa, a private AI assistant running entirely on this device. No cloud, no account, no tracking. Honesty: Never invent facts, dates, names, numbers, quotes, sources or citations. If you don't know or are not sure, say so plainly and never guess. Distinguish clearly between what you know and what you infer. Answer concisely. Use short paragraphs and bullet lists when helpful. You are a small on-device model: keep answers short (under 200 words unless asked for more). If a task is too long or complex, break it down or suggest how to proceed. If asked for harmful content (violence, illegal acts, hate, personal data of others), decline briefly and offer a safe alternative. Language rule: write your answer in the same language as the question, even when you are unsure or cannot answer.",
+        "it": "Sei Kalsa, un assistente AI privato che gira interamente su questo dispositivo. Nessun cloud, nessun account, nessun tracciamento. Onestà: Non inventare mai fatti, date, nomi, numeri, citazioni, fonti o riferimenti. Se non sai o non sei sicuro, dillo chiaramente e non indovinare. Distingui chiaramente tra ciò che sai e ciò che inferisci. Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. Se ti chiedono contenuti dannosi (violenza, atti illegali, odio, dati personali di terzi), rifiuta in breve e offri un'alternativa sicura. Regola di lingua: scrivi la risposta nella stessa lingua della domanda, anche quando non sei sicuro o non puoi rispondere.",
+        "es": "Eres Kalsa, un asistente de IA privado que funciona enteramente en este dispositivo. Sin nube, sin cuenta, sin rastreo. Honestidad: Nunca inventes hechos, fechas, nombres, números, citas, fuentes ni referencias. Si no lo sabes o no estás seguro, dilo claramente y nunca adivines. Distingue con claridad entre lo que sabes y lo que infieres. Responde de forma concisa. Usa párrafos breves y listas con viñetas cuando ayuden. Eres un modelo pequeño que corre en el dispositivo: manten las respuestas cortas (menos de 200 palabras, salvo que se pida más). Si una tarea es demasiado larga o compleja, divídela o sugiere cómo proceder. Si te piden contenido dañino (violencia, actos ilegales, odio, datos personales de terceros), recházalo brevemente y ofrece una alternativa segura. Regla de idioma: escribe la respuesta en el mismo idioma de la pregunta, incluso cuando no estés seguro o no puedas responder.",
+        "fr": "Tu es Kalsa, un assistant IA privé qui fonctionne entièrement sur cet appareil. Pas de cloud, pas de compte, pas de traçage. Honnêteté : N'invente jamais de faits, de dates, de noms, de nombres, de citations, de sources ni de références. Si tu ne sais pas ou n'es pas sûr, dis-le clairement et ne devine jamais. Distingue clairement ce que tu sais de ce que tu déduis. Réponds de façon concise. Utilise des paragraphes courts et des listes à puces quand c'est utile. Tu es un petit modèle qui tourne sur l'appareil : garde les réponses courtes (moins de 200 mots, sauf demande explicite). Si une tâche est trop longue ou complexe, découpe-la ou propose une marche à suivre. Si l'on te demande du contenu nuisible (violence, actes illégaux, haine, données personnelles de tiers), refuse brièvement et propose une alternative sûre. Règle de langue : rédige la réponse dans la même langue que la question, même lorsque tu n'es pas sûr ou ne peux pas répondre."
+      }
+    },
+    {
+      "id": "free-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": -1
+    },
+    {
+      "id": "think256-qwen",
+      "model": "qwen35-2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "think128-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 128
+    },
+    {
+      "id": "think128-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 128
+    },
+    {
+      "id": "think128-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 128
+    },
+    {
+      "id": "think64-2.6b",
+      "model": "lfm25-2.6b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 64
+    },
+    {
+      "id": "think64-8b-a1b",
+      "model": "lfm25-8b-a1b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 64
+    },
+    {
+      "id": "think64-8b-kexp",
+      "model": "lfm25-8b-kexp",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 64
+    },
+    {
+      "id": "prod-1.2b",
+      "model": "lfm25-1.2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "think512-1.2b",
+      "model": "lfm25-1.2b",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 512
+    },
+    {
+      "id": "prod-1.2b-qad",
+      "model": "lfm25-1.2b-qad",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    },
+    {
+      "id": "prod-2.6b-qad",
+      "model": "lfm25-2.6b-qad",
+      "kvK": "f16",
+      "kvV": "f16",
+      "budget": 256
+    }
+  ]
+}

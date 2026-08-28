@@ -6,6 +6,8 @@
  * retrieveRelevant() remains a thin throwaway-index wrapper for one-shot calls.
  */
 
+import { ngramVec, cosine, rrf } from "./ngramRank";
+
 export interface RetrievalUnit {
   turnIndex: number;
   role: "user" | "assistant";
@@ -22,6 +24,17 @@ export interface RetrievedSnippet {
 export type RetrieveOptions = {
   topN?: number;
   maxCharsPerSnippet?: number;
+  /**
+   * When true, reserve Math.ceil(topN / 2) slots for user-role units
+   * (highest-ranked first), then fill remaining slots with any role.
+   * Default false — existing call sites keep prior selection behaviour.
+   */
+  userQuota?: boolean;
+  /**
+   * Ranking mode: "bm25" (default) or "hybrid" (BM25 + char 3-gram fused via RRF).
+   * Default "bm25" preserves existing behavior.
+   */
+  ranking?: RankingMode;
 };
 
 export const K1 = 1.2;
@@ -38,6 +51,8 @@ const MAX_QUERY_LEN = 2000;
 export const JACCARD_DEDUP = 0.7;
 /** Privacy gate: require this many shared content n-grams AND BM25+ > 0. */
 export const MIN_SHARED_GRAMS = 3;
+
+export type RankingMode = "bm25" | "hybrid";
 
 /**
  * Declarative / durable-fact anchors (IT + EN). Multi-word phrases first.
@@ -450,6 +465,12 @@ export class RetrieverIndex {
   private dfMap = new Map<string, number>();
   private totalDl = 0;
   private nextOrdinal = 0;
+  /**
+   * Cache of char 3-gram vectors keyed by normalized text.
+   * Incremental: computed once per document on append, reused across queries.
+   * Cost: 4 KB per document (Float32Array(1024)).
+   */
+  private ngramVecCache = new Map<string, Float32Array>();
 
   /** Append conversation units (tokenized + DF updated). */
   append(units: RetrievalUnit[] | null | undefined): void {
@@ -473,6 +494,10 @@ export class RetrieverIndex {
         if (!normalized) continue;
         const tf = ngramCounts(normalized);
         const dl = tokenCount(tf);
+        // Cache the ngram vector for hybrid ranking (computed once, reused).
+        if (!this.ngramVecCache.has(normalized)) {
+          this.ngramVecCache.set(normalized, ngramVec(normalized));
+        }
         const doc: SentenceDoc = {
           docOrdinal: this.nextOrdinal++,
           turnIndex,
@@ -492,6 +517,37 @@ export class RetrieverIndex {
         }
       }
     }
+  }
+
+  /**
+   * Drop the oldest `count` conversation units (FIFO sliding window).
+   * Updates DF / totalDl so BM25 stays correct after eviction.
+   * No-op when count ≤ 0. Clamps to unit count.
+   */
+  dropOldestUnits(count: number): void {
+    if (!Number.isFinite(count) || count <= 0) return;
+    const n = Math.min(Math.floor(count), this.unitSentences.length);
+    if (n <= 0) return;
+
+    const kept: SentenceDoc[] = [];
+    for (let i = 0; i < this.docs.length; i++) {
+      const d = this.docs[i];
+      if (d.unitSlot < n) {
+        this.totalDl -= d.dl;
+        for (const t of d.tf.keys()) {
+          const df = (this.dfMap.get(t) ?? 1) - 1;
+          if (df <= 0) this.dfMap.delete(t);
+          else this.dfMap.set(t, df);
+        }
+        // Evict the ngram vector cache entry for this document.
+        this.ngramVecCache.delete(d.normalized);
+      } else {
+        d.unitSlot -= n;
+        kept.push(d);
+      }
+    }
+    this.docs = kept;
+    this.unitSentences = this.unitSentences.slice(n);
   }
 
   get documentCount(): number {
@@ -539,27 +595,68 @@ export class RetrieverIndex {
     // Rank only among gated candidates (salience cannot resurrect zero-overlap docs)
     const candDocs = candidates.map((i) => this.docs[i]);
 
-    const bm25Order = stableSortIndices(C, (a, b) => {
-      const ia = candidates[a];
-      const ib = candidates[b];
-      const ds = (bm25Scores.get(ib) ?? 0) - (bm25Scores.get(ia) ?? 0);
-      if (ds !== 0) return ds > 0 ? 1 : -1;
-      return tiebreakDocs(candDocs[a], candDocs[b]);
-    });
-    const bm25Rank = new Int32Array(C);
-    for (let r = 0; r < C; r++) bm25Rank[bm25Order[r]] = r + 1;
+    const ranking = options?.ranking ?? "bm25";
 
-    const salOrder = stableSortIndices(C, (a, b) => {
-      const ds = candDocs[b].salience - candDocs[a].salience;
-      if (ds !== 0) return ds > 0 ? 1 : -1;
-      return tiebreakDocs(candDocs[a], candDocs[b]);
-    });
-    const salRank = new Int32Array(C);
-    for (let r = 0; r < C; r++) salRank[salOrder[r]] = r + 1;
+    let fused: Float64Array;
 
-    const fused = new Float64Array(C);
-    for (let c = 0; c < C; c++) {
-      fused[c] = 1 / (RRF_K + bm25Rank[c]) + 1 / (RRF_K + salRank[c]);
+    if (ranking === "hybrid") {
+      // Hybrid mode: BM25 + ngram cosine fused via RRF
+      const bm25Ids = candidates
+        .slice()
+        .sort((a, b) => (bm25Scores.get(b) ?? 0) - (bm25Scores.get(a) ?? 0))
+        .map(String);
+
+      // Compute ngram ranking: cosine similarity to query vector
+      const qVec = ngramVec(qNorm);
+      const ngramScores = new Map<number, number>();
+      for (let c = 0; c < C; c++) {
+        const d = candDocs[c];
+        const dVec = this.ngramVecCache.get(d.normalized);
+        if (dVec) {
+          ngramScores.set(candidates[c], cosine(qVec, dVec));
+        }
+      }
+      const ngramIds = candidates
+        .slice()
+        .sort((a, b) => (ngramScores.get(b) ?? 0) - (ngramScores.get(a) ?? 0))
+        .map(String);
+
+      // Fuse via RRF
+      const rrfResult = rrf([bm25Ids, ngramIds], RRF_K);
+      fused = new Float64Array(C);
+      let idx = 0;
+      for (const [idStr, score] of rrfResult) {
+        const id = Number(idStr);
+        const c = candidates.indexOf(id);
+        if (c >= 0) {
+          fused[c] = score;
+        }
+        idx++;
+      }
+    } else {
+      // BM25 mode: existing BM25 + salience fusion
+      const bm25Order = stableSortIndices(C, (a, b) => {
+        const ia = candidates[a];
+        const ib = candidates[b];
+        const ds = (bm25Scores.get(ib) ?? 0) - (bm25Scores.get(ia) ?? 0);
+        if (ds !== 0) return ds > 0 ? 1 : -1;
+        return tiebreakDocs(candDocs[a], candDocs[b]);
+      });
+      const bm25Rank = new Int32Array(C);
+      for (let r = 0; r < C; r++) bm25Rank[bm25Order[r]] = r + 1;
+
+      const salOrder = stableSortIndices(C, (a, b) => {
+        const ds = candDocs[b].salience - candDocs[a].salience;
+        if (ds !== 0) return ds > 0 ? 1 : -1;
+        return tiebreakDocs(candDocs[a], candDocs[b]);
+      });
+      const salRank = new Int32Array(C);
+      for (let r = 0; r < C; r++) salRank[salOrder[r]] = r + 1;
+
+      fused = new Float64Array(C);
+      for (let c = 0; c < C; c++) {
+        fused[c] = 1 / (RRF_K + bm25Rank[c]) + 1 / (RRF_K + salRank[c]);
+      }
     }
 
     const order = stableSortIndices(C, (a, b) => {
@@ -569,19 +666,43 @@ export class RetrieverIndex {
     });
 
     const selected: number[] = []; // indices into candidates[]
-    for (const c of order) {
-      let dup = false;
+    const isDup = (c: number): boolean => {
       for (const s of selected) {
         if (
           jaccardWords(candDocs[c].normalized, candDocs[s].normalized) >=
           JACCARD_DEDUP
         ) {
-          dup = true;
-          break;
+          return true;
         }
       }
-      if (!dup) selected.push(c);
-      if (selected.length >= topN) break;
+      return false;
+    };
+
+    if (options?.userQuota) {
+      // Reserve half the slots (ceil) for user-authored units; leftover → any role.
+      const userReserve = Math.ceil(topN / 2);
+      for (const c of order) {
+        if (selected.length >= userReserve) break;
+        if (candDocs[c].role !== "user") continue;
+        if (!isDup(c)) selected.push(c);
+      }
+      for (const c of order) {
+        if (selected.length >= topN) break;
+        let already = false;
+        for (const s of selected) {
+          if (s === c) {
+            already = true;
+            break;
+          }
+        }
+        if (already) continue;
+        if (!isDup(c)) selected.push(c);
+      }
+    } else {
+      for (const c of order) {
+        if (!isDup(c)) selected.push(c);
+        if (selected.length >= topN) break;
+      }
     }
 
     const results: RetrievedSnippet[] = [];

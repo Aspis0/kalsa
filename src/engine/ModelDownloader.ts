@@ -3,6 +3,8 @@ import * as FileSystem from "expo-file-system/legacy";
 
 import { getStrings, type Locale } from "../i18n";
 import type { ModelInfo, ModelFileSpec } from "./ModelRegistry";
+import type { ModelGateVerdict } from "./deviceProfile";
+import { resolveModelArtifact } from "./modelHost";
 
 /**
  * Download bundle modelli (GGUF + mmproj vision) da HuggingFace con:
@@ -38,7 +40,16 @@ export type DownloadOptions = {
   signal?: AbortSignal;
   /** Settings locale for user-facing download errors (required). */
   locale: Locale;
+  /** Caller-computed hard gate; blocked bundles never reach downloadFile. */
+  gate?: ModelGateVerdict;
 };
+
+class UnpublishedArtifactError extends Error {
+  constructor(readonly artifact: string) {
+    super(`Kalsa artifact is unpublished: ${artifact}`);
+    this.name = "UnpublishedArtifactError";
+  }
+}
 
 export function modelLocalPath(model: ModelInfo, file: string): string {
   // Directory per modello: niente collisioni tra revisioni/condivisione mmproj.
@@ -46,8 +57,11 @@ export function modelLocalPath(model: ModelInfo, file: string): string {
 }
 
 export function hfFileUrl(model: ModelInfo, file: string, spec?: ModelFileSpec): string {
-  const repo = spec?.hfRepo ?? model.hfRepo;
-  const revision = spec?.revision ?? model.revision;
+  const resolution = resolveModelArtifact(model, spec);
+  if (resolution.status === "unpublished") {
+    throw new UnpublishedArtifactError(resolution.artifact);
+  }
+  const { hfRepo: repo, revision } = resolution;
   const [owner, repoName] = repo.split("/").map((part) => encodeURIComponent(part));
   return `https://huggingface.co/${owner}/${repoName}/resolve/${revision}/${encodeURIComponent(file)}`;
 }
@@ -95,6 +109,13 @@ export function friendlyNetworkError(
 ): Error {
   const strings = getStrings(locale);
   const message = error instanceof Error ? error.message : String(error);
+  if (error instanceof UnpublishedArtifactError) {
+    return new Error(strings.errors.artifactUnpublished.replace("{artifact}", error.artifact));
+  }
+  const unpublishedPrefix = strings.errors.artifactUnpublished.split("{artifact}")[0];
+  if (message.startsWith(unpublishedPrefix)) {
+    return error instanceof Error ? error : new Error(message);
+  }
   if (/connection abort|socket|ECONNRESET|timed? ?out|timeout/i.test(message)) {
     return new Error(strings.errors.connectionLost);
   }
@@ -350,6 +371,21 @@ export async function downloadModelBundle(
   model: ModelInfo,
   options: DownloadOptions,
 ): Promise<{ model: DownloadOutcome; mmproj?: DownloadOutcome }> {
+  if (options.gate?.allowed === false) {
+    throw new Error(`model download blocked: ${options.gate.reason}`);
+  }
+
+  const modelResolution = resolveModelArtifact(model);
+  if (modelResolution.status === "unpublished") {
+    throw new UnpublishedArtifactError(modelResolution.artifact);
+  }
+  if (model.mmproj) {
+    const mmprojResolution = resolveModelArtifact(model, model.mmproj);
+    if (mmprojResolution.status === "unpublished") {
+      throw new UnpublishedArtifactError(mmprojResolution.artifact);
+    }
+  }
+
   const mmprojTotal = model.mmproj ? model.mmproj.sizeBytes : 0;
   const totalBytes = model.sizeBytes + mmprojTotal;
   let modelBytes = 0;

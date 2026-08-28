@@ -1,0 +1,97 @@
+/**
+ * Entity containment check for privacy guard.
+ * Blocks if query contains:
+ * 1. A distinctive token from fact (contains digit, @, or starts uppercase AND is not first token)
+ * 2. Two or more consecutive content tokens from fact
+ * Case-insensitive, same normalization as existing rule.
+ */
+
+export function normalize(s: string): string {
+  return s.toLowerCase().replace(/[^\w\s]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function tokenizeOriginal(s: string): string[] {
+  return s.trim().split(/\s+/).filter((t) => t.length > 0);
+}
+
+function tokenizeNormalized(s: string): string[] {
+  return normalize(s).split(/\s+/).filter((t) => t.length > 0);
+}
+
+function isCapitalized(token: string): boolean {
+  const first = token.charAt(0);
+  return first !== first.toLowerCase() && first === first.toUpperCase();
+}
+
+/**
+ * Check if query contains private data from fact.
+ * Uses three language-independent signals:
+ * 1. Distinctive tokens: digits, @, or capitalized mid-sentence in fact OR query
+ * 2. Token overlap density: ≥50% of query tokens appear in the fact
+ * 3. Consecutive tokens: 2+ consecutive query tokens appear in fact
+ * Returns true if query should be blocked.
+ */
+export function containsPrivateData(query: string, fact: string): boolean {
+  const queryTokensOriginal = tokenizeOriginal(query);
+  const queryTokensNormalized = tokenizeNormalized(query);
+  const factTokensOriginal = tokenizeOriginal(fact);
+  const factTokensNormalized = tokenizeNormalized(fact);
+
+  if (queryTokensNormalized.length === 0 || factTokensNormalized.length === 0) return false;
+
+  // Signal 1: query contains a distinctive token from fact
+  // A token is distinctive if it contains digits/@ OR is capitalized mid-sentence in fact OR query
+  for (let i = 0; i < factTokensOriginal.length; i++) {
+    const factToken = factTokensOriginal[i];
+    const factTokenNorm = normalize(factToken);
+    
+    // Check if this fact token is distinctive
+    let isDistinctive = false;
+    if (/\d/.test(factToken) || /@/.test(factToken)) {
+      isDistinctive = true;
+    } else if (i > 0 && isCapitalized(factToken)) {
+      // Mid-sentence capital in fact
+      isDistinctive = true;
+    }
+    
+    // Also check if it's distinctive in the query (mid-sentence capital)
+    if (!isDistinctive) {
+      for (let j = 0; j < queryTokensOriginal.length; j++) {
+        const queryToken = queryTokensOriginal[j];
+        if (normalize(queryToken) === factTokenNorm && j > 0 && isCapitalized(queryToken)) {
+          isDistinctive = true;
+          break;
+        }
+      }
+    }
+    
+    if (isDistinctive && queryTokensNormalized.includes(factTokenNorm)) {
+      return true;
+    }
+  }
+
+  // Signal 2: ≥50% of query tokens appear in the fact (token overlap density)
+  let matchCount = 0;
+  for (const queryToken of queryTokensNormalized) {
+    if (factTokensNormalized.includes(queryToken)) {
+      matchCount++;
+    }
+  }
+  if (matchCount >= Math.ceil(queryTokensNormalized.length * 0.5)) {
+    return true;
+  }
+
+  // Signal 3: query contains 2+ consecutive content tokens from fact
+  if (factTokensNormalized.length >= 2) {
+    for (let i = 0; i < factTokensNormalized.length - 1; i++) {
+      const pair = [factTokensNormalized[i], factTokensNormalized[i + 1]];
+      for (let j = 0; j < queryTokensNormalized.length - 1; j++) {
+        if (queryTokensNormalized[j] === pair[0] && queryTokensNormalized[j + 1] === pair[1]) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}

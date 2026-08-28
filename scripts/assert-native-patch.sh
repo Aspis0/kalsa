@@ -6,6 +6,11 @@
 # separate because the two libraries are intentionally linked separately.
 #
 #   assert-native-patch.sh [patch-marker] [engine-marker]
+# Default marker is "kalsa-native-patches" (appended by
+# common_params_get_system_info in common.cpp, which CMake compiles into
+# librnllama.so). RNLlamaJSI.cpp is the JNI wrapper (always-from-source) and
+# is the wrong place — grepping librnllama.so would never see it.
+# Override with an argument for legacy checks (e.g. KALSA_KVDIAG0).
 #
 set -uo pipefail
 

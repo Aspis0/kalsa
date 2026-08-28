@@ -10,12 +10,15 @@
  *
  * Four terms, different reclaim behaviour:
  *
- * 1. Weights — mmap'd, file-backed, EVICTABLE. Kernel can reclaim under pressure
- *    (app gets slow, does not die). Size = GGUF file size.
- * 2. Repacked weights — ggml ARM-friendly second copy when
- *    llama_model_params::use_extra_bufts is true (default). ANONYMOUS → only
+ * 1. Weights — with mmap ON: file-backed, EVICTABLE. Kernel can reclaim under
+ *    pressure (app gets slow, does not die). Size = GGUF file size. With mmap
+ *    OFF the weights are read ANONYMOUS — but read ONCE: source and packed
+ *    destination are a partition of the file, not two copies (see
+ *    ANON_WEIGHTS_REPACK_ON_FACTOR below).
+ * 2. Repacked weights — ggml ARM-friendly second copy of the MAPPED weights
+ *    when llama_model_params::use_extra_bufts is true. ANONYMOUS → only
  *    reclaimable by killing the process. Dominates background survival.
- *    llama.rn 0.12.8 does not expose the switch yet (follow-up).
+ *    Disable via llama.rn `no_extra_bufts` (bench: kalsa.bench.norepack=1).
  * 3. Compute buffer — linear in n_ubatch, independent of model size and of
  *    context (vocab × ubatch dominated): 497@512, 249@256, 125@128, 62@64 MiB.
  *    Same for 2B and 4B.
@@ -46,6 +49,10 @@ export const COMPUTE_MIB_AT_UBATCH_256 = 249;
  * file-size repack overshoots the 2B RssAnon by ~15% once KV is included.
  */
 export const REPACK_FRACTION = (1333 - COMPUTE_MIB_AT_UBATCH_256) / 1211;
+// ⚠️ Under-calibrated: anchored on ONE model (the 2B above). The Q3 4B load
+// log shows CPU_REPACK alone at 2265.50 MiB against a 2264.53 MiB file —
+// 1.00× the file, not 0.895×. Value kept this round; recalibrate before
+// trusting the mapped-weights split beyond the 2B-class files.
 
 /**
  * Bytes of free RAM we want above the non-evictable footprint before calling a
@@ -65,9 +72,33 @@ export const REPACK_FRACTION = (1333 - COMPUTE_MIB_AT_UBATCH_256) / 1211;
  */
 export const FIT_HEADROOM_MIB = 512;
 
+/**
+ * Anonymous weight bytes as a multiple of the GGUF file size when mmap is OFF
+ * and repack is ON.
+ *
+ * Without a mapping, llama.cpp reads every tensor exactly once, straight into
+ * its destination buffer — either the plain `CPU` buffer or the `CPU_REPACK`
+ * one. Source and pack are a PARTITION of the weights, not two copies; no
+ * mapped source survives beside the pack. Measured from phone load_tensors
+ * buffer-size lines (mmap off, repack on), total anonymous weights vs file:
+ *
+ *   Qwen3.5 4B Q4_K_M : (516.03 + 2674.46) / 2775   = 1.15×
+ *   Qwen3.5 4B Q3     : …                           = 1.22×
+ *   Qwen3.5 2B Q4_K_M : (399.94 + 1208.95) / 1221   = 1.32×
+ *
+ * The surplus over 1.0× is the unpacked tail (embeddings / output / norms)
+ * landing in the plain CPU buffer at f16/f32. Single-factor choice: the most
+ * prudent of the three (1.32) — an overestimate here degrades into the "tight"
+ * band, an underestimate walks past lmkd. n=3, one model family; re-anchor on
+ * new measurements instead of nudging this constant.
+ */
+export const ANON_WEIGHTS_REPACK_ON_FACTOR = 1.32;
+
 export type MemoryEstimate = {
-  weightsMiB: number; // evictable (mmap / file-backed)
-  repackMiB: number; // non-evictable; 0 when repacking is off
+  /** GGUF file size: evictable where mapped, anonymous where read (see buckets below). */
+  weightsMiB: number;
+  /** Anonymous repack copy ON TOP of mapped weights; 0 whenever mmap is off. */
+  repackMiB: number; // non-evictable
   computeMiB: number; // non-evictable
   kvMiB: number; // non-evictable
   /** repack + compute + kv — the OOM-deciding number */
@@ -90,7 +121,8 @@ function nonNeg(n: unknown): number {
 }
 
 /**
- * Estimate peak memory for a GGUF load under the given context / ubatch / repack.
+ * Estimate peak memory for a GGUF load under the given context / ubatch / load
+ * policy.
  *
  * Never throws. Malformed / negative inputs become 0; outputs are never NaN or negative.
  */
@@ -100,20 +132,40 @@ export function estimateMemory(input: {
   /** Bytes of KV state per token (from registry). Pass 0 when unknown. */
   kvBytesPerToken: number;
   ubatch: number;
-  repack: boolean;
+  /** Load policy the engine will actually use. Default true (llama.cpp normal). */
+  mmap?: boolean;
+  repack?: boolean;
 }): MemoryEstimate {
   const fileBytes = nonNeg(input?.fileBytes);
   const contextTokens = nonNeg(input?.contextTokens);
   const kvBytesPerToken = nonNeg(input?.kvBytesPerToken);
   const ubatch = nonNeg(input?.ubatch);
-  const repack = Boolean(input?.repack);
+  // Default true on both: llama.cpp normal behaviour, unchanged estimates for
+  // callers that do not know the policy.
+  const mmap = input?.mmap !== false;
+  const repack = input?.repack !== false;
 
   const weightsMiB = fileBytes / MIB;
-  const repackMiB = repack ? weightsMiB * REPACK_FRACTION : 0;
   const computeMiB = ubatch * (COMPUTE_MIB_AT_UBATCH_256 / 256);
   const kvMiB = (contextTokens * kvBytesPerToken) / MIB;
-  const nonEvictableMiB = repackMiB + computeMiB + kvMiB;
-  const totalMiB = weightsMiB + nonEvictableMiB;
+  // Weight bytes land in ONE bucket each, per load mode:
+  //   mmap on,  repack on  → mapped W (evictable) + REPACK_FRACTION·W anon copy
+  //   mmap on,  repack off → all W mapped/evictable
+  //   mmap off, repack on  → all W anonymous, PARTITIONED across CPU/CPU_REPACK
+  //                          (measured ≈ 1.15–1.32×W; see factor above)
+  //   mmap off, repack off → all W anonymous, single CPU buffer
+  let repackMiB = 0;
+  let anonWeightsMiB = 0;
+  if (mmap) {
+    if (repack) repackMiB = weightsMiB * REPACK_FRACTION;
+  } else {
+    anonWeightsMiB = weightsMiB * (repack ? ANON_WEIGHTS_REPACK_ON_FACTOR : 1);
+  }
+  const nonEvictableMiB = anonWeightsMiB + repackMiB + computeMiB + kvMiB;
+  // Peak RSS: only the EVICTABLE share of the weights adds to the anonymous
+  // total — with mmap off they are already inside it (adding the file again
+  // would double-count).
+  const totalMiB = weightsMiB - anonWeightsMiB + nonEvictableMiB;
 
   return {
     weightsMiB,

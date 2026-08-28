@@ -41,6 +41,9 @@ function compile() {
       "nodenext",
       "--skipLibCheck",
       "--ignoreConfig",
+      // --types node matches the 17 other harnesses; required because the compiled graph reaches src/telemetry/telemetry.ts (node-style loaders).
+      "--types",
+      "node",
     ],
     { cwd: projectRoot, encoding: "utf8", shell: true },
   );
@@ -1184,6 +1187,9 @@ async function main() {
         "nodenext",
         "--skipLibCheck",
         "--ignoreConfig",
+        // --types node matches the 17 other harnesses; required because the compiled graph reaches src/telemetry/telemetry.ts (node-style loaders).
+        "--types",
+        "node",
       ],
       { cwd: projectRoot, encoding: "utf8", shell: true },
     );
@@ -2235,6 +2241,9 @@ async function main() {
         "nodenext",
         "--skipLibCheck",
         "--ignoreConfig",
+        // --types node matches the 17 other harnesses; required because the compiled graph reaches src/telemetry/telemetry.ts (node-style loaders).
+        "--types",
+        "node",
       ],
       { cwd: projectRoot, encoding: "utf8", shell: true },
     );

@@ -159,6 +159,18 @@ Tutto ciò che sta **dopo l'ultimo token stabile** viene ri-encodato **ogni turn
 - **salva zero prefill**
 - **costa solo recall**
 
+> **CORREZIONE 2026-08-19 (§7.10 di HARNESS_FINDINGS.md).** La conclusione qui sopra è giusta ed è
+> stata misurata; il *motivo* no, e il motivo sbagliato è finito anche nell'header di
+> `compactor.ts`. Il blocco è in coda **solo per il turno che lo porta**. Al turno dopo quel
+> messaggio user è history e viene ri-renderizzato *senza* blocco
+> (`promptContentForHistoryMessage` rigioca il testo emesso solo per l'assistant), quindi
+> l'ultimo token stabile **arretra** oltre il blocco, oltre quel turno user e oltre **la risposta
+> generata dopo di lui**. La regione ri-encodata non è "la coda": è uno scambio intero. Il costo si
+> paga per **iniezione**, non per cambio di contenuto — ed è esattamente per questo che il freeze,
+> che teneva fermo il contenuto e continuava a iniettare ogni turno, non poteva che misurare zero.
+> Misurato: bracci con digest riusano 0.564 contro 0.704 bare. **Non misurato**: iniettare ogni K
+> turni. Knob `kalsa.bench.digestcadence`, default = ogni turno (produzione invariata).
+
 Il pezzo che *davvero* protegge il prefisso è la **finestra verbatim append-only** ancorata al `boundaryIndex` (fisso per K turni). Quella non si tocca.
 
 ## Design nuovo (inverso rispetto a V4.2 freeze)
@@ -205,3 +217,40 @@ Other production notes:
   URL); they must not widen the allowlist to a new host.
 - On React Native the transport buffers the full body before JS sees it — Content-Length
   is an early exit only, not an OOM bound.
+
+---
+
+# Fase 4 — ESEGUITA (2026-08-11): il gate non è soddisfatto
+
+Risultati completi e raccomandazioni per modello: **`docs/BENCH_FASE4_RECOMMENDATIONS_2026-08-11.md`**.
+Run autoritativi: `31448350810` (2B, 12/12 arm) · `31448369307` (4B, 10/12), build con patch
+native verificate nel binario (`assert-native-patch.sh`).
+
+| modello | baseline | v42 | Δ | p (baseline > v42) | verdetto |
+|---|---|---|---|---|---|
+| Qwen3.5-2B (17v16 conversazioni, 3 campagne) | 0.772 | 0.562 | +0.210 | **0.0090** | compaction PEGGIORA |
+| Qwen3.5-4B (5v5) | 0.700 | 0.650 | +0.050 | 0.3929 | nessuna differenza |
+
+Endpoint primario: recall dei fatti, unità = conversazione, media di un probe a finestra
+piena (turno 11) e uno a fatti sfrattati (turno 16). Permutazione a una coda, esatta dove
+possibile.
+
+**Il gate V4.2 — «attivazione di default SOLO se il benchmark vince sulla baseline» — non è
+soddisfatto su nessuno dei due modelli. `kalsa.context.compaction` resta OFF.**
+
+Tre correzioni al piano, tutte misurate:
+
+1. **Il layout non è cache-friendly.** Il prefill del braccio con compaction è +72% (2B) e
+   +58% (4B) rispetto al baseline, con frazione di riuso KV più bassa (0.52 contro 0.63;
+   0.49 contro 0.55). Sul 4B v42 elabora un prompt più corto in più tempo: l'avanzamento del
+   boundary invalida il prefisso. Contraddice il principio guida della sezione V4.2.
+2. **Il baratto è sfavorevole a questa lunghezza.** Compaction off = ultimi 20 messaggi
+   verbatim; on = 6–12 messaggi più ~800 caratteri di digest. E il vincolo che lo
+   giustificherebbe non è attivo: al turno 16 il prompt occupa il 13–29% dei 16k del 2B.
+3. **Il rolling summary non è mai girato** (`summaryChars = 0` ovunque). Quanto sopra misura
+   digest BM25 + finestra ristretta, non il design completo. Vedi § 5 del report.
+
+La lezione CisWire registrata sopra — *«BM25 retrieval works; it is the FREEZE that costs
+recall»* — resta valida ma **non è ciò che Kalsa implementa**: CisWire re-inietta i fatti *in
+aggiunta* al contesto, Kalsa *sostituisce* contesto verbatim con un digest. Il confronto
+utile che nessuno ha ancora fatto è digest **additivo** a finestra invariata.
