@@ -42,13 +42,19 @@ const LFM25_DEFAULTS: CatalogDefaults & {
   minRamTier: "low",
 };
 
-const TEXT_DEFAULTS: CatalogDefaults = {
+const QWEN3MOE_DEFAULTS: CatalogDefaults = {
   vendor: "Kalsa dev",
   contextLength: 8192,
   engineCtx: 8192,
   kvCache: { k: "q8_0", v: "q4_0" },
   descriptionKey: "models.dev.description",
   minRamTier: "low",
+};
+
+const OLMOE_DEFAULTS: CatalogDefaults = {
+  ...QWEN3MOE_DEFAULTS,
+  contextLength: 4096,
+  engineCtx: 4096,
 };
 
 /** Sideload-only GGUFs; modelHost keeps their store route unpublished. */
@@ -65,7 +71,7 @@ export const DEV_MODEL_REGISTRY: readonly ModelInfo[] = [
     hfArtifactRepo: DEV_ARTIFACT_REPO,
   },
   {
-    ...LFM25_DEFAULTS,
+    ...QWEN3MOE_DEFAULTS,
     id: "dev-marco-kexp",
     name: "[DEV] Marco Mini Instruct KEXP",
     quant: "KEXP",
@@ -76,7 +82,7 @@ export const DEV_MODEL_REGISTRY: readonly ModelInfo[] = [
     hfArtifactRepo: DEV_ARTIFACT_REPO,
   },
   {
-    ...LFM25_DEFAULTS,
+    ...QWEN3MOE_DEFAULTS,
     id: "dev-marco-bprime",
     name: "[DEV][LAB] Marco Mini Instruct KEXP · trunk Q8_0",
     quant: "Q8_0",
@@ -87,7 +93,7 @@ export const DEV_MODEL_REGISTRY: readonly ModelInfo[] = [
     hfArtifactRepo: DEV_ARTIFACT_REPO,
   },
   {
-    ...LFM25_DEFAULTS,
+    ...QWEN3MOE_DEFAULTS,
     id: "dev-marco-i1",
     name: "[DEV] Marco Mini Instruct · i1 Q4_K_M",
     quant: "Q4_K_M",
@@ -98,7 +104,7 @@ export const DEV_MODEL_REGISTRY: readonly ModelInfo[] = [
     hfArtifactRepo: DEV_ARTIFACT_REPO,
   },
   {
-    ...TEXT_DEFAULTS,
+    ...OLMOE_DEFAULTS,
     id: "dev-olmoe",
     name: "[DEV] OLMoE 1B-7B Instruct",
     quant: "Q4_K_M",

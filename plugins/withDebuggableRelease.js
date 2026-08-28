@@ -12,10 +12,15 @@ module.exports = function withDebuggableRelease(config) {
 
     const before = c.modResults.contents.slice(0, buildTypesAt);
     let after = c.modResults.contents.slice(buildTypesAt);
-    if (/\brelease\s*\{[\s\S]*?\bdebuggable\s+true\b/.test(after)) return c;
-    if (!/\brelease\s*\{/.test(after)) throw new Error("Kalsa: release build type not found");
+    const releaseBlock = /(^[ \t]*release\s*\{)([\s\S]{0,4096}?)(^[ \t]*\})/m.exec(after);
+    if (!releaseBlock) throw new Error("Kalsa: release build type not found");
+    if (/\bdebuggable\s+true\b/.test(releaseBlock[2])) return c;
 
-    after = after.replace(/(\brelease\s*\{)/, "$1\n            debuggable true");
+    const patchedRelease = `${releaseBlock[1]}\n            debuggable true${releaseBlock[2]}${releaseBlock[3]}`;
+    after =
+      after.slice(0, releaseBlock.index) +
+      patchedRelease +
+      after.slice(releaseBlock.index + releaseBlock[0].length);
     c.modResults.contents = before + after;
     return c;
   });

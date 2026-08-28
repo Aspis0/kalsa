@@ -31,6 +31,8 @@ import {
 } from "./src/theme/typography";
 import { ThemeContext, useLabTheme } from "./src/ui/labTheme";
 import { AppShell } from "./src/app/AppShell";
+import { getDevModelsEnabled } from "./src/bench/benchConfig";
+import { configureModelRegistry } from "./src/engine/ModelRegistry";
 import { LocaleProvider, useLocale } from "./src/i18n";
 
 type ThemeContextValue = {
@@ -144,9 +146,28 @@ function ThemedApp() {
   return (
     <>
       <StatusBar barStyle={palette.statusBar} backgroundColor={colors.shell} />
-      <AppShell />
+      <ModelCatalogBoot />
     </>
   );
+}
+
+function ModelCatalogBoot() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    void getDevModelsEnabled()
+      .then((enabled) => configureModelRegistry(enabled))
+      .catch(() => configureModelRegistry(false))
+      .finally(() => {
+        if (mounted) setReady(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  return ready ? <AppShell /> : null;
 }
 
 export default function App() {
