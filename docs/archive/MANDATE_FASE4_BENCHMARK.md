@@ -13,7 +13,7 @@ retriever — modelled on the pattern from the owner's private `Aspis0/CisWire` 
 facts re-injected **every turn** rather than periodically, sub-budget with deterministic
 deferral instead of mid-truncation.
 
-The design lesson was already measured and recorded in `docs/RESEARCH_CONTEXT_LOSS.md`:
+The design lesson was already measured and recorded in `docs/research/RESEARCH_CONTEXT_LOSS.md`:
 
 | arm | recall |
 |---|---|
@@ -74,13 +74,13 @@ flaky infrastructure.
 3. **Re-run Fase 4 to completion**: both arms, all three seeds, model `qwen3.5-2b`
    (the 2B is the fast model; the plan says final validation on device with the 4B, but
    that is not this task).
-4. **Aggregate and judge.** The plan (`docs/RESEARCH_CONTEXT_LOSS.md`, Fase 4) calls for
+4. **Aggregate and judge.** The plan (`docs/research/RESEARCH_CONTEXT_LOSS.md`, Fase 4) calls for
    a one-sided permutation test, the same method used for the CisWire result. Report per
    probe: fact recall (exact-token grep), `web_search` tool call at turn 9 with a valid
    query, miniapp JSON (`miniapp_v1`) validity, language adherence, and honesty on an
    invented question. Also report **prefill / time-to-first-token**, which the plan
    explicitly requires — the cache-friendliness claim lives or dies there.
-5. **Write the result** into `docs/RESEARCH_CONTEXT_LOSS.md` as a dated section with the
+5. **Write the result** into `docs/research/RESEARCH_CONTEXT_LOSS.md` as a dated section with the
    table and p-values, and give a clear recommendation on the default.
 
 ## The trap to avoid (this bit is not boilerplate)

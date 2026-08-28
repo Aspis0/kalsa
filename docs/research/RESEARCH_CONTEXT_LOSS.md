@@ -222,7 +222,7 @@ Other production notes:
 
 # Fase 4 — ESEGUITA (2026-08-11): il gate non è soddisfatto
 
-Risultati completi e raccomandazioni per modello: **`docs/BENCH_FASE4_RECOMMENDATIONS_2026-08-11.md`**.
+Risultati completi e raccomandazioni per modello: **`docs/archive/BENCH_FASE4_RECOMMENDATIONS_2026-08-11.md`**.
 Run autoritativi: `31448350810` (2B, 12/12 arm) · `31448369307` (4B, 10/12), build con patch
 native verificate nel binario (`assert-native-patch.sh`).
 

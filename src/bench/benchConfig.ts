@@ -859,7 +859,7 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     // threads>=7 is still accepted (measurement tool must reach the zone) but
     // measured fact: threads>=7 has produced catastrophic decode on one device
     // (0.06 tok/s at threads=8 on an 8-core SD8Gen3). Affinity pinning is a
-    // no-op on Android (see docs/ANDROID_CPU_AFFINITY_IS_A_NOOP.md); do not
+    // no-op on Android (see docs/architecture/ANDROID_CPU_AFFINITY_IS_A_NOOP.md); do not
     // attribute this to "pins N fastest / efficiency cores destroy throughput".
     const status = await formatBenchStatus();
     if (

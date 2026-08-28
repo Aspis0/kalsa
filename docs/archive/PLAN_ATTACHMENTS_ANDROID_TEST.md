@@ -135,7 +135,7 @@ Flusso:
    - **Attachments**: `adb push` immagine di test in gallery (+ media scan) →
      attach via tap (coordinate da screenshot) → invio → risposta vision;
      PDF di test (2-3 pagine) → render pagine → invio
-5. Esiti in `docs/TEST_ANDROID_2026-08-02.md` (screenshot + log + note)
+5. Esiti in `docs/archive/TEST_ANDROID_2026-08-02.md` (screenshot + log + note)
 
 Note attese: emulatore senza GPU → n_gpu_layers degrada a CPU (ok funzionale);
 OpenCL assente; mlock da verificare; 2B ~5-15 tok/s su CPU emulata.

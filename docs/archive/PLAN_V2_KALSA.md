@@ -3,7 +3,7 @@
 Stato fasi: ✅ fatto · 🔄 in corso · ⬜ da fare
 Modalità di lavoro: **main agent = orchestrazione** (piano, istruzioni ai coder, verifica, review) — **nessun coding diretto**. Ogni fase: 1 coder subagent → verifica tsc → **review ostile** (1 reviewer) → fix via coder → commit.
 
-Ultimo aggiornamento: 2026-08-02 — **TUTTE LE FASI COMPLETATE, APK Kalsa-v4 consegnato** (SHA 0aabfec1), report E2E: docs/TEST_KALSA_V2_2026-08-02.md
+Ultimo aggiornamento: 2026-08-02 — **TUTTE LE FASI COMPLETATE, APK Kalsa-v4 consegnato** (SHA 0aabfec1), report E2E: docs/archive/TEST_KALSA_V2_2026-08-02.md
 
 ---
 

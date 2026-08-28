@@ -2,7 +2,7 @@
 
 **This is the doc to keep current.** Every new result or decision goes here, same day, as a line —
 not a chapter. It is meant to be read end to end in a few minutes; detail and evidence live in
-`docs/HARNESS_FINDINGS.md`, which is the long record. If a claim here has no number or no pointer,
+`docs/reports/HARNESS_FINDINGS.md`, which is the long record. If a claim here has no number or no pointer,
 it does not belong here.
 
 Three docs, three jobs: **this one** is state, `HARNESS_FINDINGS.md` is evidence, and
@@ -286,7 +286,7 @@ address. n=1 seed; both arms ran with production repack.
 
 ## 3. Engine knobs — measured, never invented
 
-Rule (from `docs/DEVICE_TUNING_LAYER.md`, status DESIGN): every knob traces to a measurement, an
+Rule (from `docs/architecture/DEVICE_TUNING_LAYER.md`, status DESIGN): every knob traces to a measurement, an
 unmeasured device gets the safest measured value, and every resolved knob carries a provenance
 string.
 

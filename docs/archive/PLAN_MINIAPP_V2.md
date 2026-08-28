@@ -1,6 +1,6 @@
 # PLAN — Miniapp v2: native tool calls + stolen-where-possible rendering — rev 2
 
-Rev 2, 2026-08-25: incorporates `docs/AUDIT_MINIAPP_V2.md` (online + code verification).
+Rev 2, 2026-08-25: incorporates `docs/archive/AUDIT_MINIAPP_V2.md` (online + code verification).
 Problem: no small local model ever managed to emit the `miniapp_v1` JSON envelope in prose.
 Fix the *invocation*, keep the *registry*.
 
