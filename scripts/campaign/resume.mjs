@@ -78,43 +78,37 @@ export function resumePlan({ cells, checkpoint, nPerVariant, nTurns, root }) {
         continue;
       }
       const hole = firstMissingTurn(root, cell.arm, id, nTurns);
+      const cn = convNum(checkpoint.conv);
+      const sameCell = cpi === ci && cn === n;
 
-      if (hole !== null) {
-        // N2/N3: any cell with holes is quarantined and restarted — never
-        // resume inside a holey conversation (cross-cell chat poisoning, and
-        // re-sending turns that already have real records).
+      if (hole !== null && !sameCell) {
+        // N2/N3: only cells BEHIND the checkpoint with holes are quarantined
+        // (their on-device chat is the wrong conversation — restoring would
+        // poison both). The CHECKPOINT cell itself is never invalid: its jsonl
+        // is the ground truth of the live chat, resume-from-hole fills the
+        // missing turns without re-sending landed ones.
         rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "invalid", startTurn: 1 });
         continue;
       }
 
-      // No holes: conversation is complete or contiguous.
-      if (cpi < 0 || ci < cpi) {
+      if (hole === null && !sameCell && (cpi < 0 || ci < cpi || cn > n)) {
+        // Complete conversation behind the checkpoint.
         rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "skip", startTurn: 0 });
         continue;
       }
-      if (ci > cpi) {
+      if (!sameCell && (ci > cpi || cn < n)) {
         rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "new", startTurn: 1 });
         continue;
       }
-      const cn = convNum(checkpoint.conv);
-      if (n < cn) {
+
+      // Checkpoint cell: resume from the first hole (if any) — the on-device
+      // chat is this conversation, so restore_same_conv is correct and landed
+      // turns are never re-sent (campaign_user_landed guard).
+      const startTurn = hole !== null ? hole : Number(checkpoint.turn) + 1;
+      if (startTurn > nTurns) {
         rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "skip", startTurn: 0 });
-      } else if (n > cn) {
-        rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "new", startTurn: 1 });
       } else {
-        const next = Number(checkpoint.turn) + 1;
-        if (next > nTurns) {
-          rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "skip", startTurn: 0 });
-        } else {
-          // Checkpoint cell, contiguous data, on-device chat is this conv.
-          rows.push({
-            arm: cell.arm,
-            variant: cell.variant,
-            conv: id,
-            action: "resume",
-            startTurn: next,
-          });
-        }
+        rows.push({ arm: cell.arm, variant: cell.variant, conv: id, action: "resume", startTurn });
       }
     }
   }
