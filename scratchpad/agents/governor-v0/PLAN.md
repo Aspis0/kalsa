@@ -1,5 +1,14 @@
 # Governor v0 — per-phase backend routing (prefill=GPU/OpenCL, decode=CPU)
 
+> **STATUS 2026-08-28 sera** (branch kalsallama `kalsa/governor-v0`):
+> step 1 CHIUSO @ 409ef5ef3 (harness 2 contesti, oracolo logits bit-perfetto,
+> audit+re-audit in audit-step1.md); step 2 CHIUSO @ 951df1f92 (cells share
+> generalizzato, guardie+fence "mai silenzioso", fence decode non-owner provata
+> non aggirabile su 8 rotte — audit-step2.md, verdetto APPLY); step 3 IN VOLO
+> (Luna 72c3dc6e: llama-kv-commit.{h,cpp} + route query, offset verbatim da
+> state_write_data). Ogni step: implementer Luna → verifica orchestratore su
+> disco → audit GLM file-first thinking-high → fix → re-audit.
+
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
 disco: `ctx_other` pubblico (llama.h:401), gate `mem_other` su GEMMA4_ASSISTANT
 (llama-model.cpp:2201), OpenCL `.offload_op = NULL` (ggml-opencl.cpp:11992), repack extra
