@@ -1,2 +1,0 @@
-{"turnId":"15","round":0,"tokensCached":2527,"tokensEvaluated":2423,"tokensPredicted":103,"draftTokens":0,"draftAccepted":0,"promptMs":3367.9230000000002,"predictedMs":6292.754999999999,"predictedPerSecond":16.36802958322706,"contextFull":false,"interrupted":false}
-{"turnId":"15","round":1,"tokensCached":2653,"tokensEvaluated":2535,"tokensPredicted":117,"draftTokens":0,"draftAccepted":0,"promptMs":3249.1130000000003,"predictedMs":7350.811,"predictedPerSecond":15.916611105903826,"contextFull":false,"interrupted":false}

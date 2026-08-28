@@ -1,1 +1,0 @@
-08-23 13:43:41.900 20948 21033 I RNLlama : loadPrompt:659 [DEBUG] Input processed: n_past=4819, embd.size=4844, num_prompt_tokens=4844, has_media=0

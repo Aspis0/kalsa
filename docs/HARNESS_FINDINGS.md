@@ -1773,7 +1773,7 @@ arms (2, 3, 5): **streaming 6.11 / 6.04 / 5.70, mean 5.95** against **control 0.
 below as the headline; arm A remains the evidence that the run *dies*, which the control was stopped
 before demonstrating.
 
-⛔ **Two traps this control set, both recorded because both nearly landed.** (1) `bench-out/turn6..8`
+⛔ **Two traps this control set, both recorded because both nearly landed.** (1) `out/bench/turn6..8`
 still held the STREAMING arm's sidecars at ~5.7–6.0 tok/s; one of two agents given the identical
 brief reported them as the control's, which would have inverted the result. The other checked file
 mtimes and caught it. Verified on disk here: this run wrote 16:56–18:11, those three are 16:07–16:11,
@@ -1827,7 +1827,7 @@ also holds engine turns 4 and 5 with `turn4` absent, the same attribution defect
 
 ### 7.49 INSTRUMENT 2026-08-23: `result.json` told us it had dropped two turns and misattributed a third, in a field nobody read
 
-While checking §7.45 after a hostile audit, `device-kill-campaign/armB-kexp-production/result.json`
+While checking §7.45 after a hostile audit, `out/device/kill-campaign/armB-kexp-production/result.json`
 turned out to carry this, at top level, since the day it was written:
 
 ```json
@@ -2025,7 +2025,7 @@ reclaim path — with no privilege. That is what ran.
 
 ⛔ **That 64 MB contradicted §7.39, which reports `Max locked memory: unlimited` on this project's
 other phone — and the resolution is that the limit is NOT a constant of Android.** Re-measured and
-this time **captured to a file** (`device-kill-campaign/evidence-limits/`), which the first reading
+this time **captured to a file** (`out/device/kill-campaign/evidence-limits/`), which the first reading
 was not:
 
 | | adb shell | `run-as` shell | the app process (zygote-spawned) |
@@ -2554,7 +2554,7 @@ locking would do.
 adb shell **and** for the app process under `run-as`. ⛔ **CORRECTED 2026-08-23 (§7.45): this is a
 property of THIS phone, not of Android, and the sampling was wrong.** The S23 reports **67108864
 soft and hard** in all three contexts, captured to
-`device-kill-campaign/evidence-limits/`. And `run-as` is spawned from the adb shell, so it inherits
+`out/device/kill-campaign/evidence-limits/`. And `run-as` is spawned from the adb shell, so it inherits
 the shell's limits — neither reading here ever sampled an app PID. Read `/proc/<app-pid>/limits`. And mlock does take effect — system `Mlocked`
 goes 4 912 → **215 932 kB** under `--load-mode mlock`, three thousand times the claimed ceiling.
 

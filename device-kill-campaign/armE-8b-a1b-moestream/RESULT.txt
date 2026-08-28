@@ -1,2 +1,0 @@
-phase=fase4 arm=killE-8b-a1b-moestream seed=1 format=none thinking=default compaction=ciswire
-probes=20/22

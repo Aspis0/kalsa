@@ -1,8 +1,0 @@
-# captured 2026-08-23T17:09:41Z on Jelly Star sdk 33
-## /proc/self/limits (adb shell)
-Limit                     Soft Limit           Hard Limit           Units     
-Max locked memory         unlimited            unlimited            bytes     
-## run-as shell
-Limit                     Soft Limit           Hard Limit           Units     
-Max locked memory         unlimited            unlimited            bytes     
-## app pid=

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Grades one arm's bench-out/raw.json (schema 2) into result.json on stdout.
+ * Grades one arm's out/bench/raw.json (schema 2) into result.json on stdout.
  *
  * WHY a separate Node grader (not bash):
  *   ci-bench.sh only records *facts* (replies, sources, sidecars). Grading
@@ -17,7 +17,7 @@
  * Missing → nulls/empty, never throw.
  *
  * Usage:
- *   node scripts/benchGrade.mjs bench-out/raw.json > bench-out/result.json
+ *   node scripts/benchGrade.mjs out/bench/raw.json > out/bench/result.json
  */
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";

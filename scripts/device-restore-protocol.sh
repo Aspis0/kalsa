@@ -22,7 +22,7 @@ _RP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$_RP_DIR/device-share-send.sh"
 
 CYCLES="${1:-4}"
-OUT="${OUT:-device-restore-out}"
+OUT="${OUT:-out/device/restore}"
 ACTIVITY="${ACTIVITY:-com.kalsa.app/.MainActivity}"
 REPLY_TIMEOUT="${REPLY_TIMEOUT:-600}"
 READY_TIMEOUT="${READY_TIMEOUT:-240}"

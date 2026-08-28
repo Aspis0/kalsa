@@ -35,7 +35,7 @@ It is off because nobody ever produced the number that would justify turning it 
 
 ## Exact state (verified 2026-08-09, do not re-derive)
 
-- Harness: `scripts/ci-bench.sh` drives ONE arm and writes `bench-out/result.json`.
+- Harness: `scripts/ci-bench.sh` drives ONE arm and writes `out/bench/result.json`.
   Env contract is documented in its header: `PHASE` (fase0|fase4), `ARM`, `SEED`,
   `BLOCK_FORMAT`, `THINKING`, `COMPACTION` (on|off, fase4 only), `RUNS_PER_ARM`,
   `MODEL_DIR`/`MODEL_FILE`, `APK_PATH`.

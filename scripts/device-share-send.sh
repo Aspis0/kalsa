@@ -26,7 +26,7 @@
 # No -e at source time (tests and callers source this). The CLI block sets -e.
 set -uo pipefail
 
-OUT="${OUT:-device-share-send-out}"
+OUT="${OUT:-out/device/share-send}"
 
 _DEVICE_SHARE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-env.sh

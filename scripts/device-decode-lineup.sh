@@ -22,7 +22,7 @@ _DL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=device-share-send.sh
 source "$_DL_DIR/device-share-send.sh"
 
-OUT="device-decode-lineup-out"
+OUT="out/device/decode-lineup"
 BENCH_DIR="/data/local/tmp/llamabench"
 LOCAL_MODELS="/Users/marco/kalsa-models"
 THREADS="${THREADS:-2}"

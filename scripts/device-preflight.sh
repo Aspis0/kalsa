@@ -2,7 +2,7 @@
 # Prove the adb, run-as, WAL-safe SQLite, and UI chain on one real phone.
 set -uo pipefail
 
-OUT="${OUT:-device-preflight-out}"
+OUT="${OUT:-out/device/preflight}"
 mkdir -p "$OUT"
 PKG="${PKG:-com.kalsa.app}"
 BENCH_TARGET=device

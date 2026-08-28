@@ -448,7 +448,7 @@ implementation begins.
 - **Do not touch**: `src/context/retrievalLoop.ts`, `src/util/pdfText.ts`,
   `src/agent/webFetchTool.ts`, `src/engine/LlamaService.ts`,
   `docs/MANDATE_FASE4_BENCHMARK.md` (harness owner's territory),
-  `.github/workflows/*`, `scripts/ci-bench.sh`, `bench-out/`.
+  `.github/workflows/*`, `scripts/ci-bench.sh`, `out/bench/`.
 - **Ownership stays in AppShell**: `onAddDocument` (now prepends),
   `onDeleteDocument`, `updateDocumentPreview`, delete latch, library
   persistence (HIGH-5: serialized write queue), `requestPdfText` host

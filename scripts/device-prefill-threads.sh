@@ -27,7 +27,7 @@ source "$_PT_DIR/device-share-send.sh"
 # Set unconditionally: sourcing device-share-send.sh above already defaulted OUT
 # to its own dir, so `${OUT:-…}` here would silently keep that one and the
 # results would land in the wrong place (it did, on the first run).
-OUT="device-prefill-threads-out"
+OUT="out/device/prefill-threads"
 ACTIVITY="${ACTIVITY:-com.kalsa.app/.MainActivity}"
 PREWARM_TIMEOUT="${PREWARM_TIMEOUT:-420}"
 

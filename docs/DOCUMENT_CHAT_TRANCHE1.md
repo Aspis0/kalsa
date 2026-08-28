@@ -47,7 +47,7 @@ Integration points:
 
 - In scope: library + retrieval-based Q&A + small-doc full-context + scanned-PDF vision fallback + citations + i18n.
 - Out of scope (this tranche): embeddings/RAG (not needed to beat OPA), multi-doc simultaneous querying (single doc per query first), document OCR (vision fallback only), file-type beyond PDF/TXT.
-- Do NOT touch: scripts/ci-bench.sh, bench-out/, .github/workflows/*, docs/MANDATE_FASE4_BENCHMARK.md (harness owner), the benchmark paths in AppShell.
+- Do NOT touch: scripts/ci-bench.sh, out/bench/, .github/workflows/*, docs/MANDATE_FASE4_BENCHMARK.md (harness owner), the benchmark paths in AppShell.
 
 ## 5. Verification
 

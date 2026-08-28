@@ -81,7 +81,7 @@ export CAMPAIGN_TURN_TIMEOUT_MS CAMPAIGN_TELEMETRY_GAP_MS CAMPAIGN_POLL_MS CAMPA
 DATE_STAMP=$(date +%Y-%m-%d)
 RESULTS_REL="$(_json "$CONFIG" resultsDir)"
 [ -n "$RESULTS_REL" ] || RESULTS_REL="results/ciswire-campaign"
-# device-share-send.sh defaults OUT=device-share-send-out; always overwrite
+# device-share-send.sh defaults OUT=out/device/share-send; always overwrite
 # unless the caller set CAMPAIGN_OUT.
 OUT="${CAMPAIGN_OUT:-$REPO/$RESULTS_REL/$DATE_STAMP}"
 mkdir -p "$OUT"
