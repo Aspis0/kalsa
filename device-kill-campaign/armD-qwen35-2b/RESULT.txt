@@ -1,2 +1,0 @@
-phase=fase4 arm=killD-qwen35-2b seed=1 format=none thinking=default compaction=ciswire
-probes=20/22

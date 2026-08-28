@@ -200,7 +200,7 @@ tap_node() {
 # (logcat, crash buffer, memory state) so we can distinguish OOM kill from
 # native crash. Called from die() before exit; every adb call can fail since
 # the process may already be gone, so each is guarded with || true.
-# Writes separate files in $OUT/ next to fatal_state.txt (upload glob bench-out/**
+# Writes separate files in $OUT/ next to fatal_state.txt (upload glob out/bench/**
 # picks them up — confirmed in .github/workflows/bench.yml line 534).
 capture_death_evidence() {
   [ -n "${OUT:-}" ] || return 0

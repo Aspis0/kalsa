@@ -35,7 +35,7 @@
  *
  * Output:
  *   - Markdown to stdout (the workflow pipes this into $GITHUB_STEP_SUMMARY)
- *   - bench-out/AGGREGATE.md (same content, for the uploaded artifact)
+ *   - out/bench/AGGREGATE.md (same content, for the uploaded artifact)
  *   - exit 1 when the Fase 4 gate fails (incomplete / bad compaction / identical prompts)
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -2412,7 +2412,7 @@ function main() {
 
   console.log(markdown);
 
-  const outDir = "bench-out";
+  const outDir = "out/bench";
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
   writeFileSync(path.join(outDir, "AGGREGATE.md"), markdown, "utf8");
 

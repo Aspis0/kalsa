@@ -1,2 +1,0 @@
-phase=fase4 arm=killB-kexp-production seed=1 format=none thinking=default compaction=ciswire
-probes=16/22

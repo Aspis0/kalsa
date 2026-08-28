@@ -1,0 +1,20 @@
+  if [ -f "$DST/common/jinja/string.cpp" ]; then
+    sed_i 's|#include "jinja/string.h"|#include "jinja/jinja-string.h"|g' "$DST/common/jinja/string.cpp"
+  fi
+  # common/unicode.h collides with the root-level unicode.h llama.rn ships
+  # from llama.cpp's src/ (-I cpp precedes -I cpp/common), so give the
+  # fork's header a unique name -- same treatment as jinja-string.h above --
+  # and repoint its includers under common/. Root-level sources that mean
+  # the src/ header are left alone.
+  if [ -f "$DST/common/unicode.h" ]; then
+    mv "$DST/common/unicode.h" "$DST/common/unicode-stream.h"
+  fi
+  local uf
+  shopt -s nullglob
+  for uf in "$DST"/common/*.cpp "$DST"/common/*.h \
+            "$DST"/common/jinja/*.cpp "$DST"/common/jinja/*.h
+  do
+    sed_i 's|#include "../unicode.h"|#include "unicode-stream.h"|g' "$uf"
+    sed_i 's|#include "unicode.h"|#include "unicode-stream.h"|g' "$uf"
+  done
+  shopt -u nullglob

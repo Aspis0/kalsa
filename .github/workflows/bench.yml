@@ -1059,7 +1059,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-result-${{ matrix.phase }}-${{ matrix.arm }}-seed${{ matrix.seed || '0' }}
-          path: bench-out/**
+          path: out/bench/**
           if-no-files-found: warn
 
   aggregate:
@@ -1099,5 +1099,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bench-aggregate-${{ inputs.phase }}
-          path: bench-out/AGGREGATE.md
+          path: out/bench/AGGREGATE.md
           if-no-files-found: warn

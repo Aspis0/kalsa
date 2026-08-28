@@ -91,7 +91,7 @@ Reuse as-is: DocRetrieverIndex (BM25), docOpGate, chunking, citations, provenanc
 - `npm run typecheck` exit 0; new `semanticIndexHarness` green; all existing harnesses green.
 - Harness cases (≥16): rrfFuse with equal/disjoint ranks, k sensitivity, weight asymmetry; SemanticVectorIndex add/query cosine correctness (known vectors), persist/load round-trip, empty-index; planIncrementalEmbed (new/changed/unchanged, hash collision); prefix functions; strategy fallback (no vectors → bm25_only).
 - Hostile review of the diff before commit (per tranche discipline).
-- Boundary: do NOT touch .github/workflows, scripts/ci-bench.sh, bench-out/, docs/MANDATE_F4_BENCHMARK.md, src/engine/deviceTuning.ts, src/engine/LlamaService.ts (engine knobs closed), the harness-owner's bench files.
+- Boundary: do NOT touch .github/workflows, scripts/ci-bench.sh, out/bench/, docs/MANDATE_F4_BENCHMARK.md, src/engine/deviceTuning.ts, src/engine/LlamaService.ts (engine knobs closed), the harness-owner's bench files.
 
 ## 8. Reuse surface (the "much more" the user asked about)
 

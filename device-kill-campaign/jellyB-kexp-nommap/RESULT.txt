@@ -1,2 +1,0 @@
-phase=fase4 arm=jellyB-kexp-nommap seed=1 format=none thinking=default compaction=ciswire
-probes=21/22

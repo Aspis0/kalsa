@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Drives one PIANO V4.2 benchmark ARM (Fase 0, Fase 4, or smoke) on a
-# KVM-accelerated emulator and writes bench-out/raw.json (+ graded
+# KVM-accelerated emulator and writes out/bench/raw.json (+ graded
 # result.json via benchGrade.mjs). Reuses ci-e2e.sh's proven adb idioms via
 # ci-lib.sh (bounds-based tap_node, ui_texts, sql). The APK is built ONCE by
 # the workflow's `build` job and downloaded as an artifact — this script
@@ -58,7 +58,7 @@
 #                  standard gradle output path; the workflow downloads the
 #                  shared build artifact there)
 set -uo pipefail
-OUT="bench-out"; mkdir -p "$OUT"
+OUT="out/bench"; mkdir -p "$OUT"
 
 PHASE="${PHASE:?PHASE is required (fase0|fase4|smoke|mem|tools|forced|sanity)}"
 ARM="${ARM:?ARM is required}"
