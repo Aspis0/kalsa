@@ -14,7 +14,7 @@ import {
   stampTimingInvalid,
   isChargingFromDump,
 } from "./telemetryParse.mjs";
-import { extractProfile, profileJsonl } from "../responseProfile.mjs";
+import { extractProfile, profileJsonl } from "../device/responseProfile.mjs";
 import {
   primaryContrasts,
   holmAlphas,

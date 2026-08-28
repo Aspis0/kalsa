@@ -5,7 +5,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { extractProfile } from "../responseProfile.mjs";
+import { extractProfile } from "../device/responseProfile.mjs";
 
 export function loadLexiconFile(file, repoRoot) {
   if (!file) return { hedge: [], refusal: [], apology: [] };
