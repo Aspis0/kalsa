@@ -1,0 +1,472 @@
+{
+  "cell": "qdc-8elite-cpu-day0",
+  "prereg": "f72b1b20",
+  "serial": "eb49fb9d",
+  "adb_server_port": 6037,
+  "plugged_declared": true,
+  "dumpsys_ac_powered": false,
+  "kit": "~/kalsa-qdc/bin-a0cabca6b/",
+  "kit_sha": {
+    "llama-bench": "62d2fe5eb141b329008c027df25d9644a63fddfc9273dfbde929f31f2c097f4f",
+    "llama-cli": "5b17ac8b34051e86fb9da89dc51181046202d1e582c1249a5b6d77ad17d98fe2",
+    "test-backend-ops": "715ff176bef628ee1c71e5f2755b4c02354107c74f84111e51648ca98612d752"
+  },
+  "model": {
+    "path": "/data/local/tmp/kalsa/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf",
+    "bytes": 4213513024,
+    "mac_sha256": "3bd9ec48045f526508956ef663c5c11dbb3ef791a06f4e10a6be88379c40e1fe",
+    "device_size": 4213513024
+  },
+  "correctness": {
+    "MUL_MAT_literal_no_b": "CPU skipped (test-mode reference)",
+    "MUL_MAT_b_CPU": "1144/1144",
+    "MUL_MAT_ID_b_CPU": "812/812"
+  },
+  "speed_summary": {
+    "t8_tg128": {
+      "n": 3,
+      "values": [
+        63.526608,
+        59.09534,
+        58.095086
+      ],
+      "median": 59.09534,
+      "min": 58.095086,
+      "max": 63.526608
+    },
+    "t8_pp512": {
+      "n": 3,
+      "values": [
+        98.422548,
+        92.99648,
+        90.491176
+      ],
+      "median": 92.99648,
+      "min": 90.491176,
+      "max": 98.422548
+    },
+    "t6_tg128": {
+      "n": 3,
+      "values": [
+        54.73604,
+        52.503774,
+        51.504675
+      ],
+      "median": 52.503774,
+      "min": 51.504675,
+      "max": 54.73604
+    },
+    "t6_pp512": {
+      "n": 3,
+      "values": [
+        76.572855,
+        75.514431,
+        74.317619
+      ],
+      "median": 75.514431,
+      "min": 74.317619,
+      "max": 76.572855
+    }
+  },
+  "comparator_read_only": {
+    "s23_olmoe_tg128_cpu_20": 27.685
+  },
+  "runs": [
+    {
+      "tag": "t8_tg128_r1",
+      "kind": "speed",
+      "threads": 8,
+      "workload": "tg128",
+      "n_prompt": 0,
+      "n_gen": 128,
+      "r_internal": 3,
+      "rep": 1,
+      "workload_rc": 0,
+      "avg_ts": 63.526608,
+      "stddev_ts": 1.302676,
+      "samples_ts": [
+        64.8822,
+        63.4133,
+        62.2843
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 8,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t8_tg128_r2",
+      "kind": "speed",
+      "threads": 8,
+      "workload": "tg128",
+      "n_prompt": 0,
+      "n_gen": 128,
+      "r_internal": 3,
+      "rep": 2,
+      "workload_rc": 0,
+      "avg_ts": 59.09534,
+      "stddev_ts": 2.445227,
+      "samples_ts": [
+        61.9131,
+        57.8425,
+        57.5305
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 8,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t8_tg128_r3",
+      "kind": "speed",
+      "threads": 8,
+      "workload": "tg128",
+      "n_prompt": 0,
+      "n_gen": 128,
+      "r_internal": 3,
+      "rep": 3,
+      "workload_rc": 0,
+      "avg_ts": 58.095086,
+      "stddev_ts": 1.932739,
+      "samples_ts": [
+        60.1896,
+        57.7151,
+        56.3805
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 8,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t8_pp512_r1",
+      "kind": "speed",
+      "threads": 8,
+      "workload": "pp512",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "r_internal": 3,
+      "rep": 1,
+      "workload_rc": 0,
+      "avg_ts": 98.422548,
+      "stddev_ts": 1.478784,
+      "samples_ts": [
+        99.6891,
+        98.7811,
+        96.7975
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 8,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t8_pp512_r2",
+      "kind": "speed",
+      "threads": 8,
+      "workload": "pp512",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "r_internal": 3,
+      "rep": 2,
+      "workload_rc": 0,
+      "avg_ts": 92.99648,
+      "stddev_ts": 1.202533,
+      "samples_ts": [
+        94.2967,
+        92.7685,
+        91.9243
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 8,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t8_pp512_r3",
+      "kind": "speed",
+      "threads": 8,
+      "workload": "pp512",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "r_internal": 3,
+      "rep": 3,
+      "workload_rc": 0,
+      "avg_ts": 90.491176,
+      "stddev_ts": 0.707122,
+      "samples_ts": [
+        91.2072,
+        90.4731,
+        89.7933
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 8,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t6_tg128_r1",
+      "kind": "speed",
+      "threads": 6,
+      "workload": "tg128",
+      "n_prompt": 0,
+      "n_gen": 128,
+      "r_internal": 3,
+      "rep": 1,
+      "workload_rc": 0,
+      "avg_ts": 54.73604,
+      "stddev_ts": 2.270837,
+      "samples_ts": [
+        57.1119,
+        54.5089,
+        52.5873
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 6,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t6_tg128_r2",
+      "kind": "speed",
+      "threads": 6,
+      "workload": "tg128",
+      "n_prompt": 0,
+      "n_gen": 128,
+      "r_internal": 3,
+      "rep": 2,
+      "workload_rc": 0,
+      "avg_ts": 52.503774,
+      "stddev_ts": 2.433436,
+      "samples_ts": [
+        55.2502,
+        51.6446,
+        50.6165
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 6,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t6_tg128_r3",
+      "kind": "speed",
+      "threads": 6,
+      "workload": "tg128",
+      "n_prompt": 0,
+      "n_gen": 128,
+      "r_internal": 3,
+      "rep": 3,
+      "workload_rc": 0,
+      "avg_ts": 51.504675,
+      "stddev_ts": 2.80245,
+      "samples_ts": [
+        54.7027,
+        50.3335,
+        49.4778
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 6,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t6_pp512_r1",
+      "kind": "speed",
+      "threads": 6,
+      "workload": "pp512",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "r_internal": 3,
+      "rep": 1,
+      "workload_rc": 0,
+      "avg_ts": 76.572855,
+      "stddev_ts": 0.673702,
+      "samples_ts": [
+        77.2811,
+        76.4974,
+        75.9401
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 6,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t6_pp512_r2",
+      "kind": "speed",
+      "threads": 6,
+      "workload": "pp512",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "r_internal": 3,
+      "rep": 2,
+      "workload_rc": 0,
+      "avg_ts": 75.514431,
+      "stddev_ts": 0.491335,
+      "samples_ts": [
+        76.0592,
+        75.3794,
+        75.1047
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 6,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    },
+    {
+      "tag": "t6_pp512_r3",
+      "kind": "speed",
+      "threads": 6,
+      "workload": "pp512",
+      "n_prompt": 512,
+      "n_gen": 0,
+      "r_internal": 3,
+      "rep": 3,
+      "workload_rc": 0,
+      "avg_ts": 74.317619,
+      "stddev_ts": 0.312307,
+      "samples_ts": [
+        74.6242,
+        74.3287,
+        73.9999
+      ],
+      "build_commit": "c750342f5",
+      "n_threads": 6,
+      "n_gpu_layers": 0,
+      "no_repack": false,
+      "battery_pre": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "battery_post": {
+        "level": 100,
+        "temperature_tenths": 430,
+        "ac_powered": false
+      },
+      "plugged_declared": true
+    }
+  ]
+}

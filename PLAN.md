@@ -38,6 +38,15 @@
 > (8 Elite, Android 16), dry-run adb-via-SSH PASS con exec binari custom da
 > /data/local/tmp. E kalsallama compila su macOS/aarch64: **10/10 test PASS inclusi i sei
 > test-repack-q23k** — prima piattaforma kernel-test fuori da Windows, mattone iOS.
+> **28/08 sera: #37 qdc-8elite-cpu-day0 BANCATA (BANK-WITH-ERRATA) — il primo dato 8xx.**
+> 8 Elite (QRD8750/Oryon, Android 16, ~20 min di 996): correttezza CPU **MUL_MAT 1144/1144 +
+> MUL_MAT_ID 812/812** (repack q2/q3 inclusi, primo run su Oryon) e OLMoE Q4_K_M CPU
+> tg128 **59.1 t/s** (-t8, mediana conservativa; S23 CPU #20: 27.7 → **~2.1× device-class**,
+> non A/B controllato), pp512 93.0; -t6 52.5/75.5. Numeri mid-ramp (drift −8.6% worst,
+> HAL CPU 39.6→53.8 °C; battery service del rack CONGELATO → termica solo da thermalservice).
+> Lettura per la decisione kernel/NPU 8xx: la CPU Oryon da sola raddoppia il decode S23 —
+> l'asticella per HVX/GPU sugli 8xx si alza. Prossime: Marco-KEXP (#18), kit OpenCL per E031/
+> Adreno 830.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
@@ -1037,6 +1046,27 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-28 (sera) — #37 qdc-8elite-cpu-day0: BANK-WITH-ERRATA — prima cella
+  QDC, primo dato 8xx.** Prereg `f72b1b20` (locked pre-numeri), esecuzione grok su
+  sessione interattiva QDC (8 Elite QRD8750 "Sun"/Oryon, Android 16, adb via tunnel
+  SSH porta locale 6037 — server adb locale/Jelly mai toccato), audit ostile GLM
+  `qdc-day0-bank-audit/REPORT.md`, spot-check orchestratore (righe cert, mediana t8
+  tg128 ri-derivata dai 3 avg_ts, skip-record, battery stub). BANCATO: (a)
+  correttezza CPU kit `a0cabca6b`: **MUL_MAT 1144/1144** (cert_mm_cpu.out:1477) +
+  **MUL_MAT_ID 812/812** (cert_mmid.out:819) con `-b CPU` — il tentativo senza `-b`
+  era uno skip vacuo e NON è stato contato (gestione onesta, audit-CONFIRMED); (b)
+  speed OLMoE Q4_K_M (4213513024 B, sha verificata): tg128 -t8 **59.095**, pp512
+  **92.996**, -t6 **52.504 / 75.514** (mediane per-invocazione, aggregatore
+  conservativo ma non pre-reggato — erratum 1). PLUGGED DECLARED (e il battery
+  service del rack è CONGELATO: stub 43.0 °C — erratum 3; termica vera da
+  thermalservice HAL: CPU 39.6→53.8 °C, status 0→1, drift monotono −8.6% worst =
+  numeri mid-ramp, erratum 2). Comparator #20 (S23 CPU tg128 27.685 unplugged,
+  no_repack diverso): **~2.1× device-class**, non A/B controllato (erratum 5).
+  Costo 20 min / 996. Conseguenza piano: il dato-CPU degli 8xx alza l'asticella di
+  ogni investimento kernel HVX/GPU su quella classe; in coda Marco-KEXP (#18) e
+  kit GGML_OPENCL=ON per la colonna E031 su Adreno 830. Evidenza
+  `scratchpad/agents/qdc-8elite-cpu-day0/` + `qdc-day0-bank-audit/`.
 
 - **2026-08-28 — #36 s23-unplugged-baseline-night0: BANK-WITH-ERRATA
   (correttezza-only).** Prereg `ecd3e983`, Amendment-1 `f90a1d5e`, audit ostile
