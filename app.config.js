@@ -66,6 +66,7 @@ const config = {
   },
   plugins: [
     "./plugins/withLintOff",
+    "./plugins/withDebuggableRelease",
     "./plugins/withDisplayRefreshRate",
     "./plugins/withAndroidShareIntent",
     "expo-font",

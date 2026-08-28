@@ -230,6 +230,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       description:
         "Modello alternativo con visione e tool calling nativo. Non fa parte della catena di fallback RAM di Qwen — scegli questo se preferisci Gemma.",
     },
+    dev: {
+      description: "Modello sideload per sviluppo. Il download dallo store è disabilitato finché l'artifact non sarà pubblicato.",
+    },
     whisperTiny: {
       description:
         "Riconoscimento vocale sul dispositivo (multilingua, tiny). ~75 MB. Usato solo per la dettatura vocale.",
@@ -615,6 +618,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   },
 
   errors: {
+    artifactUnpublished:
+      "Impossibile scaricare {artifact}: questo artifact di Kalsa è nostro e non è ancora stato pubblicato.",
     connectionLost:
       "Connessione persa — controlla la rete e riprova. Il download riprenderà da dove era.",
     networkUnreachable: "Rete non raggiungibile — controlla la connessione.",

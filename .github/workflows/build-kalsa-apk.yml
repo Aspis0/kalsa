@@ -3,7 +3,7 @@ name: Build Kalsa APK
 on:
   workflow_dispatch:
   push:
-    branches: [engine-pin-kalsallama]
+    branches: [engine-pin-kalsallama, bench-dev-models]
 
 permissions:
   contents: read
