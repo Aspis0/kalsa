@@ -361,7 +361,7 @@ async function main() {
   // ── 18. HybridRetrievalResult type shape sanity ─────────────────────────
   check("18. HybridRetrievalResult shape", () => {
     // Construct a value matching the exported type (compile + runtime shape).
-    /** @type {import("../src/documents/semanticIndex").HybridRetrievalResult} */
+    /** @type {import("../../src/documents/semanticIndex").HybridRetrievalResult} */
     const sample = {
       passages: [
         {

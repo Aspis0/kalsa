@@ -27,13 +27,13 @@ import {
   readSessionInitTelemetry,
   resolveNoExtraBufts,
   gradeRaw,
-} from "./benchGrade.mjs";
+} from "../bench/benchGrade.mjs";
 import {
   collectMemoryTelemetryByMode,
   collectMemoryExtractTelemetryByMode,
   findEmptyStoreFailures,
   runAggregate,
-} from "./benchAggregate.mjs";
+} from "../bench/benchAggregate.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");

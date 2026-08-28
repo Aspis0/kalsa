@@ -2,7 +2,7 @@
 /**
  * Mutation test: verify the fix is actually working by testing different scenarios.
  */
-import { gradeAllProbes } from './benchGraders.mjs';
+import { gradeAllProbes } from '../bench/benchGraders.mjs';
 
 const FACTS = ["Leopoldo", "4500"];
 
