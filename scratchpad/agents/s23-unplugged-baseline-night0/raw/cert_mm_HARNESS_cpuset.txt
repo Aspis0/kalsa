@@ -1,0 +1,4 @@
+GATE_HARNESS nproc=6 bits=8 cpuset=/ cgroup=/ mask=0-7
+cpuset=/
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7

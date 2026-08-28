@@ -1,0 +1,7 @@
+binary_pid=16609
+comm=test-backend-op
+cpuset=/
+cgroup=/
+Cpus_allowed:	bf
+Cpus_allowed_list:	0-5,7
+binary_gate nproc_bits=7 list=0-5,7 cpuset=/ cgroup=/ comm=test-backend-op

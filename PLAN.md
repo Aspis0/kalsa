@@ -28,6 +28,16 @@
 > Marco-KEXP a bordo con sha, toolchain `s3oracle` certificata 407/407 + 925/925; manca solo il
 > riferimento termico plugged (giorno 1) per lockare `s23-plugged-baseline`. Xiaomi via con
 > l'owner: q62 secondario e ogni cella v75 dopo il 07/09 (o QDC).
+> **28/08: #36 s23-night0 BANCATA (correttezza-only, BANK-WITH-ERRATA)** — s3oracle su S23
+> UNPLUGGED: MUL_MAT_ID **407/407** + MUL_MAT **925/925**, pin 11/11; la matrice speed
+> unplugged è MORTA per questa trasferta (tre blocchi su tre tentativi: plateau termico
+> da sveglio ≥38.8 °C vs gate 32, drain 13–15 %/h vs floor 45 %, transport adb morto
+> in-run) → speed su QDC 8 Elite e/o S23 via USB al replug. Erratum chiave: la premessa
+> drain dell'AMENDMENT-1 era sbagliata (7.5 vs 13–15 %/h) — il blocco autorizzato era
+> aritmeticamente infinibile. QDC OPERATIVO stesso giorno: 1000 min sbloccati su QRD8750
+> (8 Elite, Android 16), dry-run adb-via-SSH PASS con exec binari custom da
+> /data/local/tmp. E kalsallama compila su macOS/aarch64: **10/10 test PASS inclusi i sei
+> test-repack-q23k** — prima piattaforma kernel-test fuori da Windows, mattone iOS.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
@@ -1027,6 +1037,26 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-28 — #36 s23-unplugged-baseline-night0: BANK-WITH-ERRATA
+  (correttezza-only).** Prereg `ecd3e983`, Amendment-1 `f90a1d5e`, audit ostile
+  GLM `night0-bank-audit/REPORT.md`, verifiche orchestratore su disco. BANCATO:
+  correttezza s3oracle su S23 **UNPLUGGED** — MUL_MAT_ID 407/407
+  (`raw/cert_mmid.out:815`), MUL_MAT 925/925 (`raw/cert_mm.out:1473`), pin set
+  11/11 verbatim, ac:false provato nei battery.pre. **NESSUN numero di velocità**:
+  tre tentativi, tre morti diverse — (1) plateau 38.8–39.0 °C ×2h da sveglio
+  (gate 32 irraggiungibile), (2) drain reale 13–15 %/h ≫ premessa 7.5 dell'
+  Amendment-1 (blocco aritmeticamente infinibile dal 46 %), (3) transport adb
+  morto ~20 s dentro la run A (refused, 10 min di retry). ERRATA (6 voci in
+  `ERRATA.md`): premessa drain REFUTED, possibile jsonl orfano ON-DEVICE da
+  tirare giù al replug (TODO), migrazione porta :36329→:37687 non coperta dal
+  prereg, identità device asserita nei raw, gate 36.0 a margine zero, evidenza
+  committata solo al bank (questo commit). Conseguenza: matrice speed unplugged
+  MORTA per la trasferta → QDC 8 Elite (operativo da oggi: 1000 min su QRD8750,
+  adb-via-SSH + exec binari PASS) e/o S23 plugged/USB. Bonus piattaforma:
+  kalsallama su macOS/aarch64 10/10 test (incl. 6× test-repack-q23k) — prima
+  piattaforma kernel-test fuori da Windows. Evidenza
+  `scratchpad/agents/s23-unplugged-baseline-night0/` + `night0-bank-audit/`.
 
 - **2026-08-14 (sera) — 🏆 KF_PROTO_WIN: il primo kernel-candidato che
   VINCE su device.** A/B Jelly Marco1c (config campagna t2 k6 d065,

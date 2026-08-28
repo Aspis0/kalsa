@@ -1,0 +1,12 @@
+10:01:56 WATCH start serial=192.168.1.152:37687 screen=Dozing (no keyevent 26) level=60 temp=39.0C
+10:01:56 level=60 temp=389 tenths ac=false 
+10:05:56 level=59 temp=390 tenths ac=false 
+10:09:57 level=58 temp=390 tenths ac=false 
+10:13:57 level=57 temp=390 tenths ac=false 
+10:17:57 level=56 temp=390 tenths ac=false 
+10:21:57 level=55 temp=372 tenths ac=false 
+10:25:57 level=54 temp=362 tenths ac=false 
+10:29:58 level=53 temp=356 tenths ac=false 
+10:33:58 level=52 temp=356 tenths ac=false 
+10:37:58 level=51 temp=358 tenths ac=false 
+10:41:58 level=50 temp=359 tenths ac=false 

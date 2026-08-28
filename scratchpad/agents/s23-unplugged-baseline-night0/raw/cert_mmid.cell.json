@@ -1,0 +1,40 @@
+{
+  "tag": "cert_mmid",
+  "serial": "192.168.1.152:36329",
+  "workload_rc": 0,
+  "guard_rc": 0,
+  "binary_pid": 13653,
+  "abort": "",
+  "failure_signature": "",
+  "cpuset_fail": false,
+  "battery_pre": {
+    "level": 100,
+    "temperature_tenths": 286,
+    "voltage_mv": 4358,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "status": 3,
+    "returncode": 0
+  },
+  "battery_post": {
+    "level": 99,
+    "temperature_tenths": 312,
+    "voltage_mv": 4327,
+    "ac_powered": false,
+    "usb_powered": false,
+    "wireless_powered": false,
+    "dock_powered": false,
+    "status": 3,
+    "returncode": 0
+  },
+  "screen_pre": "Dozing",
+  "screen_post": "Dozing",
+  "plugged_pre": false,
+  "plugged_post": false,
+  "harness_cpuset": "GATE_HARNESS nproc=6 bits=8 cpuset=/ cgroup=/ mask=0-7\ncpuset=/\nCpus_allowed:\tff\nCpus_allowed_list:\t0-7\n",
+  "bin_cpuset": "binary_pid=13653\ncomm=test-backend-op\ncpuset=/\ncgroup=/\nCpus_allowed:\tbf\nCpus_allowed_list:\t0-5,7\nbinary_gate nproc_bits=7 list=0-5,7 cpuset=/ cgroup=/ comm=test-backend-op\n",
+  "wall_s": 303.727,
+  "launch_stdout": "LAUNCH_PID=13627\n"
+}

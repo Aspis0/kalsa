@@ -1,0 +1,124 @@
+try 1 t=0
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 2 t=15
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 3 t=30
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 4 t=45
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 5 t=60
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 6 t=76
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 7 t=91
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 8 t=106
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 9 t=121
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 10 t=136
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 11 t=152
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 12 t=167
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 13 t=182
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 14 t=197
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 15 t=213
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 16 t=228
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 17 t=243
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 18 t=258
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 19 t=274
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 20 t=289
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 21 t=304
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 22 t=319
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 23 t=334
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 24 t=350
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 25 t=365
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 26 t=380
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 27 t=395
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 28 t=410
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 29 t=426
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 30 t=441
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 31 t=456
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 32 t=471
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 33 t=486
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 34 t=502
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 35 t=517
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 36 t=532
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 37 t=547
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 38 t=562
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 39 t=578
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+try 40 t=593
+failed to connect to '192.168.1.152:36329': Connection refused
+state=
+BLOCKED_10MIN
+List of devices attached
+192.168.1.82:34037     device product:Jelly_Star model:Jelly_Star device:Jelly_Star transport_id:4
+
