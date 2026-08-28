@@ -181,7 +181,7 @@ Exit code 0. Copy also at `scratchpad/agents/q40-m0-repack/test-output.txt`.
 4. **Existing Q4_K/Q5_K/Q6_K/Q2_K_8x8 3-D `supports_op` is unchanged.** The 3-D decline is only for the new 8x4 traits, as specified for this stage.
 5. **`ggml_backend_buffer_reset` still does not walk tensors.** Extra lives on the tensor; cleanliness is `init_tensor` overwrite (null first) plus native-stride restore when 8x4 is not selected.
 
-M1+ not started.
+M1 is in `scratchpad/agents/q40-m1-repack/REPORT.md` (branch HEAD `baaa5a355`). M2+ not started.
 
 ## Audit fixes
 

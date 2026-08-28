@@ -5,17 +5,17 @@ NO_LLAMA
   USB powered: false
   Wireless powered: false
   Dock powered: false
-  Charge counter: 2898750
+  Charge counter: 2823750
   status: 3
-  level: 77
-  voltage: 4090
-  temperature: 260
+  level: 75
+  voltage: 4065
+  temperature: 259
 ===SYSFS_CC===
 cat: /sys/class/power_supply/battery/charge_counter: Permission denied
 ===SYSFS_TEMP===
 cat: /sys/class/power_supply/battery/temp: Permission denied
 ===TOMBSTONES===
-total 5048
+total 4124
 -rw-rw-r-- 1 tombstoned system 115217 2026-08-21 21:31 tombstone_00
 -rw-rw-r-- 1 tombstoned system  66709 2026-08-21 21:31 tombstone_00.pb
 -rw-rw-r-- 1 tombstoned system 106750 2026-08-21 21:32 tombstone_01

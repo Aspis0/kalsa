@@ -90,3 +90,22 @@ The live capture and launcher/pull records are in
 `raw/lane2_s2_qwen_htp_ppl_launcher.txt`, and
 `raw/lane2_s2_qwen_htp_ppl_pull.txt`. This section is not a certification
 claim; completion requires the device endpoint to return.
+
+## Lane 2 (session 3)
+
+```
+Model: Qwen3.5-4B-Q4_0 (sha 298fcb5f… MATCH)
+CPUref: 1/32 chunks; PPL_CPU[1]=7.9064; PPL_CPU[8]=NaN; PPL_CPU_32=NaN
+r8: NaN
+r32: NaN
+gate: NOT_COMPUTABLE
+Guard: WARN 400 / KILL 430; MAX 387 tenths; exit 3; outcome sensor fail-closed
+Workload rc: 137
+Battery: 100% / 27.4 °C unplugged → 96% / 37.9 °C unplugged
+ADB reconnect attempts: 2
+Status: STOPPED
+Thermal CSV: ../q53c-lane2-8chunk/thermal.csv
+```
+
+Stop signature (verbatim): `0.00.670.758 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 0, abort`
+The CPU reference did not reach chunk 8; no lane-2 gate arithmetic is claimed.
