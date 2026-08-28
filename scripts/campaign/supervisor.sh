@@ -11,7 +11,7 @@ _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$_HERE/../.." && pwd)"
 CAMPAIGN_ROOT="$_HERE"
 
-# shellcheck source=../device-share-send.sh
+# shellcheck source=../device/device-share-send.sh
 source "$REPO/scripts/device/device-share-send.sh"
 source "$_HERE/flags.sh"
 source "$_HERE/conversation.sh"
