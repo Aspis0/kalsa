@@ -31,7 +31,7 @@ New files:
 - src/documents/DocumentLibrary.ts      — pure: library state model, persistence schema (AsyncStorage), doc → DocRetrieverIndex lifecycle, small-doc full-text flag, delete
 - src/documents/documentChatTool.ts     — pure: tool-loop executor (mirrors webFetchTool's executor shape): input {library, query, modelCtxTokens} → retrieve via runRetrievalLoop → format passages with citations + provenance → inject
 - src/screens/DocumentsScreen.tsx       — picker + library UI (reuses SettingsScreen patterns; en/it)
-- scripts/documentLibraryHarness.mjs    — pure tests: index add/delete, small-vs-large doc routing, citation formatting, provenance string, skip-pages fallback decision
+- scripts/harnesses/documentLibraryHarness.mjs    — pure tests: index add/delete, small-vs-large doc routing, citation formatting, provenance string, skip-pages fallback decision
 
 Reused as-is (no edits unless a bug):
 - src/pdf/pdfTextService.ts (requestPdfText), src/util/pdfText.ts, src/context/retrievalLoop.ts, src/context/retriever.ts, src/util/htmlToText.ts (TXT import), src/agent tool format helpers, i18n
@@ -47,7 +47,7 @@ Integration points:
 
 - In scope: library + retrieval-based Q&A + small-doc full-context + scanned-PDF vision fallback + citations + i18n.
 - Out of scope (this tranche): embeddings/RAG (not needed to beat OPA), multi-doc simultaneous querying (single doc per query first), document OCR (vision fallback only), file-type beyond PDF/TXT.
-- Do NOT touch: scripts/ci-bench.sh, out/bench/, .github/workflows/*, docs/MANDATE_FASE4_BENCHMARK.md (harness owner), the benchmark paths in AppShell.
+- Do NOT touch: scripts/ci/ci-bench.sh, out/bench/, .github/workflows/*, docs/MANDATE_FASE4_BENCHMARK.md (harness owner), the benchmark paths in AppShell.
 
 ## 5. Verification
 

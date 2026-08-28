@@ -70,7 +70,7 @@ jobs:
           disk-size: 8192M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash scripts/ci-download.sh
+          script: bash scripts/ci/ci-download.sh
 
       - name: Upload evidence
         if: always()

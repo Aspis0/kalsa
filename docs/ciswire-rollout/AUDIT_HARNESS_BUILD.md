@@ -1,6 +1,6 @@
 # HOSTILE AUDIT — Device-Campaign Harness Build
 
-**Auditee:** `campaigns/`, `scripts/campaign/`, `scripts/responseProfile.mjs`, `package.json` harness scripts
+**Auditee:** `campaigns/`, `scripts/campaign/`, `scripts/device/responseProfile.mjs`, `package.json` harness scripts
 **Spec:** `PART3_CAMPAIGN_KIT.md` rev 5 + 11 must-fixes from `AUDIT_PART3_KIT_REV5.md` §4
 **Dry-run artifact:** `results/ciswire-campaign/2026-08-25/R1/dry-1.jsonl` (3 turns, R1, charging=true)
 **Date:** 2026-08-25
@@ -87,7 +87,7 @@ On any non-ok status (hang, timeout, adb-drop, pid-death), `campaign_one_turn` c
 
 ```
 supervisor.sh:233:
-    node "$REPO/scripts/responseProfile.mjs" "$OUT/$CAMPAIGN_ARM_ID/${CAMPAIGN_CONV_ID}.jsonl"
+    node "$REPO/scripts/device/responseProfile.mjs" "$OUT/$CAMPAIGN_ARM_ID/${CAMPAIGN_CONV_ID}.jsonl"
 ```
 
 `responseProfile.mjs main()` (`responseProfile.mjs:147-152`) calls `profileJsonl` and writes the file. It does NOT call `runScorers`. All jsonl records have `"scores": null`.
@@ -98,7 +98,7 @@ supervisor.sh:233:
 
 ```
 supervisor.sh:233:
-    node "$REPO/scripts/responseProfile.mjs" "$OUT/…/…jsonl"
+    node "$REPO/scripts/device/responseProfile.mjs" "$OUT/…/…jsonl"
 ```
 
 `profileJsonl` (`responseProfile.mjs:107`) defaults to `{ hedge: [], refusal: [], apology: [] }`. Hedge/refusal/apology counts are always 0 in the .profile.json artifact. The lexicon only matters when `runScorers` calls `scoreProfile` (which loads it from config), but `runScorers` is never called (B4).

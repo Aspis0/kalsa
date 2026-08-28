@@ -177,7 +177,7 @@ bench key absent/invalid  → production constant wins
 | benchConfig.ts:59 | `kalsa.bench.digestcadence` | inject every turn (cadence=1) | `parseBenchDigestCadence` (compactor.ts:142) |
 | benchConfig.ts:61 | `kalsa.bench.norepack` | per-model loadPolicy | `parseBenchNoRepack` (benchConfig.ts:475) |
 
-**For the new ciswireFlags flag**: bench override must use `kalsa.bench.ciswireflags` (or similar) and be read AFTER the production flag, following the same pattern: absent → production flag wins. The `ci-bench.sh` script (`scripts/ci-bench.sh:260-285`) writes bench prefs via `sql_write` into `catalystLocalStorage` — the new bench key needs a corresponding `sql_write` line there and in `bench.yml` matrix env vars.
+**For the new ciswireFlags flag**: bench override must use `kalsa.bench.ciswireflags` (or similar) and be read AFTER the production flag, following the same pattern: absent → production flag wins. The `ci-bench.sh` script (`scripts/ci/ci-bench.sh:260-285`) writes bench prefs via `sql_write` into `catalystLocalStorage` — the new bench key needs a corresponding `sql_write` line there and in `bench.yml` matrix env vars.
 
 ---
 
@@ -227,12 +227,12 @@ bench key absent/invalid  → production constant wins
 
 | file:line | impact |
 |---|---|
-| `scripts/benchGradeHarness.mjs:42-47` | Hardcoded `arm: "anchored"`, `compaction: "anchored"`, `compactionPrefRaw: "anchored"` — **will break if anchored arm is removed from matrix** |
-| `scripts/benchGradeHarness.mjs:1169-1224` | `compactionActive` validation tests reference `"anchored"` as valid mode string — **will break** |
-| `scripts/benchAggregate.mjs:49-65` | `FASE4_ARMS = ["baseline", "anchored", "ciswire"]`, pairwise comparisons `anchored_vs_off`, `ciswire_vs_anchored` — **will break** |
-| `scripts/benchAggregate.mjs:466-584` | `compactionActive` parsing expects `"off"\|"anchored"\|"ciswire"` — **will break if mode removed** |
-| `scripts/benchAggregate.mjs:748` | `modeToArm = { off: "baseline", anchored: "anchored", ciswire: "ciswire" }` — **will break** |
-| `scripts/ci-bench.sh:21,115-118,267-272` | `COMPACTION` env accepted as `anchored\|off\|ciswire`; `compaction_pref_raw_for()` maps `"anchored"` → `"anchored"` — **will break** |
+| `scripts/bench/benchGradeHarness.mjs:42-47` | Hardcoded `arm: "anchored"`, `compaction: "anchored"`, `compactionPrefRaw: "anchored"` — **will break if anchored arm is removed from matrix** |
+| `scripts/bench/benchGradeHarness.mjs:1169-1224` | `compactionActive` validation tests reference `"anchored"` as valid mode string — **will break** |
+| `scripts/bench/benchAggregate.mjs:49-65` | `FASE4_ARMS = ["baseline", "anchored", "ciswire"]`, pairwise comparisons `anchored_vs_off`, `ciswire_vs_anchored` — **will break** |
+| `scripts/bench/benchAggregate.mjs:466-584` | `compactionActive` parsing expects `"off"\|"anchored"\|"ciswire"` — **will break if mode removed** |
+| `scripts/bench/benchAggregate.mjs:748` | `modeToArm = { off: "baseline", anchored: "anchored", ciswire: "ciswire" }` — **will break** |
+| `scripts/ci/ci-bench.sh:21,115-118,267-272` | `COMPACTION` env accepted as `anchored\|off\|ciswire`; `compaction_pref_raw_for()` maps `"anchored"` → `"anchored"` — **will break** |
 
 ### CI Workflows
 

@@ -64,35 +64,35 @@ jobs:
       - name: Typecheck + logic harnesses
         run: |
           npm run typecheck
-          node scripts/retrieverHarness.mjs
-          node scripts/compactorHarness.mjs
-          node scripts/retrievalLoopHarness.mjs
-          node scripts/htmlToTextHarness.mjs
-          node scripts/pdfTextHarness.mjs
-          node scripts/pdfBridgeHarness.mjs
-          node scripts/pdfTextServiceHarness.mjs
-          node scripts/webFetchHarness.mjs
-          node scripts/toolSourceLedgerHarness.mjs
-          node scripts/base64Harness.mjs
-          node scripts/pdfCacheFsHarness.mjs
-          node scripts/longChatEstimateHarness.mjs
-          node scripts/thinkStripperHarness.mjs
-          node scripts/streamCoalescerHarness.mjs
-          node scripts/turnTelemetryHarness.mjs
-          node scripts/thinkingBudgetsHarness.mjs
-          node scripts/benchSpeculativeHarness.mjs
-          node scripts/bufferShimHarness.mjs
-          node scripts/benchEngineHarness.mjs
-          node scripts/engineParamsHarness.mjs
-          node scripts/threadProfileHarness.mjs
-          node scripts/memoryEstimateHarness.mjs
-          node scripts/sessionMetaHarness.mjs
-          node scripts/sessionSaveGateHarness.mjs
-          node scripts/voiceStateHarness.mjs
+          node scripts/harnesses/retrieverHarness.mjs
+          node scripts/harnesses/compactorHarness.mjs
+          node scripts/harnesses/retrievalLoopHarness.mjs
+          node scripts/harnesses/htmlToTextHarness.mjs
+          node scripts/harnesses/pdfTextHarness.mjs
+          node scripts/harnesses/pdfBridgeHarness.mjs
+          node scripts/harnesses/pdfTextServiceHarness.mjs
+          node scripts/harnesses/webFetchHarness.mjs
+          node scripts/harnesses/toolSourceLedgerHarness.mjs
+          node scripts/harnesses/base64Harness.mjs
+          node scripts/harnesses/pdfCacheFsHarness.mjs
+          node scripts/harnesses/longChatEstimateHarness.mjs
+          node scripts/harnesses/thinkStripperHarness.mjs
+          node scripts/harnesses/streamCoalescerHarness.mjs
+          node scripts/harnesses/turnTelemetryHarness.mjs
+          node scripts/harnesses/thinkingBudgetsHarness.mjs
+          node scripts/bench/benchSpeculativeHarness.mjs
+          node scripts/harnesses/bufferShimHarness.mjs
+          node scripts/bench/benchEngineHarness.mjs
+          node scripts/harnesses/engineParamsHarness.mjs
+          node scripts/harnesses/threadProfileHarness.mjs
+          node scripts/harnesses/memoryEstimateHarness.mjs
+          node scripts/harnesses/sessionMetaHarness.mjs
+          node scripts/harnesses/sessionSaveGateHarness.mjs
+          node scripts/harnesses/voiceStateHarness.mjs
           # ~140s from a cold build. It belongs here and not only in bench.yml,
           # which is workflow_dispatch-only: a mutation matrix that runs on no
           # push is the same decoration as no matrix at all.
-          node scripts/webFetchPdfMutationMatrix.mjs
+          node scripts/mutation/webFetchPdfMutationMatrix.mjs
 
       - name: Free disk space
         run: |
@@ -113,7 +113,7 @@ jobs:
           ls -la app/build/outputs/apk/release/
 
       - name: Assert the native patch is in the binary
-        run: bash scripts/assert-native-patch.sh
+        run: bash scripts/native/assert-native-patch.sh
 
       - name: Download GGUF model
         run: |
@@ -150,7 +150,7 @@ jobs:
           disk-size: 8192M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: bash scripts/ci-e2e.sh
+          script: bash scripts/ci/ci-e2e.sh
         env:
           COMPACTION: ${{ inputs.compaction || 'on' }}
           THINKING: ${{ inputs.thinking || 'default' }}

@@ -42,8 +42,8 @@ Useful scripts:
 
 ```bash
 npm run typecheck              # tsc --noEmit
-node scripts/retrieverHarness.mjs   # BM25+ retriever unit harness
-node scripts/compactorHarness.mjs   # context-compaction harness
+node scripts/harnesses/retrieverHarness.mjs   # BM25+ retriever unit harness
+node scripts/harnesses/compactorHarness.mjs   # context-compaction harness
 ```
 
 ## How it is tested

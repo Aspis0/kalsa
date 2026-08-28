@@ -7,7 +7,7 @@
 // threw "Object prototype may only be an Object or null" inside metroRequire.
 // Result: a deterministic release-build crash the moment voice transcription
 // started (device logcat 2026-08-08 21:09:35, reproduced under node in
-// scripts/bufferShimHarness.mjs). The real `buffer` polyfill package is a
+// scripts/harnesses/bufferShimHarness.mjs). The real `buffer` polyfill package is a
 // dependency now; do not reintroduce the alias.
 const { getDefaultConfig } = require("expo/metro-config");
 

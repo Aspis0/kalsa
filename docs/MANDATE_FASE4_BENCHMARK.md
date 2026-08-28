@@ -35,7 +35,7 @@ It is off because nobody ever produced the number that would justify turning it 
 
 ## Exact state (verified 2026-08-09, do not re-derive)
 
-- Harness: `scripts/ci-bench.sh` drives ONE arm and writes `out/bench/result.json`.
+- Harness: `scripts/ci/ci-bench.sh` drives ONE arm and writes `out/bench/result.json`.
   Env contract is documented in its header: `PHASE` (fase0|fase4), `ARM`, `SEED`,
   `BLOCK_FORMAT`, `THINKING`, `COMPACTION` (on|off, fase4 only), `RUNS_PER_ARM`,
   `MODEL_DIR`/`MODEL_FILE`, `APK_PATH`.
@@ -45,7 +45,7 @@ It is off because nobody ever produced the number that would justify turning it 
   v42 = compaction on). The APK is built ONCE by the `build` job and downloaded by
   each arm — never rebuilt per arm, because one inference turn costs ~8.6 min on a
   2-vCPU runner.
-- Aggregation: `scripts/benchAggregate.mjs` exists.
+- Aggregation: `scripts/bench/benchAggregate.mjs` exists.
 - **Last execution, run `30863711482` (2026-08-03):**
   - Fase 0: **6/6 arms green.**
   - Fase 4: **1/6 green** (`v42, seed 1`). The other five — `v42/2`, `v42/3`,

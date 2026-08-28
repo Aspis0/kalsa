@@ -195,7 +195,7 @@ try {
   );
   const withLex = profileJsonl(fx, { lexicon: lex });
   check(withLex.turns[0].profile.hedgeCount > 0, "profileJsonl lexicon hedgeCount>0");
-  const cli = spawnSync("node", [path.join(repo, "scripts/responseProfile.mjs"), "--lexicon", path.join(repo, "campaigns/ciswire/lexicon.json"), fx], { encoding: "utf8" });
+  const cli = spawnSync("node", [path.join(repo, "scripts/device/responseProfile.mjs"), "--lexicon", path.join(repo, "campaigns/ciswire/lexicon.json"), fx], { encoding: "utf8" });
   check(cli.status === 0, `profile --lexicon exit=${cli.status}`);
   const convA = path.join(tmp, "a.jsonl");
   const convB = path.join(tmp, "b.jsonl");

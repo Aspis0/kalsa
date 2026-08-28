@@ -17,7 +17,7 @@
  *
  * This module is intentionally dependency-free (no llama.rn import) so it
  * can be unit-tested with a plain tsc + node harness
- * (scripts/toolCallParseHarness.mjs) without pulling in native bindings.
+ * (scripts/harnesses/toolCallParseHarness.mjs) without pulling in native bindings.
  */
 
 export const TOOL_CALL_OPEN = "<tool_call>";

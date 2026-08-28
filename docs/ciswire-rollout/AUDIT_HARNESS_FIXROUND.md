@@ -2,7 +2,7 @@
 
 **Auditor:** Direct re-audit (no delegation)
 **Date:** 2026-08-25
-**Scope:** scripts/campaign/*, scripts/responseProfile.mjs, campaigns/ciswire.json
+**Scope:** scripts/campaign/*, scripts/device/responseProfile.mjs, campaigns/ciswire.json
 **Spec:** AUDIT_HARNESS_BUILD.md required fixes F1–F11
 
 ---
@@ -125,7 +125,7 @@ Order: collect → score → store. Scores are written to the jsonl record befor
 `supervisor.sh:122-124`:
 ```sh
 campaign_profile_jsonl() {
-  node "$REPO/scripts/responseProfile.mjs" --lexicon "$LEXICON_PATH" "$1"
+  node "$REPO/scripts/device/responseProfile.mjs" --lexicon "$LEXICON_PATH" "$1"
 }
 ```
 

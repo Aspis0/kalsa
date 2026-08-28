@@ -50,54 +50,54 @@ jobs:
 
       # Same logic-gate as bench.yml: every *Harness.mjs run in bench.yml's
       # typecheck step is run here too. Parity is not a promise — it is enforced
-      # structurally by scripts/matrixParityHarness.mjs (which fails naming any
+      # structurally by scripts/harnesses/matrixParityHarness.mjs (which fails naming any
       # harness present in bench.yml but missing here). This workflow has no
       # emulator, so no inference — contracts only.
       - name: Typecheck + logic harnesses
         run: |
           npm run typecheck
-          node scripts/retrieverHarness.mjs
-          node scripts/compactorHarness.mjs
-          node scripts/retrievalLoopHarness.mjs
-          node scripts/htmlToTextHarness.mjs
-          node scripts/pdfTextHarness.mjs
-          node scripts/pdfBridgeHarness.mjs
-          node scripts/pdfTextServiceHarness.mjs
-          node scripts/webFetchHarness.mjs
-          node scripts/toolSourceLedgerHarness.mjs
-          node scripts/base64Harness.mjs
-          node scripts/pdfCacheFsHarness.mjs
-          node scripts/longChatEstimateHarness.mjs
-          node scripts/thinkStripperHarness.mjs
-          node scripts/streamCoalescerHarness.mjs
-          node scripts/turnTelemetryHarness.mjs
-          node scripts/thinkingBudgetsHarness.mjs
-          node scripts/benchSpeculativeHarness.mjs
-          node scripts/bufferShimHarness.mjs
-          node scripts/benchEngineHarness.mjs
-          node scripts/engineParamsHarness.mjs
-          node scripts/threadProfileHarness.mjs
-          node scripts/memoryEstimateHarness.mjs
-          node scripts/sessionMetaHarness.mjs
-          node scripts/sessionSaveGateHarness.mjs
-          node scripts/voiceStateHarness.mjs
-          node scripts/webFetchPdfMutationMatrix.mjs
-          node scripts/benchGradeHarness.mjs
-          node scripts/benchAggregateHarness.mjs
-          node scripts/benchNCtxHarness.mjs
+          node scripts/harnesses/retrieverHarness.mjs
+          node scripts/harnesses/compactorHarness.mjs
+          node scripts/harnesses/retrievalLoopHarness.mjs
+          node scripts/harnesses/htmlToTextHarness.mjs
+          node scripts/harnesses/pdfTextHarness.mjs
+          node scripts/harnesses/pdfBridgeHarness.mjs
+          node scripts/harnesses/pdfTextServiceHarness.mjs
+          node scripts/harnesses/webFetchHarness.mjs
+          node scripts/harnesses/toolSourceLedgerHarness.mjs
+          node scripts/harnesses/base64Harness.mjs
+          node scripts/harnesses/pdfCacheFsHarness.mjs
+          node scripts/harnesses/longChatEstimateHarness.mjs
+          node scripts/harnesses/thinkStripperHarness.mjs
+          node scripts/harnesses/streamCoalescerHarness.mjs
+          node scripts/harnesses/turnTelemetryHarness.mjs
+          node scripts/harnesses/thinkingBudgetsHarness.mjs
+          node scripts/bench/benchSpeculativeHarness.mjs
+          node scripts/harnesses/bufferShimHarness.mjs
+          node scripts/bench/benchEngineHarness.mjs
+          node scripts/harnesses/engineParamsHarness.mjs
+          node scripts/harnesses/threadProfileHarness.mjs
+          node scripts/harnesses/memoryEstimateHarness.mjs
+          node scripts/harnesses/sessionMetaHarness.mjs
+          node scripts/harnesses/sessionSaveGateHarness.mjs
+          node scripts/harnesses/voiceStateHarness.mjs
+          node scripts/mutation/webFetchPdfMutationMatrix.mjs
+          node scripts/bench/benchGradeHarness.mjs
+          node scripts/bench/benchAggregateHarness.mjs
+          node scripts/bench/benchNCtxHarness.mjs
           # Gates for the privacy guard, the LFM tool dialect and memory telemetry.
           # Absent until 2026-08-14: all three shipped with manual-only verification.
-          node scripts/rulesCoreHarness.mjs
-          node scripts/toolCallParseHarness.mjs
-          node scripts/memoryTelemetryHarness.mjs
-          node scripts/toolRoundExhaustedHarness.mjs
-          node scripts/toolBenchHarness.mjs
-          node scripts/telemetryClampHarness.mjs
-          # npx jest and scripts/test_sideload_guards.sh are intentionally NOT
+          node scripts/harnesses/rulesCoreHarness.mjs
+          node scripts/harnesses/toolCallParseHarness.mjs
+          node scripts/harnesses/memoryTelemetryHarness.mjs
+          node scripts/harnesses/toolRoundExhaustedHarness.mjs
+          node scripts/bench/toolBenchHarness.mjs
+          node scripts/harnesses/telemetryClampHarness.mjs
+          # npx jest and scripts/device/test_sideload_guards.sh are intentionally NOT
           # run here: they gate the emulator/sideload path, not the sideloadable
           # artifact this workflow produces, so they have nothing to assert on a
           # device-only APK build.
-          node scripts/matrixParityHarness.mjs
+          node scripts/harnesses/matrixParityHarness.mjs
 
       - name: Free disk space
         run: |
@@ -166,7 +166,7 @@ jobs:
       # A benchmark that measures an unpatched binary measures the wrong binary.
       # assert-native-patch.sh exits 1 on a missing marker — fail the job, not warn.
       - name: Assert the native patch is in the binary
-        run: bash scripts/assert-native-patch.sh
+        run: bash scripts/native/assert-native-patch.sh
 
       - name: Report APK size and ABIs
         run: |

@@ -1,6 +1,6 @@
 /**
  * Pure Worker helpers — no Cloudflare bindings.
- * Used by workers/telemetry/index.ts and scripts/telemetryWorkerHarness.mjs.
+ * Used by workers/telemetry/index.ts and scripts/harnesses/telemetryWorkerHarness.mjs.
  */
 
 export const BODY_LIMIT = 4 * 1024;

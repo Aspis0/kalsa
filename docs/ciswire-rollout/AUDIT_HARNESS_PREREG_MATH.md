@@ -171,7 +171,7 @@ construction, matching the kit's "A/B variants 3+3".)
 `prereg.mjs:34-36` (1-based rank, i = 1..m): α/(m−i+1) → rank 1 gets 0.05/15, rank 15
 gets 0.05 — correct Holm step-down thresholds; selftest pins rank 1 exactly.
 
-`scripts/benchAggregate.mjs:507-521` `holmAdjust` (0-based rank, running max):
+`scripts/bench/benchAggregate.mjs:507-521` `holmAdjust` (0-based rank, running max):
 `(m - rank) * p` → rank 0 gets m·p, last gets 1·p, with `Math.max(running, …)`
 monotonicity — also correct. (Note: this is a *separate*, unconnected Holm path in the
 analyzer; neither imports the other — same math, two copies.)

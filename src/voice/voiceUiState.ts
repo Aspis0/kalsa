@@ -2,7 +2,7 @@
  * Pure voice UI phase machine for tap-to-talk.
  *
  * No React Native / native module imports — safe to compile and run from
- * Node harnesses (see scripts/voiceStateHarness.mjs).
+ * Node harnesses (see scripts/harnesses/voiceStateHarness.mjs).
  *
  * Phases: idle → listening → transcribing → idle
  * Mic tap resolution is separate from reduce so UI can map intents to I/O.

@@ -162,5 +162,5 @@ contrast is tested; where n is too small for significance, say so plainly (absen
 
 (a) generic config loader `campaigns/<name>.json`; (b) supervisor loop (collect → crash-detect →
 recover → resume); (c) host datastore + logcat capture; (d) deterministic profile extractor
-`scripts/responseProfile.mjs`; (e) RKStorage pull + KV restore helpers; (f) per-arm phase-aware resume.
+`scripts/device/responseProfile.mjs`; (e) RKStorage pull + KV restore helpers; (f) per-arm phase-aware resume.
 Verify: typecheck + harness scripts green; dry-run the supervisor against a 3-turn conversation.

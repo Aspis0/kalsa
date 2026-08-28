@@ -87,7 +87,7 @@ resolveEngineTuning(input) ->
 
 `"soc-preset:helio-g99" | "family:apple" | "family:android-big" | "family:android-small" | "fallback" | "override:user" | "override:bench"` — appended to `formatBenchStatus` (already has `threads_src=`).
 
-## 9. Harness (scripts/tuningLayerHarness.mjs)
+## 9. Harness (scripts/harnesses/tuningLayerHarness.mjs)
 
 Pure-function cases (compile-from-disk pattern like threadProfileHarness):
 1. exact SoC match wins over family rule (G99 synthetic profile → 2 decode / 8 prefill, source soc-preset)
@@ -103,7 +103,7 @@ Pure-function cases (compile-from-disk pattern like threadProfileHarness):
 
 ## 10. Integration points
 
-- `src/engine/deviceTuning.ts` (new pure module) + `scripts/tuningLayerHarness.mjs`.
+- `src/engine/deviceTuning.ts` (new pure module) + `scripts/harnesses/tuningLayerHarness.mjs`.
 - `LlamaService.ts` init: replace ad-hoc `n_threads`/`n_ubatch`/`n_ctx` resolution with `resolveEngineTuning` output (keeping the existing measured threads path until the new module is green).
 - `benchConfig.ts`: bench arms can override via `request` (threads/ubatch/ctx) — keeps the harness owner's bench intact.
 - Settings: show resolved params + source (one line, no FPS).
