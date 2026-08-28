@@ -25,3 +25,10 @@ Sei l'orchestratore della campagna Kalsa moe-experiments, appena migrato da un P
    lavoro engine-pin e verdetti C1-in-app: `scratchpad/agents/q66-app-lifecycle-s23/PHASE3_STATUS.md`.
 
 Riporta lo stato in breve quando hai finito il recovery, poi procedi in autonomia.
+7. IMPORTANTE: su questo Mac gira una run MULTI-GIORNO della sessione app che devi CUSTODIRE
+   (non ridisegnare): "ciswire harness vs no" sulla app reale, sul Jelly, con l'APK a kernel
+   VECCHIO — che non va MAI aggiornato finche' la run vive. Cerca il suo handover/stato (chiedi
+   all'owner dove sta se non lo trovi), identifica PID/log/watchdog, e limita il tuo intervento
+   a: keepalive Jelly (memorie jelly-dies-in-idle-sleep, jelly-keepalive-via-adb), verifica
+   watcher (watchers-verify-pid), recovery secondo procedura scritta, report onesto. Decisioni
+   di merito sulla run = sessione app / owner, mai tue.
