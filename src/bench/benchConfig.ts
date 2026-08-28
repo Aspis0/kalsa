@@ -7,6 +7,7 @@
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
  *   /bench engine <gpu=N,threads=N,ubatch=N|clear>
+ *   /bench devmodels <on|off>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking off
@@ -25,6 +26,7 @@
  * - kalsa.bench.format:   "none" | "system-end" | "user-prefix" | "user-note"
  * - kalsa.bench.speculative: JSON { type, nMax?, draftModelPath? } (CI A/B only)
  * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch? } (CI A/B only)
+ * - kalsa.bench.devmodels: "1" | "on" (DEV catalog; restart after changing)
  *
  * No in-memory cache: one fresh read per turn (best-effort).
  */
@@ -36,9 +38,31 @@ export const BENCH_THINKING_KEY = "kalsa.bench.thinking";
 export const BENCH_FORMAT_KEY = "kalsa.bench.format";
 export const BENCH_SPECULATIVE_KEY = "kalsa.bench.speculative";
 export const BENCH_ENGINE_KEY = "kalsa.bench.engine";
+export const BENCH_DEVMODELS_KEY = "kalsa.bench.devmodels";
 
 export type ThinkingMode = "default" | "off" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
+
+/** DEV catalog is opt-in; every value except "1" and "on" is disabled. */
+export async function getDevModelsEnabled(): Promise<boolean> {
+  try {
+    const raw = await AsyncStorage.getItem(BENCH_DEVMODELS_KEY);
+    return raw === "1" || raw === "on";
+  } catch {
+    return false;
+  }
+}
+
+/** Persist the DEV catalog switch for the next app restart. */
+export async function setDevModelsEnabled(mode: string): Promise<boolean> {
+  if (mode !== "on" && mode !== "off") return false;
+  try {
+    await AsyncStorage.setItem(BENCH_DEVMODELS_KEY, mode === "on" ? "1" : "0");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export type SpeculativeOverride = {
   /** "none" disables speculation entirely — the plain-decode baseline arm. */
@@ -361,7 +385,7 @@ export async function formatBenchStatus(): Promise<string> {
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <…> | bench:thinking <…> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,ubatch=N]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -422,6 +446,13 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     const ok = await setBlockFormat(arg);
     if (!ok) return "bench: failed to write format";
     return formatBenchStatus();
+  }
+
+  if (sub === "devmodels") {
+    if (arg !== "on" && arg !== "off") return `bench: invalid devmodels mode "${arg}". ${BENCH_USAGE}`;
+    const ok = await setDevModelsEnabled(arg);
+    if (!ok) return "bench: failed to write devmodels mode";
+    return `bench: devmodels=${arg} (force-stop + relaunch to apply)`;
   }
 
   if (sub === "speculative") {

@@ -52,7 +52,7 @@ import { handleAskAssistantMiniappAction } from "./miniappActions";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
-import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
+import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, configureModelRegistry, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
 import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
 import {
   embedDocumentChunk,
@@ -184,7 +184,7 @@ import {
   DEVICE_TOOLS_KEY,
   parseToolToggle,
 } from "../agent/toolToggles";
-import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
+import { getDevModelsEnabled, getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import {
   WEB_FETCH_TOOL,
@@ -641,6 +641,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { locale, t } = useLocale();
+  const [modelCatalogReady, setModelCatalogReady] = useState(false);
+  useEffect(() => {
+    let mounted = true;
+    void getDevModelsEnabled()
+      .catch(() => false)
+      .then((enabled) => {
+        if (!mounted) return;
+        configureModelRegistry(enabled);
+        setModelCatalogReady(true);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -2404,6 +2418,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Riconoscimento modello all'avvio: ripristina l'ultimo modello usato
   // (come la selezione persistita), NON sempre il default.
   useEffect(() => {
+    if (!modelCatalogReady) return;
     let mounted = true;
     AsyncStorage.getItem(MODEL_STORAGE_KEY)
       .then((saved) => {
@@ -2415,7 +2430,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [modelCatalogReady]);
 
   // Boot history hash is captured after the conversation index loads
   // (bindActiveConversation + getBootHistoryHash in that effect).
@@ -2868,6 +2883,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // one-shot per process+generation (claimEagerKick). Effect deps stay
   // [modelIndex] only — ensureEngineForModel is read from a ref, not listed.
   useEffect(() => {
+    if (!modelCatalogReady) return;
     let mounted = true;
     const checkedIndex = modelIndexRef.current;
     void (async () => {
@@ -2897,7 +2913,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       mounted = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modelIndex]);
+  }, [modelIndex, modelCatalogReady]);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
     // Capture generation + expected model BEFORE any await (race with selectModel).
@@ -3937,7 +3953,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // When Settings opens, scan which models are fully on disk (once per open + after state changes).
   useEffect(() => {
-    if (activeOverlay?.kind !== "settings") return;
+    if (!modelCatalogReady || activeOverlay?.kind !== "settings") return;
     let mounted = true;
     void (async () => {
       const entries = await Promise.all(
@@ -3958,7 +3974,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     return () => {
       mounted = false;
     };
-  }, [activeOverlay?.kind, modelState]);
+  }, [activeOverlay?.kind, modelCatalogReady, modelState]);
 
   // ── Chat wiring ──────────────────────────────────────────────────────────
   const handleMiniappAction = useCallback(
