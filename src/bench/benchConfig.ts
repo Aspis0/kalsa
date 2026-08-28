@@ -28,7 +28,8 @@
  * - kalsa.bench.engine: JSON { nGpuLayers?, nThreads?, nUbatch? } (CI A/B only)
  * - kalsa.bench.devmodels: "1" | "on" (DEV catalog; restart after changing)
  *
- * No in-memory cache: one fresh read per turn (best-effort).
+ * The app boot reads this once. Read failures reject so the boot path can
+ * explicitly choose the production catalog and still render the app.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -45,12 +46,8 @@ export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
 
 /** DEV catalog is opt-in; every value except "1" and "on" is disabled. */
 export async function getDevModelsEnabled(): Promise<boolean> {
-  try {
-    const raw = await AsyncStorage.getItem(BENCH_DEVMODELS_KEY);
-    return raw === "1" || raw === "on";
-  } catch {
-    return false;
-  }
+  const raw = await AsyncStorage.getItem(BENCH_DEVMODELS_KEY);
+  return raw === "1" || raw === "on";
 }
 
 /** Persist the DEV catalog switch for the next app restart. */

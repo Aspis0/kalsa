@@ -66,7 +66,9 @@ const config = {
   },
   plugins: [
     "./plugins/withLintOff",
-    "./plugins/withDebuggableRelease",
+    ...(process.env.KALSA_DEBUGGABLE === "1"
+      ? ["./plugins/withDebuggableRelease"]
+      : []),
     "./plugins/withDisplayRefreshRate",
     "./plugins/withAndroidShareIntent",
     "expo-font",
