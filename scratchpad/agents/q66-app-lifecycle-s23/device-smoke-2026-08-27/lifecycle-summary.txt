@@ -1,0 +1,14 @@
+timestamp=2026-08-27T17:59:32.4340702-04:00
+pid=10186
+focus:
+mCurrentFocus=Window{a4aeae6 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+meminfo:
+Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+  Native Heap  1609254  1609184       32    10638  1609948  2187232  2182864     4367
+  Dalvik Heap    19959    19732       64      216    21056    35313    10737    24576
+        TOTAL  3014564  1709524  1279224    14900  3100820  2222545  2193601    28943
+ App Summary
+         Native Heap:  1609184                        1609948
+           TOTAL PSS:  3014564            TOTAL RSS:  3100820       TOTAL SWAP PSS:    14900
+                         Count                       Total(kB)
+oom_score_adj=0

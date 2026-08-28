@@ -1,0 +1,62 @@
+﻿START=2026-08-27T19:51:02.1559437-04:00
+INTERVAL_SECONDS=60
+FLOOR_FREE_GIB=3
+FLOOR_COMMIT_PCT=97
+PAGEFILE_RULE=stop only after two consecutive commit>=97 samples with unchanged AllocatedBaseSize
+SAMPLE=initial timestamp=2026-08-27T19:51:05.2079769-04:00 free_gib=13.92 commit_pct=81.1 pagefile_allocated_mb_total=19456
+  PAGEFILE name=C:\pagefile.sys allocated_base_mb=19456 current_usage_mb=4872 peak_usage_mb=5291 status=
+  TOP3_BEGIN
+
+
+Id            : 6612
+ProcessName   : MsMpEng
+PriorityClass : 
+WorkingSetGiB : 0.7
+CPUSeconds    : 
+
+Id            : 4728
+ProcessName   : Memory Compression
+PriorityClass : 
+WorkingSetGiB : 0.53
+CPUSeconds    : 
+
+Id            : 33512
+ProcessName   : zen
+PriorityClass : Normal
+WorkingSetGiB : 0.42
+CPUSeconds    : 77.75
+
+
+
+
+  TOP3_END
+SAMPLE=interval timestamp=2026-08-27T19:52:07.6307650-04:00 free_gib=12.83 commit_pct=83.4 pagefile_allocated_mb_total=19456
+  PAGEFILE name=C:\pagefile.sys allocated_base_mb=19456 current_usage_mb=4872 peak_usage_mb=5291 status=
+  TOP3_BEGIN
+
+
+Id            : 6612
+ProcessName   : MsMpEng
+PriorityClass : 
+WorkingSetGiB : 0.68
+CPUSeconds    : 
+
+Id            : 69360
+ProcessName   : java
+PriorityClass : Idle
+WorkingSetGiB : 0.65
+CPUSeconds    : 103.671875
+
+Id            : 4728
+ProcessName   : Memory Compression
+PriorityClass : 
+WorkingSetGiB : 0.53
+CPUSeconds    : 
+
+
+
+
+  TOP3_END
+SAMPLE=interval timestamp=2026-08-27T19:53:11.1581391-04:00 free_gib=12.11 commit_pct=84.4 pagefile_allocated_mb_total=19456
+  PAGEFILE name=C:\pagefile.sys allocated_base_mb=19456 current_usage_mb=4872 peak_usage_mb=5291 status=
+  TOP3_BEGIN

@@ -1,0 +1,27 @@
+source_ui=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\device-smoke-2026-08-27\settings-models.xml
+source_code=src/engine/ModelRegistry.ts
+no Marco/i1 entries observed in UI or registry
+visible model surface:
+text=[Qwen 3.5 4B · Q3] desc=[] enabled=true bounds=[156,234][648,142]
+text=[Q3_K_M · 3.0 GB · 6–8 GB di RAM] desc=[] enabled=true bounds=[156,234][648,190]
+text=[Stesso modello, compressione più leggera per telefoni con 6–8 GB di RAM. Qualità leggermente inferiore.] desc=[] enabled=true bounds=[156,234][648,340]
+text=[] desc=[Seleziona] enabled=true bounds=[678,234][924,310]
+text=[Seleziona] desc=[] enabled=true bounds=[717,241][885,289]
+text=[Non scaricato] desc=[] enabled=true bounds=[156,400][648,448]
+text=[Gemma 4 E2B] desc=[] enabled=true bounds=[156,544][648,604]
+text=[Modello alternativo con visione e tool calling nativo. Non fa parte della catena di fallback RAM di Qwen — scegli questo se preferisci Gemma.] desc=[] enabled=true bounds=[156,658][648,802]
+text=[] desc=[Seleziona] enabled=false bounds=[678,706][924,796]
+text=[Seleziona] desc=[] enabled=true bounds=[717,727][885,775]
+text=[Non scaricato] desc=[] enabled=true bounds=[156,910][648,958]
+text=[Qwen 3.5 2B] desc=[] enabled=true bounds=[156,1054][648,1114]
+text=[Q4_K_M · 1.3 GB · Meno di 6 GB di RAM] desc=[] enabled=true bounds=[156,1114][648,1162]
+text=[Ripiego per telefoni con meno di 6 GB di RAM. Veloce, solo testo (niente immagini).] desc=[] enabled=true bounds=[156,1168][648,1312]
+text=[] desc=[Seleziona] enabled=true bounds=[678,1165][924,1255]
+text=[Seleziona] desc=[] enabled=true bounds=[717,1186][885,1234]
+text=[Scaricato ✓] desc=[] enabled=true bounds=[156,1318][648,1366]
+text=[Kalsa gira interamente su questo dispositivo. Le chat restano locali. Le chiamate di rete sono il download dei modelli da Hugging Face, la ricerca web tramite il provider che scegli, i fetch di pagine opzionali (web_fetch) e la telemetria opt-in. Le chiavi API sono salvate nell'archivio sicuro del dispositivo. Nessun account e nessuna sincronizzazione cloud. La telemetria è disattivata di default.] desc=[] enabled=true bounds=[111,1615][969,2047]
+text=[] desc=[Qwen 3.5 4B · Q4_K_M · Caricamento non riuscito — tocca per riprovare] enabled=true bounds=[54,159][835,255]
+text=[Qwen 3.5 4B · Q4_K_M · Caricamento non riuscito — tocca per riprovare] desc=[] enabled=true bounds=[54,159][835,255]
+text=[Non compatibile con la RAM di questo dispositivo] desc=[] enabled=true bounds=[54,261][1026,309]
+text=[] desc=[Non dispongo di informazioni su “BeneficiSport”. Se desideri, posso aiutarti a cercare dati aggiornati tramite una ricerca sul web.] enabled=true bounds=[42,336][1038,474]
+text=[Non dispongo di informazioni su “BeneficiSport”. Se desideri, posso aiutarti a cercare dati aggiornati tramite una ricerca sul web.] desc=[] enabled=true bounds=[42,336][1038,474]

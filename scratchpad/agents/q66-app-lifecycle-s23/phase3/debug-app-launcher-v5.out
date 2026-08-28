@@ -1,0 +1,10 @@
+START=2026-08-27T19:51:02.7584200-04:00
+WORKER=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\build-debug-app-worker-v5.ps1
+WORKER_STDOUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-worker-v5.out
+WORKER_STDERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-worker-v5.err
+DETACHED_FLAGS=CREATE_NO_WINDOW|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+END=2026-08-27T19:56:29.2804226-04:00
+WORKER_PID=51776
+WORKER_EXIT=0
+GRADLE_STOP_EXIT=0
+GRADLE_STOP_LOG=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-gradle-stop-v5.log

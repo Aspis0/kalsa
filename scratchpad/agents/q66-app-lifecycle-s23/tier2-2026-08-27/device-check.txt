@@ -1,0 +1,16 @@
+timestamp=2026-08-27T18:47:12.7827433-04:00
+serial=adb-R3CW406P8CV-zyLM4b (2)._adb-tls-connect._tcp
+battery temperature raw:
+  temperature: 266
+battery level:
+  level: 100
+data:
+Filesystem       Size Used Avail Use% Mounted on
+/dev/block/dm-60 104G  92G   12G  89% /data/user/0
+tmp model files:
+
+-rw-rw-rw- 1 shell shell 6.0G 2026-08-23 19:59 Marco-Mini-Instruct-KEXP-fromsrc-trunk-q8_0.gguf
+-rw-rw-rw- 1 shell shell 5.9G 2026-08-12 23:14 Marco-Mini-Instruct-KEXP.gguf
+-rw-rw-rw- 1 shell shell  10G 2026-08-22 15:13 Marco-Mini-Instruct.i1-Q4_K_M.gguf
+-rw-rw-rw- 1 shell shell 3.9G 2026-08-20 23:53 OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+

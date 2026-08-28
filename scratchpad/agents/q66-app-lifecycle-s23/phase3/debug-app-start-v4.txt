@@ -1,0 +1,7 @@
+BUILD_LAUNCHER_PID=25496
+MONITOR_PID=63396
+START=2026-08-27T19:44:21.9431577-04:00
+BUILD_OUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-launcher-v4.out
+BUILD_ERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-launcher-v4.err
+MONITOR_OUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-monitor-v4.out
+MONITOR_ERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-monitor-v4.err

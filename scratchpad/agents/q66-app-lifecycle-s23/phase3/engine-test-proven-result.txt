@@ -1,0 +1,7 @@
+﻿cmake.exe : CMAKE_BUILD_TYPE=Release
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-worke
+r.ps1:76 char:5
++     & $cmake @configureArgs *>> $configureLog
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (CMAKE_BUILD_TYPE=Release:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError

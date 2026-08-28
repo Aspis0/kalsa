@@ -1,0 +1,3 @@
+timestamp=2026-08-27T17:59:43.5458575-04:00
+force-stop issued; pidof check is the close result
+pidof_after=[]

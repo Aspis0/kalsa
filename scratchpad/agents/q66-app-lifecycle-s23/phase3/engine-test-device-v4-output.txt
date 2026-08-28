@@ -1,0 +1,38 @@
+repack: repack tensor  with q2_K_8x4
+loader-set 2d_q2 size=ggml_nbytes=672 native=672 extra=Q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+loader-set pad_q2_3d size=ggml_nbytes=2016 native=2016 extra=Q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+loader-set q3_3d size=ggml_nbytes=2640 native=2640 extra=Q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+repack: repack tensor  with q2_K_8x4
+loader-set lfm_gate_q2 size=ggml_nbytes=38535168 native=38535168 extra=Q2_K_8x4
+repack: repack tensor  with q2_K_8x4
+repack: repack tensor  with q3_K_8x4
+loader-set lfm_down_q3 size=ggml_nbytes=50462720 native=50462720 extra=Q3_K_8x4
+repack: repack tensor  with q3_K_8x4
+test-repack-q23k-load neon=1 dotprod=1 loader_set=1
+
+== size contract (ggml_nbytes after CPU_REPACK init_tensor) ==
+tag             extra     native     nbytes      alloc     stride loader_ok
+2d_q2          Q2_K_8x4        672        672        704        704 ok
+  ok native set_tensor 2d_q2 nb[2]=704
+  ok loader-style set_tensor 2d_q2 (nbytes==native)
+pad_q2_3d      Q2_K_8x4       2016       2016       2112        704 ok
+  ok native set_tensor pad_q2_3d nb[2]=704
+  ok loader-style set_tensor pad_q2_3d (nbytes==native)
+q3_3d          Q3_K_8x4       2640       2640       2880        960 ok
+  ok native set_tensor q3_3d nb[2]=960
+  ok loader-style set_tensor q3_3d (nbytes==native)
+lfm_gate_q2    Q2_K_8x4   38535168   38535168   38535168    1204224 ok
+  ok native set_tensor lfm_gate_q2 nb[2]=1204224
+  ok loader-style set_tensor lfm_gate_q2 (nbytes==native)
+lfm_down_q3    Q3_K_8x4   50462720   50462720   52297728    1634304 ok
+  ok native set_tensor lfm_down_q3 nb[2]=1634304
+  ok loader-style set_tensor lfm_down_q3 (nbytes==native)
+
+== padded get_alloc_size into set_tensor must abort ==
+  ok abort on get_alloc_size=2112 native=2016: C:/Users/gualt/kals-pin/ggml/src/ggml-cpu/repack.cpp:5351: ggml_backend_cpu_repack_buffer_set_tensor: q23k set size 2112 != native source 2016 (ggml_nbytes=2016)
+RESULT: PASS

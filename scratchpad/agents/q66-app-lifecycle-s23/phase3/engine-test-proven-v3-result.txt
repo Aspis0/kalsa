@@ -1,0 +1,7 @@
+﻿Safety floor breached: free_gib=0.53 commit_pct=97.7
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-worke
+r.ps1:27 char:9
++         throw "Safety floor breached: free_gib=$free commit_pct=$comm ...
++         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Safety floor br...commit_pct=97.7:String) [], RuntimeException
+    + FullyQualifiedErrorId : Safety floor breached: free_gib=0.53 commit_pct=97.7

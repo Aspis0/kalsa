@@ -1,0 +1,8 @@
+Detached worker launch failed: Win32 3
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\launch-engine-test-detac
+hed.ps1:64 char:5
++     throw "Detached worker launch failed: Win32 $lastError"
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Detached worker launch failed: Win32 3:String) [], RuntimeException
+    + FullyQualifiedErrorId : Detached worker launch failed: Win32 3
+ 

@@ -1,0 +1,10 @@
+Add-Content : The process cannot access the file 
+'C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\debug-app-monitor-v5.log' 
+because it is being used by another process.
+At C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\monitor-debug-app-v5.ps1
+:24 char:206
++ ... @{N='CPUSeconds';E={$_.CPU}}|Out-String|Add-Content -LiteralPath $log
++                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : WriteError: (C:\Users\gualt\...-monitor-v5.log:String) [Add-Content], IOException
+    + FullyQualifiedErrorId : GetContentWriterIOError,Microsoft.PowerShell.Commands.AddContentCommand
+ 

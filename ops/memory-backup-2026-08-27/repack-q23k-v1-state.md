@@ -152,3 +152,12 @@ PREP di fatto completo; da lanciare come primo atto dei 10 giorni. Avvisare sess
 ops/MIGRATION-MACOS.md; memoria backuppata in ops/memory-backup-2026-08-27/ (RIPRISTINARLA per
 prima cosa sul Mac). Repack q23k PROVEN-ACTIVE su S23 (PASS on-device). Ultimo job PC: build
 debuggable + C1-in-app (Luna, in corso); C1 preservata su S23. Niente di nuovo pesante sul PC.
+
+**27/08 chiusura PC — verdetti engine-pin finali**: (1) kernel repack q2/q3 **PROVEN-ACTIVE su S23**
+(test on-device PASS, neon=1 dotprod=1 trait 8x4); (2) engine kalsallama nell'app FUNZIONA (2B stock
+carica+genera, marker kalsa); (3) C1-in-app NON ancora provata: fit-gate esclude lo slot 4B su S23
+(app vede 7 GB, tier mid) e lo slot Q3 richiede la contabilita' download interna (file da solo =
+'Non scaricato') → dal Mac: leggere downloadModelBundle bookkeeping e seminare via seed_kv chat-command
+(meccanismo bench), oppure entry dev nel registry (sessione app). C1 preservata su S23
+(/data/local/tmp/q63_c1_preserved.gguf, sha c54e95f8), APK debuggable installato (sha A3BDB0DD),
+stock intatto. PC-only perso col reset: staging C:/q66p3b, C:/kq66-repack-v4 (rigenerabili).

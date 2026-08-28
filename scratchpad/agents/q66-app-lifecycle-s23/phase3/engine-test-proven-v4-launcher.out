@@ -1,0 +1,8 @@
+START=2026-08-27T19:25:34.6112751-04:00
+WORKER=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-worker.ps1
+WORKER_STDOUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-v4-worker.out
+WORKER_STDERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-v4-worker.err
+DETACHED_FLAGS=CREATE_NO_WINDOW|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
+END=2026-08-27T19:40:04.1895573-04:00
+WORKER_PID=61952
+WORKER_EXIT=0

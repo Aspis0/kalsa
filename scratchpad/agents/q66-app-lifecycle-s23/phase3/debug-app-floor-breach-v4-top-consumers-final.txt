@@ -1,0 +1,126 @@
+CAPTURED_BEFORE_STOP=2026-08-27T19:45:45.3831901-04:00
+TRIGGER_SAMPLE=free_gib=6.16 commit_pct=97.5
+TOP_CONSUMERS_BEGIN
+
+Id            : 67036
+ProcessName   : java
+PriorityClass : Idle
+WorkingSetGiB : 0.63
+CPUSeconds    : 99.328125
+
+Id            : 6612
+ProcessName   : MsMpEng
+PriorityClass : 
+WorkingSetGiB : 0.59
+CPUSeconds    : 
+
+Id            : 4728
+ProcessName   : Memory Compression
+PriorityClass : 
+WorkingSetGiB : 0.53
+CPUSeconds    : 
+
+Id            : 33512
+ProcessName   : zen
+PriorityClass : Normal
+WorkingSetGiB : 0.42
+CPUSeconds    : 77.734375
+
+Id            : 2012
+ProcessName   : Paseo
+PriorityClass : Normal
+WorkingSetGiB : 0.4
+CPUSeconds    : 9427.75
+
+Id            : 51608
+ProcessName   : Paseo
+PriorityClass : Normal
+WorkingSetGiB : 0.39
+CPUSeconds    : 8594.546875
+
+Id            : 35704
+ProcessName   : claude
+PriorityClass : Normal
+WorkingSetGiB : 0.33
+CPUSeconds    : 1932.015625
+
+Id            : 16532
+ProcessName   : claude
+PriorityClass : Normal
+WorkingSetGiB : 0.29
+CPUSeconds    : 1545.28125
+
+Id            : 6572
+ProcessName   : GWCtlSrv
+PriorityClass : 
+WorkingSetGiB : 0.24
+CPUSeconds    : 
+
+Id            : 57752
+ProcessName   : Paseo
+PriorityClass : Normal
+WorkingSetGiB : 0.19
+CPUSeconds    : 596.390625
+
+Id            : 16956
+ProcessName   : explorer
+PriorityClass : Normal
+WorkingSetGiB : 0.18
+CPUSeconds    : 6475.71875
+
+Id            : 42632
+ProcessName   : PhoneExperienceHost
+PriorityClass : Normal
+WorkingSetGiB : 0.17
+CPUSeconds    : 5.09375
+
+Id            : 35688
+ProcessName   : node
+PriorityClass : Normal
+WorkingSetGiB : 0.17
+CPUSeconds    : 11.59375
+
+Id            : 60796
+ProcessName   : node
+PriorityClass : Normal
+WorkingSetGiB : 0.17
+CPUSeconds    : 10.421875
+
+Id            : 61804
+ProcessName   : node
+PriorityClass : Normal
+WorkingSetGiB : 0.16
+CPUSeconds    : 17.015625
+
+Id            : 54460
+ProcessName   : zen
+PriorityClass : Normal
+WorkingSetGiB : 0.16
+CPUSeconds    : 119.765625
+
+Id            : 56612
+ProcessName   : node
+PriorityClass : Normal
+WorkingSetGiB : 0.16
+CPUSeconds    : 29.59375
+
+Id            : 9640
+ProcessName   : node
+PriorityClass : Normal
+WorkingSetGiB : 0.16
+CPUSeconds    : 10.21875
+
+Id            : 27332
+ProcessName   : codex
+PriorityClass : Normal
+WorkingSetGiB : 0.16
+CPUSeconds    : 13.15625
+
+Id            : 31244
+ProcessName   : node
+PriorityClass : Normal
+WorkingSetGiB : 0.16
+CPUSeconds    : 13.125
+
+
+TOP_CONSUMERS_END

@@ -1,0 +1,4 @@
+LAUNCHER_PID=65212
+START=2026-08-27T19:15:30.8803363-04:00
+OUT=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-v3-launcher.out
+ERR=C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-proven-v3-launcher.err

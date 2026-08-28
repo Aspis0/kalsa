@@ -1,0 +1,8 @@
+﻿timestamp=2026-08-27T19:00:15.1651492-04:00
+free_physical_gib=13.34
+total_physical_gib=31.61
+required_free_physical_gib=8.00
+GATE=PASS
+worker_pid=58648
+worker_command=-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "C:\Users\gualt\Desktop\Kalsa\moe-experiments\scratchpad\agents\q66-app-lifecycle-s23\phase3\engine-test-worker.ps1"
+flags=CREATE_NO_WINDOW|CREATE_NEW_PROCESS_GROUP|CREATE_UNICODE_ENVIRONMENT|CREATE_BREAKAWAY_FROM_JOB
