@@ -7,7 +7,7 @@
  * answer, not the way a spec would.
  */
 import { readFileSync } from "node:fs";
-import { scoreAnswer, splitThinking, norm, detectLanguage } from "./quality/score.mjs";
+import { scoreAnswer, splitThinking, norm, detectLanguage } from "../bench/quality/score.mjs";
 
 let passed = 0;
 let failed = 0;
@@ -22,7 +22,7 @@ function check(name, cond, extra = "") {
 }
 
 const QUESTIONS = JSON.parse(
-  readFileSync(new URL("./quality/questions.json", import.meta.url), "utf8"),
+  readFileSync(new URL("../bench/quality/questions.json", import.meta.url), "utf8"),
 );
 const byId = Object.fromEntries(QUESTIONS.questions.map((q) => [q.id, q]));
 const verdict = (id, lang, text) => scoreAnswer(byId[id], lang, text);

@@ -58,7 +58,7 @@ test("Buffer.from(Uint8Array) keeps byte length", () => {
 
 test("no hand-rolled buffer shim is aliased in metro config", () => {
   const fs = require("node:fs");
-  const cfg = fs.readFileSync(new URL("../metro.config.js", import.meta.url), "utf8");
+  const cfg = fs.readFileSync(new URL("../../metro.config.js", import.meta.url), "utf8");
   assert(
     !/moduleName === ["']buffer["']/.test(cfg),
     "metro.config.js still aliases 'buffer' to a local shim — that shim caused the voice crash",

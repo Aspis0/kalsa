@@ -5,8 +5,8 @@
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
-const { parseMiniappFromText } = require("../src/domain/askAssistant.js");
-const { containsFactShapedTokens } = require("../src/rules/entityContainment.js");
+const { parseMiniappFromText } = require("../../src/domain/askAssistant.js");
+const { containsFactShapedTokens } = require("../../src/rules/entityContainment.js");
 
 // ── Fixed word lists (language probe) ───────────────────────────────────
 // Count after NFD + strip combining marks so accented Italian (perché, più)

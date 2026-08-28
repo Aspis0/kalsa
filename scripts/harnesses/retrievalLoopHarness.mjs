@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import {
   runMutationMatrix,
   wordSetContainedAt,
-} from "./retrievalLoopMutations.mjs";
+} from "../mutation/retrievalLoopMutations.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "../..");
