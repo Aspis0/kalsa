@@ -89,7 +89,7 @@ That is the prefix mechanism. whisper.rn vendors its own ggml, so the prefix is 
 - `npm ci` → `patch-package`
 - `npx expo prebuild --platform android --no-install` with `KALSA_LLAMA_FROM_SOURCE=1`
 - `./gradlew assembleRelease`
-- `scripts/assert-native-patch.sh` greps `kalsa-native-patches` inside `librnllama.so`
+- `scripts/native/assert-native-patch.sh` greps `kalsa-native-patches` inside `librnllama.so`
 
 No `GITHUB_TOKEN` / PAT for `Aspis0/*`. A postinstall that `git clone`s kalsallama **dies in CI
 today**. CI has **no** `secrets.*` anywhere — verified.
@@ -131,7 +131,7 @@ Record in `native/kalsallama.pin` (JSON, committed):
 
 ```bash
 # from the kalsa repo, with network access to Aspis0/kalsallama
-scripts/sync-kalsallama.sh bump
+scripts/native/sync-kalsallama.sh bump
 # → fetches origin/kalsa/repack-q23k
 # → writes the new SHA into native/kalsallama.pin
 # → flatten+prefix into vendor/kalsallama-cpp/
@@ -142,7 +142,7 @@ npx patch-package llama.rn
 Pin a specific SHA without following the branch tip:
 
 ```bash
-scripts/sync-kalsallama.sh pin 9890d10545746025ada5a314aeb57c361395e055
+scripts/native/sync-kalsallama.sh pin 9890d10545746025ada5a314aeb57c361395e055
 ```
 
 Rebuild (same as today): `npx expo prebuild --platform android --no-install` then gradle. `npm ci`
@@ -156,7 +156,7 @@ Local shortcut: `KALSALLAMA_SRC=/path/to/clone` skips GitHub if that clone is al
 
 ## What the sync script does
 
-`scripts/sync-kalsallama.sh` is a trimmed llama.rn v0.12.8 `bootstrap.sh`:
+`scripts/native/sync-kalsallama.sh` is a trimmed llama.rn v0.12.8 `bootstrap.sh`:
 
 1. Resolve source at the pin SHA (local clone or fetch).
 2. Copy the same file list as bootstrap (existence-checked: fork lacks `common/trie.{h,cpp}` — skip,
@@ -184,13 +184,13 @@ yields a green build on a silently old engine — the overlay in git no longer m
 Add a check that **fails the build (and CI)** when the committed overlay does not correspond to the
 pin:
 
-- **Runs:** in `scripts/sync-kalsallama.sh` after it writes the overlay, and as a standalone
+- **Runs:** in `scripts/native/sync-kalsallama.sh` after it writes the overlay, and as a standalone
   `scripts/check-pin-consistency.sh` invoked from the CI matrix (and from `npm ci` postinstall).
 - **What it does:** reads `commit` from `native/kalsallama.pin`, computes the SHA of the committed
   overlay (`vendor/kalsallama-cpp/`, e.g. `sha256` over the sorted file list + contents, or a pinned
   `git hash-object -t tree` of the overlay), and compares. Mismatch → non-zero exit, no build.
 - If the overlay has not been generated yet (first checkout), the check errors loudly and points at
-  `scripts/sync-kalsallama.sh sync` rather than silently shipping the wrong engine.
+  `scripts/native/sync-kalsallama.sh sync` rather than silently shipping the wrong engine.
 
 This is the only place the pin is enforced. Everything else (assert-native-patch, the compile)
 passes on a stale overlay today.
@@ -478,7 +478,7 @@ measuring nothing. The new list fails when the artifact that actually ran is wro
    `../src/llama-ext.h`). (F6)
 6. Overlay excludes `models/` (74.4 MiB) and copies only `nlohmann` from `vendor/`; `COMMON_FILES`
    compiles 31 files. (F7)
-7. `scripts/assert-native-patch.sh` still finds `kalsa-native-patches` in the **loaded** variant.
+7. `scripts/native/assert-native-patch.sh` still finds `kalsa-native-patches` in the **loaded** variant.
 8. Targeted gradle compile only (`assembleRelease -PreactNativeArchitectures=arm64-v8a`); no full
    test suite.
 

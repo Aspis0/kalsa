@@ -23,7 +23,7 @@ never uses: `GGML_OPENCL_LOG_KERNELS` (ggml-opencl.cpp:59-73).
 ## F3 — the binary guard inspects the wrong artifact, and the loader downgrades silently
 `RNLlama.java:201` tries `rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl`; `tryLoadLibrary` catches
 `UnsatisfiedLinkError` and returns false with **no log**, so the app runs the CPU-only .so.
-`scripts/assert-native-patch.sh` greps the **generic** `librnllama.so`, which carries the marker
+`scripts/native/assert-native-patch.sh` greps the **generic** `librnllama.so`, which carries the marker
 regardless of which variant loaded. Wrong variant, assert still green.
 
 ## F4 — nothing reconciles the committed overlay against the pin

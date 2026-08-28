@@ -48,7 +48,7 @@ tool-ui.com, a2ui repo, huggingface.co LiquidAI GGUF + chat template), and on-di
 | C10 | "§7.37 shows tool rounds now keep ≥90% cache" | **CONFIRMED** (context matters) | docs/HARNESS_FINDINGS.md:124: "15 of 16 tool-preceded turns kept 90–98 %"; the 1-in-16 failure cost **128,167 ms prefill** (:132–134). **Measured with thinking OFF** — HARNESS :120–123: "the whole `fase4` matrix is hardcoded to `thinking: "off"`". P4 runs "thinking default" ⇒ the premise does not transfer (D8) |
 | C11 | LFM2.5-2.6B QAD-Q4_0 in ModelRegistry; VL-3B not yet | **CONFIRMED** | src/engine/ModelRegistry.ts:293–299 (`lfm2.5-2.6b`, `LFM2.5-2.6B-QAD-Q4_0.gguf`); no VL-3B entry |
 | C12 | "LlamaService exposes onMiniapp but never emits it" (MINIAPP_AUDIT) | **CONFIRMED** | `onMiniapp?` declared :575 and client-wired (AiChatPage.tsx:2459, "cloud path may also call onMiniapp directly" :2590); no emit site in LlamaService or AppShell |
-| C13 | CI emulator exists for P4 | **CONFIRMED** | scripts/ci-bench.sh (KVM-emulator BENCH_TARGET), HARNESS measurements on it |
+| C13 | CI emulator exists for P4 | **CONFIRMED** | scripts/ci/ci-bench.sh (KVM-emulator BENCH_TARGET), HARNESS measurements on it |
 | C14 | Jelly ≈ 6 tok/s | **CONFIRMED** (rounds up) | HARNESS: 7.05 tok/s (§7.28), ≤10 tok/s "testbed, not a target"; cold start **120.8 s** (77.7 prewarm + 43.1 first prefill) (:36) — the number that matters for D2/D5 |
 
 ---

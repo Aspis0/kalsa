@@ -13,7 +13,7 @@
  * POLICY (source-build default): compile cpp/ into every build so ALL Kalsa
  * native patches take effect. Explicit opt-out with KALSA_LLAMA_FROM_SOURCE=0
  * restores the prebuilt-JNI path for faster local iteration. The marker assert
- * (scripts/assert-native-patch.sh, runtime check in AppShell) catches regressions
+ * (scripts/native/assert-native-patch.sh, runtime check in AppShell) catches regressions
  * where the binary lacks "kalsa-native-patches".
  *
  *   undefined / "1" / anything else → rnllamaBuildFromSource=true (source)

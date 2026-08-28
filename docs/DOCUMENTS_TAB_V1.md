@@ -329,7 +329,7 @@ any diagnostic gain; user can re-import from a working copy).
 | i18n + types (24 user-facing keys + locale formatters) | `src/i18n/en.ts`, `it.ts`, `types.ts` | +110 |
 | Accessibility: `accessibilityLabel`/`accessibilityHint` on rows, drag handle, hint dismiss; reduced-motion check | `src/screens/documents/*.tsx` | included above |
 | New dep `react-native-draggable-flatlist` (MIT, peer-compatible with installed RNGH + Reanimated 4) | `package.json` + `package-lock.json` | +1 dep |
-| Harness: reorderDocs cases, prepend, legacy compat, snippet cap, i18n parity, date bucket | `scripts/documentLibraryHarness.mjs` + `scripts/i18nParityHarness.mjs` (NEW) | +60 |
+| Harness: reorderDocs cases, prepend, legacy compat, snippet cap, i18n parity, date bucket | `scripts/harnesses/documentLibraryHarness.mjs` + `scripts/harnesses/i18nParityHarness.mjs` (NEW) | +60 |
 
 **Reuse as-is**: `Header`, `GlassPanel2`, `expo-document-picker`,
 `requestPdfText`, TXT read path, delete latch in AppShell, `PdfToImages`
@@ -448,7 +448,7 @@ implementation begins.
 - **Do not touch**: `src/context/retrievalLoop.ts`, `src/util/pdfText.ts`,
   `src/agent/webFetchTool.ts`, `src/engine/LlamaService.ts`,
   `docs/MANDATE_FASE4_BENCHMARK.md` (harness owner's territory),
-  `.github/workflows/*`, `scripts/ci-bench.sh`, `out/bench/`.
+  `.github/workflows/*`, `scripts/ci/ci-bench.sh`, `out/bench/`.
 - **Ownership stays in AppShell**: `onAddDocument` (now prepends),
   `onDeleteDocument`, `updateDocumentPreview`, delete latch, library
   persistence (HIGH-5: serialized write queue), `requestPdfText` host
@@ -476,7 +476,7 @@ and add-then-delete races.
 ## 13. Verification
 
 - `npm run typecheck` exit 0.
-- `node scripts/documentLibraryHarness.mjs` extensions:
+- `node scripts/harnesses/documentLibraryHarness.mjs` extensions:
   - `reorderDocs`: identity on same order, mid swap, full reverse,
     missing-id → unchanged, duplicate-id → unchanged, empty input →
     unchanged, length-mismatch → unchanged.
@@ -487,7 +487,7 @@ and add-then-delete races.
   - `makePreviewSnippet` (NEW pure helper): cap at 200 code points
     after trim, Unicode-safe cut at code-point boundary, returns
     undefined for empty input, no NUL leakage.
-- `node scripts/i18nParityHarness.mjs` (NEW or extended): every
+- `node scripts/harnesses/i18nParityHarness.mjs` (NEW or extended): every
   key in §10 exists in both `en.ts` and `it.ts`; old keys
   (`intro`, `addPdf`, `addTxt`, `extracting`, `noTextLayer`) are not
   referenced by any screen code (grep across `src/screens/`,

@@ -181,8 +181,8 @@ const edit = async (targetMsgId: string, newText: string) => {
 | nuovo | `src/engine/monitor.ts` | ~80 |
 | nuovo | `src/hooks/useThermalMonitor.ts` | ~50 |
 | nuovo | `src/hooks/useProcessHealth.ts` | ~40 |
-| nuovo | `scripts/anti_oom_harness.mjs` | ~150 |
-| nuovo | `scripts/regen_harness.mjs` | ~120 |
+| nuovo | `scripts/device/anti_oom_harness.mjs` | ~150 |
+| nuovo | `scripts/mutation/regen_harness.mjs` | ~120 |
 | edit | `src/engine/deviceProfile.ts` | ~30 |
 | edit | `src/app/AppShell.tsx` | ~30 (gateForModel mmproj + AppState regen + startMemoryMonitor) |
 | edit | `src/screens/AiChatPage.tsx` | ~200 (regenInFlightRef, regenAbortRef, regenerate, edit, edited flag, message menu) |
@@ -229,8 +229,8 @@ Sink: `console.info`.
 ## 9. Verifica
 
 - `npm run typecheck` exit 0.
-- `node scripts/anti_oom_harness.mjs`: 4GB/2B per `fits|tight|does_not_fit|unknown`; mmproj accounting; bg+save+unload sequencing; fg+lazy restore.
-- `node scripts/regen_harness.mjs`: regen = `handleSend(originalUserText)` atomic; edit array-index splice; due regen racing → uno rifiuta (`regenInFlightRef`); aborted regen restore snapshot; persistent `.kvs` rollback NON attempted (documented).
+- `node scripts/device/anti_oom_harness.mjs`: 4GB/2B per `fits|tight|does_not_fit|unknown`; mmproj accounting; bg+save+unload sequencing; fg+lazy restore.
+- `node scripts/mutation/regen_harness.mjs`: regen = `handleSend(originalUserText)` atomic; edit array-index splice; due regen racing → uno rifiuta (`regenInFlightRef`); aborted regen restore snapshot; persistent `.kvs` rollback NON attempted (documented).
 - Reviewer ostile sul diff PRIMA del commit finale.
 
 ---

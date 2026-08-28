@@ -64,7 +64,7 @@ compattare ed è identico nei due bracci per costruzione (1153 token, misurato).
 
 > **Correzione (2026-08-11, seconda revisione).** Le prime due righe di questa tabella
 > riportavano «esatto, 924 perm.» e «esatto, 252 perm.». Era **falso**:
-> `permutationTestOneSided` in `scripts/benchAggregate.mjs` campionava sempre
+> `permutationTestOneSided` in `scripts/bench/benchAggregate.mjs` campionava sempre
 > `PERM_ITERATIONS` (default 10 000) estrazioni Monte Carlo e non conteneva alcun ramo di
 > enumerazione esatta — la parola *exhaustive* compariva solo nel calcolo del *floor*.
 > I valori restano validi come stime (a 10k estrazioni l'errore standard su p≈0.10 è ≈0.003,

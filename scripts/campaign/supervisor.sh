@@ -12,7 +12,7 @@ REPO="$(cd "$_HERE/../.." && pwd)"
 CAMPAIGN_ROOT="$_HERE"
 
 # shellcheck source=../device-share-send.sh
-source "$REPO/scripts/device-share-send.sh"
+source "$REPO/scripts/device/device-share-send.sh"
 source "$_HERE/flags.sh"
 source "$_HERE/conversation.sh"
 source "$_HERE/logcat.sh"
@@ -148,7 +148,7 @@ campaign_arm_begin() {
 }
 
 campaign_profile_jsonl() {
-  node "$REPO/scripts/responseProfile.mjs" --lexicon "$LEXICON_PATH" "$1"
+  node "$REPO/scripts/device/responseProfile.mjs" --lexicon "$LEXICON_PATH" "$1"
 }
 
 campaign_run_script_turns() {

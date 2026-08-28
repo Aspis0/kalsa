@@ -410,13 +410,13 @@ prima del submit esplicito su GitHub. La form `telemetry_bug_report.yml` documen
 |---|---|
 | `src/telemetry/telemetry.ts` | `sanitizeReport()`, envelope unico `kalsa.telemetry.state` (queue+dead+toggle+generation, crash-safe), `reportTelemetry()` fire-and-forget, drain con lock, purge su OFF, cap 50, FNV locale best-effort |
 | `src/telemetry/config.ts` | `TELEMETRY_WORKER_URL` (override dev `kalsa.telemetry.url`) |
-| `scripts/telemetryHarness.mjs` | sanitizer (URL/path/key/porta/hash/unicode/lunghezza), queue (cap, purge, malformed, concurrent drain), toggle persist, never-throw |
+| `scripts/harnesses/telemetryHarness.mjs` | sanitizer (URL/path/key/porta/hash/unicode/lunghezza), queue (cap, purge, malformed, concurrent drain), toggle persist, never-throw |
 | `src/app/AppShell.tsx` | hook toggle (pattern `WEB_TOOLS_ENABLED_KEY`), wiring hook points §5 → `reportTelemetry` con evento tipizzato (no docId) |
 | `src/screens/SettingsScreen.tsx` | riga Telemetry + Switch + Alert opt-in + "Segnala un problema" (dialog locale §6) |
 | `src/engine/LlamaService.ts` | `initLlama` failure + `onError` → report (solo categorie) |
 | `src/agent/webFetchTool.ts` / `webSearchTool.ts` | failure rete → report (detail già sanitizzato) |
 | `src/i18n/en.ts` `it.ts` | chiavi §8 + privacyBody aggiornato, parità profonda |
-| `scripts/i18nParityHarness.mjs` | **aggiungere** deep parity runtime (recursive key-set en↔it sull'intero catalogo, non solo sottogruppi come oggi) |
+| `scripts/harnesses/i18nParityHarness.mjs` | **aggiungere** deep parity runtime (recursive key-set en↔it sull'intero catalogo, non solo sottogruppi come oggi) |
 | `src/engine/deviceProfile.ts` | (riuso, senza modifiche se possibile) `ramTier`/`getRamTier` come fonte per `deviceBucket`/`memoryClass` |
 | `workers/telemetry/index.ts` | CF Worker: POST /report (validazione STRETTA a schema completo, enum code/detail/bucket, regex, 400 deterministico), dedupe KV SHA-256, rate IP + quota globale; **Durable Object `TelemetryBuffer`** (ID singleton stabile) come buffer canonico; GET /flush protetto (FLUSH_TOKEN) → issue GitHub idempotenti; `/report` non crea mai issue |
 | `workers/telemetry/flush.mjs` | script maintainer (alternativa): `wrangler` + `gh issue create`, dedupe finale con firme persistite, label `telemetry` |

@@ -71,7 +71,7 @@ jobs:
         run: cd android && ./gradlew --stop || true
 
       - name: Assert native patch and pinned engine
-        run: bash scripts/assert-native-patch.sh
+        run: bash scripts/native/assert-native-patch.sh
 
       - name: Hash APK and write job summary
         id: apk-info

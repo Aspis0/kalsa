@@ -28,7 +28,7 @@
  *      / `</thi` pop-in).
  *
  * Dependency-free of llama.rn / RN so it can be unit-tested with a plain
- * tsc + node harness (scripts/thinkStripperHarness.mjs).
+ * tsc + node harness (scripts/harnesses/thinkStripperHarness.mjs).
  */
 
 import { partialTagSuffixLength } from "./toolCallParser";
