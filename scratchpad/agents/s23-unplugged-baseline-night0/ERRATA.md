@@ -14,6 +14,13 @@ s3oracle pin set 11/11, ac:false in battery.pre of all runs. **No speed numbers.
    transport died. A `kexp_tg128_b1_1_A.out` may exist on the S23. TO DO at replug:
    pull it, declare its content either way. Even if complete, cell A alone is not an
    ABBA block — it can inform, not bank.
+   **RESOLVED 2026-08-28 ~18:45 EDT (declared either way, as promised): the orphan is
+   EMPTY.** Checked over wireless adb at first reconnect (S23 charging on AC, 9%):
+   `/data/local/tmp/s23_unplugged_night0/kexp_tg128_b1_1_A.out` = 0 bytes. The .err
+   (209 B) shows llama-bench got as far as OpenCL platform/device init on the Adreno
+   740; the thermal guard logged normally (last lines 35.9 °C / batt 46%) until the
+   process group died with the transport at 10:59 device time. No numbers were ever
+   written → nothing to recover, nothing that could have informed cell A.
 3. **Undeclared port migration.** The night run logged :36329; the morning retry used
    :37687 after a Doze rotation + re-pair, not covered by the prereg's "same IP:port"
    reconnect clause, and the morning attempt has no raw log of its own.
