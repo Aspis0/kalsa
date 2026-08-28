@@ -1,7 +1,7 @@
 # Kalsa telemetry Worker
 
 Cloudflare Worker + Durable Object buffer for **opt-in** error reports.
-Design contract: `docs/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
+Design contract: `docs/architecture/TELEMETRY_OPTIN.md` (v14 FINAL + diag-addendum).
 
 ## What it does
 

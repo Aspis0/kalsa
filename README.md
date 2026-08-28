@@ -14,7 +14,7 @@ your conversations never leave the handset.
 - **Voice**: on-device speech-to-text with Whisper, and text-to-speech for replies.
 - **Web search, opt-in**: an agentic tool loop that only leaves the device when *you* ask a question that needs the web. Default provider is keyless; API keys, if you add any, live in the OS keystore.
 - **Memory, opt-in and filtered**: short facts about you, kept on the device. Passwords, cards, IDs, addresses and health data are refused automatically.
-- **Smart conversation memory** (experimental): long chats are compacted into a frozen digest instead of a blunt sliding window, so older facts survive. Off by default until the benchmark says otherwise — see [`docs/RESEARCH_CONTEXT_LOSS.md`](docs/RESEARCH_CONTEXT_LOSS.md).
+- **Smart conversation memory** (experimental): long chats are compacted into a frozen digest instead of a blunt sliding window, so older facts survive. Off by default until the benchmark says otherwise — see [`docs/research/RESEARCH_CONTEXT_LOSS.md`](docs/research/RESEARCH_CONTEXT_LOSS.md).
 - **In-chat mini-apps**: quizzes, tables and small interactive blocks the model can emit, rendered in a sandbox.
 - English and Italian throughout.
 

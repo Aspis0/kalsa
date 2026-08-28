@@ -424,7 +424,7 @@ prima del submit esplicito su GitHub. La form `telemetry_bug_report.yml` documen
 | `package.json` | script `telemetry:flush` (chiama `GET /flush` con FLUSH_TOKEN, oppure flush.mjs) |
 | `workers/telemetry/README.md` | deploy, DO/KV namespace, token fine-grained, staging, `TELEMETRY_WORKER_URL` da usare nel client |
 | `.github/ISSUE_TEMPLATE/telemetry_bug_report.yml` | Issue Form (vuota, documenta i campi) |
-| `docs/TELEMETRY_OPTIN.md` | questo documento |
+| `docs/architecture/TELEMETRY_OPTIN.md` | questo documento |
 
 ## 10. Test plan (Jelly)
 

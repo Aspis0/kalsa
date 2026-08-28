@@ -4,7 +4,7 @@ Date: 2026-08-10 · Branch: perf/fluidity-and-deviceprofile (design) · Status: 
 
 ## 1. Choice (why this utility)
 
-From docs/COMPETITOR_ANALYSIS.md §7-8. Competitor landscape for document chat:
+From docs/research/COMPETITOR_ANALYSIS.md §7-8. Competitor landscape for document chat:
 - **Offline Private AI** — has a Documents tab (import PDF/TXT → ask). Closed source, mechanism likely dumb context stuffing (no verified RAG). iOS-only, ad-tracked.
 - **Private AI: Document Chat** (GTechnologies) — explicit chunk → vector embeddings → RAG, but Apple-Intelligence-gated (hardware restricted).
 - **PocketPal / MLC Chat / Layla** — no document chat (PocketPal has PDF-as-image vision; MLC image only; Layla unclear).
@@ -47,7 +47,7 @@ Integration points:
 
 - In scope: library + retrieval-based Q&A + small-doc full-context + scanned-PDF vision fallback + citations + i18n.
 - Out of scope (this tranche): embeddings/RAG (not needed to beat OPA), multi-doc simultaneous querying (single doc per query first), document OCR (vision fallback only), file-type beyond PDF/TXT.
-- Do NOT touch: scripts/ci/ci-bench.sh, out/bench/, .github/workflows/*, docs/MANDATE_FASE4_BENCHMARK.md (harness owner), the benchmark paths in AppShell.
+- Do NOT touch: scripts/ci/ci-bench.sh, out/bench/, .github/workflows/*, docs/archive/MANDATE_FASE4_BENCHMARK.md (harness owner), the benchmark paths in AppShell.
 
 ## 5. Verification
 

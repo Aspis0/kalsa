@@ -1,6 +1,6 @@
 /**
  * Pure telemetry helpers — Node-harness safe (no RN, no AsyncStorage, no fetch).
- * Design: docs/TELEMETRY_OPTIN.md v14 FINAL + diag-addendum.
+ * Design: docs/architecture/TELEMETRY_OPTIN.md v14 FINAL + diag-addendum.
  */
 
 import {

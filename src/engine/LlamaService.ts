@@ -1155,7 +1155,7 @@ export function initEngine(
     const speculativeOverrideKey = JSON.stringify(options.speculativeOverride ?? null);
     const engineOverrideKey = JSON.stringify(options.engineOverride ?? null);
 
-    // Device Tuning Layer (docs/DEVICE_TUNING_LAYER.md): measured-first knobs
+    // Device Tuning Layer (docs/architecture/DEVICE_TUNING_LAYER.md): measured-first knobs
     // with provenance. Replaces ad-hoc n_threads / n_ubatch / n_gpu_layers.
     // n_ctx: caller still owns resolveContextProfile (AppShell); we pass that
     // value as contextBudget. Memory budget may only SHRINK when available RAM

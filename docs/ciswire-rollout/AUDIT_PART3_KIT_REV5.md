@@ -6,8 +6,8 @@ Audited 2026-08-26 against rev-5 text, code at `510157d…7c8cce7` (`src/context
 `src/rules/calendarGate.ts`, `src/rules/runToolGate.ts`, `src/rules/gateAuditLog.ts`,
 `src/app/AppShell.tsx`, `src/engine/ModelRegistry.ts`, `src/engine/sessionPersistence.ts`,
 `src/memory/MemoryStore.ts`, `src/engine/deviceTuning.ts`, `scripts/ci/ci-lib.sh`,
-`scripts/device/device-share-send.sh`, `docs/HARNESS_FINDINGS.md` §7.28/§7.30/§7.42/§7.44/§7.45,
-`docs/KALSA.md`), plus exact computations of all permutation floors and powers.
+`scripts/device/device-share-send.sh`, `docs/reports/HARNESS_FINDINGS.md` §7.28/§7.30/§7.42/§7.44/§7.45,
+`docs/architecture/KALSA.md`), plus exact computations of all permutation floors and powers.
 
 Owner decisions honoured (not re-argued): 8 arms × 6 conv × 24 turns; A/B variants 3+3; charging +
 speed-ignored; deterministic profile primary + Ornith end-pass; save everything; reusable harness.

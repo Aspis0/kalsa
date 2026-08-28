@@ -1,10 +1,10 @@
 # PLAN — CisWire in Kalsa, for real (flags + on-device A/B) — rev 2
 
-Rev 2, 2026-08-25: incorporates `docs/AUDIT_PLAN_CISWIRE.md`. Changes from rev 1 marked ⚡.
+Rev 2, 2026-08-25: incorporates `docs/archive/AUDIT_PLAN_CISWIRE.md`. Changes from rev 1 marked ⚡.
 Owner decision this session: ship the port under three visible settings flags, then measure ON
 PHONES with **LFM2.5-2.6B QAD-Q4_0** (shipping model per 2026-08-25 decision).
 
-Sources of truth: `docs/HARNESS_FINDINGS.md` (living doc), `docs/KALSA.md` §6,
+Sources of truth: `docs/reports/HARNESS_FINDINGS.md` (living doc), `docs/architecture/KALSA.md` §6,
 `~/Projects/ciswire` (README, src).
 
 ---

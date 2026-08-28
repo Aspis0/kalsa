@@ -16,7 +16,7 @@
  *   the current generation — a stale load's release cannot idle the gate while
  *   a newer load owns it.
  *
- * Co-residency policy (docs/HYBRID_RETRIEVAL.md §5):
+ * Co-residency policy (docs/research/HYBRID_RETRIEVAL.md §5):
  *   - On totalMemoryBytes > 6e9 AND a 2B-class chat model, tryAcquireEmbed
  *     is allowed while state is chat_ready (embed may co-reside with chat).
  *   - During chat_loading, embed is ALWAYS refused (closes the window between

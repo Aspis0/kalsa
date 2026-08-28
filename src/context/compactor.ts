@@ -22,7 +22,7 @@
  * - Rationale: the operative block (digest+summary) is stapled to the last user
  *   message (format B / user-prefix), so freezing the digest saved zero prefill
  *   and cost recall (benchmark: frozen digest 33.3% vs CisWire 100% — see
- *   docs/RESEARCH_CONTEXT_LOSS.md).
+ *   docs/research/RESEARCH_CONTEXT_LOSS.md).
  * - CORRECTION (2026-08-19), because the original wording ("everything after the
  *   last stable token is re-encoded every turn anyway") is what made the block
  *   look free: the block is last only for the turn that carries it. Next turn

@@ -10,4 +10,4 @@ aggiornare il piano qui.
 
 Il documento genitore (`docs/ROADMAP_BIGGER_MODELS.md`) è stato **rimosso il 2026-08-19**:
 il suo contenuto è materia del repo `moe-experiments`. Quel che riguardava Kalsa come app —
-la priorità "target 6GB" e il riferimento qualità/quant — vive in `docs/KALSA.md`.
+la priorità "target 6GB" e il riferimento qualità/quant — vive in `docs/architecture/KALSA.md`.

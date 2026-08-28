@@ -1,7 +1,7 @@
 # MAP — S3 (Memory Leg Hardening) & S4 (Tool-Help Leg)
 
 Generated 2026-08-26 from disk read of `/Users/marco/Projects/kalsa`.
-References: `docs/PLAN_CISWIRE_FOR_REAL.md` rev 2, `docs/AUDIT_PLAN_CISWIRE.md`.
+References: `docs/plans/PLAN_CISWIRE_FOR_REAL.md` rev 2, `docs/archive/AUDIT_PLAN_CISWIRE.md`.
 
 ---
 

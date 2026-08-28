@@ -447,7 +447,7 @@ implementation begins.
   hybrid retrieval, embedder, anti-OOM, device tuning, model gate.
 - **Do not touch**: `src/context/retrievalLoop.ts`, `src/util/pdfText.ts`,
   `src/agent/webFetchTool.ts`, `src/engine/LlamaService.ts`,
-  `docs/MANDATE_FASE4_BENCHMARK.md` (harness owner's territory),
+  `docs/archive/MANDATE_FASE4_BENCHMARK.md` (harness owner's territory),
   `.github/workflows/*`, `scripts/ci/ci-bench.sh`, `out/bench/`.
 - **Ownership stays in AppShell**: `onAddDocument` (now prepends),
   `onDeleteDocument`, `updateDocumentPreview`, delete latch, library
@@ -543,15 +543,15 @@ and add-then-delete races.
 
 ## 15. Companion docs cross-reference
 
-- Original technical design: `docs/DOCUMENT_CHAT_TRANCHE1.md` (FIX-5 +
+- Original technical design: `docs/features/DOCUMENT_CHAT_TRANCHE1.md` (FIX-5 +
   vision-fallback logic).
-- Hybrid retrieval: `docs/HYBRID_RETRIEVAL.md` (semantic index, RRF).
-- Competitor analysis: `docs/COMPETITOR_ANALYSIS.md` §4 (rivals' UX
+- Hybrid retrieval: `docs/research/HYBRID_RETRIEVAL.md` (semantic index, RRF).
+- Competitor analysis: `docs/research/COMPETITOR_ANALYSIS.md` §4 (rivals' UX
   patterns we're borrowing) and §7 (gap analysis — Documents tab was
   the user's standout gap to close).
-- Anti-OOM + edit/regen: `docs/ANTI_OOM_AND_EDITREGEN.md` (no overlap;
+- Anti-OOM + edit/regen: `docs/features/ANTI_OOM_AND_EDITREGEN.md` (no overlap;
   this plan does not touch generation lifecycle).
-- Device tuning layer: `docs/DEVICE_TUNING_LAYER.md` (no overlap; engine
+- Device tuning layer: `docs/architecture/DEVICE_TUNING_LAYER.md` (no overlap; engine
   knobs are closed territory).
 
 ---

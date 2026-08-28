@@ -1,7 +1,7 @@
 # AUDIT — PART3_CAMPAIGN_KIT.md (hostile)
 
-Audited 2026-08-25 against `docs/HARNESS_FINDINGS.md` (§STATE block + cited sections),
-`docs/KALSA.md` (§4/§6/§7/§8/§10), and the code it leans on (`src/rules/gateAuditLog.ts`,
+Audited 2026-08-25 against `docs/reports/HARNESS_FINDINGS.md` (§STATE block + cited sections),
+`docs/architecture/KALSA.md` (§4/§6/§7/§8/§10), and the code it leans on (`src/rules/gateAuditLog.ts`,
 `src/rules/calendarGate.ts`, `src/context/windowProfile.ts`).
 
 Bottom line: the kit honors the standing traps (thinking=default + verify, positive controls,
