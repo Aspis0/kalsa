@@ -61,7 +61,12 @@ Un processo, un governor, DUE path di esecuzione preparati:
 
 Vincoli sempre: file nuovi <250 righe; ogni funzione costruita/chiamata da test o tool
 nello stesso step; NIENTE modifiche a ggml_backend_sched; defrag/context-shift fenced
-(assert) finché una cache è condivisa.
+(assert) finché una cache è condivisa. **RIUSO-PRIMA (regola owner 28/08): prima di
+scrivere una riga, cercare il codice esistente — (a) nel fork/upstream llama.cpp (es.
+offset math di state_write_data da riprendere verbatim), (b) nella lista "safe to copy"
+dello STUDY LiteRT (copiare letteralmente con header Apache conservato dove i tipi
+compilano). Si riscrive solo ciò che non esiste o non compila nei tipi ggml; ogni brief
+di implementazione e ogni audit deve verificare questo punto.**
 
 1. **Harness a due contesti, zero modifiche core**: un GGUF caricato come due modelli
    CPU-only (llama_model_params.devices), prefill in A, handoff con le API pubbliche
