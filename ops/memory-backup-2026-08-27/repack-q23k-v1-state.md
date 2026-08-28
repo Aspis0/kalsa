@@ -147,3 +147,8 @@ avvisare sessione app via gualt. Dopo: cella q66 vera con questo APK.
 device-backup/preinstall-2026-08-27). PROSSIMO: cella q66 (prereg a6f96328) con questo APK —
 PREP di fatto completo; da lanciare come primo atto dei 10 giorni. Avvisare sessione app del pin
 (via gualt): loro item 'rebuild a0cabca6b' superato dal pin d1cc3b77.
+
+**27/08 notte — MIGRAZIONE A MACOS (PC si resetta stanotte, ordine gualt)**: guida completa in
+ops/MIGRATION-MACOS.md; memoria backuppata in ops/memory-backup-2026-08-27/ (RIPRISTINARLA per
+prima cosa sul Mac). Repack q23k PROVEN-ACTIVE su S23 (PASS on-device). Ultimo job PC: build
+debuggable + C1-in-app (Luna, in corso); C1 preservata su S23. Niente di nuovo pesante sul PC.

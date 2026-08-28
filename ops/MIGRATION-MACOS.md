@@ -43,3 +43,13 @@ gets wiped tonight; the moe-experiments orchestrator moves to macOS. Builds alre
   (grok available all week).
 - 10-day plan Phase 0 (QDC) + rest: unchanged, `docs/PLAN-10DAYS-2026-08-28.md`.
 - q68/q69/q65 queued (see state memory `repack-q23k-v1-state`).
+
+## Takeover on the Mac: the app session's multi-day Jelly run (added 27/08 late)
+Owner assignment: on the macOS machine a MULTI-DAY run is in progress and must be TAKEN OVER as
+custodian (not redesigned): "ciswire harness vs no" on the real app, on the Jelly, with the
+OLD-kernel APK — which must NEVER be updated while the run lives (engine-pin stays away from the
+Jelly). On arrival: locate its handover/state (ask the owner if not found), identify PID/logs/
+watchdog, and limit intervention to: Jelly keepalive (memories jelly-dies-in-idle-sleep,
+jelly-keepalive-via-adb), watcher verification (watchers-verify-pid), recovery per the written
+procedure, honest reporting. Merit decisions (abort/protocol/interpretation) belong to the app
+session / owner. A written handover from the app session has been requested via the owner.
