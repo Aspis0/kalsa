@@ -59,13 +59,24 @@
 > suite governor TUTTA VERDE su device incl. LFM2.5-2.6B QAD-Q4_0 di ship, oracoli byte
 > identici a macOS (269568 / 1392640 → riproducibilità cross-piattaforma); llama-bench
 > smoke: **pp512 GPU 383.3 vs CPU 42.9 (8.9×), tg128 CPU 28.1 > GPU 26.3** → il routing
-> per fase ha la forma giusta anche sull'830, non solo sul 740. ⛔ Smoke ≠ cella: niente
-> prereg, r=2, termiche non controllate; e il governor NON ha ancora girato coi due
-> contesti su backend DIVERSI (flag device-per-contesto in implementazione = step 8 vero).
+> per fase ha la forma giusta anche sull'830, non solo sul 740.
+>
+> **29/08 pomeriggio: #38 BANCATA — step 8 COMPLETO, governor v0 FINITO (8/8 step).**
+> Cella cross-backend sotto prereg `ddddf077` + AMENDMENT-1: **G vince tutte e tre le
+> condizioni pre-scritte in entrambi i blocchi ABBA** (ttft 1434/1470 ms ≈ 10× meglio
+> di C ed entro il 3-5% di A; decode 25.3/24.2 ≥ C; commit 26-29 ms = 1.80%/1.98% del
+> prefill — il gate 2% passa per 0.02 nel blocco 2 ed è prompt-length-dependent,
+> dichiarato). Parte del vantaggio decode di G è TERMICO (C si autoscalda a 90-93 °C,
+> G arriva al decode più fresco — effetto reale del design, bancato come tale).
+> Erratum strumentazione QDC: il gruppo `Cached` di dumpsys thermalservice è CONGELATO
+> sul rack — ogni cella futura legge `Current temperatures from HAL:` + Thermal Status.
+> Registro #38 + ALIVE riga 21.
 > ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
-> Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4) —
-> nessuno dei due riaccendibile da remoto, si riparte al rientro owner (~07/09). Watcher
-> attivi sul Mac. Fino ad allora: QDC (~960 min) + CI emulatore (Actions dal 1/09).
+> Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4,
+> checkpoint salvo) — 29/08 ~10:00 su ordine owner smantellati watcher+harness+cron; il
+> Mac senza watcher si è ADDORMENTATO 4h (clamshell vince su `sleep 0`) → LaunchAgent
+> `com.kalsa.keepawake` (caffeinate, KeepAlive, testato) ora tiene l'accesso remoto vivo.
+> Si riparte al rientro owner (~07/09). Fino ad allora: QDC (~950 min) + CI dal 1/09.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
@@ -1065,6 +1076,26 @@ DONE
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-08-29 — #38 qdc-8elite-governor-crossbackend: BANCATA — il governor v0
+  VINCE su 8 Elite.** Prereg `ddddf077` (locked pre-numeri) + AMENDMENT-1 `28a6c934`
+  (scritto PRIMA della riesecuzione: il gate termico del run 1 leggeva il gruppo
+  sensori `Cached` CONGELATO di dumpsys thermalservice — run 1 VOID per i tempi, la
+  correttezza resta; il gruppo vivo è `Current temperatures from HAL:` + `Thermal
+  Status`). Esecuzione orchestratore, sessione 788862 (QRD8750/Adreno 830, ~75 min),
+  engine `kalsa/governor-v0` @ 5c3979438, modello di SHIP LFM2.5-2.6B QAD-Q4_0,
+  ABBA 2 blocchi, r=3, cooldown ≤60 °C + status ≤1 prima di OGNI run. Mediane:
+  A(GPU) ttft 1395/1394 ms, dec 23.7/23.8; C(CPU) ttft 16476/14412 ms, dec
+  21.6/23.3; **G ttft 1434/1470 ms, dec 25.3/24.2, commit 26/29 ms = 1.80%/1.98%
+  del prefill**. Regola pre-scritta: G PASSA tutte e tre le condizioni in ENTRAMBI
+  i blocchi (TTFT ~10× meglio di C e entro 3-5% di A; decode ≥ C; commit <2%).
+  Onestà bancata: il 2% passa per 0.02 punti nel blocco 2 ed è prompt-length-
+  dependent (costo commit quasi fisso 11.2 MB/turno); parte del vantaggio decode di
+  G è TERMICO (C si scalda da solo a 90-93 °C col proprio prefill CPU, G arriva al
+  decode più fresco — effetto reale del design ma non velocità kernel); r=3, un
+  device, niente 740/battery/app/KEXP. Correttezza cross-backend: test-governor-
+  v0-devices PASS su GPU+CPU reali (prefill_splits=2, naive+staged entrambi
+  esercitati). Evidence `scratchpad/agents/qdc-8elite-governor-crossbackend/`.
 
 - **2026-08-28 (sera) — #37 qdc-8elite-cpu-day0: BANK-WITH-ERRATA — prima cella
   QDC, primo dato 8xx.** Prereg `f72b1b20` (locked pre-numeri), esecuzione grok su
