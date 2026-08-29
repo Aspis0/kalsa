@@ -47,6 +47,25 @@
 > Lettura per la decisione kernel/NPU 8xx: la CPU Oryon da sola raddoppia il decode S23 —
 > l'asticella per HVX/GPU sugli 8xx si alza. Prossime: Marco-KEXP (#18), kit OpenCL per E031/
 > Adreno 830.
+>
+> **29/08 — GOVERNOR v0: 7 step macOS CHIUSI + smoke device su 8 Elite (NON bancabile).**
+> Le tre gemme LiteRT esistono nel fork (`kalsa/governor-v0` @ 1bfd144a2): commit KV
+> esplicito per range (offset verbatim da state_write_data), PreparedPlan misurato
+> (n_reused/split/graph_builds), capability query Direct|MirrorAndCopy|Reject; hybrid
+> (KEXP-class) supportato; V-trasposta staged 1728→6 transfer. Ogni step chiuso da audit
+> ostile (audit-step1..7.md; difetti veri trovati: clear() che cancellava le celle del
+> peer, sei no-op silenziosi, decode non-owner metadata-invisibile, cache staged
+> illimitata). **Smoke QDC 8 Elite/Adreno 830** (`scratchpad/agents/governor-v0/step8-qdc/`):
+> suite governor TUTTA VERDE su device incl. LFM2.5-2.6B QAD-Q4_0 di ship, oracoli byte
+> identici a macOS (269568 / 1392640 → riproducibilità cross-piattaforma); llama-bench
+> smoke: **pp512 GPU 383.3 vs CPU 42.9 (8.9×), tg128 CPU 28.1 > GPU 26.3** → il routing
+> per fase ha la forma giusta anche sull'830, non solo sul 740. ⛔ Smoke ≠ cella: niente
+> prereg, r=2, termiche non controllate; e il governor NON ha ancora girato coi due
+> contesti su backend DIVERSI (flag device-per-contesto in implementazione = step 8 vero).
+> ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
+> Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4) —
+> nessuno dei due riaccendibile da remoto, si riparte al rientro owner (~07/09). Watcher
+> attivi sul Mac. Fino ad allora: QDC (~960 min) + CI emulatore (Actions dal 1/09).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
