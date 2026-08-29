@@ -1,0 +1,3 @@
+	Temperature{mValue=32.0, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=35.3, mType=0, mName=CPU0, mStatus=0}
+Thermal Status: 0

@@ -1,0 +1,2 @@
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+36ddd5ae4f59ef8b7f9a84ee70d9d2800628bacb56b6a6125fd8e18b390e3b5c  test-backend-ops

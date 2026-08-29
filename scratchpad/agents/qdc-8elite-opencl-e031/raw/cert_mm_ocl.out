@@ -1,0 +1,12 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+Testing 2 devices
+
+Backend 1/2: GPUOpenCL
+  Skipping
+Backend 2/2: CPU
+  Skipping
+2/2 backends passed
+[1;32mOK[0m
