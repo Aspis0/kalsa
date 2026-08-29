@@ -4,10 +4,13 @@
 > step 1 CHIUSO @ 409ef5ef3 (harness 2 contesti, oracolo logits bit-perfetto,
 > audit+re-audit in audit-step1.md); step 2 CHIUSO @ 951df1f92 (cells share
 > generalizzato, guardie+fence "mai silenzioso", fence decode non-owner provata
-> non aggirabile su 8 rotte — audit-step2.md, verdetto APPLY); step 3 IN VOLO
-> (Luna 72c3dc6e: llama-kv-commit.{h,cpp} + route query, offset verbatim da
-> state_write_data). Ogni step: implementer Luna → verifica orchestratore su
-> disco → audit GLM file-first thinking-high → fix → re-audit.
+> non aggirabile su 8 rotte — audit-step2.md, verdetto APPLY); step 3 CHIUSO
+> @ 93e21f361 (llama-kv-commit.{h,cpp}: route query Direct|MirrorAndCopy|Reject
+> + commit per range, offset byte-identici a state_write_data — audit-step3.md:
+> quantizzati REFUTATI come rischio, compatible() con dims per-layer dopo fix,
+> Direct richiede cells condivise); step 4 IN VOLO (oggetto governor, conv
+> multi-turno CPU+CPU vs baseline). Ogni step: implementer Luna → verifica
+> orchestratore su disco → audit GLM file-first thinking-high → fix → re-audit.
 
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
 disco: `ctx_other` pubblico (llama.h:401), gate `mem_other` su GEMMA4_ASSISTANT
