@@ -16,7 +16,7 @@
 > da principi primi dall'auditor, ~90 µs per 3 commit; n_reused conta UBATCH
 > non chiamate — documentato; graph_builds onesto 4/1; split=1 vacuo su
 > CPU-only, morde allo step 8 — audit-step5.md APPLY; auditor GLM RUOTATO su
-> fresco: i veterani saturano a ~350k ctx); step 6 QUASI CHIUSO @ 58ece1a41
+> fresco: i veterani saturano a ~350k ctx); step 6 CHIUSO @ 479eae4a2
 > (byte oracle esatto da model handle su ENTRAMBE le arch): hybrid handoff PROVATO su DUE arch reali con token
 > equality vs baseline — (a) qwen35 delta-net (C1 q63: 52.69 MB stato FISSO
 > per commit, 99.65% dei byte, decomposizione auditor ESATTA resto zero →
