@@ -1,0 +1,4 @@
+........................................................................................
+governor_v0_hybrid_staged=PASS v_gets=8 graphs=8
+governor_v0_hybrid_stats commits=3 bytes=1392640 expected_bytes=1392640 us=372
+governor_v0_hybrid=PASS turns=2 generated=4

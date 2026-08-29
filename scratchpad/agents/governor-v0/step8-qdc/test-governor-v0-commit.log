@@ -1,0 +1,5 @@
+.....................
+governor_commit_full_state=PASS bytes=41712
+governor_commit_subranges=PASS range=[2,5)
+governor_commit_v_transfers naive gets=1728 sets=1728; staged gets=6 sets=1728; layers=6 graphs=6
+governor_commit_reject_mismatched_type=PASS

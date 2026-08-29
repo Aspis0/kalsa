@@ -1,0 +1,7 @@
+.....................
+.....................
+governor_v0_logits_max_abs_diff=0
+governor_v0_handoff_copied_bytes=48636
+governor_v0_handoff_restored_bytes=48636
+governor_v0_handoff_ms_cold_single_shot=0.034
+governor_v0_token_check=PASS (8 tokens)

@@ -1,0 +1,12 @@
+.....................
+clear: clear is not allowed from a shared KV cache
+init_batch: decode is not allowed from a shared KV cache
+seq_rm: sequence removal is not allowed from a shared KV cache
+llama_init_from_model: failed to initialize the context: cannot share KV cells with different K/V types
+llama_init_from_model: failed to initialize the context: cannot share KV cells with a different kv_size
+shared_cells_size=256
+shared_cells_next_slot=6
+shared_cells_clear_fence=PASS
+shared_cells_decode_fence=PASS
+shared_cells_seq_rm_fence=PASS
+shared_cells_negative_guards=PASS

@@ -1,0 +1,3 @@
+.....................
+governor_v0_stats prefill_reused=10 decode_reused=18 prefill_splits=1 decode_splits=1 graph_builds=4/1 commits=3 bytes=269568 us=74 expected_bytes=269568
+governor_v0_turns=PASS turns=3 generated=18 n_ubatch=2 one_token_prompt=PASS
