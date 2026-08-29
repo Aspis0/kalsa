@@ -1,0 +1,23 @@
+......................................................................................................................................................
+...............................................................................
+........................................................................................
+...............................................................................
+........................................................................................
+...............................................................................
+........................................................................................
+run_start arm=G rep=0 monotonic_us=3934162935
+turn arm=G rep=0 turn=0 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3062.947 decode_tps=21.853 prefill_ms=3057.242 commit_ms=28.083 commit_bytes=8749056 commit_naive_count=0 commit_staged_count=1 seed=1234
+turn arm=G rep=0 turn=1 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3275.128 decode_tps=21.308 prefill_ms=3271.200 commit_ms=36.215 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234
+turn arm=G rep=0 turn=2 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3377.700 decode_tps=20.471 prefill_ms=3373.789 commit_ms=26.186 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234
+run_end arm=G rep=0 monotonic_us=3977005535
+run_start arm=G rep=1 monotonic_us=3977329493
+turn arm=G rep=1 turn=0 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3071.433 decode_tps=22.042 prefill_ms=3065.661 commit_ms=25.743 commit_bytes=8749056 commit_naive_count=0 commit_staged_count=1 seed=1234
+turn arm=G rep=1 turn=1 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3274.110 decode_tps=21.084 prefill_ms=3270.168 commit_ms=34.903 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234
+turn arm=G rep=1 turn=2 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3373.408 decode_tps=20.349 prefill_ms=3369.464 commit_ms=26.119 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234
+run_end arm=G rep=1 monotonic_us=4012180625
+run_start arm=G rep=2 monotonic_us=4012500709
+turn arm=G rep=2 turn=0 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3071.540 decode_tps=21.827 prefill_ms=3065.822 commit_ms=28.507 commit_bytes=8749056 commit_naive_count=0 commit_staged_count=1 seed=1234
+turn arm=G rep=2 turn=1 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3265.239 decode_tps=21.329 prefill_ms=3261.301 commit_ms=30.481 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234
+turn arm=G rep=2 turn=2 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3375.241 decode_tps=20.545 prefill_ms=3371.264 commit_ms=28.572 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234
+run_end arm=G rep=2 monotonic_us=4047237913
+summary=median arm=G turns=3 repetitions=3 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=3274.110 decode_tps=21.308 prefill_ms=3270.168 commit_ms=28.507 commit_bytes=11206656 commit_naive_count=1 commit_staged_count=1 seed=1234

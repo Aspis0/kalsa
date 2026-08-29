@@ -1,0 +1,19 @@
+........................................................................................
+........................................................................................
+........................................................................................
+run_start arm=C rep=0 monotonic_us=3461315010
+turn arm=C rep=0 turn=0 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=11721.256 decode_tps=27.542 prefill_ms=11720.043 seed=1234
+turn arm=C rep=0 turn=1 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=12570.386 decode_tps=26.064 prefill_ms=12569.302 seed=1234
+turn arm=C rep=0 turn=2 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=13279.270 decode_tps=24.672 prefill_ms=13278.463 seed=1234
+run_end arm=C rep=0 monotonic_us=3513877730
+run_start arm=C rep=1 monotonic_us=3513957034
+turn arm=C rep=1 turn=0 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=13097.151 decode_tps=25.708 prefill_ms=13096.520 seed=1234
+turn arm=C rep=1 turn=1 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=13690.030 decode_tps=24.513 prefill_ms=13689.268 seed=1234
+turn arm=C rep=1 turn=2 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=13981.149 decode_tps=23.581 prefill_ms=13980.388 seed=1234
+run_end arm=C rep=1 monotonic_us=3570663654
+run_start arm=C rep=2 monotonic_us=3570750007
+turn arm=C rep=2 turn=0 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=13612.953 decode_tps=24.524 prefill_ms=13612.097 seed=1234
+turn arm=C rep=2 turn=1 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=14065.051 decode_tps=23.308 prefill_ms=14064.299 seed=1234
+turn arm=C rep=2 turn=2 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=14403.587 decode_tps=23.059 prefill_ms=14402.834 seed=1234
+run_end arm=C rep=2 monotonic_us=3629400660
+summary=median arm=C turns=3 repetitions=3 model_path=/data/local/tmp/LFM2.5-2.6B-QAD-Q4_0.gguf model_bytes=1593894944 build_commit=5c3979438 n_threads=8 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=13612.953 decode_tps=24.524 prefill_ms=13612.097 seed=1234
