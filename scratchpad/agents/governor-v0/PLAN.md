@@ -16,9 +16,16 @@
 > da principi primi dall'auditor, ~90 µs per 3 commit; n_reused conta UBATCH
 > non chiamate — documentato; graph_builds onesto 4/1; split=1 vacuo su
 > CPU-only, morde allo step 8 — audit-step5.md APPLY; auditor GLM RUOTATO su
-> fresco: i veterani saturano a ~350k ctx); step 6 IN VOLO (mem_other
-> attraverso llama_memory_hybrid — sblocca KEXP/LFM2). Ogni step: implementer
-> Luna → verifica orchestratore su disco → audit GLM file-first → fix → re-audit.
+> fresco: i veterani saturano a ~350k ctx); step 6 QUASI CHIUSO @ 58ece1a41
+> (+fix bound in volo): hybrid handoff PROVATO su DUE arch reali con token
+> equality vs baseline — (a) qwen35 delta-net (C1 q63: 52.69 MB stato FISSO
+> per commit, 99.65% dei byte, decomposizione auditor ESATTA resto zero →
+> "shortconv piccolo" FALSO per delta-net, gate §5 a rischio lì senza
+> dirty-range) e (b) **lfm2 VERO (LFM2.5-2.6B QAD-Q4_0 ufficiale, ora in
+> ~/kalsa-models/mac/): 1.39 MB totali / ~460 KB e ~60 µs per commit → §5
+> comodissima sulla classe di ship**. Restano: step 7 (V staged), step 8
+> (device). Ogni step: implementer Luna → verifica orchestratore su disco →
+> audit GLM file-first → fix → re-audit.
 
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
 disco: `ctx_other` pubblico (llama.h:401), gate `mem_other` su GEMMA4_ASSISTANT
