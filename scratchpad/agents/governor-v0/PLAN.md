@@ -8,9 +8,13 @@
 > @ 93e21f361 (llama-kv-commit.{h,cpp}: route query Direct|MirrorAndCopy|Reject
 > + commit per range, offset byte-identici a state_write_data — audit-step3.md:
 > quantizzati REFUTATI come rischio, compatible() con dims per-layer dopo fix,
-> Direct richiede cells condivise); step 4 IN VOLO (oggetto governor, conv
-> multi-turno CPU+CPU vs baseline). Ogni step: implementer Luna → verifica
-> orchestratore su disco → audit GLM file-first thinking-high → fix → re-audit.
+> Direct richiede cells condivise); step 4 CHIUSO @ 8e5de77da (oggetto governor:
+> routing per batch-size letto PRIMA dello split, watermark airtight su traccia
+> a mano 3 turni, reverse commit B→A provato dal caso prompt monotoken, replay
+> del token trattenuto non più necessario — audit-step4.md verdetto APPLY al
+> primo giro); step 5 IN VOLO (strumentazione attach-once: n_reused, split,
+> byte/µs commit + pulizia counter morti e doc API). Ogni step: implementer
+> Luna → verifica orchestratore su disco → audit GLM file-first → fix → re-audit.
 
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
 disco: `ctx_other` pubblico (llama.h:401), gate `mem_other` su GEMMA4_ASSISTANT
