@@ -12,8 +12,12 @@
 > routing per batch-size letto PRIMA dello split, watermark airtight su traccia
 > a mano 3 turni, reverse commit B→A provato dal caso prompt monotoken, replay
 > del token trattenuto non più necessario — audit-step4.md verdetto APPLY al
-> primo giro); step 5 IN VOLO (strumentazione attach-once: n_reused, split,
-> byte/µs commit + pulizia counter morti e doc API). Ogni step: implementer
+> primo giro); step 5 CHIUSO @ 3551c3d55 (stats: commit 269568 B = riprodotti
+> da principi primi dall'auditor, ~90 µs per 3 commit; n_reused conta UBATCH
+> non chiamate — documentato; graph_builds onesto 4/1; split=1 vacuo su
+> CPU-only, morde allo step 8 — audit-step5.md APPLY; auditor GLM RUOTATO su
+> fresco: i veterani saturano a ~350k ctx); step 6 IN VOLO (mem_other
+> attraverso llama_memory_hybrid — sblocca KEXP/LFM2). Ogni step: implementer
 > Luna → verifica orchestratore su disco → audit GLM file-first → fix → re-audit.
 
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
