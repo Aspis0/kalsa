@@ -23,9 +23,18 @@
 > "shortconv piccolo" FALSO per delta-net, gate §5 a rischio lì senza
 > dirty-range) e (b) **lfm2 VERO (LFM2.5-2.6B QAD-Q4_0 ufficiale, ora in
 > ~/kalsa-models/mac/): 1.39 MB totali / ~460 KB e ~60 µs per commit → §5
-> comodissima sulla classe di ship**. Restano: step 7 (V staged), step 8
-> (device). Ogni step: implementer Luna → verifica orchestratore su disco →
-> audit GLM file-first → fix → re-audit.
+> comodissima sulla classe di ship**; step 7 CHIUSO @ 1bfd144a2 (V-trasposta
+> staged: view/stride CONFERMATI dal layout autoritativo, transfer V 1728→6
+> su stories15M e 8/8 su lfm2, p0 nella chiave grafi — REFUTATO wrong-data;
+> difetto vero trovato+fixato: cache piani illimitata con buffer device →
+> clear-per-commit RAII + regression test bound su commit incrementali —
+> audit-step7.md). **TUTTI I 7 STEP macOS COMPLETI (29/08 notte).** Resta
+> step 8 (device): kit QDC OpenCL PRONTO e verificato
+> (~/kalsa-qdc/bin-governor-1bb3c24a0-ocl/, 8 binari aarch64 incl. i 5 test
+> governor; nota: build del kit a 1bb3c24a0, il fix cache 1bfd144a2 non è
+> dentro — irrilevante per smoke, rebuildare per misure lunghe). S23 morto
+> dal 28/08 sera; fallback QDC autorizzato dall'owner. Ogni step: implementer
+> Luna → verifica orchestratore su disco → audit GLM file-first → fix → re-audit.
 
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
 disco: `ctx_other` pubblico (llama.h:401), gate `mem_other` su GEMMA4_ASSISTANT
