@@ -1077,6 +1077,30 @@ DONE
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
 
+- **2026-08-30 — #39 qdc-8elite-opencl-e031: BANCATA (audit GLM ostile FIX →
+  APPLY al re-audit) — i kernel MoE q2/q3 sono CORRETTI su Adreno 830, terza
+  generazione GPU/compiler, al primo run.** Prereg `e14b7fe1` (locked pre-numeri:
+  commit 14:44, raw mtimes 17:16-17:22; la riga "locked at e68414a9" del prereg
+  nomina il commit BASE). Kit bin-gov-5c3979438-stripped su QRD8750, Android 16,
+  driver OpenCL 0800.70 Compiler E031.47.18.47. test-backend-ops: **MUL_MAT
+  925/925 eseguiti OK, 0 FAIL, 545 skip** (925+545=1470 righe per-caso);
+  **MUL_MAT_ID 407/407 eseguiti OK, 0 FAIL, 405 skip** (407+405=812) — conteggi
+  riprodotti indipendentemente dall'auditor. Claim RISTRETTA dall'audit: i
+  q2_K/q3_K su MUL_MAT semplice NON sono MAI stati eseguiti (26/26 "not
+  supported" — il backend li declina per capability); sul path MoE (MUL_MAT_ID,
+  i nostri kernel 8x4) 10/14 casi eseguiti e TUTTI OK — tutte le shape
+  realistiche (m=64/96/512, n_mats=4, n=1..32); i 4 skip sono shape piccole
+  dichiarate non supportate (m=8 n_mats=3, m=16 n_mats=5). La claim bancabile:
+  corretti sull'830 per ogni shape che accettano. Onestà bancata: primo
+  tentativo VACUO con `-b OpenCL` (il backend si registra come **GPUOpenCL**;
+  12 righe di Skipping + OK verde) tenuto in raw/ come negative exhibit per
+  ENTRAMBI gli op; il "pre 37.3/32.4 °C" di una bozza è RITRATTATO
+  (mis-trascrizione, nessun artefatto lo contiene); snapshot termici pre-run
+  non catturati (deviazione procedurale dichiarata — correttezza non
+  clock-sensitive, Thermal Status 0 a verbale in entrambi i post); exit code
+  non preservati come artefatti (evidenza di completamento = firma completa
+  per-caso + summary + backend OK). Evidenze
+  scratchpad/agents/qdc-8elite-opencl-e031/ (PREREG/REPORT/AUDIT/raw).
 - **2026-08-29 — #38 qdc-8elite-governor-crossbackend: BANCATA — il governor v0
   VINCE su 8 Elite.** Prereg `ddddf077` (locked pre-numeri) + AMENDMENT-1 `28a6c934`
   (scritto PRIMA della riesecuzione: il gate termico del run 1 leggeva il gruppo
