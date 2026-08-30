@@ -1085,6 +1085,26 @@ DONE
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
 
+- **2026-08-30 — #40 qdc-8elite-speed-kexp: BANCATA (audit GLM fresco FIX →
+  APPLY al re-audit) — decision table KEXP su Adreno 830 completa la serie
+  generazionale.** Prereg `3af32c18` (locked pre-numeri). Sessione 792790,
+  QRD8750/8 Elite (unit `41c5710f`, arch sun/SM8750, Android 16), modello
+  Marco-Mini-Instruct-KEXP (qwen3moe 17.25B Q4_K 5.94GiB, sha verificato
+  local==device), ABBA 4/4 exit 0, gate termico HAL vivo (≤44°C, status 0) su
+  ogni invocazione. Mediane dei blocchi: **A(GPU ngl99) pp512 274.5, tg128 48.9;
+  C(CPU ngl0) pp512 107.4, tg128 60.7**. Regola pre-scritta (mediana dei blocchi,
+  soglia 5%): **GPU vince il prefill 2.56×, CPU vince il decode 1.24×** — entrambi
+  ben oltre soglia. Serie ora completa e OGNI generazione dà verdetto diverso:
+  740 CPU-sempre → 750 GPU-2.21×-prefill/pari-decode → 830 GPU-2.56×-prefill/
+  CPU-1.24×-decode; ri-misurata per generazione, mai trasferita. È esattamente lo
+  split per-fase che il governor (#38) sfrutta — tesi confermata anche sulla
+  ricetta KEXP, non solo sull'LFM2.5 di ship. Onestà bancata: sessione 792778
+  VOID (`/vendor/lib64` nel LD_LIBRARY_PATH bypassa il namespace sphal → driver
+  Adreno fallisce il dlopen di libCB.so → fallback CPU SILENZIOSO etichettato
+  OpenCL ngl99 con exit 0; numeri farlocchi = arm C vero, verificato) tenuta come
+  exhibit; diagnosi iniziale sbagliata ("unità rotta") corretta a verbale.
+  Evidenze scratchpad/agents/qdc-8elite-speed-kexp/ (PREREG/REPORT/AUDIT/raw).
+
 - **2026-08-30 — #39 qdc-8elite-opencl-e031: BANCATA (audit GLM ostile FIX →
   APPLY al re-audit) — i kernel MoE q2/q3 sono CORRETTI su Adreno 830, terza
   generazione GPU/compiler, al primo run.** Prereg `e14b7fe1` (locked pre-numeri:
