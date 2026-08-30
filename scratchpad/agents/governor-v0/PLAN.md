@@ -1,6 +1,6 @@
 # Governor v0 — per-phase backend routing (prefill=GPU/OpenCL, decode=CPU)
 
-> **STATUS 2026-08-28 sera** (branch kalsallama `kalsa/governor-v0`):
+> **STATUS 2026-08-30** (branch kalsallama `kalsa/governor-v0`):
 > step 1 CHIUSO @ 409ef5ef3 (harness 2 contesti, oracolo logits bit-perfetto,
 > audit+re-audit in audit-step1.md); step 2 CHIUSO @ 951df1f92 (cells share
 > generalizzato, guardie+fence "mai silenzioso", fence decode non-owner provata
@@ -28,13 +28,20 @@
 > su stories15M e 8/8 su lfm2, p0 nella chiave grafi — REFUTATO wrong-data;
 > difetto vero trovato+fixato: cache piani illimitata con buffer device →
 > clear-per-commit RAII + regression test bound su commit incrementali —
-> audit-step7.md). **TUTTI I 7 STEP macOS COMPLETI (29/08 notte).** Resta
-> step 8 (device): kit QDC OpenCL PRONTO e verificato
-> (~/kalsa-qdc/bin-governor-1bb3c24a0-ocl/, 8 binari aarch64 incl. i 5 test
-> governor; nota: build del kit a 1bb3c24a0, il fix cache 1bfd144a2 non è
-> dentro — irrilevante per smoke, rebuildare per misure lunghe). S23 morto
-> dal 28/08 sera; fallback QDC autorizzato dall'owner. Ogni step: implementer
-> Luna → verifica orchestratore su disco → audit GLM file-first → fix → re-audit.
+> audit-step7.md); step 8 CHIUSO via **cella #38 BANCATA** (30/08: prereg
+> ddddf077 + AMENDMENT-1 termico, QRD8750/Adreno 830 su QDC, modello di ship
+> LFM2.5-2.6B QAD-Q4_0, kit gov-kit-5c3979438): G passa TUTTE le condizioni
+> pre-scritte in ENTRAMBI i blocchi ABBA — ttft 1434/1470 ms (~10× meglio di
+> CPU, entro 3-5% di GPU pura), decode ≥ C, commit 26-29 ms = 1.80/1.98% del
+> prefill (gate 2% passato per 0.02 nel blocco 2, prompt-length-dependent,
+> dichiarato); parte del vantaggio decode è TERMICO (C si autoscalda a 90-93°C,
+> G no) — bancato come effetto reale del design. Evidenze:
+> scratchpad/agents/qdc-8elite-governor-crossbackend/ + audit-step8a.md +
+> step8-qdc/SMOKE.md; registro PLAN #38, ALIVE riga 21.
+> **GOVERNOR v0 COMPLETO — 8/8 STEP (30/08).** Branch `kalsa/governor-v0`
+> @ 5c3979438, MAI pushato (Actions dal 1/09). Metodo tenuto per tutti gli
+> step: implementer Luna → verifica orchestratore su disco → audit GLM
+> file-first → fix → re-audit.
 
 Piano dell'architetto, 28/08/2026. Claim portanti spot-verificate dall'orchestratore su
 disco: `ctx_other` pubblico (llama.h:401), gate `mem_other` su GEMMA4_ASSISTANT
