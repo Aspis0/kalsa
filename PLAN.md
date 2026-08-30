@@ -79,6 +79,15 @@
 > MoE passa 10/14 con tutte le shape realistiche OK. Registro #39 + ALIVE riga 22.
 > Prossima cella QDC già preregistrata: speed KEXP A-vs-C su 830 (`3af32c18`,
 > qdc-8elite-speed-kexp) — parte alla prossima sessione con l'owner in chat (2FA).
+>
+> **30/08: #40 BANCATA (audit GLM fresco FIX → APPLY)** — decision table KEXP su
+> Adreno 830 (sessione 792790): **GPU vince prefill 2.56×, CPU vince decode 1.24×**.
+> Serie generazionale completa, ogni gen un verdetto diverso: 740 CPU-sempre →
+> 750 GPU-prefill/pari → 830 GPU-prefill/CPU-decode. Registro #40 + ALIVE riga 23.
+> Trappola scoperta e messa a verbale: `/vendor/lib64` nel LD_LIBRARY_PATH =
+> fallback CPU silenzioso etichettato OpenCL (sessione 792778 VOID). ~800 min QDC
+> residui. Prossimo QDC candidato (prereg da scrivere): governor su modello più
+> grosso (LFM2.5-8B-A1B).
 > ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
 > Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4,
 > checkpoint salvo) — 29/08 ~10:00 su ordine owner smantellati watcher+harness+cron; il
