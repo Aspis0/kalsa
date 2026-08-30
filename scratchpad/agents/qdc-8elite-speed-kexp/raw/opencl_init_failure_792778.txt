@@ -1,0 +1,18 @@
+=== Session 792778, unit eb49fb9d: OpenCL init failure (VOID for this cell) ===
+test-backend-ops probe: 'ggml_opencl: platform IDs not available.' -> only CPU backend enumerated (1/1)
+logcat root cause:
+08-30 03:58:41.532 E vndksupport: Could not load libCB.so from sphal namespace: dlopen failed: cannot locate symbol "_ZN7android6binder2os22get_trace_enabled_tagsEv" referenced by "/system/lib64/libbinder_ndk.so"
+08-30 03:58:41.533 E Adreno-CB: <InitOpenCLDriver:3366>: Fatal: Failed to open libCB from libOpenCL
+
+Consequence: bench_A_b1.out (exit 0, labeled OpenCL ngl=99) actually ran on CPU - SILENT FALLBACK, kept as negative exhibit only. No numbers banked from this session.
+Unit fingerprint: qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug
+
+=== CORRECTION (same day, session 792790, unit 41c5710f) ===
+The root cause was OURS, not the unit's: putting /vendor/lib64 in LD_LIBRARY_PATH
+bypasses the sphal linker namespace, so libOpenCL's internal dlopen of libCB.so
+resolves against system libs and fails (the libbinder_ndk symbol error above).
+Without /vendor/lib64 (LD_LIBRARY_PATH=kit dir only, for libomp.so) the same
+binary initializes OpenCL fine on unit 41c5710f: 'selected platform: QUALCOMM
+Snapdragon(TM)', Adreno 830, Compiler E031.47.18.47. Unit eb49fb9d was very
+likely healthy too; session 792778 was ended on a wrong diagnosis (~30 min lost).
+The A1 CPU-fallback exhibit remains valid as a silent-fallback demonstration.

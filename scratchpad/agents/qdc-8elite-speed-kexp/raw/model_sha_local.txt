@@ -1,0 +1,1 @@
+2f921958540115384879eff2eeabfc7087597b245d32b0f515d9ce7b7414d777  /Users/marco/kalsa-models/s23-backup-2026-08-27/Marco-Mini-Instruct-KEXP.gguf

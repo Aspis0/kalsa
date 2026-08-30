@@ -1,0 +1,1 @@
+elapsed 16s, transferred 355 MiB, rate 22 MiB/s, projected total ~4 min

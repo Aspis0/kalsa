@@ -1,0 +1,4 @@
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+SM8750
+Sun for arm64
+/dev/block/dm-56  45G 1.5G   43G   4% /mnt/pass_through/0/emulated
