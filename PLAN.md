@@ -71,6 +71,14 @@
 > Erratum strumentazione QDC: il gruppo `Cached` di dumpsys thermalservice è CONGELATO
 > sul rack — ogni cella futura legge `Current temperatures from HAL:` + Thermal Status.
 > Registro #38 + ALIVE riga 21.
+>
+> **30/08: #39 BANCATA (audit GLM FIX → APPLY al re-audit)** — kernel MoE q2/q3
+> CORRETTI su Adreno 830 al primo run: MUL_MAT 925/925 eseguiti + 545 skip,
+> MUL_MAT_ID 407/407 + 405 skip (dichiarati). Claim ristretta dall'audit: il path
+> MUL_MAT semplice q2/q3 non viene MAI eseguito (26/26 capability skip); il path
+> MoE passa 10/14 con tutte le shape realistiche OK. Registro #39 + ALIVE riga 22.
+> Prossima cella QDC già preregistrata: speed KEXP A-vs-C su 830 (`3af32c18`,
+> qdc-8elite-speed-kexp) — parte alla prossima sessione con l'owner in chat (2FA).
 > ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
 > Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4,
 > checkpoint salvo) — 29/08 ~10:00 su ordine owner smantellati watcher+harness+cron; il
