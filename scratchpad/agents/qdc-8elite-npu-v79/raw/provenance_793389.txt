@@ -1,0 +1,4 @@
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+SM8750
+2a38935c
+16

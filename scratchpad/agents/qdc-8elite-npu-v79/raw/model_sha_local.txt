@@ -1,0 +1,1 @@
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03  /Users/marco/kalsa-models/LFM2.5-2.6B-QAD-Q4_0.gguf

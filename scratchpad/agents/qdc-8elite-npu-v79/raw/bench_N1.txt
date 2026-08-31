@@ -1,0 +1,18 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) 830 (OpenCL 3.0 Adreno(TM) 830)'
+ggml-hex: Loading driver libcdsprpc.so
+ggml-hex: Hexagon backend (experimental) : allocating new registry : ndev 1
+ggml-hex: Hexagon Arch version v79
+ggml-hex: HTP0 allocating new session
+ggml-hex: HTP0 hwinfo: threads 6, hvx 6, hmx 1, vtcm 8 MB
+ggml-hex: HTP0 new session : session-id 0 domain-id 3 uri file:///libggml-htp-v79.so?htp_iface_skel_handle_invoke&_modver=1.0&_dom=cdsp&_session=0 handle 0xb40000752db95e50
+ggml-hex: HTP0 op batching: n-bufs 16 n-tensors 7168 n-ops 1024 vmem 3355443200
+| model                          |       size |     params | backend    | ngl | threads | cpu_mask   | cpu_strict |       poll | n_ubatch |  fa | dev          | mmap |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | ---------- | ---------: | ---------: | -------: | --: | ------------ | ---: | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       6 | 0xfc       |          1 |       1000 |     1024 |   1 | HTP0         |    0 |           pp512 |      1500.38 ± 20.68 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL,HTP |  99 |       6 | 0xfc       |          1 |       1000 |     1024 |   1 | HTP0         |    0 |           tg128 |         22.59 ± 3.35 |
+
+build: 4c7101af4 (10052)
+EXIT=0
