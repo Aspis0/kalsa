@@ -77,3 +77,21 @@ model_push_793229.log: "18.7 MB/s (1674454240 bytes in 85.619s)" e "18.7 MB/s (5
 4. **Chiarire il punto A-degraded** (F19): una riga in REPORT che motivi perché il fallback op-level del clip non ricade nella clausola di rilabeling del prereg.
 
 Nessuna delle correzioni tocca i numeri di misura, le mediane, i margini, la decision table o il verdetto della cella — che sono, contro ogni aspettativa ostile, tutti riproducibili al centesimo.
+
+---
+
+## Re-audit (commit 2532c89d)
+
+Riletto da disco: REPORT.md corretto + nuovi artefatti raw/ (extract_text.py, text_hashes_793229.txt, COMMANDS_793229.md, mtmd_timing_patch_556118a08.diff, run_vl_793229.sh, drive_vl_793229.sh). Verifica delle 4 correzioni obbligatorie, una per una:
+
+**R1 — F10 (evidenza GPU M): CORRETTA.** REPORT.md, sezione GPU evidence, punto 1: "For **A only** (audit fix F10 — the first draft wrongly said \"A/M\")" e "**M's logs contain NO OpenCL lines at all** ... M's GPU-ness rests on the behavioral evidence in point 3 ... plus the unit-level probe in point 2". Ora è esattamente ciò che i raw mostrano (45 righe warmup in vl_A_*, 0 in vl_M_*). Il claim quantitativo nuovo "match A within 0.7%" è vero (prefill 0.65%, decode t/s 0.15%). CONFIRMED.
+
+**R2 — F14 (hash testo): CORRETTA.** Rieseguito `python3 raw/extract_text.py raw/vl_*_[123].out`: output = C bc12bdaeafa8 ×3, A/M 717c884feb82 ×6 — ESATTAMENTE i miei valori e la tabella REPORT corretta (righe C1–C3: bc12bdaeafa8; A/M: 717c884feb82). La regola è ora archiviata in codice, non in prosa. La dichiarazione nel REPORT ("the first draft printed hashes from an unarchived convention; regenerated with the archived rule, which independently reproduces the auditor's values") è accurata e non aggira l'errore. CONFIRMED.
+
+**R3 — F8/F20 (archivi): CORRETTA.** run_vl_793229.sh: ARM_FLAGS esatti da prereg (C "-ngl 0 --no-mmproj-offload", A "-ngl 99", M "-ngl 99 --no-mmproj-offload"), flag fissi "-n 128 --temp 0 --seed 42 --ignore-eos -t 8", LD_LIBRARY_PATH=kit dir only, redirezione `> ... 2>&1` + `echo $? > .exit` come da prereg. drive_vl_793229.sh: gate termico PRIMA del launch con abort exit 7 senza lancio, snapshot post, pull. mtmd_timing_patch_556118a08.diff: git show 556118a08, tools/mtmd/mtmd-cli.cpp only, e — importante — il codice conferma indipendentemente la semantica che avevo verificato solo per costruzione in F4: t0 prima di load_media (encode), t1 dopo eval_message (prefill incluso), decode_ms=t2−t1. La catena prefill=eval_message−encode è ora provabile dal sorgente, non solo per assurdo. COMMANDS_793229.md: argv + kit push ("4204029 bytes") + kit verify ("SHA256SUMS, 3/3") + exit smoke ("exit=0" ×2). CONFIRMED.
+
+**R4 — F19 (A-degraded): CORRETTA.** Nuovo paragrafo "Why A is NOT relabeled \"A-degraded\" (audit fix F19)": argomenta che la clausola prereg copre il fallback *silenzioso e totale* (firma C-like), mentre qui l'offload è parziale e *gridato* dal binario stesso (il warmup lista le ops restituite alla CPU) e i numeri divergono da C (6549 ≠ 3915). Lettura ragionevole del testo prereg, sostanza sempre stata divulgata. Accettata. CONFIRMED.
+
+**Nitpicks residui (non bloccanti, non richiedono nuovo commit):** (a) il punto 3 dell'evidenza GPU dice ancora "M's encode matches C" — M3=4007 è 1.2% sopra il max di C (3960), F5 resta cosmetico; (b) run_vl_793229.sh è "archived copy of the pushed run_vl.sh" ma senza sha del file pushato il legame è per affermazione, e le capture di push/verify/smoke-exit in COMMANDS_793229.md sono correttamente etichettate "Terminal captures ... on-device output not persisted" — self-reported ma dichiarate tali: accettabile, annotato.
+
+**Verdetto finale: APPLY.** Tutte e quattro le correzioni obbligatorie sono applicate e verificate contro disco; i numeri di misura, la decision table e il verdetto della cella restano invariati e riproducibili. Cella #42 approvata per registry/ALIVE.

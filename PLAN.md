@@ -99,6 +99,16 @@
 > 2.0–2.1× il CPU a n_threads=1; ttft entro l'1%) → con #38 e #40 è la prova che
 > il routing è per-device E per-modello, e la smentita di uno split fisso
 > GPU-prefill/CPU-decode. Registro #41 + ALIVE riga 24.
+>
+> **30/08 notte: #42 BANCATA (audit GLM fresco FIX → APPLY al re-audit)** — PRIMO
+> run del VLM di famiglia: LFM2.5-VL-3B (backbone del 2.6B di ship + SigLIP2
+> 400M) su Adreno 830, sessione 793229, prereg `6642824d`+A1 `20f2a259`.
+> Decision table a TRE fasi: **encode visione → CPU (la GPU perde 1.67× per
+> buchi kernel CLIP OpenCL, lista op agli atti); prefill → GPU 4.0×; decode →
+> CPU 1.28×**. Composizione per-fase ipotetica batte il miglior arm statico
+> 1.13× (e 1.4× i puri) — QUARTO punto dati per il router per-device E
+> per-modello E per-fase. Determinismo: output byte-identici intra-arm 9/9.
+> mtmd-cli patchato per i timing (556118a08). Registro #42 + ALIVE riga 25.
 > ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
 > Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4,
 > checkpoint salvo) — 29/08 ~10:00 su ordine owner smantellati watcher+harness+cron; il
@@ -1153,6 +1163,40 @@ DONE
   OpenCL → evidenza GPU via fail-fast strutturale + probe llama-bench dedicato
   (selected platform QUALCOMM/Adreno 830) + split 10× dei numeri. Evidenze
   scratchpad/agents/qdc-8elite-governor-8b/ (PREREG/REPORT/AUDIT/raw).
+
+- **2026-08-30 — #42 qdc-8elite-vl3b: BANCATA (audit GLM fresco FIX → APPLY
+  al re-audit) — il primo VLM della campagna, e la decision table guadagna la
+  terza fase.** Prereg `6642824d` + AMENDMENT-1 pre-misura `20f2a259` (kit
+  556118a08 = 5c3979438 + patch timing mtmd-cli; --ignore-eos; metriche
+  esatte). Sessione 793229, unit `eb49fb9d` (serial NEL provenance — lezione
+  #41), LFM2.5-VL-3B ufficiale LiquidAI (backbone = LFM2.5-2.6B di ship +
+  SigLIP2 NaFlex 400M; gguf Q4_K_M + mmproj Q8_0, sha local==device==
+  pubblicati), immagine sintetica deterministica sha 55e455a2. Ordine
+  C A M / M A C / A M C, 9/9 exit 0, gate termico HAL 18/18 PASS (max 46.5°C
+  status 0 — il VLM single-turn è termicamente mite). Mediane: **C enc 3915 ms
+  / prefill 5752.8 / 29.07 t/s; A enc 6549 / 1445.6 / 22.64; M enc 3927 /
+  1436.2 / 22.68**. Regola pre-scritta (mediane di 3, ≥5%): **encode → CPU
+  (tie C/M 0.31%; la GPU perde 1.67× — il warmup elenca le op CLIP che
+  OpenCL non supporta: UPSCALE/SOFT_MAX/CONT/PERMUTE/RESHAPE/MUL_MAT f32,
+  bersaglio kernel concreto se mai servirà la visione GPU); prefill → GPU
+  4.0× (tie A/M 0.65%); decode → CPU 1.28×**. End-to-end (REPORT-only):
+  M miglior arm statico 11008 ms; composizione per-fase ipotetica
+  CPU-enc+GPU-prefill+CPU-dec = 9755 ms = 1.13× sul migliore, 1.40×/1.44×
+  sui puri — nessun arm statico può eseguirla: è la tesi del governor estesa
+  alla terza fase, QUARTO punto dati del routing per-device/per-modello/
+  per-fase (#38 G vince sul 2.6B; #40 KEXP split; #41 8B tutto-GPU; #42 VL
+  three-way). Determinismo: 9/9 byte-identici intra-arm (regola di estrazione
+  archiviata, hash riprodotti indipendentemente dall'auditor). Onestà bancata:
+  il banner OpenCL richiesto dal prereg è filtrato dal logger di mtmd-cli
+  (stesso meccanismo #41) → deviazione dichiarata, evidenza sostitutiva:
+  A = 45 righe warmup backend=OpenCL in-run (prova diretta), M = SOLO
+  comportamentale+probe (il primo draft diceva "A/M" — falso, beccato
+  dall'audit e corretto); hash del primo draft non riproducibili → regola
+  archiviata e rigenerati; A NON rilabellata "degraded" con motivazione a
+  verbale (fallback op-level gridato ≠ fallback silenzioso totale della
+  clausola). Actionable di prodotto: sul VL il decode CPU (29 t/s) supera il
+  20 t/s di riferimento Liquid su SM8850. Evidenze
+  scratchpad/agents/qdc-8elite-vl3b/ (PREREG/REPORT/AUDIT/raw).
 
 - **2026-08-30 — #39 qdc-8elite-opencl-e031: BANCATA (audit GLM ostile FIX →
   APPLY al re-audit) — i kernel MoE q2/q3 sono CORRETTI su Adreno 830, terza
