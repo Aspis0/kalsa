@@ -1,0 +1,20 @@
+......................................................................................................................................................
+............................................................................
+............................................................................
+............................................................................
+run_start arm=A rep=0 monotonic_us=2465738265
+turn arm=A rep=0 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2480.951 decode_tps=28.365 prefill_ms=2475.013 seed=1234
+turn arm=A rep=0 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2519.123 decode_tps=28.103 prefill_ms=2515.129 seed=1234
+turn arm=A rep=0 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2550.973 decode_tps=27.694 prefill_ms=2547.178 seed=1234
+run_end arm=A rep=0 monotonic_us=2508223829
+run_start arm=A rep=1 monotonic_us=2508682875
+turn arm=A rep=1 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2479.450 decode_tps=28.820 prefill_ms=2474.134 seed=1234
+turn arm=A rep=1 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2518.368 decode_tps=28.663 prefill_ms=2514.512 seed=1234
+turn arm=A rep=1 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2548.913 decode_tps=28.340 prefill_ms=2545.088 seed=1234
+run_end arm=A rep=1 monotonic_us=2544188574
+run_start arm=A rep=2 monotonic_us=2544623769
+turn arm=A rep=2 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2479.510 decode_tps=28.892 prefill_ms=2474.123 seed=1234
+turn arm=A rep=2 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2518.750 decode_tps=28.471 prefill_ms=2515.034 seed=1234
+turn arm=A rep=2 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2550.338 decode_tps=28.245 prefill_ms=2546.374 seed=1234
+run_end arm=A rep=2 monotonic_us=2580207632
+summary=median arm=A turns=3 repetitions=3 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=GPUOpenCL ttft_ms=2518.750 decode_tps=28.365 prefill_ms=2515.034 seed=1234

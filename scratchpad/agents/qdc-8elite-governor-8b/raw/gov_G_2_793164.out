@@ -1,0 +1,23 @@
+......................................................................................................................................................
+............................................................................
+......................................................................
+............................................................................
+......................................................................
+............................................................................
+......................................................................
+run_start arm=G rep=0 monotonic_us=2985569037
+turn arm=G rep=0 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2481.327 decode_tps=14.837 prefill_ms=2475.799 commit_ms=19.774 commit_bytes=6586368 commit_naive_count=0 commit_staged_count=1 seed=1234
+turn arm=G rep=0 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2496.068 decode_tps=13.535 prefill_ms=2492.219 commit_ms=20.469 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234
+turn arm=G rep=0 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2521.591 decode_tps=13.105 prefill_ms=2517.799 commit_ms=22.158 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234
+run_end arm=G rep=0 monotonic_us=3044095523
+run_start arm=G rep=1 monotonic_us=3044610613
+turn arm=G rep=1 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2480.270 decode_tps=14.578 prefill_ms=2474.704 commit_ms=15.695 commit_bytes=6586368 commit_naive_count=0 commit_staged_count=1 seed=1234
+turn arm=G rep=1 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2495.135 decode_tps=13.327 prefill_ms=2491.347 commit_ms=21.586 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234
+turn arm=G rep=1 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2521.045 decode_tps=13.019 prefill_ms=2517.252 commit_ms=20.752 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234
+run_end arm=G rep=1 monotonic_us=3096824234
+run_start arm=G rep=2 monotonic_us=3097348380
+turn arm=G rep=2 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2469.305 decode_tps=14.328 prefill_ms=2463.625 commit_ms=21.172 commit_bytes=6586368 commit_naive_count=0 commit_staged_count=1 seed=1234
+turn arm=G rep=2 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2496.649 decode_tps=13.193 prefill_ms=2492.848 commit_ms=22.429 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234
+turn arm=G rep=2 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2520.809 decode_tps=12.856 prefill_ms=2516.837 commit_ms=20.770 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234
+run_end arm=G rep=2 monotonic_us=3151047614
+summary=median arm=G turns=3 repetitions=3 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=GPUOpenCL decode_backend=CPU ttft_ms=2496.068 decode_tps=13.327 prefill_ms=2492.219 commit_ms=20.770 commit_bytes=8454144 commit_naive_count=1 commit_staged_count=1 seed=1234

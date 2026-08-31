@@ -1,0 +1,5 @@
+qti/sun/sun:16/BQ2A.260305.002-BP2A.250705.008/eng.lnxbui:userdebug/test-keys
+SM8750
+sun
+16
+Linux localhost 6.6.118-android15-8-maybe-dirty-4k #1 SMP PREEMPT Thu Jan  1 00:00:00 UTC 1970 aarch64 Toybox

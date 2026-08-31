@@ -1,0 +1,19 @@
+......................................................................
+......................................................................
+......................................................................
+run_start arm=C rep=0 monotonic_us=1755288994
+turn arm=C rep=0 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=23186.612 decode_tps=15.001 prefill_ms=23185.831 seed=1234
+turn arm=C rep=0 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=24291.011 decode_tps=14.399 prefill_ms=24290.552 seed=1234
+turn arm=C rep=0 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=25127.849 decode_tps=13.453 prefill_ms=25127.409 seed=1234
+run_end arm=C rep=0 monotonic_us=1855141654
+run_start arm=C rep=1 monotonic_us=1855267237
+turn arm=C rep=1 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=24319.351 decode_tps=14.295 prefill_ms=24318.856 seed=1234
+turn arm=C rep=1 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=25122.625 decode_tps=13.984 prefill_ms=25122.175 seed=1234
+turn arm=C rep=1 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=25687.139 decode_tps=13.484 prefill_ms=25686.687 seed=1234
+run_end arm=C rep=1 monotonic_us=1958290062
+run_start arm=C rep=2 monotonic_us=1958419130
+turn arm=C rep=2 turn=0 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=24809.839 decode_tps=13.946 prefill_ms=24809.339 seed=1234
+turn arm=C rep=2 turn=1 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=25601.757 decode_tps=13.670 prefill_ms=25601.313 seed=1234
+turn arm=C rep=2 turn=2 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=26189.000 decode_tps=13.288 prefill_ms=26188.555 seed=1234
+run_end arm=C rep=2 monotonic_us=2063490974
+summary=median arm=C turns=3 repetitions=3 model_path=/data/local/tmp/kalsa/lfm8b.gguf model_bytes=5155564768 build_commit=5c3979438 n_threads=1 n_ubatch=512 prefill_backend=CPU decode_backend=CPU ttft_ms=25122.625 decode_tps=13.946 prefill_ms=25122.175 seed=1234
