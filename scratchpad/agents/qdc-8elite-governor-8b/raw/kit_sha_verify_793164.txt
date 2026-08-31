@@ -1,0 +1,20 @@
+Kit SHA256SUMS verification on device — captured from the orchestrator's
+terminal transcript (the on-device output was not persisted to a file; the
+command ran live over the 793164 tunnel). Command:
+  cd /data/local/tmp/kalsa && tar xzf gov-kit-5c3979438.tgz && sha256sum -c SHA256SUMS
+Output (failure count then per-file lines):
+  0
+  BUILD_NOTE.txt: OK
+  libomp.so: OK
+  llama-bench: OK
+  llama-cli: OK
+  test-backend-ops: OK
+  test-governor-v0: OK
+  test-governor-v0-shared-cells: OK
+  test-governor-v0-commit: OK
+  test-governor-v0-turns: OK
+  test-governor-v0-hybrid: OK
+  test-governor-v0-devices: OK
+  governor-bench: OK
+Independent on-disk anchor: every turn line in gov_*_793164.out prints
+build_commit=5c3979438.
