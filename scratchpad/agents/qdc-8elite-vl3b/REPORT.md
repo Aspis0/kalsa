@@ -27,15 +27,15 @@ no cooldowns needed; the VLM single-turn workload is thermally mild.
 
 | run | encode_ms | eval_message_ms | prefill_ms (derived) | decode_ms | decode t/s | text sha (12) |
 |-----|-----------|-----------------|----------------------|-----------|------------|----------------|
-| C1 | 3856 | 9449.4 | 5593.4 | 4260.4 | 30.04 | 7ef972e97333 |
-| A1 | 6558 | 7999.6 | 1441.6 | 5653.3 | 22.64 | 97022c5b3bc9 |
-| M1 | 3923 | 5360.3 | 1437.3 | 5659.6 | 22.62 | 97022c5b3bc9 |
-| M2 | 3927 | 5363.2 | 1436.2 | 5640.9 | 22.69 | 97022c5b3bc9 |
-| A2 | 6547 | 7992.6 | 1445.6 | 5653.4 | 22.64 | 97022c5b3bc9 |
-| C2 | 3915 | 9667.8 | 5752.8 | 4403.5 | 29.07 | 7ef972e97333 |
-| A3 | 6549 | 7996.3 | 1447.3 | 5641.3 | 22.69 | 97022c5b3bc9 |
-| M3 | 4007 | 5442.7 | 1435.7 | 5644.9 | 22.68 | 97022c5b3bc9 |
-| C3 | 3960 | 9766.7 | 5806.7 | 4545.5 | 28.16 | 7ef972e97333 |
+| C1 | 3856 | 9449.4 | 5593.4 | 4260.4 | 30.04 | bc12bdaeafa8 |
+| A1 | 6558 | 7999.6 | 1441.6 | 5653.3 | 22.64 | 717c884feb82 |
+| M1 | 3923 | 5360.3 | 1437.3 | 5659.6 | 22.62 | 717c884feb82 |
+| M2 | 3927 | 5363.2 | 1436.2 | 5640.9 | 22.69 | 717c884feb82 |
+| A2 | 6547 | 7992.6 | 1445.6 | 5653.4 | 22.64 | 717c884feb82 |
+| C2 | 3915 | 9667.8 | 5752.8 | 4403.5 | 29.07 | bc12bdaeafa8 |
+| A3 | 6549 | 7996.3 | 1447.3 | 5641.3 | 22.69 | 717c884feb82 |
+| M3 | 4007 | 5442.7 | 1435.7 | 5644.9 | 22.68 | 717c884feb82 |
+| C3 | 3960 | 9766.7 | 5806.7 | 4545.5 | 28.16 | bc12bdaeafa8 |
 
 Medians per arm: **C** enc 3915 / prefill 5752.8 / 29.07 t/s; **A** enc 6549 /
 prefill 1445.6 / 22.64 t/s; **M** enc 3927 / prefill 1436.2 / 22.68 t/s.
@@ -43,10 +43,13 @@ prefill 1445.6 / 22.64 t/s; **M** enc 3927 / prefill 1436.2 / 22.68 t/s.
 ## Determinism probe (prereg)
 
 Same-arm outputs are byte-identical in all 3×3 runs (one text hash per arm
-group). A and M share the hash (same GPU text tower); C's text differs from
-the GPU arms' (both descriptions are correct for the synthetic image; the
+group). A and M share the hash 717c884feb82 (same GPU text tower); C's is
+bc12bdaeafa8 (both descriptions are correct for the synthetic image; the
 divergence is numeric-backend-dependent sampling at temp 0, REPORTED as
-expected, no quality claim).
+expected, no quality claim). Extraction rule and per-run hashes are archived
+(raw/extract_text.py, raw/text_hashes_793229.txt — audit fix F14: the first
+draft printed hashes from an unarchived convention; regenerated with the
+archived rule, which independently reproduces the auditor's values).
 
 ## Verdict per the pre-written rule (median of 3, ≥5% margin per phase)
 
@@ -82,16 +85,27 @@ graph splits across CPU/GPU and the ping-pong makes GPU encode 1.67× slower
 than pure CPU. This is a kernel-coverage gap of the OpenCL backend for CLIP
 ops (f32, odd shapes) — a concrete, listed target if GPU vision ever matters.
 
+Why A is NOT relabeled "A-degraded" (audit fix F19): the prereg clause covers
+a mmproj offload that "silently falls back to CPU" — a full fallback, whose
+signature is C-like numbers. Here the mmproj IS offloaded and runs on the GPU
+where ops are supported (encode 6549 ms ≠ C's 3915; the warmup explicitly
+lists which ops the scheduler sends back to CPU). That is op-level graph
+splitting, loudly disclosed by the binary itself, not a silent fallback; it
+is banked as the cell's main vision finding rather than a degraded label.
+
 ## GPU evidence (deviation from the prereg clause, declared)
 
 The prereg required `selected platform: 'QUALCOMM` in the run header. The
 fork's mtmd-cli logger FILTERS the ggml_opencl banner (same mechanism as
 governor-bench in cell #41 — zero perf/banner lines at any verbosity), so NO
 vl_*.out contains it. Replacement evidence, all on disk:
-1. A/M warmup lines naming `backend=OpenCL` and the OpenCL flash-attention
-   warning — those prints exist only when the OpenCL backend is live (a
-   /vendor/lib64-style init failure prints `platform IDs not available` and
-   no such warnings; C runs contain none of these lines).
+1. For **A only** (audit fix F10 — the first draft wrongly said "A/M"):
+   45 warmup lines per run naming `backend=OpenCL` plus the OpenCL
+   flash-attention warning — prints that exist only when the OpenCL backend
+   is live. **M's logs contain NO OpenCL lines at all** (its clip runs on CPU
+   so no clip-on-OpenCL warnings are expected): M's GPU-ness rests on the
+   behavioral evidence in point 3 (its prefill/decode match A within 0.7%,
+   4×/−28% away from C) plus the unit-level probe in point 2.
 2. In-session probe raw/opencl_banner_probe_793229.txt: llama-bench (from the
    #41 kit) on the SAME unit with the SAME kit-only LD_LIBRARY_PATH prints
    `ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'` / Adreno 830.
@@ -106,4 +120,9 @@ the determinism probe (one image, one prompt); nothing about other GPU
 generations; nothing about sustained thermals; nothing about the NPU; nothing
 about multi-image/long multimodal chats.
 
-Pending: hostile audit before registry/ALIVE entry.
+Command lines, kit push/verify captures, smoke exit captures, and the
+mtmd-cli timing patch are archived in raw/ (COMMANDS_793229.md,
+mtmd_timing_patch_556118a08.diff, run_vl_793229.sh, drive_vl_793229.sh —
+audit fix F8/F20).
+
+Pending: hostile audit re-verdict, then registry/ALIVE entry.

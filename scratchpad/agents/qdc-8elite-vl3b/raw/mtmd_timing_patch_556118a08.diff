@@ -1,0 +1,43 @@
+commit 556118a08aa81f11db58e0ece2ef477144768969
+Author: Marco Gualtieri <66642624+Aspis0@users.noreply.github.com>
+Date:   Sun Aug 30 22:39:38 2026 -0400
+
+    mtmd-cli: unconditional phase timing line for measurement cells
+
+diff --git a/tools/mtmd/mtmd-cli.cpp b/tools/mtmd/mtmd-cli.cpp
+index 8704ea79d..fda9f05db 100644
+--- a/tools/mtmd/mtmd-cli.cpp
++++ b/tools/mtmd/mtmd-cli.cpp
+@@ -14,6 +14,7 @@
+ #include <limits.h>
+ #include <cinttypes>
+ #include <clocale>
++#include <cstdio>
+ 
+ #if defined (__unix__) || (defined (__APPLE__) && defined (__MACH__))
+ #include <signal.h>
+@@ -448,6 +449,7 @@ int main(int argc, char ** argv) {
+         common_chat_msg msg;
+         msg.role = "user";
+         msg.content = params.prompt;
++        const int64_t t0 = ggml_time_us();
+         for (const auto & image : params.image) {
+             if (!ctx.load_media(image)) {
+                 return 1; // error is already printed by libmtmd
+@@ -456,8 +458,14 @@ int main(int argc, char ** argv) {
+         if (eval_message(ctx, msg)) {
+             return 1;
+         }
+-        if (!g_is_interrupted && generate_response(ctx, n_predict)) {
+-            return 1;
++        const int64_t t1 = ggml_time_us();
++        if (!g_is_interrupted) {
++            if (generate_response(ctx, n_predict)) {
++                return 1;
++            }
++            const int64_t t2 = ggml_time_us();
++            fprintf(stderr, "KALSA_VL_TIMING eval_message_ms=%.1f decode_ms=%.1f n_predict_requested=%d\n",
++                    (t1 - t0) / 1000.0, (t2 - t1) / 1000.0, n_predict);
+         }
+ 
+     } else {
