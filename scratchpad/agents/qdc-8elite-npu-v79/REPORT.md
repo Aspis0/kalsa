@@ -12,7 +12,9 @@ libggml-htp-v79.so, built from kalsallama kalsa/governor-v0 @ 556118a08 in the
 official toolchain container (NDK r28b, Hexagon SDK 6.6.0.0). Kit integrity:
 23/23 payload files OK on device; the SHA256SUMS line for itself reads FAILED
 because the manifest hashed its own (then-empty) file at creation — a
-manifest-generation bug, disclosed, no payload file affected. Model:
+manifest-generation bug, no payload file affected (audit fix #7: manifest and
+labeled terminal capture now in raw/kit_SHA256SUMS_793389.txt and
+raw/kit_verify_capture_793389.txt; the manifest demonstrably lists itself). Model:
 LFM2.5-2.6B-QAD-Q4_0 (THE ship model) as ship.gguf, sha `a247afd6...40b03`
 identical local/device. Run env per the backend's docs:
 `LD_LIBRARY_PATH=<kit>/lib ADSP_LIBRARY_PATH=<kit>/lib`.
@@ -37,30 +39,49 @@ unit. **The v79 lane exists.**
   list started"** — the rule is applied as written.
 
 **The diagnosis, from the failure signatures themselves** (all quoted in raw):
-1. In EVERY compared failure the pattern is `HTP0=<finite> CPU=nan/-nan/-inf`
-   — e.g. `[MUL_MAT_ID] NaN at index 0 (HTP0=20.906250 CPU=nan)`. The
-   NaN/Inf is in the CPU REFERENCE, not in the HTP output.
-2. **Control experiment on the same binary, same run conditions**
+1. In every failure that PRINTS a comparison the pattern is
+   `HTP0=<finite> CPU=<non-finite>` — the auditor's full census: 362/362
+   diagnostic lines (61 MUL_MAT + 301 MUL_MAT_ID), zero inversions; the CPU
+   side shows nan/-nan/-inf and in 49 cases +inf. E.g. `[MUL_MAT_ID] NaN at
+   index 0 (HTP0=20.906250 CPU=nan)`. CAVEAT (audit fix #5): 7 of the 70
+   MUL_MAT FAILs print NO diagnostic at all (including the LLM-like shape
+   q4_0 m=1,n=2048,k=8192) — those remain UNCHARACTERIZED and could be real
+   numeric mismatches.
+2. **Control experiment, same kit and session**
    (raw/backend_ops_MUL_MAT_ID_GPUOpenCL_judgeprobe.txt): `-b GPUOpenCL`
    passes **407/407** against the SAME CPU reference. The reference is not
-   broken in general — it breaks ONLY when paired with HTP0.
+   broken in general — it breaks ONLY when paired with HTP0. Scope limits
+   (audit fix #6): the control covers 294 of HTP0's 297 failed MUL_MAT_ID
+   signatures (3 iq4_nl shapes uncovered), and there is NO OpenCL control
+   for the MUL_MAT run — there the poisoned-judge reading rests on signature
+   matching alone.
 3. The known prior: the Adreno campaign's banked "NaN-judge" defect
    (tiled-memcpy/is_host — a buffer-interop bug poisoning the comparison, not
    the compute). The HTP0 pairing uses fastrpc/host+REPACK buffer types the
    CPU reference must read back; the signature matches that class.
 4. Separate real signal: **36 `dspcall : dsp-rsp: INTERNAL-ERROR`** lines in
-   the MUL_MAT run, concentrated on tiny shapes (m=16, n=1..4) across all
-   supported quants — an HTP-side issue distinct from the judge pattern,
-   worth its own follow-up.
-Claim discipline: correctness is NOT proven by these runs; equally, the FAILs
-do not prove the kernels wrong (finite outputs + poisoned-pairing evidence).
-The decisive end-to-end probe is Q4 below.
+   the MUL_MAT run (audit-corrected taxonomy, fix #1): 29/36 are m=16 with
+   n=4..8 (never n=1..3) across the supported quants; **7/36 are NOT m=16**
+   — one LARGE shape `q4_0 m=576,n=512,k=576` and six `m=1,n=64,k=256` on
+   NON-supported types (bf16/q5_1/q1_0/iq1_m/iq4_xs). Messier than "tiny
+   shapes only"; an HTP-side issue distinct from the judge pattern, worth
+   its own follow-up. For these cases the HTP output is likely an
+   uninitialized buffer, so "finite outputs" carries no weight there.
+Claim discipline: correctness is NOT proven by these runs; equally, the
+CHARACTERIZED FAILs do not prove the kernels wrong (finite outputs +
+poisoned-pairing evidence, where a comparison was printed). Q4 below adds a
+qualitative smoke signal only.
 
 ## Q3 — Speed probe (exploratory), ship model, N C C N, 4/4 exit 0
 
 Flags exactly as preregistered (backend's documented recipe; declared
 non-comparable with #38/#41). Thermal gate live-HAL before each invocation:
-all PASS, status 0 throughout (max HAL well under gate; snapshots in raw/).
+all 4 pre-gates PASS, status 0 throughout — actual values (audit fix #4):
+pre 41.0 / 41.0 / 45.7 / **57.6** °C (N2's pre-gate passed by 2.4 °C, not
+"well under"), and the CPU runs pushed post-run snapshots to **61.5 / 63.0
+°C — above the 60.0 gate threshold DURING execution**. The gate is
+pre-invocation by design and was honored; the in-run excursion is disclosed,
+not hidden.
 
 | run | arm | pp512 t/s | tg128 t/s |
 |-----|-----|-----------|-----------|
@@ -70,23 +91,36 @@ all PASS, status 0 throughout (max HAL well under gate; snapshots in raw/).
 | 4 | N (HTP0) | 1524.09 ± 9.63 | 24.34 ± 0.21 |
 
 Medians: N pp512 **1512.2**, tg128 23.47; C pp512 211.1, tg128 38.49.
+(Note: the C arm's process still registers the OpenCL and HTP backends —
+the table prints "OpenCL,HTP" — but computes with `-ngl 0`, i.e. on CPU,
+exactly as preregistered.)
 **NPU prefill = 7.2× CPU. CPU decode = 1.64× NPU.** The per-phase split — the
 governor's thesis — appears on the THIRD engine class, day-0, on the shipping
 model. (Exploratory per prereg: seeds the NPU column of the 2.6B/830 decision
 table; a routing verdict needs its own preregistered cell.)
 
-## Q4 — End-to-end text probe (the correctness evidence that matters)
+## Q4 — Text probe: a reasoning-trace-only smoke test (audit fix #2)
 
 llama-cli, temp 0, seed 42, `-n 64`, same prompt ("List the planets..."),
-full offload on N (`--device HTP0 -ngl 99`) vs CPU (`-ngl 0`):
-- **N (raw/cli_N.out, exit 0)**: correct reasoning and the full correct list
-  Mercury→Neptune, in order. Reported speeds: prompt 119.7 t/s, gen 19.4 t/s.
-- **C (raw/cli_C.out, exit 0)**: coherent, same list begun (verbose phrasing
-  hits the 64-token cap). Prompt 160.9, gen 33.8 t/s.
-- Outputs differ textually across backends at temp 0 (expected, as in cell
-  #42's cross-arm divergence); BOTH are semantically correct. A full
-  quantitative certification (PPL HTP-vs-CPU, the v75 q55 pattern) is future
-  work; day-0 the NPU demonstrably computes sensible language.
+full offload on N (`--device HTP0 -ngl 99`) vs CPU (`-ngl 0`). HONEST scope:
+with `-n 64` and this model's thinking mode, **NEITHER arm ever emitted a
+final answer** — both captures end INSIDE the `[Start thinking]` trace.
+- **N (raw/cli_N.out, exit 0)**: the thinking trace enumerates the full
+  correct list Mercury→Neptune in order before the token cap. Prompt 119.7
+  t/s, gen 19.4 t/s.
+- **C (raw/cli_C.out, exit 0)**: coherent thinking, list begun (Mercury,
+  Venus, Earth) before the cap. Prompt 160.9, gen 33.8 t/s.
+This shows the NPU generating coherent, factually correct LANGUAGE in the
+reasoning trace — a qualitative smoke signal that the forward pass is not
+garbage, nothing more. It is NOT correctness evidence in the certification
+sense; that requires the PPL HTP-vs-CPU pattern (v75's q55) as future work.
+
+**Binding deviation (audit fix #3)**: the prereg requires a live thermal gate
+before EACH invocation; the two successful CLI probes (14:33) ran ~10 min
+after the single pre-CLI gate snapshot (14:23), with NO fresh gate before
+either — the interval that also contained the interactive-flood incident.
+Mitigant on record: therm_post_cli = 48.0 °C status 0, and no banked number
+depends on the CLI probes. The violation stands as a deviation.
 
 ## Operational notes (banked)
 

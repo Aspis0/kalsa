@@ -1,0 +1,14 @@
+Kit verification on device — captured from the orchestrator's terminal
+transcript (audit fix #7; on-device output not persisted at run time).
+Command: cd /data/local/tmp/kalsa-npu && tar xzf npu-kit-556118a08.tgz &&
+  sha256sum -c SHA256SUMS
+Terminal result (two greps run over the same output):
+  non-OK lines: 1   -> the single line "SHA256SUMS: FAILED"
+  OK lines:    23
+The manifest lists ITSELF (see kit_SHA256SUMS_793389.txt, entry "SHA256SUMS"):
+the generation pipeline (`find | xargs shasum > SHA256SUMS`) created the
+output file before find enumerated it, so the manifest hashed its own
+then-empty file. All 23 payload entries verified OK; no payload affected.
+Provenance note (audit F4.4): provenance_793389.txt lines are, in order, the
+outputs of: getprop ro.build.fingerprint; ro.soc.model; ro.serialno;
+ro.build.version.release (unlabeled raw getprop output).
