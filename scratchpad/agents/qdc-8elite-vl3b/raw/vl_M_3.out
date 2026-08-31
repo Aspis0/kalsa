@@ -1,0 +1,20 @@
+0.14.862.139 I mtmd_cli_context: chat template example:
+<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+
+0.14.963.005 I main: loading model: /data/local/tmp/kalsa/vl3b.gguf
+0.14.963.051 W WARN: This is an experimental CLI for testing multimodal capability.
+0.14.963.056 W       For normal use cases, please use the standard llama-cli
+0.14.973.801 I encoding mtmd batch, n_chunks = 1 (done = 1, total = 3)
+0.18.981.423 I mtmd batch encoding done in 4007 ms
+
+A rainbow gradient background with a blue square and red circle with a dashed line and black rectangles above it. The image has a digital, abstract art style. The colors transition smoothly from blue to green, yellow, orange, and pink. The blue square is positioned in the lower left corner, while the red circle is in the upper right. The dashed line and black rectangles are aligned horizontally near the top of the image. The overall composition is simple yet visually striking. The image does not contain any text or discernible objects other than the geometric shapes and color gradient. The style is reminiscent of digital art or graphic design. The image has aKALSA_VL_TIMING eval_message_ms=5442.7 decode_ms=5644.9 n_predict_requested=128
+
+

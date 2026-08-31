@@ -1,0 +1,20 @@
+0.00.732.094 I mtmd_cli_context: chat template example:
+<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+
+0.00.880.799 I main: loading model: /data/local/tmp/kalsa/vl3b.gguf
+0.00.880.845 W WARN: This is an experimental CLI for testing multimodal capability.
+0.00.880.846 W       For normal use cases, please use the standard llama-cli
+0.01.016.732 I encoding mtmd batch, n_chunks = 1 (done = 1, total = 3)
+0.04.931.922 I mtmd batch encoding done in 3915 ms
+
+A rainbow gradient background with a blue square and red circle with black squares above it. The background has a pattern of squares with a swirling design. The red circle is positioned in the upper right quadrant of the image, while the blue square is located in the lower left quadrant. The black squares are arranged in a horizontal line across the top portion of the image. The overall composition creates a vibrant and colorful abstract design. The image has a digital or graphic design quality to it. The colors transition smoothly from one to another, creating a visually appealing gradient effect. The contrast between the bright colors and the black squares adds visual interest to theKALSA_VL_TIMING eval_message_ms=9667.8 decode_ms=4403.5 n_predict_requested=128
+
+

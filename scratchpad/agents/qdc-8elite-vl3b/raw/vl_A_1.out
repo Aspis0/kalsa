@@ -1,0 +1,65 @@
+0.14.670.670 I mtmd_cli_context: chat template example:
+<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+
+0.15.456.610 W warmup: *****************************************************************
+0.15.456.618 W warmup: WARNING: flash attention not supported by OpenCL, memory usage will increase
+0.15.456.618 W warmup: op params: 
+0.15.456.620 W warmup:    dst: type = f32, ne = [72 16 1024 1], nb = [4 288 4608 4718592]
+0.15.456.622 W warmup:   src0: type = f32, ne = [72 1024 16 1], nb = [4 4608 288 4718592]
+0.15.456.623 W warmup:   src1: type = f16, ne = [72 1024 16 1], nb = [2 144 147456 2359296]
+0.15.456.624 W warmup:   src2: type = f16, ne = [72 1024 16 1], nb = [2 144 147456 2359296]
+0.15.456.625 W warmup: please report this on github as an issue
+0.15.456.625 W warmup: *****************************************************************
+0.15.477.498 W warmup: *****************************************************************
+0.15.477.503 W warmup: WARNING: the CLIP graph uses unsupported operators by the backend
+0.15.477.504 W warmup:          the performance will be suboptimal                      
+0.15.477.505 W warmup:          list of unsupported ops (backend=OpenCL):
+0.15.477.506 W warmup:          UPSCALE: type = f32, ne = [32 32 1152 1]
+0.15.477.507 W warmup:         SOFT_MAX: type = f32, ne = [1024 1024 16 1]
+0.15.477.508 W warmup:             CONT: type = f32, ne = [1024 72 16 1]
+0.15.477.508 W warmup:          PERMUTE: type = f32, ne = [72 1024 16 1]
+0.15.477.509 W warmup:          RESHAPE: type = f32, ne = [72 16 1024 1]
+0.15.477.509 W warmup:          RESHAPE: type = f32, ne = [72 16 1024 1]
+0.15.477.510 W warmup:          MUL_MAT: type = f32, ne = [1152 1024 1 1]
+0.15.477.511 W warmup:          MUL_MAT: type = f32, ne = [1152 1024 1 1]
+0.15.477.511 W warmup:          MUL_MAT: type = f32, ne = [1152 1024 1 1]
+0.15.477.512 W warmup:              MUL: type = f32, ne = [1152 1024 1 1]
+0.15.477.512 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.513 W warmup:          MUL_MAT: type = f32, ne = [1152 1024 1 1]
+0.15.477.513 W warmup:              ADD: type = f32, ne = [4304 1024 1 1]
+0.15.477.514 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.514 W warmup:             NORM: type = f32, ne = [1152 1024 1 1]
+0.15.477.515 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.515 W warmup:             CONT: type = f32, ne = [1152 1024 1 1]
+0.15.477.516 W warmup:          MUL_MAT: type = f32, ne = [72 1024 16 1]
+0.15.477.516 W warmup:          MUL_MAT: type = f32, ne = [1024 1024 16 1]
+0.15.477.517 W warmup:          PERMUTE: type = f32, ne = [1024 72 16 1]
+0.15.477.517 W warmup:          PERMUTE: type = f32, ne = [72 1024 16 1]
+0.15.477.518 W warmup:          RESHAPE: type = f32, ne = [72 16 1024 1]
+0.15.477.518 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.519 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.519 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.520 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.521 W warmup:             NORM: type = f32, ne = [1152 1024 1 1]
+0.15.477.521 W warmup:              ADD: type = f32, ne = [1152 1024 1 1]
+0.15.477.521 W warmup: flash attention is disabled
+0.15.477.522 W warmup: please report this on github as an issue
+0.15.477.522 W warmup: ref: https://github.com/ggml-org/llama.cpp/pull/16837#issuecomment-3461676118
+0.15.477.523 W warmup: *****************************************************************
+0.15.481.064 I main: loading model: /data/local/tmp/kalsa/vl3b.gguf
+0.15.481.107 W WARN: This is an experimental CLI for testing multimodal capability.
+0.15.481.111 W       For normal use cases, please use the standard llama-cli
+0.15.501.162 I encoding mtmd batch, n_chunks = 1 (done = 1, total = 3)
+0.22.058.672 I mtmd batch encoding done in 6558 ms
+
+A rainbow gradient background with a blue square and red circle with a dashed line and black rectangles above it. The image has a digital, abstract art style. The colors transition smoothly from blue to green, yellow, orange, and pink. The blue square is positioned in the lower left corner, while the red circle is in the upper right. The dashed line and black rectangles are aligned horizontally near the top of the image. The overall composition is simple yet visually striking. The image does not contain any text or discernible objects other than the geometric shapes and color gradient. The style is reminiscent of digital art or graphic design. The image has aKALSA_VL_TIMING eval_message_ms=7999.6 decode_ms=5653.3 n_predict_requested=128
+
+
