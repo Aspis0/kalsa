@@ -98,3 +98,30 @@ QUALITY (one image, one prompt, a determinism probe only); nothing about other
 GPU generations (830 only, per the never-transfer rule); nothing about
 sustained thermals beyond the gate snapshots; nothing about the NPU; nothing
 about long-context multimodal chats (single image, single turn).
+
+## AMENDMENT-1 (pre-measurement, before any device number)
+
+Written after the Mac smoke test and BEFORE any QDC session. Changes:
+
+1. **Kit commit is `556118a08`** (one commit above 5c3979438 on kalsa/governor-v0):
+   the fork's mtmd-cli printed NO phase timings at any verbosity (verified with
+   --perf and -lv 1: zero perf lines), so a 10-line patch adds an unconditional
+   stderr line in the single-turn path:
+   `KALSA_VL_TIMING eval_message_ms=<f> decode_ms=<f> n_predict_requested=<d>`.
+   No other engine code touched (diff: tools/mtmd/mtmd-cli.cpp only).
+2. **`--simple-io` REMOVED** from the fixed flags (not a valid flag in this
+   fork's mtmd-cli; taken from upstream docs by mistake).
+3. **`--ignore-eos` ADDED** to the fixed flags: at temp 0 the model can hit EOS
+   before 128 tokens, which would corrupt decode_tps computed over
+   n_predict_requested. With --ignore-eos the decode span is exactly 128 tokens.
+   Consequence for the determinism probe: the text AFTER the natural stop is
+   filler; the probe hashes the full 128-token output anyway (same-arm identity
+   is what matters).
+4. **Exact metric extraction (replaces the parsing section's line names)**:
+   - encode_ms: the `mtmd batch encoding done in <X> ms` line (one per image).
+   - eval_message_ms: from KALSA_VL_TIMING (includes image encode + prefill).
+   - prefill_ms (derived): eval_message_ms − encode_ms, reported as derived.
+   - decode_tps: 128 / (decode_ms/1000) from KALSA_VL_TIMING.
+5. Mac smoke evidence archived in raw/ (exit 0, correct 4/4-element description
+   of the synthetic image; timing line observed:
+   `KALSA_VL_TIMING eval_message_ms=4610.1 decode_ms=1395.7 n_predict_requested=32`).

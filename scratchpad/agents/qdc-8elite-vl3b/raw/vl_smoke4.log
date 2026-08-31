@@ -1,0 +1,20 @@
+0.02.730.024 I mtmd_cli_context: chat template example:
+<|im_start|>system
+You are a helpful assistant<|im_end|>
+<|im_start|>user
+Hello<|im_end|>
+<|im_start|>assistant
+Hi there<|im_end|>
+<|im_start|>user
+How are you?<|im_end|>
+<|im_start|>assistant
+
+0.03.121.417 I main: loading model: LFM2.5-VL-3B-Q4_K_M.gguf
+0.03.121.841 W WARN: This is an experimental CLI for testing multimodal capability.
+0.03.121.842 W       For normal use cases, please use the standard llama-cli
+0.03.192.008 I encoding mtmd batch, n_chunks = 1 (done = 1, total = 3)
+0.05.889.250 I mtmd batch encoding done in 2698 ms
+
+A rainbow background with a blue square and red circle with a dashed line above it. The background has a pattern of squares with a swirling design. TheKALSA_VL_TIMING eval_message_ms=4610.1 decode_ms=1395.7 n_predict_requested=32
+
+
