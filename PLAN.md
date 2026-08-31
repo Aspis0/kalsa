@@ -109,6 +109,17 @@
 > 1.13× (e 1.4× i puri) — QUARTO punto dati per il router per-device E
 > per-modello E per-fase. Determinismo: output byte-identici intra-arm 9/9.
 > mtmd-cli patchato per i timing (556118a08). Registro #42 + ALIVE riga 25.
+>
+> **31/08: #43 BANCATA (audit GLM fresco #8 FIX → APPLY)** — **NPU v79 day-0
+> sull'8 Elite: il lane ESISTE e vola.** Skel v79 buildato su Mac (container
+> Docker ufficiale, zero login — idea dell'owner) si carica nel cDSP al primo
+> colpo. Probe velocità sul MODELLO DI SHIP (2.6B QAD-Q4_0): **prefill NPU
+> 1512 t/s = 7.2× CPU; decode CPU 38.5 = 1.64× NPU** — lo split per-fase sul
+> TERZO motore. Correttezza: test-backend-ops boccia MA censimento 362/362 =
+> giudice avvelenato solo in accoppiata HTP (control GPUOpenCL 407/407);
+> 36 INTERNAL-ERROR veri (defect list v79 aperta); smoke testuale coerente.
+> Sessione 793389 (coda 11.5h, login web rotto → host Connect via owner).
+> Registro #43 + ALIVE riga 26. ~700 min QDC.
 > ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
 > Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4,
 > checkpoint salvo) — 29/08 ~10:00 su ordine owner smantellati watcher+harness+cron; il
@@ -1197,6 +1208,42 @@ DONE
   clausola). Actionable di prodotto: sul VL il decode CPU (29 t/s) supera il
   20 t/s di riferimento Liquid su SM8850. Evidenze
   scratchpad/agents/qdc-8elite-vl3b/ (PREREG/REPORT/AUDIT/raw).
+
+- **2026-08-31 — #43 qdc-8elite-npu-v79: BANCATA (audit GLM fresco #8 FIX →
+  APPLY al re-audit) — NPU v79 day-0: il lane esiste, e sul modello di ship
+  il prefill NPU è 7.2× la CPU.** Prereg `5606d929` (lock 12h prima della
+  prima misura, verificato via git dall'auditor). Sessione 793389 (coda
+  11.5h su pool Unavailable — record; il login web QDC del browser headless
+  si è rotto per tutta la mattina: host Connect relayato dall'owner, ops
+  note). Unit `2a38935c` (sun/SM8750/Android 16 userdebug). Kit
+  npu-kit-556118a08 buildato NEL CONTAINER UFFICIALE (ghcr.io/
+  snapdragon-toolchain, NDK r28b + Hexagon SDK 6.6.0.0, niente login/PC —
+  via indicata dall'owner; race dei 4 skel paralleli aggirata con build
+  seriale). **Q1 INIT-OK**: `Hexagon Arch version v79`, sessione cDSP
+  unsigned-PD, hwinfo 6 HVX + HMX + 8MB VTCM — skel nostro servito al primo
+  colpo. **Q2 = "v79 defect list started"** (regola prereg applicata alla
+  lettera): MUL_MAT 472/542 (70 FAIL), MUL_MAT_ID 0/301; MA il censimento
+  COMPLETO dell'auditor (362/362 righe diagnostiche, zero inversioni) mostra
+  HTP0 sempre finito e giudice CPU sempre nan/±inf, e il control GPUOpenCL
+  contro lo STESSO giudice passa 407/407 → giudice avvelenato SOLO in
+  accoppiata HTP (classe del NaN-judge Adreno già bancato); restano VERI:
+  36 dspcall INTERNAL-ERROR (29 su m=16 n=4..8, 7 fuori incluso
+  m=576×512×576) e 7 FAIL senza diagnostico (incluso q4_0 m=1,n=2048) non
+  caratterizzati. **Q3 esplorativo, N C C N 4/4 exit 0, modello di ship**:
+  N pp512 1500.4/1524.1 tg 22.6/24.3; C pp512 212.0/210.2 tg 38.6/38.4 →
+  mediane N 1512.2/23.47, C 211.1/38.49 = **prefill NPU 7.2×, decode CPU
+  1.64×** (flag della ricetta upstream, dichiarati NON comparabili con
+  #38/#41; nessun verdetto di routing — semina la colonna NPU della
+  decision table 2.6B/830). Q4: smoke reasoning-trace-only (NESSUN braccio
+  ha emesso risposta finale a -n 64 — relabel imposto dall'audit), lingua
+  coerente e lista pianeti corretta nel thinking N. Onestà bancata:
+  deviazione binding sul gate termico CLI (gate stantio 10 min, nessun gate
+  pre-C, mitigante post 48°C); "well under gate" ritrattato (pre_N2 57.6;
+  post-C 61.5/63.0 = SOPRA soglia IN esecuzione — il braccio CPU si
+  autoscalda oltre il gate anche qui); SHA256SUMS self-hash provato
+  matematicamente (voce = sha256 della stringa vuota); primo commit di fix
+  errato (solo artefatti) dichiarato e amendato. Evidenze
+  scratchpad/agents/qdc-8elite-npu-v79/ (PREREG/REPORT/AUDIT/raw).
 
 - **2026-08-30 — #39 qdc-8elite-opencl-e031: BANCATA (audit GLM ostile FIX →
   APPLY al re-audit) — i kernel MoE q2/q3 sono CORRETTI su Adreno 830, terza
