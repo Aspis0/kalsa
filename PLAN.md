@@ -88,6 +88,17 @@
 > fallback CPU silenzioso etichettato OpenCL (sessione 792778 VOID). ~800 min QDC
 > residui. Prossimo QDC candidato (prereg da scrivere): governor su modello più
 > grosso (LFM2.5-8B-A1B).
+>
+> **30/08 sera: #41 BANCATA (audit GLM fresco FIX → APPLY al re-audit)** — governor
+> v0 sul modello 3× più grosso, LFM2.5-8B-A1B (lfm2moe), Adreno 830 (sessione
+> 793164, prereg `166f9ccf`): **G = WIN per la regola pre-scritta** (tiene il
+> prefill GPU — 2496 ms, perfino sotto A — e il decode CPU al 95.5% nel pairing
+> più stretto) e il **commit scala PULITO: 0.83–0.89% del prefill** (vs ~1.9% sul
+> 2.6B — su questa famiglia hybrid il commit CRESCE PIÙ LENTO del prefill).
+> Co-headline onesta: su questo 8B l'arm migliore in assoluto è A (decode GPU
+> 2.0–2.1× il CPU a n_threads=1; ttft entro l'1%) → con #38 e #40 è la prova che
+> il routing è per-device E per-modello, e la smentita di uno split fisso
+> GPU-prefill/CPU-decode. Registro #41 + ALIVE riga 24.
 > ⛔ **LAB FISICO GIÙ**: S23 spento 28/08 (drain sotto carica debole, mai enumerato su USB),
 > Jelly spento 28/08 23:04 (shutdown ordinato, campagna ciswire ferma a R4/c1-A/turn 4,
 > checkpoint salvo) — 29/08 ~10:00 su ordine owner smantellati watcher+harness+cron; il
@@ -1113,6 +1124,35 @@ DONE
   OpenCL ngl99 con exit 0; numeri farlocchi = arm C vero, verificato) tenuta come
   exhibit; diagnosi iniziale sbagliata ("unità rotta") corretta a verbale.
   Evidenze scratchpad/agents/qdc-8elite-speed-kexp/ (PREREG/REPORT/AUDIT/raw).
+
+- **2026-08-30 — #41 qdc-8elite-governor-8b: BANCATA (audit GLM fresco FIX →
+  APPLY al re-audit) — il governor scala al modello 3× e il commit-tax SCENDE.**
+  Prereg `166f9ccf` (locked pre-numeri). Sessione 793164, QRD8750/8 Elite (unit
+  `b4bd0901` da adb devices, props sun/SM8750/Android 16), modello LFM2.5-8B-A1B
+  Q4_K_M (arch lfm2moe, 5.15 GB, sha local==device), governor-bench 5c3979438
+  (fail-fast anti-fallback), ordine A C C A G G, 6/6 exit 0, gate termico HAL
+  vivo pre-invocazione tutti PASS (max 50.5°C/status 1), due cooldown da 1 min
+  dopo eccursioni post-run a status 2 (47.1/47.5 al re-probe, archiviati).
+  Mediane: **A ttft 2517.7/2518.8 ms decode 28.20/28.37 t/s; C ttft
+  25122.6/26134.1 decode 13.95/13.46; G ttft 2495.8/2496.1 decode 13.32/13.33,
+  commit 22.15/20.77 ms = 0.89%/0.83% del prefill** (banda pre-scritta "≤3%:
+  scales cleanly"; riferimento #38 ~1.9% sul 2.6B → il commit cresce PIÙ LENTO
+  del prefill: solo 6/24 blocchi attention, ~8.06 MiB/commit, primo turn
+  staged-only 6.28 MiB). **G = WIN per la regola pre-scritta** (prefill: sotto
+  entrambe le barre, perfino più veloce di A; decode ≥0.95×C in tutti i
+  pairing, il più stretto 0.955). Co-headline vincolante: l'arm migliore in
+  ASSOLUTO qui è A (decode 2.0–2.1× vs CPU a n_threads=1, caveat dichiarato) —
+  con #38 (2.6B: G batte entrambi) e #40 (KEXP: CPU vince il decode) è la prova
+  a tre punte che il routing va deciso per-device E per-modello; uno split
+  fisso GPU-prefill/CPU-decode è sbagliato su questo 8B, e il meccanismo v0
+  (commit sub-1%) è abbastanza economico da permettere QUALUNQUE scelta del
+  router. Onestà bancata: citazione serial corretta dall'audit (non era nel
+  getprop), rate upload 24.9 MB/s (non 23.8 decimali), re-probe termici e
+  SHA256SUMS archiviati post-hoc con etichetta, "46.9" del primo draft era una
+  trascrizione sbagliata (47.5 reale). governor-bench inghiotte il banner
+  OpenCL → evidenza GPU via fail-fast strutturale + probe llama-bench dedicato
+  (selected platform QUALCOMM/Adreno 830) + split 10× dei numeri. Evidenze
+  scratchpad/agents/qdc-8elite-governor-8b/ (PREREG/REPORT/AUDIT/raw).
 
 - **2026-08-30 — #39 qdc-8elite-opencl-e031: BANCATA (audit GLM ostile FIX →
   APPLY al re-audit) — i kernel MoE q2/q3 sono CORRETTI su Adreno 830, terza

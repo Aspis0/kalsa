@@ -15,3 +15,9 @@ OpenCL banner probe (opencl_banner_probe_793164.txt), on device:
 Unit serial b4bd0901: from `ANDROID_ADB_SERVER_PORT=6037 adb devices` over the
 session tunnel (terminal transcript; the getprop provenance capture omitted the
 serial — audit fix F3.3).
+
+Provenance of therm_reprobe_preG1/preG2_793164.txt (audit residue R1): these
+are the live output files of thermal_gate.sh written by the cooldown watcher
+to /tmp during the session (19:48 and 19:55), copied into raw/ post-hoc at
+20:11 — file content is raw tool output, only the copy is late.
+thermal_gate.sh itself is archived as thermal_gate_793164.sh (residue R2).

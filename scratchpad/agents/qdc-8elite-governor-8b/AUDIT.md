@@ -96,3 +96,47 @@ REPORT: "Unit serial `b4bd0901`, props `qti/sun/sun:16/BQ2A.260305.002-...` (raw
 7. **Minori** (F2.4, F4.3, F5.4): archiviare la command line esatta delle 6 invocazioni e quella del probe; qualificare il timing di sessione come "per QDC UI, non persistito".
 
 Il WIN (G keeps GPU-prefill + CPU-decode; commit 0.83–0.89% ≤ 3%) è **corretto e robusto**: nessuna delle correzioni tocca le misure. La cella è bancabile SOLO dopo le correzioni 1–6.
+
+---
+
+## Re-audit (commit 5285318e)
+
+Riletto da disco: REPORT.md corretto + nuovi artefatti raw/ (therm_reprobe_preG1_793164.txt, therm_reprobe_preG2_793164.txt, kit_sha_verify_793164.txt, COMMANDS_793164.md, run_gov_793164.sh, drive_one_793164.sh). Verifica correzione per correzione.
+
+### C1 (era F3.3, serial) — RESOLVED
+REPORT ora: "Unit serial `b4bd0901` (from `adb devices` over the session tunnel — the getprop capture omitted the serial, so it is NOT in raw/provenance_793164.txt; see raw/COMMANDS_793164.md)". COMMANDS_793164.md: "Unit serial b4bd0901: from `ANDROID_ADB_SERVER_PORT=6037 adb devices` over the session tunnel (terminal transcript; ...)". La citazione falsa è sparita; la fonte (transcript, non raw device) è dichiarata. Corroborazione strutturale: drive_one_793164.sh hard-coda `SER=b4bd0901` + `ANDROID_ADB_SERVER_PORT=6037`, coerente con tutto il resto. Accettabile.
+
+### C2 (era F1.6, upload rate) — RESOLVED
+REPORT ora: "5,155,564,768 bytes in 206.9 s = 24.9 MB/s decimal (adb prints \"23.8 MB/s\" but computes MiB/s; raw/model_push_793164.log)". Ricalcolo: 24.92 MB/s dec / 23.77 MiB/s. Ora aritmeticamente corretto E spiega la discrepanza con adb. Bene.
+
+### C3 (era F2.7, re-probe) — RESOLVED (con annotazione)
+Nuovi file presenti. `therm_reprobe_preG1_793164.txt`: footer `max_hal_temp=47.1 status=0`. `therm_reprobe_preG2_793164.txt`: footer `max_hal_temp=47.5 status=0`. REPORT ora: "re-passed within 1 min (47.1/0 and 47.5/0 — raw/therm_reprobe_preG1_793164.txt and _preG2_)". Il 46.9 errato è corretto in 47.5 e ora coincide col file — chiude anche la coincidenza sospetta 46.9 ≡ pre_G2 che avevo flaggato. I valori sono fisicamente coerenti: 47.1 sta tra post_A2 (52.9) e pre_G1 (46.7); 47.5 tra post_G1 (53.2) e pre_G2 (46.9). Annotazione ostile: entrambi i file hanno mtime 20:11 (persistiti post-hoc dal transcript) e NON portano l'etichetta "terminal capture" che kit_sha_verify ha — asimmetria di etichettatura, vedi R1.
+
+### C4 (era F2.6, SHA256SUMS) — RESOLVED
+`kit_sha_verify_793164.txt` esiste e dichiara il suo status: "captured from the orchestrator's terminal transcript (the on-device output was not persisted to a file...)". Contenuto: failure count `0` + 12 righe ": OK" (BUILD_NOTE.txt, libomp.so, llama-bench, llama-cli, test-backend-ops, test-governor-v0, -shared-cells, -commit, -turns, -hybrid, -devices, governor-bench = 12/12), + comando incollato. È una trascrizione, non output device grezzo — ma è etichettata come tale e ha l'ancora indipendente `build_commit=5c3979438` nelle turn lines. Accettabile.
+
+### C5 (era F1.8, ~2.1×) — RESOLVED
+REPORT ora: "2.0–2.1× the decode (2.02–2.11 per pairing; ...)" e caveat: "\"A beats C decode 2.0–2.1×\" holds for THIS fixed workload only". Range corretto, corrisponde ai 4 pairing ricalcolati.
+
+### C6 (era F5.2, co-headline) — RESOLVED
+REPORT ora: "arm A is the best single arm overall: ttft within 1% of G (G marginally faster: 2495.8–2496.1 vs 2517.7–2518.8 ms)". "Domina"/"equal ttft" rimossi; "within 1%" verificato (0.87–0.90%). Coerenza interna ripristinata.
+
+### C7 (era F2.4/F4.3, command lines) — RESOLVED
+run_gov_793164.sh: `./governor-bench --arm $ARM -m $KD/lfm8b.gguf -r 3 > $KD/gov_${ARM}_${TAG}.out 2>&1` + `echo $? > $KD/gov_${ARM}_${TAG}.exit` + `export LD_LIBRARY_PATH=$KD` (solo kit dir) — esattamente il PREREG. drive_one_793164.sh: gate PRIMA con abort `exit 7` senza lanciare ("GATE_FAIL pre ${ARM}${TAG} — NOT LAUNCHED"), snapshot post, poll exit, pull di .out e .exit. COMMANDS_793164.md archivia anche la command line del probe: `./llama-bench -m lfm8b.gguf -ngl 99 -p 16 -n 4 -r 1` con `LD_LIBRARY_PATH=/data/local/tmp/kalsa` — corrisponde al claim del REPORT. Nota: gli script sono copie "archived" con mtime 20:11; l'uguaglianza con ciò che girava sul device non è indipendentemente dimostrabile, ma naming dei file, convenzione exit e naming dei therm (therm_pre_${ARM}${TAG}) combaciano 1:1 con i raw reali.
+
+### Bonus (era F3.5, omissione commit per-turn) — RESOLVED
+REPORT ora aggiunge: "Per-turn: the first turn of each rep commits staged-only 6,586,368 B (~6.28 MiB, naive_count=0); later turns 8,454,144 B." Verificato contro raw/: `rep=0 turn=0 commit_bytes=6586368 commit_naive_count=0`, `rep=1 turn=0 commit_bytes=6586368 commit_naive_count=0`, `rep=2 turn=0 commit_bytes=6586368 commit_naive_count=0`, turn≥1 sempre 8454144/naive=1 (9/9 turn lines G1 coerenti). Accurato — l'omissione segnalata è stata colmata, non solo giustificata.
+
+### Bonus (era F5.4, timing sessione) — RESOLVED
+REPORT ora: "ran 30/08 evening — start/end times and ~49 min used are from the QDC UI, not persisted in raw/; raw artifact mtimes span 19:26–19:59". Onesto.
+
+### Numeri intatti
+Tabella runs, decision rule, soglie, commit% e WIN: invariati e ricontrollati contro gli stessi summary=median già verificati nel primo audit — nessuna cifra è cambiata durante le correzioni.
+
+### Residui (non bloccanti)
+- R1: i due therm_reprobe_* sono capture post-hoc (mtime 20:11) senza l'etichetta "terminal capture" nel file, a differenza di kit_sha_verify. Una riga di etichetta li metterebbe allo stesso standard.
+- R2: `thermal_gate.sh` (il tool che genera i snapshot e il footer max_hal_temp) vive fuori dalla cella (~/kalsa-qdc/kexp-speed-cell/) e non è archiviato in raw/. Il PREREG non lo richiede, ma è parte del metodo.
+- R3: il serial resta ancorato a transcript + costante dello script, non a un capture device grezzo — dichiarato, quindi accettabile.
+
+### VERDETTO FINALE: **APPLY**
+Tutte e 7 le correzioni obbligatorie sono applicate e verificate contro il disco, con citazioni; la correzione della trascrizione 46.9→47.5 migliora l'onestà (elimina la coincidenza sospetta). Nessuna correzione è cosmetica nel senso cattivo: nessuna celera, due hanno aggiunto disclosure (provenance del serial, per-turn commit). Il WIN (G keeps GPU-prefill + CPU-decode; commit 0.83–0.89%, band "≤3%: scales cleanly") è bancabile. I tre residui sono cosmetici e documentati.
