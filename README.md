@@ -1,40 +1,57 @@
-# moe-experiments — "Beyond Memory Capacity" (Kalsa, binario ricerca)
+# Kalsa MoE experiments
 
-Repo sperimentale **dedicato e staccato dall'app Kalsa** (`../ai-chat`, fuori perimetro).
-Obiettivo: eseguire Qwen3.6-35B-A3B (MoE, 11.5GB+ GGUF) su Galaxy S23 8GB via streaming
-esperti da flash + cache predittiva. Il documento operativo completo è **[PLAN.md](PLAN.md)**.
+This repository contains measurements and experiments for large MoE models on Android
+devices. It has no product code and no dependency on the Kalsa app or its engine
+repositories.
 
-Esecutore principale: **Grok** (goal pi) — punto d'ingresso: [GROK_GOAL.md](GROK_GOAL.md).
+`PLAN.md` is the live plan and checkpoint ledger. A checkpoint cell is banked only when
+its evidence is recorded. `docs/ALIVE.md` is the live results table.
 
-## Struttura
+## Evidence layout
 
-| Cartella | Contenuto |
-|---|---|
-| `scripts/` | script bash per Termux (setup, build, `run_bench.sh`, download) |
-| `analysis/` | Python: parsing log → CSV → grafici, simulatore cache (F7) |
-| `traces/` | trace di attivazione esperti raccolti sul telefono (F7.1) |
-| `results/` | archivio canonico: `runs.csv` + log grezzi pullati dal telefono |
-| `reports/` | report di fase `moe-f<N>.md` (template in PLAN.md §8.4) |
+- `scratchpad/agents/<cell>/`: per-cell evidence (`PREREG`, `REPORT`, `AUDIT`, and raw data).
+- `results/`: raw experiment output.
+- `scripts/`: Termux setup, build, benchmark, and download scripts.
+- `analysis/`: log parsing, CSV generation, plots, and cache simulation.
+- `traces/`: expert-activation traces collected on devices.
+- `reports/`: phase reports.
 
-### Build llama.cpp mainline (Termux, ISA sicura)
+## Method rules
 
-**Non** usare `cmake` con `GGML_NATIVE` default ON su S23: abilita probe
-`-mcpu=native+sve/sme` che generano SIGILL (tombstone CMakeScratch; dettaglio in
-`reports/moe-f1-sigill.md`). Rebuild conservativo:
+1. Lock the preregistration before collecting numbers.
+2. Complete a hostile audit before registering a result.
+3. Refer to other repositories by SHA or tag, never by checkout path.
+
+## Building and running (Termux)
+
+The mainline llama.cpp rebuild uses the safe S23 configuration:
 
 ```bash
 bash scripts/build_llama_termux.sh
-# → pin b10244, GGML_NATIVE=OFF, -march=armv8.2-a+dotprod+i8mm+fp16
+# pin b10244, GGML_NATIVE=OFF, -march=armv8.2-a+dotprod+i8mm+fp16
 bash scripts/preflight_llama_isa.sh \
   --binary ~/src/llama.cpp/build-safe/bin/llama-cli \
   --build-dir ~/src/llama.cpp/build-safe
 ```
 
-`run_bench.sh` invoca il preflight in modo **obbligatorio** sulle fasi F1–F4
-(serve `CMakeCache` + `compile_commands.json` accanto al binario).
-`PREFLIGHT_ISA=0` è un skip esplicito **UNSAFE** e viene **rifiutato** per le
-fasi scientifiche. Build: `CMAKE_EXPORT_COMPILE_COMMANDS=ON`, `GGML_NATIVE=OFF`.
+`run_bench.sh` must invoke the preflight for phases F1–F4. The build directory
+must contain `CMakeCache.txt` and `compile_commands.json` beside the binary.
+`PREFLIGHT_ISA=0` is an explicit unsafe skip and is rejected for scientific phases.
 
-Regole d'oro (dettagli in PLAN.md §2): una variabile alla volta · ogni run una riga CSV ·
-commit piccoli e frequenti qui, mai i GGUF · misure solo da telefono fisico, mai emulatore ·
-mai misurare con USB collegato (= in carica).
+## Android build constraint
+
+On the S23, do not use the default `GGML_NATIVE=ON`: its native ISA probe can emit
+unsupported SVE/SME instructions. The documented safe lane uses
+`GGML_NATIVE=OFF`, `-march=armv8.2-a+dotprod+i8mm+fp16`, and exports
+`compile_commands.json`. Skipping the ISA preflight with `PREFLIGHT_ISA=0` is unsafe
+and rejected for scientific phases.
+
+## Golden rules
+
+One variable at a time; one CSV row per run; small and frequent commits in this repo;
+never commit GGUF files; measure only on a physical device, never an emulator; never
+measure with USB connected (the device is charging).
+
+## Source basis
+
+Integrated from the existing README, `PLAN.md`, and `docs/ALIVE.md`.
