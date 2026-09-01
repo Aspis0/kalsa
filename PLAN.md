@@ -126,6 +126,11 @@
 > Mac senza watcher si è ADDORMENTATO 4h (clamshell vince su `sleep 0`) → LaunchAgent
 > `com.kalsa.keepawake` (caffeinate, KeepAlive, testato) ora tiene l'accesso remoto vivo.
 > Si riparte al rientro owner (~07/09). Fino ad allora: QDC (~950 min) + CI dal 1/09.
+>
+> **1/09 — CI operativo:** `ci/android-bench` probe gratuito **PASS** (run
+> `33457714894`, 8m53s, `ubuntu-latest`); `CI (cann)` disabilitata a livello
+> repository (`gh workflow disable`) e YAML dispatch-only su `kalsa/governor-v0`.
+> `governor-v0` è ancora solo locale: il push è il prossimo passo.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
@@ -2067,5 +2072,4 @@ DONE
   Artefatti: `results/litert_product/` (bench JSON, dump a11y, battery
   notes), report `moe-litert-product-classes.md`. Disciplina rispettata:
   sempre staccato, mai <30% batt, mai ≥45°C.
-
 
