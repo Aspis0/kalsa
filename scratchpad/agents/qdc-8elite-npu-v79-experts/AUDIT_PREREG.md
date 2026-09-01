@@ -102,3 +102,37 @@ CONFIRMED.
   the expected outcome would be mis-banked.
 
 ## VERDICT: FIX — apply the 8 edits before opening any QDC session
+
+## Re-audit of APPLY @ 1ab98822 (2026-08-31 23:39, pushed: origin/main == HEAD == 1ab98822, tree clean)
+
+Per-item check of the 8 requested edits (all quotes from PREREG.md on disk at 1ab98822):
+
+1. VERBOSE env + cite — CONFIRMED. `PREREG.md:52-57`: `GGML_HEXAGON_VERBOSE=1` mandatory, gates quoted
+   (`ggml-hexagon.cpp:107`, `:4331,4374`), `-v` disclaimer, q51 proof line, "#43 raw has zero execute-op lines".
+2. Load = METHOD-VOID — CONFIRMED. `PREREG.md:58-60` ("precondition, not a verdict"), carried into Q2 (`:65` "after
+   a successful load") and the decision rule (`:97-99` "no MUL_MAT_ID execute-op **after a successful load**").
+3. On-device sha — CONFIRMED. `PREREG.md:41-44`: "Post-upload BINDING: sha256 the GGUF **on-device**; mismatch =
+   METHOD-VOID", with the #43 precedent named.
+4. Product recorded — CONFIRMED. `PREREG.md:30-37` (bytes 3928038208, sha 9d0b90c6…b98618, census 113 Q4_0 / 81 F32 /
+   1 Q6_K, +352 B, quantize bin pinned). Cross-verified: `MODEL.txt` exists in the cell dir and matches my
+   independent measurements byte-for-byte (re-hashed today: 9d0b90c60a5b4732…, 3928038208 B); bin
+   `/Users/marco/Projects/kalsallama/build/bin/llama-quantize` exists, mtime 2026-08-29 07:01 (predates product
+   2026-08-31 23:09 — plausible tool).
+5. Kit 10.8 MB — CONFIRMED. `PREREG.md:85` (banked #43 + tgz 10 796 556 B).
+6. jsonl — CONFIRMED. `PREREG.md:69-71` (`-o jsonl -oe jsonl`, mean from jsonl rows, no per-rep median in md printer).
+   Honest downshift from "median" to mean.
+7. --list-devices — CONFIRMED. `PREREG.md:88-89` (explicit flag-correctness note).
+8. D not closed — CONFIRMED. `PREREG.md:100-103` (patched-judge + Qwen3.5-4B dense v79 OPEN; q63-on-HTP DROPPED on
+   DOES-NOT-SURVIVE / deferred on SURVIVES).
+9. Rebuild pinned to 556118a08 — CONFIRMED. `PREREG.md:77-80` (explicit "not from branch HEAD
+   cff0a4a75/204e78259"; rebuild must still be from 556118a08).
+
+Non-blocking nits (recorded, do not block APPLY):
+- `MODEL.txt:quantize_ms: 6823.41` and `quantize_exit: 0` are asserted without a captured log artifact; the product
+  itself (sha + census) is the binding evidence, so this is decoration. If a timing line exists in shell history,
+  drop it in raw/ at REPORT time.
+- `PREREG.md:35` "censure" is a typo for "census". Cosmetic.
+- Q1 proof line quoted truncated (`…blk.13.ffn_down_exps` vs full `…ffn_down_exps.weight … hmx-tiled` at
+  q51 REPORT.md:45). Cosmetic; the grep target `HTP0 execute-op MUL_MAT_ID` is what matters.
+
+VERDICT: APPLY. No QDC session started as of this re-audit (parent statement + no new session artifacts on disk).

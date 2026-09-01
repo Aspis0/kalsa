@@ -34,7 +34,7 @@ not queue QDC.
 `kalsa-models/OLMoE-1B-7B-0924-Instruct-Q4_0-requant-from-q4km.gguf`,
 bytes **3928038208**, sha256
 `9d0b90c60a5b4732ba1faeb0b8940523173bf7e2a7f038d5753ce3ac24b98618`,
-censure 113 Q4_0 / 81 F32 / 1 Q6_K (same counts as q55, different sha,
+census 113 Q4_0 / 81 F32 / 1 Q6_K (same counts as q55, different sha,
 +352 B). Quantize bin: `kalsallama/build/bin/llama-quantize`, exit 0,
 6823.41 ms.
 

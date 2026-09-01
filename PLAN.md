@@ -156,7 +156,8 @@
 > `scratchpad/agents/qdc-8elite-npu-v79-experts/` prima di qualsiasi coda.
 > Audit ostile del prereg: **FIX** (2 bloccanti: `GGML_HEXAGON_VERBOSE=1`
 > obbligatorio per la riga execute-op; load-fail ≠ DOES-NOT-SURVIVE). Edit
-> applicati, re-audit prima di accodare. GGUF requant PC sha `9d0b90c6…`.
+> applicati, re-audit **APPLY** (`1ab98822` + coda AUDIT). GGUF requant PC sha
+> `9d0b90c6…`. Coda QDC sotto cap 20 min; billing a Running.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
