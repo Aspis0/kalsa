@@ -129,8 +129,9 @@
 >
 > **1/09 — CI operativo:** `ci/android-bench` probe gratuito **PASS** (run
 > `33457714894`, 8m53s, `ubuntu-latest`); `CI (cann)` disabilitata a livello
-> repository (`gh workflow disable`) e YAML dispatch-only su `kalsa/governor-v0`.
-> `governor-v0` è ancora solo locale: il push è il prossimo passo.
+> repository (`gh workflow disable`) e YAML dispatch-only (`3cfe5ddab`).
+> **`kalsa/governor-v0` PUSHED** `88e88a1cf..cff0a4a75` (Aspis0/kalsallama);
+> il push non ha riacceso cann (nessun run nuovo). ALIVE riga 27.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
