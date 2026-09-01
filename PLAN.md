@@ -213,6 +213,13 @@
 > pp512 NPU **355.0** vs CPU **107.1**, tg128 NPU **8.62** vs CPU **19.63**.
 > Ops EXIT=1 (judge still poisoned; MUL_MAT real_internal=36). Report/audit
 > PENDING. QDC Job Logs non sono la copia di verità — git sì.
+>
+> **1/09 sera — #45 REPORT+AUDIT (mimo, parent erratum EXIT).** Q_ops FAIL
+> patched-correct (OK=0; MUL_MAT 36 INTERNAL-ERROR). Q3 OLMoE pp512 NPU
+> 862.6 / CPU 199.9 = 4.32×. Qwen3.5-4B Q4_0 pp512 355.0/107.1 = 3.32×,
+> tg128 8.62/19.63 (CPU 2.28× decode). Session 1 D OPEN on correctness,
+> dense speed measured. ALIVE riga 29. Evidence
+> `scratchpad/agents/qdc-8elite-npu-v79-d-rest/`.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
