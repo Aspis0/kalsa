@@ -161,8 +161,10 @@
 > login ancora valida (`/home` Welcome). Click Mobile sul wizard **non
 > resta selected** (aria-pressed false); Next senza device = rischio minuti
 > sul silicio sbagliato → **nessuna sessione creata**. 746 min intatti.
-> Pool QRD8750 ancora Unavailable. Riprendere il wizard a mano o con
-> click trusted visibile.
+> **IN CODA:** sessione `npu-v79-experts-44` job **795454**, QRD8750 Android 16,
+> status **Submitted** (Started N/A, minuti Pending). Cap 20 min, SSH+mirror,
+> chiave `kalsa-mac`. Billing parte a Running. URL
+> `qdc.qualcomm.com/reports/job/interactive/795454`.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
