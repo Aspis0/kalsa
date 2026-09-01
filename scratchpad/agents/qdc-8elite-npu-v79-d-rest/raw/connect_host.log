@@ -12,3 +12,11 @@ ok=0
 judge_nonfinite=301
 real_internal=0
 real_fail_minus_judge=2
+/Users/marco/kalsa-models/OLMoE-1B-7B-0924-Instruct-Q4_0-requant-from-q4km.gguf: 1 file pushed, 0 skipped. 22.1 MB/s (3928038208 bytes in 169.862s)
+host=9d0b90c60a5b4732ba1faeb0b8940523173bf7e2a7f038d5753ce3ac24b98618
+device=9d0b90c60a5b4732ba1faeb0b8940523173bf7e2a7f038d5753ce3ac24b98618
+/Users/marco/kalsa-models/Qwen3.5-4B-Q4_0-requant-from-q4km.gguf: 1 file pushed, 0 skipped. 15.9 MB/s (2543899808 bytes in 152.713s)
+host=f1635f9c30430dadae1230ee29047e70251a8926bb569a6eeae95db00ff4bd36
+device=f1635f9c30430dadae1230ee29047e70251a8926bb569a6eeae95db00ff4bd36
+DONE elapsed=468
+HOST_EXIT:0
