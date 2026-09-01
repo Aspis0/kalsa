@@ -220,6 +220,29 @@
 > tg128 8.62/19.63 (CPU 2.28× decode). Session 1 D OPEN on correctness,
 > dense speed measured. ALIVE riga 29. Evidence
 > `scratchpad/agents/qdc-8elite-npu-v79-d-rest/`.
+>
+> **1/09 sera — Lenovo RECUPERATO (ops, non cella).** Il PC era in Modern Standby
+> (rientrava in <1 min da ogni risveglio; nessuna contromisura software teneva);
+> riavvio autorizzato dall'owner in chat con BitLocker TPM-only verificato,
+> `PlatformAoAcOverride=0` → `powercfg /a`: nessuno stato di sleep disponibile.
+> Accesso: `gualt` + `~/.ssh/qdc_ed25519` (il "nessuna chiave autorizzata" del 29/08
+> era chiave sbagliata da parte mia). Dettagli in memoria `lenovo-remote-access`.
+>
+> **1/09 sera — KIT NPU v79 v2 PRONTO, cella #46 in preregistrazione.** Fork branch
+> `kalsa/npu-judge-v79` @ **93e9592fa** (local, non pushato): port della patch
+> giudice q32 (`GGML_TEST_PLAIN_HOST=1` → reference ricopiato via get/set),
+> `ggml-hexagon.cpp` flush_pending: dsp-rsp non-OK → `error_count` di sessione →
+> `graph_compute` ritorna `GGML_STATUS_FAILED` (prima: log + `// TODO: handle
+> errors`, fill random confrontato), compare del giudice controlla lo status,
+> DUMP per-elemento spento; `llama-perplexity` aggiunto al kit. Build incrementale
+> nel container ufficiale (nessuno skel ricompilato). Audit ostile mimo
+> `AUDIT-KIT.md` APPLY + re-audit APPLY (una sua REFUTED: lo scanner Q4_1 leggeva
+> già d e m). Kit `~/kalsa-qdc/npu-v79-cell/npu-kit-93e9592fa.tgz` (24 file,
+> checksum OK, self-line esclusa). PREREG #46
+> `scratchpad/agents/qdc-8elite-npu-v79-judge/` (ops con giudice vero + PPL
+> HTP-vs-CPU 32 chunk sul modello di ship e su OLMoE, gate r ≤ 2 % come q55;
+> corpus `wiki.test.raw` scaricato, sha = q43) sotto audit GLM. Nessuna sessione
+> QDC finché non è APPLY; Connect = owner.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
