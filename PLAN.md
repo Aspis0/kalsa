@@ -165,6 +165,9 @@
 > status **Submitted** (Started N/A, minuti Pending). Cap 20 min, SSH+mirror,
 > chiave `kalsa-mac`. Billing parte a Running. URL
 > `qdc.qualcomm.com/reports/job/interactive/795454`.
+> **795454 Completed 07:17, 20m usati, cella VUOTA:** Started 06:57, Ended 07:17,
+> Job Logs 0 items, adb locale vuoto. Il cap è scattato senza Connect/misure.
+> Q1–Q3 non girati. Non riaccodare in automatico.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
