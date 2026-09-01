@@ -205,6 +205,14 @@
 > e lancia `d_run.sh`. Watcher `01a05dc941897282b87dbbada4ccba1a` resta armato.
 > Lenovo `marcolenovo.lan` / 192.168.1.234: ARP ok, SSH :22 timeout; Mac sshd
 > non in ascolto su 22.
+>
+> **1/09 14:06 — job 796061 Completed, raw ON GIT (`9df8ae6b` ops mid-run,
+> `de36a2cf` full).** QRD8750, ~19 min wall, DONE elapsed=468s. Tutti e tre
+> gli arm sul disco: ops MUL_MAT/ID, Q3 OLMoE r=3, Qwen3.5-4B Q4_0 N+C.
+> Sha match. Pre-audit: OLMoE pp512 NPU **862.6** vs CPU **199.9**; Qwen
+> pp512 NPU **355.0** vs CPU **107.1**, tg128 NPU **8.62** vs CPU **19.63**.
+> Ops EXIT=1 (judge still poisoned; MUL_MAT real_internal=36). Report/audit
+> PENDING. QDC Job Logs non sono la copia di verità — git sì.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
