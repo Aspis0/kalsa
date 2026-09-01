@@ -135,9 +135,11 @@ is NOT a crash: it is the defect the harness now surfaces as a FAIL; the run con
    - `internal_error_lines` = count of `dsp-rsp: INTERNAL-ERROR` lines, reported as a
      cross-check of `compute_failed` (expected close, NOT required equal: a graph can
      carry several ops);
-   - HTP execution proof: ≥ 1 line evidencing HTP0 execution (`HTP0=` value prefix in a
-     diagnostic line, or the `HTP0` session-open line in the log). No proof → the arm is
-     METHOD-VOID (vacuous run), not a repair result.
+   - HTP execution proof (census keys): `backend_htp0 = 1` (the harness line `Backend
+     N/M: HTP0`) AND `device_hexagon = 1` (its `Device description: Hexagon` line) AND
+     `executed > 0` AND `unresolved = 0` (every header got a verdict). No proof → the
+     arm is METHOD-VOID (vacuous run), not a repair result. `htp_proof` (any `HTP0=`
+     diagnostic or session-open line) is reported as a secondary witness only.
 3. **Q_ops-control** (if elapsed-from-T0 < 8 min at trigger, matching the driver):
    `GGML_TEST_PLAIN_HOST=0 -o MUL_MAT_ID` only. Expected: `judge_nonfinite` = **301
    exactly** (deterministic: identical on units 2a38935c and f25c433a); a value outside
