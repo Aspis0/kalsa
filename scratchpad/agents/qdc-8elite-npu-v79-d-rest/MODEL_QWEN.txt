@@ -1,0 +1,12 @@
+# Produced on this Mac. Survive/speed only, not PPL-comparable to a native Q4_0.
+
+src: /Users/marco/kalsa-models/qwen35-4b-dl/Qwen3.5-4B-Q4_K_M.gguf
+src_bytes: 2740937888
+dst: /Users/marco/kalsa-models/Qwen3.5-4B-Q4_0-requant-from-q4km.gguf
+cmd: llama-quantize --allow-requantize SRC DST Q4_0
+bin: /Users/marco/Projects/kalsallama/build/bin/llama-quantize
+bytes: 2543899808
+sha256: f1635f9c30430dadae1230ee29047e70251a8926bb569a6eeae95db00ff4bd36
+quantize_exit: 0
+quantize_ms: 3480.71
+note: requant from Q4_K_M. HTP-supported Q4_0. Not q63 C1.

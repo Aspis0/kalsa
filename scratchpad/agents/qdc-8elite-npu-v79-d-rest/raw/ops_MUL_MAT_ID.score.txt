@@ -1,0 +1,5 @@
+ok=0
+0 fail=303 skip=511
+judge_nonfinite=301
+real_internal=0
+real_fail_minus_judge=2

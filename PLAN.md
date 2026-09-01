@@ -194,6 +194,17 @@
 > (doppio Create Session). Era ancora Submitted; mail “ready” = il pool
 > stava per assegnare il device. Cancellato prima di Running. Non
 > riaccodare. I dati stanno su 795870.
+>
+> **1/09 — cell #45 PREREG on disk, Connect ARMED before submit.**
+> `scratchpad/agents/qdc-8elite-npu-v79-d-rest/` — Q_ops (score-judge, not
+> kit rebuild) + #44 Q3 OLMoE r=3 no-verbose + Qwen3.5-4B Q4_0 requant
+> `f1635f9c…` / 2543899808 B. Watcher `01a05dc941897282b87dbbada4ccba1a`.
+> Name `npu-v79-d-rest-45`, 20 min, QRD8750 only. Nessuna sessione creata
+> finché questo blocco è scritto. Non aprire un secondo job.
+> **Connect path:** Marco fa wizard+Connect; `connect.sh` alza il tunnel 6037
+> e lancia `d_run.sh`. Watcher `01a05dc941897282b87dbbada4ccba1a` resta armato.
+> Lenovo `marcolenovo.lan` / 192.168.1.234: ARP ok, SSH :22 timeout; Mac sshd
+> non in ascolto su 22.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
