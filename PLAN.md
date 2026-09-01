@@ -146,6 +146,15 @@
 > (nomi `Aspis0/kalsallama` e `Aspis0/kalsa-forkbigmoeonedge` in docs del
 > branch) è di nuovo in chiaro perché il branch è di nuovo pubblico;
 > `origin/main` resta pulito. Non toccare ALIVE: niente misura, niente riga.
+>
+> **1/09 notte — QDC login OK, sessione NON aperta (minuti).** Browser Paseo
+> visibile, home `qdc.qualcomm.com/home`. Catalogo: QRD8750 **746 min remaining,
+> Unavailable** (stesso pool di #43). Chiave SSH `kalsa-mac` presente. Nessun
+> click su New Interactive Session. Prossimo blocco del piano = Session 1 D
+> residuo: *v79 sopravvive a MUL_MAT_ID su OLMoE all-Q4_0?* Il GGUF q55
+> (`43379486…`, 3.93 GB) non è su questo Mac (solo Q4_K_M). Prereg in
+> `scratchpad/agents/qdc-8elite-npu-v79-experts/` prima di qualsiasi coda.
+> Audit ostile del prereg prima di accodare.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
