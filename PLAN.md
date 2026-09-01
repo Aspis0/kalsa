@@ -154,7 +154,9 @@
 > residuo: *v79 sopravvive a MUL_MAT_ID su OLMoE all-Q4_0?* Il GGUF q55
 > (`43379486…`, 3.93 GB) non è su questo Mac (solo Q4_K_M). Prereg in
 > `scratchpad/agents/qdc-8elite-npu-v79-experts/` prima di qualsiasi coda.
-> Audit ostile del prereg prima di accodare.
+> Audit ostile del prereg: **FIX** (2 bloccanti: `GGML_HEXAGON_VERBOSE=1`
+> obbligatorio per la riga execute-op; load-fail ≠ DOES-NOT-SURVIVE). Edit
+> applicati, re-audit prima di accodare. GGUF requant PC sha `9d0b90c6…`.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
