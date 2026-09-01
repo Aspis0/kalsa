@@ -2,6 +2,10 @@
 
 Job 795454 burned 20 min with no Connect. This file is the recover path.
 
+**Active job: 795870** `npu-v79-experts-44b`
+https://qdc.qualcomm.com/reports/job/interactive/795870
+QRD8750 / 8 Elite / Android 16. Tunnel pid file `~/kalsa-qdc/tunnel-795870.pid`.
+
 ## When Running (seconds, not minutes)
 
 1. On the QDC job page click **Connect** immediately.

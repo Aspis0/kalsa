@@ -168,6 +168,32 @@
 > **795454 Completed 07:17, 20m usati, cella VUOTA:** Started 06:57, Ended 07:17,
 > Job Logs 0 items, adb locale vuoto. Il cap è scattato senza Connect/misure.
 > Q1–Q3 non girati. Non riaccodare in automatico.
+>
+> **1/09 ~10:52 — job 795870 `npu-v79-experts-44b` (riaccoda CON watcher).**
+> QRD8750 / 8 Elite / Android 16, cap 20 min, SSH+mirror, chiave `kalsa-mac`.
+> Submitted 10:52:36, Running 10:54:15. Connect fatto, tunnel
+> `~/.ssh/qdc_ed25519` `-L 6037:sa799939.sa.svc.cluster.local:5037`
+> (Jelly 5037 intatto). adb `f25c433a`. Kit 556118a08 pushato 9.4 MB/s.
+> Q1 in corso (`q1_run.sh` → `raw/`). Watcher scheduler
+> `01a05d5e942b7090a54eab6b0bfb49e9`. Non aprire una seconda sessione.
+> Quota catalogo al submit: 726 min. URL
+> `qdc.qualcomm.com/reports/job/interactive/795870`.
+>
+> **1/09 11:07 — Q1/Q2 SURVIVES (audit mimo FIX→APPLY).** Job 795870 Ended 11:07:21.
+> On-device sha = host `9d0b90c6…`. `Hexagon Arch version v79`.
+> **48** righe `HTP0 execute-op MUL_MAT_ID` su `ffn_*_exps` (16 layer ×
+> gate/up/down). `EXIT=0`. GATE_PASS. Q3 `-r 3` non girato (sessione chiusa
+> per non bruciare il cap). Numero rumoroso dal r=1 verbose: pp512
+> **845.9 t/s** (jsonl `avg_ts=845.885502`, un sample). Non confrontare con
+> #43 1512 (modello diverso) né q55 PPL. `--list-devices` fallito (script
+> senza `LD_LIBRARY_PATH`); Q1 con env ok. REPORT in
+> `scratchpad/agents/qdc-8elite-npu-v79-experts/REPORT.md`. Session 1 D
+> non chiusa: patched-judge + Qwen dense restano OPEN. HVX 28c frozen.
+>
+> **1/09 11:14 — job 795871 Canceled, 0 min.** Stesso nome/ora di 795870
+> (doppio Create Session). Era ancora Submitted; mail “ready” = il pool
+> stava per assegnare il device. Cancellato prima di Running. Non
+> riaccodare. I dati stanno su 795870.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
