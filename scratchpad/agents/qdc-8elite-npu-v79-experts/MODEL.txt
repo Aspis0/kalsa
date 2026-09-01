@@ -1,0 +1,13 @@
+# Produced on this Mac. NOT the q55 file. Do not git-add the GGUF.
+
+src: /Users/marco/kalsa-models/s23-backup-2026-08-27/OLMoE-1B-7B-0924-Instruct-Q4_K_M.gguf
+dst: /Users/marco/kalsa-models/OLMoE-1B-7B-0924-Instruct-Q4_0-requant-from-q4km.gguf
+cmd: llama-quantize --allow-requantize SRC DST Q4_0
+bin: /Users/marco/Projects/kalsallama/build/bin/llama-quantize
+bytes: 3928038208
+sha256: 9d0b90c60a5b4732ba1faeb0b8940523173bf7e2a7f038d5753ce3ac24b98618
+q55_ref_bytes: 3928037856
+q55_ref_sha: 43379486db3178d89b338358d298ea0721d6c123e0107d91c5d6179371000500
+note: 352 bytes larger than q55; different sha. Survive/crash only, not PPL-comparable.
+quantize_exit: 0
+quantize_ms: 6823.41
