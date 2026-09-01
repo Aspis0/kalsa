@@ -157,7 +157,12 @@
 > Audit ostile del prereg: **FIX** (2 bloccanti: `GGML_HEXAGON_VERBOSE=1`
 > obbligatorio per la riga execute-op; load-fail ≠ DOES-NOT-SURVIVE). Edit
 > applicati, re-audit **APPLY** (`1ab98822` + coda AUDIT). GGUF requant PC sha
-> `9d0b90c6…`. Coda QDC sotto cap 20 min; billing a Running.
+> `9d0b90c6…`. Re-audit **APPLY**. Tentativo coda: form New Session aperto,
+> login ancora valida (`/home` Welcome). Click Mobile sul wizard **non
+> resta selected** (aria-pressed false); Next senza device = rischio minuti
+> sul silicio sbagliato → **nessuna sessione creata**. 746 min intatti.
+> Pool QRD8750 ancora Unavailable. Riprendere il wizard a mano o con
+> click trusted visibile.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
