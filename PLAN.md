@@ -132,6 +132,20 @@
 > repository (`gh workflow disable`) e YAML dispatch-only (`3cfe5ddab`).
 > **`kalsa/governor-v0` PUSHED** `88e88a1cf..cff0a4a75` (Aspis0/kalsallama);
 > il push non ha riacceso cann (nessun run nuovo). ALIVE riga 27.
+>
+> **1/09 — ERRATUM `Aspis0/kalsa` (pubblico), branch `feat/moe-stream`.** Non è
+> una cella. L'orchestratore ha cancellato `origin/feat/moe-stream` senza
+> classificarlo prima (247 commit non in `origin/main`, branch di lavoro
+> streaming/CisWire, mai mergiato; `main` non ne dipende). Al restore ha
+> pushato HEAD locale `cb238a3` invece del tip origin `ee524f3`, pubblicando
+> `ARCHITECTURE.md` (i `.md` di architettura non vanno su GitHub). Force-push
+> indietro a `ee524f3`: il branch pubblico è di nuovo quel tip;
+> `ARCHITECTURE.md` non è sul branch. Residuo: `cb238a3` resta raggiungibile
+> per SHA via API GitHub finché non fa GC. Locale `feat/moe-stream` ahead 5
+> (`ARCHITECTURE.md` + 4 commit CisWire). La fuga preesistente su `ee524f3`
+> (nomi `Aspis0/kalsallama` e `Aspis0/kalsa-forkbigmoeonedge` in docs del
+> branch) è di nuovo in chiaro perché il branch è di nuovo pubblico;
+> `origin/main` resta pulito. Non toccare ALIVE: niente misura, niente riga.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
