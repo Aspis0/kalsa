@@ -1,0 +1,8 @@
+[20:41:31 e=9] FLAG_MISSING --load-mode
+[20:41:31 e=9] FLAG_OK -fa
+[20:41:31 e=9] FLAG_OK --chunks
+[20:41:32 e=10] STDBUF absent (block-buffered tee declared)
+[20:41:32 e=10] ppl flags: -c 2048 -b 2048 -ub 1024 -fa on --chunks 32 -t 8 
+[20:56:35 e=913] GATE_WAIT olmoe_cpu
+[21:07:48 e=1586] SKIP_qwen time
+[21:07:48 e=1586] DONE npu_dead=0

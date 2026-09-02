@@ -1,0 +1,12 @@
+0.00.316.548 W common_get_device_memory_data_impl: device HTP0 did not report memory; --fit will not use it
+0.00.351.868 W common_fit_params: failed to fit params to free device memory: n_gpu_layers already set by user to 99, abort
+0.01.180.122 I 
+0.01.180.181 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.01.180.193 I perplexity: tokenizing the input ..
+0.01.293.102 I perplexity: tokenization took 112.904 ms
+0.01.293.464 I perplexity: calculating perplexity over 32 chunks, n_ctx=2048, batch_size=2048, n_seq=1
+0.03.606.549 I perplexity: 2.31 seconds per pass - ETA 1.23 minutes
+[1]27.9675,[2]43.2482,[3]46.5301,[4]48.0489,[5]51.5108,[6]40.0190,[7]37.6547,[8]36.9307,[9]40.3362,[10]41.0008,[11]39.4765,[12]39.9416,[13]40.4531,[14]39.9126,[15]39.9060,[16]42.0580,[17]42.7306,[18]43.4538,[19]43.1639,[20]42.0282,[21]42.6874,[22]41.8287,[23]41.6468,[24]41.9868,[25]42.3592,[26]42.6646,[27]43.5535,[28]43.5042,[29]42.7839,[30]42.1594,[31]41.3898,[32]40.2720,
+1.19.299.610 I Final estimate: PPL = 40.2720 +/- 0.87472
+
+EXIT=0

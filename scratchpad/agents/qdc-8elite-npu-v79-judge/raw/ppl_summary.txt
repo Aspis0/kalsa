@@ -1,0 +1,8 @@
+ship_htp: 1.19.299.610 I Final estimate: PPL = 40.2720 +/- 0.87472
+ship_htp: EXIT=0
+ship_cpu: 7.01.388.061 I Final estimate: PPL = 40.2837 +/- 0.87513
+ship_cpu: EXIT=0
+olmoe_htp: 1.17.967.752 I Final estimate: PPL = 9.0620 +/- 0.13192
+olmoe_htp: EXIT=0
+olmoe_cpu: 8.08.277.926 I Final estimate: PPL = 9.0562 +/- 0.13172
+olmoe_cpu: EXIT=0
