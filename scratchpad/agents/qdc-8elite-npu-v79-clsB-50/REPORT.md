@@ -121,11 +121,11 @@ R1 and R3 are stock and both have the census NaN; R2 and R4 are zeropad and both
 
 What dies is the scale-pad-only theory and its candidate cure: zeroing the per-tile pad `[tile_size, aligned_tile_size)` does not remove the failure. What is promoted is T2—VTCM layout/state corruption elsewhere. The poison is state-dependent under the restored dirty-process configuration and position-unstable across runs; the exact source of the movement remains unresolved.
 
-> `PREREG.md:14` — `masked. Net: the trigger needs DIRTY VTCM/process state from prior ops, but the`
+> `PREREG.md:13` — `masked. Net: the trigger needs DIRTY VTCM/process state from prior ops, but the`
 >
-> `PREREG.md:15` — `zeropad discriminator (T1 scale-pad vs T2 other-VTCM-state) got NO signal`
+> `PREREG.md:14` — `zeropad discriminator (T1 scale-pad vs T2 other-VTCM-state) got NO signal`
 >
-> `PREREG.md:16` — ``because stock never NaN'd. #49's design flaw: `GGML_TEST_EXTRA_MM_FIRST=1` on``
+> `PREREG.md:15` — ``because stock never NaN'd. #49's design flaw: `GGML_TEST_EXTRA_MM_FIRST=1` on``
 >
 > `PREREG.md:62` — `1. R1/R3 NaN present AND R2/R4 clean → **T1 CONFIRMED** (uninit VTCM`
 >
