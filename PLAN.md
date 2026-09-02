@@ -316,6 +316,27 @@
 > Submitted 05:30:25. URL `qdc.qualcomm.com/reports/job/interactive/796621`.
 > Non aprire un secondo job. Connect → connect.sh (tunnel 6037) → d_run.sh
 > (R1 census+EXTRA, R2 ripetizione, R3 MUL_MAT_ID).
+>
+> **2/09 05:40 — #48 ESEGUITA E CHIUSA: driver DONE in 42 s, ~4 min fatturati
+> (Started 05:36:29, Ended 05:40:09, End Session dell'orchestratore), la cella
+> più economica della campagna. ~641 min residui.** Esito (verificato dal
+> parse FIFO dell'orchestratore, 0 header spaiati, `ANALYSIS-orchestrator.md`):
+> **GATE 1 PASS — INTERNAL-ERROR 36 → 0** su R1/R2/R3; 34/36 ex-IE ora OK via
+> HVX; le 2 restanti (`q4_0 1/2048/8192`, `q8_0 6/4096/5120`) → "not
+> supported" con meccanismo tracciato nel codice (supported_mul_mat:2875 →
+> precompute:2589 sceglie HVX → VTCM > 8 MB → rifiuto pulito a monte al posto
+> dell'errore runtime; erano già rotte in #46, non è regressione). **GATE 2
+> PASS** (diff per-shape #46→R1: esattamente 40 cambi = 34 FAIL→OK + 2 FAIL→NS
+> + 6 extra; nessun ex-OK degradato; controllo m=576 invariato OK). **GATE 3
+> PASS: MUL_MAT_ID 301/301** giudice-on. **Classe B, discriminazione ricca**:
+> in ENTRAMBI i run fallisce solo la PRIMA esecuzione della shape
+> (NaN a **index 354** in R1 e R2 con dati d'input DIVERSI — CPU 3.17 vs 8.47;
+> in #46 su binario diverso era index 305), le 3 repliche in coda passano;
+> k=1024 OK, n=64 OK, q8_0 OK — slot fisso per binario, trigger al primo
+> tocco, warm-up che maschera → **famiglia memoria-non-inizializzata favorita,
+> overflow fp16 doppiamente sfavorito**; confound d'ordine (extra a fine
+> census) dichiarato. REPORT delegato a Luna (d0618f8e), poi audit ostile e
+> bank ALIVE riga 32.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
