@@ -35,6 +35,8 @@ not an API invented here ([NPU fit model](NPU-FIT-MODEL.md#5-open-inputs-from-th
 
 These are the only kalsallama seams this paper names. They are from
 `kalsa/governor-v0` at `1bfd144a2`; v0.2 does not add a replacement interface.
+(Audit 2/09: all 12 seams verified verbatim at the pinned commit; line numbers
+are approximate, ±10 lines — content, not position, is the binding claim.)
 
 | seam | use in this contract | source quote |
 |---|---|---|
@@ -324,3 +326,19 @@ S23-gated work feeds later table revisions only:
   break-even rule is claimed as measured. G5 remains post-window and
   unplugged-only; it cannot turn on an NPU lane during the current plugged S23
   window.
+
+## Appendix A — deferred knobs from the 2/09 upstream recon (not v0.2 behavior)
+
+Placement per the recon (`scratchpad/agents/bigmoe-upstream-recon/REPORT.md`)
+and the spec audit's placement map. None of these alter v0.2 decisions; they
+are named here so the implementation leaves seams for them.
+
+- **Uncached model reads on Apple (`F_NOCACHE`)** — input to the §2 memory
+  probe semantics once the iOS/macOS lane opens; ported and audited in our
+  bmoe fork (`kalsa/apple-nocache`, `e112328`). A refusal downgrades to
+  buffered, never errors.
+- **Streaming cache auto-default** — when a streaming mode exists in the app,
+  its cache must default ON (bmoe `674e7dc` lesson); a router-selected lane
+  must never depend on the user remembering a flag.
+- (Expert substitution and row-stream live in the governor design; MADV_RANDOM
+  admission lives in NPU-FIT-MODEL §5. See those documents.)

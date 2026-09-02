@@ -454,3 +454,15 @@ all-Q4_0 with 3,024 executed `MUL_MAT_ID`
 operations; both passed their PPL comparisons (`scratchpad/agents/qdc-8elite-npu-v79-ppl-v/REPORT.md:21-26,38-48`).
 Only after the shape census, memory admission, bank reproduction, and the
 per-model PPL certificate pass may the governor treat the NPU lane as fit.
+
+## Addendum 2/09 — admission-adjacent ideas from the BigMoeOnEdge recon
+
+Not part of the fit calculation; recorded here per the placement map.
+
+- **`MemAvailable` admission + `MADV_RANDOM`** (bmoe `2a7efae`): for oversized
+  mmap'd dense tensors, default readahead is wrong by ~100× on row-gathered
+  access; `MADV_RANDOM` is the cheap corrective. Belongs with the §5 app-side
+  memory-admission inputs when the app implements them.
+- **Apple `F_NOCACHE`** (bmoe `e02b477`, ported in our fork branch
+  `kalsa/apple-nocache`): uncached reads as a caching HINT with buffered
+  fallback — an iOS/macOS-lane input, not a fit term.

@@ -440,3 +440,20 @@ governor. No current NPU run is authorized by this document.
 No autotuning, online benchmarking, scheduler replacement, or plugin runtime [SPEC §1].
 The design adds only the bounded decode relaunch, the polling state machine, and a
 table-driven admission lookup; all R1–R9 policy remains in the router contract.
+
+## Addendum 2/09 — concepts from the BigMoeOnEdge recon (placement only, not policy)
+
+Per `scratchpad/agents/bigmoe-upstream-recon/REPORT.md` and the router-spec
+audit's placement map. These are candidate knobs for a FUTURE revision; they
+change nothing in v2.1 and carry no measured numbers of ours yet.
+
+- **Cache-aware expert substitution** (bmoe `4334c89`, experimental there):
+  boost resident experts' router scores by λ × score range, re-rank; quality
+  guarded by a PPL check. Candidate §2-family knob for the expert-cache lane
+  (our LFM route-trace: 93.5% expert cache-hit). Any adoption needs its own
+  prereg'd quality gate — substitution trades exactness for residency.
+- **Row-gathered dense streaming** (bmoe `9153dcc`): serve GET_ROWS-only dense
+  tables (token embeddings) from flash. Relevant to the §1.4 memory ledger as
+  a dense-set reduction; capture-time classification is architecture-agnostic.
+- **Streaming-cache default-ON warning** (bmoe `674e7dc`): a governor-selected
+  streaming lane must never depend on a user-remembered flag (§5 ops).
