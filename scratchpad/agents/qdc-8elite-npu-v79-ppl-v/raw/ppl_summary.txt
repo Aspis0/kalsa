@@ -1,0 +1,6 @@
+ship_htp: 1.36.092.371 I Final estimate: PPL = 40.2720 +/- 0.87472
+ship_htp: EXIT=0
+ship_htp: execute-op MUL_MAT: 10648 MUL_MAT_ID: 0
+olmoe_htp: 1.28.888.150 I Final estimate: PPL = 9.0620 +/- 0.13192
+olmoe_htp: EXIT=0
+olmoe_htp: execute-op MUL_MAT: 5136 MUL_MAT_ID: 3024

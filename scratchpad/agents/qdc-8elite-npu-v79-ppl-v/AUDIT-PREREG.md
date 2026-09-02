@@ -264,3 +264,102 @@ over() { [ "$(elapsed)" -ge 1200 ]; }
 To match the prereg's "cap **20 min**" (1200 seconds). The current 960 s (16 min) is stricter than declared and could prematurely skip the OLMoE arm under adverse timing.
 
 **FIX**
+
+---
+
+## Re-audit rev-2 (commit 0eedcf84 + 64d75e97)
+
+Auditing the driver/prereg as revised. Two commits: 0eedcf84 (rev-2 with `--line-buffered`) and 64d75e97 (drops `--line-buffered`, adds toybox comment). The working tree is at 64d75e97.
+
+---
+
+### R1. over() 1200 s — CONFIRMED, OK
+
+d_run.sh:24: `over() { [ "$(elapsed)" -ge 1200 ]; }` — matches prereg's "launch-stop 20 min = driver over() 1200 s" (PREREG.md:60). Header comment (d_run.sh:4): "No new invocation at >= 20 min elapsed (over 1200s); QDC cap 25 min." Both agree. §6a RESOLVED.
+
+### R2. QDC 25-min cap claimable — PLAUSIBLE, MINOR
+
+Prereg (PREREG.md:27): "cap **25 min** (launch-stop 20 min in the driver)." The operator sets Max-Minutes at QDC session creation. The operator is the same person who wrote the prereg. The 5-min buffer (20→25) accommodates the last arm's HTP run (~80 s) + filtered-log I/O + gate_post.
+
+**Risk:** If the operator accidentally sets Max-Minutes=20 (matching #46's cap), the session is killed at 20 min — exactly when `over()` fires. The last arm would be skipped, not killed mid-run. This is safe (skip, not crash). But the REPORT would need to note the skip.
+
+**Recommended:** Add a QDC-session-create checklist item: "Max-Minutes = 25". Not a blocker.
+
+### R3. --line-buffered on toybox — BLOCKER in 0eedcf84, FIXED in 64d75e97
+
+**0eedcf84** (d_run.sh:82): `grep -E --line-buffered '$KEEP'` — **BLOCKER.** Android's QRD8750 runs toybox grep, which does NOT support `--line-buffered` (a GNU grep extension). Evidence:
+- `#46 raw/events.txt:10`: "STDBUF absent" — the device has no GNU coreutils. `stdbuf` (GNU) is absent; `--line-buffered` (GNU grep) would also be absent.
+- 64d75e97 commit message: "drop GNU --line-buffered (toybox grep rejects it -> would void the arm)"
+- The author already identified and fixed this.
+
+**What happens if `--line-buffered` is passed to toybox grep:**
+1. Toybox grep sees an unrecognized long option → prints `grep: unrecognized option: --line-buffered` to stderr → exits with status 1.
+2. The pipe breaks. `set -eu` is active (d_run.sh:6). The `|| true` on the outer adb command catches the failure.
+3. `ppl_$tag.dev.txt` is empty (grep never processed any input).
+4. The summary grep on the empty file finds nothing. `Final estimate` is missing → "absent" in summary.
+5. `crashed()` on empty file returns false → crash goes undetected.
+6. The arm is silently VOIDed (no proof, no crash, no number).
+
+**64d75e97** (d_run.sh:81): `grep -E '$KEEP'` — no `--line-buffered`. Comment (d_run.sh:79-80): "No --line-buffered: toybox grep rejects the GNU flag; a completing run closes the pipe so grep flushes everything (incl. the trailing EXIT=) at exit."
+
+**Flush-at-exit analysis for 64d75e97:** When the subshell `(llama-perplexity; echo EXIT=?)` finishes, it closes its stdout (write end of the pipe). grep reads until EOF, then flushes its stdio buffer (C `fflush` on exit), then exits. The EXIT= line is written to `ppl_$tag.dev.txt`. This is standard POSIX behavior and is correct for a completing run (~80 s, plenty of time).
+
+**Cap-kill edge case:** If QDC kills the session mid-run, grep is killed with SIGTERM before EOF. grep's stdio buffer may not flush. The EXIT= line could be lost. But: (a) the prereg declares "cap-kill mid-run is out of scope for these ~80 s arms" (PREREG.md:39); (b) the QDC cap (25 min) far exceeds the run time (~80 s); (c) the launch-stop (20 min) ensures no new arm starts after 20 min. A cap-kill during an active ~80 s run is implausible.
+
+**Verdict: 0eedcf84 BLOCKER → 64d75e97 FIXED.** No remaining issue.
+
+### R4. KEEP captures both proofs — CONFIRMED, OK
+
+KEEP (d_run.sh:27): `execute-op|...|HTP0|...`
+
+- Ship proof: `HTP0 execute-op MUL_MAT|blk.*` — matched by `execute-op` + `HTP0`. CONFIRMED.
+- OLMoE proof: `HTP0 execute-op MUL_MAT_ID|blk.N.ffn_*_exps` — matched by `execute-op` + `HTP0`. CONFIRMED.
+- Summary counter (d_run.sh:88): `grep -c 'execute-op MUL_MAT[^_]'` — `[^_]` matches `MUL_MAT|` but not `MUL_MAT_ID|`. Correct boundary. CONFIRMED.
+
+### R5. Final estimate and per-chunk [n] captured — CONFIRMED, OK
+
+KEEP includes `Final estimate` and `^\[[0-9]+\]`. Both are matched. The per-chunk lines (e.g., `[1]27.9675,[2]43.2482,...`) start with `[` followed by digits. The `^\[[0-9]+\]` pattern matches these. CONFIRMED.
+
+The r computation uses `PPL_HTP(#47) / PPL_CPU(#46) − 1`. PPL_HTP comes from `Final estimate` in the filtered log. PPL_CPU is taken from #46's raw. Both are present. The n<32 fallback (PREREG.md:57-58) uses the last per-chunk line present; the filter keeps all `[n]` lines. CONFIRMED.
+
+### R6. Crash detection via filtered file — CONFIRMED, OK
+
+crashed() (d_run.sh:29): `grep -Eiq 'qurt_exit|dspqueue_(read|write) failed|CDSP0 CRASHED' "$1"`.
+
+KEEP includes: `qurt_exit|dspqueue_(read|write) failed|CDSP0 CRASHED|INTERNAL-ERROR|abort|GGML_ASSERT`.
+
+All three `crashed()` signatures (`qurt_exit`, `dspqueue_* failed`, `CDSP0 CRASHED`) are in KEEP. They survive the filter. `crashed()` runs on the filtered file (d_run.sh:89: `if crashed "$RAW/ppl_$tag.txt"`). The filtered file is the pulled device copy (d_run.sh:87: `cp "$RAW/ppl_$tag.dev.txt" "$RAW/ppl_$tag.txt"`). CONFIRMED.
+
+Additional crash signatures in KEEP but not in `crashed()`: `INTERNAL-ERROR`, `abort`, `GGML_ASSERT`. These are captured for diagnostic purposes (reported in the summary) but don't trigger `exit 8`. This is correct — `crashed()` is the hard-stop gate; the others are informational.
+
+### R7. 'error' token breadth — PLAUSIBLE, MINOR
+
+KEEP includes `error` as a standalone alternation. This matches any line containing the substring "error" (case-sensitive). Examples:
+- `ggml-hex: HTP0 error: ...` — wanted, captured.
+- `INTERNAL-ERROR` — already matched by its own alternation, but `error` also matches it (redundant, harmless).
+- `error_count` — if such a line exists in -v output, captured. Fine.
+- `common_fit_params: failed to fit ... abort` — matched by `abort`, not by `error`. But the word "failed" is NOT in KEEP. If a line says "error" and "failed", it's captured by `error`. If it says only "failed" without "error", it's dropped. This is acceptable — "failed" lines that don't contain "error" are not diagnostic.
+
+**Size goal:** The prereg says "a few MB" for the filtered log. With ~2.5M execute-op lines at ~250 bytes each, even keeping only execute-op + per-chunk + Final estimate + EXIT ≈ 600 KB. The `error` token might add a few hundred more lines. Total remains well under "a few MB." Not a concern.
+
+**No needed line missed:** The KEEP pattern covers: execute-op (proof), per-chunk `[n]` (r computation), `Final estimate` (result), `EXIT=` (exit code), offload/assign/buffer/n_gpu_layers/load_tensors/KV (diagnostic), crash signatures (hard stop), `error|abort|GGML_ASSERT` (error capture), `Hexagon Arch|HTP0` (device confirmation). All lines needed for the prereg's certification and diagnostic requirements are present. CONFIRMED.
+
+---
+
+## Final verdicts (re-audit rev-2)
+
+| # | Finding | Verdict | Severity | Fix |
+|---|---------|---------|----------|-----|
+| R1 | over() 1200 s matches prereg | CONFIRMED | — | — |
+| R2 | QDC 25-min cap claimable | PLAUSIBLE | MINOR | Add checklist: Max-Minutes=25 |
+| R3 | `--line-buffered` on toybox | **BLOCKER** (0eedcf84) | **BLOCKER** | **64d75e97 already fixes** |
+| R4 | KEEP captures both proofs | CONFIRMED | — | — |
+| R5 | Final estimate + per-chunk captured | CONFIRMED | — | — |
+| R6 | Crash detection via filtered file | CONFIRMED | — | — |
+| R7 | `error` token breadth acceptable | PLAUSIBLE | MINOR | — |
+
+**BLOCKER in 0eedcf84: `--line-buffered` rejected by toybox grep → empty filtered file → silent VOID.** Already fixed by 64d75e97 (drops `--line-buffered`, relies on flush-at-exit).
+
+---
+
+**APPLY** (on 64d75e97; 0eedcf84 alone would be FIX)
