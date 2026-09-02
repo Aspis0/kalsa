@@ -286,7 +286,7 @@ type Props = {
     history?: unknown[],
     /** Persist/assemble user text (trimmed, no docHints / placeholder). */
     lastUserBare?: string,
-    opts?: { research?: boolean },
+    opts?: { research?: boolean; notes?: boolean },
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
@@ -1112,6 +1112,10 @@ export function AiChatPage({
   const [researchMode, setResearchMode] = useState(false);
   const researchModeRef = useRef(false);
   researchModeRef.current = researchMode;
+  /** Arms the next send with local Notes context (one-shot; cleared on send). */
+  const [notesMode, setNotesMode] = useState(false);
+  const notesModeRef = useRef(false);
+  notesModeRef.current = notesMode;
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   /** Nested picker: choose a library document to attach as a retrieval source. */
   const [docPickOpen, setDocPickOpen] = useState(false);
@@ -1712,6 +1716,8 @@ export function AiChatPage({
     // Arm must not leak across conversations (cross-chat bug).
     researchModeRef.current = false;
     setResearchMode(false);
+    notesModeRef.current = false;
+    setNotesMode(false);
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
     voiceStopInFlightRef.current = false;
@@ -2272,9 +2278,17 @@ export function AiChatPage({
         .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
         .join(" ");
       const armedResearch = researchModeRef.current;
+      const armedNotes = notesModeRef.current;
       const keywordResearch = hasDeepResearchTrigger(trimmed);
       const useResearch = armedResearch || keywordResearch;
-      if (armedResearch) setResearchMode(false);
+      if (armedResearch) {
+        researchModeRef.current = false;
+        setResearchMode(false);
+      }
+      if (armedNotes) {
+        notesModeRef.current = false;
+        setNotesMode(false);
+      }
       // Research is text-only: on a vision-capable model an attached image
       // would be silently dropped — say so.
       if (useResearch && hasVisionInput && supportsVision) {
@@ -2494,7 +2508,9 @@ export function AiChatPage({
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messagesRef.current,
             trimmed,
-            useResearch ? { research: true } : undefined,
+            useResearch || armedNotes
+              ? { research: useResearch, notes: armedNotes }
+              : undefined,
           );
           // clearChat mid-stream: do not adopt stream result into a new chat.
           if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
@@ -2983,7 +2999,9 @@ export function AiChatPage({
     // conversation and gets sent with the next message.
     attachedItemsRef.current = [];
     setAttachedItems([]);
+    notesModeRef.current = false;
     setResearchMode(false);
+    setNotesMode(false);
     // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
@@ -3314,6 +3332,28 @@ export function AiChatPage({
     }
     setAttachSheetOpen(true);
   }, []);
+
+  const toggleResearchMode = useCallback(() => {
+    const next = !researchModeRef.current;
+    researchModeRef.current = next;
+    setResearchMode(next);
+  }, []);
+
+  const toggleNotesMode = useCallback(() => {
+    const next = !notesModeRef.current;
+    notesModeRef.current = next;
+    setNotesMode(next);
+  }, []);
+
+  const hasDocumentContext = attachedItems.some((item) => item.kind === "document");
+  const onComposerDocument = useCallback(() => {
+    const docs = documentLibrary?.docs ?? [];
+    if (docs.length === 0) {
+      onOpenDocuments?.();
+      return;
+    }
+    setDocPickOpen(true);
+  }, [documentLibrary, onOpenDocuments]);
 
   const onComposerSendOrStop = useCallback(() => {
     if (sendingRef.current) {
@@ -3836,29 +3876,38 @@ export function AiChatPage({
           </View>
         ) : null}
 
-        {researchMode ? (
-          <Pressable
-            onPress={() => setResearchMode(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t("chat.deepResearchActive")}
-            accessibilityHint={t("chat.deepResearchActive")}
-            style={{
-              alignSelf: "flex-start",
-              maxWidth: "90%",
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.md ?? 12,
-              backgroundColor: colors.panelSolid,
-              borderWidth: 1,
-              borderColor: colors.lineStrong,
-              marginBottom: 4,
-            }}
-          >
-            <Text style={[typography.bodyXs, { color: colors.ink }]}>
-              {t("chat.deepResearchActive")}
-            </Text>
-          </Pressable>
-        ) : null}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: spacing.xs, paddingBottom: 4 }}
+        >
+          <ComposerContextChip
+            icon={<Search size={15} color={researchMode ? colors.accent : colors.muted} />}
+            label={t("chat.deepResearch")}
+            onPress={toggleResearchMode}
+            colors={colors}
+            active={researchMode}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+            accessibilityLabel={researchMode ? t("chat.deepResearchActive") : t("chat.deepResearch")}
+          />
+          <ComposerContextChip
+            icon={<BookOpen size={15} color={hasDocumentContext ? colors.accent : colors.muted} />}
+            label={t("chat.libraryDocument")}
+            onPress={onComposerDocument}
+            colors={colors}
+            active={hasDocumentContext}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+            toggle={false}
+          />
+          <ComposerContextChip
+            icon={<ClipboardList size={15} color={notesMode ? colors.accent : colors.muted} />}
+            label={t("notes.title")}
+            onPress={toggleNotesMode}
+            colors={colors}
+            active={notesMode}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+          />
+        </ScrollView>
 
         {attachedItems.length > 0 ? (
           <ScrollView
@@ -4225,29 +4274,6 @@ export function AiChatPage({
                   onPress={() => void addPdfAttachment()}
                   colors={colors}
                 />
-                <AttachSheetRow
-                  icon={<BookOpen size={18} color={colors.ink} />}
-                  label={t("chat.libraryDocument")}
-                  onPress={() => {
-                    setAttachSheetOpen(false);
-                    const docs = documentLibrary?.docs ?? [];
-                    if (docs.length === 0) {
-                      onOpenDocuments?.();
-                      return;
-                    }
-                    setDocPickOpen(true);
-                  }}
-                  colors={colors}
-                />
-                <AttachSheetRow
-                  icon={<Search size={18} color={colors.ink} />}
-                  label={t("chat.deepResearch")}
-                  onPress={() => {
-                    setAttachSheetOpen(false);
-                    setResearchMode(true);
-                  }}
-                  colors={colors}
-                />
               </View>
             </Pressable>
           </Pressable>
@@ -4549,6 +4575,54 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
     </View>
   );
 });
+
+function ComposerContextChip({
+  icon,
+  label,
+  onPress,
+  colors,
+  active,
+  disabled,
+  accessibilityLabel,
+  toggle = true,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  colors: any;
+  active: boolean;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  toggle?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessible
+      accessibilityRole={toggle ? "switch" : "button"}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={toggle ? { checked: active, disabled } : { selected: active, disabled }}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 5,
+        borderRadius: radius.md ?? 12,
+        backgroundColor: active ? colors.accentSoft : colors.panelSolid,
+        borderWidth: 1,
+        borderColor: active ? colors.accent : colors.line,
+        opacity: disabled ? 0.45 : pressed ? 0.78 : 1,
+      })}
+    >
+      {icon}
+      <Text style={[typography.bodyXs, { color: active ? colors.accent : colors.ink }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
 
 function AttachSheetRow({
   icon,
