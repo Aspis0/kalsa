@@ -140,3 +140,17 @@ energy; nothing about the app; correctness is characterized (Q2 defect list +
 Q4 probe), not certified.
 
 Pending: hostile audit before registry/ALIVE entry.
+
+## ERRATUM (2026-09-02, append-only — line 65 left as written)
+
+The "one LARGE shape `q4_0 m=576,n=512,k=576`" attribution among the 36
+INTERNAL-ERROR lines was a pty-interleave misread (stderr lines printed before
+the next test's stdout header). Resolved during the 2/09 defect-desk
+adjudication on cell #46's raw, where the interleave-immune end-of-run
+`Failing tests:` list (`qdc-8elite-npu-v79-judge/raw/ops_mm_ph1.txt:2533-2570`)
+shows m=576 ABSENT and the per-test invariant (`blocks = m·k/32`: 256 = 8192/32)
+pins that INTERNAL-ERROR to the adjacent `q4_0 m=1,n=2048,k=8192` test. All 36
+INTERNAL-ERROR shapes have test-m % 32 ≠ 0 (m ∈ {16, 1, 6}); the %32 host/DSP
+contract mechanism covers 36/36. Full chain:
+`scratchpad/agents/v79-defect-desk/` (REPORT rev-2, AUDIT, ARBITRATION + its own
+erratum, FIXNOTES).
