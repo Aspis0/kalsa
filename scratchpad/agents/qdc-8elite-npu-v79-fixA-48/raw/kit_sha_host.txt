@@ -1,0 +1,5 @@
+kit=npu-kit-153fdbafd.tgz
+sha256=e7ff4cd8b18ac1b554d8660e315432926a1440ff9c7bb991de9ecf3191623350
+size=11020380
+packaged=2026-09-02T09:26:53Z
+payload: 22/24 files byte-identical to certified kit v2 (93e9592fa); replaced: bin/test-backend-ops 5cf3565b..., lib/libggml-hexagon.so e91fbcef...
