@@ -305,6 +305,17 @@
 > runtime per la #48. Branch `kalsa/npu-judge-v79` = `93e9592fa → 736ddd206 →
 > 153fdbafd`, ogni commit col suo audit. DESK CHIUSO. Nessuna sessione QDC
 > creata; prossimi: build Docker kit dal tip + ok owner sulla #48.
+>
+> **2/09 ~05:30 — CELLA #48 IN CODA: job 796621 `npu-v79-fixA-48`.** Owner ok in
+> chat ("Ok vai"). Kit v3 `npu-kit-153fdbafd.tgz` (sha `e7ff4cd8…`, 22/24 file
+> byte-identici al kit v2 certificato; sostituiti solo test-backend-ops +
+> libggml-hexagon.so, build incrementale container exit 0, llvm-strip NDK).
+> Prereg audit mimo **APPLY zero blocker** (quoting EXTRA sicuro, gate decidibili,
+> timing stretto ma con over() graceful). QRD8750 645 min al submit, Available
+> Now. Sessione: 20 min cap, SSH+mirror, chiave kalsa-mac, nessun package.
+> Submitted 05:30:25. URL `qdc.qualcomm.com/reports/job/interactive/796621`.
+> Non aprire un secondo job. Connect → connect.sh (tunnel 6037) → d_run.sh
+> (R1 census+EXTRA, R2 ripetizione, R3 MUL_MAT_ID).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
