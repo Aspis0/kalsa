@@ -367,6 +367,21 @@
 > obsoleto il redirect Q4_K di `dcd0a7607`** (riferimenti locali verificati su
 > disco). I pick aspettano i gate S23 (~7/09). GLM/openrouter instabile oggi
 > (3 timeout) — audit su mimo.
+>
+> **2/09 ~12:00 — #49 PRONTA AL LANCIO, QDC IN MANUTENZIONE.** Prep commit
+> `ca82efa8b` (EXTRA_MM_FIRST prepend + HTP_ZERO_TILE_PAD guarded): audit
+> ostile mimo **APPLY** (`clsB-49/AUDIT-PREP.md`, 13 check; unico MAJOR =
+> fallback overflow pre-v75 in `dma_queue_push` che ritorna l'ULTIMA riga —
+> codice MORTO su v79, verificato dall'orchestratore su `hex-dma.h` ramo
+> `#else // HVX_ARCH >= 75` sempre 2D). `test-backend-ops` ARM ricompilato al
+> tip nel container (il kit v3 era fermo a 153fdbafd) + llvm-strip →
+> `06297299…`; **kit v4 assemblato**: `npu-kit-49.tgz` (`2f03e3a8…`, 44 file),
+> `lib/` = skel stock CERTIFICATO `37131e07…` (stesso di #43-#48), `lib-zeropad/`
+> = `398879cc…`, SHA256SUMS su tutte e tre le dir, record in
+> `clsB-49/raw/kit_sha_host.txt`. PREREG rev-1 FINAL, ok owner in chat. Al
+> momento dell'accodamento **qdc.qualcomm.com è in manutenzione** ("We'll be
+> back shortly", tutte le rotte SPA → nginx 404): poll ogni 5 min sulla rotta
+> report; wizard appena il portale torna su.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
