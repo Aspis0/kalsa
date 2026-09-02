@@ -1,5 +1,18 @@
 # Cell #48 — orchestrator analysis (verified on raw before REPORT delegation)
 
+## ERRATA (2/09, from the writer's dissent in REPORT.md — both accepted)
+
+1. My "40 changed shapes = 34 FAIL→OK + 2 FAIL→NS + 6 extras" was sloppy
+   arithmetic: 40 is the count of SHAPE entries with changed verdict multisets
+   (34 + 2 + 4, because the 4 duplicate-name extras merge into 2 existing shape
+   entries); the count of individual changed/new OBSERVATIONS is 42 (36 stock
+   transitions + 6 extra case instances). The data are unchanged; the label was
+   wrong.
+2. "R1 pre-gate 41.4 °C region" has no raw source — `gate_pre_mm_r1.txt`
+   contains only `GATE_PASS`. The real thermal evidence is the post-run
+   snapshots: `max_hal_temp=42.0 status=0` for all three runs
+   (`therm_post_*.txt:30-32`).
+
 Every number below re-derived by me from `raw/` with the FIFO token-scan
 (stdout never reorders against itself; headers and verdicts pair in order;
 0 unmatched headers in all parses). Job 796621, QRD8750 serial `b4bd0901`,
