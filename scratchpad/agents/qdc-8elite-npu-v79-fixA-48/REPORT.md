@@ -80,3 +80,16 @@ Class B: **DATA BANKED; candidate narrowing only**. [PREREG.md:59-67]
 ## What this cell cannot say
 
 No speed, PPL, v73/v75/KEXP, Class B root cause, governor/app claim, or DSP-side-code conclusion. [PREREG.md:84-88]
+
+## Post-audit addendum (applied by orchestrator per AUDIT-REPORT F-3, APPLY verdict)
+
+Baseline-trap resolution, binding for future readers: `q4_1`, `q8_0`, `mxfp4`,
+`iq4_nl` `m=1,n=64` were **IE fails in #46** — the census `internal_error_lines=36`
+includes them and the 36 IE : 36 compute-failed pairing closes over exactly the
+36 non-NaN failing shapes (the whole #46 log contains ONE numeric diagnostic
+line, the known q4_0 m=2880 NaN). The census awk shows them as `real_fail:`
+only because pty alignment glued the FAIL verdict token to a header line without
+the compute-failed prefix (census.awk:62-65 classifies from the header line
+alone; per-category split is reported-not-binding by adoption). All 5 m=1,n=64
+shapes transitioned to OK in #48. Do not re-derive a non-IE classification from
+census sub-category labels.

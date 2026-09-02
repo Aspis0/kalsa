@@ -86,3 +86,11 @@ Baseline = #46 (`qdc-8elite-npu-v79-judge/raw/ops_mm_ph1.txt`): 505/542,
 Nothing about speed; nothing about PPL (closed in #47); nothing about
 v73/v75/KEXP; no Class B root cause (only candidate narrowing); no governor/app
 claim. DSP-side code untouched.
+
+## Post-run addendum (AUDIT-REPORT F-8, MINOR — for FUTURE preregs, this cell's text unchanged)
+
+Gate 1's letter was silent on IE→NS transitions (it required IE grep-pair = 0
+and absence from `Failing tests:`, which the 2 NS flips satisfy — adjudicated
+honest, not lawyerly, since the REPORT discloses the capability decline).
+Future fix-verification preregs must state explicitly: "each former-failing
+shape must become OK or NS (an honest upfront decline); any FAIL = defect."

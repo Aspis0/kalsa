@@ -337,6 +337,19 @@
 > overflow fp16 doppiamente sfavorito**; confound d'ordine (extra a fine
 > census) dichiarato. REPORT delegato a Luna (d0618f8e), poi audit ostile e
 > bank ALIVE riga 32.
+>
+> **2/09 — #48 BANCATA (ALIVE riga 32).** REPORT Luna (con 2 dissensi fondati
+> contro l'ANALYSIS dell'orchestratore, errata accettati) + audit ostile mimo
+> **APPLY, 0 blocker** (10 finding tutti CONFIRMED; 1 MAJOR = trappola census
+> m=1,n=64 da mettere a verbale → addendum nel REPORT; 1 MINOR = lettera del
+> gate 1 muta su IE→NS → addendum nel PREREG per le celle future; la catena
+> VTCM/HVX delle 2 NS giudicata FORZATA dal codice, la lettura dei gate onesta).
+> Nota canale: GLM/openrouter morto 3 volte per "Upstream idle timeout" (anche
+> su sola scrittura) → audit ruotato su mimo fresco; Reviewer Math da tenere
+> d'occhio. Il branch `kalsa/npu-judge-v79` (tip `153fdbafd`) resta locale, MAI
+> pushato. Restano aperti: cella discriminante finale classe B (probe in testa
+> al census + pad-zeroing, ~5 min, da preregistrare) e upstream del fix. ~641
+> min QDC.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
