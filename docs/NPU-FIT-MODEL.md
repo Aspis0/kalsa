@@ -253,9 +253,9 @@ total = src1_size + src0_size + src2_size + src3_size + dst_size
 ```
 
 (`ggml/src/ggml-hexagon/htp/matmul-ops.h:615-627`). For ordinary quantized
-`MUL_MAT`, the code tries tiled prefetch first (`n_prefetch=2` when there are
-more than four rows), then explicitly falls back to flat HVX if tiled VTCM is
-over budget (`ggml/src/ggml-hexagon/ggml-hexagon.cpp:2424-2469`). The flat
+`MUL_MAT`, the code tries tiled prefetch first (`max_prefetch=2` when
+`src1_nrows > 4`, else 16 — audit F4), then explicitly falls back to flat HVX
+if tiled VTCM is over budget (`ggml/src/ggml-hexagon/ggml-hexagon.cpp:2424-2469`). The flat
 result is still subject to the final `> sess->vtcm_size` refusal. `npu_fit`
 must report that final refusal as `NS`, not as a runtime error.
 
@@ -334,7 +334,8 @@ clean `NS` (`scratchpad/agents/qdc-8elite-npu-v79-fixA-48/REPORT.md:23-31`).
 
 Now `src0->ne[1] = 576` and `src1->ne[1] = 512`; both HMX alignment tests and
 the HMX row-count test pass. The exact HMX search selects
-`mc=512`, `nc=576`, and one activation-preparation thread. With
+`mc=512`, `nc=576`, and six activation-preparation threads (the tie-break
+selects the full thread count; audit F1 — the byte total is unaffected). With
 `pipeline=true`, `n_k_tiles=576/32=18`, `vec_dot_size=576*2=1152`, and the
 aligned `q4_0` tile size 640:
 
@@ -362,7 +363,8 @@ The #47 ship log contains this ordinary matmul as
 `2048:6144 x 2048:2`, and records `hvx-tiled vtcm 4128768`
 (`scratchpad/agents/qdc-8elite-npu-v79-ppl-v/raw/ppl_ship_htp.txt:23158`). In
 test notation, `n=2` is the HTP row count, so HMX declines at the `m <= 4`
-check and HVX uses prefetch 16:
+check and the HVX **tiled** path with prefetch 16 fits (the log's `hvx-tiled`
+label is correct; audit F4):
 
 ```text
 q4_0 weight = A(16 * ((2048/32) * 640), 256) * 6 = 3,932,160
@@ -375,8 +377,10 @@ total = 3,932,160 + 147,456 + 49,152
 ```
 
 This is an actual ship shape, not a synthetic HMX assumption. The full #47
-anchor is 10,648 executed ship-model `MUL_MAT` operations and 3,024 executed
-OLMoE `MUL_MAT_ID` operations, with PPL deltas of −0.029% and +0.064%
+anchor is 10,648 ship-model `MUL_MAT`-family execute-op log lines (10,694
+individual `MUL_MAT` ops once the 2,438 `MUL_MAT+ADD`, 30 double and 8 triple
+fusions are unrolled — audit F5) and 3,024 executed OLMoE `MUL_MAT_ID`
+operations, with PPL deltas of −0.029% and +0.064%
 respectively (`scratchpad/agents/qdc-8elite-npu-v79-ppl-v/REPORT.md:23-26,38-48`).
 
 ## 4. What `npu_fit` cannot see
@@ -444,8 +448,9 @@ The six appended extras remain part of the raw bank observation set, not a
 replacement for these named acceptance cases.
 
 The real-model anchors are replay/count checks, not a substitute for the app's
-complete census: #47 shipped LFM2.5-2.6B QAD-Q4_0 with 10,648 executed
-`MUL_MAT` operations, and OLMoE all-Q4_0 with 3,024 executed `MUL_MAT_ID`
+complete census: #47 shipped LFM2.5-2.6B QAD-Q4_0 with 10,648 `MUL_MAT`-family
+execute-op log lines (10,694 ops with fusions unrolled — audit F5), and OLMoE
+all-Q4_0 with 3,024 executed `MUL_MAT_ID`
 operations; both passed their PPL comparisons (`scratchpad/agents/qdc-8elite-npu-v79-ppl-v/REPORT.md:21-26,38-48`).
 Only after the shape census, memory admission, bank reproduction, and the
 per-model PPL certificate pass may the governor treat the NPU lane as fit.
