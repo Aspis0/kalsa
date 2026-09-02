@@ -68,7 +68,7 @@ const palettes = {
       // scrims / overlays — layered over content, MUST stay translucent
       blackGlass: "rgba(23, 32, 28, 0.06)",
       whiteGlass: "rgba(255, 255, 255, 0.75)",
-      navGlass: "rgba(232, 238, 231, 0.92)",
+      navGlass: "rgba(232, 234, 231, 0.92)",
       materialVeil: "rgba(244, 248, 243, 0)",
       glowTop: "rgba(31, 95, 78, 0.05)",
       glowMid: "rgba(10, 106, 90, 0.05)",
