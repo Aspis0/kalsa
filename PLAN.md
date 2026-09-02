@@ -436,6 +436,22 @@
 > ramo prefetch `src1_nrows≤4`, F5 conteggio op fuse: 10.648 righe = 10.694
 > op con MUL_MAT+ADD/doppie/triple srotolate — riconciliato al pezzo).
 > Restano aperti gli input app-side (censo shape per modello) — §5 dello spec.
+>
+> **2/09 18:38 — #51 ESEGUITA E CHIUSA (job 797407, ~2.5 min, driver DONE
+> 72 s): il fix upstream dei descrittori è REFUTATO come causa del classe B.**
+> Ricognizione upstream aveva trovato `71102a73f` (type check mancante nel
+> riuso descrittori, 2 righe, verificato assente dal nostro branch) con
+> meccanismo compatibile con TUTTA l'impronta; cherry-pick `022458a28`,
+> esperimento a variabile singola (kit v6: bracci identici tranne
+> `libggml-hexagon.so`, lib attive verificate on-device per run). Esito:
+> **NaN presente in TUTTI e 4 i bracci** (545/546, griglia caso 2) — il
+> meccanismo era plausibile, la misura dice no. Fatto nuovo: su questo
+> device (87b3a4aa) i due control danno lo STESSO indice 338/338 (i fix
+> 482/360) — la stabilità intra-sessione torna, la varianza è
+> per-sessione/lib. Il cherry-pick resta sul branch (fix upstream corretto a
+> prescindere, solo non è il NOSTRO bug). **Classe B torna PARCHEGGIATA con
+> la regola di contenimento; nessuna nuova cella senza disegno nuovo** (come
+> da griglia). Costo totale della verifica: ~2.5 min.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;

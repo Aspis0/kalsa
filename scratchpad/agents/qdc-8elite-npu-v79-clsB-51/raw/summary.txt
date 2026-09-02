@@ -1,0 +1,4 @@
+r1_ctrl: INTERNAL-ERROR=0 graph_failed=0 nan_diags=1   545/546 tests passed
+r2_fix: INTERNAL-ERROR=0 graph_failed=0 nan_diags=1   545/546 tests passed
+r3_ctrl: INTERNAL-ERROR=0 graph_failed=0 nan_diags=1   545/546 tests passed
+r4_fix: INTERNAL-ERROR=0 graph_failed=0 nan_diags=1   545/546 tests passed
