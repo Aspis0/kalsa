@@ -382,6 +382,24 @@
 > momento dell'accodamento **qdc.qualcomm.com è in manutenzione** ("We'll be
 > back shortly", tutte le rotte SPA → nginx 404): poll ogni 5 min sulla rotta
 > report; wizard appena il portale torna su.
+>
+> **2/09 12:20 — #49 ESEGUITA E CHIUSA (job 797032, ~4 min fatturati, driver
+> DONE in 64 s). RISULTATO A SORPRESA: il NaN classe B NON si riproduce in
+> nessuna delle 4 run** — r1/r2 stock (skel certificato `37131e07`, attivo
+> verificato on-device) e r3/r4 zeropad (`398879cc`): tutte
+> `INTERNAL-ERROR=0 nan_diags=0 544/544`, failing list vuote, gate termici
+> 8/8 PASS, EXIT=0 ×4. Prepend verificato (prime 4 eval = la shape, riga 28).
+> Lettura onesta: in #48 la PRIMA esecuzione in-process era a metà censo
+> (VTCM sporca) e NaN-ava; in #49 con FIRST=1 la prima esecuzione è a
+> processo FREDDO e passa → **il trigger richiede stato sporco da op
+> precedenti** (griglia caso 3 raffinato); l'occorrenza censo passa perché
+> scaldata dai probe (masking atteso). **T1-vs-T2 resta APERTO** (stock
+> pulito ⇒ il discriminatore zeropad non ha avuto segnale); bancabile: il
+> non-repro a freddo + **zeropad skel SAFE (zero regressioni)**. Difetto di
+> design ammesso: FIRST=1 su TUTTE le run ⇒ nessuna replica la condizione di
+> riproduzione di #48; confound binario host (l'indice era binario-dipendente).
+> Follow-up proposto: cella #50 stile-#48 (EXTRA appesa, NO FIRST) su stock +
+> zeropad = vero discriminatore contro un NaN vivo. REPORT Luna in volo.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
