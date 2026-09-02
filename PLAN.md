@@ -400,6 +400,19 @@
 > riproduzione di #48; confound binario host (l'indice era binario-dipendente).
 > Follow-up proposto: cella #50 stile-#48 (EXTRA appesa, NO FIRST) su stock +
 > zeropad = vero discriminatore contro un NaN vivo. REPORT Luna in volo.
+>
+> **2/09 12:42 — #50 ESEGUITA E CHIUSA (job 797063, ~3.5 min, driver DONE
+> 68 s): VERDETTO GRIGLIA CASO 2 — T1 REFUTATA, T2 PROMOSSA.** Owner ok in
+> chat ("Ok approvo cella 50"); prep auditata mimo APPLY. Replica esatta #48
+> (binario `5cf3565b`, EXTRA appesa, judge on): il NaN È TORNATO VIVO su
+> stock (545/546 ×2) **e PERSISTE sulla skel zeropad** (545/546 ×2, skel
+> attive verificate on-device) → **zerare il pad [576,640) NON cura: la
+> scale-pad non-init NON è la causa (unica)**. Fatto nuovo: indici NaN ora
+> INSTABILI run-per-run — stock 388/353 (non più 354!), zeropad 359/334,
+> device f25c433a → la lettura "slot fisso del binario" di #46/#48 cade;
+> lo slot avvelenato si muove con lo stato di sessione. IE=0 ovunque,
+> unico fail = l'occorrenza censo della shape (F-8 rispettato). REPORT
+> Luna + audit mimo in coda; bank righe 33 (#49) e 34 (#50) a valle.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;

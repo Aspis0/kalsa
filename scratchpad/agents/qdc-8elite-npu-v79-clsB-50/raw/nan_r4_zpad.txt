@@ -1,0 +1,1 @@
+[MUL_MAT] NaN at index 334 (HTP0=nan CPU=-14.640244) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [ref-buf] dev-out name=out type=f32 op=MUL_MAT buf="HTP0" buft="HTP0" host=1
