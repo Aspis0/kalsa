@@ -350,6 +350,23 @@
 > pushato. Restano aperti: cella discriminante finale classe B (probe in testa
 > al census + pad-zeroing, ~5 min, da preregistrare) e upstream del fix. ~641
 > min QDC.
+>
+> **2/09 — PLAN AVANTI su due binari (lab giù, QDC su).** (1) **Cella #49**
+> (classe B root-cause): bozza prereg scritta
+> (`qdc-8elite-npu-v79-clsB-49/PREREG-DRAFT.md`) — probe a processo freddo
+> (`GGML_TEST_EXTRA_MM_FIRST`) + skel diagnostico `HTP_ZERO_TILE_PAD`; scoperta
+> architetturale verificata dall'orchestratore: il repack host impacchetta a
+> stride 576 CONTIGUO (`repack_q4_0_tiled` :457-505), quindi il pad 64 B vive
+> SOLO in VTCM (DMA 576→slot 640) → il probe è DSP-side, dual-skel nel kit.
+> Luna d67db23e sta preparando i due change. (2) **Phase 2 prep FATTA**
+> (`phase2-opencl-upstream-audit/CANDIDATES.md`): 40 commit upstream OpenCL dal
+> merge-base, 3 pick raccomandati per 740/750 (`e8f19cc0ad70` q4_K/q5_K uint
+> loads ~2× su E031.41; `43d87ff2dd0e` bounds/tiling image Adreno;
+> `60addddf3c56` barrier FA multi-subgroup), #26476 GIÀ locale come
+> `5c7e16fa6` (non ri-pickare), **flag: `43d87ff2dd0e` rende parzialmente
+> obsoleto il redirect Q4_K di `dcd0a7607`** (riferimenti locali verificati su
+> disco). I pick aspettano i gate S23 (~7/09). GLM/openrouter instabile oggi
+> (3 timeout) — audit su mimo.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
