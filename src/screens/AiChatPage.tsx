@@ -4762,6 +4762,19 @@ function CodeFenceBlock({
 // updateMessage only replaces the streaming message's object identity; other
 // Message refs stay stable. Custom compare ignores callback identity so parent
 // re-renders (new inline arrows) do not force history rows to repaint.
+const PROVIDER_COLORS: Record<string, { light: string; dark: string }> = {
+  brave: { light: "#9A3412", dark: "#FF6B4A" },
+  exa: { light: "#6D28D9", dark: "#A78BFA" },
+  "exa-mcp": { light: "#6D28D9", dark: "#A78BFA" },
+  tavily: { light: "#0369A1", dark: "#38BDF8" },
+};
+
+function getProviderColor(provider: string | undefined, colors: any): string {
+  const providerColors = PROVIDER_COLORS[provider ?? ""];
+  if (!providerColors) return colors.accent;
+  return colors.panelSolid === "#FFFFFF" ? providerColors.light : providerColors.dark;
+}
+
 type ChatMessageRowProps = {
   message: Message;
   topGap: number;
@@ -5210,6 +5223,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             {m.sources.map((s, sIdx) => {
               const rawUrl = typeof s.url === "string" ? s.url.trim() : "";
               const safe = rawUrl.length > 0 && isSafeHttpUrl(rawUrl);
+              const providerColor = getProviderColor(s.provider, colors);
               const hostMatch = safe
                 ? /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(rawUrl)
                 : null;
@@ -5245,7 +5259,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                     style={[
                       typography.bodyXs,
                       {
-                        color: colors.accent,
+                        color: providerColor,
                         backgroundColor: colors.accentSoft,
                         borderRadius: radius.xs,
                         paddingHorizontal: spacing.xxs,
@@ -5258,7 +5272,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                   <View style={{ flexShrink: 1, minWidth: 0 }}>
                     {s.provider ? (
                       <Text
-                        style={[typography.bodyXs, { color: colors.muted }]}
+                        style={[typography.bodyXs, { color: providerColor }]}
                         numberOfLines={1}
                       >
                         {t("errors.sourceVia", {
