@@ -1,0 +1,7 @@
+a5b290115c85d226adb8ef24fb0fce1308410d11e039ac5f393701b93e92be23  npu-kit-51.tgz
+# kit v6 key components
+5cf3565b20b6c23bab757183c5a61c276727f216c3ece30fce211bdc1bbed5e8  bin/test-backend-ops-153f
+e95fa35eed6ec979b9ef7a6cf5098ff738e580bfbd01f38e991202c2ef8dd99a  lib-fix/libggml-hexagon.so
+37131e079e14a09c0cfe22637ab2a614e67862924e6e106351bc6f0e864c6044  lib-fix/libggml-htp-v79.so
+e91fbcef71f0ece20cf8e33fa26ac2c3b2bdce34ddc662ee926afb40574079ba  lib/libggml-hexagon.so
+37131e079e14a09c0cfe22637ab2a614e67862924e6e106351bc6f0e864c6044  lib/libggml-htp-v79.so
