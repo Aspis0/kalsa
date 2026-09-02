@@ -1,0 +1,4 @@
+job=796621 name=npu-v79-fixA-48 device=QRD8750 serial=b4bd0901
+submitted=09/02/26 5:30:25 AM  started=09/02/26 5:36:29 AM  ended=09/02/26 5:40:09 AM (page clock)
+ended_by=orchestrator End Session after driver DONE elapsed=42
+url=qdc.qualcomm.com/reports/job/interactive/796621

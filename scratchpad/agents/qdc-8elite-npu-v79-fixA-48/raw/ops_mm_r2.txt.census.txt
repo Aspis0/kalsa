@@ -1,0 +1,20 @@
+op=MUL_MAT
+ok=545
+fail_total=1
+skip=930
+executed=546
+total=1476
+compute_failed=0
+judge_nonfinite=0
+htp_nonfinite=1
+real_fail=0
+other=0
+internal_error_lines=0
+htp_proof=1
+backend_htp0=1
+device_hexagon=1
+recopy_lines=546
+unresolved=0
+banner=1
+plain_host=1
+htp_nonfinite: [MUL_MAT] NaN at index 354 (HTP0=nan CPU=8.473092) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [ref-buf] PLAIN_HOST=1 copy-buffer="CPU" cpu_buft="CPU" recopy=get/set

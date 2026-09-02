@@ -1,0 +1,3 @@
+mm_r1: INTERNAL-ERROR=0 graph_failed=0   545/546 tests passed
+mm_r2: INTERNAL-ERROR=0 graph_failed=0   545/546 tests passed
+mmid_r3: INTERNAL-ERROR=0 graph_failed=0   301/301 tests passed
