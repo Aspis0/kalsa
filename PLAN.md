@@ -413,6 +413,16 @@
 > lo slot avvelenato si muove con lo stato di sessione. IE=0 ovunque,
 > unico fail = l'occorrenza censo della shape (F-8 rispettato). REPORT
 > Luna + audit mimo in coda; bank righe 33 (#49) e 34 (#50) a valle.
+>
+> **2/09 ~13:15 — CLASSE B PARCHEGGIATA da known-defect documentato (decisione
+> owner in chat).** Valutazione: reale-ma-contenuto — memoria non-init a causa
+> ignota nel path HMX q4_0, MA entrambi i modelli veri passano la cert PPL #47
+> proprio nella condizione trigger; la shape incriminata è solo del censo
+> sintetico. **Regola di contenimento ora vincolante: nessun modello va su NPU
+> senza cert PPL stile #47 su quel modello+quant** (becca la classe B su ogni
+> geometria futura). Il desk di strumentazione DSP resta post-window e
+> OPZIONALE: si riapre solo se un gate di cert fallisce. Righe ALIVE 30-34 =
+> pista di evidenza completa. Il piano 10 giorni riprende dai binari aperti.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
