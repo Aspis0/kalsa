@@ -423,6 +423,19 @@
 > geometria futura). Il desk di strumentazione DSP resta post-window e
 > OPZIONALE: si riapre solo se un gate di cert fallisce. Righe ALIVE 30-34 =
 > pista di evidenza completa. Il piano 10 giorni riprende dai binari aperti.
+>
+> **2/09 sera — `npu_fit` SU CARTA, AUDITATO (docs/NPU-FIT-MODEL.md +
+> .AUDIT.md).** Il blocco che il governor design v2.1 elencava per accendere
+> la lane R2: catena decisionale HMX/HVX/NS trascritta dal codice con quote,
+> formule VTCM complete (gruppi A/B/C, clamp min/max_f32, chunk search),
+> 4 esempi svolti a mano — **il totale dell'esempio ship (4.128.768 B) matcha
+> cifra-per-cifra il vtcm loggato dal device in #47**: auto-validazione su
+> shape reale. Set di accettazione = i 34+2+1 verdetti device di #48. Audit a
+> staffetta (GLM sez. 1 aritmetica tutta CONFIRMED, poi canale morto ×2 oggi
+> → mimo sez. 2-5): APPLY con 3 fix testuali applicati (F1 thread count, F4
+> ramo prefetch `src1_nrows≤4`, F5 conteggio op fuse: 10.648 righe = 10.694
+> op con MUL_MAT+ADD/doppie/triple srotolate — riconciliato al pezzo).
+> Restano aperti gli input app-side (censo shape per modello) — §5 dello spec.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
