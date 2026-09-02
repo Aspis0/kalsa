@@ -85,9 +85,12 @@ k=1024 (long-k probe), optionally a pad-zeroing instrumented build.
 
 ## Consequence for Class A
 
+**[RETRACTED IN PART by the ERRATUM above (flagged by AUDIT-2 finding 2):
+"35/36" and "m=576 stays open" are wrong — the fix covers 36/36 and A4 is a
+no-regression control, not a diagnostic. The no-regression argument stands.]**
+
 Unaffected. The host-side fix (eligibility on logical `src0->ne[1] % 32`, fall
-back to HVX) is sound for 35/36 per F11's no-regression argument, which I accept:
+back to HVX) is sound per F11's no-regression argument, which I accept:
 any currently-passing HMX shape already satisfies the DSP's `src0->ne[1] % 32 == 0`
 check (`matmul-ops.c:2327/2596/2841`), so tightening the host gate to the same
-condition cannot regress a passing shape. m=576 stays open as its own item (A4
-diagnostic shape in the cell).
+condition cannot regress a passing shape.

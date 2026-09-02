@@ -154,3 +154,20 @@ INTERNAL-ERROR shapes have test-m % 32 ≠ 0 (m ∈ {16, 1, 6}); the %32 host/DS
 contract mechanism covers 36/36. Full chain:
 `scratchpad/agents/v79-defect-desk/` (REPORT rev-2, AUDIT, ARBITRATION + its own
 erratum, FIXNOTES).
+
+## ERRATUM-2 (2026-09-02, append-only — corrects the erratum above, per AUDIT-2 finding 3)
+
+The erratum above overstates. In THIS cell's raw, `q4_0 m=576,n=512,k=576` IS in
+the interleave-immune failing list (`raw/backend_ops_MUL_MAT_HTP0.txt:4233`) and
+its own line carries a poisoned-judge diagnostic (`:1365` `[MUL_MAT] NaN at
+index 1 (HTP0=-1.300781 CPU=nan)` — HTP finite, CPU non-finite, the judge-poison
+signature). So in #43 the test genuinely FAILED; what is interleave-ambiguous is
+only the `INTERNAL-ERROR` label glued onto that line. #43 ran the pre-repair
+binary (error-swallowing graph_compute + poisoned judge), so its INTERNAL-ERROR
+taxonomy — including the m=576 attribution AND the "six m=1,n=64 on
+NON-supported types" reading — does not transfer to the repaired-judge world.
+The "36" of #43 and the "36" of #46 are DIFFERENT SETS under different binaries
+that happen to share a count. The certified defect census is #46's
+(`Failing tests:` list): 36 INTERNAL-ERROR all with test-m % 32 ≠ 0 (m ∈
+{16, 1, 6}) + 1 numeric NaN (q4_0 m=2880), with m=576 PASSING under the
+repaired judge.
