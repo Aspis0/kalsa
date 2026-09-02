@@ -522,6 +522,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     deepResearchNeedsQuestion: "Scrivi una domanda per ricercare nella libreria.",
     deepResearchIgnoringImages:
       "La ricerca approfondita lavora sui documenti di testo — le immagini di questo messaggio non verranno usate.",
+    notesContextTruncated:
+      "Alcune note sono state accorciate per rientrare nel limite del contesto.",
     deepResearchWriterFailed:
       "Il report non è stato completato su questo dispositivo — passaggi trovati qui sotto.",
     deepResearchInterrupted:

@@ -286,7 +286,11 @@ type Props = {
     history?: unknown[],
     /** Persist/assemble user text (trimmed, no docHints / placeholder). */
     lastUserBare?: string,
-    opts?: { research?: boolean; notes?: boolean },
+    opts?: {
+      research?: boolean;
+      notes?: boolean;
+      onNotice?: () => void;
+    },
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
@@ -1116,6 +1120,20 @@ export function AiChatPage({
   const [notesMode, setNotesMode] = useState(false);
   const notesModeRef = useRef(false);
   notesModeRef.current = notesMode;
+  /** Draft cancelled (had content → emptied): drop one-shot arms, same
+   *  semantics as switch/clear — prevents stale Notes/Research context
+   *  riding the next send after the user cleared the draft. */
+  const draftHadContentRef = useRef(false);
+  useEffect(() => {
+    const has = draft.trim().length > 0;
+    if (!has && draftHadContentRef.current) {
+      notesModeRef.current = false;
+      setNotesMode(false);
+      researchModeRef.current = false;
+      setResearchMode(false);
+    }
+    draftHadContentRef.current = has;
+  }, [draft]);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   /** Nested picker: choose a library document to attach as a retrieval source. */
   const [docPickOpen, setDocPickOpen] = useState(false);
@@ -2509,7 +2527,11 @@ export function AiChatPage({
             messagesRef.current,
             trimmed,
             useResearch || armedNotes
-              ? { research: useResearch, notes: armedNotes }
+              ? {
+                  research: useResearch,
+                  notes: armedNotes,
+                  onNotice: () => showVoiceNote(t("chat.notesContextTruncated")),
+                }
               : undefined,
           );
           // clearChat mid-stream: do not adopt stream result into a new chat.
@@ -4671,7 +4693,7 @@ function MessageActionChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      hitSlop={6}
+      hitSlop={10}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",

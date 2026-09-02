@@ -525,6 +525,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     deepResearchNeedsQuestion: "Ask a question to research your library.",
     deepResearchIgnoringImages:
       "Deep research works on text documents — images on this message won't be used.",
+    notesContextTruncated:
+      "Some notes were trimmed to fit the context limit.",
     deepResearchWriterFailed:
       "The report could not be finished on this device — retrieved passages below.",
     deepResearchInterrupted:
