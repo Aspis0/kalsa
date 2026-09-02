@@ -269,6 +269,30 @@
 > HTP-vs-CPU 32 chunk sul modello di ship e su OLMoE, gate r ≤ 2 % come q55;
 > corpus `wiki.test.raw` scaricato, sha = q43) sotto audit GLM. Nessuna sessione
 > QDC finché non è APPLY; Connect = owner.
+>
+> **2/09 — DESK DIFETTI v79 CHIUSO SU CARTA: fix classe A committato, tre giudici
+> in disaccordo risolti sul raw.** REPORT desk (grok,
+> `scratchpad/agents/v79-defect-desk/`): classe A = contratto HMX host/DSP,
+> classe B = 1 NaN q4_0 m=2880. Audit mimo **FIX** (4 MAJOR) → arbitrato Fable →
+> **dissenso del writer accolto**: il "controesempio" F1 (`q4_0 m=576,n=512,k=576`
+> INTERNAL-ERROR pur 32-allineata) era un misread da interleave pty — la lista
+> finale `Failing tests:` (raw #46 `:2533-2570`, immune all'interleave) ha 37
+> test e m=576 NON c'è; l'attribuzione la inchioda `blocks=256`=8192/32 (è del
+> test m=1,n=2048,k=8192). **Il meccanismo %32 copre 36/36**; anche il "LARGE
+> shape m=576" del REPORT #43 era lo stesso misread (erratum). Due errori veri
+> però restano A VERBALE: l'audit F8 sbaglia l'aritmetica q8_0 (1024+128=1152>1088:
+> stessa struttura 64-validi+64-pad di q4_0, costanti `matmul-ops.h:23-32`,
+> `hmx-mm-kernels-tiled.h:48/442`) e il mio arbitrato aveva avallato F1
+> (ERRATUM in `ARBITRATION.md`). Classe B genuinamente APERTA (né overflow fp16
+> né scale-pad stabilite) → si discrimina SU DEVICE. **Fix classe A committato**:
+> kalsallama `kalsa/npu-judge-v79` @ `736ddd206` (gate HMX su `src0->ne[1]%32`
+> logico = contratto DSP, fallback HVX, 2 righe, compile-unverified → Docker);
+> F12: le shape HMX dei modelli veri (#47, dims nelle righe execute-op) sono
+> TUTTE %32-allineate → fix inerte su ship/OLMoE. Bozza cella **#48 rev-1**
+> (`qdc-8elite-npu-v79-fixA-48/PREREG-DRAFT.md`, ~12 min): verifica fix
+> (36→0 INTERNAL-ERROR, FAIL 37→1) + discriminazione B (determinismo ×3, k=1024,
+> q8_0, n=64) — **da mostrare all'owner prima di accodare**. Audit ostile del
+> desk rev-2 (GLM Reviewer Math) in coda. Nessuna sessione QDC creata.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
