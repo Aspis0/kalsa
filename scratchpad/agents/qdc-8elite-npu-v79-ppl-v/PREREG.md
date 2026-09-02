@@ -32,12 +32,12 @@ line; precedence of a non-zero exit after the first chunk (FAIL) over the n ≥ 
    `GGML_HEXAGON_VERBOSE=1 llama-perplexity -m <model> -f wiki.test.raw --device HTP0
    -ngl 99 -c 2048 -b 2048 -ub 1024 -fa on --chunks 32 -t 8 -v`. A full `-v` log is
    1–2 GB for 65 536 tokens × per-op lines; the device already holds 5.5 GB of models, so
-   the run is piped through a **line-buffered on-device `grep`** that keeps only the
+   the run is piped through an on-device `grep -E` (toybox-safe; no GNU --line-buffered) that keeps only the
    witness lines (execute-op, per-chunk `[n]`, `Final estimate`, `EXIT=`, offload/assign/
    buffer-size/n_gpu_layers/load_tensors/KV lines, and every crash signature
    `qurt_exit|dspqueue_* failed|CDSP0 CRASHED|INTERNAL-ERROR|abort|GGML_ASSERT`). The
    filtered file (a few MB) is the authoritative capture; the raw multi-GB stream is
-   discarded on device. Line-buffering guarantees the trailing `EXIT=` is not lost.
+   discarded on device. A completing run closes the pipe so grep flushes at exit (incl. EXIT=); a cap-kill mid-run is out of scope for these ~80 s arms.
 2. **Execute-op proof** (binding, as in #46): ship arm ≥ 1 `HTP0 execute-op MUL_MAT`
    line; OLMoE arm ≥ 1 `HTP0 execute-op MUL_MAT_ID` line on `ffn_*_exps`. Proof absent
    → METHOD-VOID that arm (again). Additionally report the offload split (which ops/layers

@@ -77,8 +77,9 @@ run_ppl_htp() {
   if over; then note "SKIP_$tag over"; return 0; fi
   gate_pre "$tag" || return 0
   # -v log is filtered ON DEVICE to the witness lines; the full stream is discarded there
-  # (device-space safe). grep is line-buffered so the pipe cannot lose the trailing EXIT.
-  CMD="export GGML_HEXAGON_VERBOSE=1 && ( ./bin/llama-perplexity -m $mdl -f wiki.test.raw --device $BDEV -ngl 99 $PPL_FLAGS; echo EXIT=\$? ) 2>&1 | grep -E --line-buffered '$KEEP' > $DEVDIR/ppl_$tag.dev.txt"
+  # (device-space safe). No --line-buffered: toybox grep rejects the GNU flag; a completing
+  # run closes the pipe so grep flushes everything (incl. the trailing EXIT=) at exit.
+  CMD="export GGML_HEXAGON_VERBOSE=1 && ( ./bin/llama-perplexity -m $mdl -f wiki.test.raw --device $BDEV -ngl 99 $PPL_FLAGS; echo EXIT=\$? ) 2>&1 | grep -E '$KEEP' > $DEVDIR/ppl_$tag.dev.txt"
   adb -s "$SER" shell "cd $DEVDIR && $HTP_ENV && $CMD" > "$RAW/ppl_$tag.txt" 2>&1 || true
   echo $? > "$RAW/ppl_$tag.adb.exit"
   gate_post "$tag"
