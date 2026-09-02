@@ -155,7 +155,7 @@ All eight thermal gates pass.
 >
 > `raw/nan_r4_fix.txt:1` — `[MUL_MAT] NaN at index 360 (HTP0=nan CPU=-8.062845) cpu_buf="CPU" cpu_buft="CPU"   MUL_MAT(type_a=q4_0,type_b=f32,m=2880,n=32,k=2880,bs=[1,1],nr=[1,1],per=[0,1,2,3],k_v=0,o=1): [ref-buf] PLAIN_HOST=1 copy-buffer="CPU" cpu_buft="CPU" recopy=get/set`
 
-On this unit, the two control runs agree at 338/338, while #50's stock pair disagreed at 388/353. The fix pair differs at 482/360; those runs use different host-library bytes. This is consistent with binary/lib sensitivity of the **index only**, not of NaN presence. Intra-session stability therefore appears unit- or session-dependent; two runs per arm do not establish a law.
+On this unit, the two control runs agree at 338/338, while #50's stock pair disagreed at 388/353. The fix pair differs at 482/360 despite using the SAME fixed lib (`e95fa35e…` in both, per `raw/libs_active.txt:2,4`); what differs is the fix arm vs the control arm (`e95fa35e…` vs `e91fbcef…`), and neither fix index matches the control 338 — consistent with binary/lib sensitivity of the **index only**, not of NaN presence, while intra-arm agreement (338/338 vs 482≠360) varies even within one session. (Sentence corrected per audit — the original wrongly said the fix pair used different bytes from each other.) Two runs per arm do not establish a law.
 
 The NaN diagnostic format also varies. On disk, only R1 carries the embedded `dev-out` form with `buf="HTP0" host=1`; R2, R3, and R4 carry the `PLAIN_HOST=1 copy-buffer="CPU"` form. Both #48 NaN lines carry the latter form. This is a correction to the supplied R1/R2/R4 grouping, and is treated as two judge reporting paths, not a numerical finding.
 

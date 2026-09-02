@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaf Fold Drawer — Kalsa A1 prototype v3</title>
+<style>
+  :root{
+    --shell:#E8EAE7; --panel:#F4F8F3; --panelSolid:#FFFFFF; --line:#D3DAD2;
+    --ink:#17201C; --muted:#58615B; --accent:#1F5F4E; --cyan:#2E6E80;
+    --crease:rgba(23,32,28,.10); --hl:rgba(255,255,255,.8);
+    --paper1:#FAFCFA; --paper2:#E9F1EC; --leafStroke:#1F5F4E; --backdrop:rgba(0,0,0,.45);
+  }
+  .dark{
+    --shell:#07101C; --panel:#0B1727; --panelSolid:#0B1727; --line:rgba(255,255,255,.13);
+    --ink:#f7f3ed; --muted:#a8b0bc; --accent:#f07a3f; --cyan:#88c0d0;
+    --crease:rgba(0,0,0,.4); --hl:rgba(255,255,255,.32);
+    --paper1:#10203A; --paper2:#0B1727; --leafStroke:rgba(136,192,208,.55); --backdrop:rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    background:#101418; color:#e8ecef; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; gap:36px; padding:24px;
+  }
+  .panel{max-width:300px; font-size:13px; line-height:1.5;}
+  .panel h1{font-size:16px; margin-bottom:6px;}
+  .panel .sub{color:#9aa7ae; margin-bottom:16px;}
+  .panel b{color:#cfe3dc;}
+  .row{display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;}
+  button.ctl{background:#1c242b; color:#dfe7ea; border:1px solid #2c3740; border-radius:10px;
+    padding:8px 12px; font-size:12.5px; cursor:pointer;}
+  button.ctl:hover{background:#242e37;}
+  button.ctl.on{background:#1F5F4E; border-color:#2E6E80; color:#fff;}
+  input[type=range]{width:100%; accent-color:#2E6E80;}
+  .lbl{font-size:11px; color:#8d9aa2; text-transform:uppercase; letter-spacing:.08em; margin-top:14px;}
+  .ph{color:#8d9aa2; font-size:12px; margin-top:16px; border-top:1px solid #232c34; padding-top:12px;}
+
+  .phone{width:390px; height:800px; border-radius:44px; background:var(--shell);
+    border:10px solid #05080b; position:relative; overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.6); flex-shrink:0; transition:background .25s;}
+  .statusbar{height:38px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:12px; font-weight:600; color:var(--ink);}
+  .navbar{height:50px; display:flex; align-items:center; padding:0 10px; gap:4px; color:var(--ink);}
+  .iconbtn{width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    cursor:pointer; background:transparent; border:none; color:var(--ink);}
+  .iconbtn:active{background:var(--crease);}
+  .navtitle{font-weight:700; font-size:16px; margin-left:2px;}
+  .spacer{flex:1;}
+  .chat{padding:8px 14px; display:flex; flex-direction:column; gap:10px;}
+  .bub{max-width:78%; padding:10px 13px; border-radius:18px; font-size:13.5px; line-height:1.45;}
+  .bub.user{align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:6px;}
+  .bub.ai{align-self:flex-start; background:var(--panelSolid); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:6px;}
+  .srcs{display:flex; gap:6px; margin-top:8px;}
+  .src{font-size:10.5px; padding:4px 9px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink);}
+  .src i{width:14px; height:14px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-style:normal; color:#fff; margin-right:5px;}
+  .composer{position:absolute; left:0; right:0; bottom:0; padding:8px 12px 26px;}
+  .chips{display:flex; gap:6px; margin-bottom:8px;}
+  .chip{font-size:11.5px; padding:5px 11px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel); color:var(--muted); cursor:pointer; user-select:none;}
+  .chip.on{background:var(--accent); border-color:var(--accent); color:#fff;}
+  .inputbar{display:flex; align-items:center; gap:8px; background:var(--panelSolid);
+    border:1px solid var(--line); border-radius:22px; padding:10px 14px; color:var(--muted); font-size:13.5px;}
+  .send{margin-left:auto; width:30px; height:30px; border-radius:50%; background:var(--accent);
+    display:flex; align-items:center; justify-content:center; color:#fff;}
+
+  #backdrop{position:absolute; inset:0; background:var(--backdrop); opacity:0; pointer-events:none; z-index:5;}
+  /* single continuous leaf surface */
+  #leaf{position:absolute; left:6px; top:70px; width:374px; height:668px; z-index:6;
+    pointer-events:none; opacity:0; transform-origin:24px 8px;}
+  #leafsvg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+  #pleats{position:absolute; inset:0; mix-blend-mode:multiply;
+    background:repeating-linear-gradient(90deg,
+      rgba(23,32,28,0) 0px, rgba(23,32,28,0.11) 21px, rgba(23,32,28,0.11) 22px,
+      rgba(255,255,255,0.9) 25px, rgba(23,32,28,0) 29px, rgba(23,32,28,0) 44px);}
+  .dark #pleats{mix-blend-mode:normal;
+    background:repeating-linear-gradient(90deg,
+      rgba(0,0,0,0) 0px, rgba(0,0,0,0.38) 21px, rgba(0,0,0,0.38) 22px,
+      rgba(255,255,255,0.16) 25px, rgba(0,0,0,0) 29px, rgba(0,0,0,0) 44px);}
+  /* full-width content inside the leaf: dividers only, no decorations */
+  #content{position:absolute; left:74px; right:46px; top:136px; bottom:114px;
+    display:flex; flex-direction:column; gap:4px; color:var(--ink); pointer-events:auto;}
+  .crow{display:flex; align-items:center; gap:8px; padding:2px 2px 10px;}
+  .crow .brand{font-weight:800; font-size:21px;}
+  .crow .spacer{flex:1;}
+  .persona{display:flex; align-items:center; gap:7px; padding:6px 11px; border:1px solid var(--line);
+    border-radius:999px; background:var(--panel);}
+  .persona .dot{width:15px; height:15px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--cyan));}
+  .persona .n{font-size:11px; font-weight:600;}
+  .searchrow{display:flex; align-items:center; gap:8px; border:1px solid var(--line);
+    border-radius:13px; padding:9px 12px; color:var(--muted); font-size:13px; background:var(--panel); margin-bottom:10px;}
+  .divider{height:1px; background:var(--line); flex-shrink:0;}
+  .convs{flex:1; overflow:hidden; display:flex; flex-direction:column; padding:6px 0 10px;}
+  .conv{padding:7px 10px; border-radius:13px; margin:1px 0;}
+  .conv.active{background:var(--panel); outline:1px solid var(--line);}
+  .conv .t{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .conv .p{font-size:11px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
+  .dsec{font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); margin:8px 2px 8px;}
+  .tools{display:grid; grid-template-columns:1fr 1fr; gap:8px;}
+  .tool{display:flex; align-items:center; gap:10px; padding:13px 12px;
+    border-radius:14px; font-size:13px; font-weight:600; background:var(--panel); border:1px solid var(--line);}
+  .ic{width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  .hint{position:absolute; bottom:14px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted); z-index:4; transition:opacity .3s;}
+</style>
+</head>
+<body>
+  <div class="panel">
+    <h1>🍃 Leaf Fold Drawer — v3</h1>
+    <div class="sub">Origami autentico (poplar fold: kite → fold-in-half → pleats). Foglia grande, zero vene, solo separatori di sezione. Impostazioni chiare.</div>
+    <div class="row">
+      <button class="ctl" id="bOpen">▶ Open</button>
+      <button class="ctl" id="bClose">◀ Close</button>
+    </div>
+    <div class="lbl">Scrub the morph</div>
+    <input type="range" id="scrub" min="0" max="1000" value="0">
+    <div class="lbl">Theme</div>
+    <div class="row">
+      <button class="ctl on" id="tLight">Light</button>
+      <button class="ctl" id="tDark">Dark</button>
+    </div>
+    <div class="lbl">Leaf style</div>
+    <div class="row">
+      <button class="ctl on" id="sPaper">Paper leaf</button>
+      <button class="ctl" id="sBrand">Brand leaf</button>
+    </div>
+    <div class="lbl">Motion</div>
+    <div class="row">
+      <button class="ctl on" id="mFull">Full morph</button>
+      <button class="ctl" id="mReduced">Reduced (a11y)</button>
+    </div>
+    <div class="ph"><b>Sequenza (da origami poplar leaf):</b> ① fisarmonica compressa al trigger (pleghe verticali) → ② si apre il foglio (fold-in-half che si srotola, scaleX dal gambo) → ③ la silhouette diventa la foglia (mesh 9 stazioni simmetrica, punta in basso) mentre le pleghe si spengono → ④ contenuto full-width dentro la foglia con soli divider di sezione. Nessuna vena decorativa.</div>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+    <div class="navbar">
+      <button class="iconbtn" id="menuBtn" aria-label="Menu">
+        <svg viewBox="0 0 24 24" width="21" height="21" stroke="currentColor" fill="none" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 13h16"/></svg>
+      </button>
+      <div class="navtitle">Kalsa</div><div class="spacer"></div>
+      <button class="iconbtn"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+    </div>
+    <div class="chat">
+      <div class="bub user">How should I feed the sourdough starter tonight?</div>
+      <div class="bub ai">Feed it 1:1:1 — 50g flour, 50g water, 50g starter. Keep it at 24–26°C and it should double in 5–6h.
+        <div class="srcs">
+          <span class="src"><i style="background:#0369A1">1</i>seriouseats · via tavily</span>
+          <span class="src"><i style="background:#6D28D9">2</i>thefreshloaf · via exa</span>
+        </div>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="chips">
+        <span class="chip">🌐 Web research</span>
+        <span class="chip">📄 Docs</span>
+        <span class="chip">🗒 Notes</span>
+      </div>
+      <div class="inputbar">Message…<div class="spacer"></div>
+        <div class="send"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-2z"/></svg></div>
+      </div>
+    </div>
+
+    <div id="backdrop"></div>
+    <div id="leaf">
+      <svg id="leafsvg">
+        <defs>
+          <linearGradient id="gPaper" x1="0" y1="0" x2="0.55" y2="1">
+            <stop offset="0" class="sp1"/><stop offset="1" class="sp2"/>
+          </linearGradient>
+          <linearGradient id="gBody" x1="0" y1="0" x2="0.55" y2="1">
+            <stop offset="0" class="sb1"/><stop offset="1" class="sb2"/>
+          </linearGradient>
+        </defs>
+        <path id="stemPath" d="M 24 6 C 60 14, 130 34, 187 72" fill="none"/>
+        <path id="leafFill" d="" fill="url(#gPaper)"/>
+        <path id="leafEdge" d="" fill="none"/>
+      </svg>
+      <div id="pleats"></div>
+      <div id="content">
+        <div class="crow">
+          <span class="brand">Kalsa</span>
+          <div class="spacer"></div>
+          <div class="persona"><div class="dot"></div><span class="n">Persona: Default</span>
+            <svg class="ic" viewBox="0 0 24 24" style="width:12px;height:12px"><path d="m9 6 6 6-6 6"/></svg>
+          </div>
+        </div>
+        <div class="searchrow"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search chats</div>
+        <div class="convs">
+          <div class="conv active"><div class="t">Sourdough schedule</div><div class="p">Feed 1:1:1, keep at 24–26°C…</div></div>
+          <div class="conv"><div class="t">Bike route Sunday</div><div class="p">Ghisallo loop, 68km, 1'240m…</div></div>
+          <div class="conv"><div class="t">kalsa-moe-experiments</div><div class="p">cell #49 PREREG final…</div></div>
+        </div>
+        <div class="divider"></div>
+        <div class="dsec">Strumenti</div>
+        <div class="tools">
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>Settings</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Documents</div>
+          <div class="tool"><svg class="ic" viewBox="0 0 24 24"><path d="M15 4h4v4M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>Notes</div>
+        </div>
+      </div>
+    </div>
+    <div class="hint" id="hint">tap ☰ to unfold the leaf</div>
+  </div>
+
+<script>
+"use strict";
+/* ── geometry v3: big symmetric leaf, tip DOWN, 9-station mesh rect(=folded almond)↔leaf ── */
+/* stage: 374×668, midrib at x=187; stem from icon (24,6) */
+const RECT = [[187,72],[246,102],[262,240],[236,420],[187,648],[138,420],[112,102],[128,102],[187,72]];
+const LEAF = [[187,70],[330,116],[372,262],[348,468],[236,606],[187,668],[138,606],[26,468],[-56,262]];
+/* mirror stations (8→ must equal 0's mirror) */
+const LEAF_FIXED = [[187,70],[330,116],[372,262],[345,470],[236,606],[187,668],[138,606],[29,470],[187,70]];
+const RECT_FIXED = [[187,72],[248,104],[266,262],[238,432],[187,652],[136,432],[108,262],[126,104],[187,72]];
+const BULGE_LEAF = [34,44,26,16,10,16,26,44];
+
+function buildPath(st, bulge){
+  const pts=[st[0]];
+  for(let i=0;i<8;i++){
+    const a=st[i], b=st[i+1];
+    const dx=b[0]-a[0], dy=b[1]-a[1], len=Math.hypot(dx,dy)||1;
+    const k=(bulge&&bulge[i])||0;
+    const nx=(dy/len)*k, ny=(-dx/len)*k;
+    pts.push([a[0]+dx/3+nx, a[1]+dy/3+ny],[a[0]+2*dx/3+nx, a[1]+2*dy/3+ny],[b[0], b[1]]);
+  }
+  return pts;
+}
+const P_RECT=buildPath(RECT_FIXED,null);
+const P_LEAF=buildPath(LEAF_FIXED,BULGE_LEAF);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*(3-2*t);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const mix=(A,B,t)=>A.map((pt,i)=>[lerp(pt[0],B[i][0],t), lerp(pt[1],B[i][1],t)]);
+function toD(pts){
+  let d="M "+pts[0][0].toFixed(2)+" "+pts[0][1].toFixed(2);
+  for(let s=0;s<8;s++){
+    const c1=pts[1+s*3], c2=pts[2+s*3], q=pts[3+s*3];
+    d+=" C "+c1[0].toFixed(2)+" "+c1[1].toFixed(2)+", "+c2[0].toFixed(2)+" "+c2[1].toFixed(2)+", "+q[0].toFixed(2)+" "+q[1].toFixed(2);
+  }
+  return d+" Z";
+}
+
+const $=id=>document.getElementById(id);
+const phone=$("phone"), backdrop=$("backdrop"), leaf=$("leaf"),
+      leafFill=$("leafFill"), leafEdge=$("leafEdge"), stemPath=$("stemPath"),
+      pleats=$("pleats"), content=$("content"), hint=$("hint"), scrub=$("scrub");
+
+let pRaw=0, vel=0, anim=null, reduced=false, styleLeaf="paper";
+const pv=()=>clamp(pRaw,0,1);
+
+function applyStyle(){
+  const cs=getComputedStyle(phone), dark=phone.classList.contains("dark");
+  if(styleLeaf==="paper"){
+    document.querySelector(".sp1").setAttribute("stop-color", cs.getPropertyValue("--paper1").trim());
+    document.querySelector(".sp2").setAttribute("stop-color", cs.getPropertyValue("--paper2").trim());
+    leafFill.setAttribute("fill","url(#gPaper)");
+    leafEdge.setAttribute("stroke", cs.getPropertyValue("--leafStroke").trim());
+    leafEdge.setAttribute("stroke-width","2.2");
+    stemPath.setAttribute("stroke", cs.getPropertyValue("--leafStroke").trim());
+  }else{
+    document.querySelector(".sb1").setAttribute("stop-color", dark ? "#1E4D3C" : "#2A6B58");
+    document.querySelector(".sb2").setAttribute("stop-color", dark ? "#0F2A22" : "#16402F");
+    leafFill.setAttribute("fill","url(#gBody)");
+    leafEdge.setAttribute("stroke", dark ? "rgba(136,192,208,.6)" : "#2E6E80");
+    leafEdge.setAttribute("stroke-width","2.4");
+    stemPath.setAttribute("stroke", dark ? "rgba(136,192,208,.6)" : "#2E6E80");
+  }
+  stemPath.setAttribute("stroke-width","3");
+  stemPath.setAttribute("stroke-linecap","round");
+}
+
+function render(){
+  const v=pv();
+  backdrop.style.opacity=v.toFixed(3);
+  backdrop.style.pointerEvents = v>0.02 ? "auto":"none";
+
+  leaf.style.display = pRaw<=0.004 ? "none":"block";
+  leaf.style.opacity = clamp(v/0.08,0,1).toFixed(3);
+
+  // ② the folded sheet rolls open from the stem (scaleX) — the origami legibility
+  const sx = reduced ? 1 : lerp(0.12,1,clamp(pRaw/0.42,0,1));
+  leaf.style.transform="scaleX("+sx.toFixed(4)+")";
+
+  // ① vertical accordion pleats: strong while compressed, gone by ~0.75
+  const po = reduced ? 0 : (1-smooth(clamp((v-0.45)/0.30,0,1)));
+  pleats.style.opacity=(po*0.9).toFixed(3);
+
+  // ③ silhouette morph: folded almond → big leaf
+  const u = reduced ? 1 : smooth(clamp((v-0.40)/0.60,0,1));
+  const d = toD(mix(P_RECT,P_LEAF,u));
+  leaf.style.clipPath="path('"+d+"')";
+  leafFill.setAttribute("d",d);
+  leafEdge.setAttribute("d",d);
+
+  // stem fades in early
+  const sw = clamp(v/0.22,0,1);
+  stemPath.style.opacity=sw.toFixed(3);
+  stemPath.setAttribute("stroke-dasharray","260");
+  stemPath.setAttribute("stroke-dashoffset",((1-sw)*260).toFixed(1));
+
+  // ④ content full-width inside leaf
+  const cOp = clamp((v-0.70)/0.22,0,1);
+  content.style.opacity=cOp.toFixed(3);
+  content.style.transform="translateY("+((1-cOp)*12).toFixed(2)+"px)";
+  hint.style.opacity = v>0.5 ? 0 : 1;
+  scrub.value=Math.round(pRaw*1000);
+}
+
+function cancelAnim(){ anim=null; vel=0; }
+function springTo(target){
+  cancelAnim();
+  const k=120, c=18, m=0.8; let t=performance.now();
+  anim=now=>{
+    const dt=Math.min(0.032,(now-t)/1000); t=now;
+    const a=(k*(target-pRaw)-c*vel)/m;
+    vel+=a*dt; pRaw+=vel*dt;
+    if(pRaw<0){pRaw=0;vel=0;} if(pRaw>1.06){pRaw=1.06;vel=0;}
+    render();
+    if((target===1&&pRaw>=1&&vel>=0)||(target===0&&pRaw<=0&&vel<=0)){ pRaw=target; anim=null; }
+  };
+}
+function timingTo(target){
+  cancelAnim();
+  const dur=280, from=pRaw, t0=performance.now();
+  anim=now=>{
+    const x=clamp((now-t0)/dur,0,1);
+    const e = x<0.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;
+    pRaw=lerp(from,target,e); render();
+    if(x>=1) anim=null;
+  };
+}
+function loop(now){ if(anim) anim(now); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+function openDrawer(){ if(pRaw>0.5) return; reduced ? timingTo(1) : springTo(1); }
+function closeDrawer(){ timingTo(0); }
+
+$("menuBtn").addEventListener("click", ()=> pRaw>0.5 ? closeDrawer() : openDrawer());
+backdrop.addEventListener("click", closeDrawer);
+$("bOpen").onclick=openDrawer;
+$("bClose").onclick=closeDrawer;
+scrub.addEventListener("input", e=>{ cancelAnim(); pRaw=+e.target.value/1000; render(); });
+$("tLight").onclick=()=>{ phone.classList.remove("dark"); $("tLight").classList.add("on"); $("tDark").classList.remove("on"); applyStyle(); render(); };
+$("tDark").onclick =()=>{ phone.classList.add("dark");    $("tDark").classList.add("on");  $("tLight").classList.remove("on"); applyStyle(); render(); };
+$("sPaper").onclick=()=>{ styleLeaf="paper"; $("sPaper").classList.add("on"); $("sBrand").classList.remove("on"); applyStyle(); render(); };
+$("sBrand").onclick=()=>{ styleLeaf="brand"; $("sBrand").classList.add("on"); $("sPaper").classList.remove("on"); applyStyle(); render(); };
+$("mFull").onclick   =()=>{ reduced=false;  $("mFull").classList.add("on");    $("mReduced").classList.remove("on"); };
+$("mReduced").onclick=()=>{ reduced=true;   $("mReduced").classList.add("on"); $("mFull").classList.remove("on"); };
+document.querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>ch.classList.toggle("on")));
+
+applyStyle(); render();
+</script>
+</body>
+</html>
