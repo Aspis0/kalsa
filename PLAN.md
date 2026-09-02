@@ -221,6 +221,25 @@
 > dense speed measured. ALIVE riga 29. Evidence
 > `scratchpad/agents/qdc-8elite-npu-v79-d-rest/`.
 >
+> **1/09 notte — #46 + #47 BANCATE: SESSION 1 D CHIUDE SULLA CORRETTEZZA.** La NPU v79
+> calcola giusto contro la CPU. **#46** (`qdc-8elite-npu-v79-judge`, job 796233, ~33 min,
+> REPORT Luna + audit ostile Fable APPLY): kit `93e9592fa` col giudice riparato (port q32
+> `GGML_TEST_PLAIN_HOST=1` + propagazione errore DSP → `GGML_STATUS_FAILED` +
+> `llama-perplexity`; audit mimo APPLY×2). Giudice ON: `judge_nonfinite=0`,
+> `recopy_lines=executed`; **MUL_MAT_ID 301/301 PASS** (era 0/301 tutto veleno in
+> #43/#45). Controllo (giudice OFF): 301 CPU-nonfinite dal raw diretto → il veleno è vero
+> e la riparazione è vera (il census frozen lo sotto-conta a 60, bug header-glue in
+> `FINDINGS-reviewer.md`; il raw soddisfa la condizione 301). MUL_MAT 37 FAIL = **36
+> errori DSP INTERNAL-ERROR** (propagazione kit 36:36, `test-backend-ops.cpp:1850` forza
+> il FAIL) **+ 1 vero NaN numerico** (`q4_0 m=2880`, HTP0=nan vs CPU=−12.34). PPL misurate
+> ma VOID (avevo tolto il `-v`). **#47** (`qdc-8elite-npu-v79-ppl-v`, job 796297, ~11 min,
+> REPORT Fable + audit ostile mimo APPLY): stesso kit, PPL HTP-vs-CPU 32 chunk CON `-v`.
+> **Ship 40.2720/40.2837 = r −0.029 % PASS** (10648 execute-op MUL_MAT); **OLMoE
+> 9.0620/9.0562 = r +0.064 % PASS** (3024 execute-op MUL_MAT_ID = 1008×3 su ffn esperti).
+> Cross-check: PPL con `-v` identiche a #46; CPU riusate. Lista difetti 36 DSP + 1 NaN
+> aperta come hardening. ALIVE righe 30-31. Login/wizard/Connect/End QDC fatti
+> dall'orchestratore dal browser Paseo (senza 2FA). Quota ~646 min.
+>
 > **1/09 sera — Lenovo RECUPERATO (ops, non cella).** Il PC era in Modern Standby
 > (rientrava in <1 min da ogni risveglio; nessuna contromisura software teneva);
 > riavvio autorizzato dall'owner in chat con BitLocker TPM-only verificato,
