@@ -1,0 +1,6 @@
+bfa6e854edd6dfd4d0b26cabbe7ea6185b553474bf912c0efa6bd284c0f17878  npu-kit-50.tgz
+# kit v5 key components (host-side, pre-push)
+37131e079e14a09c0cfe22637ab2a614e67862924e6e106351bc6f0e864c6044  lib/libggml-htp-v79.so (CERTIFIED stock, same as banks #43-#49)
+398879cc6c7e02b5b9d943d0f64c453a446150b4c0c2000edc41d8c2b830ca5b  lib-zeropad/libggml-htp-v79.so (HTP_ZERO_TILE_PAD diagnostic)
+5cf3565b20b6c23bab757183c5a61c276727f216c3ece30fce211bdc1bbed5e8  bin/test-backend-ops-153f (the #48 reproduction binary, = kit-v3 bin/test-backend-ops; ALL #50 runs use this)
+06297299f3216c1f6b1028d7e93dc672f04b983c9055e2c67692f15d06268dd9  bin/test-backend-ops (ca82efa8b; present in kit, NOT used by #50)
