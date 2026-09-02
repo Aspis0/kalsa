@@ -24,15 +24,20 @@ METHOD-VOID that arm; corpus mismatch voids all); flags `-c 2048 -b 2048 -ub 102
 --chunks 32 -t 8` (no `--load-mode`: absent in this binary, `#46 raw/perplexity_help.txt`);
 PASS ≤ 2 % / GREY 2–5 % / FAIL > 5 % or NaN; structural-VOID before the first per-chunk
 line; precedence of a non-zero exit after the first chunk (FAIL) over the n ≥ 8 fallback;
-"what this cell cannot say" list. Session name `npu-v79-ppl-v-47`, cap **20 min**.
+"what this cell cannot say" list. Session name `npu-v79-ppl-v-47`, cap **25 min** (launch-stop 20 min in the driver).
 
 ## What changes (the whole delta)
 
 1. HTP invocations add **`-v`** (`--verbose`, `raw/perplexity_help.txt:200` of #46):
    `GGML_HEXAGON_VERBOSE=1 llama-perplexity -m <model> -f wiki.test.raw --device HTP0
-   -ngl 99 -c 2048 -b 2048 -ub 1024 -fa on --chunks 32 -t 8 -v`, stdout+stderr in one log,
-   tee'd on device and pulled. Expected log size: large (per-op lines for 65 536 tokens ×
-   layers); the driver keeps it whole — no `tail`, no filtering on device.
+   -ngl 99 -c 2048 -b 2048 -ub 1024 -fa on --chunks 32 -t 8 -v`. A full `-v` log is
+   1–2 GB for 65 536 tokens × per-op lines; the device already holds 5.5 GB of models, so
+   the run is piped through a **line-buffered on-device `grep`** that keeps only the
+   witness lines (execute-op, per-chunk `[n]`, `Final estimate`, `EXIT=`, offload/assign/
+   buffer-size/n_gpu_layers/load_tensors/KV lines, and every crash signature
+   `qurt_exit|dspqueue_* failed|CDSP0 CRASHED|INTERNAL-ERROR|abort|GGML_ASSERT`). The
+   filtered file (a few MB) is the authoritative capture; the raw multi-GB stream is
+   discarded on device. Line-buffering guarantees the trailing `EXIT=` is not lost.
 2. **Execute-op proof** (binding, as in #46): ship arm ≥ 1 `HTP0 execute-op MUL_MAT`
    line; OLMoE arm ≥ 1 `HTP0 execute-op MUL_MAT_ID` line on `ffn_*_exps`. Proof absent
    → METHOD-VOID that arm (again). Additionally report the offload split (which ops/layers
@@ -52,7 +57,7 @@ line; precedence of a non-zero exit after the first chunk (FAIL) over the n ≥ 
 5. Drop order: kit → ship HTP → OLMoE HTP. No ops arms, no Qwen. Budget: kit 5 s, ship
    upload ~80 s, ship HTP ~80 s + `-v` I/O overhead (unknown; assume ≤ 2×), OLMoE upload
    ~200 s, OLMoE HTP ~80 s (+ same overhead), gates + shas ~1.5 min → ≈ 10–13 min;
-   cap 20 min.
+   cap 25 min (launch-stop 20 min = driver over() 1200 s).
 
 ## Decision rule (pre-written)
 
@@ -72,7 +77,7 @@ about CPU-arm reproducibility (not re-measured — declared, item 3).
 
 ## Outputs
 
-`raw/` (both HTP logs whole, device tee copies, gates, shas, kit verify, list_devices,
+`raw/` (both filtered HTP logs, device copies, gates, shas, kit verify, list_devices,
 events.txt, running.txt), `REPORT.md`, `AUDIT.md` (different model), then PLAN STATO +
 ALIVE row + PLAN-10DAYS in the SAME commit as the bank, banked together with #46.
 

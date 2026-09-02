@@ -1,7 +1,7 @@
 #!/bin/sh
 # Cell #47 (qdc-8elite-npu-v79-ppl-v). Call AFTER adb sees the QDC device on 6037.
 # DROP ORDER: kit -> ship HTP (-v) -> OLMoE HTP (-v). No CPU twins (reused from #46 by prereg).
-# No new invocation at >= 16 min elapsed (cap 20). CRASH ends the cell (only HTP arms here).
+# No new invocation at >= 20 min elapsed (over 1200s); QDC cap 25 min. CRASH ends the cell (only HTP arms here).
 set -eu
 export ANDROID_ADB_SERVER_PORT=6037
 DIR="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8elite-npu-v79-ppl-v"
@@ -21,7 +21,10 @@ T0=$(date +%s)
 mkdir -p "$RAW"
 
 elapsed() { echo $(($(date +%s) - T0)); }
-over() { [ "$(elapsed)" -ge 960 ]; }
+over() { [ "$(elapsed)" -ge 1200 ]; }   # launch-stop 20 min; QDC cap 25 min (prereg)
+# lines worth keeping from a -v perplexity run (proof + offload split + result), so the
+# on-device log stays a few MB instead of 1-2 GB (device already holds 5.5 GB of models)
+KEEP='execute-op|Final estimate|^\[[0-9]+\]|EXIT=|offloaded|assigned to|buffer size|n_gpu_layers|load_tensors|llama_kv|KV self|Hexagon Arch|HTP0|qurt_exit|dspqueue_(read|write) failed|CDSP0 CRASHED|INTERNAL-ERROR|error|abort|GGML_ASSERT'
 crashed() { grep -Eiq 'qurt_exit|dspqueue_(read|write) failed|CDSP0 CRASHED' "$1"; }
 note() { echo "[$(date +%H:%M:%S) e=$(elapsed)] $*" | tee -a "$RAW/events.txt"; }
 dpush() { adb -s "$SER" push "$1" "$2" > "$RAW/push_$(basename "$2").log" 2>&1 || { note "PUSH_FAIL $2"; exit 6; }; }
@@ -69,17 +72,18 @@ push_model() {
   [ "$DEV_SHA" = "$2" ]
 }
 
-# HTP-only PPL with -v; log kept whole, tee'd on device and pulled
 run_ppl_htp() {
   tag=$1; mdl=$2
   if over; then note "SKIP_$tag over"; return 0; fi
   gate_pre "$tag" || return 0
-  CMD="export GGML_HEXAGON_VERBOSE=1 && ./bin/llama-perplexity -m $mdl -f wiki.test.raw --device $BDEV -ngl 99 $PPL_FLAGS"
-  adb -s "$SER" shell "cd $DEVDIR && $HTP_ENV && ( $CMD; echo EXIT=\$? ) 2>&1 | tee $DEVDIR/ppl_$tag.dev.txt" \
-    > "$RAW/ppl_$tag.txt" 2>&1 || true
+  # -v log is filtered ON DEVICE to the witness lines; the full stream is discarded there
+  # (device-space safe). grep is line-buffered so the pipe cannot lose the trailing EXIT.
+  CMD="export GGML_HEXAGON_VERBOSE=1 && ( ./bin/llama-perplexity -m $mdl -f wiki.test.raw --device $BDEV -ngl 99 $PPL_FLAGS; echo EXIT=\$? ) 2>&1 | grep -E --line-buffered '$KEEP' > $DEVDIR/ppl_$tag.dev.txt"
+  adb -s "$SER" shell "cd $DEVDIR && $HTP_ENV && $CMD" > "$RAW/ppl_$tag.txt" 2>&1 || true
   echo $? > "$RAW/ppl_$tag.adb.exit"
   gate_post "$tag"
   adb -s "$SER" pull "$DEVDIR/ppl_$tag.dev.txt" "$RAW/ppl_$tag.dev.txt" > /dev/null 2>&1 || true
+  cp "$RAW/ppl_$tag.dev.txt" "$RAW/ppl_$tag.txt" 2>/dev/null || true
   { grep -E 'Final estimate|EXIT=' "$RAW/ppl_$tag.txt"; echo "execute-op MUL_MAT: $(grep -c 'execute-op MUL_MAT[^_]' "$RAW/ppl_$tag.txt") MUL_MAT_ID: $(grep -c 'execute-op MUL_MAT_ID' "$RAW/ppl_$tag.txt")"; } | sed "s/^/$tag: /" | tee -a "$RAW/ppl_summary.txt"
   if crashed "$RAW/ppl_$tag.txt"; then note "CRASH_$tag (cell ends)"; exit 8; fi
 }
