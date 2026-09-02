@@ -81,5 +81,5 @@ run_ops mm_r1 MUL_MAT "$EXTRA"
 run_ops mm_r2 MUL_MAT "$EXTRA"
 run_ops mmid_r3 MUL_MAT_ID ""
 
-note "DONE"
-echo "DONE elapsed=$(elapsed)" | tee "$RAW/done.txt"
+note "DONE npu_dead=$NPU_DEAD"
+echo "DONE elapsed=$(elapsed) npu_dead=$NPU_DEAD" | tee "$RAW/done.txt"
