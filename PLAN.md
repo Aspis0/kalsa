@@ -291,8 +291,20 @@
 > TUTTE %32-allineate → fix inerte su ship/OLMoE. Bozza cella **#48 rev-1**
 > (`qdc-8elite-npu-v79-fixA-48/PREREG-DRAFT.md`, ~12 min): verifica fix
 > (36→0 INTERNAL-ERROR, FAIL 37→1) + discriminazione B (determinismo ×3, k=1024,
-> q8_0, n=64) — **da mostrare all'owner prima di accodare**. Audit ostile del
-> desk rev-2 (GLM Reviewer Math) in coda. Nessuna sessione QDC creata.
+> q8_0, n=64) — **da mostrare all'owner prima di accodare**. **AUDIT-2 (GLM)
+> arrivato: FIX tutto-MINOR, il nucleo regge alla ri-derivazione indipendente**
+> (F1 riconfermata per eliminazione; 3 siti DSP `n%32`; k già coperto; no
+> regression). Sette MINOR applicati: due miei (retraction note in ARBITRATION +
+> ERRATUM-2 su #43: lì m=576 fallì DAVVERO col giudice avvelenato `:1365`
+> `CPU=nan`, i "36" di #43 e #46 sono insiemi diversi) e cinque di grok (rev-3:
+> pin kit → tip `153fdbafd`, `:1826` è di q4_1 non q4_0, path F12 espliciti,
+> secondo caller `is_mergeable_mul_mat :3488` documentato + clausola morta,
+> classe B terzo candidato VTCM layout undercount non escluso). In più
+> **`GGML_TEST_EXTRA_MM` aggiunto** a test-backend-ops (Luna `153fdbafd`, smoke
+> A/B/C verdi su build CPU macOS, audit mimo APPLY zero difetti): shape probe a
+> runtime per la #48. Branch `kalsa/npu-judge-v79` = `93e9592fa → 736ddd206 →
+> 153fdbafd`, ogni commit col suo audit. DESK CHIUSO. Nessuna sessione QDC
+> creata; prossimi: build Docker kit dal tip + ok owner sulla #48.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;

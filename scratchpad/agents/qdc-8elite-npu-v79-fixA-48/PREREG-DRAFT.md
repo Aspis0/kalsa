@@ -19,9 +19,11 @@ the bracket arm is deleted; m=576 stays as a single aligned control.
 2. **A-fix regresses nothing**: aligned shapes (incl. `q4_0 m=576,n=512,k=576`,
    OK today at raw `:1803`) still pass; #47's real-model HMX shapes are all
    %32-aligned (FIXNOTES F12) so the fix is inert on ship/OLMoE.
-3. **Class B (single NaN, q4_0 m=2880,n=32,k=2880)**: neither theory is
-   established (fp16 overflow disfavored; scale-pad theory's q8_0 discriminator
-   was based on wrong arithmetic — q8_0 has the same 64-valid+64-pad structure).
+3. **Class B (single NaN, q4_0 m=2880,n=32,k=2880)**: no theory is established.
+   Three candidates survive the desk (REPORT rev-3 §Class B): fp16 accumulation
+   (disfavored), scale-pad load (q8_0 shares the 64-valid+64-pad structure, so
+   it doesn't discriminate as first stated), and VTCM layout undercount (silent
+   corruption, no INTERNAL-ERROR — not excluded by current evidence).
    Discriminate empirically.
 
 ## Kit

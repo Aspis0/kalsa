@@ -1,4 +1,4 @@
-# v79 NPU defect desk — classes A and B (cell #46) — rev-2
+# v79 NPU defect desk — classes A and B (cell #46) — rev-3
 
 Pin: `kalsallama` `kalsa/npu-judge-v79` @ `93e9592fa`. Device: none (code + #46 raw).
 Evidence: `qdc-8elite-npu-v79-judge/raw/ops_mm_ph1.txt` (ANSI stripped). Host `ggml-hexagon.cpp`; DSP `htp/matmul-ops.c` + `htp/hmx-mm-kernels-tiled.h`.
@@ -35,7 +35,7 @@ Do **not** read the HVX skip as "test-n ≤ 4 → HVX" or "test-m ≤ 4 → HVX"
 
 - `m=16 n=4 k=256`: host m = 4 ≤ 4 → HMX skipped → HVX → OK (`:97/:105`).
 - `m=16 n=5 k=256`: host m = 5 > 4 → HMX; DSP n = test-m = 16, 16%32≠0 → fail (`:106`).
-- `m=1 n=64 k=256`: host m = src1->ne[1] = **64 > 4 → HMX selected, not skipped**. DSP n = src0->ne[1] = test-m = 1, 1%32≠0 → fail (q4_0 header `:1819`, INTERNAL-ERROR `:1826`, `graph_compute failed` `:1827`). Same for q4_1 (`:1829` FAIL on the header), q8_0 (`:1840`), mxfp4 (`:1851`), iq4_nl (`:1874`).
+- `m=1 n=64 k=256`: host m = src1->ne[1] = **64 > 4 → HMX selected, not skipped**. DSP n = src0->ne[1] = test-m = 1, 1%32≠0 → fail. type+blocks: q4_0 ref-buf `:1812-1813` (`type=q4_0`, `blocks=8` = 1·256/32) → INTERNAL-ERROR `:1816` (header `:1819`); q4_1 ref-buf `:1822-1823` (`type=q4_1`, `blocks=8`) → INTERNAL-ERROR `:1826` (header+FAIL `:1829`). Same family q8_0 (`:1840`), mxfp4 (`:1851`), iq4_nl (`:1874`).
 
 `supports_op` (`:2812-2881`) refuses only `src0->ne[0] % 32` (`:2830-2831`) and `src0->ne[1] > 32768` (`:2835-2836`). It does **not** refuse `src0->ne[1] % 32`. Then it calls the same precompute, so these shapes are admitted and dispatched to HMX.
 
@@ -55,7 +55,9 @@ This is the old “contratto host/DSP rotto su m%32” (`ops/memory-backup-2026-
 
 **No-regression for the host fix.** Any currently-passing HMX shape already satisfies the DSP's `src0->ne[1] % 32 == 0` check (`matmul-ops.c:2327/2596/2841`). Tightening the host gate from `ne01_padded % 32` to logical `src0->ne[1] % 32` therefore cannot regress a passing shape: a passing HMX op never had unaligned logical N.
 
-**F12 (real-model shapes).** #47 execute-op lines **do** record tensor dims (`k:m x k:n`). All HMX `MUL_MAT` `src0->ne[1]` in both ppl logs are %32-aligned (0 unaligned). Cite: ship `ppl_ship_htp.dev.txt:26872` `2048:6144 x 2048:1024` (6144%32=0, `hmx-tiled`); OLMoE `ppl_olmoe_htp.dev.txt:20398` `2048:2048 x 2048:1024` (2048%32=0, `hmx-tiled`). Unique HMX src0 ne1: ship {512,2048,6144,10752}; olmoe {64,1024,2048}. Host fix is inert on these models.
+**Op-merge surface (second caller).** `ggml_hexagon_matmul_is_hmx_eligible` is also consulted via `mm_is_hmx_eligible` (`ggml-hexagon.cpp:3469-3482`) from `is_mergeable_mul_mat` (`:3488`: `return ggml_is_quantized(t->src[0]->type) && !mm_is_hmx_eligible(t);`). Unaligned-N quantized MUL_MAT pairs flip from "HMX-eligible, not merged" to mergeable; merged ops take the non-HMX HVX path. Safe: those shapes were already failing on DSP; the merged-op path is now consistently HVX. Aligned-N merge decisions unchanged (`:2172` OR; `ne01_padded` computed identically at `:2579` and `:3480`). The `ne01_padded % 32 != 0` clause is now dead by construction (repack: `hex_round_up(ne01, 32)` always %32==0; F16/F32: `ne01_padded = ne01`, so implied by the logical clause) — kept deliberately so the parameter stays used.
+
+**F12 (real-model shapes).** #47 execute-op lines **do** record tensor dims (`k:m x k:n`). Full logs are `scratchpad/agents/qdc-8elite-npu-v79-ppl-v/raw/` (the copies in `qdc-8elite-npu-v79-judge/raw/` are 12-line stubs). All HMX `MUL_MAT` `src0->ne[1]` in both ppl logs are %32-aligned (0 unaligned). Cite: ship `qdc-8elite-npu-v79-ppl-v/raw/ppl_ship_htp.dev.txt:26872` `2048:6144 x 2048:1024` (6144%32=0, `hmx-tiled`); OLMoE `qdc-8elite-npu-v79-ppl-v/raw/ppl_olmoe_htp.dev.txt:20398` `2048:2048 x 2048:1024` (2048%32=0, `hmx-tiled`). Unique HMX src0 ne1: ship {512,2048,6144,10752}; olmoe {64,1024,2048}. Host fix is inert on these models.
 
 **Verdict A: (b)** fixable host/DSP tiling contract, not a capability hole and not firmware-opaque. HMX hardware does need `n % 32 == 0`, but the tiled buffer already has that padding; the DSP just does not use it. HVX already computes the same types when host m ≤ 4. Do **not** `supports_op`-refuse the op (that would drop working HVX). Fix (host side implemented in this rev; DSP sketch not implemented):
 
@@ -83,7 +85,7 @@ Index 305 = ggml `i0=305, i1=0` = HMX `(row=0, col=305)` = col-tile 9, local col
 1. **fp16 accumulation** (`hmx-mm-kernels-tiled.h:655-671`): long path keeps `.hf` acc across 90 tiles. **Disfavored:** the report's own bound (coherent sum ≤2880 ≪ 65504) plus q8_0 passing the same path. Worst-case same-sign 90×8192 overflow is astronomically unlikely under uniform[-1,1]. Discriminator on device: `k=1024` (short path).
 2. **scale-pad load**: 128 B `hvx_vmem` over 64 B valid + 64 B uninit pad. **Undermined:** q8_0 has the identical 64-valid+64-pad structure yet PASSES, so "q4_0 reads pad, q8_0 doesn't" is arithmetically false (AUDIT.md F8: "all within the 1088-byte tile" is wrong). Open HVX question — settle **on device, not by argument**: does `Q6_V_lo_W(Q6_W_vshuff_VVR(v_sc, v_sc, -2))` (`:49` q4_0, `:443` q8_0) consume only the low 64 B (valid scales)? If yes, pad never influences either quant and this theory dies. mxfp4 clamp (`:340-345`) is real regardless. Discriminators: pad-zero after DMA; repeat B1 N times (uninit-pad predicts flakiness).
 
-Not: k-tail skip (k%32==0), VTCM overrun (would be `:2369-2372` → INTERNAL-ERROR, and q8_0 would die), whole-row NaN activation (first index would be 0).
+Not: k-tail skip (k%32==0), VTCM **over-budget** (would be `:2369-2372` → INTERNAL-ERROR, and q8_0 would die), whole-row NaN activation (first index would be 0). A VTCM **layout undercount** (builder underestimates; `:2369` check passes; DMA/write silently corrupts) is **not** excluded by current evidence — it would yield a numeric NaN with no INTERNAL-ERROR — and remains a candidate for device discrimination.
 
 **Fix sketch (do not implement until a theory is established on device).** (i) In `core_dot_chunk_fp16` long path: `STORE_AFTER_F16` + fp32 add per 32-tile superblock. (ii) After DMA, zero `[tile_size, aligned_tile_size)` or load scales as 64 B. (iii) Keep HMX; do not `supports_op`-refuse 2880.
 
@@ -99,7 +101,7 @@ Local hexagon history at this pin already has the tiled HMX rework that introduc
 
 ## Next QDC cell
 
-Kit `93e9592fa`, QRD8750/v79, `-o MUL_MAT` shape filter, `PLAIN_HOST=1`. No prereg here.
+Kit `153fdbafd` (branch tip `kalsa/npu-judge-v79`: host gate `736ddd206` + `GGML_TEST_EXTRA_MM` `153fdbafd`). **A-arms require this tip** — a kit at `93e9592fa` cannot satisfy A2/A4 "after host fix". QRD8750/v79, `-o MUL_MAT` shape filter, `PLAIN_HOST=1`. No prereg here.
 
 Class A %32 mechanism is diagnosed at the desk (36/36 INTERNAL-ERROR have test-m % 32 ≠ 0). Still put one aligned HMX control on the device so the host fix cannot silently break a passing large shape. Class B is OPEN: the cell is empirical discrimination, not confirmation of a chosen theory.
 
@@ -122,3 +124,10 @@ Class A %32 mechanism is diagnosed at the desk (36/36 INTERNAL-ERROR have test-m
   - **F12:** verified. Dims present on #47 execute-op lines; all HMX src0 ne1 %32==0. Cite one line per model.
   - **F13 (partial disagree):** added A4 as aligned HMX *control* (today OK), not as INTERNAL-ERROR diagnostic. Class A %32 does not need a cell to diagnose; A4 is no-regression.
   - Host Class A fix implemented in kalsallama (see FIXNOTES.md).
+
+- **rev-3 (2026-09-02).** AUDIT-2 (GLM, FIX, 7 MINOR). Findings 2–3 were orchestrator-owned (already applied). This rev applies 1, 4, 5, 6, 7.
+  - **AUDIT-2.1:** Next-QDC kit pin `93e9592fa` → branch tip `153fdbafd` (gate `736ddd206` + `GGML_TEST_EXTRA_MM`). A-arms require the tip. Partial dissent vs AUDIT-2:244 which stopped at `736ddd206` — HEAD has moved.
+  - **AUDIT-2.4:** q4_0 m=1 n=64 INTERNAL-ERROR is `:1816` not `:1826` (type+blocks: `:1812-1813` q4_0 `blocks=8`; `:1822-1823` q4_1 → `:1826`).
+  - **AUDIT-2.5:** F12 cites now `qdc-8elite-npu-v79-ppl-v/raw/` (judge-dir copies are 12-line stubs).
+  - **AUDIT-2.6:** documented second caller `is_mergeable_mul_mat` `:3488` and the dead `ne01_padded % 32` clause.
+  - **AUDIT-2.7:** Class B "Not:" — VTCM over-budget excluded; VTCM layout undercount is not, remains a device-discrimination candidate.
