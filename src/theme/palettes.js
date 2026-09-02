@@ -2,7 +2,7 @@
 // Dark theme is the primary direction (matches the new website's Agora theme).
 // Light theme ("Sage paper"): on a light page, elevated surfaces go LIGHTER /
 // WHITER (opaque whites and near-whites) — never "more transparent black".
-// Borders sit at ≥ ~10% black equivalent so they remain visible on #E8EEE7.
+// Borders sit at ≥ ~10% black equivalent so they remain visible on #E8EAE7.
 // Keys preserved so existing createStyles.ts compiles unchanged.
 
 const THEME_OPTIONS = [
@@ -22,7 +22,7 @@ const palettes = {
       muted: "#58615B",
       quiet: "#2C3630",
       // page + surfaces (OPAQUE — elevated surfaces go lighter on a light page)
-      shell: "#E8EEE7",
+      shell: "#E8EAE7",
       shellElevated: "#F4F8F3",
       panelSolid: "#FFFFFF",
       panel: "#F4F8F3",
@@ -32,9 +32,9 @@ const palettes = {
       cardStrong: "#FFFFFF",
       surfaceElev: "#FFFFFF",
       surfaceSunken: "#D8E0D7",
-      materialTop: "#E8EEE7",
-      materialMid: "#E8EEE7",
-      materialBottom: "#E8EEE7",
+      materialTop: "#E8EAE7",
+      materialMid: "#E8EAE7",
+      materialBottom: "#E8EAE7",
       // borders — 10% black is the floor for visibility on this page
       line: "#D3DAD2",
       lineStrong: "#C2CAC1",
