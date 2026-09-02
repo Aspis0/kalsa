@@ -4042,24 +4042,26 @@ export function AiChatPage({
                 >
                   {copiedFlash ? t("common.copied") : t("chat.a11yLongPress")}
                 </Text>
-                <AttachSheetRow
-                  icon={<BrandIcon name="copy" size={22} />}
-                  label={copiedFlash ? t("common.copied") : t("common.copy")}
-                  onPress={() => {
-                    // Keep menu open ~400ms with "Copied!" so feedback is visible.
-                    void (async () => {
-                      await copyTextToClipboard(messageMenu.text);
-                      if (messageMenuCloseTimer.current) {
-                        clearTimeout(messageMenuCloseTimer.current);
-                      }
-                      messageMenuCloseTimer.current = setTimeout(() => {
-                        messageMenuCloseTimer.current = null;
-                        if (mountedRef.current) setMessageMenu(null);
-                      }, 400);
-                    })();
-                  }}
-                  colors={colors}
-                />
+                {!messageMenu.text.trim() ? (
+                  <AttachSheetRow
+                    icon={<BrandIcon name="copy" size={22} />}
+                    label={copiedFlash ? t("common.copied") : t("common.copy")}
+                    onPress={() => {
+                      // Keep menu open ~400ms with "Copied!" so feedback is visible.
+                      void (async () => {
+                        await copyTextToClipboard(messageMenu.text);
+                        if (messageMenuCloseTimer.current) {
+                          clearTimeout(messageMenuCloseTimer.current);
+                        }
+                        messageMenuCloseTimer.current = setTimeout(() => {
+                          messageMenuCloseTimer.current = null;
+                          if (mountedRef.current) setMessageMenu(null);
+                        }, 400);
+                      })();
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 {onSaveToNotes ? (
                   <AttachSheetRow
                     icon={<ClipboardList size={18} color={colors.ink} />}
@@ -4079,25 +4081,6 @@ export function AiChatPage({
                   }}
                   colors={colors}
                 />
-                {messageMenu.role === "assistant" ? (
-                  <AttachSheetRow
-                    icon={
-                      <Volume2
-                        size={18}
-                        color={speakingId === messageMenu.id ? colors.accent : colors.ink}
-                      />
-                    }
-                    label={
-                      speakingId === messageMenu.id
-                        ? t("voice.stopReading")
-                        : t("voice.readAloud")
-                    }
-                    onPress={() => {
-                      void handleReadAloud(messageMenu.id, messageMenu.text);
-                    }}
-                    colors={colors}
-                  />
-                ) : null}
                 {messageMenu.role === "user" && !sending ? (
                   <AttachSheetRow
                     icon={<SquarePen size={18} color={colors.ink} />}
