@@ -81,3 +81,45 @@ each failing shape gets its own invocation. Then a census is trivial and the ±4
 - Control: 299 FAIL off vs 0 FAIL on (MUL_MAT_ID).
 - PPL: ship 40.2720 vs 40.2837 (r −0.029 %), OLMoE 9.0620 vs 9.0562 (r +0.064 %),
   all four `EXIT=0`.
+
+## 6. PPL arms: execute-op proof ABSENT → METHOD-VOID by the prereg's letter (reviewer's own omission)
+
+`raw/ppl_ship_htp.txt` and `raw/ppl_olmoe_htp.txt` are 12 lines each: zero `ggml-hex`
+lines, zero `execute-op` lines (host capture and device tee identical). Cause: the
+prereg command omits `-v`. q55's binding command (`q55-v75-npu-correctness/PREREG.md:20-22`)
+was `llama-perplexity -ngl 99 -dev HTP0 -c 2048 -b 2048 -ub 1024 -fa on --load-mode none
+--chunks 32 -v`; #46's PREREG rev-3 dropped `-v` (prereg author = this reviewer). Without
+`-v`, `llama-perplexity`'s log filter suppresses the backend's INFO-level verbose lines
+that `GGML_HEXAGON_VERBOSE=1` emits (the kit's `--help`, `raw/perplexity_help.txt:200`:
+`-v, --verbose, --log-verbose  Set verbosity level to infinity`). The env var was set; the
+tool did not print. Method error, not a device event.
+
+PREREG rev-3, arm 4 (binding): "**Proof absent → METHOD-VOID for that arm** (no PPL
+number banked; PASS/GREY/FAIL impossible), per q55's 'proof lost → VOID' rule." → both
+PPL arms are METHOD-VOID for certification purposes in #46. The numbers are recorded as
+report-only.
+
+Circumstantial evidence that the HTP arms DID execute on HTP0 (recorded for an
+AMENDMENT the hostile audit may accept or reject; not applied by the reviewer):
+
+| witness | ship | OLMoE |
+|---|---|---|
+| wall time HTP vs CPU (gate_pre→gate_post mtimes) | 81 s vs 423 s = **5.2×** | 80 s vs 491 s = **6.1×** |
+| tool-internal clock at `Final estimate` | 1:19.3 vs 7:01.4 | 1:18.0 vs 8:08.3 |
+| device selected (`W ... device HTP0 did not report memory`) | yes, `-ngl 99` | yes, `-ngl 99` |
+| PPL differs from CPU twin (a silent CPU fallback is deterministic → identical) | 40.2720 ≠ 40.2837 | 9.0620 ≠ 9.0562 |
+| same kit/device/session executed on HTP minutes earlier (ops arms: DSP responses) | `backend_htp0=1`, 505 OK, 36 dsp-rsp | idem |
+
+Expected HTP/CPU prefill ratio from #43/#45 anchors ≈ 7×; 5–6× with load and upload
+overheads is consistent; a CPU fallback would give ≈1×. Thermal snapshots after the CPU
+PPL arms reached HAL 74.1 / 77.2 °C with Thermal Status 3 (`gate_post_ship_cpu`,
+`gate_post_olmoe_cpu`); all PRE gates passed (max 57.9 °C, status ≤ 1; `olmoe_cpu`
+after one 3-min wait). Snapshots are informational per prereg; the in-run excursion is
+the #43 CPU pattern and is reported, not hidden.
+
+**Consequence for banking:** judge repaired = CLOSED on the ops evidence; MUL_MAT_ID
+patched-correct = CLOSED; numerical certification = OPEN (VOID), Session 1 D does NOT
+close on correctness from #46 alone. **Follow-up cell #47** (cheap, ~15 min QDC): re-run
+the two HTP PPL arms with `-v` (kit unchanged 93e9592fa, same corpus/models/flags);
+CPU twins may be reused from #46 only if #47's prereg says so up front (CPU PPL is
+deterministic for identical binary+model+corpus+flags) — otherwise rerun them too.
