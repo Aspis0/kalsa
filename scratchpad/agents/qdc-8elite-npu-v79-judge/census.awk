@@ -48,8 +48,9 @@ function finish(v, c) {
         if (pending) unresolved++
         pending = 1; cur_header = line
         cur_compute = cur_judge = cur_htp = 0
+        observe(line)   # diagnostics (failed/CPU=nan/HTP0=nan) are printed on the header line before the verdict token
         v = verdict(line)
-        if (v) { observe(line); finish(v) }
+        if (v) finish(v)
         next
     }
     if (pending) { observe(line); v = verdict(line); if (v) finish(v) }

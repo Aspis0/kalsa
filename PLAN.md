@@ -237,7 +237,14 @@
 > **Ship 40.2720/40.2837 = r −0.029 % PASS** (10648 execute-op MUL_MAT); **OLMoE
 > 9.0620/9.0562 = r +0.064 % PASS** (3024 execute-op MUL_MAT_ID = 1008×3 su ffn esperti).
 > Cross-check: PPL con `-v` identiche a #46; CPU riusate. Lista difetti 36 DSP + 1 NaN
-> aperta come hardening. ALIVE righe 30-31. Login/wizard/Connect/End QDC fatti
+> aperta come hardening. ALIVE righe 30-31. **Census adottato 2/09 (adjudicazione mimo
+> fresco, `CENSUS-ADJUDICATION.md`, ADOPT-con-demozione)**: `census.awk` = ex headerfix
+> (accettazione 5 log pinnata); la versione del bank #46 archiviata come
+> `census.awk.frozen-46`; nelle prereg future lo split per categoria è "reported, not
+> binding" — il conteggio difetti vincolante viene dai due grep (INTERNAL-ERROR /
+> graph_compute-failed) + garanzia di codice. Erratum #45 (append-only, riga 29 NON
+> riscritta): col tool adottato lo split storico 34/36 diventerebbe 58/12 — i 36 test
+> INTERNAL-ERROR di #45 erano doppio-difettosi (CPU=nan E errore DSP insieme). Login/wizard/Connect/End QDC fatti
 > dall'orchestratore dal browser Paseo (senza 2FA). Quota ~646 min.
 >
 > **1/09 sera — Lenovo RECUPERATO (ops, non cella).** Il PC era in Modern Standby
