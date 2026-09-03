@@ -1,0 +1,3 @@
+llama-bench: OK
+libomp.so: OK
+BUILD_NOTE.txt: OK

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaf Fold — v8 · single-flap origami unfold</title>
+<style>
+  :root{
+    --shell:#E8EAE7; --panel:#F4F8F3; --panelSolid:#FFFFFF; --line:#D3DAD2;
+    --ink:#17201C; --muted:#58615B; --accent:#1F5F4E; --cyan:#2E6E80;
+    --leaf1:#DDEDE1; --leaf2:#C4DFCE; --leafStroke:#7FA892; --midrib:rgba(23,42,32,.15);
+    --tink:#1C3A2C; --cmuted:#57705F; --cline:rgba(23,42,32,.16);
+    --tile:rgba(255,255,255,.34); --tileActive:rgba(255,255,255,.62);
+    --shadeDark:rgba(15,42,32,.18); --backdrop:rgba(0,0,0,.45);
+  }
+  .dark{
+    --shell:#07101C; --panel:#0B1727; --panelSolid:#0B1727; --line:rgba(255,255,255,.13);
+    --ink:#f7f3ed; --muted:#a8b0bc; --accent:#f07a3f; --cyan:#88c0d0;
+    --leaf1:#2E6B50; --leaf2:#1B4534; --leafStroke:rgba(136,192,208,.45); --midrib:rgba(136,192,208,.22);
+    --tink:#EDF7F0; --cmuted:rgba(237,247,240,.62); --cline:rgba(255,255,255,.16);
+    --tile:rgba(0,0,0,.20); --tileActive:rgba(0,0,0,.34);
+    --shadeDark:rgba(0,0,0,.30); --backdrop:rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    background:#101418; color:#e8ecef; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; gap:34px; padding:24px;}
+  .side{max-width:240px; font-size:13px; line-height:1.5;}
+  .side h1{font-size:16px; margin-bottom:6px;}
+  .side .sub{color:#9aa7ae; margin-bottom:12px;}
+  .row{display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;}
+  button.ctl{background:#1c242b; color:#dfe7ea; border:1px solid #2c3740; border-radius:10px;
+    padding:8px 12px; font-size:12.5px; cursor:pointer;}
+  button.ctl.on{background:#1F5F4E; border-color:#2E6E80; color:#fff;}
+  input[type=range]{width:100%; accent-color:#2E6E80;}
+  .lbl{font-size:11px; color:#8d9aa2; text-transform:uppercase; letter-spacing:.08em; margin-top:12px;}
+  .ph{color:#8d9aa2; font-size:11.5px; margin-top:12px; border-top:1px solid #232c34; padding-top:10px;}
+  .ph b{color:#cfe3dc;}
+
+  .phone{width:390px; height:800px; border-radius:44px; background:var(--shell);
+    border:10px solid #05080b; position:relative; overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.6); flex-shrink:0; transition:background .25s;}
+  .statusbar{height:38px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:12px; font-weight:600; color:var(--ink); position:relative; z-index:2;}
+  .navbar{height:50px; display:flex; align-items:center; padding:0 10px; gap:4px; color:var(--ink); position:relative; z-index:8;}
+  .iconbtn{width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    background:transparent; border:none; color:var(--ink); cursor:pointer;}
+  .navtitle{font-weight:700; font-size:16px; margin-left:2px;}
+  .spacer{flex:1;}
+  .chat{padding:8px 14px; display:flex; flex-direction:column; gap:10px;}
+  .bub{max-width:78%; padding:10px 13px; border-radius:18px; font-size:13px; line-height:1.45;}
+  .bub.user{align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:6px;}
+  .bub.ai{align-self:flex-start; background:var(--panelSolid); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:6px;}
+  .srcs{display:flex; gap:6px; margin-top:8px;}
+  .src{font-size:10px; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink);}
+  .src i{width:13px; height:13px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-style:normal; color:#fff; margin-right:4px;}
+  .composer{position:absolute; left:0; right:0; bottom:0; padding:8px 12px 26px; z-index:2;}
+  .chips{display:flex; gap:6px; margin-bottom:8px;}
+  .chip{font-size:11px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel); color:var(--muted);}
+  .inputbar{display:flex; align-items:center; gap:8px; background:var(--panelSolid);
+    border:1px solid var(--line); border-radius:22px; padding:10px 14px; color:var(--muted); font-size:13px;}
+  .send{margin-left:auto; width:30px; height:30px; border-radius:50%; background:var(--accent);
+    display:flex; align-items:center; justify-content:center; color:#fff;}
+  #backdrop{position:absolute; inset:0; background:var(--backdrop); opacity:0; pointer-events:none; z-index:5;}
+  #stage{position:absolute; inset:0; z-index:6; pointer-events:none; perspective:1500px;}
+  .lf1{stop-color:var(--leaf1);} .lf2{stop-color:var(--leaf2);}
+  .half{position:absolute; inset:0; will-change:transform;}
+  .half svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+  #flap{transform-origin:256px 400px; transform-style:preserve-3d; backface-visibility:visible;}
+  #flapShade{position:absolute; inset:0; background:var(--shadeDark); opacity:0; pointer-events:none;}
+  /* content directly on the leaf */
+  #onleaf{position:absolute; left:60px; right:40px; top:180px; bottom:88px; z-index:7;
+    display:flex; flex-direction:column; gap:4px; color:var(--tink); pointer-events:none; opacity:0;}
+  .lrow{display:flex; align-items:center; gap:8px; padding:0 2px 8px;}
+  .lrow .brand{font-weight:800; font-size:21px; color:var(--tink);}
+  .persona{margin-left:auto; display:flex; align-items:center; gap:6px; padding:5px 10px;
+    border:1px solid var(--cline); border-radius:999px;}
+  .persona .dot{width:14px; height:14px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--cyan));}
+  .persona .n{font-size:10.5px; font-weight:600; color:var(--tink);}
+  .lsearch{display:flex; align-items:center; gap:7px; border:1px solid var(--cline);
+    border-radius:12px; padding:8px 11px; color:var(--cmuted); font-size:12px; margin-bottom:4px;}
+  .lsec{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--cmuted); margin:7px 2px 5px;}
+  .lconv{padding:7px 9px; border-radius:11px;}
+  .lconv.active{background:var(--tileActive);}
+  .lconv .t{font-size:12.5px; font-weight:600; color:var(--tink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lconv .p{font-size:10px; color:var(--cmuted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
+  .ldiv{height:1px; background:var(--cline); margin:6px 0;}
+  .ltools{display:grid; grid-template-columns:1fr 1fr; gap:7px;}
+  .ltool{display:flex; align-items:center; gap:8px; padding:11px 11px;
+    border-radius:13px; font-size:12px; font-weight:600; color:var(--tink);
+    background:var(--tile); border:1px solid var(--cline);}
+  .lic{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  .ic{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  #hint{position:absolute; bottom:14px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted); z-index:4;}
+</style>
+</head>
+<body>
+  <div class="side">
+    <h1>🍃 Leaf Fold — v8 · single-flap unfold</h1>
+    <div class="sub">Origami leggibile: base statica (metà foglia = bocciolo) + UN lembo che si solle e ruota 180° attorno alla piega. Lento e palpabile — niente trottola.</div>
+    <div class="row">
+      <button class="ctl" id="bOpen">▶ Open (slow)</button>
+      <button class="ctl" id="bClose">◀ Close</button>
+    </div>
+    <div class="lbl">Scrub</div>
+    <input type="range" id="scrub" min="0" max="1000" value="0">
+    <div class="lbl">Theme</div>
+    <div class="row">
+      <button class="ctl on" id="tLight">Light</button>
+      <button class="ctl" id="tDark">Dark</button>
+    </div>
+    <div class="ph"><b>Lettura:</b> p=0 → vedo SOLO il bocciolo (metà piegata) · p≈0.5 → il lembo è in piedi (quasi invisibile di profilo) poi cade dall'altro lato · p=1 → foglia piena. L'emivola a 90° è il segnale "è carta". Zero shading a riposo.</div>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+    <div class="navbar">
+      <button class="iconbtn" id="menuBtn" aria-label="Menu">
+        <svg id="budIcon" viewBox="0 0 24 24" width="24" height="24">
+          <path d="M 4 10 L 20 5 L 15 21 Z" fill="var(--leaf2)" stroke="var(--leafStroke)" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M 4 10 L 15 21 L 4 16 Z" fill="var(--leaf1)" stroke="var(--leafStroke)" stroke-width="1" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="navtitle">Kalsa</div><div class="spacer"></div>
+      <div class="iconbtn"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+    </div>
+    <div class="chat">
+      <div class="bub user">How should I feed the sourdough starter tonight?</div>
+      <div class="bub ai">Feed it 1:1:1 — 50g flour, 50g water, 50g starter. Keep it at 24–26°C and it should double in 5–6h.
+        <div class="srcs">
+          <span class="src"><i style="background:#0369A1">1</i>seriouseats · via tavily</span>
+          <span class="src"><i style="background:#6D28D9">2</i>thefreshloaf · via exa</span>
+        </div>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="chips"><span class="chip">🌐 Web research</span><span class="chip">📄 Docs</span><span class="chip">🗒 Notes</span></div>
+      <div class="inputbar">Message…<div class="spacer"></div>
+        <div class="send"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-2z"/></svg></div>
+      </div>
+    </div>
+
+    <div id="backdrop"></div>
+    <div id="stage" style="position:absolute; inset:0; z-index:6; pointer-events:none; perspective:1500px;">
+      <!-- BASE: left half of the leaf, static -->
+      <div class="half" id="base">
+        <svg viewBox="0 0 390 800">
+          <defs><linearGradient id="gBody" x1="0" y1="0" x2="0.7" y2="1">
+            <stop offset="0" class="lf1"/><stop offset="1" class="lf2"/></linearGradient>
+          </defs>
+          <path d="M 195 62 L 318 739 L 83 718 L -10 430 L 48 137 Z"
+                fill="url(#gBody)" stroke="var(--leafStroke)" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <!-- FLAP: right half, starts folded 180° over the base, unfolds -->
+      <div class="half" id="flap">
+        <svg viewBox="0 0 390 800">
+          <path d="M 195 62 L 346 127 L 398 417 L 318 739 Z"
+                fill="url(#gBody)" stroke="var(--leafStroke)" stroke-width="2" stroke-linejoin="round"/>
+        </svg>
+        <div id="flapShade"></div>
+      </div>
+      <!-- crease line -->
+      <svg style="position:absolute; inset:0; width:100%; height:100%; overflow:visible; pointer-events:none">
+        <path id="midrib" d="M 195 62 L 318 739" stroke="var(--midrib)" stroke-width="1.6" fill="none"/>
+      </svg>
+      <!-- content -->
+      <div id="onleaf">
+        <div class="lrow">
+          <span class="brand">Kalsa</span>
+          <div class="persona"><div class="dot"></div><span class="n">Persona: Default</span>
+            <svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m9 6 6 6-6 6"/></svg>
+          </div>
+        </div>
+        <div class="lsearch"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search chats</div>
+        <div class="lconv active"><div class="t">Sourdough schedule</div><div class="p">Feed 1:1:1, keep at 24–26°C…</div></div>
+        <div class="lconv"><div class="t">Bike route Sunday</div><div class="p">Ghisallo loop, 68km…</div></div>
+        <div class="lconv"><div class="t">Trip to Bologna</div><div class="p">Trattoria list…</div></div>
+        <div class="ldiv"></div>
+        <div class="lsec">Strumenti</div>
+        <div class="ltools">
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>Settings</div>
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</div>
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Documents</div>
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><path d="M15 4h4v4M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>Notes</div>
+        </div>
+      </div>
+    </div>
+    <div id="hint">tap the leaf-bud to unfold</div>
+  </div>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const backdrop=$("backdrop"), flap=$("flap"), flapShade=$("flapShade"),
+      onleaf=$("onleaf"), budIcon=$("budIcon"), hint=$("hint"), scrub=$("scrub");
+
+/* crease axis: apex(195,62) → tip(318,739); direction normalized */
+const alen=Math.hypot(123,677);
+const AX=(123/alen), AY=(677/alen);
+
+let pRaw=0, anim=null, reduced=false;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const smooth=t=>t*t*(3-2*t);
+const lerp=(a,b,t)=>a+(b-a)*t;
+
+function render(){
+  const v=clamp(pRaw,0,1);
+  const visible=pRaw>0.006;
+  backdrop.style.opacity=v.toFixed(3);
+  backdrop.style.pointerEvents = v>0.02 ? "auto":"none";
+  budIcon.style.opacity = visible ? 0 : 1;
+
+  /* THE UNFOLD: single flap rotates around the crease.
+     fold=1 → flap lies folded ON the base (180°); fold=0 → flat (0°). */
+  const fold = 1-smooth(clamp((pRaw-0.06)/0.80,0,1));
+  const ang = fold*180;
+  flap.style.transformOrigin="256px 400px";
+  flap.style.transform="rotate3d("+AX.toFixed(4)+","+AY.toFixed(4)+",0,"+ang.toFixed(2)+"deg)";
+
+  /* shading only while moving; zero at rest both ends */
+  const motionGate = clamp((0.965-v)/0.08,0,1) * clamp((v-0.035)/0.08,0,1);
+  flapShade.style.opacity=(Math.sin(ang*Math.PI/180)*motionGate*0.9).toFixed(3);
+  flap.style.filter = motionGate>0.01 ? "drop-shadow(-6px 10px 14px rgba(10,25,20,"+(0.16*motionGate).toFixed(3)+"))" : "none";
+
+  /* content last */
+  const cOp=clamp((v-0.80)/0.18,0,1);
+  onleaf.style.opacity=cOp.toFixed(3);
+  onleaf.style.pointerEvents = cOp>0.6 ? "auto" : "none";
+  onleaf.style.transform="translateY("+((1-cOp)*12).toFixed(2)+"px)";
+  hint.style.opacity = v>0.4 ? 0 : 1;
+  scrub.value=Math.round(clamp(pRaw,0,1)*1000);
+}
+
+function cancelAnim(){ anim=null; }
+function openDrawer(){
+  cancelAnim();
+  const dur=1150, from=pRaw, t0=performance.now();
+  anim=now=>{
+    const x=clamp((now-t0)/dur,0,1);
+    /* easeInOutQuart: slow start (lift) fast middle (the drop) soft landing */
+    const e = x<0.5 ? 8*x*x*x*x : 1-Math.pow(-2*x+2,4)/2;
+    pRaw=lerp(from,1,e); render();
+    if(x>=1){ pRaw=1; anim=null; }
+  };
+}
+function closeDrawer(){
+  cancelAnim();
+  const dur=850, from=pRaw, t0=performance.now();
+  anim=now=>{
+    const x=clamp((now-t0)/dur,0,1);
+    const e = x<0.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;
+    pRaw=lerp(from,0,e); render();
+    if(x>=1){ pRaw=0; anim=null; }
+  };
+}
+function loop(now){ if(anim) anim(now); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+$("menuBtn").addEventListener("click", ()=> pRaw>0.5 ? closeDrawer() : openDrawer());
+backdrop.addEventListener("click", closeDrawer);
+$("bOpen").onclick=openDrawer;
+$("bClose").onclick=closeDrawer;
+scrub.addEventListener("input", e=>{ cancelAnim(); pRaw=+e.target.value/1000; render(); });
+$("tLight").onclick=()=>{ phone.classList.remove("dark"); $("tLight").classList.add("on"); $("tDark").classList.remove("on"); };
+$("tDark").onclick =()=>{ phone.classList.add("dark");    $("tDark").classList.add("on");  $("tLight").classList.remove("on"); };
+$("mFull").onclick   =()=>{ reduced=false;  $("mFull").classList.add("on");    $("mReduced").classList.remove("on"); };
+$("mReduced").onclick=()=>{ reduced=true;   $("mReduced").classList.add("on"); $("mFull").classList.remove("on"); };
+document.querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>ch.classList.toggle("on")));
+
+render();
+</script>
+</body>
+</html>

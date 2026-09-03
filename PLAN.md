@@ -522,6 +522,17 @@
 > FA (732) + famiglia f16/bf16-batched (750).** Cartelle #54 (pick su 8650)
 > e HDK-ship-config restano opzioni future gratuite.
 
+> **3/09 pomeriggio — CELLA #57 BANCATA (riga 40): la lane CPU onesta.**
+> Direttiva owner in chat ("Bravo fai il follow up" + correzione sui dati
+> NPU: v73/v75 GIÀ testati su S23/Xiaomi — errore orchestratore ammesso).
+> Build CPU-tuned senza OpenCL su 3 sessioni (~20 min): il decode è della
+> CPU su 7675/8635/8650 (GPU 0.80-0.86×), prefill GPU solo 1.59× sui
+> mid-tier (CONTESTED → probe per-device), 2.87× sul 750. I numeri CPU di
+> #52/#55/#56 sono RITIRATI (build zoppa, ×6-7 di sottostima). Prossime
+> opzioni NPU concordate a voce: replicare le morti v73 (0x2e/0x1) su
+> HDK8550 reference, e first-contact NPU su 7675/8635 (arch HTP da recon);
+> gli skel v73/v75/v79/v81 sono GIÀ nel kit v6, nessuna build serve.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
