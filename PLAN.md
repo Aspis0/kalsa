@@ -452,6 +452,23 @@
 > prescindere, solo non è il NOSTRO bug). **Classe B torna PARCHEGGIATA con
 > la regola di contenimento; nessuna nuova cella senza disegno nuovo** (come
 > da griglia). Costo totale della verifica: ~2.5 min.
+>
+> **2/09 sera — CHIUSURA GIORNATA.** (1) Tutti gli audit rientrati APPLY:
+> spec router v0.2 (0 seam fabbricati su 12, footnote ±10 righe applicata),
+> integrazioni OpenCL (risoluzioni conflitti verificate contro entrambi i
+> genitori) e F_NOCACHE (pin submodule intatto, smoke reale); le idee bmoe
+> piazzate come addenda in router spec / governor design / npu_fit.
+> (2) **Samsung Remote Test Lab esplorato** (link owner):
+> `scratchpad/agents/samsung-rtl-recon/REPORT.md` — verdetto
+> USABLE-WITH-LIMITS: S23 Snapdragon (SM-S911*, la classe del lab!) e
+> S25/8 Elite disponibili, 20 crediti/giorno gratis = 5h, adb via tunnel RDB
+> reale MA l'esecuzione di ELF nativi da /data/local/tmp NON è provata da
+> nessuna fonte pubblica → probe da 30 min gratuita definita nel report
+> (prenotare SM-S911U-US01, push+exec hello-arm64, poi telemetria). S24 base
+> EU = Exynos 2400 (classe GPU Xclipse mai mappata — nota, non piano).
+> **Owner: probe DOMANI 3/09** (serve il suo login Samsung Developer nel
+> browser Paseo; da lì orchestrazione mia). Se la probe passa, i gate
+> S23-class dei pick OpenCL si sbloccano PRIMA del rientro fisico (~7/09).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
