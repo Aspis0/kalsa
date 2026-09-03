@@ -1,0 +1,1 @@
+nproc=8 cpu_mask=0xf0 exit=TIMEOUT

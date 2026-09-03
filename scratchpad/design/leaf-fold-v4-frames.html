@@ -74,7 +74,7 @@
   #stage{position:absolute; inset:0; z-index:6; pointer-events:none;}
   #leafsvg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
   /* content sits DIRECTLY on the leaf — no card */
-  #onleaf{position:absolute; left:78px; right:56px; top:196px; bottom:104px;
+  #onleaf{position:absolute; left:66px; right:44px; top:186px; bottom:96px;
     display:flex; flex-direction:column; gap:4px; color:var(--tink); pointer-events:auto;}
   .lrow{display:flex; align-items:center; gap:8px; padding:0 2px 8px;}
   .lrow .brand{font-weight:800; font-size:20px; color:var(--tink);}
@@ -127,12 +127,10 @@
             <stop offset="0" class="lf1"/><stop offset="1" class="lf2"/>
           </linearGradient>
         </defs>
-        <!-- stem: same leaf body, curls from the menu icon -->
-        <path d="M 30 64 Q 96 78 186 140 L 181 149 Q 90 88 30 72 Z" fill="var(--leaf2)" stroke="var(--leafStroke)" stroke-width="1.2" stroke-linejoin="round"/>
-        <!-- hexagonal folded-paper leaf -->
-        <path d="M 195 140 L 318 196 L 360 420 L 296 636 L 98 618 L 30 416 L 72 188 Z" fill="url(#gBody)" stroke="var(--leafStroke)" stroke-width="2" stroke-linejoin="round"/>
+        <!-- hexagonal folded-paper leaf, oversized -->
+        <path d="M 195 78 L 336 140 L 388 420 L 310 726 L 90 706 L 2 430 L 58 150 Z" fill="url(#gBody)" stroke="var(--leafStroke)" stroke-width="2" stroke-linejoin="round"/>
         <!-- central fold line, faint -->
-        <path d="M 195 140 L 360 420" stroke="var(--midrib)" stroke-width="1.5"/>
+        <path d="M 195 78 L 310 726" stroke="var(--midrib)" stroke-width="1.5"/>
       </svg>
       <div id="onleaf">
         <div class="lrow">

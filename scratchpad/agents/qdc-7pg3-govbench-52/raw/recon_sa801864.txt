@@ -1,0 +1,24 @@
+== getprop ==
+SM7675
+QTI
+pineapple
+qti/pineapple/pineapple:14/UKQ1.240624.001/eng.lnxbui.20240723.055527:userdebug/test-keys
+Pineapple for arm64
+== cores ==
+/sys/devices/system/cpu/cpu0 1900800
+/sys/devices/system/cpu/cpu1 1900800
+/sys/devices/system/cpu/cpu2 1900800
+/sys/devices/system/cpu/cpu3 2611200
+/sys/devices/system/cpu/cpu4 2611200
+/sys/devices/system/cpu/cpu5 2611200
+/sys/devices/system/cpu/cpu6 2611200
+/sys/devices/system/cpu/cpu7 2803200
+== nproc ==
+8
+== opencl lib ==
+/vendor/lib64/libOpenCL.so
+OPENCL_LIB_PRESENT
+== mem ==
+MemTotal:       11594996 kB
+== storage ==
+/dev/block/dm-51  47183872 4332212  42851660  10% /mnt/pass_through/0/emulated

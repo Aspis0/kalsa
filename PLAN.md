@@ -470,6 +470,58 @@
 > browser Paseo; da lì orchestrazione mia). Se la probe passa, i gate
 > S23-class dei pick OpenCL si sbloccano PRIMA del rientro fisico (~7/09).
 
+> **3/09 mattina — GIORNATA QDC (owner fuori, direttiva in chat: "usa QDC,
+> soprattutto il 7xx; oppure scrivi il router coi 4 concetti bmoe").**
+> (1) **QDC: 4 nuove classi sbloccate GRATIS in mattinata** (form "Unlock
+> Free Minutes", istantaneo, 1000 min l'una): 7+ Gen 3 QRD7675, **8 Gen 2
+> HDK8550 (classe S23! il gate pick OpenCL non aspetta più né RTL né il
+> telefono)**, 8 Gen 3 QRD8650, 8s Gen 3 QRD8635 → ~4600 min su 5 classi.
+> (2) **Cella #52 BANCATA (riga 36 ALIVE)**: primo dato 7xx — kernel
+> 925/925+407/407 su Adreno 732, ship 2.6B GPU pp512 151.8 vs CPU 13.8
+> (G1: la GPU vola, caveat CPU build-suspect), FA **non compila** sul 732
+> (`sub_group_shuffle_xor` assente) → il router deve capability-probare la
+> lane FA per-GPU. 6 lezioni ops QDC nel REPORT (pattern T4 per i lanci
+> adb in background, taskset hex nudo, ecc.). ~35 min spesi, ~965 residui 7xx.
+> (3) **Router v0.2 IMPLEMENTATO in C++** su kalsallama branch
+> `kalsa/governor-v0.2` (worktree dedicato, base = tip governor-v0
+> 204e78259): 5 commit (contratto §3-§5 + golden test §6 + fix), ~1200
+> righe, i 4 concetti bmoe DENTRO (StallUnion union-di-intervalli vera,
+> PrefillTally, cache-budget warning, knob λ come seam onesto con counter).
+> Audit ostile mimo: APPLY con 2 HIGH (trappola LOWBAT senza uscita +
+> boundary `<` vs `≤`) — fixati da Luna, verificati da me su file, golden
+> PASS/PASS exit 0 rieseguito dall'orchestratore. MAI pushato.
+> (4) **Cella #53 preparata** (A/B pick OpenCL su HDK8550): PREREG con
+> griglia G1-G4, kit picks `5f8c6552` + kit base `385c80a5` buildati e
+> impacchettati, modello LFM2.5-2.6B **Q4_K_M** (stessa repo/revision HF
+> pinnata dall'app — la quant che esercita il pick b7a5e926b) in download,
+> driver derivato dalla rev finale #52, audit pre-run in corso. Un job QDC
+> alla volta: parte a #52 chiusa. Samsung RTL probe: resta in attesa del
+> login owner (non più bloccante per i gate S23-class grazie all'HDK8550).
+
+> **3/09 mezzogiorno — CELLA #53 BANCATA (riga 37 ALIVE): il gate S23-class
+> dei pick OpenCL è CHIUSO.** A/B su HDK8550/Adreno 740 (24 min): zero
+> regressioni (925/925 + 407/407 + FA 229/229 su ENTRAMBE le build), perf
+> piatta (Δ +0.65% pp / −0.12% tg su Q4_K_M, dentro ±3%) → TAKE come igiene,
+> nessun claim di velocità per l'ottimizzazione A7x. Bonus: FA compila sul
+> 740 → il crash FA del 732 è tier-specific, il probe per-GPU nel router ha
+> ora due punti. Contabilità onesta: #52 = 80 min fatturati (35 di lavoro +
+> 45 di idle per il click End ingoiato dal portale — lezione 7), #53 = 24.
+> Budget residuo ≈ 920 (7xx) + 976 (8G2) + 1000 (8G3) + 1000 (8sG3) + 623
+> (8E). La cartella #54 (QRD8650) resta pronta ma non lanciata.
+
+> **3/09 mattina tarda — MAPPA TIER COMPLETATA: #55 e #56 BANCATE (righe
+> 38-39 ALIVE).** #55 QRD8650/Adreno 750 (12 min): il difetto "20 fail f16
+> batched" della campagna #16 REPLICA su hardware di riferimento (famiglia
+> chiusa f16|bf16 m=128 n=1 k=1056 k_v=2112) mentre MMID resta 407/407;
+> GPU ship pp512 284.2/tg 23.4 — numeri con Amendment post-hoc dichiarato
+> (la griglia ereditata li quarantenerebbe: serve sign-off owner o re-run
+> per usarli come costanti router). #56 QRD8635/Adreno 735 (~13.5 min):
+> tutto pulito 925+407, GPU 154.8/16.5 ≈ 732 → il difetto è SOLO del 750 e
+> la probe del router è per-GPU. **Quattro celle, quattro tier, ~130 min
+> QDC fatturati in totale oggi; la probe capability del router deve coprire
+> FA (732) + famiglia f16/bf16-batched (750).** Cartelle #54 (pick su 8650)
+> e HDK-ship-config restano opzioni future gratuite.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

@@ -1,0 +1,11 @@
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 735 (OpenCL 3.0 Adreno(TM) 735)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) 735 (OpenCL 3.0 Adreno(TM) 735)'
+| model                          |       size |     params | backend    | ngl | threads |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | ------: | --: | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL     |  99 |       4 |   0 |           pp512 |        154.82 ± 1.34 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL     |  99 |       4 |   0 |           tg128 |         16.49 ± 0.01 |
+
+build: 5c3979438 (10050)
+nproc=8 cpu_mask=0xf0 exit=0

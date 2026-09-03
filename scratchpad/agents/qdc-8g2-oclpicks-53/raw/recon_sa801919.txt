@@ -1,0 +1,24 @@
+== getprop ==
+SM8550
+QTI
+kalama
+qti/kalama/kalama:14/UKQ1.240819.001/eng.lnxbui.20240910.040454:userdebug/test-keys
+Kalama for arm64
+== cores ==
+/sys/devices/system/cpu/cpu0 2016000
+/sys/devices/system/cpu/cpu1 2016000
+/sys/devices/system/cpu/cpu2 2016000
+/sys/devices/system/cpu/cpu3 2803200
+/sys/devices/system/cpu/cpu4 2803200
+/sys/devices/system/cpu/cpu5 2803200
+/sys/devices/system/cpu/cpu6 2803200
+/sys/devices/system/cpu/cpu7 3187200
+== nproc ==
+6
+== opencl lib ==
+/vendor/lib64/libOpenCL.so
+OPENCL_LIB_PRESENT
+== mem ==
+MemTotal:       11548288 kB
+== storage ==
+/dev/block/dm-49  47183872 3044228  44139644   7% /mnt/pass_through/0/emulated

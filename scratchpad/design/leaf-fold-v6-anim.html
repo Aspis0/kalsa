@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Leaf Fold — v6 animation (approved frame + origami fold)</title>
+<style>
+  :root{
+    --shell:#E8EAE7; --panel:#F4F8F3; --panelSolid:#FFFFFF; --line:#D3DAD2;
+    --ink:#17201C; --muted:#58615B; --accent:#1F5F4E; --cyan:#2E6E80;
+    --leaf1:#DDEDE1; --leaf2:#C4DFCE; --leafStroke:#7FA892; --midrib:rgba(23,42,32,.15);
+    --tink:#1C3A2C; --cmuted:#57705F; --cline:rgba(23,42,32,.16);
+    --tile:rgba(255,255,255,.34); --tileActive:rgba(255,255,255,.62);
+    --foldShade:rgba(23,42,32,.10); --backdrop:rgba(0,0,0,.45);
+  }
+  .dark{
+    --shell:#07101C; --panel:#0B1727; --panelSolid:#0B1727; --line:rgba(255,255,255,.13);
+    --ink:#f7f3ed; --muted:#a8b0bc; --accent:#f07a3f; --cyan:#88c0d0;
+    --leaf1:#2E6B50; --leaf2:#1B4534; --leafStroke:rgba(136,192,208,.45); --midrib:rgba(136,192,208,.22);
+    --tink:#EDF7F0; --cmuted:rgba(237,247,240,.62); --cline:rgba(255,255,255,.16);
+    --tile:rgba(0,0,0,.20); --tileActive:rgba(0,0,0,.34);
+    --foldShade:rgba(0,0,0,.22); --backdrop:rgba(0,0,0,.55);
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;
+    background:#101418; color:#e8ecef; min-height:100vh;
+    display:flex; align-items:center; justify-content:center; gap:34px; padding:24px;}
+  .side{max-width:250px; font-size:13px; line-height:1.5;}
+  .side h1{font-size:16px; margin-bottom:6px;}
+  .side .sub{color:#9aa7ae; margin-bottom:14px;}
+  .row{display:flex; gap:8px; margin:8px 0; flex-wrap:wrap;}
+  button.ctl{background:#1c242b; color:#dfe7ea; border:1px solid #2c3740; border-radius:10px;
+    padding:8px 12px; font-size:12.5px; cursor:pointer;}
+  button.ctl.on{background:#1F5F4E; border-color:#2E6E80; color:#fff;}
+  input[type=range]{width:100%; accent-color:#2E6E80;}
+  .lbl{font-size:11px; color:#8d9aa2; text-transform:uppercase; letter-spacing:.08em; margin-top:12px;}
+  .ph{color:#8d9aa2; font-size:11.5px; margin-top:14px; border-top:1px solid #232c34; padding-top:10px;}
+  .ph b{color:#cfe3dc;}
+
+  .phone{width:390px; height:800px; border-radius:44px; background:var(--shell);
+    border:10px solid #05080b; position:relative; overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.6); flex-shrink:0; transition:background .25s;}
+  .statusbar{height:38px; display:flex; align-items:center; justify-content:space-between;
+    padding:0 22px; font-size:12px; font-weight:600; color:var(--ink); z-index:2; position:relative;}
+  .navbar{height:50px; display:flex; align-items:center; padding:0 10px; gap:4px; color:var(--ink); z-index:8; position:relative;}
+  .iconbtn{width:38px; height:38px; border-radius:12px; display:flex; align-items:center; justify-content:center;
+    background:transparent; border:none; color:var(--ink); cursor:pointer; position:relative;}
+  .navtitle{font-weight:700; font-size:16px; margin-left:2px;}
+  .spacer{flex:1;}
+  .chat{padding:8px 14px; display:flex; flex-direction:column; gap:10px;}
+  .bub{max-width:78%; padding:10px 13px; border-radius:18px; font-size:13px; line-height:1.45;}
+  .bub.user{align-self:flex-end; background:var(--accent); color:#fff; border-bottom-right-radius:6px;}
+  .bub.ai{align-self:flex-start; background:var(--panelSolid); border:1px solid var(--line); color:var(--ink); border-bottom-left-radius:6px;}
+  .srcs{display:flex; gap:6px; margin-top:8px;}
+  .src{font-size:10px; padding:4px 8px; border-radius:999px; border:1px solid var(--line); background:var(--panel); color:var(--ink);}
+  .src i{width:13px; height:13px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:9px; font-style:normal; color:#fff; margin-right:4px;}
+  .composer{position:absolute; left:0; right:0; bottom:0; padding:8px 12px 26px; z-index:2;}
+  .chips{display:flex; gap:6px; margin-bottom:8px;}
+  .chip{font-size:11px; padding:5px 10px; border-radius:999px; border:1px solid var(--line);
+    background:var(--panel); color:var(--muted);}
+  .inputbar{display:flex; align-items:center; gap:8px; background:var(--panelSolid);
+    border:1px solid var(--line); border-radius:22px; padding:10px 14px; color:var(--muted); font-size:13px;}
+  .send{margin-left:auto; width:30px; height:30px; border-radius:50%; background:var(--accent);
+    display:flex; align-items:center; justify-content:center; color:#fff;}
+  #backdrop{position:absolute; inset:0; background:var(--backdrop); opacity:0; pointer-events:none; z-index:5;}
+  #stage{position:absolute; inset:0; z-index:6; pointer-events:none;}
+  #leafsvg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
+  .lf1{stop-color:var(--leaf1);} .lf2{stop-color:var(--leaf2);}
+  /* content directly on the leaf */
+  #onleaf{position:absolute; left:60px; right:40px; top:180px; bottom:88px;
+    display:flex; flex-direction:column; gap:4px; color:var(--tink); pointer-events:auto; opacity:0;}
+  .lrow{display:flex; align-items:center; gap:8px; padding:0 2px 8px;}
+  .lrow .brand{font-weight:800; font-size:21px; color:var(--tink);}
+  .persona{margin-left:auto; display:flex; align-items:center; gap:6px; padding:5px 10px;
+    border:1px solid var(--cline); border-radius:999px;}
+  .persona .dot{width:14px; height:14px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--cyan));}
+  .persona .n{font-size:10.5px; font-weight:600; color:var(--tink);}
+  .lsearch{display:flex; align-items:center; gap:7px; border:1px solid var(--cline);
+    border-radius:12px; padding:8px 11px; color:var(--cmuted); font-size:12px; margin-bottom:4px;}
+  .lsec{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--cmuted); margin:7px 2px 5px;}
+  .lconv{padding:7px 9px; border-radius:11px;}
+  .lconv.active{background:var(--tileActive);}
+  .lconv .t{font-size:12.5px; font-weight:600; color:var(--tink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lconv .p{font-size:10px; color:var(--cmuted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
+  .ldiv{height:1px; background:var(--cline); margin:6px 0;}
+  .ltools{display:grid; grid-template-columns:1fr 1fr; gap:7px;}
+  .ltool{display:flex; align-items:center; gap:8px; padding:11px 11px;
+    border-radius:13px; font-size:12px; font-weight:600; color:var(--tink);
+    background:var(--tile); border:1px solid var(--cline);}
+  .lic{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  .ic{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  #hint{position:absolute; bottom:14px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted); z-index:4;}
+</style>
+</head>
+<body>
+  <div class="side">
+    <h1>🍃 Leaf Fold — v6 · animation</h1>
+    <div class="sub">Frame approvato (v5, stem rimosso, foglia più grande) + animazione = inversa del diagramma 5→2.</div>
+    <div class="row">
+      <button class="ctl" id="bOpen">▶ Open</button>
+      <button class="ctl" id="bClose">◀ Close</button>
+    </div>
+    <div class="lbl">Scrub</div>
+    <input type="range" id="scrub" min="0" max="1000" value="0">
+    <div class="lbl">Theme</div>
+    <div class="row">
+      <button class="ctl on" id="tLight">Light</button>
+      <button class="ctl" id="tDark">Dark</button>
+    </div>
+    <div class="lbl">Motion</div>
+    <div class="row">
+      <button class="ctl on" id="mFull">Full</button>
+      <button class="ctl" id="mReduced">Reduced (a11y)</button>
+    </div>
+    <div class="ph"><b>Sequenza (inversa del fold):</b> ① bocciolo-piega all'icona (il punto esatto dove tocchi) → ② il bocciolo cresce e si spiega: i lembi si aprono sulla piega centrale (shade del lembo sopra che sbiadisce) → ③ gli angoli si distendono nell'esagono approvato → ④ contenuto che entra per ultimo. Spring 120/18 open · 280ms close. La linea di piega finisce al 15% (frame approvato).</div>
+  </div>
+
+  <div class="phone" id="phone">
+    <div class="statusbar"><span>9:41</span><span>●●●</span></div>
+    <div class="navbar">
+      <button class="iconbtn" id="menuBtn" aria-label="Menu">
+        <svg id="budIcon" viewBox="0 0 24 24" width="24" height="24">
+          <path d="M 4 10 L 20 5 L 15 21 Z" fill="var(--leaf2)" stroke="var(--leafStroke)" stroke-width="1.4" stroke-linejoin="round"/>
+          <path d="M 4 10 L 15 21 L 4 16 Z" fill="var(--leaf1)" stroke="var(--leafStroke)" stroke-width="1" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="navtitle">Kalsa</div><div class="spacer"></div>
+      <div class="iconbtn"><svg viewBox="0 0 24 24" width="19" height="19" stroke="currentColor" fill="none" stroke-width="1.9" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
+    </div>
+    <div class="chat">
+      <div class="bub user">How should I feed the sourdough starter tonight?</div>
+      <div class="bub ai">Feed it 1:1:1 — 50g flour, 50g water, 50g starter. Keep it at 24–26°C and it should double in 5–6h.
+        <div class="srcs">
+          <span class="src"><i style="background:#0369A1">1</i>seriouseats · via tavily</span>
+          <span class="src"><i style="background:#6D28D9">2</i>thefreshloaf · via exa</span>
+        </div>
+      </div>
+    </div>
+    <div class="composer">
+      <div class="chips"><span class="chip">🌐 Web research</span><span class="chip">📄 Docs</span><span class="chip">🗒 Notes</span></div>
+      <div class="inputbar">Message…<div class="spacer"></div>
+        <div class="send"><svg viewBox="0 0 24 24" width="14" height="14" stroke="#fff" fill="none" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13M22 2l-7 20-4-9-9-4 20-2z"/></svg></div>
+      </div>
+    </div>
+
+    <div id="backdrop"></div>
+    <div id="stage">
+      <svg id="leafsvg">
+        <defs>
+          <linearGradient id="gBody" x1="0" y1="0" x2="0.7" y2="1">
+            <stop offset="0" class="lf1"/><stop offset="1" class="lf2"/>
+          </linearGradient>
+        </defs>
+        <path id="leafBody" d="" fill="url(#gBody)" stroke="var(--leafStroke)" stroke-width="2" stroke-linejoin="round"/>
+        <path id="foldShade" d="" fill="var(--foldShade)" stroke="none"/>
+        <path id="midrib" d="" stroke="var(--midrib)" stroke-width="1.5" fill="none"/>
+      </svg>
+      <div id="onleaf">
+        <div class="lrow">
+          <span class="brand">Kalsa</span>
+          <div class="persona"><div class="dot"></div><span class="n">Persona: Default</span>
+            <svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m9 6 6 6-6 6"/></svg>
+          </div>
+        </div>
+        <div class="lsearch"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search chats</div>
+        <div class="lconv active"><div class="t">Sourdough schedule</div><div class="p">Feed 1:1:1, keep at 24–26°C…</div></div>
+        <div class="lconv"><div class="t">Bike route Sunday</div><div class="p">Ghisallo loop, 68km…</div></div>
+        <div class="lconv"><div class="t">Trip to Bologna</div><div class="p">Trattoria list…</div></div>
+        <div class="ldiv"></div>
+        <div class="lsec">Strumenti</div>
+        <div class="ltools">
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>Settings</div>
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</div>
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Documents</div>
+          <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><path d="M15 4h4v4M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>Notes</div>
+        </div>
+      </div>
+    </div>
+    <div id="hint">tap the leaf-bud to unfold</div>
+  </div>
+
+<script>
+"use strict";
+/* ── geometry: 7-station mesh, bud(kite@icon) ↔ approved hexagon (enlarged) ── */
+const HEX  = [[195,62],[346,127],[398,417],[318,739],[83,718],[-10,430],[48,137]];
+const BUD  = [[30,100],[58,108],[64,132],[36,170],[14,146],[8,116],[16,106]];
+const HEX_MID = [0,2];  /* midrib connects station 0 (top apex) → 3 (bottom tip) */
+
+function buildPath(st, bulge){
+  const pts=[st[0]];
+  for(let i=0;i<st.length;i++){
+    const a=st[i], b=st[(i+1)%st.length];
+    const dx=b[0]-a[0], dy=b[1]-a[1], len=Math.hypot(dx,dy)||1;
+    const k=(bulge&&bulge[i])||0;
+    const nx=(dy/len)*k, ny=(-dx/len)*k;
+    pts.push([a[0]+dx/3+nx, a[1]+dy/3+ny],[a[0]+2*dx/3+nx, a[1]+2*dy/3+ny],[b[0], b[1]]);
+  }
+  return pts; // 7*3 = 21 points
+}
+const P_BUD=buildPath(BUD,null);
+const P_HEX=buildPath(HEX,null);
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*(3-2*t);
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function mixPath(t){
+  const out=[];
+  const n=Math.max(P_BUD.length,P_HEX.length);
+  for(let i=0;i<n;i++) out.push([lerp(P_BUD[i][0],P_HEX[i][0],t), lerp(P_BUD[i][1],P_HEX[i][1],t)]);
+  return out;
+}
+function toD(pts){
+  let d="M "+pts[0][0].toFixed(2)+" "+pts[0][1].toFixed(2);
+  for(let s=0;s<7;s++){
+    const c1=pts[1+s*3], c2=pts[2+s*3], q=pts[3+s*3];
+    d+=" C "+c1[0].toFixed(2)+" "+c1[1].toFixed(2)+", "+c2[0].toFixed(2)+" "+c2[1].toFixed(2)+", "+q[0].toFixed(2)+" "+q[1].toFixed(2);
+  }
+  return d+" Z";
+}
+
+const $=id=>document.getElementById(id);
+const phone=$("phone"), backdrop=$("backdrop"),
+      leafBody=$("leafBody"), foldShade=$("foldShade"), midrib=$("midrib"),
+      onleaf=$("onleaf"), budIcon=$("budIcon"), hint=$("hint"), scrub=$("scrub");
+
+let pRaw=0, vel=0, anim=null, reduced=false;
+
+function render(){
+  const v=clamp(pRaw,0,1);
+  const visible=pRaw>0.004;
+  backdrop.style.opacity=v.toFixed(3);
+  backdrop.style.pointerEvents = v>0.02 ? "auto":"none";
+  budIcon.style.opacity = visible ? 0 : 1;
+
+  /* single continuous morph: bud@icon → approved hexagon (with slight overshoot via pRaw>1 clamp) */
+  const grow = reduced ? 1 : smooth(clamp(pRaw/0.9,0,1));
+  const d = toD(mixPath(grow));
+  leafBody.setAttribute("d",d);
+  leafBody.style.opacity = visible ? 1 : 0;
+
+  /* fold opening: shade of the upper lobe + crease line, settle to approved */
+  const fold = 1-smooth(clamp((v-0.25)/0.55,0,1));           /* 1 at bud → 0 when open */
+  const mp = mixPath(grow);
+  /* left-of-midrib half: stations 0,6,5,4,3 → point indices 0,18,15,12,9 */
+  const shade=[mp[0],mp[18],mp[15],mp[12],mp[9]];
+  foldShade.setAttribute("d","M "+shade.map(p=>p[0].toFixed(1)+" "+p[1].toFixed(1)).join(" L ")+" Z");
+  foldShade.style.opacity=(fold*0.8).toFixed(3);
+
+  const m0=mixPath(grow)[0], m1=mixPath(grow)[9];
+  midrib.setAttribute("d","M "+m0[0].toFixed(1)+" "+m0[1].toFixed(1)+" L "+m1[0].toFixed(1)+" "+m1[1].toFixed(1));
+  midrib.style.opacity=(0.15+fold*0.45).toFixed(3);          /* strong while folding, 0.15 when open (approved) */
+
+  const cOp = clamp((v-0.74)/0.22,0,1);
+  onleaf.style.opacity=cOp.toFixed(3);
+  onleaf.style.transform="translateY("+((1-cOp)*12).toFixed(2)+"px)";
+  hint.style.opacity = v>0.4 ? 0 : 1;
+  scrub.value=Math.round(clamp(pRaw,0,1)*1000);
+}
+
+function cancelAnim(){ anim=null; vel=0; }
+function springTo(target){
+  cancelAnim();
+  const k=120, c=18, m=0.8; let t=performance.now();
+  anim=now=>{
+    const dt=Math.min(0.032,(now-t)/1000); t=now;
+    const a=(k*(target-pRaw)-c*vel)/m;
+    vel+=a*dt; pRaw+=vel*dt;
+    if(pRaw<0){pRaw=0;vel=0;} if(pRaw>1.05){pRaw=1.05;vel=0;}
+    render();
+    if((target===1&&pRaw>=1&&vel>=0)||(target===0&&pRaw<=0&&vel<=0)){ pRaw=target; anim=null; }
+  };
+}
+function timingTo(target){
+  cancelAnim();
+  const dur=280, from=pRaw, t0=performance.now();
+  anim=now=>{
+    const x=clamp((now-t0)/dur,0,1);
+    const e = x<0.5 ? 2*x*x : 1-Math.pow(-2*x+2,2)/2;
+    pRaw=lerp(from,target,e); render();
+    if(x>=1) anim=null;
+  };
+}
+function loop(now){ if(anim) anim(now); requestAnimationFrame(loop); }
+requestAnimationFrame(loop);
+
+function openDrawer(){ if(pRaw>0.5) return; reduced ? timingTo(1) : springTo(1); }
+function closeDrawer(){ reduced ? timingTo(0) : timingTo(0); }
+
+$("menuBtn").addEventListener("click", ()=> pRaw>0.5 ? closeDrawer() : openDrawer());
+backdrop.addEventListener("click", closeDrawer);
+$("bOpen").onclick=openDrawer;
+$("bClose").onclick=closeDrawer;
+scrub.addEventListener("input", e=>{ cancelAnim(); pRaw=+e.target.value/1000; render(); });
+$("tLight").onclick=()=>{ phone.classList.remove("dark"); $("tLight").classList.add("on"); $("tDark").classList.remove("on"); };
+$("tDark").onclick =()=>{ phone.classList.add("dark");    $("tDark").classList.add("on");  $("tLight").classList.remove("on"); };
+$("mFull").onclick   =()=>{ reduced=false;  $("mFull").classList.add("on");    $("mReduced").classList.remove("on"); };
+$("mReduced").onclick=()=>{ reduced=true;   $("mReduced").classList.add("on"); $("mFull").classList.remove("on"); };
+document.querySelectorAll(".chip").forEach(ch=>ch.addEventListener("click",()=>ch.classList.toggle("on")));
+
+render();
+</script>
+</body>
+</html>

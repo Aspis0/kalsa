@@ -1,0 +1,12 @@
+BUILD_NOTE.txt: OK
+libomp.so: OK
+llama-bench: OK
+llama-cli: OK
+test-backend-ops: OK
+test-governor-v0: OK
+test-governor-v0-shared-cells: OK
+test-governor-v0-commit: OK
+test-governor-v0-turns: OK
+test-governor-v0-hybrid: OK
+test-governor-v0-devices: OK
+governor-bench: OK
