@@ -307,6 +307,8 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
+    // measured: #63 QRD8650 A_sa803197e_s4_logcat.txt:9230, 104.00 MiB @ n_ctx 16384
+    kvBytesPerToken: 6656,
     // Budget caps the think block but cannot disable it (template has no off switch).
     thinking: { short: 256, extended: 512 },
     preserveThinking: true,

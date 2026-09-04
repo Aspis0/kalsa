@@ -12,6 +12,7 @@ jest.mock("react-native", () => ({
         plugged: false,
         sensorValid: true,
       })),
+      readSoc: jest.fn(async () => ({ socModel: null, socManufacturer: null })),
     },
   },
 }));
@@ -19,18 +20,25 @@ jest.mock("react-native", () => ({
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NativeModules } from "react-native";
 import type { DeviceProfile } from "./deviceProfile";
+import { MODEL_REGISTRY } from "./ModelRegistry";
 import {
   buildGovernorParams,
   readGovernorThermo,
 } from "./governorInputs";
 
-const device = (modelName: string, totalMemoryBytes = 12 * 1024 ** 3) =>
+const device = (
+  modelName: string,
+  totalMemoryBytes = 12 * 1024 ** 3,
+  socModel: string | null = null,
+) =>
   ({
     modelName,
     modelId: null,
     manufacturer: "Qualcomm",
     totalMemoryBytes,
     availableMemoryBytes: 8 * 1024 ** 3,
+    socModel,
+    socManufacturer: null,
   } as DeviceProfile);
 
 const model = {
@@ -48,8 +56,16 @@ const memory = {
 
 describe("governor inputs", () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    jest.resetAllMocks();
+    (AsyncStorage.getItem as jest.Mock).mockReset();
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(null);
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockReset();
+    (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
+      battTempTenthsC: 320,
+      battLevelPct: 80,
+      plugged: false,
+      sensorValid: true,
+    });
   });
 
   test("maps the documented board and registry metadata", () => {
@@ -64,6 +80,14 @@ describe("governor inputs", () => {
     expect(buildGovernorParams(model, device("unlisted"), memory).generation).toBe(
       "Unknown",
     );
+    expect(buildGovernorParams(model, device("unlisted"), memory).gpu_fit).toBe("NoFit");
+    expect(
+      buildGovernorParams(
+        model,
+        device("Pineapple for arm64", 12 * 1024 ** 3, "SM8650"),
+        memory,
+      ),
+    ).toMatchObject({ generation: "V75", gpu_fit: "Fit" });
     expect(
       buildGovernorParams(
         { ...model, hybrid: false, canStreamExperts: true },
@@ -86,6 +110,21 @@ describe("governor inputs", () => {
     ).toBe("NoFit");
   });
 
+  test("prices two contexts with the measured LFM KV", () => {
+    const lfm = MODEL_REGISTRY.find((entry) => entry.id === "lfm2.5-2.6b");
+    expect(lfm?.kvBytesPerToken).toBe(6656);
+    expect(
+      buildGovernorParams(
+        lfm!,
+        device("QRD8650", 12 * 1024 ** 3),
+        { ...memory, contextTokens: 16384 },
+      ).gpu_fit,
+    ).toBe("Fit");
+    expect(
+      buildGovernorParams(lfm!, device("QRD8650", 8 * 1024 ** 3), memory).gpu_fit,
+    ).toBe("NoFit");
+  });
+
   test("bench thermo wins over BatteryManager", async () => {
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue(
       JSON.stringify({
@@ -99,6 +138,9 @@ describe("governor inputs", () => {
     );
     await expect(readGovernorThermo()).resolves.toMatchObject({
       batt_temp_tenths_c: 410,
+      sensor_valid: true,
+      t_idle_valid: true,
+      t_idle_c: 35,
       thermo_source: "bench-skin",
     });
     expect(NativeModules.GovernorBattery.readThermo).not.toHaveBeenCalled();
@@ -117,7 +159,7 @@ describe("governor inputs", () => {
     });
   });
 
-  test("plugged battery data without idle calibration is invalid", async () => {
+  test("forwards plugged source validity without a JS idle gate", async () => {
     (NativeModules.GovernorBattery.readThermo as jest.Mock).mockResolvedValue({
       battTempTenthsC: 320,
       battLevelPct: 90,
@@ -125,7 +167,7 @@ describe("governor inputs", () => {
       sensorValid: true,
     });
     await expect(readGovernorThermo()).resolves.toMatchObject({
-      sensor_valid: false,
+      sensor_valid: true,
       thermo_source: "battery",
     });
   });

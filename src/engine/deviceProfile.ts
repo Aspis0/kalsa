@@ -45,6 +45,9 @@ export type DeviceProfile = {
   totalMemoryBytes: number | null;
   /** Android /proc/meminfo MemAvailable (bytes); null off-Android / unreadable. */
   availableMemoryBytes: number | null;
+  /** Android SoC properties; null on API levels without the native probe. */
+  socModel: string | null;
+  socManufacturer: string | null;
   osName: string | null;
   osVersion: string | null;
   /** CPU present count via threadProfile.parseCpuPresent; null when unreadable. */
@@ -501,6 +504,33 @@ type ExpoDeviceMod = {
   deviceType?: number | null;
 };
 
+type GovernorBatteryMod = {
+  readSoc?: () => Promise<unknown>;
+};
+
+async function readSocProperties(): Promise<{
+  socModel: string | null;
+  socManufacturer: string | null;
+}> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { NativeModules } = require("react-native") as {
+      NativeModules?: { GovernorBattery?: GovernorBatteryMod };
+    };
+    const value = await NativeModules?.GovernorBattery?.readSoc?.();
+    if (!value || typeof value !== "object") {
+      return { socModel: null, socManufacturer: null };
+    }
+    const input = value as Record<string, unknown>;
+    return {
+      socModel: asNullableString(input.socModel),
+      socManufacturer: asNullableString(input.socManufacturer),
+    };
+  } catch {
+    return { socModel: null, socManufacturer: null };
+  }
+}
+
 function readExpoDevice(): ExpoDeviceMod | null {
   try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -625,6 +655,7 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     readCpuCoreCount(),
     readCpuCapacities(),
   ]);
+  const { socModel, socManufacturer } = await readSocProperties();
 
   return {
     brand,
@@ -633,6 +664,8 @@ async function buildDeviceProfile(): Promise<DeviceProfile> {
     modelId,
     totalMemoryBytes,
     availableMemoryBytes,
+    socModel,
+    socManufacturer,
     osName,
     osVersion,
     cpuCoreCount,
@@ -658,6 +691,8 @@ export function getCachedDeviceProfile(): Promise<DeviceProfile> {
       modelId: null,
       totalMemoryBytes: null,
       availableMemoryBytes: null,
+      socModel: null,
+      socManufacturer: null,
       osName: null,
       osVersion: null,
       cpuCoreCount: null,

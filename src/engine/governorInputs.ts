@@ -42,6 +42,10 @@ type GovernorModel = Pick<ModelInfo, "sizeBytes"> &
   };
 
 function generationFor(profile: DeviceProfile) {
+  const soc = (profile.socModel ?? "").toUpperCase();
+  if (/(SM8550|KALAMA)/.test(soc)) return "V73" as const;
+  if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75" as const;
+  if (/(SM8750|SUN)/.test(soc)) return "V79" as const;
   const text = [profile.modelName, profile.modelId, profile.manufacturer]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
@@ -68,6 +72,7 @@ function gpuFit(
   const kv = model.kvBytesPerToken;
   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
   if (typeof total !== "number" || total <= EIGHT_GIB) return "NoFit" as const;
+  if (generationFor(profile) === "Unknown") return "NoFit" as const;
 
   const estimate = estimateMemory({
     fileBytes: model.sizeBytes,
@@ -87,7 +92,12 @@ function gpuFit(
 
   const offloadedBytes = memory.offloadedBytes ?? model.sizeBytes;
   const gpuReserveMiB = 800 + (1.05 * offloadedBytes) / MIB;
-  const requiredMiB = estimate.nonEvictableMiB + gpuReserveMiB;
+  // Plan §4 bounds the two-context resident budget at 3.46–3.94 GiB.
+  const requiredMiB =
+    estimate.nonEvictableMiB +
+    gpuReserveMiB +
+    estimate.computeMiB +
+    estimate.kvMiB;
   const availableMiB = (memory.availableMemoryBytes ?? 0) / MIB;
   return requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;
 }
@@ -121,17 +131,11 @@ function profileFrom(value: unknown): ThermoProfile | null {
   if (typeof plugged !== "boolean" || typeof sensor !== "boolean") return null;
   const idleValid = Boolean(input.t_idle_valid);
   const idle = numberValue(input.t_idle_c, 0);
-  const profileValid =
-    sensor &&
-    temp > 0 &&
-    level >= 0 &&
-    level <= 100 &&
-    (!plugged || (idleValid && idle + 1 < 42));
   return {
     batt_temp_tenths_c: temp,
     batt_level_pct: level,
     plugged,
-    sensor_valid: profileValid,
+    sensor_valid: sensor,
     t_idle_valid: idleValid,
     t_idle_c: idle,
     trend_c_per_min: numberValue(input.trend_c_per_min, 0),
