@@ -531,6 +531,28 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 81bcaf2 in volo. Audit ostile S3+S4 → grok (agente 2f3f58ef), report atteso
 > in `docs/AUDIT-S3S4-governor-app.md`.
 
+> **5/09 ~02:00 — Audit S3+S4 (grok, `docs/AUDIT-S3S4-governor-app.md`):
+> NO-GO, 2 blocker + 9 major + 5 minori, tutte le righe citate verificate da
+> me.** B1: LFM2.5-2.6B non ha `kvBytesPerToken` nel registry → `gpu_fit`
+> sempre NoFit → il governor non si sarebbe MAI acceso sul modello ship (S5
+> sarebbe stata CPU vs CPU). B2: la validità thermo in JS pretende
+> `!plugged || idle calibrato`; l'esempio del piano (plugged:true, senza
+> t_idle) era invalido su board USB → piano emendato (plugged:false +
+> t_idle_valid/t_idle_c). M1: probe generazione su `Build.MODEL` = "Pineapple
+> for arm64" su QDC → Unknown, e Unknown non forzava NoFit → si legge
+> `Build.SOC_MODEL`. M2: FALLBACK stantio nel tail dei log riclassifica errori
+> qualsiasi come governor. M3: riga `KALSA_GOVERNOR` per ogni round tool /
+> prewarm / extract, enum come interi. M4: `sensorValid` senza EXTRA_PRESENT.
+> M5: fit a due contesti conta UN compute e UN KV. M6/M7: rifiuto
+> speculative/MTP senza FALLBACK; thermo invalido = throw del turno. M8: CI
+> 33927024200 ROSSA (timeout Maven, non codice) → non è prova di build. M9:
+> mock non resettati, casi d'errore scoperti. Puliti: sicurezza/privacy,
+> unità e nomi campo Kotlin→JS→native, patch solo glue. Fix mandati a Luna
+> (bf40dcfe) con decisioni prese (kv LFM dai log #63, non inventato; Unknown ⇒
+> NoFit; una riga per turno a fine completeChat; enum come nomi; JSI thermo
+> ritorna false, mai throw); poi delta audit grok. PREREG S5 in bozza su
+> Luna (5fcd34c9) in `scratchpad/agents/qdc-governor-s5/`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
