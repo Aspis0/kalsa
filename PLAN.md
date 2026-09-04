@@ -29,12 +29,13 @@
 - Due lezioni ops: prima del launch wake+dismiss-keyguard+stayon; gli APK release non sono debuggabili, quindi sideload via root su board userdebug (44).
 - La GPU non è mai usata dall’app: `offloaded 0/31 layers to GPU` (44).
 
-## Decisioni owner aperte
-1. Ratificare l’amendment del criterio di #61 (G1-amended) (44).
-2. Scegliere APK-A o APK-B per il campo.
-3. Ratificare la riformulazione F6 e decidere se il MoE a offload parziale su v73 è un’opzione del router (43).
-4. Filing upstream del dossier #8: preparare solo la bozza, senza invio a repo terzi.
-5. Decidere una variante APK debuggable per i test sul campo.
+## Decisioni owner (RATIFICATE 4/09 09:40 — "Ok approvo tutte le decisioni. Soprattutto apk debug")
+1. #61 G1-amended RATIFICATO: la app fusa gira su hardware (44).
+2. APK per il campo: l'owner non ha scelto A o B; default operativo B (pin 12f6d9b6d, nessuna regressione vista in #61) salvo contrordine.
+3. F6 riformulata RATIFICATA; il MoE a offload parziale su v73 è un'opzione del router da misurare (43).
+4. Dossier #8: bozza approvata; l'apertura della issue upstream resta un atto separato ("apri la issue"), non implicito nell'approvazione.
+5. **PRIORITÀ OWNER: variante APK debuggable** (release + `android:debuggable`) per i test sul campo con `run-as` → lavoro app: nuovo profilo/flag in apk.yml, CI, sha, poi smoke #61-bis su QDC senza root.
+6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
 ## In volo / prossimi
 - Kit puro upstream → cella #62: driver #60, bracci B2/B5/`ngl99`, backend upstream con #26501+#28202 (43; diario 4/09).
@@ -235,6 +236,11 @@
 > `Error code 0x7003` identici a q50 → stesso modo NULL-deref). Prossimi:
 > addendum dossier #8 con il repro upstream-master; bisect o kit ibrido per
 > la domanda del mapping. Budget QDC ≈ 912/926/913/981/623.
+
+> **4/09, 09:40 — OWNER: "approvo tutte le decisioni, soprattutto apk debug".**
+> Ratifiche registrate in STATO CORRENTE; priorità: APK debuggable (apk.yml
+> variante debug-release, sha, smoke #61-bis su QDC via run-as). Regola:
+> aggiornare sempre tutti i docs.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
