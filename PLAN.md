@@ -666,6 +666,25 @@
 > QRD8650 (PREREG scritto, driver Luna 257 righe, audit mimo in corso);
 > #61-NPU kit con upstream #26501+#28202 da costruire (CI/Docker).
 
+> **4/09, 08:05 — #61 ESEGUITA: LA APP FUSA GIRA SU HARDWARE REALE (QRD8650,
+> Adreno 750). APK-A e APK-B installano, caricano il gguf ship sideloadato
+> (1 593 894 944 B, riconosciuto senza download), rispondono a un prompt:
+> A 129 token a 26.4 tok/s, B 196 token a 26.0 tok/s (CPU: `offloaded 0/31
+> layers to GPU` — la nota assenza dell'implementazione GPU nell'app, ora vista
+> su hardware). Screenshot headless raw/A_sa803030.png: header "LFM2.5 2.6B ·
+> QAD-Q4_0 · Ready · local" + risposta coerente. Prima app fusa su telefono.**
+> Costo: 2 sessioni (23 + 31 min): 1° tentativo morto su `run-as: package not
+> debuggable` (gli APK release di CI NON sono debuggabili → percorso root, la
+> board è userdebug con adbd root) + bug set -u; 2° tentativo: schermo spento
+> (Dozing) → nessun DB → wake+dismiss-keyguard nel driver. Il segnale S4 del
+> PREREG (`KALSA_SESSION op:load`) era il restore della sessione KV, non il
+> load del modello (errore della recon): il ledger dice S4 fail, il REPORT
+> lo rilegge sui raw (llama_model_loader + PREWARM 1319 token in 9.4 s).
+> Artefatto app: `promptMs` 411 s con 15 token nuovi (timer partito al prewarm).
+> Dossier #8 aggiornato e auditato ACCEPT (commit 0b517d07, nessuna issue).
+> Kit mmapfix: cherry-pick di #26501/#28202 IMPOSSIBILE (conflitti) → build
+> puro da upstream/master in corso (npu-kit-62-upstream). REPORT #61 in audit.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
