@@ -571,6 +571,16 @@
 > 87/11/16/41/33/65). Decisione owner n.3 (APK) in esecuzione; n.2 (pick)
 > chiusa lato fork + APK-B per il confronto al rientro.
 
+> **3/09 notte, 22:30 — APK-A PRONTO (decisione owner n.3 CHIUSA nella forma
+> baseline).** Run 33826825621 su main c513f00 verde in ~35 min: artifact
+> `kalsa-apk-arm64-v8a-c513f00…`, app-release.apk 135 593 407 B, **sha256
+> e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403**,
+> scaricato in ~/kalsa-qdc/apk/apk-A-c513f00/ (APK-A.sha256). È il primo APK
+> CI del `main` fuso, assemblaggio device-proven (pin a0cabca6b) — mai
+> installato su telefono (lab zero fino ~13/09). APK-B (pin 12f6d9b6d): primo
+> run 33826834623 CANCELLATO dal runner a 28 min dentro Gradle senza errore
+> di compilazione (unico run sul branch, non è la concurrency) → rilanciato.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
