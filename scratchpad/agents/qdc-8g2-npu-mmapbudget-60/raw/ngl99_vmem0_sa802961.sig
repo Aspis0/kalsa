@@ -1,0 +1,1 @@
+SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err:ggml-hex: HTP0 failed to allocate buffer context (repack): ggml-hex: fastrpc_mmap failed (see log for details)  expected_exps=48
