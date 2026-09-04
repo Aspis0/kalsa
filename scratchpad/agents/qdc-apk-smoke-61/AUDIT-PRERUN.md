@@ -177,4 +177,26 @@ PREREG says "compaction and thinking left at the CI defaults (COMPACTION=on, THI
 **FIX items: BUG-7 (resume gate), OPS-1 (verify tunnel throughput).**
 **All other findings: NOTE severity — correct, matching ci-lib conventions, or unreachable.**
 
-## Verdict: **RUN** (with pre-flight: `which sqlite3` and `dd if=/dev/zero bs=1M count=100 | adb shell cat > /data/local/tmp/kalsa61/bwtest` to verify tunnel throughput ≥2 MB/s before booking).
+## Delta audit (root path)
+
+Amendment 1: APKs not debuggable, adbd root (`uid=0(root)` recon confirmed). Driver died at old L56 `phase: unbound variable` under `set -u`.
+
+**1. No `run-as` remains.** `grep -c 'run-as' d_run.sh` = 0. All 5 former run-as ops replaced: S2 `cp`+`stat -c %s` (L185,191), S3 pull/push `adbT pull`+root `cp`/`chown`/`restorecon` (L94-119), S6 `cat /proc/pid/maps` (L138), S6 `adbT pull RKStorage` (L132). All confirmed.
+
+**2. APP_UID** (L169-176): `stat -c %u` → fallback `dumpsys package … userId=` → guard `''|*[!0-9]*]` → `S1 fail`. Set before pm rc check; correct on fresh install (stat reads post-install uid) and reinstall (stat reads existing uid).
+
+**3. `phase` fix** (L56-57): split `local prefix phase gate_rc` / `local out status`. **Bash 3.2 repro confirmed:** old single-line `local p=… phase=… out="${p}_…${phase}"` → `unbound variable`. New two-line form works. Grep of all 16 `local` lines: no other same-line self-references.
+
+**4. S2 `chown -R` + `restorecon -RF`** (L185): mkdir → cp → chown → restorecon. Correct order: UID set before SELinux relabel. `restorecon -RF` on `/data/data/$PKG/files` recurses into children → model file labeled `app_data_file`. App reads it. CONFIRMED.
+
+**5. WAL checkpoint order** in `set_model_pref` (L107-128): pull → `sqlite3 INSERT` → `PRAGMA wal_checkpoint(TRUNCATE)` → push base → root cp/chown/restorecon + `rm -wal/-shm`. Checkpoint before push — correct. Inherited ci-lib pattern (ci-lib.sh:132).
+
+**6. Other diff changes:** comment update (L4-5), S1 detail adds `app_uid` (L183), S2 detail `sideload=root` (L198), evidence `exec-out run-as cat` → `adbT pull` (L132). All cosmetic or direct root equivalents. Nothing unjustified.
+
+**7. Bash 3.2:** all new constructs (`stat -c %u`, `case ''|*[!0-9]*]`, `restorecon -RF`, split `local`) POSIX-compatible. Holds.
+
+---
+
+**BLOCKERs: 0. New FIX: none. Pre-existing FIX: OPS-1 (tunnel throughput).**
+
+## Verdict: **FIX-THEN-RUN** (pre-flight: `which sqlite3` + tunnel throughput ≥2 MB/s). Root-path delta clean.
