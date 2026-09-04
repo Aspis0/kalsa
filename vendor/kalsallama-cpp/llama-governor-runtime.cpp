@@ -3,6 +3,7 @@
 #include "llama-impl.h"
 
 #include <algorithm>
+#include <string>
 #include <stdexcept>
 #include <vector>
 
@@ -188,6 +189,13 @@ llama_governor * llama_governor_init_with_params(llama_model * model_prefill, ll
                                   governor_params, true);
     } catch (const std::exception & err) {
         LLAMA_LOG_ERROR("%s: %s\n", __func__, err.what());
+        const std::string reason = err.what();
+        if (reason.find("route") != std::string::npos ||
+            reason.find("Route") != std::string::npos) {
+            LLAMA_LOG_ERROR(
+                "KALSA_GOVERNOR_FALLBACK {stage:\"route_reject\", models_loaded:2, reason:\"%s\", gpu_fit:%d, profile_valid:1}\n",
+                err.what(), (int) governor_params.gpu_fit);
+        }
         return nullptr;
     }
 }

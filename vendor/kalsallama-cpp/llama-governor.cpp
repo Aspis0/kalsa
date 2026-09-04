@@ -139,6 +139,7 @@ void llama_governor::record_side(llama_context * ctx, side_state & side, bool pr
 
 int32_t llama_governor::fail(const char * message) {
     failed = true;
+    failure_reason_ = message;
     LLAMA_LOG_ERROR("%s: %s\n", __func__, message);
     return -1;
 }
@@ -187,7 +188,7 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
             ? commit_side(ctx_decode, ctx_prefill, decode_state, prefill_state, "decode-to-prefill")
             : commit_side(ctx_prefill, ctx_decode, prefill_state, decode_state, "prefill-to-decode");
         if (!ok) {
-            return fail("phase handoff failed");
+            return fail("route Reject during phase handoff");
         }
     }
 
