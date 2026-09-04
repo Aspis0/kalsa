@@ -339,6 +339,8 @@ copy_llama_api() {
   rm -rf "$DST/models"
   copy_tree_if_exists "$LLAMA/src/models" "$DST/models"
   copy_if_exists "$LLAMA/src/llama.cpp" "$DST/llama.cpp"
+  # Governor/KV runtime: llama-ext.h plus the 13 fork sources called out by
+  # the S1 audit as the 14-file governor integration set.
   local name
   for name in \
     llama-chat.h llama-chat.cpp \
