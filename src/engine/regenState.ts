@@ -90,6 +90,8 @@ export function drainPendingModelSwitch(): string | null {
 export type BackgroundDiscardResult = {
   /** Real historyHash of the messages that were (or will be) saved. */
   historyHashValue: string;
+  /** Length of the persistable messages array that produced historyHashValue. */
+  historyMessageCount: number;
 };
 
 export const backgroundDiscardLifecycleRef: {

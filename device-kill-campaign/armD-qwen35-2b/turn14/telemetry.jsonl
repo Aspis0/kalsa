@@ -1,0 +1,2 @@
+{"turnId":"14","round":0,"tokensCached":4247,"tokensEvaluated":4034,"tokensPredicted":212,"draftTokens":0,"draftAccepted":0,"promptMs":6286.082,"predictedMs":13970.462,"predictedPerSecond":15.174873959071647,"contextFull":false,"interrupted":false}
+{"turnId":"14","round":1,"tokensCached":4315,"tokensEvaluated":4143,"tokensPredicted":171,"draftTokens":0,"draftAccepted":0,"promptMs":6547.001,"predictedMs":11459.89,"predictedPerSecond":14.9216091952017,"contextFull":false,"interrupted":false}

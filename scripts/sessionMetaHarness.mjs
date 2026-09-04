@@ -50,6 +50,7 @@ export async function readDirectoryAsync() { return []; }
     path.join(asDir, "index.js"),
     `
 const store = new Map();
+globalThis.__kalsaHarnessStorage = store;
 export default {
   async getItem(k) { return store.has(k) ? store.get(k) : null; },
   async setItem(k, v) { store.set(k, v); },
@@ -70,6 +71,8 @@ function compile() {
     [
       "tsc",
       "src/engine/sessionPersistence.ts",
+      "src/engine/sessionDiskCalibration.ts",
+      "src/engine/sessionDiskCalibrationStore.ts",
       "src/engine/ttftFlags.ts",
       "--outDir",
       outDir,
@@ -90,11 +93,11 @@ function compile() {
   }
 }
 
-function resolveBuilt() {
+function resolveBuilt(file = "sessionPersistence.js") {
   const candidates = [
-    path.join(outDir, "sessionPersistence.js"),
-    path.join(outDir, "engine/sessionPersistence.js"),
-    path.join(outDir, "src/engine/sessionPersistence.js"),
+    path.join(outDir, file),
+    path.join(outDir, `engine/${file}`),
+    path.join(outDir, `src/engine/${file}`),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -121,6 +124,7 @@ async function main() {
     computeHistoryHashFromMessages,
     computePromptEnvHash,
     estimateSessionBytes,
+    sessionHistoryPrefixAccepts,
     resolveSessionDiskTokens,
     sessionDiskBytesRequired,
     SESSION_DISK_GATE_USED_TOKENS,
@@ -132,6 +136,15 @@ async function main() {
     sessionLoadHasTokens,
     buildKvDiagPayload,
   } = await import(pathToFileURL(modPath).href);
+  const {
+    recordSessionDiskSample,
+    sessionBytesPerTokenForModel,
+  } = await import(pathToFileURL(resolveBuilt("sessionDiskCalibration.js")).href);
+  const {
+    loadSessionDiskCalibration,
+    SESSION_DISK_CALIBRATION_STORAGE_KEY,
+  } = await import(pathToFileURL(resolveBuilt("sessionDiskCalibrationStore.js")).href);
+  const storage = globalThis.__kalsaHarnessStorage;
 
   let passed = 0;
   let failed = 0;
@@ -288,30 +301,51 @@ async function main() {
     );
   });
 
-  // promptEnvHash — system-prompt env gate
+  // promptEnvHash — system-prompt env gate. Covers locale + memoryFacts +
+  // hasTools + the tool NAMES and blockFormat: hasTools alone was a boolean, so
+  // turning Web off changed the tool array without changing the hash and the
+  // same .kvs was reused under a different system prompt (audit F6, 2026-08-21).
   test("computePromptEnvHash stable + djb2 shape", () => {
-    const a = computePromptEnvHash("en", ["fact one", "fact two"]);
-    const b = computePromptEnvHash("en", ["fact one", "fact two"]);
+    const a = computePromptEnvHash("en", ["fact a"], true, ["web_search"], "md");
+    const b = computePromptEnvHash("en", ["fact a"], true, ["web_search"], "md");
     assert(a === b, "stable");
     assert(typeof a === "string" && a.length > 0, "non-empty");
     const expected = historyHash(
       JSON.stringify({
         locale: "en",
-        memoryFactsJoined: "fact one\nfact two",
+        memoryFactsJoined: "fact a",
         hasTools: true,
+        tools: ["web_search"],
+        blockFormat: "md",
       }),
     );
     assert(a === expected, "equals historyHash of canonical JSON");
   });
 
-  test("computePromptEnvHash sensitive to locale / facts", () => {
-    const base = computePromptEnvHash("en", ["a"]);
-    assert(base !== computePromptEnvHash("it", ["a"]), "locale");
-    assert(base !== computePromptEnvHash("en", ["b"]), "facts");
-    assert(base !== computePromptEnvHash("en", []), "empty facts");
+  test("computePromptEnvHash sensitive to tool set and blockFormat", () => {
+    const base = computePromptEnvHash("en", ["f"], true, ["web_search"], "md");
     assert(
-      computePromptEnvHash("en", null) === computePromptEnvHash("en", []),
-      "null facts ≡ []",
+      base !== computePromptEnvHash("en", ["f"], true, ["web_search", "web_fetch"], "md"),
+      "tool set change must change the hash (the Web toggle case)",
+    );
+    assert(
+      base !== computePromptEnvHash("en", ["f"], true, ["web_search"], "xml"),
+      "blockFormat",
+    );
+    assert(
+      base === computePromptEnvHash("en", ["f"], true, ["web_search", "web_search"], "md"),
+      "duplicate tool names are collapsed",
+    );
+  });
+
+  test("computePromptEnvHash sensitive to locale / facts / hasTools", () => {
+    const base = computePromptEnvHash("en", ["f"], true);
+    assert(base !== computePromptEnvHash("it", ["f"], true), "locale");
+    assert(base !== computePromptEnvHash("en", ["g"], true), "facts");
+    assert(base !== computePromptEnvHash("en", ["f"], false), "hasTools");
+    assert(
+      computePromptEnvHash("en", null, true) === computePromptEnvHash("en", [], true),
+      "null ≡ [] facts",
     );
   });
 
@@ -336,6 +370,152 @@ async function main() {
     assert(estimateSessionBytes(8192) === 8192 * SESSION_BYTES_PER_TOKEN, "8192");
     assert(estimateSessionBytes(0) === 0, "0");
     assert(estimateSessionBytes(-1) === 0, "negative → 0");
+  });
+
+  // ── sessionHistoryPrefixAccepts ──────────────────────────────────────────
+  const prefixMsgs = [
+    { role: "user", text: "hi" },
+    { role: "assistant", text: "hello" },
+  ];
+  const prefixHash = computeHistoryHashFromMessages(prefixMsgs);
+
+  test("prefix ACCEPT: saved prefix == current truncated to count", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      prefixMsgs,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  test("prefix ACCEPT: current has one extra user message (pending turn)", () => {
+    const current = [...prefixMsgs, { role: "user", text: "next turn" }];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      current,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  // Empty suffix: length === count, prefix hash matches → ACCEPT (exact restore).
+  test("prefix ACCEPT: empty suffix (nothing appended after count)", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      prefixMsgs,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  test("prefix REJECT stale_kv: user + assistant suffix (skipped tool turn)", () => {
+    const current = [
+      ...prefixMsgs,
+      { role: "user", text: "search something" },
+      { role: "assistant", text: "tool results summary" },
+    ];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      current,
+    );
+    assert(
+      r.accept === false && r.reason === "stale_kv_completed_turn",
+      JSON.stringify(r),
+    );
+  });
+
+  test("prefix REJECT stale_kv: assistant-only suffix", () => {
+    const current = [...prefixMsgs, { role: "assistant", text: "orphan reply" }];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      current,
+    );
+    assert(
+      r.accept === false && r.reason === "stale_kv_completed_turn",
+      JSON.stringify(r),
+    );
+  });
+
+  test("prefix REJECT: content diverges inside prefix", () => {
+    const diverged = [
+      { role: "user", text: "hi EDITED" },
+      { role: "assistant", text: "hello" },
+      { role: "user", text: "next" },
+    ];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      diverged,
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
+  });
+
+  test("prefix REJECT: same count, different content (hash mismatch)", () => {
+    const other = [
+      { role: "user", text: "different" },
+      { role: "assistant", text: "reply" },
+    ];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      other,
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
+  });
+
+  test("prefix REJECT: current shorter than count", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash, historyMessageCount: 2 },
+      [{ role: "user", text: "hi" }],
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
+  });
+
+  test("prefix REJECT: missing/null saved or empty historyHash", () => {
+    assert(
+      sessionHistoryPrefixAccepts(null, prefixMsgs).accept === false,
+      "null saved",
+    );
+    assert(
+      sessionHistoryPrefixAccepts(undefined, prefixMsgs).reason === "historyHash",
+      "undefined saved",
+    );
+    assert(
+      sessionHistoryPrefixAccepts({ historyHash: "", historyMessageCount: 2 }, prefixMsgs)
+        .reason === "historyHash",
+      "empty hash",
+    );
+    assert(
+      sessionHistoryPrefixAccepts({ historyMessageCount: 2 }, prefixMsgs).reason ===
+        "historyHash",
+      "missing hash",
+    );
+  });
+
+  test("prefix REJECT: corrupt historyMessageCount", () => {
+    const cases = [-1, "3", 1.5, NaN, null];
+    for (const bad of cases) {
+      const r = sessionHistoryPrefixAccepts(
+        { historyHash: prefixHash, historyMessageCount: bad },
+        prefixMsgs,
+      );
+      assert(
+        r.accept === false && r.reason === "historyMessageCount",
+        `bad=${JSON.stringify(bad)} → ${JSON.stringify(r)}`,
+      );
+    }
+  });
+
+  test("prefix ACCEPT legacy: no historyMessageCount, full hash matches", () => {
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash },
+      prefixMsgs,
+    );
+    assert(r.accept === true, JSON.stringify(r));
+  });
+
+  test("prefix REJECT legacy: no historyMessageCount, extra message fails exact", () => {
+    const current = [...prefixMsgs, { role: "user", text: "extra" }];
+    const r = sessionHistoryPrefixAccepts(
+      { historyHash: prefixHash },
+      current,
+    );
+    assert(r.accept === false && r.reason === "historyHash", JSON.stringify(r));
   });
 
   test("SESSION_DISK_GATE_USED_TOKENS defaults on", () => {
@@ -422,20 +602,18 @@ async function main() {
     assert(sessionLoadHasTokens(undefined) === false, "undefined");
   });
 
-  test("buildKvDiagPayload is honest on hybrid restore (JS tokens, native 0)", () => {
+  test("buildKvDiagPayload reports restored hybrid tokens", () => {
     const hybridOk = buildKvDiagPayload({
       ok: true,
       tokensLoaded: 1635,
-      hybridOrKvUnified: true,
     });
     assert(hybridOk.ok === true, "hybrid ok");
     assert(hybridOk.tokens_on_disk === 1635, "hybrid tokens_on_disk");
-    assert(hybridOk.n_past === 0, "hybrid n_past is 0 — do not repeat the JS lie");
+    assert(hybridOk.n_past === 1635, "hybrid n_past is tokens_loaded");
 
     const denseOk = buildKvDiagPayload({
       ok: true,
       tokensLoaded: 1635,
-      hybridOrKvUnified: false,
     });
     assert(denseOk.n_past === 1635, "non-hybrid n_past is tokens_loaded");
     assert(denseOk.tokens_on_disk === 1635, "non-hybrid tokens_on_disk");
@@ -444,7 +622,6 @@ async function main() {
     const fail = buildKvDiagPayload({
       ok: false,
       tokensLoaded: undefined,
-      hybridOrKvUnified: true,
     });
     assert(fail.ok === false, "fail ok");
     assert(fail.tokens_on_disk === 0, "fail tokens_on_disk defaults 0");
@@ -453,13 +630,126 @@ async function main() {
     const failDense = buildKvDiagPayload({
       ok: false,
       tokensLoaded: "nope",
-      hybridOrKvUnified: false,
     });
     assert(failDense.tokens_on_disk === 0, "non-number tokens_loaded → 0");
     assert(failDense.n_past === 0, "non-hybrid fail n_past 0");
   });
 
+  test("session disk calibration rejects zero/missing/failed samples", () => {
+    const empty = {};
+    assert(sessionBytesPerTokenForModel(empty, "kexp") === null, "missing measurement");
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: true,
+        modelId: "kexp",
+        fileBytes: 10041119,
+        usedTokens: 0,
+      }) === empty,
+      "zero tokens must not calibrate",
+    );
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: true,
+        modelId: "kexp",
+        fileBytes: 10041119,
+        usedTokens: -1,
+      }) === empty,
+      "negative tokens must not calibrate",
+    );
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: true,
+        modelId: "kexp",
+        fileBytes: undefined,
+        usedTokens: 1946,
+      }) === empty,
+      "missing file size must not calibrate",
+    );
+    assert(
+      recordSessionDiskSample(empty, {
+        ok: false,
+        modelId: "kexp",
+        fileBytes: 10041119,
+        usedTokens: 1946,
+      }) === empty,
+      "failed save must not calibrate",
+    );
+    const measured = recordSessionDiskSample(empty, {
+      ok: true,
+      modelId: "kexp",
+      fileBytes: 10041119,
+      usedTokens: 1946,
+    });
+    assert(
+      sessionBytesPerTokenForModel(measured, "kexp") === 10041119 / 1946,
+      "successful save records bytes/token",
+    );
+    assert(
+      estimateSessionBytes(1946, sessionBytesPerTokenForModel(measured, "kexp")) === 10041119,
+      "next gate uses the measured rate",
+    );
+    assert(
+      estimateSessionBytes(1, null) === SESSION_BYTES_PER_TOKEN,
+      "missing rate uses the unmeasured default",
+    );
+    assert(
+      sessionBytesPerTokenForModel(measured, "other") === null,
+      "calibration is per model",
+    );
+    const larger = recordSessionDiskSample(measured, {
+      ok: true,
+      modelId: "kexp",
+      fileBytes: 10041119 * 2,
+      usedTokens: 1946,
+    });
+    assert(
+      sessionBytesPerTokenForModel(larger, "kexp") === (10041119 * 2) / 1946,
+      "larger sample replaces the calibration",
+    );
+    const smaller = recordSessionDiskSample(larger, {
+      ok: true,
+      modelId: "kexp",
+      fileBytes: 10041119,
+      usedTokens: 1946,
+    });
+    assert(smaller === larger, "smaller sample must keep the maximum");
+  });
+
+  async function asyncTest(name, fn) {
+    try {
+      await fn();
+      console.log(`  OK  ${name}`);
+      passed++;
+    } catch (e) {
+      console.error(`  FAIL ${name}:`, e.message || e);
+      failed++;
+    }
+  }
+
+  await asyncTest("calibration store rejects corrupt and non-object payloads", async () => {
+    try {
+      for (const raw of ["{", "null", "42", "\"text\"", "[]"]) {
+        storage.set(SESSION_DISK_CALIBRATION_STORAGE_KEY, raw);
+        assert(
+          JSON.stringify(await loadSessionDiskCalibration()) === "{}",
+          `payload ${raw} should load as empty`,
+        );
+      }
+      storage.set(
+        SESSION_DISK_CALIBRATION_STORAGE_KEY,
+        JSON.stringify({ kexp: 12, zero: 0, negative: -1 }),
+      );
+      assert(
+        JSON.stringify(await loadSessionDiskCalibration()) === JSON.stringify({ kexp: 12 }),
+        "valid object must be sanitized",
+      );
+    } finally {
+      storage.clear();
+    }
+  });
+
   console.log(`\n${passed} passed, ${failed} failed`);
+  delete globalThis.__kalsaHarnessStorage;
   process.exit(failed > 0 ? 1 : 0);
 }
 

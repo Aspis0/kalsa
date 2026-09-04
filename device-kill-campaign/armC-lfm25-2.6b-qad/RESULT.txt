@@ -1,0 +1,2 @@
+phase=fase4 arm=killC-lfm25-2.6b-qad seed=1 format=none thinking=default compaction=ciswire
+probes=11/22

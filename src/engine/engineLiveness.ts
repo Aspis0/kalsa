@@ -2,8 +2,13 @@
  * Engine-lost detection + UI/send recovery state machine.
  *
  * RSS collapse is NOT a death signal. llama.rn memory-maps the GGUF
- * (`LLAMA_LOAD_MODE_MMAP`) and `use_mlock: true` is fail-soft on Android
- * (RLIMIT_MEMLOCK ≈ 64 KB). Under pressure the kernel evicts file-backed
+ * (`LLAMA_LOAD_MODE_MMAP`) and `use_mlock: true` does not pin the model on
+ * Android — MEASURED on the Jelly 2026-08-22, and NOT for the reason this
+ * comment used to give. `RLIMIT_MEMLOCK` is **unlimited** there, for the shell
+ * and for the app process alike, not the ≈64 KB claimed; mlock genuinely takes
+ * effect (system `Mlocked` 4 912 → 215 932 kB) but locks only ~211 MB, not the
+ * 1.67 GB file. So the conclusion holds and the stated cause did not. Under
+ * pressure the kernel still evicts file-backed
  * pages; a live engine shows a large RSS drop by design. Treating that
  * as "lost" leaks the still-live native context (no GC finalizer) and
  * double-allocates on reload — an OOM on the exact device state that

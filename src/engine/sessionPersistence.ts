@@ -1,7 +1,8 @@
 /**
  * Native KV session persistence (llama.rn saveSession / loadSession).
  *
- * Per-model `.kvs` file under documents/sessions/ + AsyncStorage meta that
+ * Pool files live under documents/sessions/ keyed by sessionStem
+ * (model + conversation + prompt-env hash) + AsyncStorage meta that
  * validates history/cache/spec before restore. Pure helpers (hash, meta match)
  * have no RN side effects so the harness can exercise them offline.
  */
@@ -26,11 +27,14 @@ export type SessionMeta = {
   /** JSON.stringify of bench EngineOverride; omitted when production defaults. */
   engineKnob?: string;
   historyHash: string;
+  /** Length of the messages array that produced historyHash. Enables prefix restore. */
+  historyMessageCount?: number;
   /**
-   * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools:true}).
+   * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools, tools, blockFormat}).
    * When MEMORY_FACTS_ON_USER_TAIL, callers must pass [] for facts so a new
    * fact does not cold-start the whole prefix. Mismatch → cold start.
-   * Optional for back-compat reads.
+   * Optional for back-compat reads. Changing the hashed shape invalidates
+   * older saved sessions (one cold prefill).
    */
   promptEnvHash?: string;
   /**
@@ -65,23 +69,49 @@ export type KvDiagPayload = {
 };
 
 /**
- * Honest restore line. loadSession can report tokens_loaded>0 while native
- * n_past is 0 on hybrid/kvUnified models (Q6.c). Never treat ok:true as reuse.
+ * Honest restore line. §7.30 measured hybrid/kvUnified restores with
+ * 1814–1946 resident and reused tokens, so tokens_loaded is restored n_past.
+ * Never treat ok:true as reuse.
  */
 export function buildKvDiagPayload(input: {
   ok: boolean;
   tokensLoaded: unknown;
-  hybridOrKvUnified: boolean;
 }): KvDiagPayload {
   const tokens_on_disk =
     typeof input.tokensLoaded === "number" && Number.isFinite(input.tokensLoaded)
       ? input.tokensLoaded
       : 0;
   return {
-    n_past: input.hybridOrKvUnified ? 0 : tokens_on_disk,
+    n_past: tokens_on_disk,
     tokens_on_disk,
     ok: input.ok === true,
   };
+}
+
+export type SessionSaveFingerprint = {
+  stem: string;
+  historyHash: string;
+  usedTokens: number | null;
+};
+
+export function isSameSessionSave(
+  previous: SessionSaveFingerprint | null,
+  next: SessionSaveFingerprint,
+): boolean {
+  return (
+    previous !== null &&
+    previous.stem === next.stem &&
+    previous.historyHash === next.historyHash &&
+    previous.usedTokens === next.usedTokens
+  );
+}
+
+export function rememberSuccessfulSessionSave(
+  previous: SessionSaveFingerprint | null,
+  next: SessionSaveFingerprint,
+  succeeded: boolean,
+): SessionSaveFingerprint | null {
+  return succeeded ? next : previous;
 }
 
 /** Default messages key until migrate / AppShell bind the active conversation. */
@@ -98,24 +128,24 @@ export function sanitizeModelId(modelId: string): string {
   return modelId.replace(/[/\\]/g, "_").replace(/\.\./g, "_");
 }
 
-/** AsyncStorage key for session meta of a model (sanitized id, same as file name). */
-export function sessionMetaKey(modelId: string): string {
-  return `kalsa.session.meta.${sanitizeModelId(modelId)}`;
+/** AsyncStorage key for session meta of a stem (sanitized, same as file stem). */
+export function sessionMetaKey(stem: string): string {
+  return `kalsa.session.meta.${sanitizeModelId(stem)}`;
 }
 
-/** Pure path join: `${baseDir}sessions/${modelId}.kvs` (baseDir should end with /). */
-export function sessionFilePathForBase(baseDir: string, modelId: string): string {
+/** Pure path join: `${baseDir}sessions/${stem}.kvs` (baseDir should end with /). */
+export function sessionFilePathForBase(baseDir: string, stem: string): string {
   const base = baseDir || "";
   const root = base.endsWith("/") || base === "" ? base : `${base}/`;
-  return `${root}sessions/${sanitizeModelId(modelId)}.kvs`;
+  return `${root}sessions/${sanitizeModelId(stem)}.kvs`;
 }
 
 /**
  * Session file path under app documents dir.
  * Reuses ModelDownloader base: FileSystem.documentDirectory.
  */
-export function sessionFilePath(modelId: string): string {
-  return sessionFilePathForBase(FileSystem.documentDirectory ?? "", modelId);
+export function sessionFilePath(stem: string): string {
+  return sessionFilePathForBase(FileSystem.documentDirectory ?? "", stem);
 }
 
 /**
@@ -134,6 +164,83 @@ export function historyHash(messagesJson: string): string {
 export function computeHistoryHashFromMessages(messages: unknown): string {
   const arr = Array.isArray(messages) ? messages : [];
   return historyHash(JSON.stringify(arr));
+}
+
+/**
+ * Accept restore when saved history is an exact prefix of current messages.
+ * New user messages after save (turn N+1 boot) must not force a cold start.
+ * Content hash of the prefix is the only history check — never token counts.
+ *
+ * After a matching prefix, every suffix message must be role "user" (pending
+ * input the model has not answered). An assistant/tool/miniapp suffix means a
+ * full turn completed after the KV was saved (e.g. shouldSaveSession skipped a
+ * non-reproducible tool turn while AsyncStorage still wrote the reply) — reject
+ * with stale_kv_completed_turn so we cold-start instead of loading a KV that
+ * never saw that turn.
+ *
+ * AppState-background save + buildPersistableMessages: a still-streaming reply
+ * is dropped from the meta count/hash but may already sit in native KV. The
+ * suffix rule then rejects (suffix holds that assistant message) — safe direction.
+ */
+export function sessionHistoryPrefixAccepts(
+  saved: { historyHash?: unknown; historyMessageCount?: unknown } | null | undefined,
+  currentMessages: unknown,
+): { accept: true } | { accept: false; reason: string } {
+  if (saved == null) return { accept: false, reason: "historyHash" };
+  const hash = saved.historyHash;
+  if (typeof hash !== "string" || hash.length === 0) {
+    return { accept: false, reason: "historyHash" };
+  }
+  if (!Array.isArray(currentMessages)) {
+    return { accept: false, reason: "historyHash" };
+  }
+  const count = saved.historyMessageCount;
+  if (count === undefined) {
+    // Legacy meta: exact full-history match.
+    if (computeHistoryHashFromMessages(currentMessages) === hash) {
+      return { accept: true };
+    }
+    return { accept: false, reason: "historyHash" };
+  }
+  if (
+    typeof count !== "number" ||
+    !Number.isInteger(count) ||
+    count < 0 ||
+    !Number.isFinite(count)
+  ) {
+    return { accept: false, reason: "historyMessageCount" };
+  }
+  if (currentMessages.length < count) {
+    return { accept: false, reason: "historyHash" };
+  }
+  const prefix = currentMessages.slice(0, count);
+  if (computeHistoryHashFromMessages(prefix) !== hash) {
+    return { accept: false, reason: "historyHash" };
+  }
+  // Prefix matches. Accept only if the suffix is pending user input (or empty).
+  for (let i = count; i < currentMessages.length; i++) {
+    const msg = currentMessages[i];
+    const role =
+      msg != null && typeof msg === "object" && "role" in msg
+        ? (msg as { role?: unknown }).role
+        : undefined;
+    if (role !== "user") {
+      return { accept: false, reason: "stale_kv_completed_turn" };
+    }
+  }
+  return { accept: true };
+}
+
+/** Boot messages from AsyncStorage. Best-effort; never throws; [] on failure. */
+export async function readBootMessages(): Promise<unknown[]> {
+  try {
+    const raw = await AsyncStorage.getItem(bootMessagesKey);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 }
 
 let bootHistoryHashPromise: Promise<string> | null = null;
@@ -202,23 +309,39 @@ export function setSessionConversationId(id: string | undefined): void {
   sessionConversationId = undefined;
 }
 
+/** Full fact-text list for prompt-env hash — store order, never a tail slice. */
+export function memoryFactTextsForEnvHash(
+  facts: readonly { readonly text: string }[] | null | undefined,
+): string[] {
+  return (facts ?? []).map((f) => f.text);
+}
+
 /**
  * Hash of system-prompt env inputs that are not covered by historyHash.
- * `hasTools` is always the literal `true` today (tools wired on every chat turn).
- * Uses the same djb2 as historyHash.
+ * Covers locale, memory facts (joined), whether tools are wired into
+ * buildSystemPrompt, the sorted tool-name set, and blockFormat.
  * When MEMORY_FACTS_ON_USER_TAIL the caller must pass [] / omit facts — they
- * are no longer part of the system prompt.
+ * are no longer part of the system prompt. Changing the hashed shape
+ * invalidates older saved sessions (one cold prefill).
  */
 export function computePromptEnvHash(
   locale: string,
   memoryFacts: string[] | undefined | null,
+  hasTools: boolean,
+  toolNames?: readonly string[] | null,
+  blockFormat?: string | null,
 ): string {
   const memoryFactsJoined = Array.isArray(memoryFacts) ? memoryFacts.join("\n") : "";
+  const tools = Array.isArray(toolNames)
+    ? [...new Set(toolNames.filter((n) => typeof n === "string" && n.length > 0))].sort()
+    : [];
   return historyHash(
     JSON.stringify({
       locale,
       memoryFactsJoined,
-      hasTools: true,
+      hasTools,
+      tools,
+      blockFormat: typeof blockFormat === "string" ? blockFormat : "",
     }),
   );
 }
@@ -264,7 +387,7 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
 
 // ── Impure I/O (expo / AsyncStorage) ────────────────────────────────────────
 
-function sessionsDir(): string {
+export function sessionsDirectory(): string {
   const base = FileSystem.documentDirectory ?? "";
   const root = base.endsWith("/") || base === "" ? base : `${base}/`;
   return `${root}sessions/`;
@@ -273,7 +396,7 @@ function sessionsDir(): string {
 /** Ensure documents/sessions/ exists. Best-effort; never throws. */
 export async function ensureSessionsDir(): Promise<void> {
   try {
-    const dir = sessionsDir();
+    const dir = sessionsDirectory();
     if (!dir) return;
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true });
   } catch {
@@ -281,8 +404,17 @@ export async function ensureSessionsDir(): Promise<void> {
   }
 }
 
-/** Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B). */
+/**
+ * Unmeasured default: dense measured ceiling ≈58–60 KB per used token
+ * (q8_0 K / q4_0 V, 4B).
+ */
 export const SESSION_BYTES_PER_TOKEN = 64 * 1024;
+
+function positiveSessionBytesPerToken(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? value
+    : SESSION_BYTES_PER_TOKEN;
+}
 
 /** Free space must exceed this × estimated bytes (write + FS overhead). */
 export const SESSION_DISK_MARGIN = 1.5;
@@ -307,6 +439,8 @@ export type SessionDiskGateInput = {
   historyLength?: number | null;
   /** Context window; cap when the used-token flag is on, size when off. */
   nCtx?: number | null;
+  /** Measured session file bytes per used token for the active model. */
+  bytesPerToken?: number | null;
 };
 
 function finiteInt(value: unknown): number | null {
@@ -345,19 +479,22 @@ export function resolveSessionDiskTokens(input: SessionDiskGateInput): number | 
   return null;
 }
 
-/**
- * Dense measured ceiling ≈58–60 KB per used token (q8_0 K / q4_0 V, 4B default:
- * ~1.6 KB/cell/layer × 36 layers). Hybrid (kvUnified) recurrent tensors
- * (r_l/s_l) can add more and are NOT included in this estimate.
- */
-export function estimateSessionBytes(usedTokens: number): number {
+/** Estimate with a measured rate when available; otherwise use the unmeasured dense default. */
+export function estimateSessionBytes(
+  usedTokens: number,
+  bytesPerToken = SESSION_BYTES_PER_TOKEN,
+): number {
   const n = finiteInt(usedTokens);
-  return (n != null && n > 0 ? n : 0) * SESSION_BYTES_PER_TOKEN;
+  const rate = positiveSessionBytesPerToken(bytesPerToken);
+  return (n != null && n > 0 ? n : 0) * rate;
 }
 
 /** Bytes of free space required to attempt a session write. */
-export function sessionDiskBytesRequired(usedTokens: number): number {
-  const estimated = estimateSessionBytes(usedTokens);
+export function sessionDiskBytesRequired(
+  usedTokens: number,
+  bytesPerToken = SESSION_BYTES_PER_TOKEN,
+): number {
+  const estimated = estimateSessionBytes(usedTokens, bytesPerToken);
   if (!SESSION_DISK_GATE_USED_TOKENS) {
     return SESSION_DISK_MARGIN * estimated;
   }
@@ -408,16 +545,16 @@ export async function hasEnoughDiskForSession(
     const usedTokens = resolveSessionDiskTokens(input);
     if (usedTokens == null) return false;
     const free = await FileSystem.getFreeDiskStorageAsync();
-    return free > sessionDiskBytesRequired(usedTokens);
+    return free > sessionDiskBytesRequired(usedTokens, input.bytesPerToken ?? undefined);
   } catch {
     return false;
   }
 }
 
 /** Read + parse session meta; null if missing/invalid. Never throws. */
-export async function readSessionMeta(modelId: string): Promise<SessionMeta | null> {
+export async function readSessionMeta(stem: string): Promise<SessionMeta | null> {
   try {
-    const raw = await AsyncStorage.getItem(sessionMetaKey(modelId));
+    const raw = await AsyncStorage.getItem(sessionMetaKey(stem));
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<SessionMeta>;
     if (
@@ -446,6 +583,14 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
       meta.conversationId = parsed.conversationId;
     }
     if (typeof parsed.savedAt === "number") meta.savedAt = parsed.savedAt;
+    if (
+      typeof parsed.historyMessageCount === "number" &&
+      Number.isInteger(parsed.historyMessageCount) &&
+      parsed.historyMessageCount >= 0 &&
+      Number.isFinite(parsed.historyMessageCount)
+    ) {
+      meta.historyMessageCount = parsed.historyMessageCount;
+    }
     if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
     return meta;
   } catch {
@@ -453,12 +598,13 @@ export async function readSessionMeta(modelId: string): Promise<SessionMeta | nu
   }
 }
 
-/** Write session meta. Never throws (swallows). */
-export async function writeSessionMeta(modelId: string, meta: SessionMeta): Promise<void> {
+/** Write session meta. Returns false when setItem throws (never throws). */
+export async function writeSessionMeta(stem: string, meta: SessionMeta): Promise<boolean> {
   try {
-    await AsyncStorage.setItem(sessionMetaKey(modelId), JSON.stringify(meta));
+    await AsyncStorage.setItem(sessionMetaKey(stem), JSON.stringify(meta));
+    return true;
   } catch {
-    // best-effort
+    return false;
   }
 }
 
@@ -466,9 +612,9 @@ export async function writeSessionMeta(modelId: string, meta: SessionMeta): Prom
  * Delete .kvs file + llama.rn `.kvs.meta` sidecar + any `.kvs.tmp` partial
  * + AsyncStorage meta. Idempotent, never throws.
  */
-export async function deleteSessionArtifacts(modelId: string): Promise<void> {
-  if (!modelId) return;
-  const path = sessionFilePath(modelId);
+export async function deleteSessionArtifacts(stem: string): Promise<void> {
+  if (!stem) return;
+  const path = sessionFilePath(stem);
   for (const p of [path, `${path}.meta`, `${path}.tmp`, `${path}.bak`]) {
     try {
       await FileSystem.deleteAsync(p, { idempotent: true });
@@ -477,68 +623,38 @@ export async function deleteSessionArtifacts(modelId: string): Promise<void> {
     }
   }
   try {
-    await AsyncStorage.removeItem(sessionMetaKey(modelId));
+    await AsyncStorage.removeItem(sessionMetaKey(stem));
   } catch {
     // ignore
   }
 }
 
-/**
- * List sessions/ and delete files not matching keepModelId.
- * Also remove their meta keys and sidecars (best-effort).
- */
-export async function deleteOtherModelSessions(keepModelId: string): Promise<void> {
+/** True if the .kvs file exists on disk. Never throws. */
+export async function sessionFileExists(stem: string): Promise<boolean> {
   try {
-    const dir = sessionsDir();
-    if (!dir) return;
-    const info = await FileSystem.getInfoAsync(dir);
-    if (!info.exists) return;
-    const names = await FileSystem.readDirectoryAsync(dir);
-    const keepStem = sanitizeModelId(keepModelId);
-    const keepName = `${keepStem}.kvs`;
-    for (const name of names) {
-      // Keep current model's .kvs / .kvs.meta / .kvs.tmp / .kvs.bak
-      if (
-        name === keepName ||
-        name === `${keepName}.meta` ||
-        name === `${keepName}.tmp` ||
-        name === `${keepName}.bak`
-      ) {
-        continue;
-      }
-      if (
-        !name.endsWith(".kvs") &&
-        !name.endsWith(".kvs.meta") &&
-        !name.endsWith(".kvs.tmp") &&
-        !name.endsWith(".kvs.bak")
-      ) {
-        continue;
-      }
-      try {
-        await FileSystem.deleteAsync(`${dir}${name}`, { idempotent: true });
-      } catch {
-        // ignore
-      }
-      // Strip AsyncStorage meta for foreign .kvs stems only
-      if (name.endsWith(".kvs")) {
-        const modelIdFromFile = name.slice(0, -".kvs".length);
-        try {
-          await AsyncStorage.removeItem(sessionMetaKey(modelIdFromFile));
-        } catch {
-          // ignore
-        }
-      }
-    }
+    const info = await FileSystem.getInfoAsync(sessionFilePath(stem));
+    return Boolean(info.exists && !info.isDirectory);
   } catch {
-    // best-effort
+    return false;
   }
 }
 
-/** True if the .kvs file exists on disk. Never throws. */
-export async function sessionFileExists(modelId: string): Promise<boolean> {
+/**
+ * If `.kvs` is missing and `.bak` exists, rename bak → kvs.
+ * Kill between the two save-renames leaves only bak; load must recover it.
+ * Returns true when a live `.kvs` exists afterwards. Never throws.
+ */
+export async function promoteSessionBak(stem: string): Promise<boolean> {
+  if (!stem) return false;
+  const path = sessionFilePath(stem);
   try {
-    const info = await FileSystem.getInfoAsync(sessionFilePath(modelId));
-    return Boolean(info.exists && !info.isDirectory);
+    const live = await FileSystem.getInfoAsync(path);
+    if (live.exists && !live.isDirectory) return true;
+    const bak = `${path}.bak`;
+    const bakInfo = await FileSystem.getInfoAsync(bak);
+    if (!bakInfo.exists || bakInfo.isDirectory) return false;
+    await FileSystem.moveAsync({ from: bak, to: path });
+    return true;
   } catch {
     return false;
   }

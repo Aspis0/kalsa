@@ -106,6 +106,13 @@ export type TuningInput = {
     contextBudget?: number;
     ubatchOverride?: number;
     threadsOverride?: number;
+    /**
+     * Resolved load mode (loadPolicy.ts): defaults true/true = llama.cpp
+     * normal. repack:false → memory budget ignores the repack term; mmap:false
+     * → weights count as anonymous, non-evictable.
+     */
+    mmap?: boolean;
+    repack?: boolean;
   };
   /**
    * Platform hint when profile.osName is missing (LlamaService / harness).
@@ -327,8 +334,11 @@ export function matchMeasuredPreset(
 
 /**
  * Backend policy per family (design §6).
- * Android → cpu-only (hexagon-offload-fatal). Apple → metal. Emulator → no-accel.
- * OpenCL path exists as a kind but is never selected (gated off; unmeasured).
+ * Android → cpu-only. Apple → metal. Emulator → no-accel.
+ *
+ * Static, and a placeholder: the design is a per-phase governor that moves
+ * work between CPU, GPU and NPU at runtime. See the Android branch for what
+ * has to land before this stops being a constant.
  */
 export function resolveBackendPolicy(
   profile: TuningDeviceProfile,
@@ -340,8 +350,28 @@ export function resolveBackendPolicy(
   if (isApplePlatform(profile, platformHint)) {
     return { kind: "gpu-metal", reason: "apple" };
   }
-  // Android default — HTP0/Hexagon offload was fatal with FA on CPU.
-  return { kind: "cpu-only", reason: "hexagon-offload-fatal" };
+  // Android stays on the CPU until the RAM fit gate can see GPU memory.
+  //
+  // Not because the GPU does not work: OpenCL was tested repeatedly on the S23,
+  // and the eventual design is a per-phase governor (prefill → GPU/NPU, decode
+  // → mostly CPU, hot phone → GPU to cool down), not this static switch. The
+  // measurements already point that way — Adreno 750 decode 0.992 (parity) with
+  // 2.477x prefill; Adreno 740 decode 14.25 vs 17.55 t/s but 2.75 degrees cooler
+  // and flat under sustained load where the CPU throttles 14-16%.
+  //
+  // What blocks it is the gate, not the policy. `estimateMemory` prices CPU
+  // resident pages from the resolved load policy (mmap off → weights count
+  // anonymous) and has no notion of a backend — GPU-offloaded weights become
+  // driver/CL allocations /proc cannot see either way.
+  // Measured consequence: lmkd killed the app, and a 6.4 GB model at full GPU
+  // rebooted the kernel. lmkd is not an exception, so the KALSA_GPU_FALLBACK
+  // retry in LlamaService never fires for that death. Teach the gate about GPU
+  // memory first; this line is then one word.
+  //
+  // The old reason string here was "hexagon-offload-fatal", which quoted a
+  // failure measured on HTP0/Hexagon — the DSP, a different backend from the
+  // Adreno/Mali GPU. Do not resurrect it as an argument about OpenCL.
+  return { kind: "cpu-only", reason: "gpu-fit-gate-blind" };
 }
 
 /**
@@ -476,6 +506,8 @@ function resolveContextBudget(
   profile: TuningDeviceProfile,
   requestedIn: number | undefined,
   ubatch: number,
+  repack: boolean = true,
+  mmap: boolean = true,
 ): {
   n_ctx: number;
   ctxSource: string;
@@ -526,7 +558,8 @@ function resolveContextBudget(
       contextTokens: ctx,
       kvBytesPerToken,
       ubatch,
-      repack: true,
+      repack,
+      mmap,
     });
 
   const estRequested = estimateAt(requested);
@@ -646,6 +679,8 @@ export function resolveEngineTuningSync(input: TuningInput): TuningResult {
     input.profile,
     input.request.contextBudget,
     n_ubatch,
+    input.request.repack !== false,
+    input.request.mmap !== false,
   );
 
   const thermal = resolveThermal(input.model, ctx.memory.availableMiB);
@@ -726,9 +761,28 @@ export async function resolveEngineTuning(
 }
 
 /**
- * Map BackendPolicy → llama.rn n_gpu_layers (production guard).
- * metal → 99; everything else → 0 (Android cpu-only / emulator).
+ * Layers offloaded when a GPU backend is selected. Full offload: partial leaves
+ * the prefill matmuls the GPU is here for split across two backends.
+ *
+ * ⚠️ On the S23, n_gpu_layers=99 moves the weights into driver/CL allocations
+ * that /proc/<pid>/status does not report — the app reads ~150 MB while system
+ * MemAvailable falls 4.02 GB to 583 MB, and lmkd kills it at oom_score_adj 0.
+ * The RAM fit gate cannot see that memory, so it will green-light a model this
+ * number then takes the phone down with. That gate is the thing to fix; do not
+ * fix it by quietly lowering this.
+ */
+const GPU_OFFLOAD_LAYERS = 99;
+
+/**
+ * Map BackendPolicy → llama.rn n_gpu_layers.
+ * gpu-metal (iOS) and gpu-opencl (Android) offload; emulator does not.
  */
 export function nGpuLayersForBackend(backend: BackendPolicy): number {
-  return backend.kind === "gpu-metal" ? 99 : 0;
+  switch (backend.kind) {
+    case "gpu-metal":
+    case "gpu-opencl":
+      return GPU_OFFLOAD_LAYERS;
+    default:
+      return 0;
+  }
 }

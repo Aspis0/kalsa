@@ -1,0 +1,22 @@
+STOPPED ON PURPOSE at turn 6 of 16. Not a failure — the owner called it once the
+result was unambiguous, to avoid flattening the battery for nothing. It reached
+the same depth as the reference arm A (7 turns) on the APK arm E actually used.
+
+⛔ ONLY turn1..turn5 BELONG TO THIS RUN.
+turn6/, turn7/ and turn8/ are LEFTOVERS from the streaming arm that used this
+same bench-out directory earlier. Their telemetry reads ~5.7-6.0 tok/s, which is
+the STREAMING arm's rate, and quoting it as this control's would invert the
+result. Proof is the mtimes: this run wrote 16:56-18:11, those three are
+16:07-16:11, before this run even installed its APK (~16:20). They are kept
+rather than deleted so the mistake stays visible.
+
+⚠️ turn4/telemetry.jsonl is EMPTY (0 bytes) and engine turn 4 landed in
+turn5/telemetry.jsonl next to turn 5 — the same directory-attribution defect
+documented in HARNESS_FINDINGS §7.49, third occurrence. Engine turn 4 also
+carries interrupted=true.
+
+This run's real per-turn decode, read from the sidecars by turnId:
+  id1 0.3564 (285 tok)   id2 0.2729 (258)   id3 0.2701 (274)
+  id4 0.2977 (422, interrupted=true)        id5 0.2670 (211)
+Battery 84% -> 48% over 5 completed turns, never on AC.
+Final shape: RssAnon 39 452 kB, RssFile 2 737 724 kB, majflt 1 220 635.

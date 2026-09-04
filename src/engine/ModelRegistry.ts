@@ -15,6 +15,7 @@
  */
 
 import type { RamTier } from "./contextProfile";
+import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
 
 export type ModelFileSpec = {
@@ -23,6 +24,13 @@ export type ModelFileSpec = {
   /** Repo/revision del file (default: quelli del modello). */
   hfRepo?: string;
   revision?: string;
+};
+
+export type ModelWeightBytesPerToken = {
+  /** Decimal bytes of weights read for one generated token. */
+  bytes: number;
+  /** Provenance is part of the value so estimates cannot look measured. */
+  source: "tensor-map" | "file-size-estimate";
 };
 
 export type KvCacheProfile = {
@@ -39,13 +47,15 @@ export type ModelInfo = {
   revision: string;
   file: string;
   sizeBytes: number;
+  /** Hugging Face repo name in KALSA_HF_ORG for artifacts we publish. */
+  hfArtifactRepo?: string;
   /** Proiettore multimodale (vision) — assente = modello text-only. */
   mmproj?: ModelFileSpec;
   contextLength: number;
   /**
    * Catalog soft default for n_ctx. Runtime prefers resolveContextProfile
-   * (hybrid + RAM ≥6GB → 16k; otherwise 8192). Catalog values remain as
-   * documentation / non-hybrid fallback reference.
+   * (hybrid + CTX_UPGRADE_MIN_TOTAL_BYTES → 16k; otherwise 8192). Catalog
+   * values remain as documentation / non-hybrid fallback reference.
    */
   engineCtx: number;
   /** Cache KV quantizzata (K/V). */
@@ -71,6 +81,14 @@ export type ModelInfo = {
    * block + answer must both fit under n_predict). Absent → 256/512/1024.
    */
   thinking?: { short: number; extended: number; nPredict?: number };
+  /**
+   * Template strips `<think>` when re-rendering assistant history
+   * (`preserve_thinking` defaults false in the jinja). When set, completions
+   * pass `chat_template_kwargs.preserve_thinking: true` so history matches KV.
+   * Cost: every past think block stays in context for the rest of the
+   * conversation (up to `thinking.short` tokens/turn). Cache reuse beats that.
+   */
+  preserveThinking?: boolean;
   /** i18n key for the user-facing description shown in Settings (en master + it). */
   descriptionKey: TranslationKey;
   /**
@@ -94,6 +112,48 @@ export type ModelInfo = {
    * fabricating a value.
    */
   kvBytesPerToken?: number;
+  /**
+   * Weight bytes read for one generated token at batch 1. Omit when the value
+   * is not known from a tensor map; a GGUF file size is not this quantity.
+   */
+  weightsBytesPerToken?: ModelWeightBytesPerToken;
+  /**
+   * Measured peak RssAnon when this model runs with expert streaming at
+   * `measuredAtContextTokens`. Covers weights + KV + compute buffers. The
+   * gate and load path refuse to stream unless the load context equals that
+   * n_ctx — there is nothing honest to scale by. Absent → never stream.
+   */
+  streamingResident?: {
+    bytes: number;
+    measuredAtContextTokens: number;
+  };
+  /**
+   * True only for mixture-of-experts models, whose routed experts can be read
+   * from the file per token instead of held resident. This flag is capability,
+   * not permission: streaming still requires `streamingResident` at the load
+   * context. Streaming forces `no_extra_bufts`, so it removes exactly the
+   * repack term the gate refuses on — which is why the GATE owns the decision
+   * and there is no setting: HARNESS_FINDINGS §7.48 measured a remedy of this
+   * shape at 6.6x on a phone without headroom and 1.006x on one with it. A
+   * dense model has no routed experts and must never carry this.
+   */
+  canStreamExperts?: boolean;
+  /**
+   * Weight-load policy for THIS model: mmap and repack, resolved by
+   * loadPolicy.resolveLoadPolicy. Precedence: bench levers (kalsa.bench.norepack,
+   * bench:engine useMmap) > expert streaming > this entry > DEFAULT_LOAD_POLICY.
+   *
+   * The default ({mmap:true, repack:true}) is llama.cpp's own normal behaviour
+   * (common/common.h:574): weights stay mapped on the GGUF file — page-cache
+   * backed, reclaimable by the kernel under pressure. It is the correct
+   * configuration, not a trade-off; entries below deviate only on a measure.
+   *
+   * Adding the policy CHANGES THE LOAD BEHAVIOUR OF EVERY MODEL: measured device
+   * logs until now show `load_tensors ... (mmap = false)` — anonymous,
+   * unreclaimable weights — for every entry. This is deliberate; re-measure on
+   * device after rebuilding before drawing conclusions from older runs.
+   */
+  loadPolicy?: LoadPolicy;
   default?: boolean;
 };
 
@@ -107,6 +167,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "86835bf9949e4d14d6860f7910b1340ad4f271a9",
     file: "Qwen3.5-4B-Q4_K_M.gguf",
     sizeBytes: 2_834_975_040,
+    weightsBytesPerToken: {
+      bytes: 2_810_038_272,
+      source: "tensor-map",
+    },
     // Il repo MTP-GGUF non contiene il mmproj: punta al repo base.
     mmproj: {
       file: "mmproj-F16.gguf",
@@ -141,6 +205,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "86835bf9949e4d14d6860f7910b1340ad4f271a9",
     file: "Qwen3.5-4B-Q3_K_M.gguf",
     sizeBytes: 2_374_564_160,
+    weightsBytesPerToken: {
+      bytes: 2_349_627_392,
+      source: "tensor-map",
+    },
     mmproj: {
       file: "mmproj-F16.gguf",
       sizeBytes: 672_423_616,
@@ -155,6 +223,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvUnified: true,
     // MTP non impostato: GGUF Q3 non validato con tensori NextN (da device test).
     thinking: { short: 256, extended: 512 },
+    // Measured §7.29: without this the think block stays in KV and vanishes
+    // from stored history, so the prompt diverges every turn and a recurrent
+    // model clears the whole cache — 104-138 s of prefill on the Jelly.
+    preserveThinking: true,
     descriptionKey: "models.qwen4bQ3.description",
     ramBadgeKey: "models.qwen4bQ3.ramBadge",
     minRamTier: "mid",
@@ -168,10 +240,19 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "0314792d7f1f7e229411f620751375812bb9faf2",
     file: "gemma-4-E2B-it-Q4_K_M.gguf",
     sizeBytes: 3_106_738_272,
+    weightsBytesPerToken: {
+      bytes: 1_448_577_164,
+      source: "tensor-map",
+    },
     mmproj: { file: "mmproj-F16.gguf", sizeBytes: 985_654_080 },
     contextLength: 131072,
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
+    // One of the two models that did not load at all on an 8 GB phone (lmkd
+    // kill): with repack on, load_tensors builds CPU_REPACK ≈ file size of
+    // ANONYMOUS memory on top of the weights (2265.50 MiB on a 2264.53 MiB
+    // file). Repack off keeps the weights entirely file-backed/reclaimable.
+    loadPolicy: { mmap: true, repack: false },
     descriptionKey: "models.gemmaE2b.description",
   },
   {
@@ -183,6 +264,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     revision: "f6d5376be1edb4d416d56da11e5397a961aca8ae",
     file: "Qwen3.5-2B-Q4_K_M.gguf",
     sizeBytes: 1_280_835_840,
+    weightsBytesPerToken: {
+      bytes: 1_269_865_728,
+      source: "tensor-map",
+    },
     contextLength: 262144,
     // Catalog-authoritative: resolveContextProfile never downgrades this (16k on all devices).
     engineCtx: 16384,
@@ -196,9 +281,116 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     // nPredict 2560 = extended 1536 + the 1024 answer floor (miniapp JSON blew
     // past 512; n_predict counts think + answer, so 2048 would leave only 512).
     thinking: { short: 512, extended: 1536, nPredict: 2560 },
+    // Measured §7.29: without this the think block stays in KV and vanishes
+    // from stored history, so the prompt diverges every turn and a recurrent
+    // model clears the whole cache — 104-138 s of prefill on the Jelly.
+    preserveThinking: true,
     descriptionKey: "models.qwen2b.description",
     ramBadgeKey: "models.qwen2b.ramBadge",
     minRamTier: "low",
+  },
+  {
+    id: "lfm2.5-2.6b",
+    name: "LFM2.5 2.6B",
+    vendor: "Liquid AI",
+    quant: "QAD-Q4_0",
+    hfRepo: "LiquidAI/LFM2.5-2.6B-GGUF",
+    revision: "f4a289c8a200a5ca71005ba7abc2dad33058a450",
+    file: "LFM2.5-2.6B-QAD-Q4_0.gguf",
+    sizeBytes: 1_593_894_944,
+    weightsBytesPerToken: {
+      bytes: 1_585_647_616,
+      source: "tensor-map",
+    },
+    // text-only: no mmproj in the HF repo
+    contextLength: 131072,
+    engineCtx: 8192,
+    kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
+    // Budget caps the think block but cannot disable it (template has no off switch).
+    thinking: { short: 256, extended: 512 },
+    preserveThinking: true,
+    descriptionKey: "models.lfm25.description",
+  },
+  {
+    id: "lfm2.5-8b-a1b",
+    name: "LFM2.5 8B-A1B",
+    vendor: "Liquid AI",
+    quant: "Q4_K_M",
+    hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
+    revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
+    file: "LFM2.5-8B-A1B-Q4_K_M.gguf",
+    sizeBytes: 5_155_564_768,
+    // text-only: no mmproj in the HF repo
+    contextLength: 131072,
+    engineCtx: 8192, // consistent with lfm2.5-2.6b and other large models
+    kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
+    // Budget caps the think block but cannot disable it (template has no off switch).
+    thinking: { short: 256, extended: 512 },
+    preserveThinking: true,
+    canStreamExperts: true,
+    // Peak RssAnon with expert streaming (arm killE-8b-a1b-moestream,
+    // Samsung S23, 2026-08-23, engineCtx 8192): 2 750 692 kB × 1024.
+    // Covers weights + KV + compute. Do not scale; refuse on ctx mismatch.
+    streamingResident: {
+      bytes: 2_816_708_608,
+      measuredAtContextTokens: 8192,
+    },
+    // Same failure as gemma-4-e2b: repack's anonymous copy ≈ file size kills
+    // the load on an 8 GB phone. When the gate arms expert streaming it
+    // re-forces no_extra_bufts anyway and outranks this (loadPolicy.ts).
+    loadPolicy: { mmap: true, repack: false },
+    descriptionKey: "models.lfm258b.description",
+  },
+  {
+    // Our own KEXP requantization of the entry above: q2_k on routed gate/up,
+    // q3_k on routed down, q5_k/q6_k on the two leading dense blocks, f32 norms.
+    // 3.10 GiB against 4.80 — and the point is not disk, it is page cache. The
+    // Q4_K_M build measured a page-fault storm on an S23 (93.5 GiB of file pages
+    // re-read from flash in ONE turn, 309 MiB per generated token, decode
+    // 0.31 tok/s against 18.6 prefill, §7.14) because it cannot stay resident.
+    // 3.10 GiB against ~4.3 GB of MemAvailable might.
+    //
+    // Download source is resolved from hfArtifactRepo once KALSA_HF_ORG is set;
+    // until then the resolver declines this own artifact instead of treating
+    // the upstream provenance repo as its host.
+    //
+    // Quality, measured on our multi5 corpus at the same k=4, against gates that
+    // were frozen before the numbers existed and are not renegotiated here:
+    // macro bpb 1.2926 vs 1.2221 (+0.0705, gate +0.05 — MISSES) and zh +0.1053
+    // (per-language gate +0.10 — MISSES). Italian +0.0909 passes. Shipping it is
+    // a product decision, not a technical one.
+    id: "lfm2.5-8b-a1b-kexp",
+    name: "LFM2.5 8B-A1B KEXP",
+    vendor: "Liquid AI",
+    quant: "KEXP",
+    hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
+    revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
+    file: "LFM2.5-8B-A1B-KEXP.gguf",
+    sizeBytes: 3_326_160_384,
+    hfArtifactRepo: "LFM2.5-8B-A1B-KEXP-GGUF",
+    contextLength: 131072,
+    engineCtx: 8192,
+    kvCache: { k: "q8_0", v: "q4_0" },
+    hybrid: true,
+    weightsBytesPerToken: {
+      bytes: 848_000_000,
+      source: "tensor-map",
+    },
+    thinking: { short: 256, extended: 512 },
+    preserveThinking: true,
+    // Capability only. No streamingResident: no in-app measurement, so the
+    // gate will not stream this build. The missing measurement is the guard,
+    // not the flag.
+    canStreamExperts: true,
+    // MEASURED deviation — the only mmap-off entry. With eviction active the
+    // whole plan went 3055 s with mmap against 464 s with use_mmap=false on the
+    // S23 (HARNESS_FINDINGS §7.45; §7.48 confirmed the mechanism: on the Jelly,
+    // which never evicts, the same flag bought nothing). Anonymous weights are
+    // what keeps this model off the reclaim path it provokes.
+    loadPolicy: { mmap: false, repack: true },
+    descriptionKey: "models.lfm258b.description",
   },
 ];
 

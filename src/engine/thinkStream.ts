@@ -1,8 +1,8 @@
 /**
  * Pure think-tag stream cleaner + round-end arbitrator.
  *
- * Qwen3.5 may emit a leading <think>...</think> block (empty when thinking is
- * forced off, populated when budget modes are on). After a tool round it has
+ * Qwen3.5 may emit a leading <think>...</think> block when reasoning runs.
+ * After a tool round it has
  * also been observed to degenerate into a stream of repeated bare <think>
  * tokens with no close — those must not leak into the UI.
  *

@@ -43,10 +43,10 @@ import {
   getRamTier,
   ramTierMeets,
   recommendedModelId,
+  resolveContextProfile,
 } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
-  estimateModelNonEvictableMiB,
   evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
@@ -54,16 +54,35 @@ import {
   type DeviceProfile,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import { gateNonEvictableMiB } from "../engine/modelGateRAM";
+import {
+  deviceBandwidthForModel,
+  type DeviceBandwidthCalibration,
+} from "../engine/deviceThroughput";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { useProcessHealth } from "../hooks/useProcessHealth";
 import { useThermalMonitor } from "../hooks/useThermalMonitor";
 import * as MemoryStore from "../memory/MemoryStore";
 import type { MemoryFact } from "../memory/MemoryStore";
-import { COMPACTION_CHOICE_KEY, COMPACTION_ENABLED_KEY } from "../context/compactor";
+import {
+  CISWIRE_TOOLHELP_KEY,
+  COMPACTION_CHOICE_KEY,
+  COMPACTION_ENABLED_KEY,
+  parseContextMode,
+  type ContextMode,
+} from "../context/compactor";
 import {
   COMPACTION_ENABLED_DEFAULT,
+  getCiswireToolHelp,
   parseCompactionEnabled,
 } from "../engine/ttftFlags";
+import {
+  DEFAULT_SESSION_POOL_CONVERSATIONS,
+  parseSessionPoolConversations,
+  SESSION_POOL_CONVERSATION_OPTIONS,
+  SESSION_POOL_STORAGE_KEY,
+  type SessionPoolConversationOption,
+} from "../engine/sessionBudget";
 import {
   CALENDAR_TOOLS_KEY,
   DEVICE_TOOLS_KEY,
@@ -89,6 +108,8 @@ export type SettingsModelProps = {
   streaming: boolean;
   /** Presence map from a one-shot disk scan (keys appear after scan). */
   downloadedById: Record<string, boolean>;
+  /** Per-quant device calibration; empty means speed is unknown. */
+  deviceBandwidth: DeviceBandwidthCalibration;
   onSelectModel: (modelId: string) => void;
   onDownloadModel: (modelId: string) => void;
   /** Retry engine init when the bundle is already on disk. */
@@ -164,10 +185,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     { id: "xl", short: "XL", label: t("settings.fontSizeXl") },
   ];
 
-  // "default" (production knob) and "off" are behaviourally identical today
-  // (see resolveThinkingParams) — Off is shown selected for both.
+  // Production "default" is thinking-on with the model's short budget.
+  // The picker shows the two user-facing live budgets.
   const thinkingOptions: Array<{ id: ThinkingMode; label: string }> = [
-    { id: "off", label: t("settings.thinkingOff") },
     { id: "budget256", label: t("settings.thinkingShort") },
     { id: "budget512", label: t("settings.thinkingExtended") },
   ];
@@ -185,6 +205,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   // ── Context compaction (ConversationCompactor — default ON) ─────────────
   const [compactionEnabled, setCompactionEnabled] = useState(COMPACTION_ENABLED_DEFAULT);
+  const [compactionMode, setCompactionMode] = useState<ContextMode>("anchored");
+
+  // ── KV session pool size (conversation count, not megabytes) ─────────────
+  const [sessionPoolChats, setSessionPoolChats] = useState<SessionPoolConversationOption>(
+    DEFAULT_SESSION_POOL_CONVERSATIONS,
+  );
 
   // ── Telemetry opt-in (default OFF) ───────────────────────────────────────
   const [telemetryEnabled, setTelemetryEnabled] = useState(false);
@@ -198,6 +224,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [deviceToolsEnabled, setDeviceToolsEnabled] = useState(true);
   const [calendarToolsEnabled, setCalendarToolsEnabled] = useState(false);
   const [memoryEnabled, setMemoryEnabled] = useState(false);
+  const [ciswireToolHelpEnabled, setCiswireToolHelpEnabled] = useState(false);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
@@ -355,10 +382,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     void Promise.all([
       AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
       AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+      getCiswireToolHelp(),
     ])
-      .then(([raw, choice]) => {
+      .then(([raw, choice, toolHelp]) => {
         if (!mounted) return;
+        setCompactionMode(parseContextMode(raw));
         setCompactionEnabled(parseCompactionEnabled(raw, choice === "1"));
+        setCiswireToolHelpEnabled(toolHelp);
       })
       .catch(() => undefined);
     return () => {
@@ -399,22 +429,59 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     });
   }, [calendarToolsEnabled]);
 
-  const handleToggleCompaction = useCallback(
-    (next: boolean) => {
-      const previous = compactionEnabled;
-      setCompactionEnabled(next);
-      void (async () => {
-        try {
-          await AsyncStorage.multiSet([
-            [COMPACTION_ENABLED_KEY, next ? "1" : "0"],
-            [COMPACTION_CHOICE_KEY, "1"],
-          ]);
-        } catch {
-          if (mountedRef.current) setCompactionEnabled(previous);
-        }
-      })();
+  // Single writer of COMPACTION_ENABLED_KEY (raw 'off' | 'anchored' | 'ciswire').
+  // Also stamps COMPACTION_CHOICE_KEY='1'; on failure rolls back all affected state.
+  const handleSelectCompactionMode = useCallback(
+    (next: ContextMode) => {
+      const previousMode = compactionMode;
+      const previousEnabled = compactionEnabled;
+      setCompactionMode(next);
+      setCompactionEnabled(next !== "off");
+      void AsyncStorage.multiSet([
+        [COMPACTION_ENABLED_KEY, next],
+        [COMPACTION_CHOICE_KEY, "1"],
+      ]).catch(() => {
+        if (!mountedRef.current) return;
+        setCompactionMode(previousMode);
+        setCompactionEnabled(previousEnabled);
+      });
     },
-    [compactionEnabled],
+    [compactionEnabled, compactionMode],
+  );
+
+  const handleToggleCiswireToolHelp = useCallback(
+    (next: boolean) => {
+      const previous = ciswireToolHelpEnabled;
+      setCiswireToolHelpEnabled(next);
+      void AsyncStorage.setItem(CISWIRE_TOOLHELP_KEY, next ? "1" : "0").catch(() => {
+        if (mountedRef.current) setCiswireToolHelpEnabled(previous);
+      });
+    },
+    [ciswireToolHelpEnabled],
+  );
+
+  useEffect(() => {
+    let mounted = true;
+    AsyncStorage.getItem(SESSION_POOL_STORAGE_KEY)
+      .then((raw) => {
+        if (!mounted) return;
+        setSessionPoolChats(parseSessionPoolConversations(raw));
+      })
+      .catch(() => undefined);
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const handleSelectSessionPoolChats = useCallback(
+    (next: SessionPoolConversationOption) => {
+      const previous = sessionPoolChats;
+      setSessionPoolChats(next);
+      void AsyncStorage.setItem(SESSION_POOL_STORAGE_KEY, String(next)).catch(() => {
+        if (mountedRef.current) setSessionPoolChats(previous);
+      });
+    },
+    [sessionPoolChats],
   );
 
   useEffect(() => {
@@ -430,9 +497,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     };
   }, []);
 
-  // "default" renders as the "off" option (see thinkingOptions comment above).
+  // "default" renders as Short (production = model's short budget).
   const effectiveThinkingSelection: ThinkingMode =
-    thinkingMode === "default" ? "off" : thinkingMode;
+    thinkingMode === "default" ? "budget256" : thinkingMode;
 
   const handleSelectThinkingMode = useCallback(
     (mode: ThinkingMode) => {
@@ -780,6 +847,24 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const processHealth = useProcessHealth({
     totalMemoryBytes: deviceProfile?.totalMemoryBytes ?? null,
   });
+  // "free" above is MemAvailable, which counts a resident model's own mapped
+  // weights as headroom (HARNESS_FINDINGS §7.44). "headroom" is that minus this
+  // process's RssFile — what is actually reclaimable elsewhere. Swap shows only
+  // once it has grown past the distress threshold, because growth there means
+  // the system is paying for memory this process does not appear to hold.
+  const processMemorySuffix = `${
+    processHealth.residentHeadroomBytes != null
+      ? ` · ${Math.round(processHealth.residentHeadroomBytes / (1024 * 1024))} MiB headroom`
+      : ""
+  }${
+    processHealth.swapDistressed && processHealth.swapGrownBytes != null
+      ? ` · swap +${Math.round(processHealth.swapGrownBytes / (1024 * 1024))} MiB`
+      : ""
+  }${
+    processHealth.majfltGrown != null
+      ? ` · majflt +${Math.round(processHealth.majfltGrown)}`
+      : ""
+  }`;
   const thermal = useThermalMonitor();
   useEffect(() => {
     let cancelled = false;
@@ -1036,33 +1121,142 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           </Text>
         </GlassPanel2>
 
-        {/* ── Context (ConversationCompactor) ──────────────────────────── */}
+        {/* ── CisWire flags ───────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-            {t("settings.context")}
+            {t("settings.ciswire")}
           </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
-            {t("settings.contextCompactionHint")}
+            {t("settings.ciswireHint")}
           </Text>
+          <Text style={[typography.bodySm, { color: colors.ink, marginTop: spacing.xs }]}>
+            {t("settings.ciswireCompaction")}
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {(
+              [
+                ["off", t("settings.ciswireOff")],
+                ["anchored", t("settings.ciswireStandard")],
+                ["ciswire", t("settings.ciswireMode")],
+              ] as const
+            ).map(([id, label]) => {
+              const selected = compactionMode === id;
+              return (
+                <Pressable
+                  key={id}
+                  onPress={() => handleSelectCompactionMode(id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={label}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.bodySm,
+                      {
+                        color: selected ? colors.accent : colors.ink,
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
+                      },
+                    ]}
+                  >
+                    {label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
           <View
             style={{
               flexDirection: "row",
               alignItems: "center",
               justifyContent: "space-between",
               gap: spacing.sm,
-              marginTop: spacing.xs,
             }}
           >
             <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
-              {t("settings.contextCompaction")}
+              {t("settings.ciswireMemory")}
             </Text>
             <Switch
-              value={compactionEnabled}
-              onValueChange={handleToggleCompaction}
+              value={memoryEnabled}
+              onValueChange={handleToggleMemory}
               trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={compactionEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.contextCompaction")}
+              thumbColor={memoryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.ciswireMemory")}
             />
+          </View>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
+              {t("settings.ciswireToolHelp")}
+            </Text>
+            <Switch
+              value={ciswireToolHelpEnabled}
+              onValueChange={handleToggleCiswireToolHelp}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={ciswireToolHelpEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("settings.ciswireToolHelp")}
+            />
+          </View>
+        </GlassPanel2>
+
+        {/* ── Instant chat reopen (UFS KV pool) ────────────────────────── */}
+        <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
+            {t("settings.sessionPool")}
+          </Text>
+          <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
+            {t("settings.sessionPoolHint")}
+          </Text>
+          <View style={{ flexDirection: "row", gap: spacing.sm }}>
+            {SESSION_POOL_CONVERSATION_OPTIONS.map((count) => {
+              const selected = sessionPoolChats === count;
+              return (
+                <Pressable
+                  key={count}
+                  onPress={() => handleSelectSessionPoolChats(count)}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected }}
+                  accessibilityLabel={t("settings.sessionPoolChats", { count })}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: selected ? colors.accent : colors.line,
+                    backgroundColor: selected ? `${colors.accent}22` : "transparent",
+                    alignItems: "center",
+                    opacity: busy ? 0.5 : 1,
+                  }}
+                >
+                  <Text
+                    style={[
+                      typography.bodySm,
+                      {
+                        color: selected ? colors.accent : colors.ink,
+                        fontFamily: selected ? fontFamilies.displayBold : fontFamilies.bodyMedium,
+                      },
+                    ]}
+                  >
+                    {String(count)}
+                  </Text>
+                </Pressable>
+              );
+            })}
           </View>
         </GlassPanel2>
 
@@ -1121,27 +1315,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("memory.note")}
           </Text>
-
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-              marginTop: spacing.xs,
-            }}
-          >
-            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
-              {t("memory.enabled")}
-            </Text>
-            <Switch
-              value={memoryEnabled}
-              onValueChange={handleToggleMemory}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={memoryEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("memory.enabled")}
-            />
-          </View>
 
           {!memoryEnabled ? (
             <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1734,6 +1907,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               {processHealth.availableMemoryBytes != null
                 ? ` · ${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`
                 : ""}
+              {processMemorySuffix}
               {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
             </Text>
           ) : processHealth.availableMemoryBytes != null ? (
@@ -1744,6 +1918,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               ]}
             >
               {`${Math.round(processHealth.availableMemoryBytes / (1024 * 1024))} MiB free`}
+              {processMemorySuffix}
               {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
             </Text>
           ) : null}
@@ -1785,16 +1960,25 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     freeDiskBytes,
                     ramTier: deviceProfile.ramTier,
                     modelMinRamTier: entry.minRamTier,
-                    modelNonEvictableMiB: estimateModelNonEvictableMiB({
-                      sizeBytes:
-                        entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
-                      engineCtx: entry.engineCtx,
-                      kvBytesPerToken: entry.kvBytesPerToken,
+                    modelNonEvictableMiB: gateNonEvictableMiB({
+                      model: entry,
+                      contextTokens: resolveContextProfile({
+                        hybrid: entry.hybrid,
+                        kvCache: entry.kvCache,
+                        catalogCtx: entry.engineCtx,
+                        totalMemoryBytes: deviceProfile.totalMemoryBytes,
+                      }).nCtx,
+                      availableMemoryBytes: deviceProfile.availableMemoryBytes,
                     }),
+                    modelWeightsBytesPerToken: entry.weightsBytesPerToken,
+                    deviceBandwidthBytesPerSecond: deviceBandwidthForModel(
+                      model.deviceBandwidth,
+                      entry,
+                    ),
                     modelSizeBytes: diskRequirementBytes(
                       entry.sizeBytes + (entry.mmproj?.sizeBytes ?? 0),
                     ),
-                  })
+                  }, { checkVolatileMemory: false })
                 : null;
               const hardBlocked = gate?.allowed === false && !active;
               const hardBlockLabel = hardBlocked ? gateReasonLabel(gate) : null;

@@ -9,10 +9,12 @@
     "typecheck": "tsc --noEmit",
     "harness:markdown": "node scripts/markdownHarness.mjs",
     "doctor": "expo-doctor",
-    "postinstall": "patch-package",
+    "postinstall": "scripts/sync-kalsallama.sh overlay && patch-package",
     "telemetry:flush": "node workers/telemetry/flush.mjs",
     "harness:telemetry": "node scripts/telemetryHarness.mjs",
-    "harness:research": "node scripts/researchPlanHarness.mjs"
+    "harness:research": "node scripts/researchPlanHarness.mjs",
+    "harness:campaign": "node scripts/campaign/selftest.mjs",
+    "harness:profile": "node scripts/responseProfile.mjs --selftest"
   },
   "dependencies": {
     "@expo-google-fonts/bricolage-grotesque": "^0.4.1",
@@ -44,7 +46,7 @@
     "expo-sharing": "~57.0.8",
     "expo-speech": "~57.0.1",
     "fflate": "^0.8.3",
-    "llama.rn": "github:Aspis0/llama.rn#a67a263",
+    "llama.rn": "0.12.8",
     "lucide-react-native": "^1.14.0",
     "react": "19.2.3",
     "react-dom": "19.2.3",
@@ -63,10 +65,14 @@
     "whisper.rn": "^0.7.2"
   },
   "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^24.10.1",
     "@types/react": "^19.2.3",
     "expo-doctor": "^1.18.20",
+    "jest": "^30.4.2",
     "patch-package": "^8.0.1",
     "pdfjs-dist": "^3.11.174",
+    "ts-jest": "^29.4.12",
     "typescript": "~6.0.3"
   },
   "private": true,

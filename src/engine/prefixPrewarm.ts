@@ -80,7 +80,7 @@ export function buildStaticPrefixMessages(systemText: string): StaticPrefixMessa
  *
  * Disk restore is split: hybrid/kvUnified loadSession is not a real native
  * restore (n_past=0) so prewarm must still run when the hash is null. Dense
- * restores (Gemma) populate real KV — see shouldSkipPrewarmAfterRestore.
+ * a restore populated real KV — see shouldSkipPrewarmWhenKvHoldsChat.
  *
  * Hash is identity-only (locale + systemText + tool name/schema), not a
  * byte-proof of the rendered jinja prompt.
@@ -93,16 +93,29 @@ export function shouldSkipStaticPrefixPrewarm(
 }
 
 /**
- * Dense restore populated real chat KV. A system+user"." prewarm would
- * seq_rm-succeed and delete the restored tail; first send then re-prefills
- * the whole history. Hybrid/kvUnified restores are not real (n_past=0) —
- * never skip those.
+ * Chat KV must not be prewarmed over: a system+user"." prewarm seq_rm-succeeds
+ * and deletes the live chat tail, and the first send then re-prefills the
+ * whole history. This includes KV from a restore and KV left by a completion.
+ *
+ * This used to skip only for DENSE models, on the assumption that "hybrid /
+ * kvUnified restores are not real (n_past=0)". **Measured false on 2026-08-21**
+ * (HARNESS_FINDINGS §7.29): on LFM2.5-8B-A1B-KEXP — hybrid — a restore after
+ * force-stop logged `is_hybrid=1 resumable=1`, loaded in 19 ms, and the next
+ * send ran at `n_past=1473` with `promptMs` ~2 s, twice. The KV was real, and
+ * the architecture never told us whether it would be.
+ *
+ * §7.30 measured hybrid/kvUnified restores with 1814–1946 resident and reused
+ * tokens, confirming that a successful restore can leave real reusable KV.
+ * So the condition is whether KV holds a chat session, not how it got there
+ * or which architecture produced it. Qwen3.5-2B also restores, then loses the
+ * KV at prompt time ("no usable state checkpoint … doing full cache clear")
+ * because its prompt diverges — a prewarm would not have survived that
+ * either, so skipping is right there too.
  */
-export function shouldSkipPrewarmAfterRestore(
+export function shouldSkipPrewarmWhenKvHoldsChat(
   kvHoldsChatSession: boolean,
-  hybridOrKvUnified: boolean,
 ): boolean {
-  return kvHoldsChatSession === true && hybridOrKvUnified === false;
+  return kvHoldsChatSession === true;
 }
 
 export function assembleStaticPrefix(input: {

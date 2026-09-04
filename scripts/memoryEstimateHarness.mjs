@@ -158,6 +158,38 @@ async function main() {
     );
   });
 
+  // 4B GGUF ≈ 2.82 GB file; REPACK_FRACTION ≈ 0.895 → repack term ≈ 2.4–2.5 GiB.
+  // This case exercises estimateMemory({ repack: false }) directly — the term
+  // that no_extra_bufts removes at engine load. UI gates always estimate with
+  // repack:true (conservative); they do not take a repack parameter.
+  await test("4B repack-off drops non-evictable by ~2.5 GB", () => {
+    const fileBytes = 2_834_975_040; // 4B Q4_K_M anchor
+    const on = estimateMemory({
+      fileBytes,
+      contextTokens: 8192,
+      kvBytesPerToken: 0,
+      ubatch: 256,
+      repack: true,
+    });
+    const off = estimateMemory({
+      fileBytes,
+      contextTokens: 8192,
+      kvBytesPerToken: 0,
+      ubatch: 256,
+      repack: false,
+    });
+    assert(off.repackMiB === 0, `4B repack off gave ${off.repackMiB}`);
+    const drop = on.nonEvictableMiB - off.nonEvictableMiB;
+    assert(
+      drop >= 2300 && drop <= 2700,
+      `4B repack drop ${drop.toFixed(1)} MiB not in 2300–2700 (~2.5 GB)`,
+    );
+    assert(
+      withinPct(drop, on.repackMiB, 0.001),
+      "drop must equal the repack term",
+    );
+  });
+
   await test("ubatch 128 → compute term halves vs 256", () => {
     const u256 = estimateMemory({
       fileBytes: 1_000_000,

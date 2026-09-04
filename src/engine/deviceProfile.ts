@@ -23,6 +23,13 @@ import {
 } from "./memoryEstimate";
 import { parseCpuPresent, readCpuCapacities } from "./threadProfile";
 import { shouldRecoverLost } from "./engineLiveness";
+import { resolveGateLoadPolicy, type LoadPolicy } from "./loadPolicy";
+import {
+  modelSpeedAdvisory,
+  predictTokensPerSecond,
+  type ModelSpeedAdvisory,
+} from "./deviceThroughput";
+import type { ModelWeightBytesPerToken } from "./ModelRegistry";
 
 export type DeviceFamily = "xiaomi" | "samsung" | "pixel" | "generic";
 
@@ -69,6 +76,8 @@ export type DeviceProfile = {
 export type ModelGateVerdict = {
   allowed: boolean;
   reason: "ok" | "blocked_ram" | "blocked_tier" | "blocked_disk" | "unknown";
+  predictedTokensPerSecond: number | null;
+  speedAdvisory: ModelSpeedAdvisory;
 };
 
 /**
@@ -115,22 +124,30 @@ export function isFoldableModelName(
  *
  * Order:
  *  1. tier — modelMinRamTier set and device ramTier does not meet it → blocked_tier
- *  2. ram  — availableMemoryBytes + modelNonEvictableMiB both numeric and
- *            nonEvictable > available (MiB) → blocked_ram
- *            (mirrors fitMemoryEstimate "does_not_fit"; tight is NOT a block)
+ *  2. ram  — when the volatile check is enabled, availableMemoryBytes +
+ *            modelNonEvictableMiB both numeric and nonEvictable > available
+ *            (MiB) → blocked_ram (tight is NOT a block)
  *  3. disk — freeDiskBytes numeric and modelSizeBytes > freeDiskBytes → blocked_disk
  *  4. else allowed "ok", or "unknown" when memory is unknown and nothing else blocked
  *     (allowed=true so we never hard-block on missing probes)
+ *
+ * Download callers disable the volatile check: downloads use only the stable
+ * tier and disk properties. Load callers keep the default full gate.
  */
-export function modelGateVerdict(input: {
-  totalMemoryBytes: number | null;
-  availableMemoryBytes: number | null;
-  freeDiskBytes: number | null;
-  ramTier: RamTier;
-  modelMinRamTier?: RamTier;
-  modelNonEvictableMiB?: number | null;
-  modelSizeBytes: number;
-}): ModelGateVerdict {
+export function modelGateVerdict(
+  input: {
+    totalMemoryBytes: number | null;
+    availableMemoryBytes: number | null;
+    freeDiskBytes: number | null;
+    ramTier: RamTier;
+    modelMinRamTier?: RamTier;
+    modelNonEvictableMiB?: number | null;
+    modelSizeBytes: number;
+    modelWeightsBytesPerToken?: ModelWeightBytesPerToken | null;
+    deviceBandwidthBytesPerSecond?: number | null;
+  },
+  options: { checkVolatileMemory?: boolean } = {},
+): ModelGateVerdict {
   const {
     availableMemoryBytes,
     freeDiskBytes,
@@ -139,12 +156,28 @@ export function modelGateVerdict(input: {
     modelNonEvictableMiB,
     modelSizeBytes,
   } = input;
+  const checkVolatileMemory = options.checkVolatileMemory !== false;
+  const predictedTokensPerSecond = predictTokensPerSecond(
+    { weightsBytesPerToken: input.modelWeightsBytesPerToken },
+    input.deviceBandwidthBytesPerSecond,
+  );
+  const speedAdvisory = modelSpeedAdvisory(predictedTokensPerSecond);
+  const verdict = (
+    allowed: boolean,
+    reason: ModelGateVerdict["reason"],
+  ): ModelGateVerdict => ({
+    allowed,
+    reason,
+    predictedTokensPerSecond,
+    speedAdvisory,
+  });
 
   if (modelMinRamTier !== undefined && !ramTierMeets(ramTier, modelMinRamTier)) {
-    return { allowed: false, reason: "blocked_tier" };
+    return verdict(false, "blocked_tier");
   }
 
   if (
+    checkVolatileMemory &&
     typeof availableMemoryBytes === "number" &&
     Number.isFinite(availableMemoryBytes) &&
     availableMemoryBytes > 0 &&
@@ -154,7 +187,7 @@ export function modelGateVerdict(input: {
   ) {
     const availableMiB = availableMemoryBytes / (1024 * 1024);
     if (modelNonEvictableMiB > availableMiB) {
-      return { allowed: false, reason: "blocked_ram" };
+      return verdict(false, "blocked_ram");
     }
   }
 
@@ -166,7 +199,7 @@ export function modelGateVerdict(input: {
     Number.isFinite(modelSizeBytes) &&
     modelSizeBytes > freeDiskBytes
   ) {
-    return { allowed: false, reason: "blocked_disk" };
+    return verdict(false, "blocked_disk");
   }
 
   // Memory probes unknown → allowed but flagged (caller may still soft-warn).
@@ -178,21 +211,31 @@ export function modelGateVerdict(input: {
       Number.isFinite(input.totalMemoryBytes) &&
       input.totalMemoryBytes > 0);
   if (!memoryKnown) {
-    return { allowed: true, reason: "unknown" };
+    return verdict(true, "unknown");
   }
 
-  return { allowed: true, reason: "ok" };
+  return verdict(true, "ok");
 }
 
 /**
  * Best-effort non-evictable MiB for a registry entry via estimateMemory.
- * Uses main GGUF sizeBytes, catalog engineCtx, kvBytesPerToken (0 when absent),
- * ubatch 256, repack true (llama.rn default). Returns null on bad input.
+ * `contextTokens` is the resolved load context, not the catalog default.
+ * For registry models with no measured bytes/token, the KV term is 0; this is
+ * therefore a LOWER BOUND. The 4B at 16k is ~256 MiB above it. Do not invent
+ * a kvBytesPerToken. ubatch 256. Load mode defaults to llama.cpp normal
+ * (repack on, weights file-mapped); callers pass the model's RESOLVED policy —
+ * repack:false drops the repack term, mmap:false moves the weights into the
+ * non-evictable bucket (anonymous reads).
+ * Returns null on bad input.
  */
 export function estimateModelNonEvictableMiB(input: {
   sizeBytes: number;
-  engineCtx: number;
+  contextTokens: number;
   kvBytesPerToken?: number | null;
+  /** Default true (llama.cpp normal). false → repack term 0. */
+  repack?: boolean;
+  /** Default true (weights file-backed). false → weights count anonymous. */
+  mmap?: boolean;
 }): number | null {
   try {
     if (
@@ -203,8 +246,8 @@ export function estimateModelNonEvictableMiB(input: {
       return null;
     }
     const contextTokens =
-      typeof input.engineCtx === "number" && Number.isFinite(input.engineCtx)
-        ? input.engineCtx
+      typeof input.contextTokens === "number" && Number.isFinite(input.contextTokens)
+        ? input.contextTokens
         : 0;
     const kvBytesPerToken =
       typeof input.kvBytesPerToken === "number" &&
@@ -216,7 +259,8 @@ export function estimateModelNonEvictableMiB(input: {
       contextTokens,
       kvBytesPerToken,
       ubatch: 256,
-      repack: true,
+      repack: input.repack !== false,
+      mmap: input.mmap !== false,
     });
     return est.nonEvictableMiB;
   } catch {
@@ -254,6 +298,11 @@ export type PreSendFitDecision =
 export type PreSendFitOptions = {
   alreadyResident?: boolean;
   /**
+   * kalsa.bench.norepack tri-state; absent → the model's loadPolicy decides.
+   * Folds into the same resolved load mode used for requiredBytes below.
+   */
+  benchNoRepack?: boolean;
+  /**
    * Engine was resident then lost (on-contact native ping timed out).
    * Skip size-vs-available so Send can recover via ensureEngineForModel
    * instead of repeating the P0 "not enough memory" dead end.
@@ -278,6 +327,8 @@ export function evaluateModelFit(
     mmproj?: { sizeBytes: number } | null;
   },
   availableBytes: number | null,
+  /** Load mode the engine will actually use — see decidePreSendFit. */
+  options: { repack?: boolean; mmap?: boolean } = {},
 ): ModelFitEvaluation {
   const main =
     typeof model.sizeBytes === "number" && Number.isFinite(model.sizeBytes)
@@ -302,12 +353,19 @@ export function evaluateModelFit(
     Number.isFinite(model.kvBytesPerToken)
       ? model.kvBytesPerToken
       : 0;
+  // The gate must model the load mode the engine will actually use — wiring a
+  // gate to a different one is the S23-class bug class, and it was live here:
+  // the comment claimed "the bench norepack arm bypasses these gates" while the
+  // arm did not, so with kalsa.bench.norepack=1 the gate refused on a repack
+  // footprint the engine would never have allocated. Defaults stay llama.cpp
+  // normal, so callers without a resolved policy are unchanged.
   const estimate = estimateMemory({
     fileBytes,
     contextTokens,
     kvBytesPerToken,
     ubatch: 256,
-    repack: true,
+    repack: options.repack !== false,
+    mmap: options.mmap !== false,
   });
   const availableMiB =
     typeof availableBytes === "number" &&
@@ -342,6 +400,8 @@ export function decidePreSendFit(
     engineCtx: number;
     kvBytesPerToken?: number | null;
     mmproj?: { sizeBytes: number } | null;
+    /** Per-model weight-load policy (ModelRegistry.loadPolicy). */
+    loadPolicy?: LoadPolicy;
   },
   availableBytes: number | null,
   opts?: PreSendFitOptions,
@@ -379,6 +439,13 @@ export function decidePreSendFit(
     Number.isFinite(model.kvBytesPerToken)
       ? model.kvBytesPerToken
       : 0;
+  // One resolved load mode for both numbers below: requiredBytes and the
+  // verdict MUST describe the same configuration, or tight/does_not_fit are
+  // computed against a footprint the engine will never allocate.
+  const gateLoad = resolveGateLoadPolicy({
+    policy: model.loadPolicy,
+    benchNoRepack: opts?.benchNoRepack,
+  });
   const estimate =
     fileBytes > 0
       ? estimateMemory({
@@ -386,7 +453,8 @@ export function decidePreSendFit(
           contextTokens,
           kvBytesPerToken,
           ubatch: 256,
-          repack: true,
+          repack: gateLoad.repack,
+          mmap: gateLoad.mmap,
         })
       : null;
   const requiredBytes =
@@ -394,7 +462,10 @@ export function decidePreSendFit(
       ? estimate.nonEvictableMiB * 1024 * 1024
       : null;
 
-  const fit = evaluateModelFit(model, availableBytes);
+  const fit = evaluateModelFit(model, availableBytes, {
+    repack: gateLoad.repack,
+    mmap: gateLoad.mmap,
+  });
   if (fit.verdict === "does_not_fit") {
     return { allow: false, reasonKey: "model.tooLarge" };
   }

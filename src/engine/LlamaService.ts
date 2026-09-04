@@ -12,9 +12,13 @@ import {
 } from "llama.rn";
 
 import {
+  getBenchNoRepack,
   getBlockFormat,
   getThinkingMode,
+  getToolChoiceMode,
+  getToolGateEnabled,
   registerActiveEngineKnobGetter,
+  resolveCompletionToolChoice,
   type BlockFormat,
 } from "../bench/benchConfig";
 import {
@@ -22,7 +26,6 @@ import {
   hasOperativeContext,
   type OperativeBlockContext,
 } from "../context/operativeBlock";
-import { replaceLiteral } from "../context/compactor";
 import {
   accumulateToolSources,
   buildCiteInstructionSuffix,
@@ -52,13 +55,33 @@ import {
   nGpuLayersForBackend,
   resolveEngineTuning,
 } from "./deviceTuning";
-import { applyEngineOverride } from "./engineParams";
+import {
+  applyEngineOverride,
+  applyPrefillThreadOverride,
+} from "./engineParams";
+import type { EngineOverrideFields } from "./engineParams";
+import { shouldStreamModel } from "./modelGateRAM";
+import { resolveLoadPolicy } from "./loadPolicy";
 import {
   createToolCallDeltaStripper,
-  parseFallbackToolCall,
+  LFM_TOOL_CALL_START,
+  parseFallbackToolCalls,
   stripToolCallTagsFinal,
+  TOOL_CALL_OPEN,
 } from "./toolCallParser";
 import { createThinkStreamCleaner } from "./thinkStream";
+import {
+  historyWindowReproducesKv,
+  modelEmittedTextForVisibleReply,
+  promptContentForHistoryMessage,
+} from "./modelEmittedText";
+import {
+  formatToolCallLine,
+  formatToolRoundExhaustedLine,
+  type ToolRoundExhaustedTelemetry,
+  type ToolRoundTelemetry,
+} from "./toolCallTelemetry";
+import { shouldFireToolRoundFallback } from "./toolRoundFallback";
 import {
   formatTelemetryLine,
   isSuccessfulToolOutcome,
@@ -69,25 +92,51 @@ import {
   type ToolRetrievalStrategy,
 } from "./turnTelemetry";
 import {
+  computeHistoryHashFromMessages,
   computePromptEnvHash,
-  deleteOtherModelSessions,
+  memoryFactTextsForEnvHash,
   deleteSessionArtifacts,
   ensureSessionsDir,
   estimateSessionBytes,
   getSessionConversationId,
   hasEnoughDiskForSession,
+  isSameSessionSave,
+  promoteSessionBak,
+  readBootMessages,
   readPersistedHistoryLength,
+  rememberSuccessfulSessionSave,
   readSessionMeta,
   resolveSessionDiskTokens,
   sessionFileExists,
   sessionFilePath,
+  sessionHistoryPrefixAccepts,
   sessionLoadHasTokens,
   sessionMetaMismatchField,
   buildKvDiagPayload,
   shouldSaveSession,
   writeSessionMeta,
+  type SessionSaveFingerprint,
   type SessionMeta,
 } from "./sessionPersistence";
+import {
+  recordSessionDiskSample,
+  sessionBytesPerTokenForModel,
+  type SessionDiskCalibration,
+} from "./sessionDiskCalibration";
+import {
+  loadSessionDiskCalibration,
+  saveSessionDiskCalibration,
+} from "./sessionDiskCalibrationStore";
+import { legacySessionStem, sessionStem } from "./sessionKey";
+import {
+  deleteLegacyModelSession,
+  deleteSessionsForConversation,
+  deleteSessionsForModelConversation,
+  discardStaleConversationSessions,
+  evictSessionPool,
+  readSessionPoolBudgetBytes,
+  touchSessionUse,
+} from "./sessionPool";
 import {
   INITIAL_KV_REPRO_STATE,
   nextKvReproState,
@@ -95,7 +144,9 @@ import {
   type KvReproState,
 } from "./kvReproducibility";
 import { resolveThinkingParams } from "./thinkingBudgets";
-import { getModelById, isHybridOrKvUnifiedModel } from "./ModelRegistry";
+import { getModelById } from "./ModelRegistry";
+import type { ModelInfo } from "./ModelRegistry";
+import type { DecodeMeasurement } from "./deviceThroughput";
 import {
   getChatGeneration,
   markChatCompleting,
@@ -116,7 +167,7 @@ import {
 import {
   assembleStaticPrefix,
   computePrewarmPrefixHash,
-  shouldSkipPrewarmAfterRestore,
+  shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
 } from "./prefixPrewarm";
 import {
@@ -125,6 +176,7 @@ import {
   EXTRACT_MEMORY_PRESERVE_CHAT_KV,
   MEMORY_FACTS_ON_USER_TAIL,
 } from "./ttftFlags";
+import type { MemoryFact } from "../memory/MemoryStore";
 import * as FileSystem from "expo-file-system/legacy";
 
 /**
@@ -150,6 +202,12 @@ let activeCacheTypeV: string | null = null;
 let activeSpeculativeOverrideKey: string | null = null;
 /** Fingerprint of bench-only engineOverride; forces reload when it changes. */
 let activeEngineOverrideKey: string | null = null;
+/** Resolved no_extra_bufts for the loaded engine; part of the skip-reload key. */
+let activeNoExtraBufts: boolean | null = null;
+/** Resolved use_mmap for the loaded engine; part of the skip-reload key. */
+let activeUseMmap: boolean | null = null;
+/** Production expert-streaming decision; part of the skip-reload key. */
+let activeStreamExperts: boolean | null = null;
 /** JSON of engine override for session meta; undefined when production defaults. */
 let activeEngineKnob: string | undefined;
 /** Speculative knobs for session meta (save/load match). Cleared on dispose. */
@@ -176,6 +234,7 @@ let lastChatNPast: number | undefined;
  * from that file instead of writing a second snapshot.
  */
 let chatKvDiskCurrent = false;
+let lastSuccessfulSessionSave: SessionSaveFingerprint | null = null;
 /**
  * Whether the native KV can be reproduced by re-rendering persisted history.
  * Sticky `reproducible` + per-turn `turnInjected`; all transitions go through
@@ -187,9 +246,10 @@ let chatKvDiskCurrent = false;
 let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
 /**
  * promptEnvHash of the system-prompt inputs that produced the current chat KV
- * (locale + hasTools; memoryFacts only when MEMORY_FACTS_ON_USER_TAIL is off).
- * Set on streamAssistantTurn / successful load. Written into session meta on
- * save so restore can reject wasted cold-prefills.
+ * (locale + hasTools + sorted tool names + blockFormat; memoryFacts only when
+ * MEMORY_FACTS_ON_USER_TAIL is off). Set at init from sessionRestore, on
+ * streamAssistantTurn, and on successful load. Also the third part of the
+ * on-disk session stem.
  */
 let lastPromptEnvHash: string | undefined;
 /**
@@ -209,6 +269,17 @@ let prewarmPrefixHash: string | null = null;
 let prewarmQueuedKey: string | null = null;
 /** Bumped on dispose / settings-stale so an in-flight prewarm cannot store. */
 let prewarmGeneration = 0;
+
+function activeSessionStem(
+  modelId: string,
+  conversationId?: string,
+  promptEnvHash?: string,
+): string | null {
+  const conv = conversationId ?? getSessionConversationId();
+  const env = promptEnvHash ?? lastPromptEnvHash;
+  if (!conv || !env) return null;
+  return sessionStem(modelId, conv, env);
+}
 
 /**
  * True while disposeEngineLocked is unwinding a context. streamAssistantTurn's
@@ -249,7 +320,6 @@ let nativeLogSetupDone = false;
 
 async function ensureNativeLogCapture(): Promise<void> {
   if (nativeLogSetupDone) return;
-  nativeLogSetupDone = true;
   try {
     await toggleNativeLog(true);
     addNativeLogListener((level, text) => {
@@ -257,9 +327,32 @@ async function ensureNativeLogCapture(): Promise<void> {
       if (nativeLogTail.length > NATIVE_LOG_CAP) {
         nativeLogTail.splice(0, nativeLogTail.length - NATIVE_LOG_CAP);
       }
+      // Mirror to the console as it arrives, do not only buffer. The tail is
+      // read by rethrowWithNativeTail, which needs a caught error to exist —
+      // and a native LM_GGML_ABORT does not throw, it kills the process. The
+      // line ggml prints immediately before aborting is usually the whole
+      // diagnosis, and buffering it means it dies with the tail. That is not
+      // hypothetical: on 2026-08-23 the engine aborted in load_all_data on the
+      // Jelly and the reason was unrecoverable from the corpse.
+      console.log(`KALSA_NATIVE ${level} ${text}`);
     });
+    // LAST, and that placement is the whole point. This flag used to be set
+    // BEFORE the try: if toggleNativeLog threw, the listener was never added,
+    // the catch swallowed it, and every later call short-circuited on a flag
+    // that promised a capture nobody had installed. The tail then stayed empty
+    // for the life of the process, so rethrowWithNativeTail enriched failures
+    // with nothing and the UI showed a bare "unable to initialize context".
+    //
+    // Cost of that, measured on 2026-08-19: llama printed
+    // "V cache quantization requires flash_attn" — the exact cause of a failing
+    // bench arm — and it never reached JS. The afternoon went to a wrong
+    // diagnosis (blamed GPU offload, then the low-memory killer) that one
+    // captured line would have ended. Setting it here means a failed setup is
+    // retried on the next init instead of being latched forever.
+    nativeLogSetupDone = true;
   } catch {
-    // Logging must never break engine init.
+    // Logging must never break engine init — but it must not claim success
+    // either, so the flag above stays unset and the next init tries again.
   }
 }
 
@@ -296,12 +389,6 @@ const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
 const TRANSLATE_TIMEOUT_MS = 30_000;
 /** Hard cap on source text fed to translateText (chars). */
 const MAX_TRANSLATION_CHARS = 4000;
-/** summarizeConversation wall-clock timeout (ms). */
-const SUMMARIZE_TIMEOUT_MS = 30_000;
-/** Hard cap on transcript fed to summarizeConversation (chars). */
-const MAX_SUMMARIZE_CHARS = 6000;
-/** Output token cap for summarizeConversation. */
-const SUMMARIZE_N_PREDICT = 400;
 /**
  * Last-resort safety net for disposeEngineLocked's wait on the FIFO job chain.
  * Must stay well above the longest internal job timeout (translate: 30s) — the
@@ -323,7 +410,7 @@ const TARGET_LANG_NAME: Record<Locale, string> = {
 export function buildSystemPrompt(
   locale: Locale,
   withTools: boolean,
-  facts?: string[],
+  facts?: readonly MemoryFact[],
 ): string {
   const strings = getStrings(locale);
   let prompt = withTools ? strings.systemPromptWithSearch : strings.systemPrompt;
@@ -436,6 +523,11 @@ export type EngineMessage = {
   content: string;
   /** URI locali (file://) di immagini da allegare al messaggio USER corrente. */
   images?: string[];
+  /**
+   * Text the model actually emitted for this assistant turn (prompt replay).
+   * Assistant-only; when present, streamAssistantTurn uses it instead of content.
+   */
+  modelEmittedText?: string;
 };
 
 export type EngineTool = {
@@ -483,6 +575,11 @@ export type EngineCallbacks = {
   onTool?: (tool: unknown) => void;
   onSources?: (sources: unknown[]) => void;
   onMiniapp?: (miniapp: unknown) => void;
+  /**
+   * Unmodified model output for the assistant turn (think wrappers etc.).
+   * Fired once when the final text is produced; UI stream stays cleaned via onDelta.
+   */
+  onModelEmittedText?: (text: string) => void;
   onDone: () => void;
   onError: (error: Error) => void;
 };
@@ -586,17 +683,11 @@ export function queueStaticPrefixPrewarm(
     return;
   }
   const prefix = resolvePrewarmPrefix(locale, tools);
-  // Skip only if this process already prewarmed / marked this prefix.
-  // Do not skip solely because kvHoldsChatSession — hybrid restore reports
-  // ok:true while native n_past=0; skipping would leave a cold KV.
-  // Dense restore (Gemma) is real: prewarm seq_rm would delete the tail.
-  if (
-    shouldSkipPrewarmAfterRestore(
-      kvHoldsChatSession,
-      isHybridOrKvUnifiedModel(activeModelId ?? ""),
-    )
-  ) {
-    logPrewarm({ op: "skip", reason: "dense_restore" });
+  // Chat KV must not be prewarmed over — restore and live-chat KV included.
+  // §7.29 measured n_past=1473 after a hybrid restore on KEXP, so the old
+  // "hybrid restores are not real" carve-out was wrong.
+  if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
+    logPrewarm({ op: "skip", reason: "kv_holds_chat" });
     return;
   }
   if (
@@ -755,6 +846,9 @@ function emitTurnTelemetry(
   round: number,
   result: CompletionLikeResult,
   attribution?: ToolAttributionSnapshot | null,
+  model?: ModelInfo | null,
+  onDecodeSample?: StreamTurnOptions["onDecodeSample"],
+  ciswireFlags?: number,
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
@@ -762,7 +856,24 @@ function emitTurnTelemetry(
     // never ran a successful tool.
     if (attribution?.tool != null) r.tool = attribution.tool;
     if (attribution?.strategy != null) r.strategy = attribution.strategy;
+    if (ciswireFlags !== undefined) r.ciswireFlags = ciswireFlags;
     console.log(formatTelemetryLine(turnId, r));
+    if (model != null) {
+      onDecodeSample?.(model, {
+        predictedPerSecond: r.predictedPerSecond,
+        tokensPredicted: r.tokensPredicted,
+        interrupted: r.interrupted,
+      });
+    }
+  } catch {
+    // Telemetry must never break a turn.
+  }
+}
+
+/** Emit one KALSA_TOOLCALL line. Must never throw out of a turn. */
+function emitToolCallTelemetry(turnId: string, r: ToolRoundTelemetry): void {
+  try {
+    console.log(formatToolCallLine(turnId, r));
   } catch {
     // Telemetry must never break a turn.
   }
@@ -973,16 +1084,18 @@ export type EngineInitOptions = {
     draftModelPath?: string;
   };
   /**
-   * Bench-only init-time engine param override (GPU layers / threads / ubatch).
-   * When present, overrides the matching ContextParams fields after production
-   * defaults. Absent = production. CI A/B via AsyncStorage `kalsa.bench.engine`.
-   * Applies at ENGINE INIT only.
+   * Bench-only init-time engine param override (GPU layers / threads / ubatch /
+   * flash attention). When present, overrides the matching ContextParams fields
+   * after production defaults. Absent = production. CI A/B via AsyncStorage
+   * `kalsa.bench.engine`. Applies at ENGINE INIT only.
+   *
+   * Reuses EngineOverrideFields rather than restating the shape: the copy that
+   * used to live here silently lacked `flashAttn`, and since TypeScript skips
+   * excess-property checks on a variable, the field still arrived at runtime
+   * while being invisible here. A refactor rebuilding this object field by
+   * field would have dropped the knob with nothing failing.
    */
-  engineOverride?: {
-    nGpuLayers?: number;
-    nThreads?: number;
-    nUbatch?: number;
-  };
+  engineOverride?: EngineOverrideFields;
   /**
    * If set, attempt to restore native KV session after initLlama when the
    * on-disk meta matches history + engine config + prompt env.
@@ -1053,13 +1166,50 @@ export function initEngine(
     // activeEngineCtx, KV-session meta, restore validation, and skip-reload.
     // deviceProfile.cpuCapacities is forwarded so the G99 measured prefill
     // preset (8) is reachable in production (not only in harness fixtures).
+    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
+    // repacking). Resolved here so the skip-reload key and the init params share
+    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
+    // Bench-only kalsa.bench.norepack: "1" → no_extra_bufts (disable ARM weight
+    // repacking). Resolved here so the skip-reload key and the init params share
+    // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
+    const benchNoRepack = await getBenchNoRepack();
+    // Same predicate the RAM gate uses. Production writes params.moe_stream
+    // below, BEFORE applyEngineOverride, so a bench A/B still wins.
+    const streamExperts =
+      modelInfo != null &&
+      shouldStreamModel({
+        model: modelInfo,
+        contextTokens: engineCtx,
+        availableMemoryBytes: deviceProfile.availableMemoryBytes,
+      });
+    // Per-model load policy (ModelRegistry.loadPolicy → loadPolicy.ts), folded
+    // with the levers that outrank it: bench levers > streaming > policy >
+    // llama.cpp default ({mmap:true, repack:true}). Resolved WITHOUT the
+    // streaming term (streamExperts:false): the force lands in the block below
+    // and in the re-force after applyEngineOverride, so a bench arm that vetoes
+    // moe_stream falls back to exactly this value — the non-streamed config it
+    // means to measure. Tuning therefore sees the policy-honest repack term,
+    // same shape as when only the norepack knob existed.
+    const load = resolveLoadPolicy({
+      policy: modelInfo?.loadPolicy,
+      streamExperts: false,
+      benchNoRepack,
+      benchUseMmap: options.engineOverride?.useMmap,
+    });
     const tuning = await resolveEngineTuning({
       model: modelInfo,
       profile: deviceProfile,
       cpuCapacities: deviceProfile.cpuCapacities,
-      request: { contextBudget: engineCtx },
+      request: {
+        contextBudget: engineCtx,
+        // The resolved load mode, so the estimate prices exactly what init
+        // will allocate: repack off drops that term; mmap off moves the
+        // weights into the non-evictable bucket.
+        mmap: load.useMmap,
+        repack: !load.noExtraBufts,
+      },
       platformHint: Platform.OS,
     });
     // Prefer caller engineCtx when budget did not shrink (identical path on
@@ -1076,7 +1226,10 @@ export function initEngine(
       activeCacheTypeK === cacheTypeK &&
       activeCacheTypeV === cacheTypeV &&
       activeSpeculativeOverrideKey === speculativeOverrideKey &&
-      activeEngineOverrideKey === engineOverrideKey
+      activeEngineOverrideKey === engineOverrideKey &&
+      activeNoExtraBufts === load.noExtraBufts &&
+      activeUseMmap === load.useMmap &&
+      activeStreamExperts === streamExperts
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
@@ -1096,14 +1249,21 @@ export function initEngine(
 
     // Prefill threads — measured dual on G99 (decode 2 / prefill 8).
     // JSI reads snake_case "n_threads_batch" into cpuparams_batch.n_threads
-    // (Kalsa patch on JSIParams.cpp). Upstream ContextParams types lag, so we
-    // cast only this field. Decision is deferred until AFTER applyEngineOverride
-    // so a bench nThreads that matches prefill does not still send the field.
-    const nThreadsPrefill = tuning.nThreadsPrefill;
+    // (Kalsa patch on JSIParams.cpp). Upstream ContextParams types lag. Decision
+    // is deferred until AFTER applyEngineOverride so a bench nThreads that
+    // matches prefill does not still send the field.
+    const nThreadsPrefill =
+      options.engineOverride?.nThreadsPrefill ?? tuning.nThreadsPrefill;
 
     const params: ContextParams = {
       model: modelPath,
       use_mlock: true,
+      // Per-model load policy (loadPolicy.ts): mmap keeps the weights mapped on
+      // file — page-cache backed, kernel-reclaimable. A bench:engine useMmap
+      // still wins below (applyEngineOverride overwrites when present).
+      use_mmap: load.useMmap,
+      // True → skip the anonymous repack buffer (~file size of extra RSS).
+      no_extra_bufts: load.noExtraBufts,
       n_ctx: effectiveNCtx,
       n_batch: 512,
       // HARD GUARD (moe-experiments F5.1): ubatch ≤512; default 256 ≈ 250 MB.
@@ -1122,25 +1282,42 @@ export function initEngine(
       ctx_shift: isMultimodal ? false : true,
     };
 
+    // Production expert streaming — same shouldStreamModel the RAM gate used.
+    // Not engineOverride: that field is bench-only. Written before the override
+    // so an explicit bench arm still wins.
+    if (streamExperts) {
+      params.moe_stream = { enabled: true };
+      params.no_extra_bufts = true;
+    }
+
     // Bench-only engineOverride: apply after production defaults; absent fields keep production.
-    // Android GPU gate lives in applyEngineOverride (never override the n_gpu_layers guard above).
+    // Production now offloads on Android too (deviceTuning → gpu-opencl); this only decides
+    // whether a bench arm may move n_gpu_layers off that value.
     applyEngineOverride(params, options.engineOverride, Platform.OS);
+    // Streaming forces no_extra_bufts and outranks the per-model policy. If a
+    // bench arm disabled moe_stream after the gate said yes, fall back to the
+    // resolved base (bench levers > policy > default) so that arm measures the
+    // non-streamed configuration faithfully rather than inheriting streaming's.
+    params.no_extra_bufts =
+      params.moe_stream?.enabled === true ? true : load.noExtraBufts;
+
+    // Once per load: arm evidence must name the repack mode it ran under.
+    // Number (0|1), same KALSA_SESSION shape as save/load (op + extras).
+    try {
+      console.log(
+        `KALSA_SESSION ${JSON.stringify({
+          op: "init",
+          no_extra_bufts: params.no_extra_bufts ? 1 : 0,
+        })}`,
+      );
+    } catch {
+      /* telemetry never throws into engine path */
+    }
 
     // Invariant: n_threads_batch present ONLY when final decode != prefill.
-    // Compare post-override params.n_threads (not pre-override tuning.n_threads)
-    // so G99 (decode 2 / prefill 8) + bench nThreads=8 omits the field rather
-    // than sending n_threads_batch: 8 with both sides already equal.
-    const prefillDiffers =
-      typeof nThreadsPrefill === "number" &&
-      Number.isFinite(nThreadsPrefill) &&
-      nThreadsPrefill > 0 &&
-      nThreadsPrefill !== params.n_threads;
-    if (prefillDiffers) {
-      // Prefill / batch threads — snake_case only (JSI key). Cast: published
-      // ContextParams has no n_threads_batch yet; native binding does.
-      (params as ContextParams & { n_threads_batch?: number }).n_threads_batch =
-        nThreadsPrefill;
-    }
+    // The helper compares post-override params.n_threads, not pre-override
+    // tuning.n_threads, so equal decode/prefill arms omit the field.
+    applyPrefillThreadOverride(params, nThreadsPrefill);
 
     // MTP (NextN): speculative decoding embedded — ~1.5-2x più veloce.
     // La cache del DRAFT viene quantizzata come la target (non F16 di default).
@@ -1209,6 +1386,19 @@ export function initEngine(
     await ensureNativeLogCapture();
     try {
       context = await initLlama(params);
+      // Which .so actually loaded. RNLlama.java tries the CPU-feature variants
+      // in order and tryLoadLibrary swallows UnsatisfiedLinkError silently, so
+      // a phone can quietly run a different kernel than the one being measured
+      // — and the generic librnllama.so carries the patch marker either way, so
+      // assert-native-patch cannot tell. llama.rn already reports it; nothing
+      // read it until now. Only the `_opencl` variant has the GPU backend
+      // compiled in, so this also says whether OpenCL exists on this device.
+      console.log(
+        `KALSA_NATIVE_VARIANT ${JSON.stringify({
+          androidLib: context.androidLib ?? null,
+          nGpuLayers: params.n_gpu_layers ?? 0,
+        })}`,
+      );
     } catch (error) {
       try {
         // Opt-in telemetry: categories + allowlisted signal only (no stack/path).
@@ -1236,7 +1426,34 @@ export function initEngine(
       } catch {
         /* telemetry never throws into engine path */
       }
-      rethrowWithNativeTail(error);
+      // Android offload can kill init — the recorded case is HTP0/Hexagon with
+      // FA on CPU, and an .so built without the OpenCL variant fails here too.
+      // There is no other retry on this path, so without this a phone whose
+      // driver refuses the backend would leave the model permanently unloadable
+      // behind a "Riprova caricamento" that cannot work — the same dead end
+      // §7.11 documented. Fall back to CPU once, and say so loudly: a silent
+      // fallback would hand a GPU arm a CPU number to publish. This now guards
+      // production too, not only the bench: deviceTuning selects gpu-opencl.
+      if (Platform.OS === "android" && (params.n_gpu_layers ?? 0) > 0) {
+        console.warn(
+          `KALSA_GPU_FALLBACK ${JSON.stringify({
+            requestedGpuLayers: params.n_gpu_layers,
+            flashAttn: params.flash_attn_type,
+          })}`,
+        );
+        params.n_gpu_layers = 0;
+        try {
+          context = await initLlama(params);
+        } catch (retryError) {
+          // Report the CPU retry's own failure, not the GPU one that got us
+          // here: at 0 layers the weights become resident, so the retry can
+          // die of something else entirely (OOM) and rethrowing the first
+          // error would send that to telemetry under the wrong cause.
+          rethrowWithNativeTail(retryError);
+        }
+      } else {
+        rethrowWithNativeTail(error);
+      }
     }
     activeModelId = modelId;
     activeMmprojPath = options.mmprojPath ?? null;
@@ -1246,6 +1463,9 @@ export function initEngine(
     activeCacheTypeV = cacheTypeV;
     activeSpeculativeOverrideKey = speculativeOverrideKey;
     activeEngineOverrideKey = engineOverrideKey;
+    activeNoExtraBufts = load.noExtraBufts;
+    activeUseMmap = load.useMmap;
+    activeStreamExperts = streamExperts;
     activeEngineKnob =
       options.engineOverride !== undefined
         ? JSON.stringify(options.engineOverride)
@@ -1255,6 +1475,10 @@ export function initEngine(
 
     // Restore native KV when meta matches (cold prefill kill after app restart).
     // Runs before multimodal: KV belongs to the LLM context, not the projector.
+    // Keep lastPromptEnvHash even on a miss so a later save/switch can form the stem.
+    if (options.sessionRestore?.promptEnvHash) {
+      lastPromptEnvHash = options.sessionRestore.promptEnvHash;
+    }
     if (options.sessionRestore?.historyHash) {
       await tryLoadEngineSession(modelId, {
         historyHash: options.sessionRestore.historyHash,
@@ -1272,8 +1496,9 @@ export function initEngine(
     if (isMultimodal && options.mmprojPath) {
       let enabled: boolean;
       try {
-        // use_gpu MUST stay false on Android: the LLM is CPU-only (Hexagon
-        // offload was fatal, see n_gpu_layers above) and the first on-device
+        // use_gpu MUST stay false on Android. This is the VISION context, and
+        // it is a separate decision from the LLM's n_gpu_layers above (which
+        // does offload now): the first on-device
         // image turn with use_gpu:true died natively in
         // lm_ggml_gallocr_alloc_graph inside the OpenCL vision graph (MIUI
         // crash report, Xiaomi 14, 2026-08-07 17:12). CPU encode is seconds
@@ -1360,6 +1585,9 @@ async function disposeEngineLocked(opts?: {
     activeCacheTypeV = null;
     activeSpeculativeOverrideKey = null;
     activeEngineOverrideKey = null;
+    activeNoExtraBufts = null;
+    activeUseMmap = null;
+    activeStreamExperts = null;
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;
@@ -1563,17 +1791,26 @@ function noteChatNPast(value: unknown): void {
   if (value === 0) lastChatNPast = undefined;
 }
 
-async function sessionDiskGateInput(): Promise<{
+async function sessionDiskGateInput(modelId = activeModelId ?? ""): Promise<{
   nPast?: number;
   historyLength?: number | null;
   nCtx: number;
+  bytesPerToken: number | null;
+  calibration: SessionDiskCalibration;
 }> {
   const nPast = lastChatNPast;
   let historyLength: number | null | undefined;
   if (nPast == null || nPast <= 0) {
     historyLength = await readPersistedHistoryLength();
   }
-  return { nPast, historyLength, nCtx: activeEngineCtx };
+  const calibration = await loadSessionDiskCalibration();
+  return {
+    nPast,
+    historyLength,
+    nCtx: activeEngineCtx,
+    bytesPerToken: sessionBytesPerTokenForModel(calibration, modelId),
+    calibration,
+  };
 }
 
 /**
@@ -1583,11 +1820,18 @@ async function sessionDiskGateInput(): Promise<{
  * Write is atomic-ish: native save goes to `<path>.tmp`, then moveAsync over the
  * real file; meta is written only after a successful rename. On ANY failure only
  * the tmp is deleted — the previous good `.kvs` + meta stay intact.
+ * An identical stem/history/token save is acknowledged without another native write.
  */
 export async function saveEngineSession(
   modelId: string,
   historyHashValue: string,
+  historyMessageCount?: number,
 ): Promise<boolean> {
+  // Capture identity NOW: the FIFO serializes work but not conversation id.
+  // bindActiveConversation can run while this job is queued; resolving the
+  // stem inside the job would write chat A's KV under chat B's filename.
+  const conversationId = getSessionConversationId();
+  const promptEnvHash = lastPromptEnvHash;
   // FIX 4: lifecycle lock for the full save (disk I/O + native saveSession) so
   // a concurrent dispose/model-switch cannot null active* fields or release the
   // context mid-save. Outer lifecycle, inner engine-job (never reverse — that
@@ -1599,6 +1843,7 @@ export async function saveEngineSession(
       nPast: lastChatNPast,
       nCtx: activeEngineCtx,
     });
+    let bytesPerToken: number | null = null;
     let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
     const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
       try {
@@ -1616,8 +1861,7 @@ export async function saveEngineSession(
         // telemetry must never throw
       }
     };
-    const path = sessionFilePath(modelId);
-    const tmpPath = `${path}.tmp`;
+    let tmpPath = "";
     try {
       // Sync gates only — early return BEFORE any tmp/backup manipulation so a
       // skipped save (e.g. kv_not_reproducible after a tool turn) leaves the
@@ -1638,13 +1882,35 @@ export async function saveEngineSession(
         log(false, { reason: "no_context" });
         return false;
       }
-      const diskInput = await sessionDiskGateInput();
+      const stem = activeSessionStem(modelId, conversationId, promptEnvHash);
+      if (!stem) {
+        log(false, { reason: "no_session_key" });
+        return false;
+      }
+      const diskInput = await sessionDiskGateInput(modelId);
+      const diskCalibration = diskInput.calibration;
+      bytesPerToken = diskInput.bytesPerToken;
       usedTokens = resolveSessionDiskTokens(diskInput);
-      estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
+      estimatedBytes =
+        usedTokens == null ? 0 : estimateSessionBytes(usedTokens, bytesPerToken ?? undefined);
+      const saveFingerprint: SessionSaveFingerprint = {
+        stem,
+        historyHash: historyHashValue,
+        usedTokens,
+      };
+      if (
+        chatKvDiskCurrent &&
+        isSameSessionSave(lastSuccessfulSessionSave, saveFingerprint)
+      ) {
+        log(true, { reason: "unchanged" });
+        return true;
+      }
       if (!(await hasEnoughDiskForSession(diskInput))) {
         log(false, { reason: "disk" });
         return false;
       }
+      const path = sessionFilePath(stem);
+      tmpPath = `${path}.tmp`;
       await ensureSessionsDir();
       // Drop any stale tmp from a previous interrupted save.
       try {
@@ -1690,11 +1956,6 @@ export async function saveEngineSession(
         }
         throw moveError;
       }
-      try {
-        await FileSystem.deleteAsync(bakPath, { idempotent: true });
-      } catch {
-        // ignore
-      }
       const meta: SessionMeta = {
         formatVersion: 1,
         nCtx: activeEngineCtx,
@@ -1703,35 +1964,93 @@ export async function saveEngineSession(
         historyHash: historyHashValue,
         savedAt: Date.now(),
       };
-      if (lastPromptEnvHash !== undefined) meta.promptEnvHash = lastPromptEnvHash;
+      if (
+        typeof historyMessageCount === "number" &&
+        Number.isInteger(historyMessageCount) &&
+        historyMessageCount >= 0 &&
+        Number.isFinite(historyMessageCount)
+      ) {
+        meta.historyMessageCount = historyMessageCount;
+      }
+      if (promptEnvHash !== undefined) meta.promptEnvHash = promptEnvHash;
       if (activeMtpNMax !== undefined) meta.mtpNMax = activeMtpNMax;
       if (activeSpecType !== undefined) meta.specType = activeSpecType;
       if (activeEngineKnob !== undefined) meta.engineKnob = activeEngineKnob;
-      const conversationId = getSessionConversationId();
       if (conversationId) meta.conversationId = conversationId;
       if (BAKE_FORMAT_B_USER_PREFIX && bakedUserTails.length > 0) {
         meta.bakedUserTails = bakedUserTails;
       }
-      // Meta after rename so a kill between file and meta keeps the previous
-      // meta (hash mismatch → cold) or pairs old meta with complete new file
-      // when history is unchanged (valid restore).
-      await writeSessionMeta(modelId, meta);
+      // Meta after rename, before dropping .bak: a failed meta write must not
+      // report success, and the .kvs without meta must not stay (F4).
+      if (!(await writeSessionMeta(stem, meta))) {
+        try {
+          await FileSystem.deleteAsync(path, { idempotent: true });
+        } catch {
+          // ignore
+        }
+        if (hadPrevious) {
+          try {
+            await FileSystem.moveAsync({ from: bakPath, to: path });
+          } catch {
+            // ignore — worst case cold start
+          }
+        }
+        log(false, { reason: "meta_write" });
+        return false;
+      }
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(path);
+        const nextCalibration = recordSessionDiskSample(diskCalibration, {
+          ok: true,
+          modelId,
+          fileBytes:
+            "size" in fileInfo && typeof fileInfo.size === "number"
+              ? fileInfo.size
+              : undefined,
+          usedTokens: tokens,
+        });
+        if (nextCalibration !== diskCalibration) {
+          await saveSessionDiskCalibration(nextCalibration);
+        }
+      } catch {
+        // Calibration is best-effort; the successful session remains valid.
+      }
+      try {
+        await FileSystem.deleteAsync(bakPath, { idempotent: true });
+      } catch {
+        // ignore
+      }
       chatKvDiskCurrent = true;
       noteChatNPast(tokens);
-      // Only after a successful write: drop other models' sessions (keep current).
-      await deleteOtherModelSessions(modelId);
+      const successfulUsedTokens =
+        resolveSessionDiskTokens({ nPast: lastChatNPast, nCtx: activeEngineCtx }) ??
+        saveFingerprint.usedTokens;
+      lastSuccessfulSessionSave = rememberSuccessfulSessionSave(
+        lastSuccessfulSessionSave,
+        { ...saveFingerprint, usedTokens: successfulUsedTokens },
+        true,
+      );
+      await touchSessionUse(stem);
+      const budgetBytes = await readSessionPoolBudgetBytes();
+      await evictSessionPool(stem, budgetBytes);
+      await deleteLegacyModelSession(modelId);
       log(true, {
         tokens: typeof tokens === "number" ? tokens : 0,
         hash: historyHashValue,
+        ...(meta.historyMessageCount !== undefined
+          ? { messageCount: meta.historyMessageCount }
+          : {}),
       });
       return true;
     } catch (error) {
       console.warn("[saveEngineSession]", error);
       // Failed save: delete ONLY the tmp. Leave previous .kvs + meta intact.
-      try {
-        await FileSystem.deleteAsync(tmpPath, { idempotent: true });
-      } catch {
-        // ignore
+      if (tmpPath) {
+        try {
+          await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+        } catch {
+          // ignore
+        }
       }
       log(false, { reason: sessionErrorReason(error) });
       return false;
@@ -1741,8 +2060,8 @@ export async function saveEngineSession(
 }
 
 /**
- * Attempt to restore native KV after initLlama. Called only from initEngine
- * (lifecycle lock held; no concurrent completion). Never throws.
+ * Attempt to restore native KV. Called from initEngine (lock held) and from
+ * restoreEngineSession on conversation switch. Never throws.
  */
 async function tryLoadEngineSession(
   modelId: string,
@@ -1770,16 +2089,13 @@ async function tryLoadEngineSession(
       // telemetry must never throw
     }
   };
+  let loadStem: string | null = null;
   const emitKvDiag = () => {
     try {
       console.log(
         "KALSA_KVDIAG",
         JSON.stringify(
-          buildKvDiagPayload({
-            ok: loadOk,
-            tokensLoaded,
-            hybridOrKvUnified: isHybridOrKvUnifiedModel(modelId),
-          }),
+          buildKvDiagPayload({ ok: loadOk, tokensLoaded }),
         ),
       );
     } catch {
@@ -1791,22 +2107,69 @@ async function tryLoadEngineSession(
       log(false, { reason: "no_context" });
       return false;
     }
-    const stored = await readSessionMeta(modelId);
+    const convId = expected.conversationId ?? getSessionConversationId();
+    const envHash = expected.promptEnvHash ?? lastPromptEnvHash;
+    const stem = convId && envHash ? sessionStem(modelId, convId, envHash) : null;
+    if (!stem) {
+      log(false, { reason: "no_session_key" });
+      return false;
+    }
+    const staleDropped = convId
+      ? await discardStaleConversationSessions(modelId, convId, envHash ?? "")
+      : 0;
+    loadStem = stem;
+    if (!(await sessionFileExists(stem))) {
+      const recovered = await promoteSessionBak(stem);
+      if (!recovered) {
+        const orphanMeta = await readSessionMeta(stem);
+        if (orphanMeta) await deleteSessionArtifacts(stem);
+        if (staleDropped > 0) {
+          log(false, { reason: "meta_mismatch:promptEnvHash" });
+          return false;
+        }
+        const legacy = legacySessionStem(modelId);
+        const legacyFile = legacy ? await sessionFileExists(legacy) : false;
+        const legacyMeta = legacyFile && legacy ? await readSessionMeta(legacy) : null;
+        const expectedConv =
+          typeof convId === "string" && convId.length > 0 ? convId : "";
+        const legacyConv =
+          legacyMeta &&
+          typeof legacyMeta.conversationId === "string" &&
+          legacyMeta.conversationId.length > 0
+            ? legacyMeta.conversationId
+            : "";
+        // Wrong-conversation legacy must stay on disk — deleting it would drop
+        // the only pre-pool restore point when switching chats after upgrade.
+        if (!legacy || !legacyFile || !legacyMeta || legacyConv !== expectedConv) {
+          log(false, { reason: "no_file" });
+          return false;
+        }
+        loadStem = legacy;
+      }
+    }
+    const stored = await readSessionMeta(loadStem);
     if (!stored) {
       log(false, { reason: "no_meta" });
       return false;
     }
-    if (!(await sessionFileExists(modelId))) {
-      await deleteSessionArtifacts(modelId);
+    if (!(await sessionFileExists(loadStem))) {
+      await deleteSessionArtifacts(loadStem);
       log(false, { reason: "no_file" });
       return false;
     }
+    // Non-history fields only: force historyHash equal on both sides so
+    // sessionMetaMismatchField does not double-check history (prefix check below).
+    const historySentinel = "__prefix_history_skip__";
+    const storedForConfig: SessionMeta = {
+      ...stored,
+      historyHash: historySentinel,
+    };
     const expectedMeta: SessionMeta = {
       formatVersion: 1,
       nCtx: expected.nCtx,
       cacheTypeK: expected.cacheTypeK,
       cacheTypeV: expected.cacheTypeV,
-      historyHash: expected.historyHash,
+      historyHash: historySentinel,
     };
     if (expected.promptEnvHash !== undefined) {
       expectedMeta.promptEnvHash = expected.promptEnvHash;
@@ -1815,28 +2178,54 @@ async function tryLoadEngineSession(
     if (expected.specType !== undefined) expectedMeta.specType = expected.specType;
     if (expected.engineKnob !== undefined) expectedMeta.engineKnob = expected.engineKnob;
     if (expected.conversationId) expectedMeta.conversationId = expected.conversationId;
-    const mismatchField = sessionMetaMismatchField(stored, expectedMeta);
+    const mismatchField = sessionMetaMismatchField(storedForConfig, expectedMeta);
     if (mismatchField !== null) {
       bakedUserTails = [];
-      await deleteSessionArtifacts(modelId);
+      await deleteSessionArtifacts(loadStem);
       // Field name only (enum-like) — attributable cold starts: historyHash =
       // save missed/raced; promptEnvHash = locale (or legacy facts-in-system)
       // changed (semantically correct cold); nCtx/KV = config change.
-      // metaHash/bootHash only for historyHash MISS so CI can compare at a glance
-      // without changing the grepped reason string.
       log(false, {
         reason: `meta_mismatch:${mismatchField}`,
-        ...(mismatchField === "historyHash"
-          ? { metaHash: stored.historyHash, bootHash: expected.historyHash }
+      });
+      return false;
+    }
+    // Prefix-aware history: saved hash may be a strict prefix of boot messages
+    // (new user turn already persisted before ensureEngine restore).
+    const bootMessages = await readBootMessages();
+    const historyCheck = sessionHistoryPrefixAccepts(stored, bootMessages);
+    if (!historyCheck.accept) {
+      await deleteSessionArtifacts(loadStem);
+      const bootHash = computeHistoryHashFromMessages(bootMessages);
+      log(false, {
+        reason: `meta_mismatch:${historyCheck.reason}`,
+        ...(historyCheck.reason === "historyHash"
+          ? { metaHash: stored.historyHash, bootHash }
           : {}),
       });
       return false;
     }
-    const result = await context.loadSession(sessionFilePath(modelId));
+    // Byte-identity gate: refuse when the prefix cannot re-render the KV
+    // (legacy assistant without modelEmittedText, interrupted without capture).
+    const prefixCount =
+      typeof stored.historyMessageCount === "number"
+        ? stored.historyMessageCount
+        : bootMessages.length;
+    const reproCheck = historyWindowReproducesKv(
+      bootMessages.slice(0, Math.max(0, prefixCount)),
+    );
+    if (!reproCheck.accept) {
+      await deleteSessionArtifacts(loadStem);
+      log(false, { reason: `meta_mismatch:${reproCheck.reason}` });
+      return false;
+    }
+    // llama.rn 0.12.8: loadSession strips file://; saveSession does not.
+    // Pass the URI form here — do not strip.
+    const result = await context.loadSession(sessionFilePath(loadStem));
     tokensLoaded = result?.tokens_loaded;
     if (!sessionLoadHasTokens(result)) {
       bakedUserTails = [];
-      await deleteSessionArtifacts(modelId);
+      await deleteSessionArtifacts(loadStem);
       log(false, { reason: "tokens_loaded:0" });
       return false;
     }
@@ -1850,6 +2239,8 @@ async function tryLoadEngineSession(
       ? parseBakedUserTails(stored.bakedUserTails)
       : [];
     loadOk = true;
+    await touchSessionUse(stem);
+    if (loadStem !== stem) await touchSessionUse(loadStem);
     log(true, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
@@ -1857,7 +2248,7 @@ async function tryLoadEngineSession(
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
     bakedUserTails = [];
-    await deleteSessionArtifacts(modelId);
+    if (loadStem) await deleteSessionArtifacts(loadStem);
     log(false, { reason: sessionErrorReason(error) });
     return false;
   } finally {
@@ -1866,27 +2257,71 @@ async function tryLoadEngineSession(
 }
 
 /**
- * Drop on-disk KV + meta for a model (clearChat / model switch).
+ * Drop on-disk KV for this model + the active conversation (all env-hash
+ * variants + legacy per-model file). clearChat / empty-chat background.
  * Serialized on the engine job chain so a queued save cannot resurrect
  * the file after invalidation. Never throws.
  */
 export async function invalidateEngineSession(modelId: string): Promise<void> {
   if (!modelId) return;
+  const conv = getSessionConversationId();
   return withEngineJob(async () => {
     try {
-      // Also mark in-memory KV ineligible if this is the active model
-      // (clearChat leaves the engine up; a later background must not save).
       if (activeModelId === modelId) {
         kvHoldsChatSession = false;
         lastChatNPast = undefined;
         chatKvDiskCurrent = false;
         bakedUserTails = [];
       }
-      await deleteSessionArtifacts(modelId);
+      if (conv) {
+        await deleteSessionsForModelConversation(modelId, conv);
+      } else {
+        await deleteLegacyModelSession(modelId);
+      }
     } catch {
       // never throw
     }
   });
+}
+
+/** Drop every pooled session for a conversation (any model / env hash). */
+export async function invalidateConversationSessions(
+  conversationId: string,
+): Promise<void> {
+  if (!conversationId) return;
+  const wasActive = getSessionConversationId() === conversationId;
+  return withEngineJob(async () => {
+    try {
+      if (wasActive) kvHoldsChatSession = false;
+      await deleteSessionsForConversation(conversationId);
+    } catch {
+      // never throw
+    }
+  });
+}
+
+/**
+ * Load the active conversation's session into a live engine (chat switch).
+ * Same gates as init restore. Never throws.
+ */
+export async function restoreEngineSession(modelId: string): Promise<boolean> {
+  if (!modelId) return false;
+  return withLifecycleLock(() =>
+    withEngineJob(async () => {
+      if (!context || activeModelId !== modelId) return false;
+      return tryLoadEngineSession(modelId, {
+        historyHash: "",
+        promptEnvHash: lastPromptEnvHash,
+        nCtx: activeEngineCtx,
+        cacheTypeK: activeCacheTypeK ?? "",
+        cacheTypeV: activeCacheTypeV ?? "",
+        mtpNMax: activeMtpNMax,
+        specType: activeSpecType,
+        engineKnob: activeEngineKnob,
+        conversationId: getSessionConversationId(),
+      });
+    }),
+  );
 }
 
 function parseToolArguments(raw: string | undefined): {
@@ -1904,6 +2339,23 @@ function parseToolArguments(raw: string | undefined): {
   } catch {
     return { args: {}, parseFailed: true, raw };
   }
+}
+
+/** namesValid / argsParsed over every emitted call (vacuous true if none). */
+function emittedCallShape(
+  calls: Array<{ function?: { name?: string; arguments?: string } }>,
+  tools: EngineTool[] | undefined,
+): { namesValid: boolean; argsParsed: boolean } {
+  const known = new Set((tools ?? []).map((t) => t.function.name));
+  let namesValid = true;
+  let argsParsed = true;
+  for (const call of calls) {
+    if (!known.has(call.function?.name ?? "")) namesValid = false;
+    const raw =
+      typeof call.function?.arguments === "string" ? call.function.arguments : undefined;
+    if (parseToolArguments(raw).parseFailed) argsParsed = false;
+  }
+  return { namesValid, argsParsed };
 }
 
 /** Trasforma il messaggio user corrente in parts, con le immagini come image_url. */
@@ -1999,10 +2451,11 @@ export type StreamTurnOptions = EngineTurnOptions & {
   /** Settings locale — drives system prompt language (required). */
   locale: Locale;
   /**
-   * Durable user facts (max 10 used). Default: last-user tail (format B), not
-   * the system prompt — see MEMORY_FACTS_ON_USER_TAIL. Empty when memory off.
+   * Durable user facts. Default: last-user tail (format B), not the system
+   * prompt — see MEMORY_FACTS_ON_USER_TAIL. Bounded at injection. Empty when
+   * memory off.
    */
-  memoryFacts?: string[];
+  memoryFacts?: readonly MemoryFact[];
   /**
    * Compaction context for the operative block:
    * - digest: query-time BM25 (refreshed every user turn)
@@ -2025,6 +2478,10 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * attachment placeholder / unsliced).
    */
   lastUserBare?: string;
+  /** Receives each settled completion's numeric decode sample for calibration. */
+  onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
+  /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
+  ciswireFlags?: number;
 };
 
 export async function streamAssistantTurn(
@@ -2057,6 +2514,9 @@ export async function streamAssistantTurn(
 
     let finished = false;
     let aborted = false;
+    // Raw tokens for this turn (all rounds). On abort, emit before onDone so
+    // the UI can persist modelEmittedText for the interrupted partial.
+    let rawEmittedAccum = "";
     const finishOnce = (fn: () => void) => {
       if (!finished) {
         finished = true;
@@ -2066,6 +2526,9 @@ export async function streamAssistantTurn(
 
     const abort = () => {
       aborted = true;
+      if (rawEmittedAccum) {
+        callbacks.onModelEmittedText?.(rawEmittedAccum);
+      }
       finishOnce(() => callbacks.onDone());
       // Same identity guard as bailIfStopped: after the disposeEngineLocked
       // safety-net timeout forces a release(), `engine` no longer matches the
@@ -2086,6 +2549,8 @@ export async function streamAssistantTurn(
     // Bench knobs (AsyncStorage) — read once per turn; defaults keep production path.
     const blockFormat = await getBlockFormat();
     const thinkingMode = await getThinkingMode();
+    const toolChoiceMode = await getToolChoiceMode();
+    const toolGateEnabled = await getToolGateEnabled();
     // activeModelId === null → null model (defaults); unknown id still falls back
     // via getModelById (acceptable) but null must not invent a model.
     const activeModel = activeModelId ? getModelById(activeModelId) : null;
@@ -2118,14 +2583,25 @@ export async function streamAssistantTurn(
         ? options.lastUserMessage
         : (messages[userIndex]?.content ?? "");
     let historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
-      index === userIndex ? buildUserMessage(message) : { role: message.role, content: message.content },
+      index === userIndex
+        ? buildUserMessage(message)
+        : {
+            role: message.role,
+            content: promptContentForHistoryMessage(message),
+          },
     );
     // Capture prompt-env hash from the same inputs the system prompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
     // Facts on the user tail are not part of that prefix — do not hash them.
+    const toolNames = (options?.tools ?? []).map((t) => t.function.name);
     lastPromptEnvHash = computePromptEnvHash(
       locale,
-      MEMORY_FACTS_ON_USER_TAIL ? [] : options.memoryFacts,
+      MEMORY_FACTS_ON_USER_TAIL
+        ? []
+        : memoryFactTextsForEnvHash(options.memoryFacts),
+      hasTools,
+      toolNames,
+      blockFormat,
     );
 
     let bakedMatched: BakedUserTail[] = [];
@@ -2144,7 +2620,14 @@ export async function streamAssistantTurn(
         hasTools ? options.tools : [],
       );
       if (turnPrefixHash !== prewarmPrefixHash) {
-        logPrewarm({ match: false, prewarm: prewarmPrefixHash, send: turnPrefixHash });
+        logPrewarm({
+          match: false,
+          reason: shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)
+            ? "kv_holds_chat"
+            : "prefix_miss",
+          prewarm: prewarmPrefixHash,
+          send: turnPrefixHash,
+        });
       }
     }
 
@@ -2213,12 +2696,16 @@ export async function streamAssistantTurn(
       // Prepend prior-round streamed prefix: finalText is LAST-round only, but
       // the UI already shows round-1 prose via streaming; a bare full-replace
       // used to wipe that prose from the bubble and persisted history.
-      let finalText = stripToolCallTagsFinal(thinkCleaner.finalize(extractRawResultText(raw)));
+      const modelEmitted = extractRawResultText(raw);
+      let finalText = stripToolCallTagsFinal(thinkCleaner.finalize(modelEmitted));
       // Binding's parsed content keeps `\n\n` left by an empty think block while
       // the streamed cleaner strips it — full-replace then differs by leading
       // whitespace only (blank lines atop the bubble + late DB rewrite). Only
       // when there is no prior-round prefix.
       if (!streamedTextAtRoundStart) finalText = finalText.trimStart();
+      // Keep what the model produced for next-turn prompt replay (KV prefix).
+      // UI still receives cleaned text only via onDelta.
+      if (modelEmitted) callbacks.onModelEmittedText?.(modelEmitted);
       if (finalText) callbacks.onDelta(finalText, streamedTextAtRoundStart + finalText);
       // clean_completion: reducer sets reproducible only if !turnInjected
       // (tool turn final emit stays false). Miniapp strip is marked later by
@@ -2266,12 +2753,7 @@ export async function streamAssistantTurn(
       return false;
     };
 
-    // Honest status label: "Thinking" only when bench thinking budgets are on;
-    // otherwise the model is just generating tokens ("Writing").
-    const statusLabel =
-      thinkingMode === "budget256" || thinkingMode === "budget512"
-        ? strings.chat.thinkingStatus
-        : strings.chat.writingStatus;
+    const statusLabel = strings.chat.thinkingStatus;
 
     try {
       callbacks.onStatus?.({ label: statusLabel });
@@ -2419,12 +2901,15 @@ export async function streamAssistantTurn(
         // gathered tool results instead of exiting the loop with no completion.
         const isFinalToolRound = round === MAX_TOOL_ROUNDS - 1;
         const textOnlyRound = isFinalToolRound || forceTextOnly;
-        // Budget thinking burns tokens before synthesis; for text-only rounds
-        // with a budget mode, turn thinking off for that completion only.
-        const roundThinkingFields =
-          textOnlyRound && (thinkingMode === "budget256" || thinkingMode === "budget512")
-            ? resolveThinkingParams("off", activeModel).fields
-            : thinkingFields;
+        // isFinalToolRound / forceTextOnly win over bench "required" so a
+        // turn can still emit a text answer (see resolveCompletionToolChoice).
+        const toolChoice = resolveCompletionToolChoice({
+          hasTools,
+          isFinalToolRound,
+          forceTextOnly,
+          round,
+          benchMode: toolChoiceMode,
+        });
         const result = await trackCompletion(
           engine.completion(
             {
@@ -2432,7 +2917,7 @@ export async function streamAssistantTurn(
               ...(hasTools
                 ? {
                     tools: options!.tools as EngineTool[],
-                    tool_choice: textOnlyRound ? "none" : ("auto" as const),
+                    tool_choice: toolChoice,
                   }
                 : {}),
               // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
@@ -2446,10 +2931,9 @@ export async function streamAssistantTurn(
               temperature: 0.7,
               top_k: 40,
               top_p: 0.95,
-              // Bench thinking axis: "default"/"off" keep production (thinking off);
-              // budget* enables thinking with a token budget (NativeCompletionParams).
-              // Text-only + budget mode uses off fields (see roundThinkingFields).
-              ...roundThinkingFields,
+              // Bench thinking axis: every mode keeps reasoning enabled;
+              // "default" is production (short budget), budget* tunes it.
+              ...thinkingFields,
               ...(hasImages ? { speculative: false as const } : {}),
             },
             (data: TokenData) => {
@@ -2462,6 +2946,7 @@ export async function streamAssistantTurn(
               // <think>/<tool_call> markup that appears in the raw token stream.
               if (finished || aborted) return;
               const raw = data.token ?? "";
+              if (raw) rawEmittedAccum += raw;
               const delta = cleanStreamDelta(raw);
               if (delta) {
                 streamedText += delta;
@@ -2477,7 +2962,15 @@ export async function streamAssistantTurn(
         // tool/strategy = last SUCCESSFUL tool earlier in this turn (see
         // emitTurnTelemetry contract): empty on the first tool-call round;
         // set on the synthesis round after a genuine success.
-        emitTurnTelemetry(turnId, round, result, toolAttribution.snapshot());
+        emitTurnTelemetry(
+          turnId,
+          round,
+          result,
+          toolAttribution.snapshot(),
+          activeModel,
+          options.onDecodeSample,
+          options.ciswireFlags,
+        );
 
         if (bailIfStopped()) return;
 
@@ -2491,24 +2984,51 @@ export async function streamAssistantTurn(
           return;
         }
 
+        const structuredCalls = result.tool_calls?.length ?? 0;
         let toolCalls = result.tool_calls ?? [];
+        let fallbackCalls = 0;
+        let fallbackDialect: ToolRoundTelemetry["fallbackDialect"] = "none";
         // Fallback dialect: the binding found no structured tool_calls, but the
         // raw text may still contain a literal <tool_call>...</tool_call> block
         // (see toolCallParser.ts). Parse it and feed it through the SAME
         // execution path below (round cap, skipped-call bookkeeping, tool-result
         // rule all still apply) instead of showing the markup / an empty reply.
         if (!toolCalls.length && options?.executeTool) {
-          const fallback = parseFallbackToolCall(extractRawResultText(result));
-          if (fallback) {
-            toolCalls = [
-              {
-                type: "function" as const,
-                function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
-              },
-            ];
+          const rawText = extractRawResultText(result);
+          const fallbacks = parseFallbackToolCalls(rawText);
+          fallbackCalls = fallbacks.length;
+          if (fallbacks.length) {
+            // Same precedence as parseFallbackToolCalls: LFM marker wins.
+            fallbackDialect = rawText.includes(LFM_TOOL_CALL_START)
+              ? "lfm"
+              : rawText.includes(TOOL_CALL_OPEN)
+                ? "qwen"
+                : "openai";
+            toolCalls = fallbacks.map((fallback) => ({
+              type: "function" as const,
+              function: { name: fallback.name, arguments: JSON.stringify(fallback.arguments) },
+            }));
           }
         }
+        const shape = emittedCallShape(toolCalls, options?.tools);
+        const toolTel: ToolRoundTelemetry = {
+          round,
+          toolChoice,
+          structuredCalls,
+          fallbackCalls,
+          fallbackDialect,
+          executed: 0,
+          skippedCap: 0,
+          skippedDup: 0,
+          skippedFailedRepeat: 0,
+          failed: 0,
+          blockedPrivacy: 0,
+          namesValid: shape.namesValid,
+          argsParsed: shape.argsParsed,
+          toolNames: [],
+        };
         if (!toolCalls.length || !options?.executeTool) {
+          emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
           return;
         }
@@ -2535,6 +3055,7 @@ export async function streamAssistantTurn(
         }));
         const executableCalls = normalizedCalls.slice(0, 2);
         const skippedCalls = normalizedCalls.slice(2);
+        toolTel.skippedCap = skippedCalls.length;
         const executed: Array<{
           call: (typeof normalizedCalls)[number];
           content: string;
@@ -2544,6 +3065,7 @@ export async function streamAssistantTurn(
         // across search + fetch in the same turn (AiChatPage replaces, not merges).
         for (const call of executableCalls) {
           const name = call.function?.name ?? "";
+          if (name) toolTel.toolNames.push(name);
           const rawArguments =
             typeof call.function?.arguments === "string" ? call.function.arguments : "";
           const { args, parseFailed } = parseToolArguments(
@@ -2571,12 +3093,14 @@ export async function streamAssistantTurn(
             continue;
           }
           if (decision.action === "skip_dup") {
+            toolTel.skippedDup += 1;
             toolContent = formatToolResultContent(TOOL_CALL_DUP_MESSAGE);
             executed.push({ call, content: toolContent });
             continue;
           }
           if (decision.action === "skip_failed_repeat") {
             // Two failures of this key already — do not re-execute; force synthesis.
+            toolTel.skippedFailedRepeat += 1;
             toolContent = formatToolResultContent(TOOL_CALL_FAILED_REPEAT_MESSAGE);
             forceTextOnly = true;
             executed.push({ call, content: toolContent });
@@ -2593,7 +3117,20 @@ export async function streamAssistantTurn(
           });
 
           try {
-            const outcome = await options.executeTool(name, args, signal, lastUserMessageText);
+            // kalsa.bench.toolgate=0 blanks lastUserMessage so the echo-of-context
+            // rule cannot fire (webSearchTool's only use of this argument).
+            const outcome = await options.executeTool(
+              name,
+              args,
+              signal,
+              toolGateEnabled ? lastUserMessageText : "",
+            );
+            toolTel.executed += 1;
+            // Error identity from webSearchTool (strings.errors.webSearchPrivacyBlocked),
+            // not a match on user-visible copy.
+            if (outcome.text === strings.errors.webSearchPrivacyBlocked) {
+              toolTel.blockedPrivacy += 1;
+            }
             // De-dupe bookkeeping: non-throwing executor returns still count as
             // "executed" for the per-key success set (retry policy unchanged).
             // Telemetry attribution is stricter: only genuine successes.
@@ -2640,6 +3177,8 @@ export async function streamAssistantTurn(
                 name === "document_chat" || outcome.kind === "document_chat",
             });
           } catch (error) {
+            toolTel.executed += 1;
+            toolTel.failed += 1;
             // Failures still consume the per-turn budget; key failCount incremented.
             // Thrown failure must not record tool/strategy (and must not wipe a
             // prior successful attribution from an earlier round).
@@ -2654,7 +3193,10 @@ export async function streamAssistantTurn(
               ),
             );
           }
-          if (bailIfStopped()) return;
+          if (bailIfStopped()) {
+            emitToolCallTelemetry(turnId, toolTel);
+            return;
+          }
 
           executed.push({ call, content: toolContent });
         }
@@ -2662,6 +3204,7 @@ export async function streamAssistantTurn(
           call,
           content: strings.errors.toolError.replace("{message}", TOOL_CALL_SKIPPED_MESSAGE),
         }));
+        emitToolCallTelemetry(turnId, toolTel);
 
         // Executed tool-role results already include use-rule (+ trunc marker) within budget.
         // Skipped messages stay as-is (already a skip reason).
@@ -2687,7 +3230,104 @@ export async function streamAssistantTurn(
         callbacks.onStatus?.({ label: statusLabel });
       }
 
-      // Raggiunto il massimo dei round senza risposta testuale: chiudi comunque.
+      // Tool rounds exhausted without user-visible text: the model spent all
+      // MAX_TOOL_ROUNDS producing tool calls (or think/tool_call markup stripped
+      // to nothing). Without a fallback, the user sees an empty bubble.
+      // Two-tier fallback:
+      //  1. One extra text-only completion (tool_choice: "none", no tools) so
+      //     the model can synthesize from the tool results already in context.
+      //     Cost: ~2-5s on device, but only fires on the blank path (~5% of
+      //     turns pre-gate-fix, much less after). Bounded, not a new steady state.
+      //  2. If that also produces no text, emit a localized honest message so
+      //     the bubble is never empty.
+      if (shouldFireToolRoundFallback(streamedText)) {
+        const exhaustedTel: ToolRoundExhaustedTelemetry = {
+          roundsUsed: MAX_TOOL_ROUNDS,
+          streamedLen: streamedText.length,
+          fallbackFired: false,
+          fallbackOk: false,
+        };
+        if (!bailIfStopped()) {
+          exhaustedTel.fallbackFired = true;
+          // Fresh cleaners for the fallback round (same as each loop round).
+          thinkCleaner = createThinkStreamCleaner();
+          toolCallStrip = createToolCallDeltaStripper();
+          const fallbackStreamedTextAtStart = streamedText;
+          try {
+            const fallbackResult = await trackCompletion(
+              engine.completion(
+                {
+                  messages: currentMessages as RNLlamaOAICompatibleMessage[],
+                  n_predict: nPredict,
+                  stop: STOP_WORDS,
+                  temperature: 0.7,
+                  top_k: 40,
+                  top_p: 0.95,
+                  ...thinkingFields,
+                  ...(hasImages ? { speculative: false as const } : {}),
+                },
+                (data: TokenData) => {
+                  if (finished || aborted) return;
+                  const raw = data.token ?? "";
+                  if (raw) rawEmittedAccum += raw;
+                  const delta = cleanStreamDelta(raw);
+                  if (delta) {
+                    streamedText += delta;
+                    callbacks.onDelta(delta, streamedText);
+                  }
+                },
+              ),
+            );
+            emitTurnTelemetry(
+              turnId,
+              MAX_TOOL_ROUNDS,
+              fallbackResult,
+              toolAttribution.snapshot(),
+              activeModel,
+              options.onDecodeSample,
+              options.ciswireFlags,
+            );
+            // Strip tool_call/think markup from the fallback result. If text
+            // remains, emit it; otherwise fall through to the canned message.
+            const fallbackEmitted = extractRawResultText(fallbackResult);
+            let fallbackText = stripToolCallTagsFinal(
+              thinkCleaner.finalize(fallbackEmitted),
+            ).trim();
+            if (fallbackText) {
+              exhaustedTel.fallbackOk = true;
+              if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
+              // Attach raw only when cleaned text survived (canned path keeps none).
+              const attachEmitted = modelEmittedTextForVisibleReply(
+                fallbackText,
+                fallbackEmitted,
+              );
+              if (attachEmitted) callbacks.onModelEmittedText?.(attachEmitted);
+              callbacks.onDelta(fallbackText, fallbackStreamedTextAtStart + fallbackText);
+              kvReproState = nextKvReproState(kvReproState, "clean_completion");
+            }
+          } catch (fallbackError) {
+            // Fallback completion failed (engine error, abort, etc.) — fall
+            // through to the canned message. emitEngineError will fire below
+            // only if we have no text at all; for now just log and continue.
+            console.warn("[toolRoundsExhausted] fallback completion failed", fallbackError);
+          }
+        }
+        // Emit telemetry regardless of outcome (bench needs to measure frequency).
+        try {
+          console.log(formatToolRoundExhaustedLine(turnId, exhaustedTel));
+        } catch {
+          // Telemetry must never break a turn.
+        }
+        // If fallback produced no text, emit the localized honest message so
+        // the bubble is never empty. The user can act on it (retry/rephrase).
+        // Use fallbackOk (authoritative) rather than re-checking streamedText,
+        // because the token callback may have streamed partial text that was
+        // later stripped by thinkCleaner.finalize.
+        if (!exhaustedTel.fallbackOk) {
+          const fallbackMessage = strings.errors.toolRoundsExhausted;
+          callbacks.onDelta(fallbackMessage, fallbackMessage);
+        }
+      }
       finishOnce(() => callbacks.onDone());
     } catch (error) {
       if (aborted || signal?.aborted) {
@@ -2827,10 +3467,10 @@ export async function extractMemory(
   userText: string,
   assistantText: string,
   locale: Locale,
-): Promise<{ add: string[]; remove: string[] }> {
+): Promise<{ add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome }> {
   const userSlice = (userText ?? "").trim().slice(0, 2000);
   const assistantSlice = (assistantText ?? "").trim().slice(0, 2000);
-  if (!userSlice && !assistantSlice) return { add: [], remove: [] };
+  if (!userSlice && !assistantSlice) return { add: [], remove: [], parseOutcome: 0 };
 
   const strings = getStrings(locale);
   const prompt = strings.memory.extractPrompt
@@ -2840,7 +3480,7 @@ export async function extractMemory(
   return withEngineJob(async () => {
     // Capture context INSIDE the serialized job.
     const engine = context;
-    if (!engine) return { add: [], remove: [] };
+    if (!engine) return { add: [], remove: [], parseOutcome: 0 as const };
 
     const preserve =
       EXTRACT_MEMORY_PRESERVE_CHAT_KV &&
@@ -2863,11 +3503,11 @@ export async function extractMemory(
             // ignore
           }
           // Cannot isolate extract without destroying chat KV — skip.
-          return { add: [], remove: [] };
+          return { add: [], remove: [], parseOutcome: 0 };
         }
         restorePath = tempPath;
       } else {
-        return { add: [], remove: [] };
+        return { add: [], remove: [], parseOutcome: 0 };
       }
     } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
       try {
@@ -2881,7 +3521,7 @@ export async function extractMemory(
     } else {
       // Flag on but nothing to restore (kvHoldsChatSession already false).
       // Skip rather than run a naked extract over whatever is in context.
-      return { add: [], remove: [] };
+      return { add: [], remove: [], parseOutcome: 0 };
     }
 
     let timedOut = false;
@@ -2911,7 +3551,7 @@ export async function extractMemory(
 
       emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
 
-      if (timedOut) return { add: [], remove: [] };
+      if (timedOut) return { add: [], remove: [], parseOutcome: 0 as const };
 
       const raw =
         typeof result.content === "string" && result.content.length > 0
@@ -2920,7 +3560,7 @@ export async function extractMemory(
       return parseMemoryExtract(raw);
     } catch {
       // Timeout stopCompletion often rejects the completion promise — treat as empty.
-      return { add: [], remove: [] };
+      return { add: [], remove: [], parseOutcome: 0 as const };
     } finally {
       if (timer) clearTimeout(timer);
       if (restorePath) {
@@ -2948,9 +3588,14 @@ export async function extractMemory(
   });
 }
 
-/** Parse model JSON for memory extract — fail-closed, balanced first object. */
-function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
-  if (!raw || typeof raw !== "string") return { add: [], remove: [] };
+/** Parse outcome: 0=did not run, 1=parsed OK, 2=parser rejected. */
+export type MemoryParseOutcome = 0 | 1 | 2;
+
+/** Parse model JSON for memory extract — fail-closed, balanced first object.
+ *  Returns {add, remove, parseOutcome} where parseOutcome distinguishes
+ *  "valid JSON, zero items" (1) from "parser rejected" (2). */
+function parseMemoryExtract(raw: string): { add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome } {
+  if (!raw || typeof raw !== "string") return { add: [], remove: [], parseOutcome: 0 };
   // Strip optional think tags / fences, then find the first balanced JSON object.
   const cleaned = raw
     .replace(/<think>[\s\S]*?<\/think>/g, "")
@@ -2958,11 +3603,11 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
     .replace(/```/g, "")
     .trim();
   const found = findBalancedJsonObject(cleaned, 0);
-  if (!found) return { add: [], remove: [] };
+  if (!found) return { add: [], remove: [], parseOutcome: 2 };
   try {
     const parsed = JSON.parse(found.text) as unknown;
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      return { add: [], remove: [] };
+      return { add: [], remove: [], parseOutcome: 2 };
     }
     const obj = parsed as { add?: unknown; remove?: unknown };
     const add = Array.isArray(obj.add)
@@ -2979,9 +3624,9 @@ function parseMemoryExtract(raw: string): { add: string[]; remove: string[] } {
           .filter((item) => item.length > 0)
           .slice(0, 10)
       : [];
-    return { add, remove };
+    return { add, remove, parseOutcome: 1 };
   } catch {
-    return { add: [], remove: [] };
+    return { add: [], remove: [], parseOutcome: 2 };
   }
 }
 
@@ -3086,112 +3731,6 @@ export async function translateText(
     } catch {
       // Timeout / abort stopCompletion often rejects the completion promise.
       return { text: "", truncated };
-    } finally {
-      if (timer) clearTimeout(timer);
-      signal?.removeEventListener("abort", onAbort);
-    }
-  });
-}
-
-/**
- * Background, preemptable conversation summary for ConversationCompactor.
- * Mirror of translateText: withEngineJob + clearCache + wall-clock timeout +
- * AbortSignal. Thinking fully off (enable_thinking:false AND thinking_budget_tokens:0).
- * n_predict ≤ 400. Fail-closed → empty string (caller keeps previous rollingSummary).
- *
- * IMPORTANT: callers must abort this job BEFORE enqueueing a user turn so the
- * FIFO gate never makes the user wait behind a summary.
- */
-export async function summarizeConversation(
-  transcript: string,
-  locale: Locale,
-  signal?: AbortSignal,
-): Promise<string> {
-  const sourceFull = (transcript ?? "").trim();
-  if (!sourceFull) return "";
-  const source = sourceFull.slice(0, MAX_SUMMARIZE_CHARS);
-
-  const strings = getStrings(locale);
-  const prompt = replaceLiteral(
-    replaceLiteral(
-      strings.summarize.prompt,
-      "{targetLang}",
-      TARGET_LANG_NAME[locale] ?? TARGET_LANG_NAME.en,
-    ),
-    "{transcript}",
-    source,
-  );
-
-  return withEngineJob(async () => {
-    if (signal?.aborted) return "";
-
-    const engine = context;
-    if (!engine) return "";
-
-    let timedOut = false;
-    let aborted = false;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const onAbort = () => {
-      aborted = true;
-      // Identity guard: only stopCompletion on the still-live context (same
-      // authoritative check as bailIfStopped — dispose may have released `engine`).
-      if (engine === context) {
-        void engine.stopCompletion().catch(() => undefined);
-      }
-    };
-    signal?.addEventListener("abort", onAbort, { once: true });
-    if (signal?.aborted) {
-      signal.removeEventListener("abort", onAbort);
-      return "";
-    }
-
-    try {
-      try {
-        await engine.clearCache();
-      } catch {
-        // best effort
-      }
-      kvHoldsChatSession = false;
-      lastChatNPast = undefined;
-      chatKvDiskCurrent = false;
-      if (aborted || signal?.aborted || engine !== context) return "";
-
-      timer = setTimeout(() => {
-        timedOut = true;
-        if (engine === context) {
-          void engine.stopCompletion().catch(() => undefined);
-        }
-      }, SUMMARIZE_TIMEOUT_MS);
-
-      const result = await trackCompletion(
-        engine.completion({
-          messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
-          n_predict: SUMMARIZE_N_PREDICT,
-          stop: STOP_WORDS,
-          temperature: 0.2,
-          top_k: 20,
-          top_p: 0.9,
-          enable_thinking: false,
-          thinking_budget_tokens: 0,
-          reasoning_format: "none",
-          chat_template_kwargs: { enable_thinking: false },
-        }),
-      );
-
-      emitTurnTelemetry(`util-summarizeConversation-${++turnSeq}`, 0, result);
-
-      // Fail-closed: timeout, abort, or engine torn down mid-flight (dispose /
-      // model switch) must never promote a truncated summary as success.
-      if (timedOut || aborted || signal?.aborted || engine !== context) return "";
-
-      const raw =
-        typeof result.content === "string" && result.content.length > 0
-          ? result.content
-          : (result.text ?? "");
-      return cleanSummaryOutput(raw);
-    } catch {
-      return "";
     } finally {
       if (timer) clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);

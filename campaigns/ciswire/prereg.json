@@ -1,0 +1,30 @@
+{
+  "analysisUnit": "conversation",
+  "primaryFamily": {
+    "factors": ["compaction", "memory", "toolhelp"],
+    "axes": ["echo-rate", "hedge-rate", "drift", "tool-call-rate", "recall"],
+    "m": 15,
+    "holmFirstAlpha": 0.0033
+  },
+  "excludeRetriedFromPrimary": true,
+  "exploratory": "every other delta: CI + printed axis floor; not Holm-corrected",
+  "gateMetrics": "per tool × memory-on subset; calendarGate is inert when facts.length===0",
+  "evictionTurn": "per-conversation covariate",
+  "variantDescription": {
+    "A": "eviction timing/severity (winbudget ≈¼ Phase-0 window)",
+    "B": "production cadence (not 'no eviction')"
+  },
+  "floors": {
+    "status": "PENDING_PHASE0",
+    "provisionalSigma": {
+      "echo-rate": 0.082,
+      "hedge-rate": 0.082,
+      "drift": 0.082,
+      "tool-call-rate": 0.082,
+      "recall": 0.35
+    },
+    "nPooled": 24,
+    "nVariant": 12,
+    "formula": "delta80 two-sided alpha=0.05 = 2.802·σ·√(2/n); Holm first-rank 1.09σ pooled / 1.54σ per variant"
+  }
+}

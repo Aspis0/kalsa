@@ -1,0 +1,2 @@
+thermal_status=1
+battery_deci_c=364

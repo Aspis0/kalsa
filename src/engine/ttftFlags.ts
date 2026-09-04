@@ -1,3 +1,10 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
+import {
+  CISWIRE_TOOLHELP_KEY,
+  parseCiswireToolHelp,
+} from "../context/compactor";
+
 /**
  * Flags that revert P1-1 memory-facts-tail (V2-0.1) and P1-2 disk-gate
  * (V2-0.2) without deleting that code. Default = new (fixed) behavior.
@@ -64,6 +71,17 @@ export const EAGER_PREFIX_PREWARM = true;
  */
 export const COMPACTION_ENABLED_DEFAULT = true;
 
+/** Read the opt-in CisWire tool-help flag; absent / invalid values are OFF. */
+export async function getCiswireToolHelp(): Promise<boolean> {
+  try {
+    return parseCiswireToolHelp(
+      await AsyncStorage.getItem(CISWIRE_TOOLHELP_KEY),
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Resolve the compaction toggle.
  * Stored "0"/"false" is always OFF. Stored "1"/"true" is always ON.
@@ -75,8 +93,17 @@ export function parseCompactionEnabled(
   rawValue: string | null | undefined,
   _hasExplicitChoice?: boolean,
 ): boolean {
-  if (rawValue === "0" || rawValue === "false") return false;
-  if (rawValue === "1" || rawValue === "true") return true;
+  if (rawValue === "0" || rawValue === "false" || rawValue === "off") {
+    return false;
+  }
+  if (
+    rawValue === "1" ||
+    rawValue === "true" ||
+    rawValue === "anchored" ||
+    rawValue === "ciswire"
+  ) {
+    return true;
+  }
   return COMPACTION_ENABLED_DEFAULT;
 }
 

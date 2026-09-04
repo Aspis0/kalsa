@@ -84,7 +84,7 @@ async function main() {
     computePrewarmPrefixHash,
     buildStaticPrefixMessages,
     assembleStaticPrefix,
-    shouldSkipPrewarmAfterRestore,
+    shouldSkipPrewarmWhenKvHoldsChat,
     shouldSkipStaticPrefixPrewarm,
   } = prewarmMod;
 
@@ -198,23 +198,22 @@ async function main() {
     "different hash does not skip",
   );
 
-  // Dense restore (Gemma): real KV — prewarm would seq_rm the chat tail.
+  // Chat KV decides, not the architecture or how the KV was created. §7.29
+  // measured a hybrid restore on KEXP landing at n_past=1473 with ~2 s
+  // prefill, twice, which killed the old "hybrid restores are not real
+  // (n_past=0)" carve-out.
   assert(
-    shouldSkipPrewarmAfterRestore(true, false) === true,
-    "dense restore + kv held → skip prewarm",
-  );
-  // Hybrid restore is not real (n_past=0) — prewarm must still run.
-  assert(
-    shouldSkipPrewarmAfterRestore(true, true) === false,
-    "hybrid restore + kv held → do not skip",
+    shouldSkipPrewarmWhenKvHoldsChat(true) === true,
+    "chat KV held → skip prewarm, hybrid or not",
   );
   assert(
-    shouldSkipPrewarmAfterRestore(false, false) === false,
-    "dense + no chat KV → prewarm",
+    shouldSkipPrewarmWhenKvHoldsChat(false) === false,
+    "no chat KV → prewarm",
   );
+  // Extra arguments must not change the chat-KV condition.
   assert(
-    shouldSkipPrewarmAfterRestore(false, true) === false,
-    "hybrid + no chat KV → prewarm",
+    shouldSkipPrewarmWhenKvHoldsChat(true, true) === true,
+    "chat KV stays authoritative",
   );
 
   console.log("prefixPrewarmHarness OK");

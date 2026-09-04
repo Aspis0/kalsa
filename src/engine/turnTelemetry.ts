@@ -137,6 +137,8 @@ export type RoundTelemetry = {
    * Omitted when not a document_chat success this turn.
    */
   strategy?: Exclude<ToolRetrievalStrategy, null>;
+  /** CisWire feature bits: compaction=1, memory=2, tool-help=4. */
+  ciswireFlags?: number;
 };
 
 /** Loose completion-like shape (llama.rn NativeCompletionResult field names). */
@@ -185,6 +187,10 @@ export function roundTelemetryFromResult(
  * — NEVER user text or document paths.
  */
 export function formatTelemetryLine(turnId: string, r: RoundTelemetry): string {
-  // Spread keeps optional tool/strategy only when set (undefined keys drop out of JSON).
-  return `KALSA_TELEMETRY ${JSON.stringify({ turnId, ...r })}`;
+  const { ciswireFlags, ...telemetry } = r;
+  return `KALSA_TELEMETRY ${JSON.stringify({
+    turnId,
+    ...telemetry,
+    ...(ciswireFlags ? { ciswireFlags } : {}),
+  })}`;
 }

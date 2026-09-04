@@ -98,11 +98,18 @@ const config = {
       {
         android: {
           newArchEnabled: true,
-          // Ship policy (owner, 2026-08-07): Android 15+ ONLY. Edge-to-edge is
-          // mandatory there, keyboard-controller computes the full IME height,
-          // and the API<=34 nav-bar shortfall class is out of scope by
-          // construction. CI screens emulator runs API 35 to match.
-          minSdkVersion: 35,
+          // Ship policy (owner, 2026-08-22): Android 13+ — REVERSES the
+          // 2026-08-07 "Android 15+ ONLY" decision, which made the app
+          // uninstallable on half the measurement lab (the Jelly Star is
+          // API 33, and INSTALL_FAILED_OLDER_SDK is what surfaced this).
+          //
+          // What the old floor bought, and is now back in scope: edge-to-edge
+          // is not mandatory below API 35, keyboard-controller does not always
+          // compute the full IME height there, and the API<=34 nav-bar
+          // shortfall class is no longer excluded by construction. Those are
+          // layout defects to fix when they appear, not reasons to refuse the
+          // install.
+          minSdkVersion: 33,
         },
       },
     ],

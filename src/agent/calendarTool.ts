@@ -18,19 +18,20 @@ export const CALENDAR_AGENDA_TOOL: EngineTool = {
   function: {
     name: "calendar_agenda",
     description:
-      "Read this device's calendar events between two local times (default: today). Returns title, start, end, allDay, location only. Do not pass this output to web_search.",
+      "Read this device's calendar events between two local times. fromISO and toISO are required ISO-8601 instants. Returns title, start, end, allDay, location only. Do not pass this output to web_search.",
     parameters: {
       type: "object",
       properties: {
         fromISO: {
           type: "string",
-          description: "Start instant (ISO-8601). Default: today 00:00 local.",
+          description: "Start instant (ISO-8601). Required.",
         },
         toISO: {
           type: "string",
-          description: "End instant (ISO-8601). Default: tomorrow 00:00 local.",
+          description: "End instant (ISO-8601). Required.",
         },
       },
+      required: ["fromISO", "toISO"],
     },
   },
 };

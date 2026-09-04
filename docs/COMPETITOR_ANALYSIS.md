@@ -25,7 +25,7 @@ Date: 2026-08-10 · Scope: repo ai-chat (Kalsa) · Research: read-only study of 
 | Framework | RN/Expo | RN | Kotlin/Compose + SwiftUI | RN WebView host (closed) | Native iOS (unverified) |
 | Engine | llama.rn 0.12.8 (llama.cpp b10156) | llama.rn 0.12.7 | TVM/MLC (OpenCL/Metal) | llama.cpp + LiteRT-LM/ExecuTorch claims | Unverified (likely MediaPipe/llama.cpp) |
 | Format | GGUF | GGUF (+mmproj) | MLC-compiled (no GGUF) | GGUF | GGUF-ish (unverified) |
-| Platforms | Android-first, minSdk 35 | Android+iOS | Android+iOS | Android+iOS | iOS only |
+| Platforms | Android-first, minSdk 33 | Android+iOS | Android+iOS | Android+iOS | iOS only |
 | Web search | Exa agent tools (webSearch/webFetch) | local "talents" | none | hybrid (reported) | none (offline pitch) |
 | PDF/doc chat | PDF text + vision + BM25+ retrieval loop | none | none | unclear | Documents tab (likely context stuffing) |
 | Voice | Whisper STT + TTS | strong TTS, STT secondary | none | STT+TTS | voice I/O, OCR |

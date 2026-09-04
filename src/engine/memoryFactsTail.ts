@@ -11,11 +11,8 @@
 import { en } from "../i18n/en";
 import { it } from "../i18n/it";
 import type { Locale } from "../i18n/types";
-
-/** Max user-memory facts injected into the turn (newest last). */
-export const MAX_PROMPT_FACTS = 10;
-/** Hard cap per fact line injected into the turn. */
-export const MAX_PROMPT_FACT_CHARS = 120;
+import { boundMemoryFacts } from "../memory/dnaBounding";
+import type { MemoryFact } from "../memory/MemoryStore";
 
 const PROMPT_SECTION: Record<Locale, string> = {
   en: en.memory.promptSection,
@@ -23,38 +20,17 @@ const PROMPT_SECTION: Record<Locale, string> = {
 };
 
 /**
- * Normalize a fact for prompt injection: strip control chars / newlines,
- * collapse whitespace, cap length. Treats facts as untrusted data only.
- */
-export function sanitizeFactForPrompt(fact: string): string {
-  return fact
-    .replace(/[\u0000-\u001f\u007f]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, MAX_PROMPT_FACT_CHARS);
-}
-
-/** Newest-first budget: sanitize, drop empties, keep last MAX_PROMPT_FACTS. */
-export function selectPromptFacts(facts?: string[] | null): string[] {
-  return (facts ?? [])
-    .map((fact) => sanitizeFactForPrompt(fact))
-    .filter((fact) => fact.length > 0)
-    .slice(-MAX_PROMPT_FACTS);
-}
-
-/**
  * Localized untrusted-data fact block, or "" when nothing to inject.
- * Does not log or persist — formatting only.
+ * Dates + token bounding happen in boundMemoryFacts; this only wraps.
  */
 export function buildMemoryFactsBlock(
   locale: Locale,
-  facts?: string[] | null,
+  facts?: readonly MemoryFact[] | null,
 ): string {
-  const cleaned = selectPromptFacts(facts);
-  if (cleaned.length === 0) return "";
-  const factBlock = cleaned.map((fact) => `- ${fact}`).join("\n");
+  const { bounded } = boundMemoryFacts(facts ?? []);
+  if (!bounded) return "";
   const template = PROMPT_SECTION[locale] ?? PROMPT_SECTION.en;
-  return template.replace("{facts}", factBlock);
+  return template.replace("{facts}", bounded);
 }
 
 export type TailMessage = {

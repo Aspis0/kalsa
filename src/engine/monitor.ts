@@ -10,6 +10,10 @@
 
 import { parseMemAvailableBytes } from "./memoryEstimate";
 import { parseProcessRssBytes } from "./engineLiveness";
+import {
+  parseProcessMemorySample,
+  type ProcessMemorySample,
+} from "./memoryPressure";
 
 export type AppStateValue = "active" | "background" | "inactive" | "unknown" | string;
 
@@ -82,6 +86,37 @@ export async function getProcessRssBytesUncached(): Promise<number | null> {
     return parseProcessRssBytes(text);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Read RssFile / RssAnon / VmSwap from /proc/self/status and majflt from
+ * /proc/self/stat with NO cache. Never throws. Each field is null when its
+ * source is unavailable.
+ */
+export async function getProcessMemorySampleUncached(): Promise<ProcessMemorySample> {
+  const empty: ProcessMemorySample = {
+    rssFileBytes: null,
+    rssAnonBytes: null,
+    vmSwapBytes: null,
+    majflt: null,
+  };
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { Platform } = require("react-native") as { Platform: { OS: string } };
+    if (Platform.OS !== "android") return empty;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const FileSystem = require("expo-file-system/legacy") as {
+      readAsStringAsync: (uri: string) => Promise<string>;
+    };
+    const [statusText, statText] = await Promise.all([
+      readProcText(FileSystem, "/proc/self/status"),
+      readProcText(FileSystem, "/proc/self/stat"),
+    ]);
+    if (statusText == null && statText == null) return empty;
+    return parseProcessMemorySample(statusText ?? "", statText ?? "");
+  } catch {
+    return empty;
   }
 }
 

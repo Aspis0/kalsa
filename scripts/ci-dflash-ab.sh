@@ -9,14 +9,14 @@
 # Env (set by .github/workflows/dflash-ab.yml):
 #   MODEL_FILE / MODEL_DIR  — Qwen3.5-4B (only model with a DFlash draft)
 #   DRAFT_FILE              — basename discovered from HF API
-#   THINKING                — forced off for clean decode telemetry
+#   THINKING                — live thinking mode for decode telemetry
 set -uo pipefail
 OUT="dflash-ab-out"; mkdir -p "$OUT"
 MODEL_FILE="${MODEL_FILE:-Qwen3.5-4B-Q4_K_M.gguf}"
 MODEL_DIR="${MODEL_DIR:-qwen3.5-4b}"
 # ModelRegistry sizeBytes for qwen3.5-4b Q4_K_M — app accepts the file by size.
 EXPECTED_MODEL_BYTES=2834975040
-THINKING="${THINKING:-off}"
+THINKING="${THINKING:-default}"
 DRAFT_FILE="${DRAFT_FILE:-}"
 PKG=com.kalsa.app
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
@@ -130,7 +130,7 @@ reset_chat() {
 }
 
 set_base_prefs() {
-  # Compaction on (production default); thinking off for clean decode numbers.
+  # Compaction on (production default); reasoning stays enabled for product numbers.
   seed_kv "kalsa.model.id" "$MODEL_DIR"
   seed_kv "kalsa.context.compaction" "1"
   seed_kv "kalsa.bench.thinking" "$THINKING"
@@ -498,7 +498,7 @@ const mtp = load("mtp");
 const dflash = load("dflash");
 
 const lines = [];
-lines.push("model=qwen3.5-4b thinking=off");
+lines.push("model=qwen3.5-4b thinking=default");
 lines.push("draftPath=" + (process.env.DRAFT_DEV_PATH || ""));
 lines.push("");
 lines.push("=== CONFIG BASELINE (no speculation) ===");
