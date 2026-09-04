@@ -137,6 +137,7 @@ set_model_pref() {
 capture_evidence() {
   local prefix="$1" rc=0 pid
   logcat_all 300 "${prefix}_logcat_all.txt" || rc=1
+  adbT 300 -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage > "${prefix}_chat_RKStorage.db" 2> "${prefix}_chat_RKStorage.err" || rc=1
   grep -E 'KALSA_SESSION|KALSA_TELEMETRY' "${prefix}_logcat_all.txt" > \
     "${prefix}_session_telemetry.txt" 2>/dev/null || true
   grep -F 'kalsa-native-patches' "${prefix}_logcat_all.txt" > \
@@ -180,7 +181,6 @@ run_apk() {
     return 1
   fi
   step "$label" S1 ok "install_rc=0 pm_dump_rc=$pm_rc sha=$apk_sha"
-
   # S2: the preregistered run-as copy and exact completeness check.
   adbT 300 -s "$SER" shell "run-as $PKG sh -c 'mkdir -p files/models/$MODEL_DIR && cp $D/$MODEL_FILE files/models/$MODEL_DIR/$MODEL_FILE'" > \
     "${prefix}_s2_copy.txt" 2>&1
@@ -195,7 +195,6 @@ run_apk() {
     return 1
   fi
   step "$label" S2 ok "run-as copy size=$size"
-
   # S3 first-launch DB creation, then the host-sqlite3 model selection write.
   adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_s3_first_launch.txt" 2>&1
   first_rc=$?
@@ -210,7 +209,6 @@ run_apk() {
     step "$label" S3 fail "first_launch=$first_rc force_stop=$force_rc sql=$sql_rc"
     arm_rc=1
   fi
-
   thermal_record "$prefix" pre_s4
   adbT 60 -s "$SER" logcat -c > "${prefix}_s4_clear.txt" 2>&1
   clear_rc=$?
@@ -223,7 +221,6 @@ run_apk() {
     : > "${prefix}_s4_logcat.txt"
   fi
   if [ "$load_rc" -eq 0 ]; then step "$label" S4 ok "KALSA_SESSION load ok"; else step "$label" S4 fail "clear=$clear_rc launch=$launch_rc load_timeout_or_missing"; arm_rc=1; fi
-
   # S5 tap/type/send: IME-suspended, live uiautomator bounds, space-safe input.
   ime_suspend
   if dump_ui_to "${prefix}_s5_edit.xml"; then edit_bounds=$(bounds_edit "${prefix}_s5_edit.xml"); else edit_bounds=""; fi
