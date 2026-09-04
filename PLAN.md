@@ -65,9 +65,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
    attivo solo per generazione ≥ V75 e solo prefill (`npu_lane_enabled`), dietro
    la prova di correttezza (0/301 va risolto o la lane resta off); v73 off
    finché il fix del mapping/TLBMISS non è nel fork.
-5. Mali: fermo (decisione owner). Bisect #64: culprit ∈ {7, 8}, quasi certo
-   #26049 (pipeline L2/DMA/MM/FA); ultima sessione in arrivo; poi il fix nel
-   fork è un task a sé (mai issue upstream).
+5. Mali: fermo (decisione owner). Bisect #64 CHIUSO: culprit = #26049
+   (0a50d9909, pipeline L2/DMA/MM/FA); il fix nel fork (revert/patch su
+   64a155d24 + retest ngl8/ngl99) è un task a sé, mai issue upstream.
 
 ## Vincoli
 - Mai half-offload (ALIVE 140-145); full o niente, cool-mode solo con delta misurato.
@@ -401,6 +401,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > ~8 min, coda 9 min; TLBMISS `work-queue:1`, Fault PC 0x20089ECC). Culprit
 > ∈ {7, 8}; index 7 (#26029, fix Windows op_poll, minuscolo) in build: se
 > GOOD, il colpevole è #26049. Ultima sessione del bisect a seguire.
+
+> **4/09, 15:05 — #64 CHIUSO: CULPRIT = 0a50d9909 (upstream #26049
+> "hexagon: further improved pipeline of the core bits (L2, DMA, MM, FA)").**
+> Index 7 (c0bc859) GOOD nella stessa sessione 799176 (modello riusato, kit
+> ri-pushato): tabella monotona GOOD {pin, 6, 7} / BAD {8, 9, 12}, sei
+> sessioni, ~44 min del pool 8 Gen 2. Il commit tocca L2 dirty-range flush,
+> HVX reduce_max, MM bias in VTCM, mmid row-mapping, HMX tiling, FA DMA.
+> Confound dichiarato: solo i commit hexagon erano candidati. Aperto: la
+> morte di mapping a `-ngl 99` (0x2e) c'è su OGNI commit del range, pin
+> incluso → #26501/#28202 (fuori range) restano da provare con #26049
+> revertato/patchato. REPORT in scrittura (Luna) → audit → ALIVE 47.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
