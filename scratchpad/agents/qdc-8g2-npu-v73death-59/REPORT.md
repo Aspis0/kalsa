@@ -2,13 +2,14 @@
 
 Date: 2026-09-03 night (owner full delegation). QDC job 798484 (`sa802553`),
 device `f623f410`, HDK8550 (Snapdragon 8 Gen 2, Hexagon HTP v73, **Android
-16** — the S23 ran Android 14: declared residual confound). Session Running
+16** — the S23 ran Android 14; NOT in PREREG's declared-confound list, noted
+here as a residual confound, audit F-Android). Session Running
 22:39:54 EDT → ended via ref-click End + reload (time in "Session
 accounting"). PREREG.md audited pre-run (AUDIT-PRERUN.md; F1 of that audit
 refuted from the text, F2/F3 applied), driver double-audited
 (AUDIT-DRIVER.md; F1/F2 applied by the writer, fallback guard broadened).
 
-## Verdict: **G1 — REPLICATED.** Policy F6 confirmed arch/stack-bound.
+## Verdict: **G1 — REPLICATED.** Policy F6 confirmed stack-bound.
 
 Both pp16 arms died exactly like the S23:
 
@@ -34,10 +35,15 @@ descriptor-type check and HMX gating), on a clean reference board with a
 different Android major, different device, different model bytes (allenai
 Q4_0, same 113/81/1 census), and a different load path (`--mmap 0` vs the
 BigMoE `--load-mode none`) — and it dies identically. The death is a
-property of the **v73 HTP stack under MoE expert dispatch**, not of the S23
-unit, its ROM, its thermal history, the HOSTBUF setting, or the 3f545bec
-binary. **F6 (experts-on-NPU = v75-class-only) stands, now on reference
-hardware.** Upstream dossier #8 gains a QDC-reproducible case (reference
+property of the **v73 HTP stack under MoE expert dispatch** — "stack" meaning
+host backend (ggml-hexagon.cpp flush path, where the backtrace sits) + v73
+skel + DSP firmware together; this cell does NOT separate a host-side bug
+that would reproduce on any v73 device from a DSP/firmware fault (audit:
+"stack-bound", not "arch-bound"). What IS excluded: the S23 unit itself, its
+thermal history, the HOSTBUF setting, and the 3f545bec binary. NOT excluded:
+a ROM/firmware component shared by v73 devices (the HDK's firmware version
+was not compared with the S23's). **F6 (experts-on-NPU = v75-class-only)
+stands, now on reference hardware.** Upstream dossier #8 gains a QDC-reproducible case (reference
 board + public model + open build).
 
 ## Method notes (all declared in PREREG before data)
@@ -58,7 +64,9 @@ board + public model + open build).
 ## Session accounting
 
 Submitted ~22:37, Running 22:39:54; driver attempt 1 22:40:29 → 22:44:30
-(kit 22 MB + model 3.9 GB push 172 s, two VOID arms); attempt 2 22:45:45 →
+(kit 22 MB + model 3.9 GB push 172 s, two VOID arms — timings from the
+orchestrator's live read of the first /tmp/cell59.log, which the relaunch
+then overwrote; not on disk, PLAUSIBLE per audit); attempt 2 22:45:45 →
 22:46:54 (two arms, ~27 s each incl. gate). **Ended 23:07:44 EDT (portal
 Completed, verified after reload) = 27.8 min billed** of the 8 Gen 2 pool
 (974 → ~946). Honest accounting: the device work took ~7 min; ~20 min were

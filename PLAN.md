@@ -12,7 +12,7 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-08-24; aggiornata 27/08)
+# ⭐ STATO CORRENTE — vista compatta (2026-08-24; aggiornata 3/09 notte — leggere le voci '3/09' in coda al diario)
 
 > **26/08 sera — owner via 28/08 → ~07/09.** Piano dei 10 giorni FIRMATO:
 > `docs/PLAN-10DAYS-2026-08-28.md` v2 (audit DeepSeek applicato, `a3ffca83`): QDC 8 Elite
@@ -607,6 +607,18 @@
 > 35a15613 vs B 10 756 296 B sha 91e2a1b9, fingerprint dei pick (`q1u`=2,
 > `WG_SIZE > FA_SG`=2) presenti SOLO in B; q23k=4 e marker=1 in entrambi →
 > i 3 pick sono dentro APK-B e non in APK-A, come voluto.
+
+> **3/09 notte, 23:20 — NOTTE CHIUSA: LE QUATTRO DECISIONI SONO CHIUSE.**
+> (1) Amendment 750 → #58 (riga 41). (2) Merge pick → fork-main @12f6d9b6d
+> + APK-B. (3) APK → APK-A e0d56a39… (pin proven) + APK-B 1e2709e5… (pin
+> pick), entrambi in ~/kalsa-qdc/apk/, mai installati su telefono. (4) Cella
+> NPU → #59 (riga 42): morte v73 replicata su HDK8550, F6 confermata
+> stack-bound (audit: non dire 'arch-bound'). Lato app: feat/moe-stream
+> mergiato in main (c513f00, E2E verde 63 min). Budget QDC ≈ 912(7xx) +
+> 946(8G2) + 970(8G3) + 981(8sG3) + 623(8E). Prossimi (al risveglio owner):
+> cella discriminante host-vs-DSP per lo 0x2e (rebuild alla base S23-era o
+> strace del flush path), dossier #8 upstream con il repro QDC (solo LETTURA
+> del repo terzo, nessun push), test APK-A/B su QDC via installazione APK.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
