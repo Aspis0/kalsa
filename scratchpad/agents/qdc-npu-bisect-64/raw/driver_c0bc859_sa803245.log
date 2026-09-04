@@ -1,0 +1,13 @@
+[14:59:58] device=47874641 job=sa803245 sha7=c0bc859 kit=/Users/marco/kalsa-qdc/npu-v79-cell/npu-kit-bisect-c0bc859.tgz
+[15:00:06] pushing kit (fresh; old bin/lib removed)
+/Users/marco/kalsa-qdc/npu-v79-cell/npu-kit-bisect-c0bc859.tgz: 1 file pushed, 0 skipped. 16.7 MB/s (86360543 bytes in 4.945s)
+[15:00:18] model resume: device sha verified; skipping model push
+[15:00:19] push verified (model sha OK, kit shas OK, kit tgz sha=25a83981055d7854f6264da48d50fb69b228f958034b9cdf87b11f0fe7d93870)
+[15:00:20] FARF_READY
+GATE_PASS
+[15:00:24] start up_ngl8 (cap 900s)
+GATE_PASS
+GATE_PASS
+[15:00:52] start up_ngl99 (cap 900s)
+GATE_PASS
+[15:01:18] DONE (ABORT=0) — raw/ populated. Remember: End Session in the portal.
