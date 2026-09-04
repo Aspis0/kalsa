@@ -1,0 +1,1 @@
+SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-npu-bisect-64/raw/0278d83/logcat_up_ngl8_sa803231.txt:09-04 10:29:32.749 12650 12650 I llama-bench: vendor/qcom/proprietary/adsprpc/src/fastrpc_config.c:304: Reading configuration file: llama-bench.debugconfig  expected_exps=24 n_exec_any=1895
