@@ -115,13 +115,14 @@ llama_context::llama_context(
 
     cparams.ctx_other = nullptr;
 
-    // TODO: more generic
     if (model.arch == LLM_ARCH_GEMMA4_ASSISTANT) {
         if (params.ctx_other == nullptr) {
             // TODO: change from runtime_error to llama_exception to avoid printing error message
             throw std::runtime_error("Gemma4Assistant requires ctx_other to be set (this warning is normal during memory fitting)");
         }
+    }
 
+    if (params.ctx_other != nullptr) {
         cparams.ctx_other = params.ctx_other;
     }
 

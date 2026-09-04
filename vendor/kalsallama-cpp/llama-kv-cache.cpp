@@ -1,4 +1,5 @@
 #include "llama-kv-cache.h"
+#include "llama-kv-staged.h"
 
 #include "llama-impl.h"
 #include "llama-io.h"
@@ -61,6 +62,8 @@ static void lm_ggml_gen_hadamard(lm_ggml_tensor * tensor) {
 // llama_kv_cache
 //
 
+llama_kv_cache::~llama_kv_cache() = default;
+
 llama_kv_cache::llama_kv_cache(
         const llama_model & model,
         const llama_hparams & hparams,
@@ -79,19 +82,37 @@ llama_kv_cache::llama_kv_cache(
     const  layer_reuse_cb & reuse,
     const  layer_share_cb & share) :
     model(model), hparams(hparams), v_trans(v_trans),
+    cache_type_k(type_k), cache_type_v(type_v),
     n_seq_max(n_seq_max), n_stream(unified ? 1 : n_seq_max), n_pad(n_pad), n_swa(n_swa), swa_type(swa_type),
-    other(static_cast<llama_kv_cache *>(mem_other)),
+    other(dynamic_cast<llama_kv_cache *>(mem_other)),
     v_cells_impl(other ? other->v_cells_impl : std::make_shared<llama_kv_cells_vec>()),
     v_cells(*v_cells_impl) {
 
-    // shared cells view the source cache's K/V tensors, so the cell count
-    // follows the source allocation: a fitted target can be smaller than the
-    // draft default and oversized views would overflow the source tensors
+    if (mem_other && !other) {
+        throw std::runtime_error("cannot share KV cells with an incompatible memory type");
+    }
+
     if (other) {
-        const uint32_t size_other = other->get_size();
-        if (kv_size != size_other) {
-            LLAMA_LOG_WARN("%s: kv_size = %u overridden to %u to match the shared source cache\n", __func__, kv_size, size_other);
-            kv_size = size_other;
+        if (kv_size != other->get_size()) {
+            if (share) {
+                LLAMA_LOG_WARN("%s: kv_size = %u overridden to %u to match the shared source cache\n",
+                        __func__, kv_size, other->get_size());
+                kv_size = other->get_size();
+            } else {
+                throw std::runtime_error("cannot share KV cells with a different kv_size");
+            }
+        }
+        if (type_k != other->cache_type_k || type_v != other->cache_type_v) {
+            throw std::runtime_error("cannot share KV cells with different K/V types");
+        }
+        if (n_seq_max != other->n_seq_max || n_stream != other->n_stream) {
+            throw std::runtime_error("cannot share KV cells with different sequence capacity");
+        }
+        if (n_pad != other->n_pad || n_swa != other->n_swa || swa_type != other->swa_type || v_trans != other->v_trans) {
+            throw std::runtime_error("cannot share KV cells with an incompatible cache layout");
+        }
+        if (hparams.n_layer_all != other->hparams.n_layer_all) {
+            throw std::runtime_error("cannot share KV cells with a different layer count");
         }
     }
 
@@ -137,9 +158,11 @@ llama_kv_cache::llama_kv_cache(
         v_heads[s] = 0;
     }
 
-    v_cells.resize(n_stream);
-    for (uint32_t s = 0; s < n_stream; ++s) {
-        v_cells[s].resize(kv_size);
+    if (!other) {
+        v_cells.resize(n_stream);
+        for (uint32_t s = 0; s < n_stream; ++s) {
+            v_cells[s].resize(kv_size);
+        }
     }
 
     // by default, all sequence ids are mapped to the 0th stream
@@ -364,6 +387,12 @@ llama_kv_cache::llama_kv_cache(
 }
 
 void llama_kv_cache::clear(bool data) {
+    // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
+    if (other) {
+        LLAMA_LOG_ERROR("%s: clear is not allowed from a shared KV cache\n", __func__);
+        return;
+    }
+
     for (uint32_t s = 0; s < n_stream; ++s) {
         v_cells[s].reset();
         v_heads[s] = 0;
@@ -379,7 +408,8 @@ void llama_kv_cache::clear(bool data) {
 bool llama_kv_cache::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
-        return true;
+        LLAMA_LOG_ERROR("%s: sequence removal is not allowed from a shared KV cache\n", __func__);
+        return false;
     }
 
     LM_GGML_ASSERT(seq_id == -1 || (seq_id >= 0 && (size_t) seq_id < seq_to_stream.size()));
@@ -447,6 +477,7 @@ bool llama_kv_cache::seq_rm(llama_seq_id seq_id, llama_pos p0, llama_pos p1) {
 void llama_kv_cache::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, llama_pos p0, llama_pos p1) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
+        LLAMA_LOG_ERROR("%s: sequence copy is not allowed from a shared KV cache\n", __func__);
         return;
     }
 
@@ -539,6 +570,7 @@ void llama_kv_cache::seq_cp(llama_seq_id seq_id_src, llama_seq_id seq_id_dst, ll
 void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
+        LLAMA_LOG_ERROR("%s: sequence keep is not allowed from a shared KV cache\n", __func__);
         return;
     }
 
@@ -566,7 +598,7 @@ void llama_kv_cache::seq_keep(llama_seq_id seq_id) {
 void llama_kv_cache::seq_add(llama_seq_id seq_id, llama_pos p0, llama_pos p1, llama_pos shift) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
-        return;
+        LM_GGML_ABORT("sequence shifting is not allowed from a shared KV cache");
     }
 
     LM_GGML_ASSERT(seq_id >= 0 && (size_t) seq_id < seq_to_stream.size());
@@ -616,6 +648,7 @@ void llama_kv_cache::seq_add(llama_seq_id seq_id, llama_pos p0, llama_pos p1, ll
 void llama_kv_cache::seq_div(llama_seq_id seq_id, llama_pos p0, llama_pos p1, int d) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
+        LLAMA_LOG_ERROR("%s: sequence division is not allowed from a shared KV cache\n", __func__);
         return;
     }
 
@@ -701,6 +734,12 @@ llama_memory_context_ptr llama_kv_cache::init_batch(
             bool embd_all) {
     LM_GGML_UNUSED(embd_all);
 
+    // TODO [TAG_KV_CACHE_SHARE_CELLS]: step 3/4's commit primitive will lift this fence.
+    if (other) {
+        LLAMA_LOG_ERROR("%s: decode is not allowed from a shared KV cache\n", __func__);
+        return std::make_unique<llama_kv_cache_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    }
+
     do {
         balloc.split_reset();
 
@@ -741,11 +780,22 @@ llama_memory_context_ptr llama_kv_cache::init_update(llama_context * lctx, bool 
 
     bool do_shift = get_has_shift();
 
+    if (other && (do_shift || !sc_info.empty())) {
+        LLAMA_LOG_ERROR("%s: memory update is not allowed from a shared KV cache\n", __func__);
+        return std::make_unique<llama_kv_cache_context>(LLAMA_MEMORY_STATUS_FAILED_PREPARE);
+    }
+
     return std::make_unique<llama_kv_cache_context>(this, lctx, do_shift, std::move(sc_info));
 }
 
 llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare(const std::vector<llama_ubatch> & ubatches) {
     llama_kv_cache::slot_info_vec_t res;
+
+    // TODO [TAG_KV_CACHE_SHARE_CELLS]: step 3/4's commit primitive will lift this fence.
+    if (other) {
+        LLAMA_LOG_ERROR("%s: decode is not allowed from a shared KV cache\n", __func__);
+        return {};
+    }
 
     struct state_t {
         slot_info sinfo; // slot info for the ubatch
@@ -813,6 +863,10 @@ llama_kv_cache::slot_info_vec_t llama_kv_cache::prepare(const std::vector<llama_
 bool llama_kv_cache::update(llama_context * lctx, bool do_shift, const stream_copy_info & sc_info) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
+        if (do_shift || !sc_info.empty()) {
+            LLAMA_LOG_ERROR("%s: memory update is not allowed from a shared KV cache\n", __func__);
+            return false;
+        }
         return true;
     }
 
@@ -892,13 +946,14 @@ bool llama_kv_cache::update(llama_context * lctx, bool do_shift, const stream_co
 }
 
 llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch, bool cont) const {
+    const auto & heads = other ? other->v_heads : v_heads;
 
     if (debug > 0) {
         for (uint32_t s = 0; s < ubatch.n_seqs_unq; ++s) {
             const auto seq_id = ubatch.seq_id_unq[s];
             const auto stream_id = seq_to_stream[seq_id];
             const auto & cells = v_cells[stream_id];
-            const uint32_t head_cur = v_heads[stream_id];
+            const uint32_t head_cur = heads[stream_id];
 
             LLAMA_LOG_DEBUG("%s: stream[%d], n = %5d, used = %5d, head = %5d, size = %5d, n_swa = %5d\n",
                     __func__, stream_id, cells.used_max_p1(), cells.get_used(), head_cur, get_size(), n_swa);
@@ -994,7 +1049,7 @@ llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch,
 
         const auto & cells = v_cells[seq_to_stream[seq_id]];
 
-        uint32_t head_cur = v_heads[seq_to_stream[seq_id]];
+        uint32_t head_cur = heads[seq_to_stream[seq_id]];
 
         // if we have enough unused cells before the current head ->
         //   better to start searching from the beginning of the cache, hoping to fill it
@@ -1093,6 +1148,7 @@ llama_kv_cache::slot_info llama_kv_cache::find_slot(const llama_ubatch & ubatch,
 void llama_kv_cache::apply_ubatch(const slot_info & sinfo, const llama_ubatch & ubatch) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
+        LLAMA_LOG_ERROR("%s: decode is not allowed from a shared KV cache\n", __func__);
         return;
     }
 
@@ -1200,11 +1256,11 @@ bool llama_kv_cache::get_has_shift() const {
 }
 
 lm_ggml_type llama_kv_cache::type_k() const {
-    return layers[0].k->type;
+    return cache_type_k;
 }
 
 lm_ggml_type llama_kv_cache::type_v() const {
-    return layers[0].v->type;
+    return cache_type_v;
 }
 
 std::vector<uint32_t> llama_kv_cache::get_layer_ids() const {
@@ -1957,7 +2013,7 @@ lm_ggml_cgraph * llama_kv_cache::build_graph_shift(llm_graph_result * res, llama
 void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) const {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
-        return;
+        throw std::runtime_error("state IO is not supported on a shared KV cache");
     }
 
     LM_GGML_UNUSED(flags);
@@ -2027,7 +2083,7 @@ void llama_kv_cache::state_write(llama_io_write_i & io, llama_seq_id seq_id, lla
 void llama_kv_cache::state_read(llama_io_read_i & io, llama_seq_id seq_id, llama_state_seq_flags flags) {
     // TODO: refactor [TAG_KV_CACHE_SHARE_CELLS]
     if (other) {
-        return;
+        throw std::runtime_error("state IO is not supported on a shared KV cache");
     }
 
     LM_GGML_UNUSED(flags);
