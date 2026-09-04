@@ -93,6 +93,7 @@ const config = {
         enableOpenCLAndHexagon: true,
       },
     ],
+    "./plugins/withGovernorBattery",
     [
       "expo-build-properties",
       {
