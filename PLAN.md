@@ -40,7 +40,7 @@
 6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
 ## In volo / prossimi
-- Cella #64: bisect 022458a28..64a155d24 della TLBMISS op_binary sui 23 commit hexagon (step 0 GOOD, midpoint 990e3bfee in corso; fix nel fork, mai issue).
+- Cella #64: bisect della TLBMISS op_binary sui 23 commit hexagon — step 0 GOOD, index 12 BAD → culprit in 1..12, index 6 in build (BISECT-LOG.md; fix nel fork, mai issue).
 - Samsung RTL probe: pronta, non bloccante (diario 3/09).
 - Campagna CisWire parcheggiata: telefoni persi; PC/Lenovo idle (diario 3/09 notte).
 - Lab fisico fermo; operatività su QDC/CI/Mac (diario 3/09 notte).
@@ -329,6 +329,16 @@
 > `dspqueue_read 0x2e`** (la morte di mapping del nostro kit, non la
 > TLBMISS). Range del bisect VALIDO: la TLBMISS entra dopo 022458a28.
 > Midpoint 990e3bfee (index 12) lanciato nella stessa sessione.
+
+> **4/09, 13:00 — #64 STEP 1: index 12 (990e3bfee, #27042) è BAD** — a
+> `-ngl 8` muore dopo 21 op con `crashed in thread "work-queue:0" due to
+> TLBMISS RW`, Fault PC `op_binary+0x5B9C`: la firma di #62/S23. Culprit fra
+> gli index 1..12; prossimo index 6 (`0278d83`, #25974 "activation ops
+> update"), kit in build (~30 min). Un run VOID onesto: il primo "990e3bf"
+> aveva ereditato il kit di step 0 (resume guard del driver #62 saltava anche
+> il push del kit) → driver corretto (kit sempre rimosso e ri-pushato, sha
+> tgz nel log), raw quarantenato. Sessione 799155 chiusa a mano (~10 min).
+> BISECT-LOG.md nel cell dir tiene la tabella dei verdetti.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;

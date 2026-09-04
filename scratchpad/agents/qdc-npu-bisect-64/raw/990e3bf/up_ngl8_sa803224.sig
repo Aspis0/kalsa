@@ -1,1 +1,1 @@
-SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-npu-bisect-64/raw/990e3bf/logcat_up_ngl8_sa803224.txt:09-04 09:49:50.828 14643 14643 I llama-bench: vendor/qcom/proprietary/adsprpc/src/fastrpc_config.c:304: Reading configuration file: llama-bench.debugconfig  expected_exps=24 n_exec_any=1895
+SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-npu-bisect-64/raw/990e3bf/up_ngl8_sa803224.err:/workspace/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1583: ggml-hex: dspqueue_read failed: 0x0000002e  expected_exps=24 n_exec_any=223

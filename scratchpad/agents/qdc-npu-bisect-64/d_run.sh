@@ -50,31 +50,30 @@ if ! adbT 60 -s "$SER" shell "mkdir -p $D"; then
   exit 5
 fi
 
-# Resume guard: model sha plus the extracted executable are both required.
+# Resume guard: only the MODEL may be reused across runs (sha-verified).
+# The kit is ALWAYS pushed and extracted fresh: a per-commit bisect kit must
+# never be inherited from a previous sha7 (that mistake voided one run).
 PRE=$(adbT 300 -s "$SER" shell "cd $D && sha256sum olmoe.gguf 2>/dev/null" | awk '{print $1}' | tr -d '\r')
-SKIP_PUSH=0
-if [ "$PRE" = "$MODEL_SHA" ]; then
-  if adbT 60 -s "$SER" shell "test -x $D/bin/llama-bench && echo BINOK" | grep -q BINOK; then
-    SKIP_PUSH=1
-  fi
+SKIP_MODEL=0
+[ "$PRE" = "$MODEL_SHA" ] && SKIP_MODEL=1
+log "pushing kit (fresh; old bin/lib removed)"
+adbT 60 -s "$SER" shell "rm -rf $D/bin $D/lib $D/lib-fix $D/SHA256SUMS $D/kit.tgz" >/dev/null 2>&1 || true
+if ! adbT 600 -s "$SER" push "$KIT" "$D/kit.tgz" >/dev/null; then
+  log "KIT_PUSH_FAIL"
+  exit 5
 fi
-if [ "$SKIP_PUSH" -eq 1 ]; then
-  log "resume: kit+model already on device, skipping pushes"
+if ! adbT 120 -s "$SER" shell "cd $D && tar xzf kit.tgz && chmod 755 bin/* && echo EXTRACT_OK" | grep -q EXTRACT_OK; then
+  log "KIT_EXTRACT_FAIL"
+  exit 5
+fi
+adbT 60 -s "$SER" shell "ls -la $D/bin $D/lib-fix" > "$RAW/kit_listing_$JOB.txt" 2>&1 || true
+if ! adbT 60 -s "$SER" shell "test -x $D/bin/llama-bench"; then
+  log "BIN_MISSING"
+  exit 5
+fi
+if [ "$SKIP_MODEL" -eq 1 ]; then
+  log "model resume: device sha verified; skipping model push"
 else
-  log "pushing kit"
-  if ! adbT 600 -s "$SER" push "$KIT" "$D/kit.tgz" >/dev/null; then
-    log "KIT_PUSH_FAIL"
-    exit 5
-  fi
-  if ! adbT 120 -s "$SER" shell "cd $D && tar xzf kit.tgz && chmod 755 bin/* && echo EXTRACT_OK" | grep -q EXTRACT_OK; then
-    log "KIT_EXTRACT_FAIL"
-    exit 5
-  fi
-  adbT 60 -s "$SER" shell "ls -la $D/bin $D/lib-fix" > "$RAW/kit_listing_$JOB.txt" 2>&1 || true
-  if ! adbT 60 -s "$SER" shell "test -x $D/bin/llama-bench"; then
-    log "BIN_MISSING"
-    exit 5
-  fi
   log "pushing model (3.9 GB — cap 3600s)"
   if ! adbT 3600 -s "$SER" push "$MODEL" "$D/olmoe.gguf" >/dev/null; then
     log "MODEL_PUSH_FAIL"
@@ -85,18 +84,19 @@ else
     log "METHOD-VOID model sha mismatch device=$DS"
     exit 5
   fi
-  adbT 120 -s "$SER" shell "cd $D && sha256sum -c SHA256SUMS" > "$RAW/kit_verify_$JOB.txt" 2>&1
-  kit_rc=$?
-  if grep -q FAILED "$RAW/kit_verify_$JOB.txt"; then
-    log "KIT_SHA_MISMATCH"
-    exit 5
-  fi
-  if [ "$kit_rc" -ne 0 ]; then
-    log "KIT_SHA_CHECK_FAIL"
-    exit 5
-  fi
-  log "push verified (model sha OK, kit shas OK)"
 fi
+adbT 120 -s "$SER" shell "cd $D && sha256sum -c SHA256SUMS" > "$RAW/kit_verify_$JOB.txt" 2>&1
+kit_rc=$?
+if grep -q FAILED "$RAW/kit_verify_$JOB.txt"; then
+  log "KIT_SHA_MISMATCH"
+  exit 5
+fi
+if [ "$kit_rc" -ne 0 ]; then
+  log "KIT_SHA_CHECK_FAIL"
+  exit 5
+fi
+KIT_SHA_HOST=$(shasum -a 256 "$KIT" | awk '{print $1}')
+log "push verified (model sha OK, kit shas OK, kit tgz sha=$KIT_SHA_HOST)"
 
 if ! adbT 60 -s "$SER" shell "printf '0x1F' > $D/lib-fix/llama-bench.farf"; then
   log "FARF_CREATE_FAIL — continuing"

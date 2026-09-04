@@ -1,0 +1,10 @@
+[12:49:36] device=47874641 job=sa803224 sha7=990e3bf kit=/Users/marco/kalsa-qdc/npu-v79-cell/npu-kit-bisect-990e3bf.tgz
+[12:49:45] resume: kit+model already on device, skipping pushes
+[12:49:46] FARF_READY
+GATE_PASS
+[12:49:50] start up_ngl8 (cap 900s)
+GATE_PASS
+GATE_PASS
+[12:50:17] start up_ngl99 (cap 900s)
+GATE_PASS
+[12:50:43] DONE (ABORT=0) — raw/ populated. Remember: End Session in the portal.
