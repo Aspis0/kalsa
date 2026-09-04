@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   BackHandler,
   Linking,
@@ -38,6 +39,7 @@ import {
   type ModelInfo,
 } from "../engine/ModelRegistry";
 import { isEmbedderHung } from "../engine/EmbeddingService";
+import { MAX_PROMPT_FACT_CHARS, MAX_PROMPT_FACTS } from "../engine/memoryPrompt";
 import {
   getDeviceTotalMemoryBytes,
   getRamTier,
@@ -162,6 +164,11 @@ function modelBundleSize(model: ModelInfo): number {
   return model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
 }
 
+type MemoryNotice = {
+  message: string;
+  kind: "success" | "warning";
+};
+
 /**
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
@@ -228,8 +235,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
-  const [memoryNotice, setMemoryNotice] = useState("");
+  const [memoryNotice, setMemoryNotice] = useState<MemoryNotice | null>(null);
   const mountedRef = useRef(true);
+  const memoryAddInFlightRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -254,6 +262,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   useEffect(() => {
     void reloadMemory();
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") void reloadMemory();
+    });
+    return () => subscription.remove();
   }, [reloadMemory]);
 
   useEffect(() => {
@@ -522,14 +534,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     (next: boolean) => {
       const previous = memoryEnabled;
       setMemoryEnabled(next);
-      setMemoryNotice("");
+      setMemoryNotice(null);
       void (async () => {
         try {
           await MemoryStore.setEnabled(next);
         } catch {
           if (!mountedRef.current) return;
           setMemoryEnabled(previous);
-          setMemoryNotice(t("memory.saveError"));
+          setMemoryNotice({ message: t("memory.saveError"), kind: "warning" });
         }
       })();
     },
@@ -538,23 +550,31 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   const handleAddMemoryFact = useCallback(async () => {
     const text = memoryDraft.trim();
-    if (!text || memoryBusy) return;
+    if (!text || memoryAddInFlightRef.current) return;
+    memoryAddInFlightRef.current = true;
     setMemoryBusy(true);
-    setMemoryNotice("");
+    setMemoryNotice(null);
     try {
       await MemoryStore.addFact(text);
       if (!mountedRef.current) return;
       setMemoryDraft("");
       await reloadMemory();
       if (!mountedRef.current) return;
-      setMemoryNotice(t("memory.addDone"));
-    } catch {
+      setMemoryNotice({ message: t("memory.addDone"), kind: "success" });
+    } catch (error) {
       if (!mountedRef.current) return;
-      setMemoryNotice(t("memory.saveError"));
+      setMemoryNotice({
+        message:
+          error instanceof MemoryStore.MemoryCapacityError
+            ? t("memory.full", { count: MemoryStore.MAX_FACTS })
+            : t("memory.saveError"),
+        kind: "warning",
+      });
     } finally {
+      memoryAddInFlightRef.current = false;
       if (mountedRef.current) setMemoryBusy(false);
     }
-  }, [memoryBusy, memoryDraft, reloadMemory, t]);
+  }, [memoryDraft, reloadMemory, t]);
 
   const handleDeleteMemoryFact = useCallback(
     (fact: MemoryFact) => {
@@ -568,9 +588,11 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               try {
                 await MemoryStore.removeFact(fact.id);
                 await reloadMemory();
+                if (!mountedRef.current) return;
+                setMemoryNotice(null);
               } catch {
                 if (!mountedRef.current) return;
-                setMemoryNotice(t("memory.saveError"));
+                setMemoryNotice({ message: t("memory.saveError"), kind: "warning" });
               }
             })();
           },
@@ -592,10 +614,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               await MemoryStore.clearFacts();
               await reloadMemory();
               if (!mountedRef.current) return;
-              setMemoryNotice(t("memory.clearDone"));
+              setMemoryNotice({ message: t("memory.clearDone"), kind: "success" });
             } catch {
               if (!mountedRef.current) return;
-              setMemoryNotice(t("memory.saveError"));
+              setMemoryNotice({ message: t("memory.saveError"), kind: "warning" });
             }
           })();
         },
@@ -982,6 +1004,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     }
   }, [embedding.downloadPercent, embedding.state, t, isEmbedderHung()]);
 
+  const memoryAtCapacity = memoryFacts.length >= MemoryStore.MAX_FACTS;
+  const hasTruncatedReplyFacts =
+    memoryEnabled &&
+    memoryFacts
+      .slice(-MAX_PROMPT_FACTS)
+      .some((fact) => fact.text.length > MAX_PROMPT_FACT_CHARS);
+
   return (
     <View
       style={{
@@ -1178,25 +1207,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
             }}
           >
             <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
-              {t("settings.ciswireMemory")}
-            </Text>
-            <Switch
-              value={memoryEnabled}
-              onValueChange={handleToggleMemory}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={memoryEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.ciswireMemory")}
-            />
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-            }}
-          >
-            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
               {t("settings.ciswireToolHelp")}
             </Text>
             <Switch
@@ -1308,9 +1318,46 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("memory.title")}
           </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
+              {t("memory.enabled")}
+            </Text>
+            <Switch
+              value={memoryEnabled}
+              onValueChange={handleToggleMemory}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={memoryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("memory.enabled")}
+            />
+          </View>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("memory.capHint", {
+              count: memoryFacts.length,
+              max: MemoryStore.MAX_FACTS,
+            })}
+            {memoryEnabled
+              ? ` — ${t("memory.capReplyHint", {
+                  perReply: MAX_PROMPT_FACTS,
+                  chars: MAX_PROMPT_FACT_CHARS,
+                })}`
+              : null}
+          </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("memory.note")}
           </Text>
+
+          {hasTruncatedReplyFacts ? (
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("memory.truncNote", { chars: MAX_PROMPT_FACT_CHARS })}
+            </Text>
+          ) : null}
 
           {!memoryEnabled ? (
             <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1382,7 +1429,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 onChangeText={setMemoryDraft}
                 placeholder={t("memory.addPlaceholder")}
                 placeholderTextColor={colors.muted}
-                editable={!memoryBusy}
+                editable={!memoryBusy && !memoryAtCapacity}
                 maxLength={200}
                 style={{
                   flex: 1,
@@ -1403,13 +1450,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 onPress={() => {
                   void handleAddMemoryFact();
                 }}
-                disabled={memoryBusy || !memoryDraft.trim()}
+                disabled={memoryBusy || memoryAtCapacity || !memoryDraft.trim()}
                 style={{
                   paddingHorizontal: spacing.md,
                   paddingVertical: spacing.sm,
                   borderRadius: radius.md,
                   backgroundColor: colors.accent,
-                  opacity: memoryBusy || !memoryDraft.trim() ? 0.5 : 1,
+                  opacity: memoryBusy || memoryAtCapacity || !memoryDraft.trim() ? 0.5 : 1,
                 }}
                 accessibilityLabel={t("memory.addFact")}
               >
@@ -1440,8 +1487,19 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           ) : null}
 
           {memoryNotice ? (
-            <Text style={[typography.bodyXs, { color: colors.accent }]}>
-              {memoryNotice}
+            <Text
+              style={[
+                typography.bodyXs,
+                {
+                  color:
+                    memoryNotice.kind === "warning"
+                      ? colors.bad ?? colors.muted
+                      : colors.accent,
+                },
+              ]}
+              accessibilityLiveRegion="polite"
+            >
+              {memoryNotice.message}
             </Text>
           ) : null}
         </GlassPanel2>

@@ -93,12 +93,11 @@ export const en = {
       "On by default. Older turns are compacted into a short digest so long chats keep relevant facts without a huge sliding window. Turn off to use the legacy sliding window.",
     ciswire: "CisWire",
     ciswireHint:
-      "Choose compaction, memory, and tool help independently. New flags are off unless you enable them.",
+      "Choose compaction and tool help independently. New flags are off unless you enable them.",
     ciswireCompaction: "CisWire Compaction",
     ciswireOff: "Off",
     ciswireStandard: "Standard",
     ciswireMode: "CisWire",
-    ciswireMemory: "CisWire Memory",
     ciswireToolHelp: "CisWire Tool Help",
     sessionPool: "Instant chat reopen",
     sessionPoolHint:
@@ -896,7 +895,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
   memory: {
     title: "Memory",
     enabled: "Remember information about me",
-    disabled: "Memory is off",
+    capHint: "{count} / {max} facts saved",
+    capReplyHint: "Up to {perReply} used per reply ({chars} chars each)",
+    truncNote: "Facts over {chars} chars are shortened in replies.",
     disabledNote:
       "Memory is off: facts are not used or updated. You can still view and delete saved facts.",
     facts: "Saved facts",
@@ -907,6 +908,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     clearConfirm: "Delete all saved facts? This cannot be undone.",
     clearDone: "Memory cleared",
     addDone: "Fact saved",
+    full: "Memory is full ({count} facts). Delete a fact before adding another.",
     deleteFact: "Delete fact",
     saveError: "Could not save memory. Try again.",
     note:
@@ -919,7 +921,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "(name, preferences, interests, job, language...). Return ONLY JSON: {\"add\": [\"...\"], \"remove\": [\"...\"]} " +
       "where add = new facts (max 3, each ≤ 120 chars, in the user's language) and remove = exact facts to forget " +
       "(empty if none). Facts must be about the user, not about your answers. Never extract passwords, tokens, " +
-      "API keys, card numbers, emails, phone numbers, IBAN, tax IDs, or medical details. " +
+      "or API keys; other personal details may be stored locally when the user clearly volunteered them. " +
       "If nothing to extract: {\"add\": [], \"remove\": []}.\n\n" +
       "Conversation:\nUSER: {user}\nASSISTANT: {assistant}",
   },

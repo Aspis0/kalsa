@@ -51,3 +51,19 @@ describe("MemoryStore sensitive facts", () => {
     expect((await listFacts()).map((fact) => fact.text)).toContain("4111111111111111");
   });
 });
+
+describe("MemoryStore capacity", () => {
+  test("manual add at MAX_FACTS throws MemoryCapacityError without evicting", async () => {
+    const { addFact, listFacts, MAX_FACTS, MemoryCapacityError } = await loadStore();
+    const existingFacts = await listFacts();
+
+    for (let index = existingFacts.length; index < MAX_FACTS; index += 1) {
+      await addFact(`capacity-fact-${index}`);
+    }
+
+    const fullFacts = await listFacts();
+    expect(fullFacts).toHaveLength(MAX_FACTS);
+    await expect(addFact("capacity-overflow")).rejects.toBeInstanceOf(MemoryCapacityError);
+    expect(await listFacts()).toEqual(fullFacts);
+  });
+});

@@ -27,9 +27,18 @@ export class MemoryWriteError extends Error {
   }
 }
 
+/** Thrown when a manual add would exceed the saved-fact limit. */
+export class MemoryCapacityError extends Error {
+  readonly code = "full" as const;
+  constructor() {
+    super("memory full");
+    this.name = "MemoryCapacityError";
+  }
+}
+
 const FACTS_KEY = "kalsa.memory.facts";
 const ENABLED_KEY = "kalsa.memory.enabled";
-const MAX_FACTS = 40;
+export const MAX_FACTS = 40;
 const MAX_TEXT_LEN = 200;
 
 /** Optional in-memory cache so list/getEnabled avoid a storage hop every turn. */
@@ -312,6 +321,7 @@ export async function addFact(text: string): Promise<void> {
     const key = normalizeKey(normalized);
     const existing = facts.find((fact) => normalizeKey(fact.text) === key);
     if (existing) return;
+    if (facts.length >= MAX_FACTS) throw new MemoryCapacityError();
     const next = facts.concat({
       id: makeId(),
       text: normalized,

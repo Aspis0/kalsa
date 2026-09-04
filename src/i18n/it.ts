@@ -92,12 +92,11 @@ export const it: typeof en = {
       "Attiva di default. I turni più vecchi vengono compattati in un breve digest così le chat lunghe tengono i fatti rilevanti senza una finestra scorrevole enorme. Disattiva per usare la finestra scorrevole legacy.",
     ciswire: "CisWire",
     ciswireHint:
-      "Scegli separatamente compattazione, memoria e aiuto per gli strumenti. Le nuove funzioni sono disattivate finché non le attivi.",
+      "Scegli separatamente la compattazione e l'aiuto per gli strumenti. Le nuove funzioni sono disattivate finché non le attivi.",
     ciswireCompaction: "Compattazione CisWire",
     ciswireOff: "Disattivata",
     ciswireStandard: "Standard",
     ciswireMode: "CisWire",
-    ciswireMemory: "Memoria CisWire",
     ciswireToolHelp: "Aiuto strumenti CisWire",
     sessionPool: "Riapertura istantanea",
     sessionPoolHint:
@@ -866,7 +865,11 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   memory: {
     title: "Memoria",
     enabled: "Ricorda informazioni su di me",
-    disabled: "Memoria disattivata",
+    capHint: "{count} / {max} fatti salvati",
+    capReplyHint:
+      "Fino a {perReply} usati per risposta ({chars} caratteri ciascuno)",
+    truncNote:
+      "I fatti superiori a {chars} caratteri vengono accorciati nelle risposte.",
     disabledNote:
       "La memoria è disattivata: i fatti non vengono usati né aggiornati. Puoi comunque vedere ed eliminare i fatti salvati.",
     facts: "Fatti salvati",
@@ -877,6 +880,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     clearConfirm: "Eliminare tutti i fatti salvati? L'azione non si può annullare.",
     clearDone: "Memoria svuotata",
     addDone: "Fatto salvato",
+    full: "La memoria è piena ({count} fatti). Elimina un fatto prima di aggiungerne un altro.",
     deleteFact: "Elimina fatto",
     saveError: "Impossibile salvare la memoria. Riprova.",
     note:
@@ -889,7 +893,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "(nome, preferenze, interessi, lavoro, lingua...). Restituisci SOLO JSON: {\"add\": [\"...\"], \"remove\": [\"...\"]} " +
       "dove add = nuovi fatti (max 3, ciascuno ≤ 120 caratteri, nella lingua dell'utente) e remove = fatti esatti da dimenticare " +
       "(vuoto se nessuno). I fatti devono riguardare l'utente, non le tue risposte. Non estrarre password, token, " +
-      "API key, numeri di carta, email, telefoni, IBAN, codici fiscali o dettagli sanitari. " +
+      "o chiavi API; altri dettagli personali possono essere salvati localmente quando l'utente li ha forniti chiaramente. " +
       "Se non c'è nulla da estrarre: {\"add\": [], \"remove\": []}.\n\n" +
       "Conversazione:\nUSER: {user}\nASSISTANT: {assistant}",
   },
