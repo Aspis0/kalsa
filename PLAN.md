@@ -507,7 +507,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `scripts/governor-params-test.sh` con exit code registrato + script
 > `test:governor-params` in package.json) e sta costruendo S3 (Kotlin
 > `GovernorBatteryModule`, JSI `setGovernorThermo`/`getGovernorStats`). CI
-> 33922285427 su 42ddcf4 ancora in volo. Memoria compattata per l'owner
+> 33922285427 su 42ddcf4 **VERDE** (native compila con fallback a stadi + convergenza post-load). Memoria compattata per l'owner
 > (state-2026-09-01.md → "PUNTO FINALE 4/09 SERA"). **Riordino repo (owner):**
 > PLAN.md 2433→~1460 righe (990 righe di capitoli chiusi di agosto spostate
 > verbatim in PLAN-archive.md), README riscritto (era falso: "nessuna
