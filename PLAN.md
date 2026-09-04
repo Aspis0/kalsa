@@ -685,6 +685,15 @@
 > Kit mmapfix: cherry-pick di #26501/#28202 IMPOSSIBILE (conflitti) → build
 > puro da upstream/master in corso (npu-kit-62-upstream). REPORT #61 in audit.
 
+> **4/09, 08:30 — #61 BANCATA (ALIVE riga 44, G1-AMENDED: l'owner ratifica
+> l'emendamento del criterio S4/banner).** Audit mimo DO-NOT-BANK → 5 fix
+> applicati (verdict rietichettata, alternative per promptMs, inferenza .so
+> dichiarata non supportata, log driver in raw) → delta BANK-WITH-FIXES.
+> Tre lavori del mini-prompt CHIUSI: #60 (riga 43), dossier #8 (0b517d07),
+> #61 (riga 44). In volo: kit puro upstream (container 11a6…, grok su docker
+> wait); container zombie `clever_brown` del 2/09 (bash appeso, 0% CPU) da
+> pulire a mano. Budget QDC ≈ 912(7xx)/935(8G2)/913(8G3)/981(8sG3)/623(8E).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

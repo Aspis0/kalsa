@@ -98,3 +98,18 @@ Verdict: **CONFIRMED.** **Severity: —.**
 **BLOCKERs: 1** (Finding 2a: G1 overclaim).
 **FIX items: 4** (2b, 4, 5, 1b/7a merged into "relabel verdict + add alternatives").
 **Overall verdict: DO-NOT-BANK** (BLOCKER: G1 label must be downgraded to a declared-amendment verdict before banking).
+
+## Delta audit
+
+Re-audit of REPORT.md after the five FIX/BLOCKER items. Each verified against raw.
+
+| Item | REPORT change | Raw verification | Verdict |
+|---|---|---|---|
+| 2a | Verdict relabelled `G1-AMENDED`; amendment stated in verdict line and new section header `Declared amendment to the pass criterion` | REPORT L1: `G1-AMENDED — both APKs pass on the engine evidence; two preregistered signals were unsatisfiable as written`. Owner reject path stated: "The owner may reject the amendment; then the cell is G1-pending, not a fail." | ACCEPTED |
+| 2b | Section renamed from "re-read" to "Declared amendment"; body says "met by the raw under this amendment" | REPORT L22: `## Declared amendment to the pass criterion (S4 signal and banner)`. REPORT L31: `met by the raw under this amendment`. No remaining uses of "re-read" in the verdict/section. | ACCEPTED |
+| 4 | Three promptMs alternatives named, each marked `Readings, none verified here` | REPORT point 4: `the prompt timer started at prewarm/launch instead of at the turn; a monotonic-clock value carried over from the prewarm turn; a clock-type mismatch between the native and JS sides`. | ACCEPTED |
+| 5 | OpenCL inference marked `UNSUPPORTED inference in this folder` | REPORT point 5: `read as "the OpenCL- and Hexagon-enabled variant ran" only on the naming of the JNI variants in RECON-APP.md, an UNSUPPORTED inference in this folder (no evidence maps a log line to a specific .so).` | ACCEPTED |
+| 1b | Timing cites `raw/driver_attempt3_sa803030.log`; clock offset stated as `device clock = Mac clock − 3 h` | driver_attempt3_sa803030.log L11: `[07:52:43] ime suspended: ...` CONFIRMED by grep. L12: `[07:53:16] STEP A S5 ok KALSA_TELEMETRY tokensPredicted>0` CONFIRMED by grep. Logcat A telemetry: `04:53:12.235`. 07:53:16−04:53:12 = 10804 s = 3.00 h. APK B: logcat 05:01:38, driver 08:01:47, offset 10809 s = 3.00 h. Offset consistent. | ACCEPTED |
+
+**BLOCKERs remaining: 0.** All five items resolved.
+**Overall verdict: BANK-WITH-FIXES** (no blocker; four FIX items accepted and applied; owner must affirm the G1-AMENDED verdict.)
