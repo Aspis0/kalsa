@@ -100,3 +100,19 @@ evidence and grid unchanged. Confound added: the sideload/DB path is root-only, 
 says nothing about sideloading on a non-rooted consumer phone (there the app's own downloader
 would be the path). Owner note: a debuggable variant of the release APK is needed for any
 run-as-based field test (memory rule "S23 solo APK debuggabili").
+
+## Pre-data amendment 2 (declared during the second session, before any load/generation data)
+
+Second launch (job 798961, unit `cacfeec9`, also adbd root): S1 ok (uid 10224), S2 ok
+(root sideload, 1,593,894,944 B), S3 FAILED (`sql=1`): the first launch ran with the screen
+OFF (`mWakefulness=Dozing`, focus `NotificationShade` — the Device Configuration toggle
+"Screen Always On" was left unchecked); the app process started and JS ran (`Running "main"`)
+but AsyncStorage never created `databases/RKStorage`, and the composer would not have been
+reachable by uiautomator either. Manual probe on the same unit: wake + `wm dismiss-keyguard`
++ `svc power stayon true`, relaunch → focus on MainActivity, `RKStorage` (20 KB) created,
+JS logs `model.fit fits`. The driver run was stopped before S4 produced data (S4 logcat has
+no KALSA line), the app uninstalled, the pushed model kept. Substitution: the driver wakes
+the device (WAKEUP, dismiss-keyguard, stayon, 30-min timeout, restored at exit) before the
+S3 first launch and before S4, and retries the first launch once if the DB is still absent.
+Steps, ledger, evidence and grid unchanged. Session accounting so far: job 798935 23 min
+(2 useful), job 798961 running since 07:30.
