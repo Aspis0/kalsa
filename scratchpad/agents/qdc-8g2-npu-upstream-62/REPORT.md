@@ -19,7 +19,9 @@ four arms ~30 s each), thermal gate PASS everywhere.
 
 Host side in all four: `ggml-hexagon.cpp:2734: ggml-hex: dspqueue_read failed: 0x0000002e`
 (the symptom, as in #59/#60). **Zero** `mmap failed` / `defragmentation` FARF lines in any
-logcat (raw/logcat_up_*): the upstream skel's mapping path never failed; the process died
+logcat (raw/logcat_up_*; the only `qurt_vtlb_mmap` lines are the two benign `unable to get ANON
+mapping, size b1000 / 100000` at PD start, present in every arm here and in #60's survivors):
+the upstream skel's mapping path never failed; the process died
 earlier, in compute. The PREREG's precedence rule applies: U1 (1.6 GiB of experts, the
 configuration that survived in #60 on our kit) dies → the kit is broken on this device for the
 question asked; U0/U2/U5 say nothing about the mapping fix (H1-H3 not claimable).
@@ -38,7 +40,10 @@ question asked; U0/U2/U5 say nothing about the mapping fix (H1-H3 not claimable)
   strided-view operand (`nb1 = 65536` vs 8192) of the first ADD is the natural suspect and is
   recorded as such, not as a proof.
 - **Same family as the S23's original Signature 1** (dossier: q50, `TLBMISS RW`, thread
-  `htp-main`, `op_binary+0x5B9C` on the 3f545bec skel). It reproduces on reference hardware
+  `htp-main`, `op_binary+0x5B9C` on the 3f545bec skel) — and the same failure MODE: all four
+  #62 crash blocks carry `Bad VA : 0x0` and `Error code : 0x7003`, exactly q50's values (a NULL
+  data pointer dereferenced by the vector load); only the code offset differs because the skel
+  differs, and the thread differs (`work-queue:N` / `htp-main` here vs `htp-main` on the S23). It reproduces on reference hardware
   with a build 3+ months newer than the S23's — and it does NOT reproduce on our kit
   (022458a28 + kalsa commits: #59/#60 ran the same layer-15 ADDs and died only in mapping, or
   survived at ngl 8/12). Which change separates the two is NOT established here; candidates
@@ -72,3 +77,13 @@ No bisect, no attempt to run upstream's skel with our host lib or vice versa.
 
 Submitted 08:38:33, Started 08:41:50, driver 08:42:08 → 08:47:25, End Session ref-click + Yes + reload → Completed, Ended On 08:49:43 (7.9 min billed, ~2 idle).
 8 Gen 2 pool: 934 → ~926 min. Driver log: raw/driver_sa803054.log.
+
+## Audit response (AUDIT-REPORT.md, before banking)
+
+- FIX-1 accepted: the benign `unable to get ANON mapping` lines are now acknowledged.
+- FIX-2 REFUTED by the raw and turned into a stronger statement: #62's crash blocks have
+  `Bad VA : 0x0` and `Error code : 0x7003` in all four arms (raw/logcat_up_*, `CDSP0:` lines),
+  identical to q50's Signature 1 — same NULL-dereference mode, not a different one; the
+  auditor compared the code address (Fault PC) with q50's data address (Bad VA).
+- NOTEs (thread-name mismatch, offset beyond the exported symbol's size, billing time from
+  the portal) are already stated in the text; the billing time is the portal's "Ended On".

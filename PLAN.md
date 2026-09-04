@@ -230,6 +230,12 @@
 > OLMoE Q4_0 → crash a ogni -ngl). Kit rebuild: cherry-pick impossibile
 > (23/7 file in conflitto); preset upstream android-34. REPORT in audit.
 
+> **4/09, 09:05 — #62 BANCATA (ALIVE riga 45).** Audit BANK-WITH-FIXES: FIX-1
+> applicato (righe ANON benigne), FIX-2 REFUTATO dai raw (`Bad VA 0x0` +
+> `Error code 0x7003` identici a q50 → stesso modo NULL-deref). Prossimi:
+> addendum dossier #8 con il repro upstream-master; bisect o kit ibrido per
+> la domanda del mapping. Budget QDC ≈ 912/926/913/981/623.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
