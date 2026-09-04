@@ -2076,6 +2076,10 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
                     (arch == LLM_ARCH_QWEN35 || arch == LLM_ARCH_QWEN35MOE);
 
                 if (llm_arch_is_recurrent(arch)) {
+                    if (params.mem_other) {
+                        throw std::runtime_error("ctx_other is not supported for this architecture yet");
+                    }
+
                     res = new llama_memory_recurrent(
                             *this,
                             LM_GGML_TYPE_F32,
@@ -2110,6 +2114,9 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
                     }
 
                     if (hparams.swa_type != LLAMA_SWA_TYPE_NONE) {
+                        if (params.mem_other) {
+                            throw std::runtime_error("ctx_other is not supported for hybrid-SWA memory yet");
+                        }
                         // Use hybrid-iswa for hybrid models with SWA
                         res = new llama_memory_hybrid_iswa(
                             /* model             */ *this,
@@ -2146,6 +2153,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
                             /* n_rs_seq          */ cparams.n_rs_seq,
                             /* offload           */ cparams.offload_kqv,
                             /* unified           */ cparams.kv_unified,
+                            /* mem_other         */ params.mem_other,
                             /* filter_attn       */ std::move(filter_attn),
                             /* filter_recr       */ std::move(filter_recr));
                     }
@@ -2240,7 +2248,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
                                     cparams.n_seq_max,
                                     cparams.n_ubatch,
                                     1,
-                                    nullptr,
+                                    params.mem_other,
                                     filter,
                                     reuse,
                                     share);
@@ -2261,7 +2269,7 @@ llama_memory_i * llama_model::create_memory(const llama_memory_params & params, 
                                 1,
                                 hparams.n_swa,
                                 hparams.swa_type,
-                                nullptr,
+                                params.mem_other,
                                 filter,
                                 nullptr,
                                 nullptr);

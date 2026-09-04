@@ -37,6 +37,7 @@ public:
                  uint32_t   n_rs_seq,
                      bool   offload,
                      bool   unified,
+           llama_memory_t   mem_other,
                             /* layer filters */
     const layer_filter_cb & filter_attn = nullptr,
     const layer_filter_cb & filter_recr = nullptr);
@@ -85,9 +86,14 @@ public:
 
 private:
     const llama_hparams & hparams;
+    // Only the attention child shares cells; recurrent shortconv state remains owner-only.
+    // Handoff copies it through the state-IO-mirrored path, avoiding a silent half-share.
+    const bool shared;
 
     const std::unique_ptr<llama_kv_cache> mem_attn;
     const std::unique_ptr<llama_memory_recurrent> mem_recr;
+
+    bool shared_fence(const char * operation) const;
 };
 
 class llama_memory_hybrid_context : public llama_memory_context_i {

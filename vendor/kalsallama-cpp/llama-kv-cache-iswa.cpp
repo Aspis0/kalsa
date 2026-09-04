@@ -82,15 +82,13 @@ llama_kv_cache_iswa::llama_kv_cache_iswa(
 
     LLAMA_LOG_INFO("%s: creating non-SWA KV cache, size = %u cells\n", __func__, size_base);
 
-    llama_memory_t mem_other_base = nullptr;
-    if (mem_other) {
-        mem_other_base = static_cast<llama_kv_cache_iswa *>(mem_other)->get_base();
+    auto * other = dynamic_cast<llama_kv_cache_iswa *>(mem_other);
+    if (mem_other && !other) {
+        throw std::runtime_error("cannot share iSWA cells with an incompatible memory type");
     }
 
-    llama_memory_t mem_other_swa = nullptr;
-    if (mem_other) {
-        mem_other_swa = static_cast<llama_kv_cache_iswa *>(mem_other)->get_swa();
-    }
+    llama_memory_t mem_other_base = other ? other->get_base() : nullptr;
+    llama_memory_t mem_other_swa  = other ? other->get_swa()  : nullptr;
 
     kv_base = std::make_unique<llama_kv_cache>(
             model, hparams, type_k, type_v,

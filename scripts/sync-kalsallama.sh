@@ -110,6 +110,8 @@ fetch_prune() {
 }
 
 resolve_git_dir() {
+  # KALSALLAMA_SRC is the reproducible local-source escape hatch for pins that
+  # are not pushed yet. CI omits it and resolves the immutable pin from repo.
   if [ -n "${KALSALLAMA_SRC:-}" ]; then
     [ -d "$KALSALLAMA_SRC/.git" ] || [ -f "$KALSALLAMA_SRC/.git" ] \
       || die "KALSALLAMA_SRC is not a git checkout: $KALSALLAMA_SRC"
@@ -360,6 +362,13 @@ copy_llama_api() {
     llama-hparams.h llama-hparams.cpp \
     llama-impl.h llama-impl.cpp \
     llama-ext.h \
+    llama-governor.h llama-governor.cpp \
+    llama-governor-runtime.cpp \
+    llama-governor-policy.h llama-governor-policy.cpp \
+    llama-governor-metrics.h llama-governor-metrics.cpp \
+    llama-kv-commit.h llama-kv-commit.cpp \
+    llama-kv-staged.h llama-kv-staged.cpp \
+    llama-hybrid-commit.h llama-hybrid-commit.cpp \
     llama-vocab.h llama-vocab.cpp \
     llama-grammar.h llama-grammar.cpp \
     llama-sampler.h llama-sampler.cpp \
