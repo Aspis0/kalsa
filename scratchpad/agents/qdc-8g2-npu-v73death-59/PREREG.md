@@ -116,3 +116,16 @@ and the arm is METHOD-VOID, not a survival).
 No v75/v79 arms, no PPL (the B′ `dspqueue_write 0x1` death needs the B′
 trunk model — separate cell), no perf claims (any t/s recorded is
 incidental), no upstream filing tonight (dossier update only).
+
+## Pre-data amendment 2 (declared during the session, before any arm produced data)
+
+First launch (job 798484, 22:43-22:44): A1 and A2 both exited 1 at argument
+parsing — `error: invalid parameter for argument: --load-mode` — the kit-v6
+llama-bench lineage (kalsallama) never had the BigMoE-era `--load-mode`
+flag; the S23 invocation template cannot be mirrored verbatim on this
+binary. Both arms are METHOD-VOID (raw/void-attempt1/: HTP0 v73 session DID
+open — skel loaded, op-queue allocated — but no graph ran; n_exps_htp0=0).
+Substitution: `--load-mode none` → `--mmap 0` (anon load, the closest
+equivalent to the S23 "all-anon load" path; `-mmp` is the only load knob in
+this llama-bench). Nothing else changed; grid unchanged. Confound added to
+the declared list: load path is "no-mmap" rather than the BigMoE loader.

@@ -1,0 +1,1 @@
+SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_hostbuf1_sa802553.err:/workspace/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1552: ggml-hex: dspqueue_read failed: 0x0000002e 

@@ -589,6 +589,23 @@
 > `dspqueue|fastrpc|qurt_exit|0x2e`). Nota device: l'HDK8550 monta Android
 > 16 (S23 era 14) — da dichiarare nel REPORT come confound residuo.
 
+> **3/09 notte, 22:50 — #59 ESEGUITA: LA MORTE v73 REPLICA SU HDK8550 (G1).**
+> Primo lancio VOID (`--load-mode` non esiste in questo lignaggio → `--mmap
+> 0`, emendamento pre-dato). Poi A1 (HOSTBUF unset) e A2 (HOSTBUF=1 +
+> --no-host 1) muoiono ENTRAMBI con `dspqueue_read failed: 0x0000002e` dopo
+> 48 dispatch esperti — proof 484/48/48 identica all'S23 q48, tombstone
+> presi. Build più nuovo, board di riferimento, Android 16, modello allenai:
+> la morte è dello stack HTP v73 sotto dispatch MoE, non dell'S23. F6
+> confermata su reference hw; dossier #8 ha un repro QDC. ~9 min. REPORT
+> scritto, audit in coda. **APK-B PRONTO**: retry run 33829826282 verde,
+> app-release.apk 135 593 407 B sha256
+> 1e2709e57561e97149664ea30588b7df9141c25a6813642cdda1c3ddf9d7f86d
+> (~/kalsa-qdc/apk/apk-B-09bdfe9/); verifica differenziale sulla lib
+> `librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so`: A 10 750 296 B sha
+> 35a15613 vs B 10 756 296 B sha 91e2a1b9, fingerprint dei pick (`q1u`=2,
+> `WG_SIZE > FA_SG`=2) presenti SOLO in B; q23k=4 e marker=1 in entrambi →
+> i 3 pick sono dentro APK-B e non in APK-A, come voluto.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

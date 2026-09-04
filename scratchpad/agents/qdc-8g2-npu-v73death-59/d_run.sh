@@ -184,7 +184,7 @@ run_arm(){ # $1=name $2=cap_seconds $3=device command $4=hostbuf|nohost
 #   export GGML_HEXAGON_NDEV=1
 #   export GGML_HEXAGON_VERBOSE=1
 # Keep that spelling; the audit confirmed it, while VERBOSE/GGML_HTP_* are wrong.
-TEMPLATE="./bin/llama-bench -m olmoe.gguf -p 16 -n 8 -r 1 --no-warmup -ngl 99 -dev HTP0 -v -o jsonl --load-mode none -fa on --ubatch-size 1024"
+TEMPLATE="./bin/llama-bench -m olmoe.gguf -p 16 -n 8 -r 1 --no-warmup -ngl 99 -dev HTP0 -v -o jsonl --mmap 0 -fa on --ubatch-size 1024"
 ABORT=0
 A1_OK=0 A2_OK=0 A3_OK=0 A4_OK=0 A5_OK=0
 
