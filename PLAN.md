@@ -579,6 +579,24 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (`kalsa.bench.sampling`) si fa su una Luna fresca appena bf40dcfe finisce i
 > fix S3+S4 (stesso LlamaService.ts, niente edit concorrenti).
 
+> **5/09 ~03:40 — Fix S3+S4 consegnati da Luna (bf40dcfe) e verificati su
+> disco.** Commit su `feat/governor-in-app`: `1c4b142` (probe SoC via
+> `Build.SOC_MODEL` + `readSoc()`, Unknown ⇒ NoFit, **kv LFM misurato dai log
+> #63: 104.00 MiB @ n_ctx 16384 = 6656 B/token** in `ModelRegistry.ts:311`,
+> `sensor_valid` passa dalla sorgente, EXTRA_PRESENT, fit a due contesti con
+> secondo compute+KV, test 12 GB Fit / 8 GB NoFit), `4df562d` (classificatore
+> fallback per epoca di load, tail svuotato al dispose, UNA riga
+> `KALSA_GOVERNOR` a fine completeChat, guard `engine === context` dopo
+> l'await, `KALSA_NATIVE_VARIANT` con ngl per contesto), `2646e77` (JSI enum
+> come nomi, `setGovernorThermo` ritorna false, FALLBACK stage params sul
+> rifiuto speculative/MTP, profile_valid reale). Verificato da me: righe
+> citate presenti, aritmetica kv corretta, patch 3491 righe solo glue. Jest
+> 10/10, tsc 0, npm ci 0, clang syntax 0 (dichiarati da Luna). CI APK
+> 33930036540 in volo. **Prerequisito S5 in corso** su Luna fresca (ee4741e9):
+> `kalsa.bench.sampling` + `KALSA_BENCH_TOKENS`, in `src/engine` +
+> eventuale estensione minima del patch per i token id. Poi UN delta audit
+> grok su fix + contratto, poi APK e lock PREREG.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
