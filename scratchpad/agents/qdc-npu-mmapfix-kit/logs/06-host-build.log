@@ -1,0 +1,710 @@
+=== START 06-host-build 2026-09-04T11:15:11Z ===
+[1/753] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[2/753] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[3/753] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[4/753] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[5/753] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[6/753] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[7/753] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[8/753] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[9/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[10/753] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[11/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[12/753] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[13/753] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[14/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[15/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[16/753] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[17/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[18/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[19/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[20/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[21/753] Building C object ggml/src/ggml-hexagon/CMakeFiles/htp_iface.dir/htp_iface_stub.c.o
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:384:70: warning: cast from 'const struct htp_iface_pmu_conf *' to 'unsigned int *' drops const qualifier [-Wcast-qual]
+  384 |    return _stub_method_4(_handle, _mid, (uint32_t*)&mode, (uint32_t*)pmu);
+      |                                                                      ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+31 warnings generated.
+[22/753] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[23/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[24/753] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/htp-drv.cpp.o
+[25/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[26/753] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[27/753] Linking CXX static library common/libllama-common-base.a
+[28/753] Performing build step for 'htp-v73'
+ninja: no work to do.
+[29/753] Performing build step for 'htp-v75'
+ninja: no work to do.
+[30/753] Performing build step for 'htp-v79'
+ninja: no work to do.
+[31/753] Performing build step for 'htp-v81'
+ninja: no work to do.
+[32/753] Performing install step for 'htp-v73'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v73.so
+[33/753] Performing install step for 'htp-v75'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v75.so
+[34/753] Performing install step for 'htp-v79'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v79.so
+[35/753] Performing install step for 'htp-v81'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v81.so
+[36/753] Building C object examples/gguf-hash/CMakeFiles/xxhash.dir/deps/xxhash/xxhash.c.o
+[37/753] Building C object examples/gguf-hash/CMakeFiles/sha1.dir/deps/sha1/sha1.c.o
+[38/753] Building llama-ui-embed (host)
+[39/753] Building C object examples/gguf-hash/CMakeFiles/sha256.dir/deps/sha256/sha256.c.o
+[40/753] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[41/753] Provisioning UI assets
+-- UI: npm not found, skipping npm build
+-- UI: downloading from b0: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b0/dist.tar.gz
+-- UI: download dist.tar.gz from b0 failed: "HTTP response code said error"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: archive verified and extracted
+-- UI: HF download succeeded, stamp updated (latest)
+-- UI: gzip compression applied (/workspace/build-snapdragon/tools/ui/dist/_gzip)
+embed: write output file /workspace/build-snapdragon/tools/ui/ui.h
+embed: write output file /workspace/build-snapdragon/tools/ui/ui.cpp
+[42/753] Building CXX object tools/mtmd/CMakeFiles/llama-llava-cli.dir/deprecation-warning.cpp.o
+[43/753] Building CXX object tools/mtmd/CMakeFiles/llama-gemma3-cli.dir/deprecation-warning.cpp.o
+[44/753] Building CXX object tools/mtmd/CMakeFiles/llama-minicpmv-cli.dir/deprecation-warning.cpp.o
+[45/753] Completed 'htp-v73'
+[46/753] Building CXX object tools/mtmd/CMakeFiles/llama-qwen2vl-cli.dir/deprecation-warning.cpp.o
+[47/753] Completed 'htp-v75'
+[48/753] Completed 'htp-v79'
+[49/753] Completed 'htp-v81'
+[50/753] Linking CXX executable bin/llama-llava-cli
+[51/753] Linking CXX executable bin/llama-gemma3-cli
+[52/753] Linking CXX executable bin/llama-minicpmv-cli
+[53/753] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/ggml-hexagon.cpp.o
+[54/753] Linking CXX executable bin/llama-qwen2vl-cli
+[55/753] Linking CXX shared library bin/libggml-base.so
+[56/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/argsort.cl.h
+[57/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/add.cl.h
+[58/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/add_id.cl.h
+[59/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/tri.cl.h
+[60/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/fill.cl.h
+[61/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/cpy.cl.h
+[62/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/clamp.cl.h
+[63/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/cvt.cl.h
+[64/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/diag_mask_inf.cl.h
+[65/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/diag.cl.h
+[66/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/div.cl.h
+[67/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/get_rows.cl.h
+[68/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gelu.cl.h
+[69/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/glu.cl.h
+[70/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/im2col_f32.cl.h
+[71/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/group_norm.cl.h
+[72/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/solve_tri.cl.h
+[73/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/im2col_f16.cl.h
+[74/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mean.cl.h
+[75/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f16.cl.h
+[76/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_1row.cl.h
+[77/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_l4.cl.h
+[78/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32.cl.h
+[79/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f32_f32.cl.h
+[80/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32.cl.h
+[81/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_v.cl.h
+[82/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32_flat.cl.h
+[83/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_8x_flat.cl.h
+[84/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32.cl.h
+[85/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_8x_flat.cl.h
+[86/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_16x_flat.cl.h
+[87/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32_flat.cl.h
+[88/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32.cl.h
+[89/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32.cl.h
+[90/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32_flat.cl.h
+[91/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32.cl.h
+[92/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32_flat.cl.h
+[93/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32.cl.h
+[94/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32_flat.cl.h
+[95/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32.cl.h
+[96/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32.cl.h
+[97/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32_flat.cl.h
+[98/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32_flat.cl.h
+[99/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32_flat.cl.h
+[100/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32.cl.h
+[101/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32.cl.h
+[102/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32.cl.h
+[103/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32_flat.cl.h
+[104/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32_flat.cl.h
+[105/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q4_0_f32_8x_flat.cl.h
+[106/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32.cl.h
+[107/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32.cl.h
+[108/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32_flat.cl.h
+[109/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32_flat.cl.h
+[110/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/oracle_consumer_q4_0_gemv.cl.h
+[111/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_0_f32_ns.cl.h
+[112/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_0_f32_ns.cl.h
+[113/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/oracle_consumer_q4_0_gemm.cl.h
+[114/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_1_f32_ns.cl.h
+[115/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_1_f32_ns.cl.h
+[116/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_0_f32_ns.cl.h
+[117/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_0_f32_ns.cl.h
+[118/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_1_f32_ns.cl.h
+[119/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_1_f32_ns.cl.h
+[120/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_k_f32_ns.cl.h
+[121/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_k_f32_ns.cl.h
+[122/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_k_f32_ns.cl.h
+[123/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_k_f32_ns.cl.h
+[124/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q6_k_f32_ns.cl.h
+[125/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q6_k_f32_ns.cl.h
+[126/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q2_k_f32_ns.cl.h
+[127/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q2_k_f32_ns.cl.h
+[128/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q3_k_f32_ns.cl.h
+[129/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q3_k_f32_ns.cl.h
+[130/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32.cl.h
+[131/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32_ns.cl.h
+[132/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32_ns.cl.h
+[133/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32.cl.h
+[134/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_reorder_b.cl.h
+[135/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_sort_by_expert.cl.h
+[136/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_f32_f32_l4_lm.cl.h
+[137/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_l4_lm.cl.h
+[138/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q1_0_f32_l4_lm.cl.h
+[139/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h
+[140/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_1_f32_l4_lm.cl.h
+[141/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_0_f32_l4_lm.cl.h
+[142/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q8_0_f32_l4_lm.cl.h
+[143/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_1_f32_l4_lm.cl.h
+[144/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_k_f32_l4_lm.cl.h
+[145/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_iq4_nl_f32_l4_lm.cl.h
+[146/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_k_f32_l4_lm.cl.h
+[147/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q6_k_f32_l4_lm.cl.h
+[148/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q1_0_f32.cl.h
+[149/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q1_0_f32.cl.h
+[150/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_0_f32_spec.cl.h
+[151/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_0_f32.cl.h
+[152/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_1_f32.cl.h
+[153/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_0_f32.cl.h
+[154/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_1_f32.cl.h
+[155/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_0_f32.cl.h
+[156/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_0_f32.cl.h
+[157/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_1_f32.cl.h
+[158/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_1_f32.cl.h
+[159/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_iq4_nl_f32.cl.h
+[160/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_iq4_nl_f32.cl.h
+[161/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q8_0_f32.cl.h
+[162/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q6_k_f32.cl.h
+[163/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q8_0_f32.cl.h
+[164/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_k_f32.cl.h
+[165/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q4_k_f32.cl.h
+[166/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_noshuffle_q5_k_f32.cl.h
+[167/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q6_k_f32.cl.h
+[168/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_k_f32.cl.h
+[169/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul.cl.h
+[170/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/neg.cl.h
+[171/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/l2_norm.cl.h
+[172/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/norm.cl.h
+[173/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/relu.cl.h
+[174/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/rms_norm.cl.h
+[175/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/scale.cl.h
+[176/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/set_rows.cl.h
+[177/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/rope.cl.h
+[178/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/sigmoid.cl.h
+[179/753] Building CXX object tools/ui/CMakeFiles/llama-ui.dir/ui.cpp.o
+[180/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/softmax_4_f32.cl.h
+[181/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/softmax_4_f16.cl.h
+[182/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/silu.cl.h
+[183/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/softmax_f32.cl.h
+[184/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/sqr.cl.h
+[185/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/softmax_f16.cl.h
+[186/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/sqrt.cl.h
+[187/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/ssm_conv.cl.h
+[188/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gated_delta_net.cl.h
+[189/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/sub.cl.h
+[190/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/cumsum.cl.h
+[191/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/sum_rows.cl.h
+[192/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/transpose.cl.h
+[193/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/tsembd.cl.h
+[194/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/upscale.cl.h
+[195/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/concat.cl.h
+[196/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/tanh.cl.h
+[197/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/expm1.cl.h
+[198/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/exp.cl.h
+[199/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/pad.cl.h
+[200/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/softplus.cl.h
+[201/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/repeat.cl.h
+[202/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_kq_kqv.cl.h
+[203/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/conv2d.cl.h
+[204/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mat_f16_f32.cl.h
+[205/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/conv2d_f16_f32.cl.h
+[206/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_f16.cl.h
+[207/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_q8_0.cl.h
+[208/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/flash_attn_pre_f16.cl.h
+[209/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/flash_attn_f32_q4_0.cl.h
+[210/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/flash_attn_f16.cl.h
+[211/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/flash_attn_f32.cl.h
+[212/753] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_xmem_f16_f32_os8.cl.h
+[213/753] Linking CXX static library tools/ui/libllama-ui.a
+[214/753] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-dl.cpp.o
+[215/753] Building CXX object ggml/src/CMakeFiles/ggml.dir/ggml-backend-reg.cpp.o
+[216/753] Linking CXX shared library bin/libggml-hexagon.so
+[217/753] Building CXX object src/CMakeFiles/llama.dir/llama.cpp.o
+[218/753] Building CXX object src/CMakeFiles/llama.dir/llama-arch.cpp.o
+[219/753] Building CXX object src/CMakeFiles/llama.dir/llama-adapter.cpp.o
+[220/753] Building CXX object vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+[221/753] Building CXX object src/CMakeFiles/llama.dir/llama-cparams.cpp.o
+[222/753] Building CXX object src/CMakeFiles/llama.dir/llama-batch.cpp.o
+[223/753] Building CXX object src/CMakeFiles/llama.dir/llama-chat.cpp.o
+[224/753] Building CXX object src/CMakeFiles/llama.dir/llama-hparams.cpp.o
+[225/753] Building CXX object src/CMakeFiles/llama.dir/llama-context.cpp.o
+[226/753] Building CXX object src/CMakeFiles/llama.dir/llama-impl.cpp.o
+[227/753] Building CXX object src/CMakeFiles/llama.dir/llama-graph.cpp.o
+[228/753] Building CXX object src/CMakeFiles/llama.dir/llama-io.cpp.o
+[229/753] Building CXX object ggml/src/ggml-opencl/CMakeFiles/ggml-opencl.dir/ggml-opencl.cpp.o
+/workspace/ggml/src/ggml-opencl/ggml-opencl.cpp:1553:66: warning: unused parameter 'backend_ctx' [-Wunused-parameter]
+ 1553 | static bool use_adreno_bin_kernels(ggml_backend_opencl_context * backend_ctx) {
+      |                                                                  ^
+/workspace/ggml/src/ggml-opencl/ggml-opencl.cpp:7514:9: warning: TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661) [-W#pragma-messages]
+ 7514 | #pragma message("TODO: implement BF16, Q4_0, Q4_1, Q5_0, Q5_1, Q8_0, IQ4_NL support (https://github.com/ggml-org/llama.cpp/pull/14661)")
+      |         ^
+2 warnings generated.
+[230/753] Building CXX object src/CMakeFiles/llama.dir/llama-grammar.cpp.o
+[231/753] Building CXX object src/CMakeFiles/llama.dir/llama-kv-staged.cpp.o
+[232/753] Building CXX object src/CMakeFiles/llama.dir/llama-kv-commit.cpp.o
+[233/753] Building CXX object src/CMakeFiles/llama.dir/llama-hybrid-commit.cpp.o
+[234/753] Linking CXX shared library bin/libggml-cpu.so
+[235/753] Building CXX object src/CMakeFiles/llama.dir/llama-governor.cpp.o
+[236/753] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-iswa.cpp.o
+[237/753] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsa.cpp.o
+[238/753] Building CXX object src/CMakeFiles/llama.dir/llama-memory.cpp.o
+[239/753] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache.cpp.o
+[240/753] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid.cpp.o
+[241/753] Building CXX object src/CMakeFiles/llama.dir/llama-memory-hybrid-iswa.cpp.o
+[242/753] Building CXX object src/CMakeFiles/llama.dir/llama-mmap.cpp.o
+[243/753] Building CXX object src/CMakeFiles/llama.dir/llama-kv-cache-dsv4.cpp.o
+[244/753] Building CXX object src/CMakeFiles/llama.dir/llama-memory-recurrent.cpp.o
+[245/753] Building CXX object src/CMakeFiles/llama.dir/llama-model-saver.cpp.o
+[246/753] Linking CXX shared library bin/libggml-opencl.so
+[247/753] Linking CXX shared library bin/libggml.so
+[248/753] Building CXX object src/CMakeFiles/llama.dir/llama-model-loader.cpp.o
+[249/753] Building CXX object src/CMakeFiles/llama.dir/unicode-data.cpp.o
+[250/753] Building CXX object src/CMakeFiles/llama.dir/llama-quant.cpp.o
+[251/753] Building CXX object src/CMakeFiles/llama.dir/llama-model.cpp.o
+[252/753] Building CXX object src/CMakeFiles/llama.dir/models/afmoe.cpp.o
+[253/753] Building CXX object src/CMakeFiles/llama.dir/llama-sampler.cpp.o
+[254/753] Building CXX object src/CMakeFiles/llama.dir/llama-vocab.cpp.o
+[255/753] Building CXX object src/CMakeFiles/llama.dir/models/arcee.cpp.o
+[256/753] Building CXX object src/CMakeFiles/llama.dir/models/apertus.cpp.o
+[257/753] Building CXX object src/CMakeFiles/llama.dir/models/arwkv7.cpp.o
+[258/753] Building CXX object src/CMakeFiles/llama.dir/models/arctic.cpp.o
+[259/753] Building CXX object src/CMakeFiles/llama.dir/models/baichuan.cpp.o
+[260/753] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe.cpp.o
+[261/753] Building CXX object src/CMakeFiles/llama.dir/models/bailingmoe2.cpp.o
+[262/753] Building CXX object src/CMakeFiles/llama.dir/unicode.cpp.o
+[263/753] Building CXX object src/CMakeFiles/llama.dir/models/bert.cpp.o
+[264/753] Building CXX object src/CMakeFiles/llama.dir/models/bitnet.cpp.o
+[265/753] Building CXX object src/CMakeFiles/llama.dir/models/bloom.cpp.o
+[266/753] Building CXX object src/CMakeFiles/llama.dir/models/chameleon.cpp.o
+[267/753] Building CXX object src/CMakeFiles/llama.dir/models/chatglm.cpp.o
+[268/753] Building CXX object src/CMakeFiles/llama.dir/models/codeshell.cpp.o
+[269/753] Building CXX object src/CMakeFiles/llama.dir/models/cogvlm.cpp.o
+[270/753] Building CXX object src/CMakeFiles/llama.dir/models/cohere2moe.cpp.o
+[271/753] Building CXX object src/CMakeFiles/llama.dir/models/cohere2.cpp.o
+[272/753] Building CXX object src/CMakeFiles/llama.dir/models/command-r.cpp.o
+[273/753] Building CXX object src/CMakeFiles/llama.dir/models/dbrx.cpp.o
+[274/753] Building CXX object src/CMakeFiles/llama.dir/models/deci.cpp.o
+[275/753] Building CXX object src/CMakeFiles/llama.dir/models/deepseek.cpp.o
+[276/753] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2ocr.cpp.o
+[277/753] Building CXX object src/CMakeFiles/llama.dir/models/deepseek2.cpp.o
+[278/753] Building CXX object src/CMakeFiles/llama.dir/models/deepseek32.cpp.o
+[279/753] Building CXX object src/CMakeFiles/llama.dir/models/deepseek4.cpp.o
+[280/753] Building CXX object src/CMakeFiles/llama.dir/models/delta-net-base.cpp.o
+[281/753] Building CXX object src/CMakeFiles/llama.dir/models/dflash.cpp.o
+[282/753] Building CXX object src/CMakeFiles/llama.dir/models/dots1.cpp.o
+[283/753] Building CXX object src/CMakeFiles/llama.dir/models/dream.cpp.o
+[284/753] Building CXX object src/CMakeFiles/llama.dir/models/eagle3.cpp.o
+[285/753] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5.cpp.o
+[286/753] Building CXX object src/CMakeFiles/llama.dir/models/ernie4-5-moe.cpp.o
+[287/753] Building CXX object src/CMakeFiles/llama.dir/models/eurobert.cpp.o
+[288/753] Building CXX object src/CMakeFiles/llama.dir/models/exaone-moe.cpp.o
+[289/753] Building CXX object src/CMakeFiles/llama.dir/models/exaone.cpp.o
+[290/753] Building CXX object src/CMakeFiles/llama.dir/models/exaone4.cpp.o
+[291/753] Building CXX object src/CMakeFiles/llama.dir/models/falcon-h1.cpp.o
+[292/753] Building CXX object src/CMakeFiles/llama.dir/models/falcon.cpp.o
+[293/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma-embedding.cpp.o
+[294/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma.cpp.o
+[295/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma2.cpp.o
+[296/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma3.cpp.o
+[297/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma3n.cpp.o
+[298/753] Building CXX object src/CMakeFiles/llama.dir/models/glm-dsa.cpp.o
+[299/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma4.cpp.o
+[300/753] Building CXX object src/CMakeFiles/llama.dir/models/gemma4-assistant.cpp.o
+[301/753] Building CXX object src/CMakeFiles/llama.dir/models/glm4-moe.cpp.o
+[302/753] Building CXX object src/CMakeFiles/llama.dir/models/glm4.cpp.o
+[303/753] Building CXX object src/CMakeFiles/llama.dir/models/gpt2.cpp.o
+[304/753] Building CXX object src/CMakeFiles/llama.dir/models/gptneox.cpp.o
+[305/753] Building CXX object src/CMakeFiles/llama.dir/models/granite-moe.cpp.o
+[306/753] Building CXX object src/CMakeFiles/llama.dir/models/granite-hybrid.cpp.o
+[307/753] Building CXX object src/CMakeFiles/llama.dir/models/granite.cpp.o
+[308/753] Building CXX object src/CMakeFiles/llama.dir/models/grok.cpp.o
+[309/753] Building CXX object src/CMakeFiles/llama.dir/models/grovemoe.cpp.o
+[310/753] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-dense.cpp.o
+[311/753] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-moe.cpp.o
+[312/753] Building CXX object src/CMakeFiles/llama.dir/models/hunyuan-vl.cpp.o
+[313/753] Building CXX object src/CMakeFiles/llama.dir/models/internlm2.cpp.o
+[314/753] Building CXX object src/CMakeFiles/llama.dir/models/jais.cpp.o
+[315/753] Building CXX object src/CMakeFiles/llama.dir/models/jais2.cpp.o
+[316/753] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v2.cpp.o
+[317/753] Building CXX object src/CMakeFiles/llama.dir/models/jamba.cpp.o
+[318/753] Building CXX object src/CMakeFiles/llama.dir/models/jina-bert-v3.cpp.o
+[319/753] Building CXX object src/CMakeFiles/llama.dir/models/kimi-linear.cpp.o
+[320/753] Building CXX object src/CMakeFiles/llama.dir/models/lfm2.cpp.o
+[321/753] Building CXX object src/CMakeFiles/llama.dir/models/llada-moe.cpp.o
+[322/753] Building CXX object src/CMakeFiles/llama.dir/models/lfm2moe.cpp.o
+[323/753] Building CXX object src/CMakeFiles/llama.dir/models/llama-embed.cpp.o
+[324/753] Building CXX object src/CMakeFiles/llama.dir/models/llada.cpp.o
+[325/753] Building CXX object src/CMakeFiles/llama.dir/models/llama.cpp.o
+[326/753] Building CXX object src/CMakeFiles/llama.dir/models/llama4.cpp.o
+[327/753] Building CXX object src/CMakeFiles/llama.dir/models/maincoder.cpp.o
+[328/753] Building CXX object src/CMakeFiles/llama.dir/models/mamba.cpp.o
+[329/753] Building CXX object src/CMakeFiles/llama.dir/models/mamba-base.cpp.o
+[330/753] Building CXX object src/CMakeFiles/llama.dir/models/mamba2.cpp.o
+[331/753] Building CXX object src/CMakeFiles/llama.dir/models/mellum.cpp.o
+[332/753] Building CXX object src/CMakeFiles/llama.dir/models/mimo2.cpp.o
+[333/753] Building CXX object src/CMakeFiles/llama.dir/models/minimax-m2.cpp.o
+[334/753] Building CXX object src/CMakeFiles/llama.dir/models/minicpm.cpp.o
+[335/753] Building CXX object src/CMakeFiles/llama.dir/models/minicpm3.cpp.o
+[336/753] Building CXX object src/CMakeFiles/llama.dir/models/mistral3.cpp.o
+[337/753] Building CXX object src/CMakeFiles/llama.dir/models/mistral4.cpp.o
+[338/753] Building CXX object src/CMakeFiles/llama.dir/models/modern-bert.cpp.o
+[339/753] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h-moe.cpp.o
+[340/753] Building CXX object src/CMakeFiles/llama.dir/models/mpt.cpp.o
+[341/753] Building CXX object src/CMakeFiles/llama.dir/models/nemotron-h.cpp.o
+[342/753] Building CXX object src/CMakeFiles/llama.dir/models/nemotron.cpp.o
+[343/753] Building CXX object src/CMakeFiles/llama.dir/models/neo-bert.cpp.o
+[344/753] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert-moe.cpp.o
+[345/753] Building CXX object src/CMakeFiles/llama.dir/models/olmo.cpp.o
+[346/753] Building CXX object src/CMakeFiles/llama.dir/models/nomic-bert.cpp.o
+[347/753] Building CXX object src/CMakeFiles/llama.dir/models/olmo2.cpp.o
+[348/753] Building CXX object src/CMakeFiles/llama.dir/models/olmoe.cpp.o
+[349/753] Building CXX object src/CMakeFiles/llama.dir/models/openai-moe.cpp.o
+[350/753] Building CXX object src/CMakeFiles/llama.dir/models/openelm.cpp.o
+[351/753] Building CXX object src/CMakeFiles/llama.dir/models/paddleocr.cpp.o
+[352/753] Building CXX object src/CMakeFiles/llama.dir/models/orion.cpp.o
+[353/753] Building CXX object src/CMakeFiles/llama.dir/models/pangu-embed.cpp.o
+[354/753] Building CXX object src/CMakeFiles/llama.dir/models/phi2.cpp.o
+[355/753] Building CXX object src/CMakeFiles/llama.dir/models/phi3.cpp.o
+[356/753] Building CXX object src/CMakeFiles/llama.dir/models/phimoe.cpp.o
+[357/753] Building CXX object src/CMakeFiles/llama.dir/models/plamo.cpp.o
+[358/753] Building CXX object src/CMakeFiles/llama.dir/models/plamo2.cpp.o
+[359/753] Building CXX object src/CMakeFiles/llama.dir/models/plamo3.cpp.o
+[360/753] Building CXX object src/CMakeFiles/llama.dir/models/plm.cpp.o
+[361/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen.cpp.o
+[362/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen2.cpp.o
+[363/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen2moe.cpp.o
+[364/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen2vl.cpp.o
+[365/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen3.cpp.o
+[366/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen35.cpp.o
+[367/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen35moe.cpp.o
+[368/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen3moe.cpp.o
+[369/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen3next.cpp.o
+[370/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vl.cpp.o
+[371/753] Building CXX object src/CMakeFiles/llama.dir/models/qwen3vlmoe.cpp.o
+[372/753] Building CXX object src/CMakeFiles/llama.dir/models/refact.cpp.o
+[373/753] Building CXX object src/CMakeFiles/llama.dir/models/rnd1.cpp.o
+[374/753] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6-base.cpp.o
+[375/753] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6.cpp.o
+[376/753] Building CXX object src/CMakeFiles/llama.dir/models/rwkv6qwen2.cpp.o
+[377/753] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7-base.cpp.o
+[378/753] Building CXX object src/CMakeFiles/llama.dir/models/rwkv7.cpp.o
+[379/753] Building CXX object src/CMakeFiles/llama.dir/models/seed-oss.cpp.o
+[380/753] Building CXX object src/CMakeFiles/llama.dir/models/smallthinker.cpp.o
+[381/753] Building CXX object src/CMakeFiles/llama.dir/models/smollm3.cpp.o
+[382/753] Building CXX object src/CMakeFiles/llama.dir/models/stablelm.cpp.o
+[383/753] Building CXX object src/CMakeFiles/llama.dir/models/starcoder.cpp.o
+[384/753] Building CXX object src/CMakeFiles/llama.dir/models/starcoder2.cpp.o
+[385/753] Building CXX object src/CMakeFiles/llama.dir/models/step35.cpp.o
+[386/753] Building CXX object src/CMakeFiles/llama.dir/models/t5encoder.cpp.o
+[387/753] Building CXX object src/CMakeFiles/llama.dir/models/t5.cpp.o
+[388/753] Building CXX object src/CMakeFiles/llama.dir/models/talkie.cpp.o
+[389/753] Building CXX object src/CMakeFiles/llama.dir/models/wavtokenizer-dec.cpp.o
+[390/753] Building CXX object src/CMakeFiles/llama.dir/models/xverse.cpp.o
+[391/753] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-helpers.cpp.o
+[392/753] Building CXX object common/CMakeFiles/llama-common.dir/chat-auto-parser-generator.cpp.o
+[393/753] Building CXX object common/CMakeFiles/llama-common.dir/chat-peg-parser.cpp.o
+[394/753] Building CXX object common/CMakeFiles/llama-common.dir/console.cpp.o
+[395/753] Building CXX object common/CMakeFiles/llama-common.dir/common.cpp.o
+[396/753] Building CXX object common/CMakeFiles/llama-common.dir/chat-diff-analyzer.cpp.o
+[397/753] Building CXX object common/CMakeFiles/llama-common.dir/arg.cpp.o
+[398/753] Building CXX object common/CMakeFiles/llama-common.dir/debug.cpp.o
+[399/753] Building CXX object common/CMakeFiles/llama-common.dir/fit.cpp.o
+[400/753] Building CXX object common/CMakeFiles/llama-common.dir/imatrix-loader.cpp.o
+[401/753] Building CXX object common/CMakeFiles/llama-common.dir/llguidance.cpp.o
+[402/753] Building CXX object common/CMakeFiles/llama-common.dir/download.cpp.o
+[403/753] Building CXX object common/CMakeFiles/llama-common.dir/hf-cache.cpp.o
+[404/753] Building CXX object common/CMakeFiles/llama-common.dir/chat.cpp.o
+[405/753] Building CXX object common/CMakeFiles/llama-common.dir/log.cpp.o
+[406/753] Building CXX object common/CMakeFiles/llama-common.dir/ngram-cache.cpp.o
+[407/753] Building CXX object common/CMakeFiles/llama-common.dir/ngram-mod.cpp.o
+[408/753] Building CXX object common/CMakeFiles/llama-common.dir/ngram-map.cpp.o
+[409/753] Building CXX object common/CMakeFiles/llama-common.dir/reasoning-budget.cpp.o
+[410/753] Building CXX object common/CMakeFiles/llama-common.dir/json-schema-to-grammar.cpp.o
+[411/753] Building CXX object common/CMakeFiles/llama-common.dir/sampling.cpp.o
+[412/753] Building CXX object common/CMakeFiles/llama-common.dir/unicode.cpp.o
+[413/753] Building CXX object common/CMakeFiles/llama-common.dir/preset.cpp.o
+[414/753] Building CXX object common/CMakeFiles/llama-common.dir/jinja/lexer.cpp.o
+[415/753] Building CXX object common/CMakeFiles/llama-common.dir/jinja/parser.cpp.o
+[416/753] Building CXX object common/CMakeFiles/llama-common.dir/speculative.cpp.o
+[417/753] Building CXX object common/CMakeFiles/llama-common.dir/jinja/runtime.cpp.o
+[418/753] Linking CXX static library vendor/cpp-httplib/libcpp-httplib.a
+[419/753] Building CXX object common/CMakeFiles/llama-common.dir/jinja/string.cpp.o
+[420/753] Building CXX object common/CMakeFiles/llama-common.dir/peg-parser.cpp.o
+[421/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-audio.cpp.o
+[422/753] Building CXX object common/CMakeFiles/llama-common.dir/jinja/caps.cpp.o
+[423/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd.cpp.o
+[424/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-image.cpp.o
+[425/753] Building CXX object common/CMakeFiles/llama-common.dir/jinja/value.cpp.o
+[426/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/cogvlm.cpp.o
+[427/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/conformer.cpp.o
+[428/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/dotsocr.cpp.o
+[429/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/clip.cpp.o
+[430/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/exaone4_5.cpp.o
+[431/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4a.cpp.o
+[432/753] Linking CXX shared library bin/libllama.so
+[433/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4v.cpp.o
+[434/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4ua.cpp.o
+[435/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/gemma4uv.cpp.o
+[436/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/glm4v.cpp.o
+[437/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/mtmd-helper.cpp.o
+[438/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite-speech.cpp.o
+[439/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/granite4-vision.cpp.o
+[440/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/hunyuanvl.cpp.o
+[441/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/internvl.cpp.o
+[442/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimivl.cpp.o
+[443/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/kimik25.cpp.o
+[444/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/nemotron-v2-vl.cpp.o
+[445/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llama4.cpp.o
+[446/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/llava.cpp.o
+[447/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/minicpmv.cpp.o
+[448/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/paddleocr.cpp.o
+[449/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/pixtral.cpp.o
+[450/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3vl.cpp.o
+[451/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen2vl.cpp.o
+[452/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mimovl.cpp.o
+[453/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/qwen3a.cpp.o
+[454/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/step3vl.cpp.o
+[455/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/siglip.cpp.o
+[456/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr.cpp.o
+[457/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/whisper-enc.cpp.o
+[458/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/deepseekocr2.cpp.o
+[459/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/mobilenetv5.cpp.o
+[460/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/youtuvl.cpp.o
+[461/753] Building CXX object tools/mtmd/CMakeFiles/mtmd.dir/models/yasa2.cpp.o
+[462/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-chat.cpp.o
+[463/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-queue.cpp.o
+[464/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-common.cpp.o
+[465/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-task.cpp.o
+[466/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-stream.cpp.o
+[467/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-schema.cpp.o
+[468/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-tools.cpp.o
+[469/753] Building CXX object tools/server/CMakeFiles/server-context.dir/server-context.cpp.o
+[470/753] Building CXX object examples/diffusion/CMakeFiles/llama-diffusion.dir/diffusion.cpp.o
+[471/753] Building CXX object tools/batched-bench/CMakeFiles/llama-batched-bench-impl.dir/batched-bench.cpp.o
+[472/753] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server.cpp.o
+[473/753] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-http.cpp.o
+[474/753] Building CXX object tools/completion/CMakeFiles/llama-completion-impl.dir/completion.cpp.o
+[475/753] Linking CXX shared library bin/libmtmd.so
+[476/753] Building CXX object tools/quantize/CMakeFiles/llama-quantize-impl.dir/quantize.cpp.o
+[477/753] Building CXX object tools/perplexity/CMakeFiles/llama-perplexity-impl.dir/perplexity.cpp.o
+[478/753] Building CXX object tools/server/CMakeFiles/llama-server-impl.dir/server-models.cpp.o
+[479/753] Building CXX object tools/llama-bench/CMakeFiles/llama-bench-impl.dir/llama-bench.cpp.o
+[480/753] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli.cpp.o
+[481/753] Building CXX object tests/CMakeFiles/test-sampling.dir/test-sampling.cpp.o
+[482/753] Building CXX object tests/CMakeFiles/test-sampling.dir/get-model.cpp.o
+[483/753] Building CXX object tests/CMakeFiles/test-tokenizer-0.dir/test-tokenizer-0.cpp.o
+[484/753] Building CXX object tests/CMakeFiles/test-reasoning-budget.dir/get-model.cpp.o
+[485/753] Building CXX object tools/fit-params/CMakeFiles/llama-fit-params-impl.dir/fit-params.cpp.o
+[486/753] Building CXX object tests/CMakeFiles/test-grammar-parser.dir/get-model.cpp.o
+[487/753] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli-client.cpp.o
+[488/753] Building CXX object tests/CMakeFiles/test-grammar-integration.dir/get-model.cpp.o
+[489/753] Building CXX object tests/CMakeFiles/test-reasoning-budget.dir/test-reasoning-budget.cpp.o
+[490/753] Building CXX object tests/CMakeFiles/test-llama-grammar.dir/get-model.cpp.o
+[491/753] Building CXX object tests/CMakeFiles/test-grammar-parser.dir/test-grammar-parser.cpp.o
+[492/753] Building CXX object tests/CMakeFiles/test-batch-alloc.dir/get-model.cpp.o
+[493/753] Building CXX object tests/CMakeFiles/test-llama-grammar.dir/test-llama-grammar.cpp.o
+[494/753] Building CXX object tests/CMakeFiles/test-chat.dir/get-model.cpp.o
+[495/753] Building CXX object tests/CMakeFiles/test-grammar-integration.dir/test-grammar-integration.cpp.o
+[496/753] Building CXX object tests/CMakeFiles/test-json-schema-to-grammar.dir/get-model.cpp.o
+[497/753] Building CXX object tools/cli/CMakeFiles/llama-cli-impl.dir/cli-context.cpp.o
+[498/753] Building CXX object tests/CMakeFiles/test-batch-alloc.dir/test-batch-alloc.cpp.o
+[499/753] Building CXX object tests/CMakeFiles/test-gbnf-validator.dir/test-gbnf-validator.cpp.o
+[500/753] Building CXX object tests/CMakeFiles/test-json-schema-to-grammar.dir/test-json-schema-to-grammar.cpp.o
+[501/753] Building CXX object tests/CMakeFiles/test-tokenizer-1-bpe.dir/test-tokenizer-1-bpe.cpp.o
+[502/753] Building CXX object tests/CMakeFiles/test-llama-archs.dir/get-model.cpp.o
+[503/753] Building CXX object tests/CMakeFiles/test-quantize-stats.dir/test-quantize-stats.cpp.o
+[504/753] Building CXX object tests/CMakeFiles/test-tokenizer-1-spm.dir/test-tokenizer-1-spm.cpp.o
+[505/753] Building CXX object tests/CMakeFiles/test-chat-peg-parser.dir/get-model.cpp.o
+[506/753] Building CXX object tests/CMakeFiles/test-chat-peg-parser.dir/peg-parser/simple-tokenize.cpp.o
+[507/753] Building CXX object tests/CMakeFiles/test-jinja.dir/get-model.cpp.o
+[508/753] Building CXX object tests/CMakeFiles/test-llama-archs.dir/test-llama-archs.cpp.o
+[509/753] Building CXX object tests/CMakeFiles/test-chat-auto-parser.dir/get-model.cpp.o
+[510/753] Building CXX object tests/CMakeFiles/test-chat.dir/test-chat.cpp.o
+[511/753] Building CXX object tests/CMakeFiles/test-chat-template.dir/get-model.cpp.o
+[512/753] Building CXX object tests/CMakeFiles/test-log.dir/test-log.cpp.o
+[513/753] Building CXX object tests/CMakeFiles/test-log.dir/get-model.cpp.o
+[514/753] Linking CXX shared library bin/libllama-common.so
+[515/753] Linking CXX static library tools/server/libserver-context.a
+[516/753] Building CXX object tests/CMakeFiles/test-chat-peg-parser.dir/test-chat-peg-parser.cpp.o
+[517/753] Building CXX object tests/CMakeFiles/test-jinja.dir/test-jinja.cpp.o
+[518/753] Building CXX object tests/CMakeFiles/test-chat-template.dir/test-chat-template.cpp.o
+[519/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/simple-tokenize.cpp.o
+[520/753] Building CXX object tests/CMakeFiles/test-chat-auto-parser.dir/test-chat-auto-parser.cpp.o
+[521/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/test-peg-parser.cpp.o
+[522/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-json-parser.cpp.o
+[523/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-basic.cpp.o
+[524/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/get-model.cpp.o
+[525/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-json-serialization.cpp.o
+[526/753] Building CXX object tests/CMakeFiles/test-thread-safety.dir/get-model.cpp.o
+[527/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-gbnf-generation.cpp.o
+[528/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-python-dict-parser.cpp.o
+[529/753] Building CXX object tests/CMakeFiles/test-arg-parser.dir/get-model.cpp.o
+[530/753] Building CXX object tests/CMakeFiles/test-opt.dir/get-model.cpp.o
+[531/753] Building CXX object tests/CMakeFiles/test-thread-safety.dir/test-thread-safety.cpp.o
+[532/753] Building CXX object tests/CMakeFiles/test-gguf.dir/get-model.cpp.o
+[533/753] Building CXX object tests/CMakeFiles/test-arg-parser.dir/test-arg-parser.cpp.o
+[534/753] Building CXX object tests/CMakeFiles/test-backend-ops.dir/get-model.cpp.o
+[535/753] Building CXX object tests/CMakeFiles/test-opt.dir/test-opt.cpp.o
+[536/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m0.dir/get-model.cpp.o
+[537/753] Building CXX object tests/CMakeFiles/test-gguf.dir/test-gguf.cpp.o
+[538/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m1.dir/get-model.cpp.o
+[539/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m0.dir/test-repack-q23k-m0.cpp.o
+[540/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m2.dir/get-model.cpp.o
+[541/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m1.dir/test-repack-q23k-m1.cpp.o
+[542/753] Building CXX object tests/CMakeFiles/test-peg-parser.dir/peg-parser/test-unicode.cpp.o
+[543/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m3.dir/get-model.cpp.o
+[544/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m4.dir/get-model.cpp.o
+[545/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m2.dir/test-repack-q23k-m2.cpp.o
+/workspace/tests/test-repack-q23k-m2.cpp:459:47: warning: function 'q23k_abort_hook' could be declared with attribute 'noreturn' [-Wmissing-noreturn]
+  459 | static void q23k_abort_hook(const char * msg) {
+      |                                               ^
+1 warning generated.
+[546/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m5.dir/get-model.cpp.o
+[547/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m3.dir/test-repack-q23k-m3.cpp.o
+[548/753] Building CXX object tests/CMakeFiles/test-repack-q23k-load.dir/get-model.cpp.o
+[549/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m5.dir/test-repack-q23k-m5.cpp.o
+[550/753] Building CXX object tests/CMakeFiles/test-repack-q23k-load.dir/test-repack-q23k-load.cpp.o
+/workspace/tests/test-repack-q23k-load.cpp:86:42: warning: function 'abort_hook' could be declared with attribute 'noreturn' [-Wmissing-noreturn]
+   86 | static void abort_hook(const char * msg) {
+      |                                          ^
+1 warning generated.
+[551/753] Building CXX object tests/CMakeFiles/test-repack-q23k-m4.dir/test-repack-q23k-m4.cpp.o
+[552/753] Building CXX object tests/CMakeFiles/test-model-load-cancel.dir/test-model-load-cancel.cpp.o
+[553/753] Building CXX object tests/CMakeFiles/test-model-load-cancel.dir/get-model.cpp.o
+[554/753] Building CXX object tests/CMakeFiles/test-autorelease.dir/get-model.cpp.o
+[555/753] Building CXX object tests/CMakeFiles/test-s3-repack-bench.dir/test-s3-repack-bench.cpp.o
+/workspace/tests/test-s3-repack-bench.cpp:30:35: warning: function 'die' could be declared with attribute 'noreturn' [-Wmissing-noreturn]
+   30 | static void die(const char * msg) {
+      |                                   ^
+1 warning generated.
+[556/753] Building CXX object tests/CMakeFiles/test-backend-sampler.dir/get-model.cpp.o
+[557/753] Building CXX object tests/CMakeFiles/test-opencl-moe-roundtrip.dir/test-opencl-moe-roundtrip.cpp.o
+[558/753] Building CXX object tests/CMakeFiles/test-state-restore-fragmented.dir/get-model.cpp.o
+[559/753] Building CXX object tests/CMakeFiles/test-autorelease.dir/test-autorelease.cpp.o

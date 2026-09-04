@@ -1,0 +1,41 @@
+=== START 03-htp-v75 2026-09-04T11:04:45Z ===
+[1/8] Creating directories for 'htp-v75'
+[2/8] No download step for 'htp-v75'
+[3/8] No update step for 'htp-v75'
+[4/8] No patch step for 'htp-v75'
+[5/8] Performing configure step for 'htp-v75'
+-- The C compiler identification is Clang 19.0.0
+-- The CXX compiler identification is Clang 19.0.0
+-- The ASM compiler identification is unknown
+-- Found assembler: /opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07/Tools/bin/hexagon-clang++
+System is unknown to cmake, create:
+Platform/QURT to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/QURT to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07/Tools/bin/hexagon-clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+System is unknown to cmake, create:
+Platform/QURT to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07/Tools/bin/hexagon-clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Warning: Did not find file Compiler/-ASM
+-- Warning: Did not find file Compiler/-ASM
+-- Configuring done (7.9s)
+-- Generating done (0.1s)
+-- Build files have been written to: /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp-v75-prefix/src/htp-v75-build
+=== START 03-htp-v75 2026-09-04T11:06:37Z ===
+[1/3] Performing build step for 'htp-v75'
+[1/2] Building C object CMakeFiles/ggml-htp-v75.dir/matmul-ops.c.obj
+[2/2] Linking C shared library libggml-htp-v75.so
+[2/3] Performing install step for 'htp-v75'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v75.so
+[3/3] Completed 'htp-v75'
+=== END 03-htp-v75 exit=0 2026-09-04T11:09:06Z ===

@@ -1,0 +1,69 @@
+=== START 05-htp-v81 2026-09-04T11:54:58Z ===
+[1/8] Creating directories for 'htp-v81'
+[2/8] No download step for 'htp-v81'
+[3/8] No update step for 'htp-v81'
+[4/8] No patch step for 'htp-v81'
+[5/8] Performing configure step for 'htp-v81'
+-- The C compiler identification is Clang 19.0.0
+-- The CXX compiler identification is Clang 19.0.0
+-- The ASM compiler identification is unknown
+-- Found assembler: /opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07/Tools/bin/hexagon-clang++
+System is unknown to cmake, create:
+Platform/QURT to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info
+System is unknown to cmake, create:
+Platform/QURT to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07/Tools/bin/hexagon-clang - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+System is unknown to cmake, create:
+Platform/QURT to use this system, please post your config file on discourse.cmake.org so it can be added to cmake
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /opt/hexagon/6.6.0.0/tools/HEXAGON_Tools/19.0.07/Tools/bin/hexagon-clang++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Warning: Did not find file Compiler/-ASM
+-- Warning: Did not find file Compiler/-ASM
+-- Configuring done (8.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp-v81-prefix/src/htp-v81-build
+[6/8] Performing build step for 'htp-v81'
+[1/31] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/31] Building C object CMakeFiles/ggml-htp-v81.dir/dma-queue.c.obj
+[3/31] Building C object CMakeFiles/ggml-htp-v81.dir/hmx-queue.c.obj
+[4/31] Building C object CMakeFiles/ggml-htp-v81.dir/htp_iface_skel.c.obj
+[5/31] Building C object CMakeFiles/ggml-htp-v81.dir/work-queue.c.obj
+[6/31] Building C object CMakeFiles/ggml-htp-v81.dir/htp-tensor.c.obj
+[7/31] Building C object CMakeFiles/ggml-htp-v81.dir/main.c.obj
+[8/31] Building C object CMakeFiles/ggml-htp-v81.dir/sum-rows-ops.c.obj
+[9/31] Building C object CMakeFiles/ggml-htp-v81.dir/gated-delta-net-ops.c.obj
+[10/31] Building C object CMakeFiles/ggml-htp-v81.dir/softmax-ops.c.obj
+[11/31] Building C object CMakeFiles/ggml-htp-v81.dir/binary-ops.c.obj
+[12/31] Building C object CMakeFiles/ggml-htp-v81.dir/act-ops.c.obj
+[13/31] Building C object CMakeFiles/ggml-htp-v81.dir/rope-ops.c.obj
+[14/31] Building C object CMakeFiles/ggml-htp-v81.dir/flash-attn-ops.c.obj
+[15/31] Building C object CMakeFiles/ggml-htp-v81.dir/set-rows-ops.c.obj
+[16/31] Building C object CMakeFiles/ggml-htp-v81.dir/repeat-ops.c.obj
+[17/31] Building C object CMakeFiles/ggml-htp-v81.dir/get-rows-ops.c.obj
+[18/31] Building C object CMakeFiles/ggml-htp-v81.dir/cpy-ops.c.obj
+[19/31] Building C object CMakeFiles/ggml-htp-v81.dir/ssm-conv.c.obj
+[20/31] Building C object CMakeFiles/ggml-htp-v81.dir/cumsum-ops.c.obj
+[21/31] Building C object CMakeFiles/ggml-htp-v81.dir/fill-ops.c.obj
+[22/31] Building C object CMakeFiles/ggml-htp-v81.dir/diag-ops.c.obj
+[23/31] Building C object CMakeFiles/ggml-htp-v81.dir/concat-ops.c.obj
+[24/31] Building C object CMakeFiles/ggml-htp-v81.dir/solve-tri-ops.c.obj
+[25/31] Building C object CMakeFiles/ggml-htp-v81.dir/unary-ops.c.obj
+[26/31] Building C object CMakeFiles/ggml-htp-v81.dir/pad-ops.c.obj
+[27/31] Building C object CMakeFiles/ggml-htp-v81.dir/argsort-ops.c.obj
+[28/31] Building C object CMakeFiles/ggml-htp-v81.dir/matmul-ops.c.obj
+[29/31] Building C object CMakeFiles/ggml-htp-v81.dir/im2col-ops.c.obj
+[30/31] Building C object CMakeFiles/ggml-htp-v81.dir/allreduce-ops.c.obj
+[31/31] Linking C shared library libggml-htp-v81.so
+[7/8] Performing install step for 'htp-v81'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v81.so
+[8/8] Completed 'htp-v81'
+=== END 05-htp-v81 exit=0 2026-09-04T11:58:58Z ===

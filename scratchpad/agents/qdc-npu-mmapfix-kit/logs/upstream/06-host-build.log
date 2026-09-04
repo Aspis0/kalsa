@@ -1,0 +1,292 @@
+=== START 06-host-build 2026-09-04T11:58:58Z ===
+[1/731] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-alloc.c.o
+[2/731] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml.cpp.o
+[3/731] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o
+[4/731] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-threading.cpp.o
+[5/731] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend.cpp.o
+[6/731] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-opt.cpp.o
+[7/731] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[8/731] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.c.o
+[9/731] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/ggml-backend-meta.cpp.o
+[10/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/hbm.cpp.o
+[11/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ggml-cpu.cpp.o
+[12/731] Building C object ggml/src/CMakeFiles/ggml-base.dir/ggml-quants.c.o
+[13/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/iqp.cpp.o
+[14/731] Building CXX object ggml/src/CMakeFiles/ggml-base.dir/gguf.cpp.o
+[15/731] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/quants.c.o
+[16/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/traits.cpp.o
+[17/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/amx.cpp.o
+[18/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/repack.cpp.o
+[19/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/amx/mmq.cpp.o
+[20/731] Building C object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/quants.c.o
+[21/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/vec.cpp.o
+[22/731] Building C object ggml/src/ggml-hexagon/CMakeFiles/htp_iface.dir/htp_iface_stub.c.o
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:384:70: warning: cast from 'const struct htp_iface_pmu_conf *' to 'unsigned int *' drops const qualifier [-Wcast-qual]
+  384 |    return _stub_method_4(_handle, _mid, (uint32_t*)&mode, (uint32_t*)pmu);
+      |                                                                      ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:3:
+/workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface.h:186:28: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  186 |          FARF(level, msg , ##__VA_ARGS__); \
+      |                            ^
+In file included from /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp_iface_stub.c:6:
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:102:65: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  102 | #define FARF(x, ...) _FARF_PASTE(_FARF_,_FARF_VAL(FARF_##x))(x, ##__VA_ARGS__)
+      |                                                                 ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:249:73: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  249 |                 _HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                         ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:253:106: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  253 |                         HAP_debug_runtime(FARF_##x##_LEVEL ^ HAP_LEVEL_RUNTIME , __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                                                          ^
+/opt/hexagon/6.6.0.0/incs/HAP_farf.h:258:76: warning: token pasting of ',' and __VA_ARGS__ is a GNU extension [-Wgnu-zero-variadic-macro-arguments]
+  258 |                     HAP_debug_v2(FARF_##x##_LEVEL, __FILENAME__, __LINE__, ##__VA_ARGS__); \
+      |                                                                            ^
+31 warnings generated.
+[23/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/binary-ops.cpp.o
+[24/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/unary-ops.cpp.o
+[25/731] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/htp-drv.cpp.o
+[26/731] Building CXX object vendor/hash/CMakeFiles/vendor-hash.dir/hash.cpp.o
+[27/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/arch/arm/repack.cpp.o
+[28/731] Building CXX object vendor/hash/CMakeFiles/vendor-hash.dir/sha1/sha1.c.o
+[29/731] Building C object vendor/hash/CMakeFiles/vendor-hash.dir/sha256/sha256.c.o
+[30/731] Building C object vendor/hash/CMakeFiles/vendor-hash.dir/xxhash/xxhash.c.o
+[31/731] Building CXX object common/CMakeFiles/llama-common-base.dir/build-info.cpp.o
+[32/731] Linking CXX static library vendor/hash/libvendor-hash.a
+[33/731] Linking CXX static library common/libllama-common-base.a
+[34/731] Performing build step for 'htp-v73'
+ninja: no work to do.
+[35/731] Performing build step for 'htp-v75'
+ninja: no work to do.
+[36/731] Performing build step for 'htp-v79'
+ninja: no work to do.
+[37/731] Performing build step for 'htp-v81'
+ninja: no work to do.
+[38/731] Performing install step for 'htp-v73'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v73.so
+[39/731] Performing install step for 'htp-v75'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v75.so
+[40/731] Performing install step for 'htp-v79'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v79.so
+[41/731] Performing install step for 'htp-v81'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v81.so
+[42/731] Building llama-ui-embed (host)
+[43/731] Building CXX object ggml/src/CMakeFiles/ggml-cpu.dir/ggml-cpu/ops.cpp.o
+[44/731] Building CXX object tools/mtmd/CMakeFiles/llama-llava-cli.dir/deprecation-warning.cpp.o
+[45/731] Provisioning UI assets
+-- UI: downloading from b0: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/b0/dist.tar.gz
+-- UI: download dist.tar.gz from b0 failed: "HTTP response code said error"
+-- UI: downloading from latest: https://huggingface.co/buckets/ggml-org/llama-ui/resolve/latest/dist.tar.gz
+-- UI: archive verified and extracted
+-- UI: HF download succeeded, stamp updated (latest)
+-- UI: gzip compression applied (/workspace/build-snapdragon/tools/ui/dist/_gzip)
+embed: write output file /workspace/build-snapdragon/tools/ui/ui.h
+embed: write output file /workspace/build-snapdragon/tools/ui/ui.cpp
+[46/731] Building CXX object tools/mtmd/CMakeFiles/llama-minicpmv-cli.dir/deprecation-warning.cpp.o
+[47/731] Building CXX object tools/mtmd/CMakeFiles/llama-gemma3-cli.dir/deprecation-warning.cpp.o
+[48/731] Completed 'htp-v73'
+[49/731] Completed 'htp-v75'
+[50/731] Completed 'htp-v79'
+[51/731] Completed 'htp-v81'
+[52/731] Linking CXX executable bin/llama-llava-cli
+[53/731] Linking CXX executable bin/llama-gemma3-cli
+[54/731] Linking CXX shared library bin/libggml-base.so
+[55/731] Building CXX object tools/mtmd/CMakeFiles/llama-qwen2vl-cli.dir/deprecation-warning.cpp.o
+[56/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/add_id.cl.h
+[57/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/add.cl.h
+[58/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_add_id_glu.cl.h
+[59/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/argsort.cl.h
+[60/731] Linking CXX executable bin/llama-minicpmv-cli
+[61/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/tri.cl.h
+[62/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/clamp.cl.h
+[63/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/fill.cl.h
+[64/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/cpy.cl.h
+[65/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/cvt.cl.h
+[66/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/diag_mask_inf.cl.h
+[67/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/div.cl.h
+[68/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/diag.cl.h
+[69/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gelu.cl.h
+[70/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/get_rows.cl.h
+[71/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/group_norm.cl.h
+[72/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/glu.cl.h
+[73/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/im2col_f16.cl.h
+[74/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/solve_tri.cl.h
+[75/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/im2col_f32.cl.h
+[76/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f16.cl.h
+[77/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mean.cl.h
+[78/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_1row.cl.h
+[79/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_l4.cl.h
+[80/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32.cl.h
+[81/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f16_f32_mrow.cl.h
+[82/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32.cl.h
+[83/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_f32_f32.cl.h
+[84/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q1_0_f32_flat.cl.h
+[85/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_v.cl.h
+[86/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32.cl.h
+[87/731] Building CXX object ggml/src/ggml-hexagon/CMakeFiles/ggml-hexagon.dir/ggml-hexagon.cpp.o
+[88/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_8x_flat.cl.h
+[89/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_8x_flat.cl.h
+[90/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32.cl.h
+[91/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_0_f32_1d_16x_flat.cl.h
+[92/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_1_f32_flat.cl.h
+[93/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32.cl.h
+[94/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q4_k_f32_flat.cl.h
+[95/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32.cl.h
+[96/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_0_f32_flat.cl.h
+[97/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32_flat.cl.h
+[98/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_1_f32.cl.h
+[99/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32.cl.h
+[100/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q5_k_f32_flat.cl.h
+[101/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32.cl.h
+[102/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q6_k_f32_flat.cl.h
+[103/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32.cl.h
+[104/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_q8_0_f32_flat.cl.h
+[105/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32.cl.h
+[106/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_iq4_nl_f32_flat.cl.h
+[107/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32.cl.h
+[108/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_mxfp4_f32_flat.cl.h
+[109/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32.cl.h
+[110/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q4_0_f32_8x_flat.cl.h
+[111/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_q8_0_f32_flat.cl.h
+[112/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32_flat.cl.h
+[113/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mv_id_mxfp4_f32.cl.h
+[114/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_0_f32_ns.cl.h
+[115/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_0_q8_1_dp4a.cl.h
+[116/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_0_f32_ns.cl.h
+[117/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_1_f32_ns.cl.h
+[118/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q8_0_f32_ns.cl.h
+[119/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_1_f32_ns.cl.h
+[120/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_0_f32_ns.cl.h
+[121/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_0_f32_ns.cl.h
+[122/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_1_f32_ns.cl.h
+[123/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_1_f32_ns.cl.h
+[124/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_k_f32_ns.cl.h
+[125/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q6_k_q8_1_dp4a.cl.h
+[126/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q4_k_q8_1_dp4a.cl.h
+[127/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q8_1_dp4a.cl.h
+[128/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_reorder_quant_a_q8_1.cl.h
+[129/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_k_q8_1_dp4a.cl.h
+[130/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_k_q8_1_dp4a.cl.h
+[131/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q6_k_q8_1_dp4a.cl.h
+[132/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q8_0_q8_1_dp4a.cl.h
+[133/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q5_0_q8_1_dp4a.cl.h
+[134/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_iq4_nl_q8_1_dp4a.cl.h
+[135/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_noshuffle_q4_0_q8_1_dp4a.cl.h
+[136/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q5_k_f32_ns.cl.h
+[137/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/quant_a_q8_1.cl.h
+[138/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q4_k_f32_ns.cl.h
+[139/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q5_k_f32_ns.cl.h
+[140/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_q6_k_f32_ns.cl.h
+[141/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32.cl.h
+[142/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_q6_k_f32_ns.cl.h
+[143/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32.cl.h
+[144/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_q8_1_dp4a.cl.h
+[145/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemv_moe_mxfp4_f32_ns.cl.h
+[146/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/gemm_moe_mxfp4_f32_ns.cl.h
+[147/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_reorder_b.cl.h
+[148/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_combine.cl.h
+[149/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/moe_sort_by_expert.cl.h
+[150/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_f16_f32_l4_lm.cl.h
+[151/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_f32_f32_l4_lm.cl.h
+[152/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h
+FAILED: ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h 
+cd /workspace/build-snapdragon/ggml/src/ggml-opencl && /usr/bin/python3 /workspace/ggml/src/ggml-opencl/kernels/embed_kernel.py /workspace/ggml/src/ggml-opencl/kernels/mul_mm_q4_0_f32_l4_lm.cl /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_0_f32_l4_lm.cl.h
+[153/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q4_1_f32_l4_lm.cl.h
+[154/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q5_0_f32_l4_lm.cl.h
+[155/731] Generate /workspace/build-snapdragon/ggml/src/ggml-opencl/autogenerated/mul_mm_q1_0_f32_l4_lm.cl.h
+[156/731] Building CXX object tools/ui/CMakeFiles/llama-ui.dir/ui.cpp.o
+[157/731] Building CXX object vendor/cpp-httplib/CMakeFiles/cpp-httplib.dir/httplib.cpp.o
+ninja: build stopped: subcommand failed.
+=== END 06-host-build exit=1 2026-09-04T12:01:31Z ===
