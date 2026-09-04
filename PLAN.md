@@ -596,7 +596,9 @@
 > 48 dispatch esperti — proof 484/48/48 identica all'S23 q48, tombstone
 > presi. Build più nuovo, board di riferimento, Android 16, modello allenai:
 > la morte è dello stack HTP v73 sotto dispatch MoE, non dell'S23. F6
-> confermata su reference hw; dossier #8 ha un repro QDC. ~9 min. REPORT
+> confermata su reference hw; dossier #8 ha un repro QDC. 27.8 min fatturati
+> (7 di lavoro + ~20 idle: End Session passato solo al secondo ref-click —
+> lezione 7 rafforzata: End + Yes via ref, reload, leggere Ended On entro 1 min). REPORT
 > scritto, audit in coda. **APK-B PRONTO**: retry run 33829826282 verde,
 > app-release.apk 135 593 407 B sha256
 > 1e2709e57561e97149664ea30588b7df9141c25a6813642cdda1c3ddf9d7f86d

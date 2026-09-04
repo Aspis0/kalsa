@@ -59,5 +59,12 @@ board + public model + open build).
 
 Submitted ~22:37, Running 22:39:54; driver attempt 1 22:40:29 → 22:44:30
 (kit 22 MB + model 3.9 GB push 172 s, two VOID arms); attempt 2 22:45:45 →
-22:46:54 (two arms, ~27 s each incl. gate). Ended 22:48 EDT, portal
-Completed (see below) ≈ **8-9 min billed** of the 8 Gen 2 pool (974 → ~965).
+22:46:54 (two arms, ~27 s each incl. gate). **Ended 23:07:44 EDT (portal
+Completed, verified after reload) = 27.8 min billed** of the 8 Gen 2 pool
+(974 → ~946). Honest accounting: the device work took ~7 min; ~20 min were
+idle because my first End Session attempt (JS-dispatched click on the
+toolbar button, then a ref-click on Yes) did not take — ops lesson 7 of #52
+struck again in a new form: the ref-click on the dialog only registered on
+the SECOND pass, ~15 min later. Rule tightened for the next cells: End
+Session = ref-click the toolbar button AND ref-click Yes, then reload and
+read "Ended On" within one minute; if still Running, repeat immediately.
