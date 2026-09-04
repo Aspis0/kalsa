@@ -597,6 +597,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > eventuale estensione minima del patch per i token id. Poi UN delta audit
 > grok su fix + contratto, poi APK e lock PREREG.
 
+> **5/09 ~04:00 — Driver S5 corretto (Luna 5fcd34c9, commit 874e326b:
+> PREREG 125 / d_run.sh 299 / README 16 righe)**: `logcat -b all -c` + ancora
+> epoch dal device e conteggi solo dopo l'ancora (`-v epoch` verificato da
+> me), lmkd filtrato su pacchetto/pid, oracolo per coppie A/B adiacenti con
+> `ids_sha` e colonna `oracle` (PASS/FAIL/VOID), prerequisito verificato a
+> runtime (riga `KALSA_BENCH_TOKENS` al turno 1, altrimenti exit 3),
+> uninstall gated su `pm list packages`, `mWakefulness` letto e re-wake,
+> deadline interna 40 min (exit 124), solo ABABABAB, `kalsa.bench.sampling`
+> iniettato in entrambi i bracci. Delta audit → deepseek (706f8d2f, appende
+> in AUDIT-PRERUN.md). CI APK 33930036540 (2646e77): completed failure.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
