@@ -553,6 +553,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > ritorna false, mai throw); poi delta audit grok. PREREG S5 in bozza su
 > Luna (5fcd34c9) in `scratchpad/agents/qdc-governor-s5/`.
 
+> **5/09 ~02:30 — PREREG S5 in bozza (Luna 5fcd34c9,
+> `scratchpad/agents/qdc-governor-s5/`: PREREG 111 righe, d_run.sh 249,
+> README-run 15).** Disegno: stessa board/APK/modello, ABABABAB, plateau turni
+> 2-4; endpoint 1 = oracolo greedy (32 token ID identici A vs B), endpoint 2 =
+> TTFT B/A ≤ 1/3 e decode B ≥ A da `KALSA_TELEMETRY`; secondari: riga
+> `KALSA_GOVERNOR` (GPU/CPU, bench-skin), 0 FALLBACK, 0 lmkd, skin pre/post
+> turno; thermo bench `plugged:false` + `t_idle_*` dal primo skin (B2).
+> **PREREQUISITO APERTO:** l'app non ha una chiave bench per il sampling greedy
+> né output dei token ID (`LlamaService.ts:3985` `top_k: 20,` fisso) → serve
+> `kalsa.bench.sampling` (src/engine, piccolo) prima del lock; il driver esce 3
+> finché non c'è. Da riempire al lock: sha APK, host QDC. Audit pre-run → deepseek.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
