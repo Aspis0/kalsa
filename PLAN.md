@@ -447,6 +447,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Patch 2747 righe (sana). `clang++ -fsyntax-only` ok su tutti i file; CI APK
 > debug run 33916141291 sul branch. Non ancora provato con un modello vero.
 
+> **4/09, 16:20 — AUDIT S2 (grok): NO-GO.** Blocker vero: in governor mode
+> `loadModel` ritorna dopo `load_governor_models` (rn-llama.cpp:604-606)
+> saltando templates/n_ctx/completion (667-687) → primo completion su
+> nullptr e n_ctx=0. Altri: FALLBACK non emesso sui fallimenti di load dei
+> due modelli, thermo non impostato prima del primo decode, usi raw di ctx
+> (clearCache/LoRA/mmproj) in governor mode, `reload_budget_available`
+> permissivo, zero test. Fix in corso (Luna) → re-audit → CI.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
