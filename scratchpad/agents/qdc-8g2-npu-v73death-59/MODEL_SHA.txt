@@ -1,0 +1,3 @@
+kit npu-kit-59.tgz sha256[:16] 91fa0dbdc7d06e85 (re-tar of kit-v6, 45 SHA256SUMS entries, libggml-htp-v73.so in lib-fix/)
+model OLMoE-1B-7B-0924-Instruct-Q4_0.gguf sha256 361e8d83f0820e50d0ed1a13b10586ed9f476d99dcaf6aafd14f07e11840b22b bytes 3928037856 source allenai/OLMoE-1B-7B-0924-Instruct-GGUF
+census Q4_0 113 / F32 81 / Q6_K 1 (n_tensors 195) == #48 fingerprint -> model gate PASS

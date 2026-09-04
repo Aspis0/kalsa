@@ -552,6 +552,17 @@
 > replica-morti-v73 su HDK8550 (OLMoE Q4_0 da procurare: Mac e backup
 > negativi, ricerca full-disk Lenovo in corso).
 
+> **3/09 notte, 21:05 — #58 BANCATA (riga 41): Amendment 750 CHIUSO.** Re-run
+> su QRD8650 sotto PREREG pre-auditato (F15 applicato): i 20 FAIL sono
+> byte-identici a #55, MMID 407/407, GPU pp512 291.1 / tg128 23.0 = +2.4%/−1.7%
+> vs #55 → dentro ±10%, i numeri 750 sono costanti router (decisione owner n.1
+> chiusa senza firma, per la via che l'audit di #55 aveva indicato). 8.7 min
+> QDC. Report audit mimo BANK 10/10. Parallelamente: PREREG #59 (replica morti
+> v73 su HDK8550) scritto+auditato (F1 dell'auditor refutato dal testo, F2/F3
+> applicati; modello allenai Q4_0 sha 361e8d83 — il q55 in-house non è
+> recuperabile, census 113/81/1 identico → gate modello PASS, emendamento
+> pre-run dichiarato); driver #59 in scrittura (grok→Luna).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
