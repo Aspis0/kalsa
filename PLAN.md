@@ -38,7 +38,8 @@
 6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
 ## In volo / prossimi
-- Kit puro upstream → cella #62: driver #60, bracci B2/B5/`ngl99`, backend upstream con #26501+#28202 (43; diario 4/09).
+- APK debuggable A/B in build su CI (run 33886959263 / 33886967732) → cella #63 = #61-bis via run-as su QRD8650 (diario 4/09 11:15).
+- Poi cella #64: bisect 022458a28..64a155d24 della TLBMISS op_binary (fix nel fork, mai issue).
 - Samsung RTL probe: pronta, non bloccante (diario 3/09).
 - Campagna CisWire parcheggiata: telefoni persi; PC/Lenovo idle (diario 3/09 notte).
 - Lab fisico fermo; operatività su QDC/CI/Mac (diario 3/09 notte).
@@ -247,6 +248,19 @@
 > interno; per la TLBMISS/mapping v73 la strada è il bisect + fix nel fork
 > (cella #63+) oppure l'abbandono. Ordine di lavoro confermato: (1) APK
 > debuggable, (2) #61-bis run-as su QRD8650, (3) bisect 022458a28..64a155d24.
+
+> **4/09, 11:15 — JOB 1 (APK debuggable): NIENTE DA IMPLEMENTARE.** La
+> variante esiste già in `.github/workflows/apk.yml` (identico su main
+> c513f00 e su chore/engine-pin-12f6d9b6d 09bdfe9): input `debuggable=true`
+> → sed `debuggable true` nel blocco release del build.gradle generato dal
+> prebuild, poi verifica `aapt2 dump badging` del token
+> `application-debuggable`, artifact `kalsa-apk-<abi>-debuggable-<sha>`. Gli
+> APK di #61 erano il default `false`. Dispatch fatti: main → run
+> 33886959263, chore → run 33886967732 (~35-45 min l'uno, in parallelo);
+> watcher scarica in ~/kalsa-qdc/apk/apk-{A,B}-debug-<sha>/ con sha256 e
+> controllo badging. Luna prepara PREREG+driver #63 (run-as, no root nel data
+> path). Pulizia fatta: container `clever_brown` rimosso (0% CPU), worktree
+> kalsallama-wt-mmapfix + branch locale rimossi (nessun commit proprio).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
