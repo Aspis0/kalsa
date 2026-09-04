@@ -84,3 +84,19 @@ from #60), audited by mimo before the session.
 No tok/s or A/B speed claim, no KV-reuse second turn, no session-restore turn, no thermal
 verdict, no GPU-vs-CPU attribution (the app's backend choice is read from the log, not judged),
 no HDK8550 arm (queued if budget allows after this cell).
+
+## Pre-data amendment 1 (declared during the session, before any load/generation data)
+
+First launch (job 798935, QRD8650 `80003b9c`, Android 14 userdebug, `adbd` already root —
+raw/recon_sa803004.txt): S1 install of APK-A succeeded, then S2 failed with
+`run-as: package not debuggable: com.kalsa.app` (raw/A_sa803004_s2_copy.txt): the CI release
+APKs are NOT debuggable, so the preregistered run-as sideload/DB path is impossible on ANY
+device; the driver then aborted on a `set -u` bug (`phase: unbound variable`, line 56) before
+reaching APK-B. No load or generation data was produced (steps ledger: A S1 ok, S2-S5
+METHOD-VOID). Substitution: every run-as operation (S2 copy + size check, S3 RKStorage
+pull/push, evidence maps/DB) is done from the root adb shell this board provides (cp into
+/data/data/com.kalsa.app/files/models/…, chown to the app uid, restorecon). Steps, ledger,
+evidence and grid unchanged. Confound added: the sideload/DB path is root-only, so this cell
+says nothing about sideloading on a non-rooted consumer phone (there the app's own downloader
+would be the path). Owner note: a debuggable variant of the release APK is needed for any
+run-as-based field test (memory rule "S23 solo APK debuggabili").
