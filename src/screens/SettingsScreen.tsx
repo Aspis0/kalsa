@@ -548,13 +548,9 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
       await reloadMemory();
       if (!mountedRef.current) return;
       setMemoryNotice(t("memory.addDone"));
-    } catch (error) {
+    } catch {
       if (!mountedRef.current) return;
-      if (error instanceof MemoryStore.SensitiveFactError) {
-        setMemoryNotice(t("memory.sensitive"));
-      } else {
-        setMemoryNotice(t("memory.saveError"));
-      }
+      setMemoryNotice(t("memory.saveError"));
     } finally {
       if (mountedRef.current) setMemoryBusy(false);
     }

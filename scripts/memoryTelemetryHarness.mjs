@@ -6,7 +6,8 @@
  * 2. readMemoryTelemetry parses memory.jsonl sidecars
  * 3. collectMemoryTelemetryByMode aggregates per-mode
  * 4. Empty-store failure detection (hasData=true but totalStored=0)
- * 5. Privacy: fact text cannot appear in telemetry output
+ * 5. Privacy: fact text cannot appear in telemetry output and the removed
+ *    sensitive-rejection field is absent
  * 6. Memory enabled/disabled gate: memory off + zero counters → no failure; memory on + zero stored → failure
  * 7. Turn-end N/A sentinels, settled enabled state, and extraction lifecycle coverage
  *
@@ -99,7 +100,6 @@ async function test1_formatMemoryLineEnumeratesFields() {
     memoryEnabled: 1,
     factsExtracted: 5,
     factsStored: 3,
-    factsRejectedSensitive: 1,
     factsRejectedFull: 1,
     factsInjected: 3,
     totalFactsInStore: 10,
@@ -117,11 +117,10 @@ async function test1_formatMemoryLineEnumeratesFields() {
   const jsonPart = line.substring("KALSA_MEMORY ".length);
   const parsed = JSON.parse(jsonPart);
 
-  // Verify all 10 numeric fields are present, including the settled-only fields.
+  // Verify all 9 numeric fields are present, including the settled-only fields.
   assert("memoryEnabled" in parsed, "memoryEnabled must be present");
   assert("factsExtracted" in parsed, "factsExtracted must be present");
   assert("factsStored" in parsed, "factsStored must be present");
-  assert("factsRejectedSensitive" in parsed, "factsRejectedSensitive must be present");
   assert("factsRejectedFull" in parsed, "factsRejectedFull must be present");
   assert("factsInjected" in parsed, "factsInjected must be present");
   assert("totalFactsInStore" in parsed, "totalFactsInStore must be present");
@@ -136,7 +135,6 @@ async function test1_formatMemoryLineEnumeratesFields() {
   assert(typeof parsed.memoryEnabled === "number", "memoryEnabled must be number");
   assert(typeof parsed.factsExtracted === "number", "factsExtracted must be number");
   assert(typeof parsed.factsStored === "number", "factsStored must be number");
-  assert(typeof parsed.factsRejectedSensitive === "number", "factsRejectedSensitive must be number");
   assert(typeof parsed.factsRejectedFull === "number", "factsRejectedFull must be number");
   assert(typeof parsed.factsInjected === "number", "factsInjected must be number");
   assert(typeof parsed.totalFactsInStore === "number", "totalFactsInStore must be number");
@@ -146,7 +144,7 @@ async function test1_formatMemoryLineEnumeratesFields() {
 
   // Verify NO string fields can leak (the whole point of enumerating by name)
   const keys = Object.keys(parsed);
-  assert(keys.length === 10, "Exactly 10 fields must be present");
+  assert(keys.length === 9, "Exactly 9 fields must be present");
 
   console.log("✓ formatMemoryLine enumerates fields by name, no strings leak");
 }
@@ -192,15 +190,15 @@ function test3_collectMemoryTelemetryByModeAggregates() {
         [{ memoryEnabled: 1, factsInjected: 2, extractParseOutcome: -1 }],
       ],
       memoryExtractTelemetry: [
-        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 3, factsRejectedSensitive: 1, factsRejectedFull: 1, totalFactsInStore: 10, extractParseOutcome: 1, extractGateSource: 1, extractStopReason: 0 }],
-        [{ memoryEnabled: 1, factsExtracted: 2, factsStored: 2, factsRejectedSensitive: 0, factsRejectedFull: 0, totalFactsInStore: 12, extractParseOutcome: 1, extractGateSource: 2, extractStopReason: 0 }],
+        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 3, factsRejectedFull: 1, totalFactsInStore: 10, extractParseOutcome: 1, extractGateSource: 1, extractStopReason: 0 }],
+        [{ memoryEnabled: 1, factsExtracted: 2, factsStored: 2, factsRejectedFull: 0, totalFactsInStore: 12, extractParseOutcome: 1, extractGateSource: 2, extractStopReason: 0 }],
       ],
     },
     {
       arm: "anchored",
       compactionActive: "anchored",
       memoryTelemetry: [[{ memoryEnabled: 1, factsInjected: 5, extractParseOutcome: -1 }]],
-      memoryExtractTelemetry: [[{ memoryEnabled: 1, factsExtracted: 10, factsStored: 8, factsRejectedSensitive: 2, factsRejectedFull: 0, totalFactsInStore: 20, extractParseOutcome: 1, extractGateSource: 1, extractStopReason: 0 }]],
+      memoryExtractTelemetry: [[{ memoryEnabled: 1, factsExtracted: 10, factsStored: 8, factsRejectedFull: 0, totalFactsInStore: 20, extractParseOutcome: 1, extractGateSource: 1, extractStopReason: 0 }]],
     },
   ];
 
@@ -245,7 +243,7 @@ function test4_emptyStoreFailureDetection() {
 }
 
 async function test5_privacyFactTextCannotLeak() {
-  console.log("\nTest 5: Privacy - fact text cannot appear in telemetry");
+  console.log("\nTest 5: Privacy - fact text cannot appear and sensitive rejection is gone");
 
   const modPath = resolveBuilt("memoryTelemetry.js");
   const mod = await import(pathToFileURL(modPath).href);
@@ -255,9 +253,8 @@ async function test5_privacyFactTextCannotLeak() {
   const telemetry = {
     memoryEnabled: 1,
     factsExtracted: 1,
-    factsStored: 0, // rejected as sensitive
+    factsStored: 1,
     factText: "I use secret123 and 4111111111111111 for my credit card", // must be ignored
-    factsRejectedSensitive: 1,
     factsRejectedFull: 0,
     factsInjected: 0,
     totalFactsInStore: 0,
@@ -280,6 +277,7 @@ async function test5_privacyFactTextCannotLeak() {
   for (const key of Object.keys(parsed)) {
     assert(typeof parsed[key] === "number", `${key} must be a number, not ${typeof parsed[key]}`);
   }
+  assert(!("factsRejectedSensitive" in parsed), "Sensitive rejection field must be absent");
 
   console.log("✓ Fact text cannot leak into telemetry output");
 }
@@ -293,8 +291,8 @@ function test6_memoryEnabledGate() {
       arm: "baseline",
       compactionActive: "off",
       memoryExtractTelemetry: [
-        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedSensitive: 0, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 0 }],
-        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedSensitive: 0, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 0 }],
+        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 0 }],
+        [{ memoryEnabled: 0, factsExtracted: 0, factsStored: 0, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 0 }],
       ],
     },
   ];
@@ -310,8 +308,8 @@ function test6_memoryEnabledGate() {
       arm: "anchored",
       compactionActive: "anchored",
       memoryExtractTelemetry: [
-        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 0, factsRejectedSensitive: 5, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
-        [{ memoryEnabled: 1, factsExtracted: 3, factsStored: 0, factsRejectedSensitive: 3, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
+        [{ memoryEnabled: 1, factsExtracted: 5, factsStored: 0, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
+        [{ memoryEnabled: 1, factsExtracted: 3, factsStored: 0, factsRejectedFull: 0, totalFactsInStore: 0, extractParseOutcome: 1 }],
       ],
     },
   ];
@@ -361,7 +359,6 @@ function test6_memoryEnabledGate() {
           factsInjected: 0,
           factsExtracted: -1,
           factsStored: -1,
-          factsRejectedSensitive: -1,
           factsRejectedFull: -1,
           totalFactsInStore: -1,
         }]],
@@ -369,7 +366,6 @@ function test6_memoryEnabledGate() {
           memoryEnabled: 1,
           factsExtracted: 1,
           factsStored: stored,
-          factsRejectedSensitive: 0,
           factsRejectedFull: 0,
           totalFactsInStore: stored,
         }]],
@@ -408,7 +404,6 @@ async function test7_settledLineIsAuthoritative() {
     memoryEnabled: 1,
     factsExtracted: 4,
     factsStored: 2,
-    factsRejectedSensitive: 1,
     factsRejectedFull: 1,
     factsInjected: 3,
     totalFactsInStore: 9,
@@ -423,7 +418,6 @@ async function test7_settledLineIsAuthoritative() {
     ...base,
     factsExtracted: -1,
     factsStored: -1,
-    factsRejectedSensitive: -1,
     factsRejectedFull: -1,
     totalFactsInStore: -1,
     extractParseOutcome: -1,
@@ -431,7 +425,7 @@ async function test7_settledLineIsAuthoritative() {
     extractStopReason: -1,
   });
   const turn = JSON.parse(turnLine.substring("KALSA_MEMORY ".length));
-  for (const field of ["factsExtracted", "factsStored", "factsRejectedSensitive", "factsRejectedFull", "totalFactsInStore", "extractParseOutcome", "extractGateSource", "extractStopReason"]) {
+  for (const field of ["factsExtracted", "factsStored", "factsRejectedFull", "totalFactsInStore", "extractParseOutcome", "extractGateSource", "extractStopReason"]) {
     assert(turn[field] === -1, `Turn-end ${field} must be the -1 N/A sentinel`);
   }
   assert(turn.factsInjected === 3, "Turn-end line must retain the turn-owned injection count");

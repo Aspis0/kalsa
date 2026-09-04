@@ -104,6 +104,21 @@ describe("runToolGate", () => {
     expect(await readGateAudit()).toEqual([]);
   });
 
+  test("blocks a bare card number without injected memory facts", async () => {
+    const result = await runToolGate({
+      toolName: "web_search",
+      args: { query: "4111111111111111" },
+      lastUserMessage: "What is the weather today?",
+      memoryFacts: [],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("sensitive-pattern-in-query");
+    expect(result.decision?.reason).toBe("sensitive-pattern-in-query");
+  });
+
   test("warn prepends the localized note without blocking the result", () => {
     const note = getStrings("en").results.toolWarnedPrivacy;
     const result = { text: "agenda-ok", kind: "calendar_agenda" as const };

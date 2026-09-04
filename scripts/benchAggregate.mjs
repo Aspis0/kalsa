@@ -990,7 +990,6 @@ function collectMemoryTelemetryByMode(fase4) {
       hasData: row.hasData,
       totalExtracted: null,
       totalStored: null,
-      totalRejectedSensitive: null,
       totalRejectedFull: null,
       totalInjected: row.injected,
       maxFactsInStore: null,
@@ -1010,7 +1009,6 @@ function collectMemoryExtractTelemetryByMode(fase4) {
     acc.set(mode, {
       extracted: 0,
       stored: 0,
-      rejectedSensitive: 0,
       rejectedFull: 0,
       maxInStore: 0,
       parseOutcomes: [],
@@ -1037,7 +1035,6 @@ function collectMemoryExtractTelemetryByMode(fase4) {
         }
         if (typeof m.factsExtracted === "number" && m.factsExtracted >= 0) row.extracted += m.factsExtracted;
         if (typeof m.factsStored === "number" && m.factsStored >= 0) row.stored += m.factsStored;
-        if (typeof m.factsRejectedSensitive === "number" && m.factsRejectedSensitive >= 0) row.rejectedSensitive += m.factsRejectedSensitive;
         if (typeof m.factsRejectedFull === "number" && m.factsRejectedFull >= 0) row.rejectedFull += m.factsRejectedFull;
         if (typeof m.totalFactsInStore === "number" && m.totalFactsInStore >= 0) {
           row.maxInStore = Math.max(row.maxInStore, m.totalFactsInStore);
@@ -1064,7 +1061,6 @@ function collectMemoryExtractTelemetryByMode(fase4) {
       hasData: row.hasData,
       totalExtracted: row.extracted,
       totalStored: row.stored,
-      totalRejectedSensitive: row.rejectedSensitive,
       totalRejectedFull: row.rejectedFull,
       maxFactsInStore: row.maxInStore,
       extractParseOutcomes: row.parseOutcomes,
@@ -1846,17 +1842,17 @@ function renderFase4(agg) {
     "",
     "#### Settled (extract-complete) — keys the NOT-RUN verdict",
     "",
-    "| mode | arm | has data | extracted | stored | rejected (sensitive) | rejected (full) | max in store | parse outcomes | gate sources | stop reasons |",
-    "|---|---|---|---|---|---|---|---|---|---|---|",
+    "| mode | arm | has data | extracted | stored | rejected (full) | max in store | parse outcomes | gate sources | stop reasons |",
+    "|---|---|---|---|---|---|---|---|---|---|",
   );
   const memoryExtractTelemetry = agg.memoryExtractTelemetryByMode ?? [];
   if (memoryExtractTelemetry.length === 0) {
-    lines.push("| — | — | — | — | — | — | — | — | — | — | — |");
+    lines.push("| — | — | — | — | — | — | — | — | — | — |");
   } else {
     for (const row of memoryExtractTelemetry) {
       const hasData = row.hasData ? "yes" : "no";
       lines.push(
-        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${memoryMetric(row.totalExtracted)} | ${memoryMetric(row.totalStored)} | ${memoryMetric(row.totalRejectedSensitive)} | ${memoryMetric(row.totalRejectedFull)} | ${memoryMetric(row.maxFactsInStore)} | ${(row.extractParseOutcomes ?? []).join(",") || "n/a"} | ${(row.extractGateSources ?? []).join(",") || "n/a"} | ${(row.extractStopReasons ?? []).join(",") || "n/a"} |`,
+        `| ${row.mode} | ${row.arm || "—"} | ${hasData} | ${memoryMetric(row.totalExtracted)} | ${memoryMetric(row.totalStored)} | ${memoryMetric(row.totalRejectedFull)} | ${memoryMetric(row.maxFactsInStore)} | ${(row.extractParseOutcomes ?? []).join(",") || "n/a"} | ${(row.extractGateSources ?? []).join(",") || "n/a"} | ${(row.extractStopReasons ?? []).join(",") || "n/a"} |`,
       );
     }
   }
@@ -1869,17 +1865,17 @@ function renderFase4(agg) {
       "",
       "**⚠ MEMORY SUBSYSTEM FAILURE (NOT-RUN verdict — settled figures):** The following arms have settled memory telemetry data but stored zero facts:",
       "",
-      "| mode | arm | extracted | rejected (sensitive) | rejected (full) |",
-      "|---|---|---|---|---|",
+      "| mode | arm | extracted | rejected (full) |",
+      "|---|---|---|---|",
     );
     for (const row of emptyStoreFailures) {
       lines.push(
-        `| ${row.mode} | ${row.arm} | ${row.totalExtracted} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} |`,
+        `| ${row.mode} | ${row.arm} | ${row.totalExtracted} | ${row.totalRejectedFull} |`,
       );
     }
     lines.push(
       "",
-      "_This means the extraction job ran but nothing was stored. Check sensitive filter or cap limits. Verdict keyed off settled (extract-complete) figures, not turn-end snapshot._",
+      "_This means the extraction job ran but nothing was stored. Check extraction output or cap limits. Verdict keyed off settled (extract-complete) figures, not turn-end snapshot._",
     );
   }
 
@@ -2268,12 +2264,12 @@ function renderGateFailures(agg) {
     lines.push(
       "**Memory subsystem stored zero facts despite having telemetry data** — the extraction mechanism was invoked but nothing was stored. This is a broken arm, not a measurement.",
       "",
-      "| mode | arm | extracted | rejected (sensitive) | rejected (full) |",
-      "|---|---|---|---|---|",
+      "| mode | arm | extracted | rejected (full) |",
+      "|---|---|---|---|",
     );
     for (const row of memoryEmptyStore) {
       lines.push(
-        `| ${row.mode} | ${row.arm} | ${row.totalExtracted} | ${row.totalRejectedSensitive} | ${row.totalRejectedFull} |`,
+        `| ${row.mode} | ${row.arm} | ${row.totalExtracted} | ${row.totalRejectedFull} |`,
       );
     }
     lines.push("");

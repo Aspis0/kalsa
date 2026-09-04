@@ -18,8 +18,6 @@ export interface MemoryTelemetry {
   factsExtracted: number;
   /** Facts actually stored by the settled extract job. */
   factsStored: number;
-  /** Facts rejected by isSensitiveFact by the settled extract job. */
-  factsRejectedSensitive: number;
   /** Facts rejected because the store was full (cap 40). */
   factsRejectedFull: number;
   /** Facts injected into this turn's prompt; turn-end only. */
@@ -57,8 +55,8 @@ export interface MemoryTelemetry {
  * @param prefix Log line prefix (default: KALSA_MEMORY for turn-end, KALSA_MEMORY_EXTRACT for extract-complete)
  *
  * The turn-end line uses -1 for every field whose value belongs to the not-yet-
- * settled extract job: factsExtracted, factsStored, both rejection counters,
- * totalFactsInStore, and all three extraction lifecycle codes. The settled line
+ * settled extract job: factsExtracted, factsStored, the full-store rejection
+ * counter, totalFactsInStore, and all three extraction lifecycle codes. The settled line
  * uses -1 for factsInjected and the dna* fields because prompt injection
  * belongs to the turn. dna* is also -1 on the turn-end line when memory is off.
  */
@@ -67,7 +65,6 @@ export function formatMemoryLine(t: MemoryTelemetry, prefix = "KALSA_MEMORY"): s
     memoryEnabled: t.memoryEnabled,
     factsExtracted: t.factsExtracted,
     factsStored: t.factsStored,
-    factsRejectedSensitive: t.factsRejectedSensitive,
     factsRejectedFull: t.factsRejectedFull,
     factsInjected: t.factsInjected,
     totalFactsInStore: t.totalFactsInStore,
