@@ -24,6 +24,7 @@ struct llama_governor {
     void stall_exit();
     bool note_expert_route(bool resident, float resident_score,
                            float flash_winner_score, float score_range);
+    const char * failure_reason() const { return failure_reason_; }
 
 private:
     friend llama_governor * llama_governor_init_with_params(
@@ -69,4 +70,5 @@ private:
     phase last_phase = phase::None;
     bool hot_plugged_announced_ = false;
     bool failed = false;
+    const char * failure_reason_ = nullptr;
 };
