@@ -533,6 +533,25 @@
 > HDK8550 reference, e first-contact NPU su 7675/8635 (arch HTP da recon);
 > gli skel v73/v75/v79/v81 sono GIÀ nel kit v6, nessuna build serve.
 
+> **3/09 notte — DELEGA PIENA OWNER ("fai tutto") + due fatti di contesto
+> duri.** (a) Owner via ALTRI 10 giorni (~13/09) e **S23 E JELLY PERSI**:
+> lab fisico ZERO, tutto QDC/CI/Mac. (b) Chiarita la regola push: vietati
+> solo i repo pubblici DI TERZI; il nostro fork si pusha (incidente
+> delete+ripush da fraintendimento, ora in memoria). **Step bancati
+> stanotte finora:** (1) `feat/moe-stream` MERGIATO in `main` dell'app
+> (c513f00, conflitto assert-native-patch.sh risolto: entrambi i marker
+> vivono nelle lib engine; pin llama.rn tenuto a 0.12.8 npm — l'assemblaggio
+> device-proven; audit mimo APPLY, un finding refutato alla lettura);
+> E2E emulatore in volo sul merge (run 33822638488). (2) **Decisione
+> "merge pick" CHIUSA lato fork**: fork-main fast-forward a0cabca6b →
+> **12f6d9b6d** (3 pick upstream: fix race FA, fix OOB-read Adreno, opt
+> uint A7x — cella #53 zero regressioni), ref-verificato. Il pin dell'app
+> resta a0cabca6b: stanotte APK-A (pin attuale) + APK-B (pin 12f6d9b6d)
+> per confronto al rientro. In coda: cella #58 (re-run 750 con PREREG che
+> prevede lo split → chiude l'Amendment senza sign-off), cella #59 NPU
+> replica-morti-v73 su HDK8550 (OLMoE Q4_0 da procurare: Mac e backup
+> negativi, ricerca full-disk Lenovo in corso).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
