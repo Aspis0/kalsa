@@ -103,6 +103,7 @@ import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
+import { CHAT_MENU_HIT, CHAT_NAV_ROW } from "../theme/components/chatNavLayout";
 import { StreamCaret } from "../chat/StreamCaret";
 import { BrandIcon, SendGlyphPair } from "../theme/icons/BrandIcon";
 import { typography, useTypography, fontFamilies } from "../theme/typography";
@@ -4543,7 +4544,7 @@ const ChatNavBar = React.memo(function ChatNavBar({
     >
       <View
         style={{
-          height: 48,
+          height: CHAT_NAV_ROW,
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: spacing.md,
@@ -4553,8 +4554,8 @@ const ChatNavBar = React.memo(function ChatNavBar({
           onPress={onMenuPress}
           accessibilityLabel={t("chat.a11yMenu")}
           style={({ pressed }) => ({
-            width: 36,
-            height: 36,
+            width: CHAT_MENU_HIT,
+            height: CHAT_MENU_HIT,
             alignItems: "center",
             justifyContent: "center",
             opacity: pressed ? 0.6 : 1,

@@ -38,6 +38,7 @@ export const it: typeof en = {
     chats: "Conversazioni",
     newChat: "Nuova chat",
     searchChats: "Cerca nelle chat",
+    noMatches: "Nessuna chat corrispondente",
     untitled: "Senza titolo",
     deleteChat: "Elimina chat",
     deleteChatConfirm: "Eliminare questa conversazione?",

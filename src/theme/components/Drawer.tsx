@@ -1,24 +1,22 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import {
-  Animated,
-  Easing,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
-  ScrollView,
-  Text,
-  TextInput,
+  StyleSheet,
+  useWindowDimensions,
   View,
 } from "react-native";
+import Animated from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
-import { radius, spacing } from "../tokens";
-import { typography } from "../typography";
-import { BrandIcon } from "../icons/BrandIcon";
-import { GlassPanel2 } from "./GlassPanel2";
-
-const DRAWER_WIDTH = 280;
-const DURATION = 220;
+import { chatMenuOriginX, chatMenuOriginY } from "./chatNavLayout";
+import { DrawerContent } from "./DrawerContent";
+import { LeafPaper } from "./LeafPaper";
+import { leafContentPad } from "./leafPath";
+import { useLeafFold } from "./useLeafFold";
 
 export type DrawerItem = {
   id: string;
@@ -37,23 +35,23 @@ export type DrawerConversationItem = {
   onLongPress?: () => void;
 };
 
+/** Callers close the drawer on row actions; onClose is backdrop / Android back. */
 type Props = {
   open: boolean;
   onClose: () => void;
   brand?: string;
   subtitle?: string;
   items: DrawerItem[];
-  /** Optional conversation list + search (Phase 1). Tools stay at the bottom. */
   conversationItems?: DrawerConversationItem[];
   searchValue?: string;
   onSearchChange?: (query: string) => void;
   onNewChat?: () => void;
   personaLabel?: string;
   onPersonaPress?: () => void;
+  /** Measured height of the AppShell block above ChatNavBar (includes status inset). */
+  modelBarHeight?: number;
 };
 
-// Side drawer that slides from the left. The Modal stays mounted while
-// animating closed so the slide-out is visible (open prop drives anim).
 export function Drawer({
   open,
   onClose,
@@ -66,264 +64,88 @@ export function Drawer({
   onNewChat,
   personaLabel,
   onPersonaPress,
+  modelBarHeight = 0,
 }: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
-  const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
-  const opacity = useRef(new Animated.Value(0)).current;
-  const [mounted, setMounted] = React.useState(open);
+  const win = useWindowDimensions();
+  const [stage, setStage] = useState({ width: win.width, height: win.height });
+  const fold = useLeafFold(open);
 
   useEffect(() => {
-    if (open) {
-      setMounted(true);
-      Animated.parallel([
-        Animated.timing(translateX, { toValue: 0, duration: DURATION, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 1, duration: DURATION, useNativeDriver: true }),
-      ]).start();
-    } else if (mounted) {
-      Animated.parallel([
-        Animated.timing(translateX, { toValue: -DRAWER_WIDTH, duration: DURATION, easing: Easing.in(Easing.cubic), useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0, duration: DURATION, useNativeDriver: true }),
-      ]).start(({ finished }) => {
-        if (finished) setMounted(false);
-      });
-    }
+    if (open) setStage({ width: win.width, height: win.height });
   }, [open]);
 
-  if (!mounted) return null;
+  if (!fold.mounted) return null;
 
-  const showConversations = Array.isArray(conversationItems);
+  const { width, height } = stage;
+  const originX = chatMenuOriginX();
+  // Idle fallback ≈ title 22 + chip 16 + pads 6 until AppShell onLayout.
+  const originY = chatMenuOriginY(modelBarHeight > 0 ? modelBarHeight : insets.top + 44);
+  const pad = leafContentPad(width, height);
 
   return (
-    <Modal visible transparent animationType="none" onRequestClose={onClose} statusBarTranslucent>
-      <Animated.View style={{ flex: 1, opacity }}>
-        <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.45)" }} />
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      onRequestClose={onClose}
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
+      <View style={styles.frame} accessibilityViewIsModal>
         <Animated.View
-          style={{
-            position: "absolute",
-            top: 0,
-            bottom: 0,
-            left: 0,
-            width: DRAWER_WIDTH,
-            transform: [{ translateX }],
-          }}
+          pointerEvents={fold.backdropLive ? "auto" : "none"}
+          style={[styles.fill, fold.backdropStyle]}
         >
-          <GlassPanel2
-            opaque
-            rounded="lg"
-            style={{ flex: 1, borderRadius: 0, paddingTop: insets.top, paddingBottom: insets.bottom }}
-            contentStyle={{ flex: 1, minHeight: 0 }}
-          >
-            <View style={{ padding: spacing.lg, paddingBottom: spacing.md }}>
-              <Text style={[typography.displayMd, { color: colors.ink }]}>{brand}</Text>
-              {subtitle ? (
-                <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 4 }]}>{subtitle}</Text>
-              ) : null}
-            </View>
-            <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
-
-            {showConversations ? (
-              <View style={{ flex: 1, minHeight: 0 }}>
-                <Text
-                  style={[
-                    typography.bodyXs,
-                    { color: colors.muted, paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xs },
-                  ]}
-                >
-                  {t("drawer.chats")}
-                </Text>
-                {onSearchChange ? (
-                  <View style={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.xs }}>
-                    <TextInput
-                      value={searchValue ?? ""}
-                      onChangeText={onSearchChange}
-                      placeholder={t("drawer.searchChats")}
-                      placeholderTextColor={colors.muted}
-                      autoCorrect={false}
-                      autoCapitalize="none"
-                      returnKeyType="search"
-                      accessibilityLabel={t("drawer.searchChats")}
-                      style={[
-                        typography.bodySm,
-                        {
-                          color: colors.ink,
-                          backgroundColor: colors.panel,
-                          borderRadius: radius.sm,
-                          borderWidth: 1,
-                          borderColor: colors.line,
-                          paddingHorizontal: spacing.sm,
-                          paddingVertical: 8,
-                        },
-                      ]}
-                    />
-                  </View>
-                ) : null}
-                {onNewChat ? (
-                  <Pressable
-                    onPress={() => {
-                      onNewChat();
-                      onClose();
-                    }}
-                    accessibilityLabel={t("drawer.newChat")}
-                    style={({ pressed }) => ({
-                      flexDirection: "row",
-                      alignItems: "center",
-                      gap: spacing.sm,
-                      marginHorizontal: spacing.sm,
-                      paddingHorizontal: spacing.sm,
-                      paddingVertical: 10,
-                      borderRadius: radius.sm,
-                      backgroundColor: pressed ? colors.panel : "transparent",
-                    })}
-                  >
-                    <BrandIcon name="new-chat" size={22} />
-                    <Text style={[typography.bodyMd, { color: colors.ink, fontFamily: typography.bodySm.fontFamily }]}>
-                      {t("drawer.newChat")}
-                    </Text>
-                  </Pressable>
-                ) : null}
-                <ScrollView
-                  style={{ flex: 1 }}
-                  contentContainerStyle={{ paddingHorizontal: spacing.sm, paddingBottom: spacing.sm }}
-                  keyboardShouldPersistTaps="handled"
-                >
-                  {conversationItems.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {
-                        item.onPress();
-                        onClose();
-                      }}
-                      onLongPress={item.onLongPress}
-                      delayLongPress={380}
-                      accessibilityLabel={item.title}
-                      accessibilityState={{ selected: Boolean(item.active) }}
-                      style={({ pressed }) => ({
-                        paddingHorizontal: spacing.sm,
-                        paddingVertical: 10,
-                        borderRadius: radius.sm,
-                        backgroundColor: item.active
-                          ? colors.accentSoft
-                          : pressed
-                            ? colors.panel
-                            : "transparent",
-                      })}
-                    >
-                      <Text
-                        numberOfLines={1}
-                        style={[
-                          typography.bodyMd,
-                          {
-                            color: colors.ink,
-                            fontFamily: typography.bodySm.fontFamily,
-                          },
-                        ]}
-                      >
-                        {item.title}
-                      </Text>
-                      {item.preview ? (
-                        <Text
-                          numberOfLines={1}
-                          style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}
-                        >
-                          {item.preview}
-                        </Text>
-                      ) : null}
-                    </Pressable>
-                  ))}
-                </ScrollView>
-              </View>
-            ) : null}
-
-            <View style={{ height: 1, backgroundColor: colors.line, marginHorizontal: spacing.md }} />
-            <View style={{ paddingHorizontal: spacing.sm, paddingVertical: spacing.sm }}>
-              <Text style={[typography.bodyXs, { color: colors.muted, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs }]}>
-                {t("drawer.toolsSection")}
-              </Text>
-              {items.map(({ id, label, Icon, lastUsed, onPress }) => (
-                <Pressable
-                  key={id}
-                  onPress={() => {
-                    onPress();
-                    onClose();
-                  }}
-                  style={({ pressed }) => ({
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: spacing.md,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 10,
-                    borderRadius: radius.sm,
-                    backgroundColor: pressed ? colors.panel : "transparent",
-                  })}
-                >
-                  <View
-                    style={{
-                      width: 28, height: 28, borderRadius: radius.sm,
-                      backgroundColor: `${colors.accent}1A`,
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Icon color={colors.accent} size={16} />
-                  </View>
-                  <Text style={[typography.bodyMd, { color: colors.ink, flex: 1, fontFamily: typography.bodySm.fontFamily }]}>
-                    {label}
-                  </Text>
-                  {lastUsed ? (
-                    <Text style={[typography.monoXs, { color: colors.muted }]}>{lastUsed}</Text>
-                  ) : null}
-                </Pressable>
-              ))}
-              {onPersonaPress ? (
-                <Pressable
-                  onPress={() => {
-                    onPersonaPress();
-                    onClose();
-                  }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("drawer.personas")}
-                  style={({ pressed }) => ({
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: spacing.md,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 10,
-                    borderRadius: radius.sm,
-                    backgroundColor: pressed ? colors.panel : "transparent",
-                  })}
-                >
-                  <View
-                    style={{
-                      width: 28,
-                      height: 28,
-                      borderRadius: radius.sm,
-                      backgroundColor: `${colors.accent}1A`,
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <Text style={[typography.bodyXs, { color: colors.accent }]}>P</Text>
-                  </View>
-                  <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text
-                      style={[
-                        typography.bodyMd,
-                        { color: colors.ink, fontFamily: typography.bodySm.fontFamily },
-                      ]}
-                    >
-                      {t("drawer.personas")}
-                    </Text>
-                    <Text style={[typography.bodyXs, { color: colors.muted }]} numberOfLines={1}>
-                      {personaLabel || t("drawer.personaNone")}
-                    </Text>
-                  </View>
-                </Pressable>
-              ) : null}
-            </View>
-          </GlassPanel2>
+          <Pressable
+            onPress={onClose}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.close")}
+            style={[styles.fill, { backgroundColor: colors.leafBackdrop }]}
+          />
         </Animated.View>
-      </Animated.View>
+        <Animated.View
+          collapsable={false}
+          pointerEvents="box-none"
+          style={[styles.fill, { transformOrigin: [originX, originY] }, fold.paperStyle]}
+        >
+          <LeafPaper
+            width={width}
+            height={height}
+            colors={colors}
+            flapStyle={fold.flapStyle}
+            flapFrontStyle={fold.flapFrontStyle}
+            flapBackStyle={fold.flapBackStyle}
+            creaseStyle={fold.creaseStyle}
+            shadeStyle={fold.shadeStyle}
+          />
+          <Animated.View pointerEvents={fold.contentLive ? "auto" : "none"} style={[styles.fill, pad, fold.contentStyle]}>
+            <KeyboardAvoidingView
+              style={{ flex: 1 }}
+              behavior={Platform.OS === "ios" ? "padding" : undefined}
+            >
+              <DrawerContent
+                brand={brand}
+                subtitle={subtitle}
+                items={items}
+                conversationItems={conversationItems}
+                searchValue={searchValue}
+                onSearchChange={onSearchChange}
+                onNewChat={onNewChat}
+                personaLabel={personaLabel}
+                onPersonaPress={onPersonaPress}
+              />
+            </KeyboardAvoidingView>
+          </Animated.View>
+        </Animated.View>
+      </View>
     </Modal>
   );
 }
+
+const styles = StyleSheet.create({
+  frame: { flex: 1 },
+  fill: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0 },
+});

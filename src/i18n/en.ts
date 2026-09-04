@@ -39,6 +39,7 @@ export const en = {
     chats: "Chats",
     newChat: "New chat",
     searchChats: "Search chats",
+    noMatches: "No matching chats",
     untitled: "Untitled",
     deleteChat: "Delete chat",
     deleteChatConfirm: "Delete this conversation?",

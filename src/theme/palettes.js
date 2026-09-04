@@ -74,6 +74,18 @@ const palettes = {
       glowMid: "rgba(10, 106, 90, 0.05)",
       // kept for key parity (createStyles / primitives still read it)
       inkSoft: "#2C3630",
+      // Leaf-fold drawer (v11.1 demo)
+      leafBody: "#DCEFE2",
+      leafBodyDeep: "#A8D0B8",
+      leafBack: "#6FA88A",
+      leafStroke: "#6A9A7C",
+      leafTile: "rgba(255, 255, 255, 0.55)",
+      leafTileActive: "rgba(255, 255, 255, 0.82)",
+      leafBackdrop: "rgba(0, 0, 0, 0.42)",
+      leafShade: "rgba(10, 32, 24, 0.32)",
+      leafInk: "#1C3A2C",
+      leafMuted: "#57705F",
+      leafLine: "rgba(23, 42, 32, 0.14)",
     },
   },
   dark: {
@@ -134,6 +146,18 @@ const palettes = {
       plotUp: "#ff8a78",
       plotDown: "#6ba8ff",
       plotNs: "rgba(255, 255, 255, 0.18)",
+      // Leaf-fold drawer (v11.1 demo)
+      leafBody: "#2C6750",
+      leafBodyDeep: "#174032",
+      leafBack: "#0E2A20",
+      leafStroke: "rgba(136, 192, 208, 0.4)",
+      leafTile: "rgba(0, 0, 0, 0.28)",
+      leafTileActive: "rgba(0, 0, 0, 0.42)",
+      leafBackdrop: "rgba(0, 0, 0, 0.55)",
+      leafShade: "rgba(0, 0, 0, 0.45)",
+      leafInk: "#EDF7F0",
+      leafMuted: "rgba(237, 247, 240, 0.62)",
+      leafLine: "rgba(255, 255, 255, 0.14)",
     },
   },
 };

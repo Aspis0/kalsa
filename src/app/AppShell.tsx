@@ -49,7 +49,6 @@ import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
@@ -839,7 +838,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const documentLibraryRef = useRef<LibraryState>(documentLibrary);
   documentLibraryRef.current = documentLibrary;
 
-  // ── Conversations index (swipe drawer) ────────────────────────────────
+  // ── Conversations index (leaf-fold drawer) ────────────────────────────────
   const [conversations, setConversations] = useState<ConversationsState>({
     activeId: "",
     items: [],
@@ -2071,6 +2070,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // ── Drawer + exclusive overlay (settings | account | pro | help | documents | notes | personas | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modelBarHeight, setModelBarHeight] = useState(0);
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
 
   const handleSwitchConversation = useCallback(
@@ -2252,12 +2252,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     ],
   );
 
-  const edgeSwipe = Gesture.Pan()
-    .activeOffsetX(24)
-    .failOffsetY([-15, 15]) // scroll verticale NON deve aprire il drawer
-    .hitSlop({ left: 0, width: 48 }) // solo dal bordo sinistro: niente conflitti con sources/scroll
-    .runOnJS(true)
-    .onStart(() => setDrawerOpen(true));
   const drawerItems: DrawerItem[] = useMemo(
     () => [
       {
@@ -5056,13 +5050,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     */}
     <View style={{ flex: 1 }}>
       <PainterlyBg />
-      <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
       {/* Top safe-area belongs to the header below (paddingTop: insets.top + 4).
           AiChatPage owns only the bottom inset, for the composer — it used to add
           the top inset too, which reserved the status-bar height twice. */}
       <SafeAreaView style={{ flex: 1 }} edges={[]}>
         {/* Header compatto: titolo + modello/stato in una riga */}
+        <View onLayout={(e) => setModelBarHeight(e.nativeEvent.layout.height)}>
         <View
           style={{
             flexDirection: "row",
@@ -5213,6 +5207,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             {modelErrorHint}
           </Text>
         ) : null}
+        </View>
 
         <View style={{ flex: 1 }}>
           <AiChatPage
@@ -5282,7 +5277,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         ) : null}
       </SafeAreaView>
       </View>
-      </GestureDetector>
 
       <Drawer
         key={fontScaleId}
@@ -5302,9 +5296,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           findPersona(personasState, activePersonaId, builtinCopyFromT(t))?.name ??
           t("drawer.personaNone")
         }
+        modelBarHeight={modelBarHeight}
         onPersonaPress={() => {
           Keyboard.dismiss();
           setDrawerOpen(false);
+          setChatSearch("");
           setActiveOverlay({ kind: "personas" });
         }}
       />
