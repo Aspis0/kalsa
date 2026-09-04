@@ -87,3 +87,21 @@ guard abort (L58) remains. Consequences declared now:
   lines; `--mmap` is marked deprecated but accepted); env knobs VMEM/MBUF/NDEV/VERBOSE exist
   (ggml-hexagon.cpp:6320-6336). Build note: this tree's preset targets android-34 (kit-v6 was
   android-31); the host build needed one retry (embed_kernel.py step) and then installed cleanly.
+
+## Lock addendum 2 (audit F1/F2/F14/F15, before the session)
+
+- Knob existence (F1): `GGML_HEXAGON_MBUF` and `GGML_HEXAGON_VMEM` are read by the upstream host
+  backend at ggml-hexagon.cpp:6335-6336 @64a155d24 (quoted in MODEL_SHA.txt); the kit's
+  libggml-hexagon.so is built from that tree. Effect verification, declared now: U2's MBUF=512
+  is confirmed post hoc by the host `-v` `mapped buffer … size` lines (all weight buffers ≤ 512
+  MiB, ≥ 7 of them, as in #60 B2); if the sizes are ~1 GiB the knob was ignored → U2 is
+  METHOD-VOID. U5's VMEM=1800 has no direct host-side print; its effect is only inferable from
+  the DSP `fd_mmap_destroy` churn in the adsprpc log (as in #60 B5); if U5 shows no destroys
+  before its outcome, the arm is banked as "knob effect unverified", not as a grid input.
+- Counters (F2/F14): the .sig line carries `n_exec_any` (all `execute-op` lines regardless of
+  device) next to `n_exps_htp0`; if `n_exps_htp0` = 0 while `n_exec_any` > 0 and the arm exited
+  0, the verbose format changed and the arm is "survived, proof format changed" — the REPORT
+  re-derives the HTP count from the raw lines and quotes the new format; a zero in BOTH with
+  exit 0 is a silent CPU fallback → METHOD-VOID.
+- BUILD.md (F15) exists at scratchpad/agents/qdc-npu-mmapfix-kit/BUILD.md (kit agent) and the
+  flag/knob/abort facts were re-verified by the orchestrator (lock addendum above).
