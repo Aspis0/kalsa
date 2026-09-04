@@ -1,0 +1,6 @@
+STEP A S1 ok install_rc=0 pm_dump_rc=0 sha=e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403
+STEP A S2 fail METHOD-VOID run-as copy_rc=1 size= expected=1593894944
+STEP A S2 fail METHOD-VOID skipped after S2
+STEP A S3 fail METHOD-VOID skipped after S2
+STEP A S4 fail METHOD-VOID skipped after S2
+STEP A S5 fail METHOD-VOID skipped after S2

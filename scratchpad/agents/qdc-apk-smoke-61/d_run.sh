@@ -3,8 +3,8 @@
 # ci-lib.sh is not sourced: its device helpers use bare, uncapped adb and its
 # device install_and_sideload path refuses the required model sideload. This
 # keeps the same one-turn adb/UI/DB primitives under adbT. S3 uses the ci-lib
-# fallback: pull RKStorage (+ WAL/SHM) through run-as, edit with Mac sqlite3,
-# then push RKStorage back through run-as.
+# fallback: pull RKStorage (+ WAL/SHM) with root adb pull, edit with Mac sqlite3,
+# then push to D and root-copy RKStorage back with ownership/SELinux restore.
 set -u
 JOB="${1:?usage: d_run.sh <job_tag>}"
 DIR="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-apk-smoke-61"; RAW="$DIR/raw"; STEPS="$RAW/steps_$JOB.txt"
@@ -53,7 +53,8 @@ else
   log "model push verified on device"
 fi
 thermal_record() {
-  local prefix="$1" phase="$2" out="${prefix}_thermal_${phase}.txt" status="${prefix}_thermal_${phase}.status" gate_rc; : > "$out"
+  local prefix="$1" phase="$2" gate_rc
+  local out="${prefix}_thermal_${phase}.txt" status="${prefix}_thermal_${phase}.status"; : > "$out"
   if [ -x "$GATE" ]; then
     # Record only: thermal_gate.sh's PASS/FAIL is ignored; cap its whole process.
     perl -e 'alarm shift; exec @ARGV or exit 127' 90 "$GATE" "$SER" "$out" > "$status" 2>&1; gate_rc=$?; cat "$status" >> "$out"; echo "thermal_recorder_rc=$gate_rc" >> "$out"
@@ -90,30 +91,22 @@ trap restore_ime EXIT
 ime_suspend() { [ "$IME_SUSPEND" = 1 ] && [ "$IME_SUSPENDED" -eq 0 ] || return 0; IME_SAVED=$(adbT 60 -s "$SER" shell settings get secure default_input_method 2>/dev/null | tr -d '\r'); case "$IME_SAVED" in ''|null) log "ime default unavailable; continuing"; return 0;; esac; if adbT 60 -s "$SER" shell "ime disable $IME_SAVED" >/dev/null 2>&1; then IME_SUSPENDED=1; log "ime suspended: $IME_SAVED"; else log "ime suspend failed; continuing best effort"; fi; }
 
 pull_rkstorage() {
-  local dir="$1" have_wal=0 have_shm=0
-  local -a files=(RKStorage)
-  if adbT 60 -s "$SER" shell "run-as $PKG test -f databases/RKStorage-wal" >/dev/null 2>&1; then
-    have_wal=1; files+=(RKStorage-wal)
+  local dir="$1"
+  adbT 300 -s "$SER" pull "/data/data/$PKG/databases/RKStorage" "$dir/RKStorage" \
+    > "$dir/pull.err" 2>&1 || return 1
+  if adbT 60 -s "$SER" shell "test -f /data/data/$PKG/databases/RKStorage-wal" >/dev/null 2>&1; then
+    adbT 300 -s "$SER" pull "/data/data/$PKG/databases/RKStorage-wal" "$dir/RKStorage-wal" \
+      >> "$dir/pull.err" 2>&1 || return 1
   fi
-  if adbT 60 -s "$SER" shell "run-as $PKG test -f databases/RKStorage-shm" >/dev/null 2>&1; then
-    have_shm=1; files+=(RKStorage-shm)
+  if adbT 60 -s "$SER" shell "test -f /data/data/$PKG/databases/RKStorage-shm" >/dev/null 2>&1; then
+    adbT 300 -s "$SER" pull "/data/data/$PKG/databases/RKStorage-shm" "$dir/RKStorage-shm" \
+      >> "$dir/pull.err" 2>&1 || return 1
   fi
-  if adbT 300 -s "$SER" exec-out run-as "$PKG" tar cf - -C databases "${files[@]}" \
-    > "$dir/rkstorage.tar" 2> "$dir/pull.err"; then
-    tar xf "$dir/rkstorage.tar" -C "$dir" 2>/dev/null && [ -f "$dir/RKStorage" ] && return 0
-  fi
-  rm -f "$dir/RKStorage" "$dir/RKStorage-wal" "$dir/RKStorage-shm"
-  adbT 300 -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage \
-    > "$dir/RKStorage" 2> "$dir/pull.err" || return 1
-  [ "$have_wal" -eq 0 ] || adbT 120 -s "$SER" exec-out run-as "$PKG" \
-    cat databases/RKStorage-wal > "$dir/RKStorage-wal" 2> "$dir/pull.err" || return 1
-  [ "$have_shm" -eq 0 ] || adbT 120 -s "$SER" exec-out run-as "$PKG" \
-    cat databases/RKStorage-shm > "$dir/RKStorage-shm" 2> "$dir/pull.err" || return 1
 }
 set_model_pref() {
   local dbdir remote
   dbdir=$(mktemp -d "${TMPDIR:-/tmp}/kalsa61-rkstorage.XXXXXX") || return 1
-  echo "sql_path=host sqlite3 on pulled RKStorage; push through run-as"
+  echo "sql_path=host sqlite3 on pulled RKStorage; adb push then root cp/chown/restorecon"
   pull_rkstorage "$dbdir" || { rm -rf "$dbdir"; return 1; }
   sqlite3 -bail "$dbdir/RKStorage" \
     "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');" \
@@ -123,8 +116,7 @@ set_model_pref() {
   }
   remote="$D/rkstorage-$$"
   if ! adbT 300 -s "$SER" push "$dbdir/RKStorage" "$remote" >/dev/null 2>&1 ||
-    ! adbT 120 -s "$SER" shell "run-as $PKG cp $remote databases/RKStorage" >/dev/null 2>&1 ||
-    ! adbT 60 -s "$SER" shell "run-as $PKG rm -f databases/RKStorage-wal databases/RKStorage-shm" >/dev/null 2>&1; then
+    ! adbT 120 -s "$SER" shell "cp $remote /data/data/$PKG/databases/RKStorage && chown $APP_UID:$APP_UID /data/data/$PKG/databases/RKStorage && restorecon -RF /data/data/$PKG/databases/RKStorage; rc=\$?; rm -f /data/data/$PKG/databases/RKStorage-wal /data/data/$PKG/databases/RKStorage-shm; exit \$rc" >/dev/null 2>&1; then
     adbT 60 -s "$SER" shell "rm -f $remote" >/dev/null 2>&1 || true
     rm -rf "$dbdir"
     return 1
@@ -137,15 +129,15 @@ set_model_pref() {
 capture_evidence() {
   local prefix="$1" rc=0 pid
   logcat_all 300 "${prefix}_logcat_all.txt" || rc=1
-  adbT 300 -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage > "${prefix}_chat_RKStorage.db" 2> "${prefix}_chat_RKStorage.err" || rc=1
+  adbT 300 -s "$SER" pull "/data/data/$PKG/databases/RKStorage" "${prefix}_chat_RKStorage.db" > "${prefix}_chat_RKStorage.pull.txt" 2>&1 || rc=1
   grep -E 'KALSA_SESSION|KALSA_TELEMETRY' "${prefix}_logcat_all.txt" > \
     "${prefix}_session_telemetry.txt" 2>/dev/null || true
   grep -F 'kalsa-native-patches' "${prefix}_logcat_all.txt" > \
     "${prefix}_native_banner.txt" 2>/dev/null || true
   pid=$(adbT 60 -s "$SER" shell "pidof $PKG" | awk 'NR==1{print $1; exit}' | tr -d '\r')
   if [ -n "$pid" ]; then
-    # Equivalent evidence: run-as $PKG cat /proc/$(pidof $PKG)/maps | grep librnllama
-    adbT 120 -s "$SER" shell "run-as $PKG cat /proc/$pid/maps" > \
+    # Equivalent evidence: cat /proc/$(pidof $PKG)/maps | grep librnllama as root.
+    adbT 120 -s "$SER" shell "cat /proc/$pid/maps" > \
       "${prefix}_maps.txt" 2>&1 || rc=1
     grep -F librnllama "${prefix}_maps.txt" > "${prefix}_maps_librnllama.txt" 2>/dev/null || true
   else
@@ -169,32 +161,40 @@ finish_apk() {
 
 run_apk() {
   local label="$1" apk="$2" apk_sha="$3" prefix="$RAW/${1}_$JOB"
-  local rc pm_rc copy_rc size first_rc force_rc sql_rc clear_rc launch_rc load_rc
+  local rc pm_rc copy_rc size first_rc force_rc sql_rc clear_rc launch_rc load_rc APP_UID=""
   local s5_rc=1 evidence_rc arm_rc=0 s5_detail="" edit_bounds send_bounds
   log "=== APK $label ==="
   adbT 300 -s "$SER" install -r "$apk" > "${prefix}_s1_install.txt" 2>&1
   rc=$?
+  APP_UID=$(adbT 60 -s "$SER" shell "stat -c %u /data/data/$PKG" | tr -d '\r')
+  case "$APP_UID" in
+    ''|*[!0-9]*) APP_UID=$(adbT 60 -s "$SER" shell "dumpsys package $PKG" | grep -o 'userId=[0-9]*' | sed -n '1s/userId=//p' | tr -d '\r');;
+  esac
   adbT 60 -s "$SER" shell "pm dump $PKG" > "${prefix}_s1_pm_dump.txt" 2>&1
   pm_rc=$?
+  case "$APP_UID" in ''|*[!0-9]*)
+    step "$label" S1 fail "APP_UID unavailable"; skip_steps "$label" "skipped after S1"; finish_apk "$label" "$prefix"
+    return 1;;
+  esac
   if [ "$rc" -ne 0 ]; then
     step "$label" S1 fail "adb install rc=$rc pm_dump_rc=$pm_rc"; skip_steps "$label" "skipped after S1"; finish_apk "$label" "$prefix"
     return 1
   fi
-  step "$label" S1 ok "install_rc=0 pm_dump_rc=$pm_rc sha=$apk_sha"
-  # S2: the preregistered run-as copy and exact completeness check.
-  adbT 300 -s "$SER" shell "run-as $PKG sh -c 'mkdir -p files/models/$MODEL_DIR && cp $D/$MODEL_FILE files/models/$MODEL_DIR/$MODEL_FILE'" > \
+  step "$label" S1 ok "install_rc=0 pm_dump_rc=$pm_rc app_uid=$APP_UID sha=$apk_sha"
+  # S2: root copy, ownership/SELinux repair, and exact completeness check.
+  adbT 300 -s "$SER" shell "mkdir -p /data/data/$PKG/files/models/$MODEL_DIR && cp $D/$MODEL_FILE /data/data/$PKG/files/models/$MODEL_DIR/$MODEL_FILE && chown -R $APP_UID:$APP_UID /data/data/$PKG/files && restorecon -RF /data/data/$PKG/files" > \
     "${prefix}_s2_copy.txt" 2>&1
   copy_rc=$?
   size=""
   if [ "$copy_rc" -eq 0 ]; then
-    size=$(adbT 60 -s "$SER" shell "run-as $PKG sh -c 'wc -c < files/models/$MODEL_DIR/$MODEL_FILE'" |
+    size=$(adbT 60 -s "$SER" shell "stat -c %s /data/data/$PKG/files/models/$MODEL_DIR/$MODEL_FILE" |
       tr -d '[:space:]')
   fi
   if [ "$copy_rc" -ne 0 ] || [ "$size" != "$MODEL_SIZE" ]; then
-    step "$label" S2 fail "METHOD-VOID run-as copy_rc=$copy_rc size=$size expected=$MODEL_SIZE"; skip_steps "$label" "METHOD-VOID skipped after S2"; finish_apk "$label" "$prefix"
+    step "$label" S2 fail "METHOD-VOID sideload=root copy_rc=$copy_rc size=$size expected=$MODEL_SIZE"; skip_steps "$label" "METHOD-VOID skipped after S2"; finish_apk "$label" "$prefix"
     return 1
   fi
-  step "$label" S2 ok "run-as copy size=$size"
+  step "$label" S2 ok "sideload=root size=$size"
   # S3 first-launch DB creation, then the host-sqlite3 model selection write.
   adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_s3_first_launch.txt" 2>&1
   first_rc=$?
