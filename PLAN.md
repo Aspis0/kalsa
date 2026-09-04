@@ -581,6 +581,14 @@
 > run 33826834623 CANCELLATO dal runner a 28 min dentro Gradle senza errore
 > di compilazione (unico run sul branch, non è la concurrency) → rilanciato.
 
+> **3/09 notte, 22:40 — CELLA #59 IN VOLO (HDK8550 job 798484, host
+> sa802553, 45 min prenotati).** Driver scritto da grok→Luna, doppio audit
+> mimo (F1 PULL_FAIL re-entry e F2 gating A2 applicati da grok; nel secondo
+> giro: NO_BINARY "mancante" REFUTATO — era la variabile dell'esperimento
+> F2b, non la baseline; guard del fallback -n0→-n1 allargato a
+> `dspqueue|fastrpc|qurt_exit|0x2e`). Nota device: l'HDK8550 monta Android
+> 16 (S23 era 14) — da dichiarare nel REPORT come confound residuo.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
