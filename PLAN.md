@@ -517,6 +517,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `mimo-lot-b-map-2026-09-04/`) dell'altra sessione Claude sull'app: lasciati
 > fuori dal commit.
 
+> **5/09 ~01:00 — S3+S4 CONSEGNATI da Luna (bf40dcfe), audit ostile in
+> volo.** Commit su `feat/governor-in-app` (pushato su Aspis0/kalsa):
+> `05ad253` (Kotlin `native/GovernorBatteryModule.kt` 57 righe + plugin Expo
+> `plugins/withGovernorBattery.js` + JSI `llamaSetGovernorThermo` /
+> `llamaGetGovernorStats` nel patch, ora 3462 righe) e `81bcaf2`
+> (`src/engine/governorInputs.ts` 168 righe + test, `governorRuntime.ts` 53
+> righe + test, wiring LlamaService +164 righe: flag `kalsa.governor.enabled`,
+> retry CPU unico con `KALSA_GOVERNOR_FALLBACK_RETRY`, thermo per turno,
+> riga `KALSA_GOVERNOR {...}` via JSON). **Verificato da me su disco:** jest
+> 7/7 (exit 0), `test:governor-params` PASS (exit 0), il patch tocca solo 24
+> file di glue llama.rn (nessun sorgente ggml/llama). CI APK 33927024200 su
+> 81bcaf2 in volo. Audit ostile S3+S4 → grok (agente 2f3f58ef), report atteso
+> in `docs/AUDIT-S3S4-governor-app.md`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
