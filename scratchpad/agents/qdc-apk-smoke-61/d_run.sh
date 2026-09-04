@@ -14,12 +14,22 @@ PKG=com.kalsa.app
 APK_A="$HOME/kalsa-qdc/apk/apk-A-c513f00/app-release.apk"; APK_A_SHA=e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403
 APK_B="$HOME/kalsa-qdc/apk/apk-B-09bdfe9/kalsa-apk-arm64-v8a-09bdfe949403db7cd793da9471c5a78c50d62966/app-release.apk"; APK_B_SHA=1e2709e57561e97149664ea30588b7df9141c25a6813642cdda1c3ddf9d7f86d
 MODEL="$HOME/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf"; MODEL_SIZE=1593894944; MODEL_SHA=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
-MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf; D=/data/local/tmp/kalsa61; GATE="$HOME/kalsa-qdc/kexp-speed-cell/thermal_gate.sh"
+MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf; D=/data/local/tmp/kalsa61; GATE="$HOME/kalsa-qdc/kexp-speed-cell/thermal_gate.sh"; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; WAKEFULNESS=unknown
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 adbT() {
   local seconds="$1"
   shift
   perl -e 'alarm shift; exec @ARGV or exit 127' "$seconds" adb "$@"
+}
+device_wake() {
+  local wake_line
+  if [ "$SCREEN_OFF_TIMEOUT_SAVED" -eq 0 ]; then SCREEN_OFF_TIMEOUT_SAVED=1; SCREEN_OFF_TIMEOUT=$(adbT 60 -s "$SER" shell "settings get system screen_off_timeout" | tr -d '\r'); fi
+  { echo "saved_screen_off_timeout=$SCREEN_OFF_TIMEOUT"; adbT 60 -s "$SER" shell "input keyevent KEYCODE_WAKEUP" || true
+    adbT 60 -s "$SER" shell "wm dismiss-keyguard" || true; adbT 60 -s "$SER" shell "svc power stayon true" || true
+    adbT 60 -s "$SER" shell "settings put system screen_off_timeout 1800000" || true
+    wake_line=$(adbT 60 -s "$SER" shell "dumpsys power | grep mWakefulness=" | tr -d '\r') || true; printf '%s\n' "$wake_line"
+  } >> "$RAW/wake_$JOB.txt" 2>&1
+  WAKEFULNESS=$(printf '%s\n' "$wake_line" | sed -n 's/.*mWakefulness=\([^, ]*\).*/\1/p' | sed -n '1p'); [ -n "$WAKEFULNESS" ] || WAKEFULNESS=unknown
 }
 step() { local label="$1" name="$2" status="$3" detail="${4//$'\n'/ }"; printf 'STEP %s %s %s %s\n' "$label" "$name" "$status" "$detail" >> "$STEPS"; log "STEP $label $name $status $detail"; }
 skip_steps() { local label="$1" detail="$2" name; for name in S2 S3 S4 S5; do step "$label" "$name" fail "$detail"; done; }
@@ -36,6 +46,7 @@ SER=$(adbT 60 devices | awk 'NR>1 && $2=="device"{print $1; exit}')
   if adbT 60 -s "$SER" root; then echo "adb_root=success"; else echo "adb_root=failed"; fi
 } > "$RAW/recon_$JOB.txt" 2>&1
 adbT 60 -s "$SER" wait-for-device >/dev/null 2>&1 || true
+device_wake
 verify_local_sha "$APK_A" "$APK_A_SHA" || exit 5; verify_local_sha "$APK_B" "$APK_B_SHA" || exit 5; verify_local_sha "$MODEL" "$MODEL_SHA" || exit 5
 LOCAL_MODEL_SIZE=$(wc -c < "$MODEL" 2>/dev/null | tr -d '[:space:]'); [ "$LOCAL_MODEL_SIZE" = "$MODEL_SIZE" ] || { log "LOCAL_MODEL_SIZE_MISMATCH got=$LOCAL_MODEL_SIZE"; exit 5; }
 if ! adbT 60 -s "$SER" shell "mkdir -p $D"; then log "MKDIR_FAIL $D"; exit 5; fi
@@ -87,7 +98,12 @@ type_prompt() { local -a words; local word first=1; read -r -a words <<< "$PROMP
 
 IME_SAVED=""; IME_SUSPENDED=0
 restore_ime() { [ "$IME_SUSPENDED" -eq 1 ] || return 0; IME_SUSPENDED=0; adbT 60 -s "$SER" shell "ime enable $IME_SAVED" >/dev/null 2>&1 || true; adbT 60 -s "$SER" shell "ime set $IME_SAVED" >/dev/null 2>&1 || true; log "ime restored: $IME_SAVED"; }
-trap restore_ime EXIT
+device_wake_restore() {
+  adbT 60 -s "$SER" shell "svc power stayon false" >/dev/null 2>&1 || true
+  [ -n "$SCREEN_OFF_TIMEOUT" ] || return 0
+  adbT 60 -s "$SER" shell "settings put system screen_off_timeout $SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || true
+}
+trap 'restore_ime; device_wake_restore' EXIT
 ime_suspend() { [ "$IME_SUSPEND" = 1 ] && [ "$IME_SUSPENDED" -eq 0 ] || return 0; IME_SAVED=$(adbT 60 -s "$SER" shell settings get secure default_input_method 2>/dev/null | tr -d '\r'); case "$IME_SAVED" in ''|null) log "ime default unavailable; continuing"; return 0;; esac; if adbT 60 -s "$SER" shell "ime disable $IME_SAVED" >/dev/null 2>&1; then IME_SUSPENDED=1; log "ime suspended: $IME_SAVED"; else log "ime suspend failed; continuing best effort"; fi; }
 
 pull_rkstorage() {
@@ -162,7 +178,7 @@ finish_apk() {
 run_apk() {
   local label="$1" apk="$2" apk_sha="$3" prefix="$RAW/${1}_$JOB"
   local rc pm_rc copy_rc size first_rc force_rc sql_rc clear_rc launch_rc load_rc APP_UID=""
-  local s5_rc=1 evidence_rc arm_rc=0 s5_detail="" edit_bounds send_bounds
+  local s5_rc=1 evidence_rc arm_rc=0 s5_detail="" edit_bounds send_bounds s3_detail="" db_retry=0 retry_launch_rc=0 retry_force_rc=0
   log "=== APK $label ==="
   adbT 300 -s "$SER" install -r "$apk" > "${prefix}_s1_install.txt" 2>&1
   rc=$?
@@ -196,23 +212,24 @@ run_apk() {
   fi
   step "$label" S2 ok "sideload=root size=$size"
   # S3 first-launch DB creation, then the host-sqlite3 model selection write.
-  adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_s3_first_launch.txt" 2>&1
+  device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_s3_first_launch.txt" 2>&1
   first_rc=$?
   sleep 25
   adbT 60 -s "$SER" shell "am force-stop $PKG" >> "${prefix}_s3_first_launch.txt" 2>&1
   force_rc=$?
+  if ! adbT 60 -s "$SER" shell "test -f /data/data/$PKG/databases/RKStorage" >/dev/null 2>&1; then
+    db_retry=1; device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" >> "${prefix}_s3_first_launch.txt" 2>&1; retry_launch_rc=$?; sleep 25
+    adbT 60 -s "$SER" shell "am force-stop $PKG" >> "${prefix}_s3_first_launch.txt" 2>&1; retry_force_rc=$?
+    [ "$retry_launch_rc" -eq 0 ] || first_rc=$retry_launch_rc; [ "$retry_force_rc" -eq 0 ] || force_rc=$retry_force_rc
+  fi
   set_model_pref > "${prefix}_s3_sql.txt" 2>&1
   sql_rc=$?
-  if [ "$first_rc" -eq 0 ] && [ "$force_rc" -eq 0 ] && [ "$sql_rc" -eq 0 ]; then
-    step "$label" S3 ok "first_launch=0 force_stop=0 sql=host-sqlite3"
-  else
-    step "$label" S3 fail "first_launch=$first_rc force_stop=$force_rc sql=$sql_rc"
-    arm_rc=1
-  fi
+  s3_detail="first_launch=$first_rc force_stop=$force_rc sql=$sql_rc"; [ "$db_retry" -eq 1 ] && s3_detail="$s3_detail db_retry=1"
+  if [ "$first_rc" -eq 0 ] && [ "$force_rc" -eq 0 ] && [ "$sql_rc" -eq 0 ]; then step "$label" S3 ok "$s3_detail"; else step "$label" S3 fail "$s3_detail"; arm_rc=1; fi
   thermal_record "$prefix" pre_s4
   adbT 60 -s "$SER" logcat -c > "${prefix}_s4_clear.txt" 2>&1
   clear_rc=$?
-  adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_s4_launch.txt" 2>&1
+  device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_s4_launch.txt" 2>&1
   launch_rc=$?
   load_rc=1
   if [ "$clear_rc" -eq 0 ] && [ "$launch_rc" -eq 0 ]; then
@@ -220,7 +237,7 @@ run_apk() {
   else
     : > "${prefix}_s4_logcat.txt"
   fi
-  if [ "$load_rc" -eq 0 ]; then step "$label" S4 ok "KALSA_SESSION load ok"; else step "$label" S4 fail "clear=$clear_rc launch=$launch_rc load_timeout_or_missing"; arm_rc=1; fi
+  if [ "$load_rc" -eq 0 ]; then step "$label" S4 ok "KALSA_SESSION load ok wake=$WAKEFULNESS"; else step "$label" S4 fail "clear=$clear_rc launch=$launch_rc load_timeout_or_missing wake=$WAKEFULNESS"; arm_rc=1; fi
   # S5 tap/type/send: IME-suspended, live uiautomator bounds, space-safe input.
   ime_suspend
   if dump_ui_to "${prefix}_s5_edit.xml"; then edit_bounds=$(bounds_edit "${prefix}_s5_edit.xml"); else edit_bounds=""; fi
