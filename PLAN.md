@@ -40,7 +40,7 @@
 6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
 ## In volo / prossimi
-- Cella #64: bisect della TLBMISS op_binary sui 23 commit hexagon — step 0 GOOD, index 12 BAD → culprit in 1..12, index 6 in build (BISECT-LOG.md; fix nel fork, mai issue).
+- Cella #64: bisect della TLBMISS op_binary — step 0 GOOD, 6 GOOD, 12 BAD → culprit in 7..12; index 9 in build, poi 8/11 (BISECT-LOG.md; fix nel fork, mai issue).
 - Samsung RTL probe: pronta, non bloccante (diario 3/09).
 - Campagna CisWire parcheggiata: telefoni persi; PC/Lenovo idle (diario 3/09 notte).
 - Lab fisico fermo; operatività su QDC/CI/Mac (diario 3/09 notte).
@@ -339,6 +339,16 @@
 > il push del kit) → driver corretto (kit sempre rimosso e ri-pushato, sha
 > tgz nel log), raw quarantenato. Sessione 799155 chiusa a mano (~10 min).
 > BISECT-LOG.md nel cell dir tiene la tabella dei verdetti.
+
+> **4/09, 13:35 — #64 STEP 2: index 6 (0278d83, #25974 "activation ops
+> update") è GOOD** (sessione 799162, ~6 min: `-ngl 8` exit 0 con 189 exps;
+> `-ngl 99` la solita morte di mapping 0x2e). Culprit ∈ index 7..12:
+> 7 c0bc859 (op_poll Windows fix), 8 0a50d99 (pipeline L2/DMA/MM/FA #26049),
+> 9 355303e (im2col), 10 153d324 (load-mode auto), 11 fe8156f (rope offset),
+> 12 990e3bf (BAD). Index 9 in build (~14:05), poi 8 e 11 in coda
+> speculativa. Lezione: `pkill -f` col nome dello script ha ucciso anche il
+> runner sequenziale → usare i PID. Sessioni oggi: 799128 (45), 799155 (~10),
+> 799162 (~6). Budget 8G2 ≈ 923 → ~905.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
