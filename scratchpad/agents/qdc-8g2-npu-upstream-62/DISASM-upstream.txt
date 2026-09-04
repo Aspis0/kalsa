@@ -1,0 +1,22 @@
+00000000      D  *UND*	00000000 HAP_mmap
+000028f0 g    DF .text	00000864 htp_iface_start
+000031e0 g    DF .text	0000011c htp_iface_stop
+00000000      DF *UND*	00000000 abort
+== calls ==
+    2790:	c8 7b ff 5b	5bff7bc8 { 	call 0x1f20 <HAP_mmap@plt>
+    27a0:	c0 7b ff 5b	5bff7bc0 { 	call 0x1f20 <HAP_mmap@plt>
+    2850:	70 fb ff 5b	5bfffb70 { 	call 0x1f30 <abort@plt> } 
+    2870:	60 fb ff 5b	5bfffb60 { 	call 0x1f30 <abort@plt> } 
+    468c:	52 ec ff 5b	5bffec52 { 	call 0x1f30 <abort@plt> } 
+    46b0:	40 ec ff 5b	5bffec40 { 	call 0x1f30 <abort@plt> } 
+    46e0:	28 ec ff 5b	5bffec28 { 	call 0x1f30 <abort@plt> } 
+    4700:	18 ec ff 5b	5bffec18 { 	call 0x1f30 <abort@plt> } 
+    47b0:	b8 6b ff 5b	5bff6bb8 { 	call 0x1f20 <HAP_mmap@plt>
+    47c0:	b0 6b ff 5b	5bff6bb0 { 	call 0x1f20 <HAP_mmap@plt>
+    48ac:	42 eb ff 5b	5bffeb42 { 	call 0x1f30 <abort@plt> } 
+    48cc:	32 eb ff 5b	5bffeb32 { 	call 0x1f30 <abort@plt> } 
+== strings ==
+  ad89c /workspace/ggml/src/ggml-hexagon/htp/main.c
+  ad9ab mmap failed : fd %u size %u
+  adabf mmap failed : size %u exceeds 2GB limit for HAP_mmap
+  adc16 prep-bufs : mmap failed after defragmentation (fd %u size %u)

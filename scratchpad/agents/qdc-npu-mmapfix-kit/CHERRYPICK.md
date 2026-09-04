@@ -4,7 +4,9 @@
 
 Variant on `kalsa/npu-judge-v79-mmapfix`: **neither**. Both cherry-picks aborted. HEAD stayed `022458a28` (same source as kit-v6). A kit-v7 from that tree would be worthless. Docker `3382245e7417` (worktree `kalsallama-wt-mmapfix`) was `docker kill`'d; no `~/kalsa-qdc/npu-v79-cell/kit-v7` existed to delete. **Branch was not pushed.**
 
-Replacement: pure upstream kit from worktree `/Users/marco/Projects/kalsallama-wt-upstream`, branch `kalsa/upstream-snapshot-2026-09-04` at `upstream/master` `64a155d242cb427766055ea9caea6f34df1ca94b` (`sync : ggml (#28379)`). Tracking to `upstream/master` was unset immediately so a default push cannot hit ggml-org.
+Replacement: pure upstream kit from worktree `/Users/marco/Projects/kalsallama-wt-upstream`, branch `kalsa/upstream-snapshot-2026-09-04` at `upstream/master` `64a155d242cb427766055ea9caea6f34df1ca94b` (`sync : ggml (#28379)`). Tracking to `upstream/master` was unset immediately so a default push cannot hit ggml-org. Pushed **only** that branch to `origin` (Aspis0/kalsallama), exit 0. Did not open a PR.
+
+On this tree `mmap_buf` (`htp/main.c:884`) calls `htp_mmap` and returns false on failure (“will attempt defrag”); `prep_op_bufs` then drops all maps and remaps, **abort() at line 961** if remap still fails. `#if __HVX_ARCH__ > 73` remains in `htp_mmap` (HAP_mmap2 vs HAP_mmap + 2GB abort at line 59). See BUILD.md objdump.
 
 ```
 git merge-base --is-ancestor 192067b72 HEAD; echo $?   # 0  (#26501)

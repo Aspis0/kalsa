@@ -66,3 +66,24 @@ the session. HDK8550, booked 30 min, expected ~12 (push 3 min, four ~30 s arms).
 
 No perf claims, no v75/v79 arms, no separation of #26501 vs #28202 (a bisect is a later cell),
 no app work.
+
+## Lock addendum (before the session; kit sha 1baee516…, MODEL_SHA.txt)
+
+Static facts about the upstream v73 skel (DISASM-upstream.txt, BUILD.md by the kit agent,
+verified by the orchestrator on the objdump output): `htp/main.c` @64a155d24 still has the
+`#if __HVX_ARCH__ > 73` split (L54/L74) and calls `HAP_mmap@plt` (0x47b0/0x47c0), but
+`mmap_buf`/`prep-bufs` no longer abort on the first `-1`: the skel retries after a
+"defragmentation" pass and aborts only if that fails too — strings `mmap failed : fd %u size %u`
+and `prep-bufs : mmap failed after defragmentation (fd %u size %u)` (abort near L961); the 2 GB
+guard abort (L58) remains. Consequences declared now:
+- The H3 death signature for the upstream kit is the `after defragmentation` FARF line followed
+  by the cDSP crash block (abort in libggml-htp-v73.so; offset resolved on THIS skel with
+  DISASM-upstream.txt), not #60's `mmap failed : va FFFFFFFF` :729 line. Either family counts
+  as "the mapping death" for H3; a `2GB limit` abort is H4.
+- A survival of U0/U2/U5 with `mmap failed : fd` lines present in logcat but no crash means the
+  defragmentation path RESCUED the mapping: banked as H1/H2 with "rescued N times" counted from
+  the FARF lines (informative).
+- llama-bench flags of the #60 template all exist in this tree (BUILD.md lists the source
+  lines; `--mmap` is marked deprecated but accepted); env knobs VMEM/MBUF/NDEV/VERBOSE exist
+  (ggml-hexagon.cpp:6320-6336). Build note: this tree's preset targets android-34 (kit-v6 was
+  android-31); the host build needed one retry (embed_kernel.py step) and then installed cleanly.

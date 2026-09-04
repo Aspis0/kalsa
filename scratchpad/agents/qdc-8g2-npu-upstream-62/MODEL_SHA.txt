@@ -1,0 +1,10 @@
+kit=/Users/marco/kalsa-qdc/npu-v79-cell/npu-kit-62-upstream.tgz
+kit_sha256=1baee5163128137cb5b12efbf5e9e5eb84f89e78993375b26a5dafedc52c627a
+kit_bytes=91724463
+kit_source=upstream/master 64a155d24 (branch kalsa/upstream-snapshot-2026-09-04 on Aspis0/kalsallama, pushed)
+model=/Users/marco/kalsa-qdc/models/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf
+model_sha256=361e8d83f0820e50d0ed1a13b10586ed9f476d99dcaf6aafd14f07e11840b22b
+locked=2026-09-04 08:33
+bench_flags_grep_hits=7 (tools/llama-bench/llama-bench.cpp @64a155d24: --mmap/-dev/-ngl/--ubatch-size/--no-warmup/-fa/-o present)
+env_knobs=GGML_HEXAGON_VMEM/MBUF/NDEV/VERBOSE present (ggml-hexagon.cpp:6320-6336)
+htp_main_c=HVX_ARCH>73 split still at lines 54/74; abort() at 59/249/961
