@@ -4,6 +4,8 @@
 
 On a Samsung Galaxy S23 / Snapdragon 8 Gen 2 using the Hexagon v73 skel, the artifacts show three distinct failure mechanisms: a cDSP user-PD NULL dereference in `op_binary` that surfaces on the host as `dspqueue_read` `0x2e`; a separate cDSP `qurt_exit()` path in `htp_iface_stop` that remains after all binary operations are removed from HTP; and a write-side `dspqueue_write` `0x1` abort in `flush_batch` for a trunk-only perplexity workload. The Xiaomi 14 / Snapdragon 8 Gen 3 v75 comparison runs the same OLMoE model and host revision, including the same 407-op MoE packet, to completion. These observations establish a v73/v75 liveness difference for the tested packets; they do not establish numerical correctness on v75. [q50 `DIAGNOSIS.md`](../scratchpad/agents/q50-v73-dspqueue-diagnosis/DIAGNOSIS.md) [q51 `REPORT.md`](../scratchpad/agents/q51-f2b-v73-guard/REPORT.md) [q53 `REPORT.md`](../scratchpad/agents/q53-v73-npu-correctness/REPORT.md) [q48 `REPORT.md`](../scratchpad/agents/q48-olmoe-q40-npu/REPORT.md)
 
+Cell #59 reproduced the HDK Signature 1 host proof: both arms reported `n_htp=484 n_mul_mat_id=48 n_exps_htp0=48 exit=134`. Cell #60 resolves that HDK cDSP abort to `mmap_buf()` at `main.c:729`; partial offload survives, while `VMEM=0` reports 3.00 GiB before model load fails. The S23 TLBMISS and HDK abort are distinct DSP-side manifestations; whether they share a VA-exhaustion root is not established. [#59 no-HOSTBUF proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out) [#59 HOSTBUF proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_hostbuf1_sa802553.out) [#60 B6 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err) [S23 raw](../scratchpad/agents/q50-v73-dspqueue-diagnosis/logcat_repro.txt)
+
 ## Environment and pins
 
 | Item | v73 crash device | v75 comparison device | Evidence |
@@ -99,6 +101,8 @@ The report explicitly records that the stack does not name `op_binary`, `op_matm
 - The unchanged v73 skel hash (`c8f9d14a…`) bounds the result to a host scheduling/support-op change plus the same v73 skel, rather than a new skel build. [q51 `REPORT.md`](../scratchpad/agents/q51-f2b-v73-guard/REPORT.md)
 - This experiment does not identify why `htp_iface_stop` called `qurt_exit()`; it identifies a second, independent cDSP death path and shows that removing binary ops is not a liveness fix.
 
+Cell #60 does not bear on this signature: it exercised the mapping-budget arms, not the qurt-exit F2b configuration.
+
 ### Minimal reproduction supported by the artifacts
 
 1. Start from the exact Signature 1 OLMoE GGUF and pinned v73 runtime.
@@ -125,7 +129,7 @@ The failing command is recorded verbatim in `raw/lane1_lfm_htp_ppl.json`:
 The corpus is `wiki.test.raw`, `1,290,590` bytes, SHA-256 `173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`. The run computed chunks `[1] 34.2815` and `[2] 35.8966`, then aborted with:
 
 ```text
-ggml-hexagon.cpp:1624: ggml-hex: HTP0 dspqueue_write failed: 0x00000001
+ggml-hexagon.cpp:1590: ggml-hex: HTP0 dspqueue_write failed: 0x00000001
 ```
 
 The host backtrace is:
@@ -154,7 +158,111 @@ The measured arm exited `rc=134` with no final PPL estimate. The companion verbo
 1. Use the exact LFM GGUF and corpus hashes above. The LFM GGUF is required for this exact trigger; it was produced by the q46 B-prime cook with a Q8_0 trunk while preserving the Q2_K/Q3_K experts. [q46 `SESSION_LOG.md`](../scratchpad/agents/q46-lfm-bprime-smoke/SESSION_LOG.md)
 2. Use the pinned v73 `llama-perplexity` host build and v73 skel. The q53 build used the same commit and Android flags listed in the environment table. [q53 `RUN_LOG.md`](../scratchpad/agents/q53-v73-npu-correctness/RUN_LOG.md)
 3. Set `NDEV=1` with `HOSTBUF` unset and run the command recorded above on HTP0.
-4. Expected result on the recorded S23 setup is a write-side `HTP0 dspqueue_write failed: 0x00000001` from `ggml-hexagon.cpp:1624` after the first two chunk values, followed by `ggml_abort`. Reproduction at a different chunk or corpus offset is not established by the artifacts.
+4. Expected result on the recorded S23 setup is a write-side `HTP0 dspqueue_write failed: 0x00000001` from `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1588`: `int err = dspqueue_write(this->queue, 0, 1, &dbuf, sizeof(req), (const uint8_t*) &req, DSPQUEUE_TIMEOUT);`; `:1590`: `GGML_ABORT("ggml-hex: %s dspqueue_write failed: 0x%08x\n", this->c_name(), (unsigned) err);` after the first two chunk values, followed by `ggml_abort`. Reproduction at a different chunk or corpus offset is not established by the artifacts.
+
+Cell #60 does not bear on Signature 3: it used the OLMoE mapping-budget workload, not the separate trunk-only PPL workload.
+
+## Signature 1 root cause (reference hardware, 2026-09-03/04)
+
+Cell #59 replicated the S23 death on a Qualcomm Device Cloud HDK8550 (Snapdragon 8 Gen 2, HTP v73, Android 16). A1 had HOSTBUF unset; A2 used `GGML_HEXAGON_HOSTBUF=1 --no-host 1`. Both produced the identical `484/48/48` proof and exit 134, with the newer `kalsa/npu-judge-v79` build, public allenai Q4_0 model `361e8d83…`, and `--mmap 0`. This excludes the S23 unit, its thermal history, and HOSTBUF as necessary causes, but not a v73-shared ROM/firmware component. [#59 A1](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out) [#59 A2](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_hostbuf1_sa802553.out) [#59 crash log](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/logcat_exp_pp16_nohostbuf_sa802553.txt) [#59 thermal records](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/therm_pre_exp_pp16_nohostbuf_sa802553.txt)
+
+The #59 cDSP crash block is:
+
+```text
+CDSP0: Process "/frpc/f04342f0 llama-bench" crashed in thread "" because Application called qurt_exit()
+CDSP0: Crashed Shared Object "fastrpc_shell_unsigned_3" load address : 0x00D00000
+CDSP0: Error code :    0x108
+CDSP0: [<00D8AC80>] abort+0x8:     (fastrpc_shell_unsigned_3)
+CDSP0: [<20203E58>] htp_iface_start+0x1348:     (./libggml-htp-v73.so)
+```
+
+[Raw #59 crash block](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/logcat_exp_pp16_nohostbuf_sa802553.txt). The static objdump resolution in #60 places the return address in the cold `mmap_buf()` tail:
+
+```text
+3e30: r1 = add(pc,##0x9f474)      ; -> 0xA32A8 ~ "/workspace/ggml/src/ggml-hexagon/htp/main.c" (strings -t x: a32a4)
+3e3c: r3 = add(pc,##0x9f5de)      ; -> 0xA341E ~ "mmap failed : va %p fd %u size %u"           (strings -t x: a341a)
+3e44: r2 = #0x2d9                 ; = 729 = __LINE__
+3e48: memw(r29+#0x8) = r4         ; size
+3e4c: call HAP_debug_v2@plt       ; FARF(ERROR, ...)
+3e50: memw(r29+#0x0) = #-0x1      ; va = (void*)-1
+3e54: call abort@plt              ; <- crash site, return addr 0x3e58
+```
+
+[Objdump chain](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/DISASM.md) [raw #59 `htp_iface_start+0x1348`](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/logcat_exp_pp16_nohostbuf_sa802553.txt)
+
+The source matches that resolution. `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/htp/main.c:711`: `static inline void mmap_buf(struct htp_context *ctx, struct htp_buf_desc *b) {`; `:718`: `#if __HVX_ARCH__ > 73`; `:719`: `void *va = HAP_mmap2(NULL, b->size, HAP_PROT_READ | HAP_PROT_WRITE, 0, b->fd, 0);`; `:720`: `#else`; `:726`: `void *va = HAP_mmap(NULL, b->size, HAP_PROT_READ | HAP_PROT_WRITE, 0, b->fd, 0);`; `:729`: `FARF(ERROR, "mmap failed : va %p fd %u size %u", va, b->fd, (uint32_t) b->size);`; `:730`: `abort(); // can't do much else at this point`. Thus v73 selects `HAP_mmap`, receives `-1`, logs the failed VA, and aborts; the FARF `HAP_mmap2 failed` wording below is not evidence that `HAP_mmap` internally calls `HAP_mmap2`. [DISASM.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/DISASM.md) [raw B5](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_vmem1800_sa802961.txt)
+
+The same raw B5 trace gives the FARF-to-logcat chain verbatim:
+
+```text
+CDSP0: qurt_vtlb_mmap:  unable to get virtual address, size 29a01000
+CDSP0: Error 0x80000483: fastrpc_mmap failed pa 0x31cc00000 size 0x29a01000 mode 7 perm 11
+CDSP0: Error 0x8000054d: HAP_mmap2 failed for fd 27 of length 698355712 bytes, flags 0x0, prot 0x3, offset 0x0
+CDSP0: mmap failed : va FFFFFFFF fd 27 size 698355712
+```
+### Same host symptom, two DSP-side manifestations
+
+The shared host symptom is `dspqueue_read 0x2e`, but the DSP records differ: S23 Signature 1 is `TLBMISS RW` in `op_binary+0x5B9C`, thread `htp-main`; HDK #59/#60 is `qurt_exit()`/`abort()` at `htp_iface_start+0x1348`, with thread `""`. [S23 raw](../scratchpad/agents/q50-v73-dspqueue-diagnosis/logcat_repro.txt) [HDK #59 raw](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/logcat_exp_pp16_nohostbuf_sa802553.txt)
+The 3f545bec skel already contained `mmap_buf()` with the same `HAP_mmap` + `abort()` path. Exact relevant lines from `3f545bec:ggml/src/ggml-hexagon/htp/main.c` are `for (uint32_t i=0; i < HTP_MAX_MMAPS; i++) {` (:837), `void *va = HAP_mmap(NULL, b->size, HAP_PROT_READ | HAP_PROT_WRITE, 0, b->fd, 0);` (:848), `if (va == (void*)-1) {` (:850), `FARF(ERROR, "mmap failed : va %p fd %u size %u", va, b->fd, (uint32_t) b->size);` / `abort(); // can't do much else at this point` (:851-852), and `return;` followed by the closing braces (:860-863).
+These are `3f545bec:ggml/src/ggml-hexagon/htp/main.c:837,848,850-853,860-863`. When all 16 `HTP_MAX_MMAPS` slots are occupied, the mapping loop returns silently, leaving `b->base` = 0 so a consuming op can fault (TLBMISS): a plausible but UNPROVEN reading of the S23 signature. Explicitly: whether the S23 TLBMISS and the HDK abort share the VA-exhaustion root is not established; both are mapping-failure manifestations in the same function family.
+The host sees the canceled queue wait, then aborts: `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1545`: `int err = dspqueue_read(this->queue, &flags, 1, &n_dbufs, &dbuf, sizeof(rsp), &rsp_size, (uint8_t *) &rsp, timeo);`; `:1551`: `GGML_ABORT("ggml-hex: dspqueue_read failed: 0x%08x\n", (unsigned) err);`. The runtime message prints source line 1552, the macro's last line. The skel-side VA failure is therefore the proximate cause of the HDK host `0x2e`, not a new host flush mechanism. [B5 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_vmem1800_sa802961.txt)
+Cell #60's six-arm result is:
+
+| arm | result |
+|---|---|
+| B1 `-ngl 8`, MBUF 1 GiB | 1575 MiB, 8 host buffers; proof `189`, exit `0` [err](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl8_mbuf1g_sa802961.err) [out](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl8_mbuf1g_sa802961.out) |
+| B2 `-ngl 99`, MBUF 512 MiB | 3600 MiB, 12 host buffers, max map 459 MiB; proof `48`, exit `134`, `:729` [err](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_mbuf512_sa802961.err) [out](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_mbuf512_sa802961.out) |
+| B5 `-ngl 99`, VMEM 1800 MiB | 3600 MiB, 8 host buffers; proof `48`, exit `134`, `:729` [err](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem1800_sa802961.err) [out](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem1800_sa802961.out) |
+| B6 `-ngl 99`, VMEM 0 | measured max vmem `3221225472` = 3.00 GiB; proof `0`, exit `1`; subsequent model mapping fails [err](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err) [out](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.out) |
+| B3 `-ngl 12`, MBUF 1 GiB | 2475 MiB, 9 host buffers; proof `297`, exit `0` [err](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl12_mbuf1g_sa802961.err) [out](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl12_mbuf1g_sa802961.out) |
+| B4 `-ngl 8 -p 0 -n 128` | 1575 MiB; proof `2688`, exit `0`; 128-token decode survives [err](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl8_tg128_sa802961.err) [out](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl8_tg128_sa802961.out) |
+
+The B2 failure had approximately 501 MiB live at the failed 462426112-byte map; the B5 failure had approximately 1033 MiB live at the failed 698355712-byte map. These are the double-audited file-order reconstructions after the evictions, not cumulative allocation totals. [B2 map trace](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_mbuf512_sa802961.txt) [B5 map trace](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_vmem1800_sa802961.txt)
+
+The cell does not discriminate among (1) fragmentation leaving no suitable hole, (2) QuRT TLB/alignment constraints on the requested range, and (3) VA that is not or is only lazily reclaimed after `fd_mmap_destroy`. The evidence excludes HOSTBUF, the S23 unit and its thermal history, and a hard 2 GiB PD cap on this HDK: B3 survives with 2475 MiB of HTP-repacked weights and B6 measures 3.00 GiB before its post-probe model load fails. [B3 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl12_mbuf1g_sa802961.err) [B6 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err) [#59 thermal raw](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/therm_post_exp_pp16_nohostbuf_sa802553.txt)
+
+`prep_op_bufs()` is the relevant eviction gate: `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/htp/main.c:743`: `static void prep_op_bufs(struct htp_context *ctx, struct htp_buf_desc *bufs, uint32_t n_bufs) {`; `:765`: `if ((m_vmem + e_vmem) > ctx->max_vmem) {`; `:769`: `if (!used) { drop_mmap(ctx, ctx->mmap + i); }`; `:776`: `mmap_buf(ctx, b);`. The host default is `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/ggml-hexagon.cpp:4373`: `opt_vmem = opt_arch >= 75 ? HTP_OP_MAX_VMEM_DEFAULT : 3000 * MiB;`. Measurement is `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1608`: `static size_t ggml_hexagon_measure_max_vmem(ggml_hexagon_session *sess) {`; `:1609`: `// Allocate a bunch pinned buffers till failure.`; `:1632`: `for (auto b : sbufs) { delete b; }`; `:1634`: `return vmem - step;`. The B6 result shows that this measurement can leave the subsequent model load broken on this v73 build; measurement should be non-destructive. [B6 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err)
+
+### Minimal public reproduction
+
+Board: HDK8550 on Qualcomm Device Cloud. Model: `allenai/OLMoE-1B-7B-0924-Instruct-GGUF`, Q4_0, SHA-256 `361e8d83f0820e50d0ed1a13b10586ed9f476d99dcaf6aafd14f07e11840b22b`. Build: kalsallama branch `kalsa/npu-judge-v79` at `022458a28`, carrying upstream through `#25968`; fork: `Aspis0/kalsallama`. [#59 preregistration](../scratchpad/agents/qdc-8g2-npu-v73death-59/PREREG.md) [#59 verified kit](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/kit_verify_sa802553.txt) [#59 model/run raw](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out)
+
+```sh
+./bin/llama-bench -m olmoe.gguf -p 16 -n 8 -r 1 --no-warmup -dev HTP0 -v -o jsonl --mmap 0 -fa on --ubatch-size 1024 -ngl 99
+```
+
+For runtime FARF, place the file in the directory named by `ADSP_LIBRARY_PATH`, then capture the `adsprpc` tag:
+
+```sh
+echo 0x1F > <ADSP_LIBRARY_PATH>/llama-bench.farf
+adb logcat -s adsprpc
+```
+
+Expected lines are the #59 proof and crash, with the recorded #60 B5 FARF detail when emitted; fd/size values may vary with mapping order:
+
+```text
+proof n_htp=484 n_mul_mat_id=48 n_exps_htp0=48 exit=134
+CDSP0: qurt_vtlb_mmap:  unable to get virtual address, size 29a01000
+CDSP0: Error 0x80000483: fastrpc_mmap failed pa 0x31cc00000 size 0x29a01000 mode 7 perm 11
+CDSP0: Error 0x8000054d: HAP_mmap2 failed for fd 27 of length 698355712 bytes, flags 0x0, prot 0x3, offset 0x0
+CDSP0: mmap failed : va FFFFFFFF fd 27 size 698355712
+CDSP0: [<20203E58>] htp_iface_start+0x1348:     (./libggml-htp-v73.so)
+```
+
+[Recorded proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out) [recorded FARF](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_vmem1800_sa802961.txt)
+
+### Relation to upstream
+
+All claims in this subsection are as reported by web search on 2026-09-04, not re-verified. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
+
+- `ggml-org/llama.cpp #26123` (open) reports “Full or partial Hexagon offload works correctly for a 1B model but crashes with `dspqueue_read failed: 0x0000002e`” for 8 Gen 2/v73, including a 7B dense and 4B hybrid; #22208 (closed/not planned) reports v73 Snapdragon X Elite `0x2e` or `0x72` at load; #18192 (closed) reports shape-specific v73 `0x2e`. These are the same signature class, without a root cause in the search notes. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
+- #21071 (merged) is reported as the `__HVX_ARCH__ > 73` split using HAP_mmap2 and says “check to prevent mapping more than 2GB with HAP_mmap (which is unsupported)”. #22487 (merged) adds `GGML_HEXAGON_VMEM` / `GGML_HEXAGON_MBUF`, with default vmem “around 3.2GB” and a 1GB buffer. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
+- #26501 (merged) is reported as a multi-NPU overhaul touching `main.c` mmap; #28202 (merged) is titled “Op batch buffers are now sorted by size to avoid address space fragmentation”. Both are after our pin, neither was tested by us, and neither is in our fork. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
+- Qualcomm fastrpc #137 (closed/not planned) is reported as “Q6 cDSP only have 32-bit virtual address space, limited number of shared buffers can be mapped”; its maintainer is quoted as “limited to 2GB on older devices and has been increased to 3GB on newer devices (8gen3)”. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
+
+### Suggested upstream action
+
+Draft suggestion for the owner: (1) on v73, `mmap_buf()` should not `abort()` on `HAP_mmap` failure; it should return an error to the host so the op can fall back to CPU (`main.c:729-730`, `ggml-hexagon.cpp:1545`/`:1551`; the runtime prints `:1552`); (2) the host's 3000 MiB v73 default (`ggml-hexagon.cpp:4373`) should be measured or lowered, with measurement made non-destructive (`ggml-hexagon.cpp:1608-1634`); and (3) evaluate #28202's size-sorted batching on v73. This remains a local draft for the owner; no issue has been filed.
 
 ## Cross-cutting observations
 
@@ -208,8 +316,9 @@ For the q50 graph comparison specifically, v73 and v75 both queued the same firs
 - No numerical-correctness claim is made for v75. The v75 result is liveness and dispatch evidence; q48 explicitly says the HMX-at-`n=16` result is not a correctness proof. [q48 `REPORT.md`](../scratchpad/agents/q48-olmoe-q40-npu/REPORT.md)
 - This is one S23 v73 device and one Xiaomi 14 v75 device, not a population-level claim about every v73 or v75 implementation.
 - The reported t/s values are exploratory and are not product benchmarks. [q46 `REPORT.md`](../scratchpad/agents/q46-lfm-bprime-smoke/REPORT.md) [q48 `REPORT.md`](../scratchpad/agents/q48-olmoe-q40-npu/REPORT.md)
-- No single source-level fix is claimed. Signature 1 has a strong `op_binary` NULL-dereference diagnosis; Signature 2 has no named op handler; Signature 3 has an identified host write-side abort but no decoded DSPQUEUE/firmware root cause.
+- No single source-level fix is claimed. S23 Signature 1 has a strong `op_binary` NULL-dereference diagnosis; the HDK manifestation is the `mmap_buf()` abort at `main.c:729`; whether they share a root is not established. Signature 2 has no named op handler; Signature 3 has an identified host write-side abort but no decoded DSPQUEUE/firmware root cause. [S23 raw](../scratchpad/agents/q50-v73-dspqueue-diagnosis/logcat_repro.txt) [HDK raw](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/logcat_exp_pp16_nohostbuf_sa802553.txt)
 - The report does not claim that Qwen3.5-4B v73 is numerically correct, only that the cited run completed and dispatched HTP operations.
+- Cell #60 does not identify fragmentation, TLB alignment, or non-reclaimed VA as the unique cause; it excludes HOSTBUF, the S23 unit/thermal history, and a hard 2 GiB PD cap on this HDK. Partial-offload survival remains neither a performance nor a correctness claim. [B3 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl12_mbuf1g_sa802961.out) [B6 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err)
 
 ## Attachments
 
@@ -219,4 +328,3 @@ The owner can attach the following repository artifacts directly:
 - Signature 2: `results/htp_probe/s23_v73_olmoe_q40/f2b/logcat_repro/cdsp_crash_block.txt`, `results/htp_probe/s23_v73_olmoe_q40/f2b/logcat_repro/logcat_threadtime.txt`, `results/htp_probe/s23_v73_olmoe_q40/f2b/logcat_repro/tombstone_17.txt`, `results/htp_probe/s23_v73_olmoe_q40/f2b/a_stderr.txt`, `scratchpad/agents/q51-f2b-v73-guard/PATCH.diff`, and `scratchpad/agents/q51-f2b-v73-guard/REPORT.md`.
 - Signature 3: `scratchpad/agents/q53-v73-npu-correctness/raw/lane1_lfm_htp_ppl.log`, `scratchpad/agents/q53-v73-npu-correctness/raw/lane1_lfm_htp_ppl.json`, `scratchpad/agents/q53-v73-npu-correctness/raw/lane1_lfm_htp_probe.log`, `scratchpad/agents/q53-v73-npu-correctness/raw/lane1_lfm_htp_probe.json`, `scratchpad/agents/q53-v73-npu-correctness/manifest.json`, and `scratchpad/agents/q53-v73-npu-correctness/RUN_LOG.md`.
 - v75 comparison: `results/htp_probe/xiaomi_v75_olmoe_q40/kalsa_q48_x/a_stderr.txt`, `results/htp_probe/xiaomi_v75_olmoe_q40/kalsa_q48_x/a_execute_op_mul_mat_id.txt`, `results/htp_probe/xiaomi_v75_olmoe_q40/kalsa_q48_x/b_r1_stderr.txt`, `results/htp_probe/xiaomi_v75_olmoe_q40/kalsa_q48_x/b_r2_stderr.txt`, and `results/htp_probe/xiaomi_v75_olmoe_q40/MANIFEST.md`.
-
