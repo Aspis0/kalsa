@@ -1891,7 +1891,7 @@ index 1126dec..84e1ac3 100644
 +            throw std::runtime_error("governor: thermo profile invalid");
 +        }
 +    } catch (const std::exception & error) {
-+        log_governor_fallback("governor_init", 2, error.what(),
++        log_governor_fallback("init", 2, error.what(),
 +                              governor_params.gpu_fit, runtime_profile_valid);
 +        // CPU retry belongs to LlamaService/S4. Native owns only cleanup and
 +        // returns failure so that retry can recreate the single-context path.
@@ -1903,7 +1903,7 @@ index 1126dec..84e1ac3 100644
 +    owner.ctx = owner.governor->prefill_ctx();
 +    owner.params.n_gpu_layers = 99;
 +    if (owner.model == nullptr || owner.ctx == nullptr) {
-+        log_governor_fallback("governor_init", 2,
++        log_governor_fallback("init", 2,
 +                              "governor initialized without an active context",
 +                              governor_params.gpu_fit, profile_valid);
 +        cleanup();
