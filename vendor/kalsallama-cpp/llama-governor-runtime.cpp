@@ -184,17 +184,22 @@ llama_governor * llama_governor_init_with_params(llama_model * model_prefill, ll
                                                  llama_context_params params_prefill,
                                                  llama_context_params params_decode,
                                                  llama_governor_params governor_params) {
+    return llama_governor_init_with_params_internal(
+        model_prefill, model_decode, params_prefill, params_decode, governor_params, nullptr);
+}
+
+llama_governor * llama_governor_init_with_params_internal(
+        llama_model * model_prefill, llama_model * model_decode,
+        llama_context_params params_prefill, llama_context_params params_decode,
+        llama_governor_params governor_params, std::string * failure_reason) {
     try {
         return new llama_governor(model_prefill, model_decode, params_prefill, params_decode,
                                   governor_params, true);
     } catch (const std::exception & err) {
-        LLAMA_LOG_ERROR("%s: %s\n", __func__, err.what());
-        const std::string reason = err.what();
-        if (reason.find("route") != std::string::npos ||
-            reason.find("Route") != std::string::npos) {
-            LLAMA_LOG_ERROR(
-                "KALSA_GOVERNOR_FALLBACK {stage:\"route_reject\", models_loaded:2, reason:\"%s\", gpu_fit:%d, profile_valid:1}\n",
-                err.what(), (int) governor_params.gpu_fit);
+        if (failure_reason != nullptr) {
+            *failure_reason = err.what();
+        } else {
+            LLAMA_LOG_ERROR("%s: %s\n", __func__, err.what());
         }
         return nullptr;
     }

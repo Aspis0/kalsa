@@ -1669,7 +1669,7 @@ new file mode 100644
 index 0000000..e013046
 --- /dev/null
 +++ b/node_modules/llama.rn/cpp/rn-governor.cpp
-@@ -0,1 +1,76 @@
+@@ -0,1 +1,79 @@
 +#include "rn-governor.h"
 +#include "llama-governor.h"
 +
@@ -1685,10 +1685,13 @@ index 0000000..e013046
 +    : gpu_fit_(params.gpu_fit) {
 +    // This is the same two-model call order as governor-bench. The v0.3 API
 +    // overload additionally enables the parsed policy inputs and thermo gate.
-+    governor_ = llama_governor_init_with_params(
-+        prefill_model, decode_model, prefill_params, decode_params, params);
++    std::string failure_reason;
++    governor_ = llama_governor_init_with_params_internal(
++        prefill_model, decode_model, prefill_params, decode_params, params, &failure_reason);
 +    if (governor_ == nullptr) {
-+        failure_reason_ = "llama_governor_init_with_params returned null";
++        failure_reason_ = failure_reason.empty()
++            ? "llama_governor_init_with_params returned null"
++            : failure_reason;
 +        throw std::runtime_error(failure_reason_);
 +    }
 +}
@@ -1815,7 +1818,7 @@ index 1126dec..84e1ac3 100644
 
  namespace rnllama {
 
-@@ -46,6 +50,99 @@
+@@ -46,6 +50,102 @@
      return std::find(speculative.types.begin(), speculative.types.end(), type) != speculative.types.end();
  }
 
@@ -1891,7 +1894,10 @@ index 1126dec..84e1ac3 100644
 +            throw std::runtime_error("governor: thermo profile invalid");
 +        }
 +    } catch (const std::exception & error) {
-+        log_governor_fallback("init", 2, error.what(),
++        const std::string reason = error.what();
++        const bool route_rejected = reason.find("route") != std::string::npos ||
++                                    reason.find("Route") != std::string::npos;
++        log_governor_fallback(route_rejected ? "route_reject" : "init", 2, reason,
 +                              governor_params.gpu_fit, runtime_profile_valid);
 +        // CPU retry belongs to LlamaService/S4. Native owns only cleanup and
 +        // returns failure so that retry can recreate the single-context path.
@@ -1949,7 +1955,7 @@ index 1126dec..84e1ac3 100644
      cleanupThreadpools();
 
      if (completion != nullptr) {
-@@ -458,63 +568,191 @@
+@@ -458,63 +568,192 @@
      releaseVocoder();
  }
 
@@ -2064,6 +2070,7 @@ index 1126dec..84e1ac3 100644
 +    // Source buffers back the expert tensors: shut the streamer, then drop the old
 +    // context, then the hook. Inverse of this order dangling-cb_eval or UAF on reload.
 +    if (moe_stream) moe_stream->shutdown();
++    moe_stream.reset();
 +    governor.reset();
 +    governor_decode_init.reset();
 +    governor_prefill_init.reset();
