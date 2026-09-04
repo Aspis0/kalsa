@@ -12,51 +12,79 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-09-04 08:30)
+# ⭐ STATO CORRENTE — vista compatta (2026-09-04 14:30, PIVOT PRODOTTO)
 
-## Dove siamo
-| Motore | Decisione compatta |
-|---|---|
-| GPU/Adreno | 732/735: prefill pp512 151.8/154.8 (36, 39); 740: pick = igiene, nessun claim di velocità (37); 750: #55 284.2/23.4 (38), #58 291.1/23.0: costanti router pp 284–291, tg 23.0–23.4 (41). |
-| CPU | Decode vince su tutti i tre tier (GPU 0.80–0.86×); prefill GPU 1.59× sui mid-tier, contested, e 2.87× sul 750 (40). |
-| NPU | Lane prodotto prefill-only; v79 alive (42). Su v73, morte da budget di mapping a `htp/main.c:729`, ma l'offload parziale resta vivo (43). |
-| F6 | Riformulata: v73 viabile con ≤~2.5 GiB residenti senza churn; a 3.6 GiB muore per allocazione VA DSP (43). |
+## Il goal (owner, ripetuto 4/09)
+Kernel che usa NPU, GPU e CPU **per fase** a seconda di temperatura, batteria e
+profilo, ottimizzato su Snapdragon (MediaTek/Jelly se possibile). Il pezzo
+mancante non è il motore: è che **l'app non lo usa**. Digest completo di ciò
+che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
+(116 righe, citazioni file:riga verificate dall'orchestratore).
 
-## Lato app
-- `feat/moe-stream` è in main a `c513f00`; E2E emulatore verde (diario 3/09).
-- APK-A: main, pin `a0cabca6b`; APK-B: pin `12f6d9b6d` + 3 pick OpenCL (44).
-- #61: APK-A/B installano, caricano il modello e rispondono: A 129 token a 26.4 tok/s, B 196 a 26.0 tok/s (44).
-- #63: l'APK debuggable (apk.yml `debuggable=true`) passa sideload/DB/load/risposta INTERAMENTE via `run-as` su QRD8650: è il bench instrument per il campo (46).
-- #64 step 0: upstream puro 022458a28 non ha la TLBMISS a `-ngl 8` (GOOD) e ha la morte di mapping a `-ngl 99`: bisect valido (diario 4/09 12:50).
-- Due lezioni ops: prima del launch wake+dismiss-keyguard+stayon; gli APK release non sono debuggabili, quindi sideload via root su board userdebug (44).
-- La GPU non è mai usata dall’app: `offloaded 0/31 layers to GPU` (44).
+## Dove siamo (fatti, non opinioni)
+- **Governor v0.2 nel fork** (`kalsa/governor-v0.2` @1a33da0f6, ~4.3k righe, 8
+  step auditati): due contesti (prefill/decode), commit KV per range, input
+  host già definiti — generazione (V73/V75/V79), fit GPU/NPU, batteria %,
+  temperatura, plugged, T idle, trend (`src/llama-ext.h:198-230`); policy con
+  soglie 38/39.5/42/43 °C, floor batteria 25 %, isteresi, budget flip 1 h
+  (`src/llama-governor-policy.cpp`); GPU_COOLMODE; NPU lane **deferita**
+  (`llama-ext.h:149`). Misurato: 8 Elite #38 (ttft ~10× CPU, decode ≥ CPU,
+  vantaggio termico), 8B #41, tabella KEXP #40, VL #42, tier 750/735 #55-58.
+- **App oggi**: `deviceTuning.ts:374` → `cpu-only` (`gpu-fit-gate-blind`) su
+  ogni Android; `useThermalMonitor.ts` = banner UI, non decide nulla; visione
+  CPU su Android (`LlamaService.ts:1499`); fallback `KALSA_GPU_FALLBACK` solo
+  per errori di init (lmkd non è catturabile); gate RAM cieco alla memoria GPU
+  (§7.18: 3.4 GB invisibili a /proc, lmkd uccide); backend Hexagon NON
+  compilato nel plugin; commenti stantii in `engineParams.ts:100-113` e
+  `LlamaService.ts:1429-1437,1496-1500` che parlano di GPU "ora attiva".
+- **NPU**: v79 prefill 7.2× CPU ma correttezza NON provata (0/301 + 36
+  INTERNAL-ERROR); v75 prefill 3.19-4.82×, decode 0.63×; v73 offload parziale
+  vive, pieno muore (mapping); upstream ha una TLBMISS in bisect (#64: culprit
+  in {7,8,9}, ALIVE 43-45).
+- **Mali G57 (Jelly)**: PARKED per decisione owner 22/08 (ALIVE 405): f32 e
+  q8_0 corretti ma GPU < CPU in tutti i 20 casi; si riapre con G610/G615.
+- **Strumenti pronti**: APK debuggable A/B (run-as, ALIVE 46), QDC con 8 Gen
+  2/3, 8s Gen 3, 8 Elite (~900/866/981/623 min), kit v73 per commit.
 
-## Decisioni owner (RATIFICATE 4/09 09:40 — "Ok approvo tutte le decisioni. Soprattutto apk debug")
-1. #61 G1-amended RATIFICATO: la app fusa gira su hardware (44).
-2. APK per il campo: l'owner non ha scelto A o B; default operativo B (pin 12f6d9b6d, nessuna regressione vista in #61) salvo contrordine.
-3. F6 riformulata RATIFICATA; il MoE a offload parziale su v73 è un'opzione del router da misurare (43).
-4. Dossier #8: bozza approvata. **ORDINE OWNER 4/09 11:00: NESSUNA issue upstream, mai — "o fixiamo noi stessi o lasciamo perdere".** Il dossier resta documento interno; la via è il fix nel fork Aspis0/kalsallama (bisect + patch) o l'abbandono.
-5. **PRIORITÀ OWNER: variante APK debuggable — FATTA 4/09** (era già in apk.yml, input `debuggable=true`; APK A/B debug in ~/kalsa-qdc/apk/apk-{A,B}-debug-*/, smoke #63 G1 via run-as, ALIVE 46).
-6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
+## Piano 9 giorni (5/09 → 13/09), in ordine di impatto sul goal
+1. **Governor dentro l'app (giorni 1-3).** Pin motore dell'app → ramo governor
+   (rebase su main del fork con i pick OpenCL 12f6d9b6d); llama.rn/JSI: sessione
+   governor a due contesti al posto del contesto singolo; `LlamaService` popola
+   `llama_governor_params` + `llama_governor_thermo_profile` (BatteryManager:
+   temp, %, plugged) e logga ogni decisione (`KALSA_GOVERNOR`). Fallback:
+   cpu-only come oggi se il governor non parte. Accept: su QRD8650/8 Elite con
+   APK debug, TTFT e decode ≥ arm C di oggi, zero kill lmkd, log delle fasi.
+2. **Fit GPU + probe capacità (giorni 4-5).** `memoryEstimate.ts` impara il
+   termine memoria driver GPU (§7.18) → `gpu_fit`; micro-calibrazione al primo
+   avvio → `gpu_prefill_measured`; il gate refusa a voce alta (mai lmkd).
+3. **Loop termico/batteria end-to-end (giorni 6-7).** Poll → policy → cool-mode
+   GPU e ritorno; verifica su QDC con run sostenuta e gate termico DURANTE
+   l'esecuzione (v79 ha superato 60 °C con i pre-gate verdi); ripulire i
+   commenti stantii; il thermal hook smette di essere solo banner.
+4. **Lane NPU (giorni 8-9).** Backend Hexagon compilato nel plugin dell'app,
+   attivo solo per generazione ≥ V75 e solo prefill (`npu_lane_enabled`), dietro
+   la prova di correttezza (0/301 va risolto o la lane resta off); v73 off
+   finché il fix del mapping/TLBMISS non è nel fork.
+5. Mali: fermo (decisione owner). Bisect #64: si chiude oggi in background,
+   poi il fix nel fork è un task a sé (mai issue upstream).
 
-## In volo / prossimi
-- Cella #64: bisect della TLBMISS op_binary — 6 GOOD, 9 BAD → culprit in {7,8,9}; index 8 (#26049 pipeline) in build (BISECT-LOG.md; fix nel fork, mai issue).
-- Samsung RTL probe: pronta, non bloccante (diario 3/09).
-- Campagna CisWire parcheggiata: telefoni persi; PC/Lenovo idle (diario 3/09 notte).
-- Lab fisico fermo; operatività su QDC/CI/Mac (diario 3/09 notte).
+## Vincoli
+- Mai half-offload (ALIVE 140-145); full o niente, cool-mode solo con delta misurato.
+- Mai issue upstream (owner 4/09). Mai push su repo di terzi.
+- Altra sessione Claude sui settings (UX): io tocco `src/engine`, `plugins/`,
+  `native/`; nel repo app `git add` solo dei miei path, mai `-A`.
+- Deleghe solo Paseo; un audit ostile per step; docs a ogni step.
 
 ## Budget QDC
-912/935/913/981/623 minuti per classe (diario 4/09 08:30).
+~900 (7xx) / ~866 (8G3) / ~900 (8G2) / 981 (8sG3) / 623 (8E) minuti.
 
 ## Regole vive
-- Deleghe solo via Paseo.
-- Un audit ostile per ogni step.
-- Delta numerici a DeepSeek.
-- End Session: ref-click, conferma e verifica dello status.
-- Ogni driver NPU include `.farf`.
-- Wake prima delle celle che guidano la UI.
-- Gli APK release di CI NON sono debuggabili: per `run-as` usare apk.yml con `debuggable=true` (#63). Sulle board QDC: `/data` è 0777 e un demone lo ripristina → holder `chmod 771 /data`; keyguard → `locksettings set-disabled true`; nome sessione ≤ 30 caratteri.
-- Mai pushare su repo pubblici di terzi. Mai aprire issue upstream (owner 4/09): fix nel fork o lasciar perdere.
+- End Session: ref-click, conferma, reload, "Ended On" entro un minuto.
+- Board QDC: `/data` è 0777 e un demone lo ripristina → holder `chmod 771`;
+  keyguard → `locksettings set-disabled true`; nome sessione ≤ 30 caratteri;
+  il campo minuti va scritto con eventi reali (altrimenti cap 120).
+- Ogni driver NPU include `.farf`; kit sempre ri-pushato per commit.
+- mimo: solo audit mono-documento (recon larghi → Luna/deepseek); delta numerici a deepseek.
 
 > **3/09 notte — DELEGA PIENA OWNER ("fai tutto") + due fatti di contesto
 > duri.** (a) Owner via ALTRI 10 giorni (~13/09) e **S23 E JELLY PERSI**:
@@ -355,6 +383,17 @@
 > Culprit ∈ {7, 8, 9}: 8 = #26049 "further improved pipeline (L2, DMA, MM,
 > FA)" è il sospetto principale, kit in build (~14:35); 7 (#26029, fix
 > Windows op_poll) solo se 8 è BAD. Al massimo 2 sessioni ancora.
+
+> **4/09, 14:30 — PIVOT PRODOTTO.** Owner: "a che punto siamo del goal?" →
+> risposta onesta: motore avanti, app ferma (cpu-only statico, niente
+> governor, niente NPU, termico solo banner). Owner: "rileggiti tutto". Fatto:
+> memorie app-side, HARNESS_FINDINGS §7.33/§7.7g-i, governor-v0/PLAN, e digest
+> Luna `docs/GOVERNOR-STATE-2026-09-04.md` (mimo aveva allucinato un intero
+> report: escluso dai recon larghi). Righe portanti verificate su disco:
+> contratto v0.2 ha GIÀ input batteria/temperatura/plugged/trend e soglie
+> termiche; l'app non li alimenta. STATO CORRENTE riscritto sul piano a 9
+> giorni: governor nell'app → fit GPU → loop termico → lane NPU. Bisect #64
+> resta in background.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
