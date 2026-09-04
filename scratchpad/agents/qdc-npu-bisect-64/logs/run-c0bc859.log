@@ -1,0 +1,2 @@
+Preparing worktree (detached HEAD c0bc8591e)
+HEAD is now at c0bc8591e hexagon: fix Windows crash when op_poll is enabled (#26029)

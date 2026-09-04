@@ -1,0 +1,7 @@
+=== START 05-assemble-kit 2026-09-04T18:29:24Z ===
+command: assemble_kit
+lib/ and lib-fix/ contain only libggml-htp-v73.so; v75/v79/v81 skels skipped
+assembled /Users/marco/kalsa-qdc/npu-v79-cell/kit-bisect-0a50d99
+tar sha256 8e1044d22ffc9b5fedd761f36e9a375059b952315c6da875054302478d4a5a58
+manifest entries 39
+=== END 05-assemble-kit exit=0 2026-09-04T18:29:33Z ===

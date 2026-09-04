@@ -1,0 +1,32 @@
+/data/local/tmp/kalsa64/bin:
+total 10174
+drwxr-xr-x 2 501  20      3452 2026-09-04 11:29 .
+drwxrwxrwx 5 root root    3452 2026-09-04 11:41 ..
+-rwxr-xr-x 1 501  20       163 2026-09-04 11:29 ._test-backend-ops-153f
+-rwxr-xr-x 1 501  20      7344 2026-09-04 11:29 llama-bench
+-rwxr-xr-x 1 501  20      7424 2026-09-04 11:29 llama-cli
+-rwxr-xr-x 1 501  20      7424 2026-09-04 11:29 llama-perplexity
+-rwxr-xr-x 1 501  20   9548928 2026-09-04 11:29 test-backend-ops
+-rwxr-xr-x 1 501  20    823008 2026-09-04 11:29 test-backend-ops-153f
+
+/data/local/tmp/kalsa64/lib-fix:
+total 171674
+drwxr-xr-x 2 501  20       3452 2026-09-04 11:29 .
+drwxrwxrwx 5 root root     3452 2026-09-04 11:41 ..
+-rwxr-xr-x 1 501  20    7498960 2026-09-04 11:29 libggml-base.so
+-rwxr-xr-x 1 501  20    4051032 2026-09-04 11:29 libggml-cpu.so
+-rwxr-xr-x 1 501  20    5651704 2026-09-04 11:29 libggml-hexagon.so
+-rwxr-xr-x 1 501  20     632168 2026-09-04 11:29 libggml-htp-v73.so
+-rwxr-xr-x 1 501  20    9907368 2026-09-04 11:29 libggml-opencl.so
+-rwxr-xr-x 1 501  20    1632040 2026-09-04 11:29 libggml.so
+-rwxr-xr-x 1 501  20     570056 2026-09-04 11:29 libllama-batched-bench-impl.so
+-rwxr-xr-x 1 501  20    3611280 2026-09-04 11:29 libllama-bench-impl.so
+-rwxr-xr-x 1 501  20    4036224 2026-09-04 11:29 libllama-cli-impl.so
+-rwxr-xr-x 1 501  20   53554936 2026-09-04 11:29 libllama-common.so
+-rwxr-xr-x 1 501  20    1012720 2026-09-04 11:29 libllama-completion-impl.so
+-rwxr-xr-x 1 501  20     512872 2026-09-04 11:29 libllama-fit-params-impl.so
+-rwxr-xr-x 1 501  20    2280848 2026-09-04 11:29 libllama-perplexity-impl.so
+-rwxr-xr-x 1 501  20    1703728 2026-09-04 11:29 libllama-quantize-impl.so
+-rwxr-xr-x 1 501  20   40270888 2026-09-04 11:29 libllama-server-impl.so
+-rwxr-xr-x 1 501  20   29554880 2026-09-04 11:29 libllama.so
+-rwxr-xr-x 1 501  20    9112408 2026-09-04 11:29 libmtmd.so

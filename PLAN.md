@@ -65,8 +65,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
    attivo solo per generazione ≥ V75 e solo prefill (`npu_lane_enabled`), dietro
    la prova di correttezza (0/301 va risolto o la lane resta off); v73 off
    finché il fix del mapping/TLBMISS non è nel fork.
-5. Mali: fermo (decisione owner). Bisect #64: si chiude oggi in background,
-   poi il fix nel fork è un task a sé (mai issue upstream).
+5. Mali: fermo (decisione owner). Bisect #64: culprit ∈ {7, 8}, quasi certo
+   #26049 (pipeline L2/DMA/MM/FA); ultima sessione in arrivo; poi il fix nel
+   fork è un task a sé (mai issue upstream).
 
 ## Vincoli
 - Mai half-offload (ALIVE 140-145); full o niente, cool-mode solo con delta misurato.
@@ -394,6 +395,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > termiche; l'app non li alimenta. STATO CORRENTE riscritto sul piano a 9
 > giorni: governor nell'app → fit GPU → loop termico → lane NPU. Bisect #64
 > resta in background.
+
+> **4/09, 14:50 — #64 STEP 4: index 8 (0a50d9909, #26049 "further improved
+> pipeline of the core bits (L2, DMA, MM, FA)") è BAD** (sessione 799176,
+> ~8 min, coda 9 min; TLBMISS `work-queue:1`, Fault PC 0x20089ECC). Culprit
+> ∈ {7, 8}; index 7 (#26029, fix Windows op_poll, minuscolo) in build: se
+> GOOD, il colpevole è #26049. Ultima sessione del bisect a seguire.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
