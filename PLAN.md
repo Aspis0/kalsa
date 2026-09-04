@@ -33,7 +33,7 @@
 1. #61 G1-amended RATIFICATO: la app fusa gira su hardware (44).
 2. APK per il campo: l'owner non ha scelto A o B; default operativo B (pin 12f6d9b6d, nessuna regressione vista in #61) salvo contrordine.
 3. F6 riformulata RATIFICATA; il MoE a offload parziale su v73 è un'opzione del router da misurare (43).
-4. Dossier #8: bozza approvata; l'apertura della issue upstream resta un atto separato ("apri la issue"), non implicito nell'approvazione.
+4. Dossier #8: bozza approvata. **ORDINE OWNER 4/09 11:00: NESSUNA issue upstream, mai — "o fixiamo noi stessi o lasciamo perdere".** Il dossier resta documento interno; la via è il fix nel fork Aspis0/kalsallama (bisect + patch) o l'abbandono.
 5. **PRIORITÀ OWNER: variante APK debuggable** (release + `android:debuggable`) per i test sul campo con `run-as` → lavoro app: nuovo profilo/flag in apk.yml, CI, sha, poi smoke #61-bis su QDC senza root.
 6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
@@ -54,7 +54,7 @@
 - Ogni driver NPU include `.farf`.
 - Wake prima delle celle che guidano la UI.
 - Gli APK release di CI NON sono debuggabili (niente `run-as`): sul campo serve una variante debuggable, su QDC si passa da root.
-- Mai pushare su repo pubblici di terzi.
+- Mai pushare su repo pubblici di terzi. Mai aprire issue upstream (owner 4/09): fix nel fork o lasciar perdere.
 
 > **3/09 notte — DELEGA PIENA OWNER ("fai tutto") + due fatti di contesto
 > duri.** (a) Owner via ALTRI 10 giorni (~13/09) e **S23 E JELLY PERSI**:
@@ -241,6 +241,12 @@
 > Ratifiche registrate in STATO CORRENTE; priorità: APK debuggable (apk.yml
 > variante debug-release, sha, smoke #61-bis su QDC via run-as). Regola:
 > aggiornare sempre tutti i docs.
+
+> **4/09, 11:00 — OWNER: "Non aprire nessuna issue upstream. O fixiamo noi
+> stessi o lasciamo perdere".** Decisione 4 riscritta: il dossier #8 è solo
+> interno; per la TLBMISS/mapping v73 la strada è il bisect + fix nel fork
+> (cella #63+) oppure l'abbandono. Ordine di lavoro confermato: (1) APK
+> debuggable, (2) #61-bis run-as su QRD8650, (3) bisect 022458a28..64a155d24.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
