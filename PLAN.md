@@ -467,6 +467,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > + patch llama.rn con rn-governor compilano su Android (NDK, arm64), assert
 > del marker nativo passato. Non dice nulla sul runtime (il NO-GO resta).
 
+> **4/09, 17:05 — S2 v2 (Luna): 7/7 finding del NO-GO chiusi** — commit
+> b3a6137/1766cd3/42ddcf4: load governor converge su templates/n_ctx (da
+> `active_ctx()`)/metadata/n_seq_max/completion/ctx_shift (rn-llama.cpp
+> 629-784); `KALSA_GOVERNOR_FALLBACK` a ogni stadio (load acceleratore, load
+> CPU, init, Reject) con {stage, models_loaded, reason, gpu_fit,
+> profile_valid}; thermo parsato al load e impostato prima del primo decode,
+> profilo invalido → throw `governor: thermo profile invalid` prima di ogni
+> load; LoRA/mmproj/parallel/MTP/sessioni/clearCache rifiutati a voce alta;
+> `reload_budget_available=false` di default; test C++ del parser
+> (`scripts/governor-params-test.cpp`, PASS). Patch 3174 righe. Delta audit
+> grok in corso; CI run 33922285427 in volo. Il retry CPU resta in S4.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
