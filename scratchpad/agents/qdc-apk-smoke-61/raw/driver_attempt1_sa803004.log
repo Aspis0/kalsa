@@ -1,0 +1,16 @@
+host=sa803004.sa.svc.cluster.local
+serial=80003b9c
+[06:56:21] device=80003b9c job=sa803004
+[06:56:27] local sha verified: /Users/marco/kalsa-qdc/apk/apk-A-c513f00/app-release.apk
+[06:56:27] local sha verified: /Users/marco/kalsa-qdc/apk/apk-B-09bdfe9/kalsa-apk-arm64-v8a-09bdfe949403db7cd793da9471c5a78c50d62966/app-release.apk
+[06:56:32] local sha verified: /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf
+[06:56:34] pushing model (cap 3600s)
+[06:57:47] model push verified on device
+[06:57:47] === APK A ===
+[06:57:58] STEP A S1 ok install_rc=0 pm_dump_rc=0 sha=e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403
+[06:57:59] STEP A S2 fail METHOD-VOID run-as copy_rc=1 size= expected=1593894944
+[06:57:59] STEP A S2 fail METHOD-VOID skipped after S2
+[06:57:59] STEP A S3 fail METHOD-VOID skipped after S2
+[06:57:59] STEP A S4 fail METHOD-VOID skipped after S2
+[06:57:59] STEP A S5 fail METHOD-VOID skipped after S2
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-apk-smoke-61/d_run.sh: line 56: phase: unbound variable

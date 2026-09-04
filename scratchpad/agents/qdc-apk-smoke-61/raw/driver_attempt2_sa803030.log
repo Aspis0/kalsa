@@ -1,0 +1,12 @@
+host=sa803030.sa.svc.cluster.local
+serial=cacfeec9
+[07:32:53] device=cacfeec9 job=sa803030
+[07:32:59] local sha verified: /Users/marco/kalsa-qdc/apk/apk-A-c513f00/app-release.apk
+[07:32:59] local sha verified: /Users/marco/kalsa-qdc/apk/apk-B-09bdfe9/kalsa-apk-arm64-v8a-09bdfe949403db7cd793da9471c5a78c50d62966/app-release.apk
+[07:33:04] local sha verified: /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf
+[07:33:07] pushing model (cap 3600s)
+[07:34:23] model push verified on device
+[07:34:23] === APK A ===
+[07:34:35] STEP A S1 ok install_rc=0 pm_dump_rc=0 app_uid=10224 sha=e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403
+[07:34:38] STEP A S2 ok sideload=root size=1593894944
+[07:35:06] STEP A S3 fail first_launch=0 force_stop=0 sql=1

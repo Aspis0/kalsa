@@ -1,0 +1,24 @@
+[07:44:39] device=cacfeec9 job=sa803030
+[07:44:52] local sha verified: /Users/marco/kalsa-qdc/apk/apk-A-c513f00/app-release.apk
+[07:44:52] local sha verified: /Users/marco/kalsa-qdc/apk/apk-B-09bdfe9/kalsa-apk-arm64-v8a-09bdfe949403db7cd793da9471c5a78c50d62966/app-release.apk
+[07:44:57] local sha verified: /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf
+[07:45:00] model resume: device sha verified; skipping push
+[07:45:00] === APK A ===
+[07:45:12] STEP A S1 ok install_rc=0 pm_dump_rc=0 app_uid=10225 sha=e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403
+[07:45:15] STEP A S2 ok sideload=root size=1593894944
+[07:45:57] STEP A S3 ok first_launch=0 force_stop=0 sql=0
+[07:52:41] STEP A S4 fail clear=0 launch=0 load_timeout_or_missing wake=Awake
+[07:52:43] ime suspended: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+[07:53:16] STEP A S5 ok KALSA_TELEMETRY tokensPredicted>0
+[07:53:26] STEP A S6 ok evidence captured
+[07:53:27] STEP A S7 ok uninstalled
+[07:53:27] === APK B ===
+[07:53:38] STEP B S1 ok install_rc=0 pm_dump_rc=0 app_uid=10226 sha=1e2709e57561e97149664ea30588b7df9141c25a6813642cdda1c3ddf9d7f86d
+[07:53:41] STEP B S2 ok sideload=root size=1593894944
+[07:54:22] STEP B S3 ok first_launch=0 force_stop=0 sql=0
+[08:01:07] STEP B S4 fail clear=0 launch=0 load_timeout_or_missing wake=Awake
+[08:01:47] STEP B S5 ok KALSA_TELEMETRY tokensPredicted>0
+[08:01:57] STEP B S6 ok evidence captured
+[08:01:58] STEP B S7 ok uninstalled
+[08:01:58] DONE FINAL_RC=1 — raw/ populated. Remember: End Session in the portal.
+[08:02:00] ime restored: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
