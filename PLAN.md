@@ -262,6 +262,21 @@
 > path). Pulizia fatta: container `clever_brown` rimosso (0% CPU), worktree
 > kalsallama-wt-mmapfix + branch locale rimossi (nessun commit proprio).
 
+> **4/09, 11:40 — #63 PRONTA (audit GO), #64 TOOLING PRONTO, build step 0 in
+> corso.** #63 (scratchpad/agents/qdc-apk-smoke-63): PREREG + driver run-as
+> (20 `run-as`, zero chown/restorecon/su nel data path), S0 = flag DEBUGGABLE
+> da `dumpsys package`, S4 = `llama_model_loader: loaded meta data … from
+> …/files/models/lfm2.5-2.6b/…gguf` + `KALSA_PREWARM "op":"done"` (righe
+> #61 raw A:4802/5800, B:5198/6193). Audit mimo GO, 0 blocker; la sua nota
+> "flags_rc mai controllato" è FALSA (d_run.sh:214). Aspetta gli APK
+> debuggable dalla CI. #64 (scratchpad/agents/qdc-npu-bisect-64): build-kit.sh
+> = kit SOLO v73 per commit (~10 min, non 40: configure 0.5 + skel 4 + host
+> 2.5), BISECT.md con i 23 commit hexagon (index 12 = 990e3bfee #27042);
+> step 0 = upstream PURO 022458a28 (mai provato: il nostro kit ha patch
+> kalsa) in build ora (container kalsa-bisect-022458a, runner pid 68323),
+> poi il midpoint. Audit tooling in corso. aapt2 installato sul Mac
+> (openjdk@17 formula + build-tools 35 via sdkmanager, niente sudo).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
