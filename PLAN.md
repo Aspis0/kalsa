@@ -425,6 +425,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > sintetici. S1 (rebase governor su 12f6d9b6d + build/test macOS) in corso
 > su grok, worktree kalsallama-wt-governor-v03.
 
+> **4/09, 15:40 — S1 FATTO (grok) + audit Luna GO-WITH-FIXES.** Ramo
+> `kalsa/governor-v0.3-on-12f6d9b6d` @8665e9a9f in kalsallama-wt-governor-v03:
+> rebase 28/28 identico (range-diff tutto "="), OpenCL byte-identico, build
+> macOS ok, `router_v02_golden/metrics=PASS`, bench C 3×3 su LFM2.5-2.6B:
+> ttft 10087 ms / decode 19.6 t/s (Mac CPU, riferimento), G fail-fast senza
+> acceleratore (atteso). Fix richiesti = lavoro di S2: l'overlay dell'app
+> (`scripts/sync-kalsallama.sh`) non copia i 14 file governor/kv-commit/
+> hybrid-commit; S1 non prova nulla su Android. S2 parte ora (Luna) in un
+> worktree dedicato dell'app (`kalsa-wt-governor`, branch
+> `feat/governor-in-app` da main) per non pestare la sessione UI.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
