@@ -13,25 +13,25 @@ on device), `--mmap 0`, HOSTBUF unset throughout.
 
 | arm | config | HTP-REPACK bytes | proof n_exps_htp0 (cumulative; PREREG per-graph expectation in brackets) | exit | DSP-side line (FARF via `llama-bench.farf`, logcat `adsprpc`) |
 |---|---|---|---|---|---|
-| B1 `ngl8_mbuf1g` | `-ngl 8` | 1575 MiB (8 host bufs, 1.59 GiB) | 189 [24] | **0** | — |
+| B1 `ngl8_mbuf1g` | `-ngl 8` | 1575 MiB (8 host-registered buffers, 1.59 GiB total) | 189 [24] | **0** | — |
 | B2 `ngl99_mbuf512` | `-ngl 99`, `GGML_HEXAGON_MBUF=512` | 3600 MiB (12 host bufs, max 459 MiB) | 48 [48] | **134** | `qurt_vtlb_mmap: unable to get virtual address, size 1b901000` → `Error 0x80000483: fastrpc_mmap failed pa 0x31c400000` → `HAP_mmap2 failed for fd 31 of length 462426112` → `mmap failed : va FFFFFFFF fd 31 size 462426112` → abort (`htp_iface_start+0x1348` = main.c:729) |
 | B5 `ngl99_vmem1800` | `-ngl 99`, `GGML_HEXAGON_VMEM=1800` | 3600 MiB (8 host bufs) | 48 [48] | **134** | same chain, `fd 27 size 698355712`, `pa 0x31cc00000` |
 | B6 `ngl99_vmem0` | `-ngl 99`, `GGML_HEXAGON_VMEM=0` (measure) | — | 0 [48] | 1 | host: `measured max vmem 3221225472` (= 3.00 GiB, 3.22 GB), then `buffer mapping failed … size 698355712 … error 0x00000001` at model load → METHOD-VOID as an arm, number banked |
-| B3 `ngl12_mbuf1g` | `-ngl 12` | 2475 MiB (9 host bufs, 2.48 GiB) | 297 [36] | **0** | — |
+| B3 `ngl12_mbuf1g` | `-ngl 12` | 2475 MiB (9 host-registered buffers, 2.48 GiB total) | 297 [36] | **0** | — |
 | B4 `ngl8_tg128` | `-ngl 8 -p 0 -n 128` | 1575 MiB | 2688 [24] | **0** | — (128 decode tokens through 8 expert layers on HTP) |
 
 Proof counts are cumulative over all graphs of the run (pp16 + 8 tg tokens, or 128 tg); the
 PREREG's "3 × layers" is the per-graph figure, so the survival criterion is "≥ per-graph count with
 exit 0", met by B1/B3/B4. Signature identification: both deaths carry `htp_iface_start+0x1348`
 on this skel = main.c:729 (DISASM.md), now CONFIRMED by the FARF text of that very line
-("mmap failed : va %p fd %u size %u" with va = FFFFFFFF). Two tombstones per dying arm pulled.
+("mmap failed : va %p fd %u size %u" with va = FFFFFFFF). One tombstone (+ its .pb) per dying arm pulled.
 
 ## What the cell established
 
 1. **The 0x2e death is a DSP virtual-address allocation failure, not a host bug and not an
    arch-wide "MoE on v73 dies".** QuRT's `qurt_vtlb_mmap` cannot find a virtual range for a
-   ~0.46-0.70 GB weight buffer; the skel's `HAP_mmap` call (objdump: `call HAP_mmap@plt` at
-   0x29c4/0x33c4, DISASM.md) returns -1 — the shell reports the failure under the name
+   ~0.46-0.70 GB weight buffer; the skel's `HAP_mmap` call (objdump: `call 0x1ff0 <HAP_mmap@plt>` at
+   0x29c4 and 0x33c4, now quoted in DISASM.md) returns -1 — the shell reports the failure under the name
    `HAP_mmap2 failed for fd 27 of length 698355712`, so on this firmware the two entry points
    evidently share the implementation (an inference from those two facts, not a quoted statement); the skel's `mmap_buf()` has no
    fallback and aborts; the PD dies; the host sees `dspqueue_read 0x2e`.
@@ -41,7 +41,7 @@ on this skel = main.c:729 (DISASM.md), now CONFIRMED by the FARF text of that ve
    first v73 NPU decode ever recorded in this project (the S23 died at pp16 with ngl 99).
 3. **It is not a clean cumulative-bytes budget.** B6's probe says ~3 GiB of pinned mappings fit
    (three 1 GiB + one 256 MiB → fail), and B3 kept 2.48 GiB live (DSP log: 11 creates, the 8
-   destroys are at 03:08:50.79-51.21, within 0.5 s of the fastrpc `exit_thread` line at
+   destroys are at 03:08:50.790-51.226, within 0.5 s of the fastrpc `exit_thread` line at
    03:08:51.285, i.e. teardown) — consistent with #59's death at the fourth ~1 GiB buffer (3.07 GiB
    live + 0.7). But B2 and B5 die with FAR less live: reconstructing the DSP `fd_mmap_create/
    destroy` sequence in file order (timestamps in raw/logcat_*), B2 had ~501 MiB live (fd20 11 +
@@ -116,3 +116,6 @@ Submitted 06:01:49, Started 06:02:56, driver 06:03:23-06:09:37, End Session ref-
 - NOTE added: every arm, survivors included, logs `qurt_vtlb_mmap: unable to get ANON mapping,
   size a6000` / `size 100000` at PD start (raw/logcat_*, first `CDSP0:` lines) — non-fatal, not
   part of the death chain.
+- Delta audit 2 (deepseek, AUDIT-REPORT.md "second auditor"): all three refutations CONFIRMED on
+  file evidence; item 5 accepted — the two `call HAP_mmap@plt` sites were read from objdump but
+  not transcribed: DISASM.md now quotes them; N3/N4/N5 wording applied. Verdict BANK-WITH-FIXES → fixes applied.

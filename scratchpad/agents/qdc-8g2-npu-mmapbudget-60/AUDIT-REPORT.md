@@ -59,3 +59,51 @@ Auditor: automated. Angles: number fidelity, grid binding, unsupported claims, P
 **FIX (4):** 1f — B6 "3 GiB" should be 3.2 GiB; 1h — B2 live bytes off by ~46 MiB; 3b — "fragmentation" should list alternatives; 4a — per-graph expected_exps omitted.
 
 **NOTE (4):** 1e — B4 proof 2688 vs theoretical 3072; 1k — tombstone file count ambiguous; 3c — "destructive" label imprecise; 5b — proof decomposition inexact.
+
+## Delta audit (second auditor, deepseek)
+
+Hostile re-audit of REPORT.md's refutations; raw files only; all arithmetic via shell.
+
+1. B5 live at fd27 — **CONFIRMED** (auditor-1 REFUTED). File order, logcat_ngl99_vmem1800:
+   `03:07:49.691 ... fastrpc_invoke_fd_mmap_destroy fd -1 len 3d501000` (kills fd24) precedes
+   `03:07:49.739 ... fd_mmap_create: fd 26 ... size 3d501000`; at the failing request
+   `03:07:49.746 ... fd 27 ... size 29a01000` fd24 is dead, fd26 is live. Live set = fd20 0xbc2000
+   + fd28 0x1e3200 + fd23 0x883000 + fd26 0x3d501000 + fd22 0x2001000 (+fd16/fd18 12 KiB) =
+   1085460992 B = 1035.18 MiB (`python3 -c` sum). REPORT's 1033 MiB right; auditor-1's 2085.5 MiB
+   double-counts fd24 AND is self-inconsistent (0x3d501000 = 981 MiB, not 1024; own list sums 2007.6).
+2. B2 live at fd31 — **CONFIRMED** (auditor-1 REFUTED). `03:07:18.108 ... fd_mmap_destroy fd -1 len 1cb01000`
+   precedes the fd30/fd31 creates at the same timestamp; fd24 dead, fd30 (0x1c201000 = 450 MiB) live.
+   Live = fd20+fd32+fd23+fd22+fd30 (+fd17/fd18) = 528667136 B = 504.18 MiB ≈ REPORT "~501 MiB"
+   (0.6% low, within ~). Auditor-1's 497.8 MiB miscounts 0x1cb01000 as 443.1 MiB (it is 459.0) and drops fd30.
+3. B3 destroys — **CONFIRMED** (auditor-1 REFUTED). `grep -c fd_mmap_destroy
+   raw/logcat_ngl12_mbuf1g_sa802961.txt` = 8; timestamps 03:08:50.790-51.226, all tid 15356;
+   `exit_thread` 03:08:51.285, same tid → last destroy 59 ms before exit_thread, first 0.495 s.
+   "8 destroys at teardown" holds.
+4. 3221225472 B — **CONFIRMED** (auditor-1's FIX REFUTED). `printf`: /2^30 = 3 GiB exact;
+   /10^9 = 3.221 GB. REPORT "3.00 GiB / 3.22 GB" correct; auditor-1's "3.22 GiB" was the units error.
+5. HAP_mmap sentence — **REFUTED as written**: now a labelled inference ("(an inference from those
+   two facts, not a quoted statement)") and the FARF fact is quoted exactly (`Error 0x8000054d:
+   HAP_mmap2 failed for fd 27 of length 698355712 bytes`, logcat line 296) — but the objdump "fact"
+   `call HAP_mmap@plt` at 0x29c4/0x33c4 appears NOWHERE in DISASM.md (no HAP_mmap@plt, no 0x29c4,
+   0x33c4, no 0x1ff0 in any file but REPORT.md itself). One of the two quoted facts is uncitable.
+6. ANON note — **CONFIRMED**. `grep -c 'unable to get ANON'` = 2 on both
+   logcat_ngl8_mbuf1g (lines 39, 76) and logcat_ngl12_mbuf1g (lines 38, 75):
+   `qurt_vtlb_mmap: unable to get ANON mapping, size a6000` / `size 100000`, at PD start.
+7. Proof/brackets — **CONFIRMED**. Last `proof` lines match the table: B1 189 exit 0, B2 48 exit 134,
+   B5 48 exit 134, B6 0 exit 1, B3 297 exit 0, B4 2688 exit 0. Brackets [24]/[48]/[48]/[48]/[36]/[24]
+   = PREREG "3 × offloaded layers (24 for B1/B4, 36 for B3, 48 for B2)" + amendment per-graph 48 for
+   B5/B6; sig files expected_exps 24/36/48 agree.
+
+New findings (beyond the 7 items):
+- N1: auditor-1's 1h arithmetic broken: 0x1cb01000 = 459.0 MiB (not 443.1); its 497.8 MiB matches nothing.
+- N2: auditor-1's 1i arithmetic broken: 0x3d501000 = 981 MiB (not 1024); 2085.5 matches nothing (2007.6).
+- N3: REPORT B1/B3 "(8 host bufs, 1.59 GiB)"/"(9 host bufs, 2.48 GiB)" are total-mapped sums
+  (1623.2 MiB = 1.585 GiB; 2541.35 MiB = 2.482 GiB, DSP 11-create sum = 2541.35 MiB): each true, but
+  not conversions of the REPACK-only MiB figures shown beside them — conflated presentation.
+- N4: "Two tombstones per dying arm": each tomb dir holds one tombstone + one protobuf (auditor-1 1k stands).
+- N5: REPORT "03:08:50.79-51.21" — last B3 destroy is 51.226 (16 ms, immaterial).
+
+Final verdict: **BANK-WITH-FIXES**. All three auditor-1 BLOCKERs are refuted on file evidence,
+and auditor-1's own sums were self-inconsistent; the G1b grid binding and the :729 VA-failure
+mechanism stand. Required fixes: (a) repair or delete the unsupported `call HAP_mmap@plt` /
+0x29c4-0x33c4 citation in point 1 (item 5); (b) wording cleanups N3/N4/N5. No re-run needed.

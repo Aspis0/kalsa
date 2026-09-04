@@ -21,6 +21,16 @@ So the host `0x2e` is the SYMPTOM of a DSP-side `abort()`; the fault is in the s
 the host flush path and not in the DSP firmware. Same shape as the S23 F2b block
 (`htp_iface_stop+0x12E8`, thread htp-main, different binary).
 
+## Call sites of the mapping API in this skel (`hexagon-llvm-objdump -d | grep call`)
+
+```
+29c4:	call 0x1ff0 <HAP_mmap@plt>
+33c4:	call 0x1ff0 <HAP_mmap@plt>
+2a7c/2aa0/3e08/3e2c/3e54/3e74/3ea0/3ec0:	call 0x2000 <abort@plt>
+```
+`-T` lists `HAP_mmap` as `*UND*` (imported) and no `HAP_mmap2` symbol: the v73 skel calls
+`HAP_mmap`, as the `#if __HVX_ARCH__ > 73` split in htp/main.c prescribes.
+
 ## Resolving `htp_iface_start+0x1348`
 
 `hexagon-llvm-objdump -T` : `htp_iface_start` = 0x2b10, size 0x4ac (ends 0x2fbc). The offset
