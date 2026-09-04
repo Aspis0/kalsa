@@ -637,6 +637,25 @@
 > Luna, audit mimo, HDK8550 30 min. Dossier #8 = aggiornare
 > docs/upstream-v73-hexagon-report.md (esiste, 3 firme S23), non un file nuovo.
 
+> **4/09, 06:15 — #60 ESEGUITA (HDK8550 job 798892, 8.5 min): LA MORTE v73 È UN
+> FALLIMENTO DI ALLOCAZIONE VA SUL DSP, E L'OFFLOAD PARZIALE VIVE (ANCHE IL DECODE).**
+> Sei arm: `-ngl 8` VIVE (proof 189), `-ngl 12` VIVE (297, 2.48 GiB mappati),
+> `-ngl 8 tg128` VIVE (2688 dispatch: primo decode NPU v73 mai registrato);
+> `-ngl 99` con MBUF=512 MUORE, con VMEM=1800 MUORE (entrambi :729, proof 48);
+> VMEM=0 misura 3 GiB ma poi non carica più (probe distruttiva). Il file
+> `llama-bench.farf`=0x1F ha FUNZIONATO: logcat `adsprpc` mostra la catena
+> `qurt_vtlb_mmap: unable to get virtual address` → `Error 0x80000483
+> fastrpc_mmap failed` → `HAP_mmap2 failed for fd 27 length 698355712` →
+> `mmap failed : va FFFFFFFF` → abort. Con ~0.53 GB (B2) e ~1.08 GB (B5) vivi
+> al fallimento, dopo cicli map/unmap: FRAMMENTAZIONE VA del PD a 32 bit, non
+> solo budget (upstream #26501/#28202 del 27/08-2/09 toccano proprio questo,
+> non nel nostro kit). Websearch: issue upstream #26123 (aperta, luglio) =
+> stessa classe su 8 Gen 2; Qualcomm fastrpc #137: VA cDSP 2 GB vecchi/3 GB
+> 8gen3. Grid: G1b. F6 da RIFORMULARE (v73 ok sotto ~2.5 GiB residenti, muore
+> a 3.6 GiB in questo build). REPORT scritto, audit mimo in corso; #61
+> candidata = stesso driver su kit con #26501+#28202. Sessione chiusa al primo
+> ref-click (Ended On 06:11:27).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
