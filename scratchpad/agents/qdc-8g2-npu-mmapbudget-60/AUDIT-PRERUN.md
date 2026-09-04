@@ -72,10 +72,26 @@ No unintentional removals found.
 
 ---
 
-**OVERALL VERDICT: FIX-THEN-RUN**
+## Delta audit (amendment 1)
 
-**BLOCKER**: P2 — PREREG claims "~13 mappings" for B2; evidence shows 16-18 at MBUF=512 (three ~1 GiB bufs × 2 + op-queue + small + attn/embed = 16+). At HTP_MAX_MMAPS=16, B2 is likely METHOD-VOID (slot overflow), not a true survival/death. The grid's G1-G5 rows don't explicitly cover this. Fix: correct the estimate to ~16-18 and add a grid row (e.g., "B2 METHOD-VOID → H2 test inconclusive; B3 still discriminates H1").
+### P2 refutation — ACCEPT
+PREREG "Audit response" arithmetic: 48 expert tensors × 75497472 B = 3600 MiB. At MBUF=512 MiB → 7 buffers (7 × 72 MiB = 504 MiB each, 7 fit per buffer). + 4 non-expert (fd 19/21/22/27 from evidence: 12.3 + 33.6 + 8.9 + 1.9 MiB) = **11 mappings ≤ 16**. My own count of the 8 `mapped buffer` lines confirms: fd 23-26 = 3600.02 MiB expert REPACK; fd 19/21/22/27 = 56.7 MiB non-expert. 7+4=11. Revised PREREG estimate "≈11" is correct; my original BLOCKER was wrong.
 
-**FIX**: P5 — No grid row for B2 METHOD-VOID. Add one before run.
+### P6 refutation — ACCEPT
+d_run.sh: `return 9` (line after `[ "$e" = "0" ] && return 0`) is the arm-death return. `case $rc in 7|8)` only catches gate/launch aborts (rc 7) and clean failures (rc 8). rc=9 (device death) does NOT set ABORT=1. B3 runs after B1/B2 deaths at :729 exactly as PREREG states. My original FIX was wrong.
 
-**FIX**: P6 — PREREG says B3 runs "regardless of B1/B2 outcome unless gate/launch abort"; driver blocks B3 when ABORT=1 (any arm death including :729). Either widen the driver's B3 gate or update PREREG to match the driver's stricter gating.
+### B5/B6 source verification
+- **(a) opt_vmem default + env override**: ggml-hexagon.cpp:4373 `opt_vmem = opt_arch >= 75 ? HTP_OP_MAX_VMEM_DEFAULT : 3000 * MiB;` (3000 MiB for v73). Line 4395 `opt_vmem = str_vmem ? strtoul(str_vmem, NULL, 0) * MiB : opt_vmem;` — env wins after default. CONFIRMED.
+- **(b) VMEM=0 triggers measurement**: ggml-hexagon.cpp:1812 `if (!opt_vmem) { opt_vmem = ggml_hexagon_measure_max_vmem(this); }`. `strtoul("0")*MiB = 0`. CONFIRMED.
+- **(c) Skel eviction**: main.c:762 `if ((m_vmem + e_vmem) > ctx->max_vmem)` drops unused mappings, then :776 `mmap_buf(ctx, b)` for each missing buffer. H1' chain: host says 3000 MiB → skel never evicts (≤3000) → HAP_mmap fails past real ~2 GiB PD budget → abort :729. CONFIRMED. No hole: host opbatch b_vmem_max (line 1282 `if ((extra_vmem + b_vmem) > b_vmem_max) return false;`) splits batches at 1800 MiB, so skel never receives >1800 MiB of buffer data per batch.
+
+### B5/B6 driver verification
+- B5: `run_arm ngl99_vmem1800 900 "$T -ngl 99" "GGML_HEXAGON_VMEM=1800" 48` — ENV applied, cap 900s, expected 48, after B2. CONFIRMED.
+- B6: `run_arm ngl99_vmem0 900 "$T -ngl 99" "GGML_HEXAGON_VMEM=0" 48` — ENV applied, cap 900s, expected 48 (informative; B6 outcome is not a grid input). CONFIRMED.
+- Order B1→B2→B5→B6→B3→B4 matches amendment. No contradiction with original grid.
+
+---
+
+**OVERALL VERDICT: RUN**
+
+P2 and P6 both ACCEPTED — original BLOCKER and FIX withdrawn. B5/B6 arms verified against source and driver. Grid amended with G1a/G1b sub-rows and G6 (B2 METHOD-VOID). No remaining BLOCKERs or FIXes.
