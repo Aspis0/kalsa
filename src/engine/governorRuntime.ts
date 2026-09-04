@@ -8,6 +8,7 @@ type RetryArgs<P, R> = {
   cpuParams: P;
   init: (params: P) => Promise<R>;
   nativeLog: () => string;
+  nativeLogStart?: () => string;
   log?: (line: string) => void;
 };
 
@@ -23,11 +24,26 @@ export async function readGovernorEnabled(): Promise<boolean> {
 export function isGovernorFallback(
   error: unknown,
   nativeLog: string,
+  nativeLogAtLoadStart = "",
 ): boolean {
   const message = error instanceof Error ? error.message : String(error ?? "");
-  return /KALSA_GOVERNOR_FALLBACK|governor.*(fail|reject|invalid)/i.test(
-    `${message}\n${nativeLog}`,
+  const newNativeLog = nativeLogDelta(nativeLogAtLoadStart, nativeLog);
+  return /KALSA_GOVERNOR_FALLBACK|governor.*(fail|reject|invalid)|Governor mode does not support/i.test(
+    `${message}\n${newNativeLog}`,
   );
+}
+
+function nativeLogDelta(start: string, current: string): string {
+  if (!start) return current;
+  if (start === current) return "";
+  const startLines = start.split("\n");
+  const currentLines = current.split("\n");
+  for (let index = 0; index <= currentLines.length - startLines.length; index += 1) {
+    if (startLines.every((line, offset) => currentLines[index + offset] === line)) {
+      return currentLines.slice(index + startLines.length).join("\n");
+    }
+  }
+  return "";
 }
 
 export async function initWithGovernorFallback<P, R>(
@@ -36,10 +52,11 @@ export async function initWithGovernorFallback<P, R>(
   if (!args.enabled) {
     return { value: await args.init(args.cpuParams), retried: false };
   }
+  const nativeLogAtLoadStart = args.nativeLogStart?.() ?? "";
   try {
     return { value: await args.init(args.governorParams), retried: false };
   } catch (error) {
-    if (!isGovernorFallback(error, args.nativeLog())) throw error;
+    if (!isGovernorFallback(error, args.nativeLog(), nativeLogAtLoadStart)) throw error;
     const message = error instanceof Error ? error.message : String(error ?? "");
     try {
       const value = await args.init(args.cpuParams);
