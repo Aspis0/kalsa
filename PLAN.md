@@ -40,7 +40,7 @@
 6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
 ## In volo / prossimi
-- Cella #64: bisect della TLBMISS op_binary — step 0 GOOD, 6 GOOD, 12 BAD → culprit in 7..12; index 9 in build, poi 8/11 (BISECT-LOG.md; fix nel fork, mai issue).
+- Cella #64: bisect della TLBMISS op_binary — 6 GOOD, 9 BAD → culprit in {7,8,9}; index 8 (#26049 pipeline) in build (BISECT-LOG.md; fix nel fork, mai issue).
 - Samsung RTL probe: pronta, non bloccante (diario 3/09).
 - Campagna CisWire parcheggiata: telefoni persi; PC/Lenovo idle (diario 3/09 notte).
 - Lab fisico fermo; operatività su QDC/CI/Mac (diario 3/09 notte).
@@ -349,6 +349,12 @@
 > speculativa. Lezione: `pkill -f` col nome dello script ha ucciso anche il
 > runner sequenziale → usare i PID. Sessioni oggi: 799128 (45), 799155 (~10),
 > 799162 (~6). Budget 8G2 ≈ 923 → ~905.
+
+> **4/09, 14:10 — #64 STEP 3: index 9 (355303e, im2col #26007) è BAD**
+> (sessione 799168, ~7 min; TLBMISS in `work-queue:2`, Fault PC 0x20089EEC).
+> Culprit ∈ {7, 8, 9}: 8 = #26049 "further improved pipeline (L2, DMA, MM,
+> FA)" è il sospetto principale, kit in build (~14:35); 7 (#26029, fix
+> Windows op_poll) solo se 8 è BAD. Al massimo 2 sessioni ancora.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;

@@ -30,3 +30,40 @@ Platform/QURT to use this system, please post your config file on discourse.cmak
 -- Configuring done (8.0s)
 -- Generating done (0.1s)
 -- Build files have been written to: /workspace/build-snapdragon/ggml/src/ggml-hexagon/htp-v73-prefix/src/htp-v73-build
+[6/8] Performing build step for 'htp-v73'
+[1/30] Generating htp_iface_skel.c, htp_iface_stub.c, htp_iface.h
+[2/30] Building C object CMakeFiles/ggml-htp-v73.dir/htp_iface_skel.c.obj
+[3/30] Building C object CMakeFiles/ggml-htp-v73.dir/dma-queue.c.obj
+[4/30] Building C object CMakeFiles/ggml-htp-v73.dir/hmx-queue.c.obj
+[5/30] Building C object CMakeFiles/ggml-htp-v73.dir/work-queue.c.obj
+[6/30] Building C object CMakeFiles/ggml-htp-v73.dir/htp-tensor.c.obj
+[7/30] Building C object CMakeFiles/ggml-htp-v73.dir/main.c.obj
+[8/30] Building C object CMakeFiles/ggml-htp-v73.dir/sum-rows-ops.c.obj
+[9/30] Building C object CMakeFiles/ggml-htp-v73.dir/gated-delta-net-ops.c.obj
+[10/30] Building C object CMakeFiles/ggml-htp-v73.dir/binary-ops.c.obj
+[11/30] Building C object CMakeFiles/ggml-htp-v73.dir/softmax-ops.c.obj
+[12/30] Building C object CMakeFiles/ggml-htp-v73.dir/flash-attn-ops.c.obj
+[13/30] Building C object CMakeFiles/ggml-htp-v73.dir/act-ops.c.obj
+[14/30] Building C object CMakeFiles/ggml-htp-v73.dir/set-rows-ops.c.obj
+[15/30] Building C object CMakeFiles/ggml-htp-v73.dir/rope-ops.c.obj
+[16/30] Building C object CMakeFiles/ggml-htp-v73.dir/get-rows-ops.c.obj
+[17/30] Building C object CMakeFiles/ggml-htp-v73.dir/repeat-ops.c.obj
+[18/30] Building C object CMakeFiles/ggml-htp-v73.dir/cpy-ops.c.obj
+[19/30] Building C object CMakeFiles/ggml-htp-v73.dir/ssm-conv.c.obj
+[20/30] Building C object CMakeFiles/ggml-htp-v73.dir/cumsum-ops.c.obj
+[21/30] Building C object CMakeFiles/ggml-htp-v73.dir/fill-ops.c.obj
+[22/30] Building C object CMakeFiles/ggml-htp-v73.dir/diag-ops.c.obj
+[23/30] Building C object CMakeFiles/ggml-htp-v73.dir/concat-ops.c.obj
+[24/30] Building C object CMakeFiles/ggml-htp-v73.dir/solve-tri-ops.c.obj
+[25/30] Building C object CMakeFiles/ggml-htp-v73.dir/pad-ops.c.obj
+[26/30] Building C object CMakeFiles/ggml-htp-v73.dir/unary-ops.c.obj
+[27/30] Building C object CMakeFiles/ggml-htp-v73.dir/im2col-ops.c.obj
+[28/30] Building C object CMakeFiles/ggml-htp-v73.dir/argsort-ops.c.obj
+[29/30] Building C object CMakeFiles/ggml-htp-v73.dir/matmul-ops.c.obj
+[30/30] Linking C shared library libggml-htp-v73.so
+[7/8] Performing install step for 'htp-v73'
+[0/1] Install the project...
+-- Install configuration: "Release"
+-- Installing: /workspace/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v73.so
+[8/8] Completed 'htp-v73'
+=== END 02-htp-v73 exit=0 2026-09-04T17:34:55Z ===
