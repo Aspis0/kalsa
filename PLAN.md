@@ -413,6 +413,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > incluso → #26501/#28202 (fuori range) restano da provare con #26049
 > revertato/patchato. REPORT in scrittura (Luna) → audit → ALIVE 47.
 
+> **4/09, 15:20 — FASE 1 GOVERNOR: piano APPROVATO.** `docs/PLAN-governor-in-app.md`
+> (Luna) → audit deepseek APPROVE-WITH-FIXES (11 refutazioni/lacune: path
+> CMake, pin 3 commit/6 file, oracolo di correttezza greedy prima della
+> velocità, fallback dopo il doppio load con `KALSA_GOVERNOR_FALLBACK`,
+> BatteryManager nativo, test Reject→CPU, n_ubatch 256 di produzione con
+> bound 3.46-3.94 GiB per due contesti del 2.6B) → fix → delta APPROVE.
+> Emendamento mio: le board QDC non hanno temperatura batteria → override
+> di bench `kalsa.bench.thermo` da `dumpsys thermalservice` (skin), marcato
+> `thermo_source: bench-skin`; in produzione solo BatteryManager, mai profili
+> sintetici. S1 (rebase governor su 12f6d9b6d + build/test macOS) in corso
+> su grok, worktree kalsallama-wt-governor-v03.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
