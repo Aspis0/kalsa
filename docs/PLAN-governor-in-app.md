@@ -108,3 +108,19 @@ RAM arithmetic for LFM2.5-2.6B:
 5. Streaming/`moe_stream` is configured at load while the app’s stream executes multiple completion/tool rounds and a fallback completion; every round must use the governor’s active context. `kalsa/src/engine/LlamaService.ts:1178-1195;1285-1302;2487-2496;2893-2957;3233-3289`.
 6. Vision is CPU-only on Android today; govern text LLM contexts without accidentally moving the image path. `kalsa/src/engine/LlamaService.ts:1496-1515`.
 7. Session editing/settings UI belongs to another session (scope boundary supplied by the user); governor must ship behind existing engine plumbing/flag only.
+
+## Amendment 5/09 — S5 sampling contract (after the S5 pre-run audit, finding B1)
+
+The app has no greedy bench mode and no token-id artifact (`LlamaService.ts` fixes `top_k: 20`).
+The oracle therefore needs a small `src/engine` addition, implemented before the S5 lock and covered
+by the S3+S4 delta audit:
+
+- AsyncStorage key `kalsa.bench.sampling` = `"greedy"` ⇒ the turn runs with temperature 0, top_k 1,
+  top_p 1, min_p 0, all penalties off, seed 42, `n_predict` ≥ 48. Absent or any other value ⇒
+  production sampling, untouched.
+- At the end of every completed chat turn the app logs exactly one line
+  `KALSA_BENCH_TOKENS {"turnId":"<id>","n":<generated token count>,"ids":[<first 32 generated token ids>]}`
+  (only while the key is set; fewer than 32 ids only if EOS came first, then `n` < 32).
+- The driver injects the key in both arms, requires `n ≥ 32`, compares the id lists of each adjacent
+  A/B pair, and excludes any pair with a missing line or `n < 32` from the speed medians (row `oracle=VOID`).
+

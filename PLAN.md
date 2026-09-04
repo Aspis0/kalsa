@@ -565,6 +565,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `kalsa.bench.sampling` (src/engine, piccolo) prima del lock; il driver esce 3
 > finché non c'è. Da riempire al lock: sha APK, host QDC. Audit pre-run → deepseek.
 
+> **5/09 ~03:00 — Audit pre-run S5 (deepseek, `qdc-governor-s5/AUDIT-PRERUN.md`):
+> NO-GO, 2 blocker + 2 major + 6 minori.** B1: il driver non ha il macchinario
+> dell'oracolo (atteso: prerequisito aperto) → **contratto definito da me**
+> e scritto nel piano (Amendment 5/09): `kalsa.bench.sampling="greedy"` +
+> riga `KALSA_BENCH_TOKENS {turnId,n,ids[32]}` per turno; il driver confronta
+> le coppie A/B adiacenti, `n<32` ⇒ VOID. B2: `logcat -c` NON svuota il
+> buffer `events` (provato nei raw #63: `am_kill` di 5 mesi prima) → ogni
+> turno avrebbe contato ≥1 kill e abortito → `-b all -c` + ancora temporale +
+> filtro sul pacchetto. M1: `pm uninstall || true` → install -r sopra dati
+> vecchi. M2: `mWakefulness` mai letto. Budget: 25 min stimati su 45, zero
+> slack → deadline interna 40 min. Fix mandati a Luna 5fcd34c9. L'app
+> (`kalsa.bench.sampling`) si fa su una Luna fresca appena bf40dcfe finisce i
+> fix S3+S4 (stesso LlamaService.ts, niente edit concorrenti).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
