@@ -1,0 +1,2 @@
+sql_path=host sqlite3 on run-as-pulled RKStorage; adb push then run-as cp/rm
+SQL=INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','lfm2.5-2.6b');

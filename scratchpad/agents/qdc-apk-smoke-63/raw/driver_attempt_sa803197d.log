@@ -1,0 +1,24 @@
+[12:26:50] device=72c4dabb job=sa803197d
+[12:27:09] local sha verified: /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf
+[12:27:12] model resume: device sha verified; skipping push
+[12:27:13] === APK A ===
+[12:27:24] STEP A S1 ok install_rc=0 pm_dump_rc=0 sha=c645f691a9d16a896415a25d90bd3e179c7d9743c9bcdbde17603017112b0adc
+[12:27:25] STEP A S0 ok DEBUGGABLE flag proven flags_rc=0
+[12:27:28] STEP A S2 ok sideload=run-as size=1593894944
+[12:28:09] STEP A S3 ok first_launch=0 force_stop=0 sql=0
+[12:28:33] STEP A S4 ok llama_model_loader + KALSA_PREWARM done wake=Awake
+[12:28:35] ime suspended: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+[12:29:00] STEP A S5 fail METHOD-VOID Send node not found
+[12:29:12] STEP A S6 ok evidence captured
+[12:29:14] STEP A S7 ok uninstalled
+[12:29:14] === APK B ===
+[12:29:24] STEP B S1 ok install_rc=0 pm_dump_rc=0 sha=1b8e2793a63d182a1fe422a50519e246d8d4d4e4ce510ed2660c6cbbf8370a46
+[12:29:25] STEP B S0 ok DEBUGGABLE flag proven flags_rc=0
+[12:29:28] STEP B S2 ok sideload=run-as size=1593894944
+[12:30:10] STEP B S3 ok first_launch=0 force_stop=0 sql=0
+[12:30:35] STEP B S4 ok llama_model_loader + KALSA_PREWARM done wake=Awake
+[12:31:17] STEP B S5 ok KALSA_TELEMETRY tokensPredicted>0
+[12:31:30] STEP B S6 ok evidence captured
+[12:31:31] STEP B S7 ok uninstalled
+[12:31:31] DONE FINAL_RC=1 — raw/ populated. Remember: End Session in the portal.
+[12:31:33] ime restored: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME

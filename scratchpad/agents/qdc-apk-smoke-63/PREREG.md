@@ -150,3 +150,41 @@ turn, KV reuse, or thinking/compaction comparison. The board is Android 14
 are intended to correspond to a user build. One prompt and one turn per arm,
 headless adb, IME suspended for typing. Nothing in the app repository is
 modified, and this cell does not push or commit anything.
+
+## Pre-data amendment 1 (declared during session 799128, before any S3+ data)
+
+Attempt 1 (job tag sa803197): S0 and S1 passed on both APKs (DEBUGGABLE flag
+proven by `dumpsys package`), then S2 failed in <1 s on both with
+`run-as: /data readable or writable by others: 40777` (raw/*_s2_copy.txt).
+`run-as` refuses to work while `/data` is world-writable; on this QDC board
+`/data` is 0777 (cloud provisioning — a real phone has 0771). This is a
+board precondition, not an APK property. Fix applied as root **outside the
+app data path**: `chmod 771 /data` (verified `771 system:system`). No other
+root command. Attempt 2 runs under job tag sa803197b; attempt 1 raw is kept.
+The cell's claim stays "the run-as PATH works with the debuggable APK", with
+the explicit caveat that QDC boards need `/data` restored to 0771 first.
+
+## Pre-data amendment 2 (declared during session 799128, before any S5 data)
+
+Attempt 2 (job tag sa803197b): S0–S4 passed on both APKs through run-as
+(sideload 1 593 894 944 B, RKStorage edit, launch, `llama_model_loader` +
+`KALSA_PREWARM done`). S5 METHOD-VOID on both: uiautomator saw only the
+status bar (raw/*_ui.xml: "100%", "3:59", "Fri, Sep 4"; screenshot black)
+— the keyguard was showing again (`isKeyguardShowing=true`, `mWakefulness=
+Dozing` when probed after the run). Cause: this board reports `USB powered:
+false`, so `svc power stayon true` is a no-op (it only holds the screen while
+charging) and the keyguard re-engages between S4 and S5. Fix (board state,
+root, outside the app data path): `locksettings set-disabled true` +
+KEYCODE_WAKEUP + `wm dismiss-keyguard` → `isKeyguardShowing=false`,
+`mWakefulness=Awake`. Attempt 3 runs under job tag sa803197c. S0–S4 of
+attempt 2 stand as data (the run-as path is proven regardless of S5).
+
+## Pre-data amendment 3 (declared during session 799128)
+
+Attempt 3 (sa803197c): `/data` had silently reverted to 0777 (uptime 1:50,
+no reboot — a board-side agent restores it), so run-as failed again mid-run
+(A S3 pulled an error string instead of RKStorage → "file is not a
+database"; B S2 same 40777 refusal). Fix: a Mac-side holder loop
+`adb shell chmod 771 /data` every 2 s for the duration of attempt 4
+(sa803197d), root, outside the app data path. Attempt 2's S0–S4 remain the
+run-as proof; attempt 4 is for S5 (the answer) only.

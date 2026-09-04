@@ -26,6 +26,8 @@
 - `feat/moe-stream` è in main a `c513f00`; E2E emulatore verde (diario 3/09).
 - APK-A: main, pin `a0cabca6b`; APK-B: pin `12f6d9b6d` + 3 pick OpenCL (44).
 - #61: APK-A/B installano, caricano il modello e rispondono: A 129 token a 26.4 tok/s, B 196 a 26.0 tok/s (44).
+- #63: l'APK debuggable (apk.yml `debuggable=true`) passa sideload/DB/load/risposta INTERAMENTE via `run-as` su QRD8650: è il bench instrument per il campo (46).
+- #64 step 0: upstream puro 022458a28 non ha la TLBMISS a `-ngl 8` (GOOD) e ha la morte di mapping a `-ngl 99`: bisect valido (diario 4/09 12:50).
 - Due lezioni ops: prima del launch wake+dismiss-keyguard+stayon; gli APK release non sono debuggabili, quindi sideload via root su board userdebug (44).
 - La GPU non è mai usata dall’app: `offloaded 0/31 layers to GPU` (44).
 
@@ -34,12 +36,11 @@
 2. APK per il campo: l'owner non ha scelto A o B; default operativo B (pin 12f6d9b6d, nessuna regressione vista in #61) salvo contrordine.
 3. F6 riformulata RATIFICATA; il MoE a offload parziale su v73 è un'opzione del router da misurare (43).
 4. Dossier #8: bozza approvata. **ORDINE OWNER 4/09 11:00: NESSUNA issue upstream, mai — "o fixiamo noi stessi o lasciamo perdere".** Il dossier resta documento interno; la via è il fix nel fork Aspis0/kalsallama (bisect + patch) o l'abbandono.
-5. **PRIORITÀ OWNER: variante APK debuggable** (release + `android:debuggable`) per i test sul campo con `run-as` → lavoro app: nuovo profilo/flag in apk.yml, CI, sha, poi smoke #61-bis su QDC senza root.
+5. **PRIORITÀ OWNER: variante APK debuggable — FATTA 4/09** (era già in apk.yml, input `debuggable=true`; APK A/B debug in ~/kalsa-qdc/apk/apk-{A,B}-debug-*/, smoke #63 G1 via run-as, ALIVE 46).
 6. Regola ribadita dall'owner: aggiornare SEMPRE tutti i docs (PLAN, ALIVE, memoria, REPORT) a ogni step.
 
 ## In volo / prossimi
-- APK debuggable A/B in build su CI (run 33886959263 / 33886967732) → cella #63 = #61-bis via run-as su QRD8650 (diario 4/09 11:15).
-- Poi cella #64: bisect 022458a28..64a155d24 della TLBMISS op_binary (fix nel fork, mai issue).
+- Cella #64: bisect 022458a28..64a155d24 della TLBMISS op_binary sui 23 commit hexagon (step 0 GOOD, midpoint 990e3bfee in corso; fix nel fork, mai issue).
 - Samsung RTL probe: pronta, non bloccante (diario 3/09).
 - Campagna CisWire parcheggiata: telefoni persi; PC/Lenovo idle (diario 3/09 notte).
 - Lab fisico fermo; operatività su QDC/CI/Mac (diario 3/09 notte).
@@ -54,7 +55,7 @@
 - End Session: ref-click, conferma e verifica dello status.
 - Ogni driver NPU include `.farf`.
 - Wake prima delle celle che guidano la UI.
-- Gli APK release di CI NON sono debuggabili (niente `run-as`): sul campo serve una variante debuggable, su QDC si passa da root.
+- Gli APK release di CI NON sono debuggabili: per `run-as` usare apk.yml con `debuggable=true` (#63). Sulle board QDC: `/data` è 0777 e un demone lo ripristina → holder `chmod 771 /data`; keyguard → `locksettings set-disabled true`; nome sessione ≤ 30 caratteri.
 - Mai pushare su repo pubblici di terzi. Mai aprire issue upstream (owner 4/09): fix nel fork o lasciar perdere.
 
 > **3/09 notte — DELEGA PIENA OWNER ("fai tutto") + due fatti di contesto
@@ -306,6 +307,28 @@
 > v73). macOS non ha `setsid`. Build midpoint 990e3bfee in corso (container
 > kalsa-bisect-990e3bf). Sessione QDC 799128 `kalsa63-apkdebug-runas-qrd8650`
 > (SSH only, 45 min) submitted 11:51.
+
+> **4/09, 12:55 — #63 BANCATA (ALIVE riga 46): l'APK debuggable passa TUTTO
+> via run-as su QRD8650, G1.** Sessione 799128 (45 min, cap raggiunto), 5
+> tentativi: 1) `run-as: /data readable or writable by others: 40777` — la
+> board QDC ha `/data` 0777; 2) dopo `chmod 771 /data`: S0-S4 ok su A e B,
+> S5 void per keyguard (board NON USB-powered → `svc power stayon` no-op);
+> 3) `/data` tornato 0777 da solo (demone QDC) → run-as rotto a metà run;
+> 4) holder `chmod 771 /data` ogni 2 s: B passa tutto (223 tok, 23.5 tok/s),
+> A void a S5 (schermo caduto tra type e Send); 5) A e B S0-S7 (A 90 tok
+> 23.6 tok/s, B 65 tok 23.8 tok/s). Tre emendamenti pre-dato nel PREREG,
+> tutti interventi sullo stato della board fuori da /data/data. REPORT (Luna)
+> audit mimo BANK-WITH-FIXES (2 fix applicati). Lezioni QDC: `/data` va
+> tenuto a 0771 con un holder; keyguard via `locksettings set-disabled true`;
+> il nome sessione ha max 30 caratteri (form Angular resta invalido in
+> silenzio). Budget 8G3: 911 → ~866.
+>
+> **4/09, 12:50 — #64 STEP 0 (sessione 799155, HDK8550 Android 14, job
+> sa803224): upstream PURO 022458a28 a `-ngl 8` è GOOD** (exit 0,
+> n_exps_htp0=189 come le B-arm di #60) **e a `-ngl 99` muore con
+> `dspqueue_read 0x2e`** (la morte di mapping del nostro kit, non la
+> TLBMISS). Range del bisect VALIDO: la TLBMISS entra dopo 022458a28.
+> Midpoint 990e3bfee (index 12) lanciato nella stessa sessione.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;

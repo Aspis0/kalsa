@@ -1,0 +1,25 @@
+[12:02:55] device=72c4dabb job=sa803197c
+[12:03:14] local sha verified: /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf
+[12:03:17] model resume: device sha verified; skipping push
+[12:03:18] === APK A ===
+[12:03:30] STEP A S1 ok install_rc=0 pm_dump_rc=0 sha=c645f691a9d16a896415a25d90bd3e179c7d9743c9bcdbde17603017112b0adc
+[12:03:31] STEP A S0 ok DEBUGGABLE flag proven flags_rc=0
+[12:03:34] STEP A S2 ok sideload=run-as size=1593894944
+[12:04:44] STEP A S3 fail first_launch=0 force_stop=0 sql=1 db_retry=1
+[12:11:34] STEP A S4 fail clear=0 launch=0 load_or_prewarm_timeout wake=Awake
+[12:11:36] ime suspended: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME
+[12:25:17] STEP A S5 fail telemetry timeout or missing
+[12:25:29] STEP A S6 fail evidence incomplete rc=1
+[12:25:30] STEP A S7 ok uninstalled
+[12:25:30] === APK B ===
+[12:25:41] STEP B S1 ok install_rc=0 pm_dump_rc=0 sha=1b8e2793a63d182a1fe422a50519e246d8d4d4e4ce510ed2660c6cbbf8370a46
+[12:25:42] STEP B S0 ok DEBUGGABLE flag proven flags_rc=0
+[12:25:43] STEP B S2 fail run-as copy failed copy_rc=1 stat_rc=1 size= expected=1593894944
+[12:25:43] STEP B S2 fail skipped after S2 (run-as copy failed)
+[12:25:43] STEP B S3 fail skipped after S2 (run-as copy failed)
+[12:25:43] STEP B S4 fail skipped after S2 (run-as copy failed)
+[12:25:43] STEP B S5 fail skipped after S2 (run-as copy failed)
+[12:25:56] STEP B S6 fail evidence incomplete rc=1
+[12:25:57] STEP B S7 ok uninstalled
+[12:25:57] DONE FINAL_RC=1 — raw/ populated. Remember: End Session in the portal.
+[12:25:59] ime restored: com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME

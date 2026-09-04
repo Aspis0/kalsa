@@ -1,0 +1,1 @@
+SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-npu-bisect-64/raw/022458a/up_ngl99_sa803224.err:/workspace/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1552: ggml-hex: dspqueue_read failed: 0x0000002e  expected_exps=48 n_exec_any=484

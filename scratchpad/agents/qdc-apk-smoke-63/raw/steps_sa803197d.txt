@@ -1,0 +1,16 @@
+STEP A S1 ok install_rc=0 pm_dump_rc=0 sha=c645f691a9d16a896415a25d90bd3e179c7d9743c9bcdbde17603017112b0adc
+STEP A S0 ok DEBUGGABLE flag proven flags_rc=0
+STEP A S2 ok sideload=run-as size=1593894944
+STEP A S3 ok first_launch=0 force_stop=0 sql=0
+STEP A S4 ok llama_model_loader + KALSA_PREWARM done wake=Awake
+STEP A S5 fail METHOD-VOID Send node not found
+STEP A S6 ok evidence captured
+STEP A S7 ok uninstalled
+STEP B S1 ok install_rc=0 pm_dump_rc=0 sha=1b8e2793a63d182a1fe422a50519e246d8d4d4e4ce510ed2660c6cbbf8370a46
+STEP B S0 ok DEBUGGABLE flag proven flags_rc=0
+STEP B S2 ok sideload=run-as size=1593894944
+STEP B S3 ok first_launch=0 force_stop=0 sql=0
+STEP B S4 ok llama_model_loader + KALSA_PREWARM done wake=Awake
+STEP B S5 ok KALSA_TELEMETRY tokensPredicted>0
+STEP B S6 ok evidence captured
+STEP B S7 ok uninstalled

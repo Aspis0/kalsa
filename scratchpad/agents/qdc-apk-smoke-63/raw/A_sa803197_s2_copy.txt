@@ -1,0 +1,1 @@
+run-as: /data readable or writable by others: 40777

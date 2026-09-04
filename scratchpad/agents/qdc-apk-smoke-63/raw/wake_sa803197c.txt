@@ -1,0 +1,8 @@
+saved_screen_off_timeout=60000
+  mWakefulness=Awake
+saved_screen_off_timeout=60000
+  mWakefulness=Awake
+saved_screen_off_timeout=60000
+  mWakefulness=Awake
+saved_screen_off_timeout=60000
+  mWakefulness=Awake

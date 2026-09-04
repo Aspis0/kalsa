@@ -1,0 +1,3 @@
+09-04 08:58:57.719 11765 11793 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-04 08:58:58.665 11765 11793 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":5,"ok":false,"reason":"no_file"}
+09-04 08:59:14.528 11765 11793 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}

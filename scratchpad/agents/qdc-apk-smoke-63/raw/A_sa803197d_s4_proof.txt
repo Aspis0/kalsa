@@ -1,0 +1,2 @@
+09-04 09:28:19.762 17530 17557 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-04 09:28:30.339 17530 17557 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":9733.152,"hash":"30001358"}'
