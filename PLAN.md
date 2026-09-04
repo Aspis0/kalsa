@@ -563,6 +563,14 @@
 > recuperabile, census 113/81/1 identico → gate modello PASS, emendamento
 > pre-run dichiarato); driver #59 in scrittura (grok→Luna).
 
+> **3/09 notte, 21:45 — E2E EMULATORE VERDE sul merge main (run 33822638488,
+> 63 min, inferenza reale, primo E2E verde su main dal 16/08).** Gate
+> superato → dispatch APK-A (apk.yml su main, pin a0cabca6b = assemblaggio
+> device-proven) e APK-B (branch chore/engine-pin-12f6d9b6d pushato, pin
+> 12f6d9b6d con i 3 pick OpenCL; vendor diff verificato = diff upstream
+> 87/11/16/41/33/65). Decisione owner n.3 (APK) in esecuzione; n.2 (pick)
+> chiusa lato fork + APK-B per il confronto al rientro.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
