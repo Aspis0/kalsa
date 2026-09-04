@@ -620,6 +620,23 @@
 > strace del flush path), dossier #8 upstream con il repro QDC (solo LETTURA
 > del repo terzo, nessun push), test APK-A/B su QDC via installazione APK.
 
+> **4/09 mattina presto, 01:30 — #60 STEP 0 CHIUSO A COSTO QDC ZERO: LO 0x2e È
+> UN SINTOMO, IL FAULT È `htp/main.c:729` (mmap_buf → HAP_mmap = -1 su v73).**
+> Il logcat della #59 conteneva già il crash report cDSP (`abort()` da
+> `libggml-htp-v73.so htp_iface_start+0x1348`, PD morto → status 3 →
+> `dspsignal_wait` 0x2e sul host). Disassembly del medesimo skel con
+> hexagon-llvm-objdump (container Docker snapdragon-toolchain, HEXAGON_Tools
+> 19.0.07): 0x3E58 = ritorno dalla `call abort` a 0x3E54 con `r2=#0x2d9`=729
+> e la stringa "mmap failed : va %p fd %u size %u" — v73 usa `HAP_mmap`
+> (len int) senza fallback, v75+ `HAP_mmap2`. #59 mappava 3.57 GiB in 8
+> buffer (3×~1 GiB; MBUF default 1 GiB). Non è quindi né "host flush path"
+> né (per ora) firmware: è lo skel che abortisce quando una mappatura pesi
+> fallisce. Cella #60 (qdc-8g2-npu-mmapbudget-60, PREREG+DISASM scritti):
+> B1 `-ngl 8` vs B2 `-ngl 99 MBUF=512` discriminano budget VA cumulativo (H1)
+> da limite per-mappatura (H2); B3 `-ngl 12` bracketa, B4 tg128. Driver da
+> Luna, audit mimo, HDK8550 30 min. Dossier #8 = aggiornare
+> docs/upstream-v73-hexagon-report.md (esiste, 3 firme S23), non un file nuovo.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
