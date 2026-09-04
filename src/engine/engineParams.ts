@@ -98,9 +98,7 @@ export function applyEngineOverride<T extends EngineParamsSlice>(
     // Blocking that cell too made the one untested configuration unmeasurable,
     // in the bench as well as in production, since both share this path.
     // So: Android needs an explicit `flashAttn: "off"` in the SAME override.
-    // Production sets no override, so it keeps whatever deviceTuning chose —
-    // which is now GPU offload on Android, not 0. Ignoring the override here
-    // therefore leaves production's value standing; it does not force CPU.
+    // Production has no override, so its device-tuning backend remains in force.
     if (platformOS === "android" && override.flashAttn !== "off") {
       console.warn(
         "bench:engine nGpuLayers ignored on Android — Hexagon/HTP offload " +
