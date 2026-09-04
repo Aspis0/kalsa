@@ -322,6 +322,7 @@ const DOWNLOADS_CHANNEL_ID = "downloads";
 const DOWNLOAD_PROGRESS_NOTIFICATION_ID = "kalsa-model-download-progress";
 /** Never post a notification update more than once per this window. */
 const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
+const SEARCH_DEBOUNCE_MS = 180;
 
 /**
  * Untranslated on-device diagnostic string from a thrown value.
@@ -847,6 +848,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   conversationsRef.current = conversations;
   const [conversationsReady, setConversationsReady] = useState(false);
   const [chatSearch, setChatSearch] = useState("");
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const chatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleChatSearchChange = useCallback((query: string) => {
+    setChatSearch(query);
+    if (chatSearchTimerRef.current !== null) clearTimeout(chatSearchTimerRef.current);
+    if (!query) {
+      setChatSearchQuery("");
+      chatSearchTimerRef.current = null;
+      return;
+    }
+    chatSearchTimerRef.current = setTimeout(() => {
+      chatSearchTimerRef.current = null;
+      setChatSearchQuery(query);
+    }, SEARCH_DEBOUNCE_MS);
+  }, []);
+  useEffect(
+    () => () => {
+      if (chatSearchTimerRef.current !== null) clearTimeout(chatSearchTimerRef.current);
+    },
+    [],
+  );
+  const clearChatSearch = useCallback(() => handleChatSearchChange(""), [handleChatSearchChange]);
   const persistFlushRef = useRef<(() => void) | null>(null);
   const isActiveChatEmptyRef = useRef<(() => boolean) | null>(null);
   const bumpPersistEpochRef = useRef<(() => void) | null>(null);
@@ -2076,6 +2099,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const handleSwitchConversation = useCallback(
     (id: string) => {
       if (!id) return;
+      clearChatSearch();
       if (id === conversationsRef.current.activeId) {
         setDrawerOpen(false);
         return;
@@ -2109,10 +2133,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
       })();
     },
-    [applyConversations, bindActiveConversation],
+    [applyConversations, bindActiveConversation, clearChatSearch],
   );
 
   const handleNewConversation = useCallback(() => {
+    clearChatSearch();
     if (isActiveChatEmptyRef.current?.()) {
       setDrawerOpen(false);
       return;
@@ -2167,13 +2192,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         newChatInFlightRef.current = false;
       }
     })();
-  }, [applyConversations, bindActiveConversation, handleSwitchConversation]);
+  }, [applyConversations, bindActiveConversation, clearChatSearch, handleSwitchConversation]);
 
   const handleDeleteConversation = useCallback(
     (id: string) => {
       if (!id) return;
       const prev = conversationsRef.current;
       if (!prev.items.some((item) => item.id === id)) return;
+      clearChatSearch();
       const deletingActive = prev.activeId === id;
       void resetCompactorChat(id);
       let next = removeConversation(prev, id);
@@ -2196,7 +2222,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       setDrawerOpen(false);
     },
-    [applyConversations, bindActiveConversation],
+    [applyConversations, bindActiveConversation, clearChatSearch],
   );
 
   const confirmDeleteConversation = useCallback(
@@ -2234,7 +2260,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const drawerConversationItems: DrawerConversationItem[] = useMemo(
     () =>
-      filterConversations(conversations.items, chatSearch).map((item) => ({
+      filterConversations(conversations.items, chatSearchQuery).map((item) => ({
         id: item.id,
         title: item.title.trim() ? item.title : t("drawer.untitled"),
         preview: item.preview,
@@ -2243,7 +2269,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         onLongPress: () => confirmDeleteConversation(item.id),
       })),
     [
-      chatSearch,
+      chatSearchQuery,
       confirmDeleteConversation,
       conversations.activeId,
       conversations.items,
@@ -2260,6 +2286,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideSettings,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           // Opening settings replaces any open miniapp (exclusive overlay).
           setActiveOverlay({ kind: "settings" });
@@ -2271,6 +2298,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideUserCircle,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "account" });
         },
@@ -2281,6 +2309,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideFileText,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "documents" });
         },
@@ -2291,12 +2320,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideStickyNote,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "notes" });
         },
       },
     ],
-    [t],
+    [clearChatSearch, t],
   );
 
   // Android hardware back while Settings/Help is open: each screen owns its
@@ -5283,14 +5313,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         open={drawerOpen}
         onClose={() => {
           setDrawerOpen(false);
-          setChatSearch("");
+          clearChatSearch();
         }}
         brand="Kalsa"
         subtitle={t("drawer.subtitle")}
         items={drawerItems}
         conversationItems={drawerConversationItems}
         searchValue={chatSearch}
-        onSearchChange={setChatSearch}
+        searchQuery={chatSearchQuery}
+        onSearchChange={handleChatSearchChange}
         onNewChat={handleNewConversation}
         personaLabel={
           findPersona(personasState, activePersonaId, builtinCopyFromT(t))?.name ??
@@ -5300,7 +5331,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         onPersonaPress={() => {
           Keyboard.dismiss();
           setDrawerOpen(false);
-          setChatSearch("");
+          clearChatSearch();
           setActiveOverlay({ kind: "personas" });
         }}
       />

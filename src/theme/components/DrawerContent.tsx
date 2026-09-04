@@ -1,13 +1,38 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Keyboard, Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { ChevronRight, Search } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
+import { tokensFromQuery } from "../../util/filterByTokens";
 import { BrandIcon } from "../icons/BrandIcon";
 import { radius, spacing } from "../tokens";
-import { typography } from "../typography";
+import { fontFamilies, typography } from "../typography";
+import { highlightMatches } from "./highlightMatches";
 import type { DrawerConversationItem, DrawerItem } from "./Drawer";
+
+function renderHighlightedText(
+  text: string,
+  tokens: string[],
+  accentColor: string,
+): React.ReactNode {
+  return highlightMatches(text, tokens).map((part, index) =>
+    part.highlighted ? (
+      <Text
+        key={`match-${index}`}
+        style={{
+          color: accentColor,
+          fontFamily: fontFamilies.bodySemi,
+          textDecorationLine: "underline",
+        }}
+      >
+        {part.text}
+      </Text>
+    ) : (
+      <Text key={`plain-${index}`}>{part.text}</Text>
+    ),
+  );
+}
 
 /** Row presses do not call onClose — AppShell handlers close the drawer. */
 type Props = {
@@ -16,6 +41,7 @@ type Props = {
   items: DrawerItem[];
   conversationItems?: DrawerConversationItem[];
   searchValue?: string;
+  searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onNewChat?: () => void;
   personaLabel?: string;
@@ -28,6 +54,7 @@ export function DrawerContent({
   items,
   conversationItems,
   searchValue,
+  searchQuery,
   onSearchChange,
   onNewChat,
   personaLabel,
@@ -36,7 +63,11 @@ export function DrawerContent({
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
   const showConversations = Array.isArray(conversationItems);
-  const emptySearch = Boolean(searchValue?.trim()) && (conversationItems?.length ?? 0) === 0;
+  const emptySearch = Boolean(searchQuery?.trim()) && (conversationItems?.length ?? 0) === 0;
+  const searchTokens = useMemo(
+    () => tokensFromQuery(searchQuery ?? "") ?? [],
+    [searchQuery],
+  );
   const brandSize = ((typography.displayMd.fontSize as number) / 18) * 20;
   const ink = colors.leafInk;
   const muted = colors.leafMuted;
@@ -169,11 +200,11 @@ export function DrawerContent({
                 })}
               >
                 <Text numberOfLines={1} style={[typography.bodyMd, { color: ink, fontFamily: typography.bodySm.fontFamily }]}>
-                  {item.title}
+                  {renderHighlightedText(item.title, searchTokens, colors.accent)}
                 </Text>
                 {item.preview ? (
                   <Text numberOfLines={1} style={[typography.bodyXs, { color: muted, marginTop: 2 }]}>
-                    {item.preview}
+                    {renderHighlightedText(item.preview, searchTokens, colors.accent)}
                   </Text>
                 ) : null}
               </Pressable>

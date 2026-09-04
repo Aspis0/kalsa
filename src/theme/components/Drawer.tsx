@@ -44,6 +44,7 @@ type Props = {
   items: DrawerItem[];
   conversationItems?: DrawerConversationItem[];
   searchValue?: string;
+  searchQuery?: string;
   onSearchChange?: (query: string) => void;
   onNewChat?: () => void;
   personaLabel?: string;
@@ -60,6 +61,7 @@ export function Drawer({
   items,
   conversationItems,
   searchValue,
+  searchQuery,
   onSearchChange,
   onNewChat,
   personaLabel,
@@ -132,6 +134,7 @@ export function Drawer({
                 items={items}
                 conversationItems={conversationItems}
                 searchValue={searchValue}
+                searchQuery={searchQuery}
                 onSearchChange={onSearchChange}
                 onNewChat={onNewChat}
                 personaLabel={personaLabel}

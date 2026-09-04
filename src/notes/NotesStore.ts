@@ -9,6 +9,7 @@
  */
 
 import { filterByTokens } from "../util/filterByTokens";
+import { clipChars } from "../conversations/ConversationsStore";
 
 export const NOTES_DIR_NAME = "kalsa-notes";
 export const NOTES_INDEX_FILENAME = "kalsa.notes.index.json";
@@ -55,12 +56,6 @@ export function notePath(documentDirectory: string, id: string): string {
 export function nextNoteId(): string {
   const rand = Math.random().toString(36).slice(2, 10);
   return `note-${Date.now()}-${rand}`;
-}
-
-function clipChars(text: string, max: number): string {
-  const chars = Array.from(text);
-  if (chars.length <= max) return chars.join("");
-  return chars.slice(0, max).join("");
 }
 
 /** First line, trim, max ~48 chars. Empty → "". */
