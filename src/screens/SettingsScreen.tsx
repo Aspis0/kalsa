@@ -15,7 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Clipboard from "expo-clipboard";
-import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
+import { Check, ChevronRight, CircleQuestionMark, Pencil, Trash2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type {
@@ -234,6 +234,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [ciswireToolHelpEnabled, setCiswireToolHelpEnabled] = useState(false);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
+  const [editingFactId, setEditingFactId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
   const [memoryNotice, setMemoryNotice] = useState<MemoryNotice | null>(null);
   const mountedRef = useRef(true);
@@ -576,8 +578,80 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     }
   }, [memoryDraft, reloadMemory, t]);
 
+  const handleStartEditingMemoryFact = useCallback(
+    (fact: MemoryFact) => {
+      if (memoryBusy) return;
+
+      if (editingFactId === fact.id) return;
+
+      const currentFact = memoryFacts.find((candidate) => candidate.id === editingFactId);
+      if (currentFact && editingText.trim() !== currentFact.text) {
+        Alert.alert(t("settings.unsavedTitle"), t("settings.unsavedBody"), [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("settings.discard"),
+            style: "destructive",
+            onPress: () => {
+              setEditingFactId(fact.id);
+              setEditingText(fact.text);
+              setMemoryNotice(null);
+            },
+          },
+        ]);
+        return;
+      }
+
+      setEditingFactId(fact.id);
+      setEditingText(fact.text);
+      setMemoryNotice(null);
+    },
+    [editingFactId, editingText, memoryBusy, memoryFacts, t],
+  );
+
+  const handleCancelEditingMemoryFact = useCallback(() => {
+    if (memoryBusy) return;
+    setEditingFactId(null);
+    setEditingText("");
+  }, [memoryBusy]);
+
+  const handleSaveMemoryFact = useCallback(
+    async (fact: MemoryFact) => {
+      if (editingFactId !== fact.id || memoryBusy) return;
+      if (!editingText.trim()) {
+        handleCancelEditingMemoryFact();
+        setMemoryNotice({ message: t("memory.editEmpty"), kind: "warning" });
+        return;
+      }
+
+      setMemoryBusy(true);
+      setMemoryNotice(null);
+      try {
+        await MemoryStore.updateFact(fact.id, editingText);
+        if (!mountedRef.current) return;
+        await reloadMemory();
+        if (!mountedRef.current) return;
+        setEditingFactId(null);
+        setEditingText("");
+        setMemoryNotice({ message: t("memory.editDone"), kind: "success" });
+      } catch (error) {
+        if (!mountedRef.current) return;
+        setMemoryNotice({
+          message:
+            error instanceof MemoryStore.MemoryDuplicateError
+              ? t("memory.editDuplicate")
+              : t("memory.saveError"),
+          kind: "warning",
+        });
+      } finally {
+        if (mountedRef.current) setMemoryBusy(false);
+      }
+    },
+    [editingFactId, editingText, handleCancelEditingMemoryFact, memoryBusy, reloadMemory, t],
+  );
+
   const handleDeleteMemoryFact = useCallback(
     (fact: MemoryFact) => {
+      if (memoryBusy) return;
       Alert.alert(t("memory.deleteFact"), fact.text, [
         { text: t("common.cancel"), style: "cancel" },
         {
@@ -589,6 +663,8 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 await MemoryStore.removeFact(fact.id);
                 await reloadMemory();
                 if (!mountedRef.current) return;
+                setEditingFactId(null);
+                setEditingText("");
                 setMemoryNotice(null);
               } catch {
                 if (!mountedRef.current) return;
@@ -599,7 +675,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         },
       ]);
     },
-    [reloadMemory, t],
+    [memoryBusy, reloadMemory, t],
   );
 
   const handleClearMemory = useCallback(() => {
@@ -1332,6 +1408,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
             <Switch
               value={memoryEnabled}
               onValueChange={handleToggleMemory}
+              disabled={memoryBusy}
               trackColor={{ false: colors.line, true: `${colors.accent}88` }}
               thumbColor={memoryEnabled ? colors.accent : colors.muted}
               accessibilityLabel={t("memory.enabled")}
@@ -1393,23 +1470,103 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     borderBottomColor: colors.line,
                   }}
                 >
-                  <Text
-                    style={[typography.bodySm, { color: colors.ink, flex: 1 }]}
-                    numberOfLines={3}
-                  >
-                    {fact.text}
-                  </Text>
-                  <Pressable
-                    onPress={() => handleDeleteMemoryFact(fact)}
-                    hitSlop={8}
-                    accessibilityLabel={t("memory.deleteFact")}
-                    style={{
-                      padding: spacing.xs,
-                      borderRadius: radius.sm,
-                    }}
-                  >
-                    <Trash2 size={16} color={colors.bad ?? colors.muted} />
-                  </Pressable>
+                  {editingFactId === fact.id ? (
+                    <View
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: spacing.xs,
+                      }}
+                    >
+                      <TextInput
+                        value={editingText}
+                        onChangeText={setEditingText}
+                        placeholder={t("memory.editPlaceholder")}
+                        placeholderTextColor={colors.muted}
+                        editable={!memoryBusy}
+                        maxLength={200}
+                        autoFocus
+                        onSubmitEditing={() => {
+                          void handleSaveMemoryFact(fact);
+                        }}
+                        returnKeyType="done"
+                        style={{
+                          flex: 1,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                          borderRadius: radius.md,
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: spacing.xs,
+                          color: colors.ink,
+                          fontSize: (typography.bodySm.fontSize as number) ?? 14,
+                        }}
+                      />
+                      <Pressable
+                        onPress={() => {
+                          void handleSaveMemoryFact(fact);
+                        }}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("common.save")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Check size={16} color={colors.good} />
+                      </Pressable>
+                      <Pressable
+                        onPress={handleCancelEditingMemoryFact}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("common.cancel")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <X size={16} color={colors.muted} />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <>
+                      <Text
+                        style={[typography.bodySm, { color: colors.ink, flex: 1 }]}
+                        numberOfLines={3}
+                      >
+                        {fact.text}
+                      </Text>
+                      <Pressable
+                        onPress={() => handleStartEditingMemoryFact(fact)}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("memory.editFact")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Pencil size={16} color={colors.muted} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteMemoryFact(fact)}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("memory.deleteFact")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Trash2 size={16} color={colors.bad ?? colors.muted} />
+                      </Pressable>
+                    </>
+                  )}
                 </View>
               ))}
             </View>
@@ -1470,6 +1627,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           {memoryFacts.length > 0 ? (
             <Pressable
               onPress={handleClearMemory}
+              disabled={memoryBusy}
               style={{
                 marginTop: spacing.xs,
                 paddingVertical: spacing.sm,
@@ -1477,6 +1635,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 borderRadius: radius.md,
                 borderWidth: 1,
                 borderColor: colors.line,
+                opacity: memoryBusy ? 0.5 : 1,
               }}
               accessibilityLabel={t("memory.clear")}
             >

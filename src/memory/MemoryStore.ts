@@ -7,7 +7,8 @@
  * - OPT-IN by default (`kalsa.memory.enabled` defaults to false).
  * - Facts may contain sensitive data; privacy filtering belongs at egress.
  * - In-memory cache updates only AFTER a successful storage write.
- * - Mutations are serialized (mutex); epoch bumps on clear/remove/disable.
+ * - Mutations are serialized (mutex); epoch bumps on clear/remove/disable and
+ *   updateFact, so in-flight extraction cannot re-add superseded wording.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -36,6 +37,15 @@ export class MemoryCapacityError extends Error {
   }
 }
 
+/** Thrown when an edit would duplicate another saved fact. */
+export class MemoryDuplicateError extends Error {
+  readonly code = "duplicate" as const;
+  constructor() {
+    super("duplicate memory fact");
+    this.name = "MemoryDuplicateError";
+  }
+}
+
 const FACTS_KEY = "kalsa.memory.facts";
 const ENABLED_KEY = "kalsa.memory.enabled";
 export const MAX_FACTS = 40;
@@ -47,8 +57,8 @@ let enabledCache: boolean | null = null;
 
 /**
  * Generation counter: bumped on clearFacts / removeFact / setEnabled(false)
- * (and any emptying path). Extract jobs capture it and discard delayed writes
- * if the epoch moved.
+ * / updateFact. Extract jobs capture it and discard delayed writes if the epoch
+ * moved; updateFact invalidates jobs holding the old wording.
  */
 let epoch = 0;
 
@@ -328,6 +338,29 @@ export async function addFact(text: string): Promise<void> {
       createdAt: Date.now(),
     });
     await writeFacts(next);
+  });
+}
+
+export async function updateFact(id: string, newText: string): Promise<void> {
+  return withMutex(async () => {
+    const normalized = normalizeText(newText);
+    if (!normalized || !id) return;
+
+    const facts = await readFactsRaw();
+    const index = facts.findIndex((fact) => fact.id === id);
+    if (index === -1) return;
+
+    const key = normalized.toLowerCase();
+    if (facts.some((fact, factIndex) => factIndex !== index && normalizeKey(fact.text) === key)) {
+      throw new MemoryDuplicateError();
+    }
+    if (facts[index].text === normalized) return;
+
+    const next = facts.map((fact, factIndex) =>
+      factIndex === index ? { ...fact, text: normalized } : fact,
+    );
+    await writeFacts(next);
+    bumpEpoch();
   });
 }
 

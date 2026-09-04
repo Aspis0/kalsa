@@ -67,3 +67,107 @@ describe("MemoryStore capacity", () => {
     expect(await listFacts()).toEqual(fullFacts);
   });
 });
+
+describe("MemoryStore updateFact", () => {
+  test("changes text while keeping id and createdAt", async () => {
+    const { addFact, clearFacts, listFacts, updateFact } = await loadStore();
+    await clearFacts();
+    await addFact("old wording");
+    const before = (await listFacts())[0];
+
+    await updateFact(before.id, "new wording");
+
+    expect(await listFacts()).toEqual([
+      { id: before.id, text: "new wording", createdAt: before.createdAt },
+    ]);
+  });
+
+  test("empty text is a no-op", async () => {
+    const { addFact, clearFacts, listFacts, updateFact } = await loadStore();
+    await clearFacts();
+    await addFact("unchanged");
+    const before = await listFacts();
+
+    await updateFact(before[0].id, " \n\t ");
+
+    expect(await listFacts()).toEqual(before);
+  });
+
+  test("a nonexistent id is a no-op", async () => {
+    const { addFact, clearFacts, listFacts, updateFact } = await loadStore();
+    await clearFacts();
+    await addFact("unchanged");
+    const before = await listFacts();
+
+    await updateFact("missing-id", "new wording");
+
+    expect(await listFacts()).toEqual(before);
+  });
+
+  test("rejects an edit that duplicates another fact", async () => {
+    const {
+      addFact,
+      clearFacts,
+      listFacts,
+      MemoryDuplicateError,
+      updateFact,
+    } = await loadStore();
+    await clearFacts();
+    await addFact("first fact");
+    await addFact("second fact");
+    const before = await listFacts();
+    const firstFact = before.find((fact) => fact.text === "first fact");
+
+    await expect(updateFact(firstFact!.id, " SECOND   FACT ")).rejects.toBeInstanceOf(
+      MemoryDuplicateError,
+    );
+    expect(await listFacts()).toEqual(before);
+  });
+
+  test("normalizes whitespace", async () => {
+    const { addFact, clearFacts, listFacts, updateFact } = await loadStore();
+    await clearFacts();
+    await addFact("old wording");
+    const fact = (await listFacts())[0];
+
+    await updateFact(fact.id, "  hello   world  ");
+
+    expect((await listFacts())[0].text).toBe("hello world");
+  });
+
+  test("truncates text at MAX_TEXT_LEN", async () => {
+    const { addFact, clearFacts, listFacts, updateFact } = await loadStore();
+    await clearFacts();
+    await addFact("old wording");
+    const fact = (await listFacts())[0];
+
+    await updateFact(fact.id, "x".repeat(300));
+
+    expect((await listFacts())[0].text).toBe("x".repeat(200));
+  });
+
+  test("bumps epoch after a successful update", async () => {
+    const { addFact, clearFacts, getEpoch, listFacts, updateFact } = await loadStore();
+    await clearFacts();
+    await addFact("old wording");
+    const fact = (await listFacts())[0];
+    const before = getEpoch();
+
+    await updateFact(fact.id, "new wording");
+
+    expect(getEpoch()).toBe(before + 1);
+  });
+
+  test("does not change the count when the store is at MAX_FACTS", async () => {
+    const { addFact, clearFacts, listFacts, MAX_FACTS, updateFact } = await loadStore();
+    await clearFacts();
+    for (let index = 0; index < MAX_FACTS; index += 1) {
+      await addFact(`capacity-fact-${index}`);
+    }
+    const before = await listFacts();
+
+    await updateFact(before[0].id, "updated capacity fact");
+
+    expect(await listFacts()).toHaveLength(MAX_FACTS);
+  });
+});
