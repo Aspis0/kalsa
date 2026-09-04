@@ -216,6 +216,20 @@
 > wait); container zombie `clever_brown` del 2/09 (bash appeso, 0% CPU) da
 > pulire a mano. Budget QDC ≈ 912(7xx)/935(8G2)/913(8G3)/981(8sG3)/623(8E).
 
+> **4/09, 08:50 — #62 ESEGUITA (HDK8550 job 798985, 7.9 min): IL KIT PURO
+> UPSTREAM (64a155d24, con #26501+#28202) MUORE SU v73 A QUALSIASI TAGLIA —
+> `-ngl 8` e `-ngl 99`, MBUF=512 e VMEM=1800 — con TLBMISS RW in
+> `op_binary+0x50E4` (`binary_job_vector_same_shape`, loop vadd f32), thread
+> `work-queue:N`, ZERO righe FARF di mmap: non è la morte di mapping, è la
+> SIGNATURE 1 dell'S23 (q50, TLBMISS in op_binary) che riappare su board di
+> riferimento con upstream master. Il nostro kit (022458a28 + commit kalsa)
+> NON la mostra (#60: ngl 8/12 vivi). Per il PREREG: U1 morto → METHOD-VOID
+> sulla domanda del mapping fix + H4 nuovo finding. Conseguenze: (1) bisect
+> 022458a28..64a155d24 o kit ibrido per rispondere al mapping; (2) dossier #8:
+> fatto upstream-facing forte (repro pubblico: upstream master + HDK8550 +
+> OLMoE Q4_0 → crash a ogni -ngl). Kit rebuild: cherry-pick impossibile
+> (23/7 file in conflitto); preset upstream android-34. REPORT in audit.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
