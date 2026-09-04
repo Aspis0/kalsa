@@ -39,6 +39,14 @@ import { getStrings, type Locale } from "../i18n";
 import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
+  buildGovernorParams,
+  readGovernorThermo,
+} from "./governorInputs";
+import {
+  initWithGovernorFallback,
+  readGovernorEnabled,
+} from "./governorRuntime";
+import {
   decideBoundedReleaseOutcome,
   decideContactProbe,
   ENGINE_CONTACT_PROBE_TIMEOUT_MS,
@@ -208,6 +216,11 @@ let activeNoExtraBufts: boolean | null = null;
 let activeUseMmap: boolean | null = null;
 /** Production expert-streaming decision; part of the skip-reload key. */
 let activeStreamExperts: boolean | null = null;
+let activeGovernorKey: string | null = null;
+let activeGovernorFit: "Fit" | "NoFit" | "Unknown" | null = null;
+let activeGovernorAttempted = false;
+let activeGovernorActive = false;
+let activeGovernorFallbackReason = "";
 /** JSON of engine override for session meta; undefined when production defaults. */
 let activeEngineKnob: string | undefined;
 /** Speculative knobs for session meta (save/load match). Cleared on dispose. */
@@ -358,7 +371,7 @@ async function ensureNativeLogCapture(): Promise<void> {
 
 /** Last few diagnostic native-log lines for UI / Error.message enrichment. */
 export function nativeLogSummary(): string {
-  const diagnosticRe = /error|fail|invalid|unable|unsupported|missing|magic|version/i;
+  const diagnosticRe = /error|fail|fallback|invalid|unable|unsupported|missing|magic|version/i;
   const matched = nativeLogTail.filter((line) => diagnosticRe.test(line));
   const slice = (matched.length > 0 ? matched : nativeLogTail).slice(-3);
   const joined = slice.join(" | ");
@@ -723,6 +736,7 @@ export function queueStaticPrefixPrewarm(
         ...prefix.messages,
         { role: "user" as const, content: "." },
       ];
+      const prewarmThermo = await refreshGovernorBeforeCompletion(engine);
       const result = await trackCompletion(
         engine.completion({
           messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
@@ -738,6 +752,7 @@ export function queueStaticPrefixPrewarm(
           chat_template_kwargs: { enable_thinking: false },
         }),
       );
+      await emitGovernorTelemetry(engine, prewarmThermo.thermo_source);
       if (gen !== prewarmGeneration) {
         logPrewarm({ op: "skip", reason: "stale" });
         return;
@@ -867,6 +882,51 @@ function emitTurnTelemetry(
     }
   } catch {
     // Telemetry must never break a turn.
+  }
+}
+
+type GovernorThermoSnapshot = Awaited<ReturnType<typeof readGovernorThermo>>;
+
+function nativeGovernorThermo(snapshot: GovernorThermoSnapshot) {
+  const {
+    thermo_source: _source,
+    ...profile
+  } = snapshot;
+  return profile;
+}
+
+async function refreshGovernorBeforeCompletion(
+  engine: LlamaContext,
+): Promise<GovernorThermoSnapshot> {
+  const snapshot = await readGovernorThermo();
+  if (activeGovernorActive) {
+    const ok = await engine.setGovernorThermo(nativeGovernorThermo(snapshot));
+    if (!ok) throw new Error("governor: thermo profile invalid");
+  }
+  return snapshot;
+}
+
+async function emitGovernorTelemetry(
+  engine: LlamaContext,
+  thermoSource: GovernorThermoSnapshot["thermo_source"],
+): Promise<void> {
+  if (!activeGovernorAttempted) return;
+  try {
+    const stats = await engine.getGovernorStats();
+    console.log(
+      `KALSA_GOVERNOR ${JSON.stringify({
+        engine_prefill: stats.engine_prefill,
+        engine_decode: stats.engine_decode,
+        commit_bytes: stats.commit_bytes,
+        commit_ms: stats.commit_ms,
+        thermal_state: stats.thermal_state,
+        thermo_source: thermoSource,
+        fit: activeGovernorFit ?? "Unknown",
+        fallback_reason: activeGovernorFallbackReason,
+      })}`,
+    );
+  } catch {
+    // Governor telemetry must never break a completed turn.
   }
 }
 
@@ -1174,6 +1234,7 @@ export function initEngine(
     // one value; flipping the pref must force a real reload + KALSA_SESSION init.
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
+    const governorFeatureEnabled = await readGovernorEnabled();
     const benchNoRepack = await getBenchNoRepack();
     // Same predicate the RAM gate uses. Production writes params.moe_stream
     // below, BEFORE applyEngineOverride, so a bench A/B still wins.
@@ -1218,6 +1279,35 @@ export function initEngine(
     const effectiveNCtx =
       tuning.context.n_ctx < engineCtx ? tuning.context.n_ctx : engineCtx;
 
+    const governorThermo = governorFeatureEnabled
+      ? await readGovernorThermo()
+      : null;
+    const governorBase =
+      governorFeatureEnabled && modelInfo != null
+        ? buildGovernorParams(modelInfo, deviceProfile, {
+            availableMemoryBytes: deviceProfile.availableMemoryBytes,
+            totalMemoryBytes: deviceProfile.totalMemoryBytes,
+            contextTokens: effectiveNCtx,
+            ubatch: tuning.n_ubatch,
+            mmap: load.useMmap,
+            repack: !load.noExtraBufts,
+            offloadedBytes: modelInfo.sizeBytes,
+          })
+        : null;
+    const governorLoad =
+      governorBase != null &&
+      governorThermo != null &&
+      governorThermo.sensor_valid &&
+      governorBase.gpu_fit !== "NoFit" &&
+      !options.mmprojPath &&
+      !streamExperts
+        ? {
+            ...governorBase,
+            thermo: nativeGovernorThermo(governorThermo),
+          }
+        : null;
+    const governorKey = governorLoad ? JSON.stringify(governorBase) : "off";
+
     if (
       context &&
       activeModelId === modelId &&
@@ -1229,7 +1319,8 @@ export function initEngine(
       activeEngineOverrideKey === engineOverrideKey &&
       activeNoExtraBufts === load.noExtraBufts &&
       activeUseMmap === load.useMmap &&
-      activeStreamExperts === streamExperts
+      activeStreamExperts === streamExperts &&
+      activeGovernorKey === governorKey
     ) {
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
@@ -1280,7 +1371,15 @@ export function initEngine(
       ...(options.kvUnified ? { kv_unified: true } : {}), // ibridi/ricorrenti (Qwen3.5 DeltaNet)
       // Richiesto per multimodal: senza context shifting i media restano ancorati.
       ctx_shift: isMultimodal ? false : true,
+      ...(governorLoad ? { governor: governorLoad } : {}),
     };
+
+    // An enabled governor with an invalid thermo sample or a conservative fit
+    // refusal stays on the existing CPU-only loader; no native two-context
+    // attempt is made and no driver allocation is risked.
+    if (governorFeatureEnabled && !governorLoad) {
+      params.n_gpu_layers = 0;
+    }
 
     // Production expert streaming — same shouldStreamModel the RAM gate used.
     // Not engineOverride: that field is bench-only. Written before the override
@@ -1300,6 +1399,9 @@ export function initEngine(
     // non-streamed configuration faithfully rather than inheriting streaming's.
     params.no_extra_bufts =
       params.moe_stream?.enabled === true ? true : load.noExtraBufts;
+    if (governorFeatureEnabled && !governorLoad) {
+      params.n_gpu_layers = 0;
+    }
 
     // Once per load: arm evidence must name the repack mode it ran under.
     // Number (0|1), same KALSA_SESSION shape as save/load (op + extras).
@@ -1384,8 +1486,30 @@ export function initEngine(
     // Capture llama.cpp native log before init so field devices without adb
     // can surface mmap/tensor/arch failures that never reach JS Error.message.
     await ensureNativeLogCapture();
+    let governorUsed = false;
+    activeGovernorFallbackReason = "";
     try {
-      context = await initLlama(params);
+      if (governorLoad) {
+        const cpuParams: ContextParams = { ...params };
+        delete cpuParams.governor;
+        delete cpuParams.speculative;
+        cpuParams.n_gpu_layers = 0;
+        cpuParams.n_parallel = 1;
+        const result = await initWithGovernorFallback({
+          enabled: true,
+          governorParams: params,
+          cpuParams,
+          init: initLlama,
+          nativeLog: nativeLogSummary,
+        });
+        context = result.value;
+        governorUsed = !result.retried;
+        if (result.retried) {
+          activeGovernorFallbackReason = result.fallbackReason ?? "native governor fallback";
+        }
+      } else {
+        context = await initLlama(params);
+      }
       // Which .so actually loaded. RNLlama.java tries the CPU-feature variants
       // in order and tryLoadLibrary swallows UnsatisfiedLinkError silently, so
       // a phone can quietly run a different kernel than the one being measured
@@ -1425,6 +1549,9 @@ export function initEngine(
         });
       } catch {
         /* telemetry never throws into engine path */
+      }
+      if (governorLoad) {
+        rethrowWithNativeTail(error);
       }
       // Android offload can kill init — the recorded case is HTP0/Hexagon with
       // FA on CPU, and an .so built without the OpenCL variant fails here too.
@@ -1466,6 +1593,15 @@ export function initEngine(
     activeNoExtraBufts = load.noExtraBufts;
     activeUseMmap = load.useMmap;
     activeStreamExperts = streamExperts;
+    activeGovernorKey = governorUsed ? governorKey : "off";
+    activeGovernorFit = governorBase?.gpu_fit ?? null;
+    activeGovernorAttempted = governorFeatureEnabled && governorBase != null;
+    activeGovernorActive = governorUsed;
+    if (activeGovernorAttempted && !governorLoad && !activeGovernorFallbackReason) {
+      activeGovernorFallbackReason = governorThermo?.sensor_valid
+        ? "governor not eligible"
+        : "governor: thermo profile invalid";
+    }
     activeEngineKnob =
       options.engineOverride !== undefined
         ? JSON.stringify(options.engineOverride)
@@ -1479,7 +1615,9 @@ export function initEngine(
     if (options.sessionRestore?.promptEnvHash) {
       lastPromptEnvHash = options.sessionRestore.promptEnvHash;
     }
-    if (options.sessionRestore?.historyHash) {
+    if (activeGovernorActive && options.sessionRestore?.historyHash) {
+      console.warn("Governor session restore is disabled until paired KV state exists");
+    } else if (options.sessionRestore?.historyHash) {
       await tryLoadEngineSession(modelId, {
         historyHash: options.sessionRestore.historyHash,
         promptEnvHash: options.sessionRestore.promptEnvHash,
@@ -1588,6 +1726,11 @@ async function disposeEngineLocked(opts?: {
     activeNoExtraBufts = null;
     activeUseMmap = null;
     activeStreamExperts = null;
+    activeGovernorKey = null;
+    activeGovernorFit = null;
+    activeGovernorAttempted = false;
+    activeGovernorActive = false;
+    activeGovernorFallbackReason = "";
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;
@@ -2775,6 +2918,7 @@ export async function streamAssistantTurn(
       // Last SUCCESSFUL tool this turn (for KALSA_TELEMETRY tool/strategy fields).
       // Structured error results and thrown failures do not overwrite a prior success.
       const toolAttribution = new ToolAttributionTracker();
+      let governorThermoSource: GovernorThermoSnapshot["thermo_source"] = "battery";
 
       // HIGH-3 (Jelly): 2B models often ignore system "prefer document_chat" and
       // answer from parametrics when a library doc is attached. Auto-inject ONE
@@ -2910,6 +3054,9 @@ export async function streamAssistantTurn(
           round,
           benchMode: toolChoiceMode,
         });
+        governorThermoSource = (
+          await refreshGovernorBeforeCompletion(engine)
+        ).thermo_source;
         const result = await trackCompletion(
           engine.completion(
             {
@@ -2971,6 +3118,7 @@ export async function streamAssistantTurn(
           options.onDecodeSample,
           options.ciswireFlags,
         );
+        await emitGovernorTelemetry(engine, governorThermoSource);
 
         if (bailIfStopped()) return;
 
@@ -3254,6 +3402,7 @@ export async function streamAssistantTurn(
           toolCallStrip = createToolCallDeltaStripper();
           const fallbackStreamedTextAtStart = streamedText;
           try {
+            const fallbackThermo = await refreshGovernorBeforeCompletion(engine);
             const fallbackResult = await trackCompletion(
               engine.completion(
                 {
@@ -3287,6 +3436,7 @@ export async function streamAssistantTurn(
               options.onDecodeSample,
               options.ciswireFlags,
             );
+            await emitGovernorTelemetry(engine, fallbackThermo.thermo_source);
             // Strip tool_call/think markup from the fallback result. If text
             // remains, emit it; otherwise fall through to the canned message.
             const fallbackEmitted = extractRawResultText(fallbackResult);
@@ -3534,6 +3684,7 @@ export async function extractMemory(
         void engine.stopCompletion().catch(() => undefined);
       }, EXTRACT_MEMORY_TIMEOUT_MS);
 
+      const extractThermo = await refreshGovernorBeforeCompletion(engine);
       const result = await trackCompletion(
         engine.completion({
           messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
@@ -3550,6 +3701,7 @@ export async function extractMemory(
       );
 
       emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
+      await emitGovernorTelemetry(engine, extractThermo.thermo_source);
 
       if (timedOut) return { add: [], remove: [], parseOutcome: 0 as const };
 
@@ -3704,6 +3856,7 @@ export async function translateText(
       // 1024 output tokens is a reasonable cap for ≤4000 input chars.
       // Binding does not expose a reliable truncated-by-limit flag on all
       // platforms, so we do not surface an extra output-truncation signal.
+      const translateThermo = await refreshGovernorBeforeCompletion(engine);
       const result = await trackCompletion(
         engine.completion({
           messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
@@ -3720,6 +3873,7 @@ export async function translateText(
       );
 
       emitTurnTelemetry(`util-translateText-${++turnSeq}`, 0, result);
+      await emitGovernorTelemetry(engine, translateThermo.thermo_source);
 
       if (timedOut || aborted || signal?.aborted) return { text: "", truncated };
 
@@ -3818,6 +3972,7 @@ export async function completeOnce(
         }
       }, timeoutMs);
 
+      const completeThermo = await refreshGovernorBeforeCompletion(engine);
       const result = await trackCompletion(
         engine.completion({
           messages: [
@@ -3845,6 +4000,7 @@ export async function completeOnce(
       );
 
       emitTurnTelemetry(`util-completeOnce-${++turnSeq}`, 0, result);
+      await emitGovernorTelemetry(engine, completeThermo.thermo_source);
 
       const raw =
         typeof result.content === "string" && result.content.length > 0
