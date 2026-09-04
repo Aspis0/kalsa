@@ -1,0 +1,1 @@
+/data/data/com.kalsa.app/databases/RKStorage: 1 file pulled, 0 skipped. 0.1 MB/s (20480 bytes in 0.164s)

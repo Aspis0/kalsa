@@ -1,0 +1,4 @@
+09-04 04:54:30.940 12775 12804 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-04 04:54:31.756 12775 12804 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":3,"ok":false,"reason":"no_file"}
+09-04 05:01:38.931 12775 12804 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":1526,"tokensEvaluated":1329,"tokensPredicted":196,"draftTokens":0,"draftAccepted":0,"promptMs":410008.33400000003,"predictedMs":7543.621,"predictedPerSecond":25.982217293260092,"contextFull":false,"interrupted":false}
+09-04 05:01:38.969 12775 12804 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":23,"ok":true,"estimatedBytes":100007936,"usedTokens":1526,"tokens":1526,"hash":"177813677","messageCount":2}

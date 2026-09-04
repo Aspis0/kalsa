@@ -199,4 +199,26 @@ Amendment 1: APKs not debuggable, adbd root (`uid=0(root)` recon confirmed). Dri
 
 **BLOCKERs: 0. New FIX: none. Pre-existing FIX: OPS-1 (tunnel throughput).**
 
-## Verdict: **FIX-THEN-RUN** (pre-flight: `which sqlite3` + tunnel throughput ≥2 MB/s). Root-path delta clean.
+## Delta audit 2 (wake)
+
+Amendment 2: screen was off (Dozing/NotificationShade) → S3 first launch created no RKStorage → `set_model_pref` failed. Fix: `device_wake()` + S3 retry + EXIT trap.
+
+**1. `$SER` before first `device_wake` call.** `SER` set L38, checked L39, first top-level `device_wake` at L57. CONFIRMED.
+
+**2. Four commands through adbT, tolerant.** L27-30: `KEYCODE_WAKEUP`, `dismiss-keyguard`, `svc power stayon true`, `settings put screen_off_timeout 1800000` — all `adbT 60 … || true`. Timeout save: `SCREEN_OFF_TIMEOUT_SAVED` guard (L26) ensures single capture. CONFIRMED.
+
+**3. EXIT trap.** `trap 'restore_ime; device_wake_restore' EXIT` (L47) replaces old `trap restore_ime`. `device_wake_restore` (L42-45): `stayon false` + restore timeout (guarded by `-n`). `|| true` on both ensures the second runs even if the first fails. CONFIRMED.
+
+**4. S3 retry.** L219-222: if RKStorage absent after first launch, re-wakes + re-launches + sleep 25 + force-stop. `retry_launch_rc`/`retry_force_rc` merged: `[ "$retry_launch_rc" -eq 0 ] \|\| first_rc=$retry_launch_rc` — only overwrites on failure. Detail includes `db_retry=1`. Verified with bash unit test. CONFIRMED.
+
+**5. `WAKEFULNESS` parse.** `dumpsys power | grep mWakefulness=` → `sed -n 's/.*mWakefulness=\([^, ]*\).*/\1/p' | sed -n '1p'` → fallback `unknown`. Tested against `Asleep`/`Awake`/`Dozing`/multi-line — all extract correctly. CONFIRMED.
+
+**6. set -u.** L17: `SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; WAKEFULNESS=unknown` — all three initialized at top level before any use. CONFIRMED.
+
+**7. Bash 3.2.** `{ ... } >> file 2>&1` group (not subshell) — `wake_line` assignment persists (verified). `|| true`, `sed -n '1p'`, `[ -n "$var" ]` — all POSIX. Holds.
+
+---
+
+**BLOCKERs: 0. New FIX: none. Pre-existing FIX: OPS-1 (tunnel throughput).**
+
+## Verdict: **FIX-THEN-RUN** (pre-flight: `which sqlite3` + tunnel throughput ≥2 MB/s). All three deltas clean.

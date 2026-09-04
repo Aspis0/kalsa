@@ -1,0 +1,14 @@
+STEP A S1 ok install_rc=0 pm_dump_rc=0 app_uid=10225 sha=e0d56a398bbd1cb102dbab635272b7b88c43b22e6cd8896538c313603b774403
+STEP A S2 ok sideload=root size=1593894944
+STEP A S3 ok first_launch=0 force_stop=0 sql=0
+STEP A S4 fail clear=0 launch=0 load_timeout_or_missing wake=Awake
+STEP A S5 ok KALSA_TELEMETRY tokensPredicted>0
+STEP A S6 ok evidence captured
+STEP A S7 ok uninstalled
+STEP B S1 ok install_rc=0 pm_dump_rc=0 app_uid=10226 sha=1e2709e57561e97149664ea30588b7df9141c25a6813642cdda1c3ddf9d7f86d
+STEP B S2 ok sideload=root size=1593894944
+STEP B S3 ok first_launch=0 force_stop=0 sql=0
+STEP B S4 fail clear=0 launch=0 load_timeout_or_missing wake=Awake
+STEP B S5 ok KALSA_TELEMETRY tokensPredicted>0
+STEP B S6 ok evidence captured
+STEP B S7 ok uninstalled

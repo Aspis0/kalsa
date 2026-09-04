@@ -37,6 +37,14 @@ verify_local_sha() { local path="$1" expected="$2" actual; actual=$(shasum -a 25
 
 SER=$(adbT 60 devices | awk 'NR>1 && $2=="device"{print $1; exit}')
 [ -n "$SER" ] || { log "NO_DEVICE on 6037"; exit 2; }; log "device=$SER job=$JOB"
+IME_SAVED=""; IME_SUSPENDED=0
+restore_ime() { [ "$IME_SUSPENDED" -eq 1 ] || return 0; IME_SUSPENDED=0; adbT 60 -s "$SER" shell "ime enable $IME_SAVED" >/dev/null 2>&1 || true; adbT 60 -s "$SER" shell "ime set $IME_SAVED" >/dev/null 2>&1 || true; log "ime restored: $IME_SAVED"; }
+device_wake_restore() {
+  adbT 60 -s "$SER" shell "svc power stayon false" >/dev/null 2>&1 || true
+  [ -n "$SCREEN_OFF_TIMEOUT" ] || return 0
+  adbT 60 -s "$SER" shell "settings put system screen_off_timeout $SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || true
+}
+trap 'restore_ime; device_wake_restore' EXIT
 {
   echo "serial=$SER"; echo "port=$ANDROID_ADB_SERVER_PORT"
   echo "getprop ro.soc.model"; adbT 60 -s "$SER" shell getprop ro.soc.model
@@ -96,14 +104,6 @@ tap_bounds() { local bounds="$1" x1=0 y1=0 x2=0 y2=0; read -r x1 y1 x2 y2 <<< "$
 PROMPT='Reply with one short sentence about mountains'
 type_prompt() { local -a words; local word first=1; read -r -a words <<< "$PROMPT"; for word in "${words[@]}"; do if [ "$first" -eq 0 ]; then adbT 60 -s "$SER" shell input keyevent 62 || return 1; fi; adbT 60 -s "$SER" shell input text "$word" || return 1; first=0; done; }
 
-IME_SAVED=""; IME_SUSPENDED=0
-restore_ime() { [ "$IME_SUSPENDED" -eq 1 ] || return 0; IME_SUSPENDED=0; adbT 60 -s "$SER" shell "ime enable $IME_SAVED" >/dev/null 2>&1 || true; adbT 60 -s "$SER" shell "ime set $IME_SAVED" >/dev/null 2>&1 || true; log "ime restored: $IME_SAVED"; }
-device_wake_restore() {
-  adbT 60 -s "$SER" shell "svc power stayon false" >/dev/null 2>&1 || true
-  [ -n "$SCREEN_OFF_TIMEOUT" ] || return 0
-  adbT 60 -s "$SER" shell "settings put system screen_off_timeout $SCREEN_OFF_TIMEOUT" >/dev/null 2>&1 || true
-}
-trap 'restore_ime; device_wake_restore' EXIT
 ime_suspend() { [ "$IME_SUSPEND" = 1 ] && [ "$IME_SUSPENDED" -eq 0 ] || return 0; IME_SAVED=$(adbT 60 -s "$SER" shell settings get secure default_input_method 2>/dev/null | tr -d '\r'); case "$IME_SAVED" in ''|null) log "ime default unavailable; continuing"; return 0;; esac; if adbT 60 -s "$SER" shell "ime disable $IME_SAVED" >/dev/null 2>&1; then IME_SUSPENDED=1; log "ime suspended: $IME_SAVED"; else log "ime suspend failed; continuing best effort"; fi; }
 
 pull_rkstorage() {
