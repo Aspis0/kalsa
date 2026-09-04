@@ -656,6 +656,16 @@
 > candidata = stesso driver su kit con #26501+#28202. Sessione chiusa al primo
 > ref-click (Ended On 06:11:27).
 
+> **4/09, 07:10 — #60 BANCATA (ALIVE riga 43).** Audit 1 (mimo): tre BLOCKER,
+> tutti refutati sui raw con timestamp (fd24 distrutta a 49.691 prima di fd26;
+> 8 destroy di B3 al teardown; 3221225472 B = 3.00 GiB); mimo poi morto in
+> loop aritmetico nel delta → delta rifatto da deepseek (Reviewer bench):
+> refutazioni CONFERMATE, BANK-WITH-FIXES (citazione objdump trascritta in
+> DISASM, wording). F6 riformulata (v73 viabile ≤ ~2.5 GiB residenti, senza
+> churn). Prossimi: dossier #8 aggiornato con il meccanismo; #61 APK smoke su
+> QRD8650 (PREREG scritto, driver Luna 257 righe, audit mimo in corso);
+> #61-NPU kit con upstream #26501+#28202 da costruire (CI/Docker).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
