@@ -4,6 +4,8 @@
 #include "llama-governor-metrics.h"
 #include "llama-governor-policy.h"
 
+#include <string>
+
 struct llama_governor {
     llama_governor(llama_model * model_prefill, llama_model * model_decode,
                    llama_context_params params_prefill, llama_context_params params_decode);
@@ -72,3 +74,9 @@ private:
     bool failed = false;
     const char * failure_reason_ = nullptr;
 };
+
+// Internal RN bridge: returns the constructor error without emitting a second
+// fallback line. The app owner owns the structured fallback log.
+llama_governor * llama_governor_init_with_params_internal(
+        llama_model *, llama_model *, llama_context_params, llama_context_params,
+        llama_governor_params, std::string * failure_reason);

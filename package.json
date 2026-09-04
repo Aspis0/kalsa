@@ -10,6 +10,7 @@
     "harness:markdown": "node scripts/markdownHarness.mjs",
     "doctor": "expo-doctor",
     "postinstall": "scripts/sync-kalsallama.sh overlay && patch-package",
+    "test:governor-params": "scripts/governor-params-test.sh",
     "telemetry:flush": "node workers/telemetry/flush.mjs",
     "harness:telemetry": "node scripts/telemetryHarness.mjs",
     "harness:research": "node scripts/researchPlanHarness.mjs",
