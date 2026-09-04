@@ -1,111 +1,125 @@
 # PREREG — S5: governor in the app, A/B on Qualcomm Device Cloud
 
-Date: 2026-09-04. Status: draft; no data are valid until the prerequisite below
-is closed. QDC session names: `S5-QRD8650` and `S5-8Elite` (each ≤30 chars).
+Date: 2026-09-04. This cell is locked only when the APK identity and sampling
+contract below are verified. QDC sessions: `S5-QRD8650` and `S5-8Elite`;
+both names are under 30 characters.
 
-## Hypothesis and materials
+## Hypothesis and fixed materials
 
-On the same board, APK, model, prompt, and deterministic sampler, governor B
-will produce the same first N token IDs as CPU-only A. After that correctness
-gate passes, B will have TTFT ≤ one third of A, decode tok/s ≥ A, zero lmkd
-kills, and will report GPU prefill plus CPU decode.
+On one board, APK, model, prompt, and sampler, governor B will produce the
+same first 32 generated token IDs as single-context CPU A. After that oracle
+passes, B will have median TTFT no greater than one third of A, decode tok/s
+at least A, zero lmkd kills, GPU prefill, and CPU decode.
 
-Model: app id `lfm2.5-2.6b`, `LFM2.5-2.6B-QAD-Q4_0.gguf`,
-1,593,894,944 bytes, SHA-256
+Model: id `lfm2.5-2.6b`; file `LFM2.5-2.6B-QAD-Q4_0.gguf`; size
+1,593,894,944 bytes; SHA-256
 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`.
-The driver pushes it once to `/data/local/tmp/kalsa-s5/` and copies it into
-the app sandbox only with `run-as`.
+The driver pushes this exact file to `/data/local/tmp/kalsa-s5/`, verifies the
+device SHA, and copies it into the app sandbox only with `run-as`.
 
-APK: absolute CI artifact path to be filled at lock time, from branch
+APK: absolute CI artifact path filled at lock time, from branch
 `feat/governor-in-app`; SHA-256: `<FILL_AT_LOCK>`. The locked artifact record
-must show `application-debuggable=true`; the installed package proof must show
-`DEBUGGABLE` in `dumpsys package com.kalsa.app` flags. No other APK is valid.
+must show `application-debuggable=true`, and installed-package evidence must
+show `DEBUGGABLE` in `dumpsys package com.kalsa.app` flags. No other APK is
+valid. Prompt: `Reply with one short sentence about mountains`.
 
-Prompt, exactly: `Reply with one short sentence about mountains`.
-Each observation is a fresh install of this same APK and a fresh app data set,
-so prior chat history cannot change the prompt. The model file is reused only
-after its full device SHA-256 matches.
+Each observation gets a fresh install of this APK and fresh app data. The
+driver maintains `/data` mode 771 with an outside-data holder loop; it uses
+`run-as` for app data and never root in the app data path.
 
-## Sampling prerequisite
+## Sampling prerequisite and oracle
 
-The current app has no greedy bench key. Its completion path currently fixes
-`temperature`, `top_k: 20`, and `top_p: 0.9`; the line read was
-`top_k: 20,` (`/Users/marco/Projects/kalsa-wt-governor/src/engine/LlamaService.ts:3985`).
-The `kalsa.bench` grep found engine, norepack, speculative, thermo, and
-toolgate keys, but no sampling key or token-ID output. PREREQUISITE:
-implement and verify the app-handled key named `kalsa.bench.sampling` with a
-documented greedy mode and a machine-readable first-N token-ID artifact.
-The driver is hard-gated and exits before device access until this is closed;
-it does not invent or inject an unimplemented app contract.
+The inspected app source exposes the greedy key at
+`/Users/marco/Projects/kalsa-wt-governor/src/engine/benchSampling.ts:3`:
+`export const BENCH_SAMPLING_KEY = "kalsa.bench.sampling";`. The locked APK
+must implement the exact contract below; the driver injects and runtime-checks
+it rather than guessing.
 
-N is 32 generated tokens. A paired observation with fewer than 32 tokens or
-missing token IDs is invalid and cannot advance to speed analysis. Equality is
-exact token-for-token, not decoded-text similarity. The oracle is evaluated
-for every matched A/B pair; turn 1 is excluded only from the performance
-plateau, per the repository rule.
+For both arms, AsyncStorage key `kalsa.bench.sampling` with value `"greedy"`
+makes the app run the turn with temperature 0, top_k 1, top_p 1, min_p 0,
+repeat/presence/frequency penalties off, fixed seed 42, and `n_predict` ≥ 48.
+At the end of each completed chat turn the app logs exactly one line:
+`KALSA_BENCH_TOKENS {"turnId":"<id>","n":<generated token count>,"ids":[<first 32 generated token ids as integers>]}`.
+Fewer than 32 ids are allowed only when EOS came first; then `n` < 32.
 
-## Arms and order
+The driver injects `kalsa.bench.sampling`=`greedy` before launching every A
+and B turn. It parses the last `KALSA_BENCH_TOKENS` line after that launch,
+requires `n >= 32`, writes the 32 IDs to the turn's absolute
+`/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/<job_id>/*_ids.txt`, and puts
+their SHA-256 in `ids_sha`. Adjacent A/B rows are paired (A turn 1 with B turn
+1, etc.): equal lists are oracle `PASS`, otherwise `FAIL`, recorded on B.
+Missing or short token evidence is oracle `VOID`; that pair is excluded from
+the speed medians. The first turn must produce the line or the driver writes
+`/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/<job_id>/PREREQUISITE.txt` and exits 3.
 
-- A: `kalsa.governor.enabled="0"`; the ordinary single-context CPU path,
-  `n_gpu_layers=0`.
-- B: `kalsa.governor.enabled="1"`; the governor path in the same APK.
+## Arms, order, and budget
 
-The effective turn order is `ABABABAB`: four A and four B observations,
-interleaved on one board. Arm turns 2–4 are the plateau (≥3 turns per arm);
-arm turn 1 is retained as warm-up evidence but excluded from the TTFT and
-decode summaries. The driver injects the flag and current thermo JSON into
-`catalystLocalStorage` before each experimental launch.
+- A: `kalsa.governor.enabled="0"`; single-context CPU, `n_gpu_layers=0`.
+- B: `kalsa.governor.enabled="1"`; governor path in the same APK.
 
-QDC order is fixed: QRD8650 / Snapdragon 8 Gen 3 first, then QRD8750 / 8
-Elite. Use one QDC session per board, the names above, and the same locked APK
-and model. Budget: 45 minutes per session, 90 minutes total; stop if a
-session cannot complete its four cycles with evidence.
+Run exactly `ABABABAB` on each board: four observations per arm, interleaved.
+Arm turn 1 is retained as warm-up evidence and excluded from performance
+summaries per the repository rule “measure the plateau”; turns 2–4 are the
+plateau, giving at least three turns per arm.
+The driver injects the flag and thermo JSON into SQLite
+`catalystLocalStorage` before each launch.
+
+Device order is QRD8650 (Snapdragon 8 Gen 3) first, then QRD8750 (8 Elite),
+one QDC session per board, same locked APK and model. Budget is 45 minutes per
+session, 90 minutes total. The driver has a 40-minute wall-clock deadline,
+preserves evidence, writes `END.txt`, and exits so the operator can end the
+QDC session within its cap.
 
 ## Thermo and endpoints
 
-QDC exposes no battery temperature; its `vbat` value is voltage, and the board
-reports plugged. The bench override therefore deliberately writes
-`kalsa.bench.thermo` with `batt_temp_tenths_c=round(skin*10)`,
-`batt_level_pct=100`, `plugged=false`, `sensor_valid=true`,
-`t_idle_valid=true`, and `t_idle_c` equal to the first session skin reading.
-The policy's uncalibrated thresholds are 38.0, 39.5, and 42.0 °C, with a 43.0
-°C kill threshold and a 25% battery floor; plugged profiles instead use
-`t_idle_c` offsets. This is intentional: plugged without idle calibration
-enters the CPU fallback path in `llama-governor-policy.cpp`; `plugged=false` lets
-this declared bench profile exercise the governor. It is not production input.
-The driver refreshes
-the current skin value before every turn from `dumpsys thermalservice`, and B
-telemetry must tag `thermo_source:"bench-skin"`.
+The #63 REPORT says the board is NOT USB-powered as far as `svc power stayon`
+is concerned. The governor-relevant state is the BatteryManager plugged
+report; QDC reports plugged, and this bench override sets `plugged:false`
+anyway. QDC has no battery temperature; `vbat` is voltage.
 
-Primary endpoint 1 is the greedy oracle above. Primary endpoint 2 uses the
-app's `KALSA_TELEMETRY`: `promptMs` is TTFT and `predictedPerSecond` is decode
-tok/s. Report paired rows and the median of plateau turns 2–4 per arm; pass
-requires median B TTFT / median A TTFT ≤ 1/3 and median B decode ≥ median A.
+Before every turn, refresh `kalsa.bench.thermo` from the current skin value
+from `dumpsys thermalservice`, with
+`batt_temp_tenths_c=round(skin*10)`, `batt_level_pct=100`, `plugged=false`,
+`sensor_valid=true`, `t_idle_valid=true`, `t_idle_c` equal to the first skin
+reading, and `trend_c_per_min` from successive readings. This is required
+because plugged without idle calibration falls back to CPU mode. Policy
+thresholds are 38/39.5/42 °C, critical cutoff 43 °C, battery floor 25%.
+`thermo_source` must be `"bench-skin"`; this override is not production input.
 
-Secondary evidence is one `KALSA_GOVERNOR` line per B turn, with
-`engine_prefill=GPU`, `engine_decode=CPU`, `commit_bytes`, `commit_ms`,
-`thermal_state`, and `thermo_source="bench-skin"`. B fallback-line count must
-be zero. In each post-launch logcat, case-insensitive matches for `lmkd`,
-`am_kill`, or `lowmemorykiller` must be zero. Record skin before and after
-every turn, plus all adb exit codes.
+Primary endpoint 1 is the oracle above: greedy token-for-token equality of the
+first 32 generated tokens between B and CPU A on the fixed prompt. Primary
+endpoint 2 is analyzed only after the oracle: app `KALSA_TELEMETRY`
+`promptMs` is TTFT and `predictedPerSecond` is decode tok/s. `promptMs` includes
+the prefill artifact, and both arms pay the same prefill. Report median plateau
+turns 2–4 using only oracle-PASS pairs; pass requires median B/A TTFT ≤ 1/3
+and median B decode ≥ median A.
 
-## Abort, void, and validity
+The promised TSV header is:
+`arm turn ttft_ms decode_tps engine_prefill engine_decode thermal_state skin_c_before skin_c_after fallback_count lmkd_count ids_sha oracle`.
+Secondary checks require exactly one `KALSA_GOVERNOR` line per B turn after
+the turn anchor, with `engine_prefill=GPU`, `engine_decode=CPU`, numeric
+`commit_bytes` and `commit_ms`, `thermal_state`, and
+`thermo_source="bench-skin"`. B `KALSA_GOVERNOR_FALLBACK*` count must be 0.
+Telemetry must have `tokensPredicted >= 32`. Anchored logcat matches for
+`lmkd|am_kill|lowmemorykiller` that also mention `com.kalsa.app` or its PID
+must be 0. Record skin before and after every turn and every adb exit code.
 
-Abort the current session on a missing/mismatched APK or model, absent
-`DEBUGGABLE`, run-as refusal, device disconnect, missing loader/prewarm proof,
-invalid skin/thermo data, missing UI composer/Send, process crash, any lmkd
-match, B fallback, or skin ≥42 °C (governor critical; 43 °C is the hard kill
-threshold). Preserve partial raw evidence. Never retry with root in the app
-data path; `/data` mode 771 is maintained only by the outside-data holder.
+## Abort, VOID, and threats to validity
 
-The cell is VOID if the sampling prerequisite is not met, the locked APK SHA
-or debuggable identity is absent, the model hash differs, turns are not
-ABABABAB, fewer than three plateau turns per arm are completed, or A/B are
-run on different board/APK/model conditions. A QDC board has no battery, USB
-power and the synthetic thermo profile are declared confounds; `bench-skin` is
-not a production sensor or a battery result.
+Abort on identity/hash/run-as/device/load/prewarm/UI failures, disconnect,
+invalid thermo data, process crash, any counted kill, B fallback, or skin ≥42
+°C. Preserve partial raw evidence. A turn with a non-clean uninstall, missing
+package cleanup before install, or failed wake re-check has status 1.
 
-Threats to validity are the batteryless board, USB/rack power state, QDC
-transport/session variance, display/UI timing, fresh-install load cost, and
-the thermo override itself. The result is an app integration cell, not a
-consumer-phone battery or thermal claim.
+The cell is VOID if the sampling contract is absent, APK SHA/debuggable proof
+is absent, model hash differs, order is not `ABABABAB`, fewer than three
+plateau turns per arm complete, or board/APK/model conditions differ. The #63
+REPORT also establishes that `am_kill` can survive `logcat -c`; therefore the
+driver clears all buffers, records a device-time anchor, and counts only
+anchored app-specific lines.
+
+Threats are the batteryless board, the BatteryManager plugged state versus
+unobserved rack power, QDC transport variance, display/UI timing,
+fresh-install load cost, shared thermal drift, and the synthetic thermo
+override. The result is an app
+integration cell, not a consumer-phone battery or production thermal claim.
