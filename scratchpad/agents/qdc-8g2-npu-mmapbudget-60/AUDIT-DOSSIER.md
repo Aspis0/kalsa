@@ -71,3 +71,26 @@ Scope: re-audit of the updated diff (330 lines) against the six items from the f
 | F6 | No new over-claim | "not established" ×3, "UNPROVEN" ×1, "plausible but" ×1 in new text. No unqualified causal claims. | CONFIRMED |
 
 All six items resolved. No residual BLOCKERs or FIXes from the first audit.
+
+## Delta audit 3 (cell #62 addition, 2026-09-04)
+
+Scope: 50 new lines (subsection "Signature 1 reproduced with pure upstream master", recipe B, Summary/Relation additions). diff --stat confirms only 1 file changed.
+
+| # | Claim | Source line | Verdict |
+|---|---|---|---|
+| 1 | Fault PC `0x20242B34`, Bad VA `0x0`, Error code `0x7003` | logcat_up_ngl8 lines 188/191/194 | CONFIRMED |
+| 2 | `op_binary+0x50E4` | logcat_up_ngl8 line 196 | CONFIRMED |
+| 3 | Disasm: `42b0c: …if (!p0.new) jump:t 0x42bb8 <binary_job_vector_same_shape+0xa78>`, `42b2c: loop0(0x42b34,r13)`, `42b34: v20 = vmem(r9++#0x1)`, `42b38: v22.qf32 = vadd(v20.sf,v21.sf)` | crash_pc_resolution.txt | CONFIRMED (verbatim) |
+| 4 | U0/U2/U5/U1 proof 33/32/34/14 exit 134 | .out files | CONFIRMED |
+| 5 | commit `64a155d24` | MODEL_SHA.txt:4 | CONFIRMED |
+| 6 | model sha `361e8d83…` | MODEL_SHA.txt:6 | CONFIRMED |
+| 7 | host abort `ggml-hexagon.cpp:2734` | up_ngl8_sa803054.err:8881 | CONFIRMED |
+| 8 | Two ADD lines (node_928/view, ffn_moe_out-15) | up_ngl8_sa803054.err:8872,8874 | CONFIRMED (verbatim) |
+| 9 | Zero `mmap failed`/`defragmentation` in all 4 logcats | grep = 0 across all 4 | CONFIRMED |
+| 10 | Async-queue caveat | "The queue is asynchronous, so these lines do not prove which operation faulted" | PRESENT |
+| 11 | "separating change not established" / "unestablished" | Summary + body (×3) | PRESENT |
+| 12 | Recipe B: `--mmap 0`, board, build, model, command, expected | All present; command = T + `-ngl 8`/`-ngl 99` | CONFIRMED |
+| 13 | No over-claim vs #26501 | "candidate explanations … none was bisected" | CONFIRMED |
+| 14 | No other file changed | diff --stat: 1 file, +50/-3 | CONFIRMED |
+
+No BLOCKERs, no FIXes.

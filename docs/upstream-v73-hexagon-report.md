@@ -4,7 +4,7 @@
 
 On a Samsung Galaxy S23 / Snapdragon 8 Gen 2 using the Hexagon v73 skel, the artifacts show three distinct failure mechanisms: a cDSP user-PD NULL dereference in `op_binary` that surfaces on the host as `dspqueue_read` `0x2e`; a separate cDSP `qurt_exit()` path in `htp_iface_stop` that remains after all binary operations are removed from HTP; and a write-side `dspqueue_write` `0x1` abort in `flush_batch` for a trunk-only perplexity workload. The Xiaomi 14 / Snapdragon 8 Gen 3 v75 comparison runs the same OLMoE model and host revision, including the same 407-op MoE packet, to completion. These observations establish a v73/v75 liveness difference for the tested packets; they do not establish numerical correctness on v75. [q50 `DIAGNOSIS.md`](../scratchpad/agents/q50-v73-dspqueue-diagnosis/DIAGNOSIS.md) [q51 `REPORT.md`](../scratchpad/agents/q51-f2b-v73-guard/REPORT.md) [q53 `REPORT.md`](../scratchpad/agents/q53-v73-npu-correctness/REPORT.md) [q48 `REPORT.md`](../scratchpad/agents/q48-olmoe-q40-npu/REPORT.md)
 
-Cell #59 reproduced the HDK Signature 1 host proof: both arms reported `n_htp=484 n_mul_mat_id=48 n_exps_htp0=48 exit=134`. Cell #60 resolves that HDK cDSP abort to `mmap_buf()` at `main.c:729`; partial offload survives, while `VMEM=0` reports 3.00 GiB before model load fails. The S23 TLBMISS and HDK abort are distinct DSP-side manifestations; whether they share a VA-exhaustion root is not established. [#59 no-HOSTBUF proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out) [#59 HOSTBUF proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_hostbuf1_sa802553.out) [#60 B6 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err) [S23 raw](../scratchpad/agents/q50-v73-dspqueue-diagnosis/logcat_repro.txt)
+Cell #59 reproduced the HDK Signature 1 host proof: both arms reported `n_htp=484 n_mul_mat_id=48 n_exps_htp0=48 exit=134`. Cell #60 resolves that HDK cDSP abort to `mmap_buf()` at `main.c:729`; partial offload survives, while `VMEM=0` reports 3.00 GiB before model load fails. Cell #62 now shows pure upstream master also reaches the S23-style compute-time TLBMISS on the same HDK, including `-ngl 8`, while the separating change and any shared root with the HDK mapping abort remain unestablished. [#59 no-HOSTBUF proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out) [#59 HOSTBUF proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_hostbuf1_sa802553.out) [#60 B6 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem0_sa802961.err) [#62 U1 raw](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl8_sa803054.txt) [S23 raw](../scratchpad/agents/q50-v73-dspqueue-diagnosis/logcat_repro.txt)
 
 ## Environment and pins
 
@@ -206,6 +206,39 @@ The shared host symptom is `dspqueue_read 0x2e`, but the DSP records differ: S23
 The 3f545bec skel already contained `mmap_buf()` with the same `HAP_mmap` + `abort()` path. Exact relevant lines from `3f545bec:ggml/src/ggml-hexagon/htp/main.c` are `for (uint32_t i=0; i < HTP_MAX_MMAPS; i++) {` (:837), `void *va = HAP_mmap(NULL, b->size, HAP_PROT_READ | HAP_PROT_WRITE, 0, b->fd, 0);` (:848), `if (va == (void*)-1) {` (:850), `FARF(ERROR, "mmap failed : va %p fd %u size %u", va, b->fd, (uint32_t) b->size);` / `abort(); // can't do much else at this point` (:851-852), and `return;` followed by the closing braces (:860-863).
 These are `3f545bec:ggml/src/ggml-hexagon/htp/main.c:837,848,850-853,860-863`. When all 16 `HTP_MAX_MMAPS` slots are occupied, the mapping loop returns silently, leaving `b->base` = 0 so a consuming op can fault (TLBMISS): a plausible but UNPROVEN reading of the S23 signature. Explicitly: whether the S23 TLBMISS and the HDK abort share the VA-exhaustion root is not established; both are mapping-failure manifestations in the same function family.
 The host sees the canceled queue wait, then aborts: `/Users/marco/Projects/kalsallama/ggml/src/ggml-hexagon/ggml-hexagon.cpp:1545`: `int err = dspqueue_read(this->queue, &flags, 1, &n_dbufs, &dbuf, sizeof(rsp), &rsp_size, (uint8_t *) &rsp, timeo);`; `:1551`: `GGML_ABORT("ggml-hex: dspqueue_read failed: 0x%08x\n", (unsigned) err);`. The runtime message prints source line 1552, the macro's last line. The skel-side VA failure is therefore the proximate cause of the HDK host `0x2e`, not a new host flush mechanism. [B5 raw](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_vmem1800_sa802961.txt)
+### Signature 1 reproduced with pure upstream master on reference hardware (2026-09-04)
+
+Cell #62 used upstream/master @64a155d24, containing #26501 and #28202, built with the `docs/backend/snapdragon` presets in the Snapdragon toolchain Docker image for android-34; no kalsa code was used, and those changes could not be cherry-picked onto the kalsa tree. [BUILD.md:1-4,8-9,15-32](../scratchpad/agents/qdc-npu-mmapfix-kit/BUILD.md) [PREREG.md:6-12](../scratchpad/agents/qdc-8g2-npu-upstream-62/PREREG.md) [MODEL_SHA.txt:4,6](../scratchpad/agents/qdc-8g2-npu-upstream-62/MODEL_SHA.txt)
+The board was HDK8550 (Snapdragon 8 Gen 2, v73, Android 16) on Qualcomm Device Cloud, with the public `allenai/OLMoE-1B-7B-0924-Instruct-GGUF` Q4_0 model, SHA-256 `361e8d83…`. [REPORT.md:3-7](../scratchpad/agents/qdc-8g2-npu-upstream-62/REPORT.md)
+The commands were PREREG #62 template T plus `-ngl 8` or `-ngl 99` (PREREG.md:25-34), reproduced verbatim in recipe B below.
+All four arms died with exit 134 and the same TLBMISS class, including U1 `-ngl 8`: U0 `-ngl 99`, U2 `-ngl 99`/`MBUF=512`, U5 `-ngl 99`/`VMEM=1800`, and U1 `-ngl 8`. [REPORT.md:13-18](../scratchpad/agents/qdc-8g2-npu-upstream-62/REPORT.md) [U0](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl99_sa803054.out) [U2](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl99_mbuf512_sa803054.out) [U5](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl99_vmem1800_sa803054.out) [U1](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl8_sa803054.out)
+The U1 cDSP block is:
+```text
+CDSP0: Process "/frpc/f0432fe0 llama-bench" crashed in thread "work-queue:2" due to TLBMISS RW occurrence
+CDSP0: Fault PC   :    0x20242B34
+CDSP0: Bad VA     :    0x0
+CDSP0: Error code :    0x7003
+CDSP0: [<20242B34>] op_binary+0x50E4:     (./libggml-htp-v73.so)
+```
+Thus `op_binary+0x50E4` resolves to the `binary_job_vector_same_shape` vector-add loop:
+```text
+42b0c: 5a d8 20 5c 5c20d85a    if (!p0.new) jump:t 0x42bb8 <binary_job_vector_same_shape+0xa78> }
+42b2c: 10 40 0d 60 600d4010 {  loop0(0x42b34,r13)
+42b34: 14 c1 09 29 2909c114 {  v20 = vmem(r9++#0x1) }
+42b38: 36 74 b5 1f 1fb57436 {  v22.qf32 = vadd(v20.sf,v21.sf)
+```
+[U1 CDSP raw](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl8_sa803054.txt) [PC resolution](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/crash_pc_resolution.txt)
+Host-side, the raw error is `/workspace/ggml/src/ggml-hexagon/ggml-hexagon.cpp:2734: ggml-hex: dspqueue_read failed: 0x0000002e`. No `mmap failed` or `defragmentation` FARF line was observed in any of the four raw logcats, so mapping failure was not the observed upstream-kit path. [up_ngl8 err](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl8_sa803054.err) [REPORT.md:20-27](../scratchpad/agents/qdc-8g2-npu-upstream-62/REPORT.md) [U0 logcat](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl99_sa803054.txt) [U2 logcat](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl99_mbuf512_sa803054.txt) [U5 logcat](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl99_vmem1800_sa803054.txt) [U1 logcat](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl8_sa803054.txt)
+The last two strided-view ADDs queued by the host were:
+```text
+ggml-hex: HTP0 execute-op ADD|node_928 x ffn_moe_weighted-15 (view) -> ffn_moe_out-15|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:65536 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+ggml-hex: HTP0 execute-op ADD|ffn_moe_out-15 x ffn_inp-15 -> l_out-15|2048:1 x 2048:1 -> 2048:1|f32 x f32 -> f32|4:8192 x 4:8192 -> 4:8192|HTP0 x HTP0 -> HTP0|----|flags 0x0
+```
+The queue is asynchronous, so these lines do not prove which operation faulted; the strided view in the first ADD is only a suspect. [up_ngl8 err](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl8_sa803054.err)
+The `Bad VA : 0x0` and `Error code : 0x7003` values are identical to q50's S23 block, while the offset and thread differ on this different skel: `op_binary+0x50E4` and `work-queue:N`/`htp-main` here versus `op_binary+0x5B9C` and `htp-main` on q50. [#62 raw](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl8_sa803054.txt) [q50 raw](../scratchpad/agents/q50-v73-dspqueue-diagnosis/logcat_repro.txt) [REPORT.md:42-46](../scratchpad/agents/qdc-8g2-npu-upstream-62/REPORT.md)
+Our `022458a28` + kalsa kit did not exhibit this TLBMISS in #59/#60: those arms died only in mapping or survived at `-ngl 8/12`; the separating change is not established. [REPORT.md:47-49](../scratchpad/agents/qdc-8g2-npu-upstream-62/REPORT.md) [#59 raw](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/logcat_exp_pp16_nohostbuf_sa802553.txt) [#60 B1](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl8_mbuf1g_sa802961.out) [#60 B2](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_mbuf512_sa802961.out) [#60 B3](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl12_mbuf1g_sa802961.out) [#60 B5](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/ngl99_vmem1800_sa802961.out)
+Candidate explanations remain hedged and unseparated: the kalsa HMX-eligibility gate, `HTP_ZERO_TILE_PAD`, upstream changes after #25968 including #26501 work-queue changes, or the android-34/build difference; none was bisected or tested as the separator. [REPORT.md:42-52,69-74](../scratchpad/agents/qdc-8g2-npu-upstream-62/REPORT.md) [BUILD.md:28-40](../scratchpad/agents/qdc-npu-mmapfix-kit/BUILD.md)
+
 Cell #60's six-arm result is:
 
 | arm | result |
@@ -225,20 +258,22 @@ The cell does not discriminate among (1) fragmentation leaving no suitable hole,
 
 ### Minimal public reproduction
 
+#### A. Our kalsa kit — mapping abort :729
+
 Board: HDK8550 on Qualcomm Device Cloud. Model: `allenai/OLMoE-1B-7B-0924-Instruct-GGUF`, Q4_0, SHA-256 `361e8d83f0820e50d0ed1a13b10586ed9f476d99dcaf6aafd14f07e11840b22b`. Build: kalsallama branch `kalsa/npu-judge-v79` at `022458a28`, carrying upstream through `#25968`; fork: `Aspis0/kalsallama`. [#59 preregistration](../scratchpad/agents/qdc-8g2-npu-v73death-59/PREREG.md) [#59 verified kit](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/kit_verify_sa802553.txt) [#59 model/run raw](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out)
 
 ```sh
 ./bin/llama-bench -m olmoe.gguf -p 16 -n 8 -r 1 --no-warmup -dev HTP0 -v -o jsonl --mmap 0 -fa on --ubatch-size 1024 -ngl 99
 ```
 
-For runtime FARF, place the file in the directory named by `ADSP_LIBRARY_PATH`, then capture the `adsprpc` tag:
+For either recipe, place the runtime FARF file in the directory named by `ADSP_LIBRARY_PATH`, then capture the `adsprpc` tag:
 
 ```sh
 echo 0x1F > <ADSP_LIBRARY_PATH>/llama-bench.farf
 adb logcat -s adsprpc
 ```
 
-Expected lines are the #59 proof and crash, with the recorded #60 B5 FARF detail when emitted; fd/size values may vary with mapping order:
+Expected A lines are the #59 proof and the mapping-abort crash, with the recorded #60 B5 FARF detail when emitted; fd/size values may vary with mapping order:
 
 ```text
 proof n_htp=484 n_mul_mat_id=48 n_exps_htp0=48 exit=134
@@ -251,6 +286,16 @@ CDSP0: [<20203E58>] htp_iface_start+0x1348:     (./libggml-htp-v73.so)
 
 [Recorded proof](../scratchpad/agents/qdc-8g2-npu-v73death-59/raw/exp_pp16_nohostbuf_sa802553.out) [recorded FARF](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/raw/logcat_ngl99_vmem1800_sa802961.txt)
 
+#### B. Pure upstream master — Signature 1 TLBMISS at every tested `-ngl`
+
+Use the same board/model, but build pure upstream/master @64a155d24 with the Snapdragon toolchain Docker/android-34 preset and no kalsa code (`BUILD.md:1-4,15-32`; `MODEL_SHA.txt:4,6`). This is the recipe an upstream maintainer can run with zero third-party code.
+
+```sh
+./bin/llama-bench -m olmoe.gguf -p 16 -n 8 -r 1 --no-warmup -dev HTP0 -v -o jsonl --mmap 0 -fa on --ubatch-size 1024 -ngl 8
+./bin/llama-bench -m olmoe.gguf -p 16 -n 8 -r 1 --no-warmup -dev HTP0 -v -o jsonl --mmap 0 -fa on --ubatch-size 1024 -ngl 99
+```
+Expected B result is the compute-time TLBMISS block quoted above at both `-ngl 8` and `-ngl 99`, with no `mmap failed` or `defragmentation` FARF line; the exact four-arm evidence is above. [#62 U1 logcat](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl8_sa803054.txt) [#62 U1 err](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl8_sa803054.err)
+
 ### Relation to upstream
 
 All claims in this subsection are as reported by web search on 2026-09-04, not re-verified. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
@@ -259,6 +304,8 @@ All claims in this subsection are as reported by web search on 2026-09-04, not r
 - #21071 (merged) is reported as the `__HVX_ARCH__ > 73` split using HAP_mmap2 and says “check to prevent mapping more than 2GB with HAP_mmap (which is unsupported)”. #22487 (merged) adds `GGML_HEXAGON_VMEM` / `GGML_HEXAGON_MBUF`, with default vmem “around 3.2GB” and a 1GB buffer. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
 - #26501 (merged) is reported as a multi-NPU overhaul touching `main.c` mmap; #28202 (merged) is titled “Op batch buffers are now sorted by size to avoid address space fragmentation”. Both are after our pin, neither was tested by us, and neither is in our fork. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
 - Qualcomm fastrpc #137 (closed/not planned) is reported as “Q6 cDSP only have 32-bit virtual address space, limited number of shared buffers can be mapped”; its maintainer is quoted as “limited to 2GB on older devices and has been increased to 3GB on newer devices (8gen3)”. [UPSTREAM-SEARCH.md](../scratchpad/agents/qdc-8g2-npu-mmapbudget-60/UPSTREAM-SEARCH.md)
+
+Cell #62 adds direct local evidence that upstream/master itself crashes on a public HDK8550 with the public model; this report remains a draft for the owner and no issue has been filed. [#62 U1 raw](../scratchpad/agents/qdc-8g2-npu-upstream-62/raw/logcat_up_ngl8_sa803054.txt) [BUILD.md:1-4](../scratchpad/agents/qdc-npu-mmapfix-kit/BUILD.md)
 
 ### Suggested upstream action
 
