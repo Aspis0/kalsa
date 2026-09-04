@@ -436,6 +436,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > worktree dedicato dell'app (`kalsa-wt-governor`, branch
 > `feat/governor-in-app` da main) per non pestare la sessione UI.
 
+> **4/09, 16:00 — S2 CONSEGNATO (Luna), audit grok in corso, CI in volo.**
+> Worktree app `/Users/marco/Projects/kalsa-wt-governor`, branch
+> `feat/governor-in-app` (pushato su Aspis0/kalsa, MAI il fork): 414b494 pin
+> → 8665e9a9f + overlay dei 13 file governor/kv-commit/hybrid-commit nel
+> vendor; 67c9f7f patch llama.rn con `rn-governor.{h,cpp}` (owner a due
+> modelli + `llama_governor_init` come il bench di riferimento), accessor
+> `active_ctx()`/`decode()` su tutti i siti decode/ctx (completion, slots,
+> MTP, JSI), sessioni rifiutate in governor mode, `KALSA_GOVERNOR_FALLBACK`.
+> Patch 2747 righe (sana). `clang++ -fsyntax-only` ok su tutti i file; CI APK
+> debug run 33916141291 sul branch. Non ancora provato con un modello vero.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
