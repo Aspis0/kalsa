@@ -1,0 +1,22 @@
+host=sa803054.sa.svc.cluster.local
+serial=300b45e6
+[08:42:08] device=300b45e6 job=sa803054
+[08:42:13] pushing kit
+/Users/marco/kalsa-qdc/npu-v79-cell/npu-kit-62-upstream.tgz: 1 file pushed, 0 skipped. 17.4 MB/s (91724463 bytes in 5.036s)
+[08:42:24] pushing model (3.9 GB — cap 3600s)
+/Users/marco/kalsa-qdc/models/OLMoE-1B-7B-0924-Instruct-Q4_0.gguf: 1 file pushed, 0 skipped. 21.8 MB/s (3928037856 bytes in 172.158s)
+[08:45:22] push verified (model sha OK, kit shas OK)
+[08:45:23] FARF_READY
+GATE_PASS
+[08:45:27] start up_ngl99 (cap 900s)
+GATE_PASS
+GATE_PASS
+[08:45:58] start up_ngl99_mbuf512 (cap 900s)
+GATE_PASS
+GATE_PASS
+[08:46:28] start up_ngl99_vmem1800 (cap 900s)
+GATE_PASS
+GATE_PASS
+[08:46:58] start up_ngl8 (cap 900s)
+GATE_PASS
+[08:47:25] DONE (ABORT=0) — raw/ populated. Remember: End Session in the portal.

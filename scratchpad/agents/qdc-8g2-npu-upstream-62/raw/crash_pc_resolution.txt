@@ -1,0 +1,25 @@
+00031730 g    DF .text	000002e4 op_flash_attn_ext
+00035960 g    DF .text	0000023c op_gated_delta_net
+0003da50 g    DF .text	000006e8 op_binary
+== disasm around 0x42b34 ==
+42b00:	98 c8 24 5c <unknown>
+42b04:	0c 47 06 f5	f506470c { 	r13:12 = combine(r6,r7)
+42b08:	e0 43 9a 75	759a43e0   	p0 = cmp.gtu(r26,#0x1f)
+42b0c:	5a d8 20 5c	5c20d85a   	if (!p0.new) jump:t 0x42bb8 <binary_job_vector_same_shape+0xa78> } 
+42b10:	c9 cb 9d 91	919dcbc9 { 	r9 = memw(r29+#0x178) } 
+42b14:	40 40 89 75	75894040 { 	p0 = cmp.gtu(r9,#0x2)
+42b18:	09 40 68 70	70684009   	r9 = r8
+42b1c:	38 d8 20 5c	5c20d838   	if (!p0.new) jump:t 0x42b84 <binary_job_vector_same_shape+0xa44> } 
+42b20:	69 ce 9d 91	919dce69 { 	r9 = memw(r29+#0x1cc) } 
+42b24:	2d 42 09 8c	8c09422d { 	r13 = lsr(r9,#0x2)
+42b28:	09 c0 68 70	7068c009   	r9 = r8 } 
+42b2c:	10 40 0d 60	600d4010 { 	loop0(0x42b34,r13)
+42b30:	0c c7 06 f5	f506c70c   	r13:12 = combine(r6,r7) } 
+42b34:	14 c1 09 29	2909c114 { 	v20 = vmem(r9++#0x1) } 
+42b38:	36 74 b5 1f	1fb57436 { 	v22.qf32 = vadd(v20.sf,v21.sf)
+42b3c:	35 c1 0c 29	290cc135   	v21.cur = vmem(r12++#0x1) } 
+42b40:	17 76 04 1e	1e047617 { 	v23.sf = v22.qf32
+42b44:	22 c1 2d 29	292dc122   	vmem(r13++#0x1) = v23.new } 
+42b48:	18 c1 09 29	2909c118 { 	v24 = vmem(r9++#0x1) } 
+42b4c:	3a 78 b9 1f	1fb9783a { 	v26.qf32 = vadd(v24.sf,v25.sf)
+42b50:	39 c1 0c 29	290cc139   	v25.cur = vmem(r12++#0x1) } 

@@ -1,0 +1,35 @@
+/data/local/tmp/kalsa62/bin:
+total 11102
+drwxr-xr-x 2 501  20       3452 2026-09-04 05:31 .
+drwxrwxrwx 5 root root     3452 2026-09-04 05:42 ..
+-rwxr-xr-x 1 501  20        163 2026-09-04 05:31 ._test-backend-ops-153f
+-rwxr-xr-x 1 501  20       7344 2026-09-04 05:31 llama-bench
+-rwxr-xr-x 1 501  20       7424 2026-09-04 05:31 llama-cli
+-rwxr-xr-x 1 501  20       7424 2026-09-04 05:31 llama-perplexity
+-rwxr-xr-x 1 501  20   10501528 2026-09-04 05:31 test-backend-ops
+-rwxr-xr-x 1 501  20     823008 2026-09-04 05:31 test-backend-ops-153f
+
+/data/local/tmp/kalsa62/lib-fix:
+total 175846
+drwxr-xr-x 2 501  20       3452 2026-09-04 05:31 .
+drwxrwxrwx 5 root root     3452 2026-09-04 05:42 ..
+-rw-r--r-- 1 501  20    7646968 2026-09-04 05:31 libggml-base.so
+-rw-r--r-- 1 501  20    4212232 2026-09-04 05:31 libggml-cpu.so
+-rw-r--r-- 1 501  20    6486264 2026-09-04 05:31 libggml-hexagon.so
+-rw-r--r-- 1 501  20     763560 2026-09-04 05:31 libggml-htp-v73.so
+-rw-r--r-- 1 501  20     819624 2026-09-04 05:31 libggml-htp-v75.so
+-rw-r--r-- 1 501  20     840200 2026-09-04 05:31 libggml-htp-v79.so
+-rw-r--r-- 1 501  20     840232 2026-09-04 05:31 libggml-htp-v81.so
+-rw-r--r-- 1 501  20   12662072 2026-09-04 05:31 libggml-opencl.so
+-rw-r--r-- 1 501  20     392856 2026-09-04 05:31 libggml.so
+-rw-r--r-- 1 501  20     604208 2026-09-04 05:31 libllama-batched-bench-impl.so
+-rw-r--r-- 1 501  20    3709640 2026-09-04 05:31 libllama-bench-impl.so
+-rw-r--r-- 1 501  20    2427176 2026-09-04 05:31 libllama-cli-impl.so
+-rw-r--r-- 1 501  20   51114496 2026-09-04 05:31 libllama-common.so
+-rw-r--r-- 1 501  20    1064280 2026-09-04 05:31 libllama-completion-impl.so
+-rw-r--r-- 1 501  20     545944 2026-09-04 05:31 libllama-fit-params-impl.so
+-rw-r--r-- 1 501  20    2302288 2026-09-04 05:31 libllama-perplexity-impl.so
+-rw-r--r-- 1 501  20    1704048 2026-09-04 05:31 libllama-quantize-impl.so
+-rw-r--r-- 1 501  20   35054896 2026-09-04 05:31 libllama-server-impl.so
+-rw-r--r-- 1 501  20   33696224 2026-09-04 05:31 libllama.so
+-rw-r--r-- 1 501  20   12950152 2026-09-04 05:31 libmtmd.so

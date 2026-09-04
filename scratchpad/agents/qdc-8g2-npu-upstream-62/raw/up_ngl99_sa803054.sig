@@ -1,0 +1,1 @@
+SIGNATURE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-8g2-npu-upstream-62/raw/up_ngl99_sa803054.err:ggml-hex: FASTRPC_GET_DOMAINS query failed (0x6c), using static CDSP domains  expected_exps=48 n_exec_any=438
