@@ -1949,7 +1949,7 @@ index 1126dec..84e1ac3 100644
      cleanupThreadpools();
 
      if (completion != nullptr) {
-@@ -458,63 +568,188 @@
+@@ -458,63 +568,191 @@
      releaseVocoder();
  }
 
@@ -2019,6 +2019,9 @@ index 1126dec..84e1ac3 100644
  {
 -    removeLoraAdapters();
 +    const bool governor_enabled = governor_params != nullptr;
++    // Do not return after the two-model load. Both modes converge here so the
++    // context has templates, n_ctx, adapter metadata, n_seq logging, completion,
++    // and the same ctx_shift setup before the first completion.
 +    if (governor_enabled) {
 +        if (governor_thermo == nullptr || !governor_thermo_profile_is_valid(*governor_thermo)) {
 +            throw std::runtime_error("governor: thermo profile invalid");
