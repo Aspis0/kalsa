@@ -277,6 +277,19 @@
 > poi il midpoint. Audit tooling in corso. aapt2 installato sul Mac
 > (openjdk@17 formula + build-tools 35 via sdkmanager, niente sudo).
 
+> **4/09, 12:00 — #64 PREREG + DRIVER PRONTI (audit NO-GO → fix → GO).**
+> PREREG: step 0 = upstream puro 022458a28 a `-ngl 8` come gate del range
+> (BAD → range invalido, si studia il diff delle patch kalsa); poi bisect
+> binario sui 23 commit hexagon (index 12 = 990e3bfee), verdetto per commit
+> dal solo `up_ngl8`: BAD = famiglia TLBMISS/Bad VA/0x7003, GOOD = exit 0 con
+> n_exps_htp0=24, OTHER = stop; `up_ngl99` registrato per la domanda mapping.
+> Cap 6 sessioni HDK8550 (~60 min). Driver = #62 parametrizzato per sha7
+> (kit npu-kit-bisect-<sha7>.tgz, raw/<sha7>/, D=kalsa64). Audit mimo:
+> NO-GO perché exit 0 senza prova HTP tornava GOOD → fix (rc 11 + un re-run,
+> poi METHOD-VOID), delta audit GO. Audit tooling: GO-WITH-FIXES; la "build
+> dir stale fra commit" è REFUTATA (worktree per sha7). Build step 0 in corso
+> (host 442/445 alle 11:42): la stima "10 min" era ottimista, sono ~25.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
