@@ -15,18 +15,74 @@ on:
         required: true
         default: "fase0"
         type: choice
-        options: [fase0, fase4]
+        options: [fase0, fase4, smoke, tools, mem, forced, sanity]
       model:
         description: "Model to test"
         required: true
         default: "qwen3.5-2b"
         type: choice
-        options: [qwen3.5-2b, qwen3.5-4b]
+        options: [qwen3.5-2b, qwen3.5-4b, lfm2.5-2.6b, lfm2.5-8b-a1b]
+      seeds:
+        description: "Number of seeds to run (1-10). Default 6 preserves today's power. Raise when a campaign needs more statistical power (e.g., stronger models decline more and lose more arms to exclusion)."
+        required: true
+        default: "6"
+        type: string
       runs_per_arm:
-        description: "Fase 0 ONLY — in-job repeat count per arm (PIANO: '3 run/formato'). Fase 4 always uses the fixed 3-seed matrix below, independent of this input."
+        description: "Fase 0 ONLY — in-job repeat count per arm (PIANO: '3 run/formato'). Fase 4 always uses the seed matrix below, gated by the 'seeds' input."
         required: true
         default: "2"
         type: string
+      nctx:
+        description: "Bench-only n_ctx override (empty = catalog wins). Floor 2048."
+        required: false
+        default: ""
+        type: string
+      winbudget:
+        description: "Bench-only verbatim-window char budget (empty = 16000). Controls how often compaction fires. Floor 500."
+        required: false
+        default: ""
+        type: string
+      legacywindow:
+        description: "Bench-only legacy-window override (empty = LEGACY_MAX_HISTORY). Controls what falls out of context on both arms. Floor 4."
+        required: false
+        default: ""
+        type: string
+      ranking:
+        description: "Bench-only ranking mode (empty = bm25). Controls digest retrieval: bm25 (lexical) or hybrid (BM25 + char 3-gram fused via RRF)."
+        required: false
+        default: ""
+        type: string
+        options:
+          - ""
+          - bm25
+          - hybrid
+      digestcadence:
+        description: "Bench-only operative-block injection cadence (empty = every turn, production). K>1 injects only on user turns where index % K == 0 — tests whether the KV cost of injection is paid once per K turns instead of every turn."
+        required: false
+        default: ""
+        type: string
+      norepack:
+        description: "Bench-only weight-repack disable (empty = production repack on). 1 → no_extra_bufts (saves ~file-size anonymous RSS; slower prefill). 0 → explicit repack on."
+        required: false
+        default: ""
+        type: string
+        options:
+          - ""
+          - "0"
+          - "1"
+      ngl:
+        description: "GPU/NPU offload layers (empty = cpu-only, the production Android default). N writes kalsa.bench.engine with the mandatory flashAttn:off escort. Grep the log for KALSA_GPU_FALLBACK — it means init refused offload and the arm ran on CPU."
+        required: false
+        default: ""
+        type: string
+      memory:
+        description: "Enable memory subsystem (0 = off, 1 = on). When on, facts are extracted and stored. Default 0 (off) to avoid confounding compaction A/B."
+        required: false
+        default: "0"
+        type: string
+        options:
+          - "0"
+          - "1"
 
 jobs:
   build:
@@ -45,6 +101,14 @@ jobs:
           java-version: 17
 
       - name: Install JS deps
+        # DO NOT set RNLLAMA_SKIP_POSTINSTALL here. It was tried (to remove a
+        # GitHub-releases download that 503'd twice in run 31639595328) on the
+        # reasoning that a from-source build never uses the prebuilt jniLibs.
+        # Run 31650534307 disproved it: assert-native-patch.sh reported
+        # "kalsa-native-patches MISSING ... llama.rn used its prebuilt jniLibs",
+        # i.e. the APK was built WITHOUT the patches — the exact silent failure
+        # that assert exists to catch. If the download flakes again, cache the
+        # artifacts or retry; do not skip them.
         run: npm ci
 
       - name: Typecheck + logic harnesses
@@ -76,6 +140,30 @@ jobs:
           node scripts/sessionSaveGateHarness.mjs
           node scripts/voiceStateHarness.mjs
           node scripts/webFetchPdfMutationMatrix.mjs
+          node scripts/benchGradeHarness.mjs
+          node scripts/benchAggregateHarness.mjs
+          node scripts/benchNCtxHarness.mjs
+          # Gates for the privacy guard, the LFM tool dialect and memory telemetry.
+          # Absent until 2026-08-14: all three shipped with manual-only verification.
+          node scripts/rulesCoreHarness.mjs
+          node scripts/toolCallParseHarness.mjs
+          node scripts/memoryTelemetryHarness.mjs
+          node scripts/toolRoundExhaustedHarness.mjs
+          node scripts/toolBenchHarness.mjs
+          node scripts/telemetryClampHarness.mjs
+          npx jest --silent
+          # Sideload guards are bash, so the *Harness.mjs sweep does not see them.
+          bash scripts/test_sideload_guards.sh
+          node scripts/matrixParityHarness.mjs
+
+      # Preflight: HEAD every model URL the workflow can select, fail fast if
+      # any is unreachable or wrong-size. Runs BEFORE the expensive build steps
+      # (Free disk space / Prebuild / Build APK) so a bad model ref fails in
+      # seconds, not after burning 30+ minutes building an APK nobody will use.
+      # Checks ALL four models (not just the selected one) — a broken ref for
+      # an unselected model is a trap for the next person.
+      - name: Preflight model URLs
+        run: node scripts/benchPreflight.mjs
 
       - name: Free disk space
         run: |
@@ -83,6 +171,14 @@ jobs:
           df -h /
 
       - name: Prebuild (CNG)
+        # llama.rn ships PREBUILT jniLibs, but the plugin defaults to a source
+        # build of its cpp/ so the patched cpp/ is compiled and patches/ take
+        # effect; KALSA_LLAMA_FROM_SOURCE=0 is the opt-out that restores
+        # prebuilt jniLibs. The env is set here only for explicitness. The real
+        # guarantee the patches are in the binary is assert-native-patch.sh
+        # below, not this env.
+        env:
+          KALSA_LLAMA_FROM_SOURCE: "1"
         run: npx expo prebuild --platform android --no-install
 
       - name: Build APK (x86_64 only — emulator ABI, keeps CI fast)
@@ -90,6 +186,11 @@ jobs:
           cd android
           ./gradlew assembleRelease -PreactNativeArchitectures=x86_64 --console=plain
           ls -la app/build/outputs/apk/release/
+
+      # A benchmark that measures an unpatched binary measures the wrong binary.
+      # assert-native-patch.sh exits 1 on a missing marker — fail the job, not warn.
+      - name: Assert the native patch is in the binary
+        run: bash scripts/assert-native-patch.sh
 
       - name: Upload APK (built ONCE, shared by every bench arm below)
         uses: actions/upload-artifact@v4
@@ -106,79 +207,750 @@ jobs:
     # 9 turns (fase4), each gated at 1500s by ci-bench.sh's send_and_wait — well
     # under this, and WAY under GitHub's 6h hard job limit. Real turns finish in
     # ~8.6 min (516s), so typical wall-clock is closer to 90-100 min per arm.
-    timeout-minutes: 300
+    # GitHub's hosted-job hard ceiling is 6h (360 min). In campaign 31807501488
+    # (Qwen3.5-4B, 6 seeds) per-arm durations ran 171-300 min; two arms
+    # (ciswire seed 2, ciswire seed 5) were CANCELLED at exactly 300m by this
+    # cap, and three more finished at 285/288/290/298m. 350m leaves ~10 min of
+    # headroom under the 360m platform kill while rescuing the arms that were
+    # finishing at 285-300 min; the next 4B campaign (10 seeds) would otherwise
+    # lose arms the same way. 300m measured too tight against the model, not the
+    # other way around.
+    timeout-minutes: 350
     strategy:
       fail-fast: false
       matrix:
         include:
           # ── Fase 0 — 3 block formats × 2 thinking modes (6 arms, 1 job each) ──
           - phase: fase0
-            arm: none_off
+            arm: none_budget512
             block_format: none
-            thinking: off
+            thinking: budget512
           - phase: fase0
             arm: none_budget256
             block_format: none
             thinking: budget256
           - phase: fase0
-            arm: user-prefix_off
+            arm: user-prefix_budget512
             block_format: user-prefix
-            thinking: off
+            thinking: budget512
           - phase: fase0
             arm: user-prefix_budget256
             block_format: user-prefix
             thinking: budget256
           - phase: fase0
-            arm: user-note_off
+            arm: user-note_budget512
             block_format: user-note
-            thinking: off
+            thinking: budget512
           - phase: fase0
             arm: user-note_budget256
             block_format: user-note
             thinking: budget256
-          # ── Fase 4 — 2 arms (baseline / v42) × 3 seeds (6 arms, 1 job each) ──
-          # blockFormat/thinking stay at production defaults ("none"/"default")
-          # in BOTH arms — Fase 4 isolates ONE variable, compaction on/off; the
-          # "none" format still auto-upgrades to user-prefix once compaction
-          # produces real digest/summary content (see applyOperativeBlockFormat
-          # in src/engine/LlamaService.ts), exactly matching what a real user
-          # gets with default settings.
+          # ── Fase 4 — 4 arms (baseline / anchored / ciswire / nogate) × 6 seeds
+          # (24 jobs) ──
+          # nogate sits on compaction: off (same base as baseline), toolchoice
+          # unset (driver default auto), toolgate "0" — the gate A/B is one
+          # variable, unconfounded by forcing. Forcing left the campaign after
+          # smoke 31640101893 (recall already 1 on every arm; required cut
+          # precision 0.167 vs baseline 0.500). The gate still helps
+          # (required+gate vs required-nogate: spurious 5→3) and stays as
+          # baseline vs nogate remains a tool-gate diagnostic; compaction
+          # interactions are intentionally not part of that exploratory arm.
+          # WHY 6 not 3: with 3 vs 3 conversations the exhaustive one-sided
+          # permutation floor is 2/C(6,3)+1 = 2/21 ≈ 0.095, so p < 0.05 is
+          # unreachable by construction. 6 vs 6 → C(12,6)=924, exhaustive
+          # floor 2/925 ≈ 0.0022. With PERM_ITERATIONS=10000 the Monte-Carlo
+          # floor is 1/10001 ≈ 0.0001; the exhaustive floor dominates (is the
+          # weaker bound) for this design. Seeds 1..6 map onto filler
+          # rotations 0..7 ((SEED-1)%8), so the rotation is balanced and
+          # paired across arms.
+          # Quoted mode strings keep the matrix values unambiguous in Actions.
+          # Three modes: off (legacy window), anchored (boundary/no digest), ciswire
+          # (legacy window + BM25 additive). Primary comparison: ciswire vs off.
+          # thinking stays "default" so every arm uses production reasoning.
+          # block_format stays none; it still auto-upgrades to user-prefix once
+          # compaction produces real digest content
+          # (see applyOperativeBlockFormat).
           - phase: fase4
             arm: baseline
             seed: 1
-            compaction: off
+            compaction: "off"
             block_format: none
-            thinking: budget256
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 2
-            compaction: off
+            compaction: "off"
             block_format: none
-            thinking: budget256
+            thinking: "default"
           - phase: fase4
             arm: baseline
             seed: 3
-            compaction: off
+            compaction: "off"
             block_format: none
-            thinking: budget256
+            thinking: "default"
           - phase: fase4
-            arm: v42
+            arm: baseline
+            seed: 4
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: baseline
+            seed: 5
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: baseline
+            seed: 6
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: baseline
+            seed: 7
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: baseline
+            seed: 8
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: baseline
+            seed: 9
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: baseline
+            seed: 10
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
             seed: 1
-            compaction: on
+            compaction: "anchored"
             block_format: none
-            thinking: budget256
+            thinking: "default"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 2
-            compaction: on
+            compaction: "anchored"
             block_format: none
-            thinking: budget256
+            thinking: "default"
           - phase: fase4
-            arm: v42
+            arm: anchored
             seed: 3
-            compaction: on
+            compaction: "anchored"
             block_format: none
-            thinking: budget256
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 4
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 5
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 6
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 7
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 8
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 9
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: anchored
+            seed: 10
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 2
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 3
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 4
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 5
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 6
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 7
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 8
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 9
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: fase4
+            arm: ciswire
+            seed: 10
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          # Gate A/B: same off/auto base as baseline, toolgate the only knob.
+          - phase: fase4
+            arm: nogate
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 2
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 3
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 4
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 5
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 6
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 7
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 8
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 9
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          - phase: fase4
+            arm: nogate
+            seed: 10
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          # ── Mem — 2 compaction modes (off/ciswire) × 2 memory modes (0/1) × 6 seeds
+          # (24 jobs). Memory is a within-matrix axis (not a workflow input) so the
+          # comparison is within-runner, within-APK, within-seed. Facts are planted
+          # in conversation and leave the verbatim window as it grows; the four arms
+          # measure whether memory carries the fact when context cannot, alone or
+          # combined with the digest, and whether the two retrieval paths add or
+          # interfere. Phase name `mem` does not collide with existing ones.
+          - phase: mem
+            arm: off_off
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 2
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 3
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 4
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 5
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 6
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 7
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 8
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 9
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_off
+            seed: 10
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: off_on
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 2
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 3
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 4
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 5
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 6
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 7
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 8
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 9
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: off_on
+            seed: 10
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_off
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 2
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 3
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 4
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 5
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 6
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 7
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 8
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 9
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_off
+            seed: 10
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: mem
+            arm: ciswire_on
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 2
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 3
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 4
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 5
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 6
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 7
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 8
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 9
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: mem
+            arm: ciswire_on
+            seed: 10
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          # ── Smoke — ~5-turn harness self-test on all four arms (~20 min),
+          # not a measurement campaign. Use phase=smoke dispatch instead of
+          # burning the full 2-hour fase0/fase4 matrix when only the harness
+          # needs a live emulator check.
+          # WHY thinking "default": smoke must mirror the fase4 configuration
+          # it de-risks. A smoke that exercises a different config de-risks
+          # nothing.
+          - phase: smoke
+            arm: baseline
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          - phase: smoke
+            arm: anchored
+            seed: 1
+            compaction: "anchored"
+            block_format: none
+            thinking: "default"
+          - phase: smoke
+            arm: ciswire
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+          - phase: smoke
+            arm: nogate
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          # ── Mem smoke twins — one seed each of the four mem campaign arms.
+          # The parity harness (scripts/matrixParityHarness.mjs) requires every
+          # campaign phase (any phase with seed >= 2) to have smoke twins with
+          # identical axis values. These four arms mirror the mem campaign.
+          - phase: smoke
+            arm: off_off
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: smoke
+            arm: off_on
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          - phase: smoke
+            arm: ciswire_off
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "0"
+          - phase: smoke
+            arm: ciswire_on
+            seed: 1
+            compaction: "ciswire"
+            block_format: none
+            thinking: "default"
+            memory: "1"
+          # ── Tools — tool-use benchmark (required/forbidden/selection).
+          # Measures whether the model calls tools at the right time and picks
+          # the right tool. Not a compaction A/B; single arm, single seed.
+          # Phase selected by input; no default matrix entry.
+          # EXCLUSION: tools is a single-arm, single-seed validation run, not
+          # a measurement campaign. The parity harness derives campaign phases
+          # structurally (any phase with seed >= 2) so tools is automatically
+          # excluded. An implicit exclusion is how the mem gap appeared; this
+          # comment makes the decision explicit.
+          - phase: tools
+            arm: baseline
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+          # Gate/nogate pair: TOOLGATE defaults to 1, so the baseline arm
+          # measures the model AND the echo-of-context gate together. The
+          # nogate arm sets toolgate: "0" to isolate the model. Without both,
+          # a wrong call cannot be attributed to the model rather than the rule.
+          - phase: tools
+            arm: nogate
+            seed: 1
+            compaction: "off"
+            block_format: none
+            thinking: "default"
+            toolgate: "0"
+          # ── Part-3 CisWire DEVICE campaign harness (kit §10). seed=1 ONLY —
+          # seed≥2 would make forced/sanity a campaign and matrixParityHarness
+          # would demand smoke twins + 24×72min emulator jobs. CISWIREFLAGS
+          # derives compaction/memory/toolhelp; do not set those axes here.
+          # R1 000  R2 110  R3 101  R4 011. Not smoke twins. Not a 6-seed campaign.
+          - phase: forced
+            arm: R1
+            seed: 1
+            ciswireflags: "000"
+            block_format: none
+            thinking: "default"
+          - phase: forced
+            arm: R2
+            seed: 1
+            ciswireflags: "110"
+            block_format: none
+            thinking: "default"
+          - phase: forced
+            arm: R3
+            seed: 1
+            ciswireflags: "101"
+            block_format: none
+            thinking: "default"
+          - phase: forced
+            arm: R4
+            seed: 1
+            ciswireflags: "011"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R1
+            seed: 1
+            ciswireflags: "000"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R2
+            seed: 1
+            ciswireflags: "110"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R3
+            seed: 1
+            ciswireflags: "101"
+            block_format: none
+            thinking: "default"
+          - phase: sanity
+            arm: R4
+            seed: 1
+            ciswireflags: "011"
+            block_format: none
+            thinking: "default"
     # `matrix` is not available in a job-level `if`, so the phase filter lives
     # inside the matrix itself: entries carry their phase and the emulator step
     # is skipped for the non-selected ones (see the step-level `if`).
@@ -186,7 +958,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Enable KVM
-        if: matrix.phase == inputs.phase
+        if: matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
@@ -194,34 +966,49 @@ jobs:
           ls -la /dev/kvm
 
       - name: Download shared APK
-        if: matrix.phase == inputs.phase
+        if: matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
         uses: actions/download-artifact@v4
         with:
           name: kalsa-bench-apk
           path: android/app/build/outputs/apk/release/
 
       - name: Download GGUF model
-        if: matrix.phase == inputs.phase
+        if: matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
+        # URLs come from benchPreflight.mjs (reads ModelRegistry.ts — single
+        # source of truth). The YAML contains zero hardcoded HF URLs; drift
+        # between the registry and the download step is structurally impossible.
         run: |
           set -e
-          if [ "${{ inputs.model || 'qwen3.5-2b' }}" = "qwen3.5-4b" ]; then
-            URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
+          MODEL="${{ inputs.model || 'qwen3.5-2b' }}"
+          MANIFEST=$(node scripts/benchPreflight.mjs --env "$MODEL")
+          echo "$MANIFEST" >> "$GITHUB_ENV"
+          MODEL_URL=$(echo "$MANIFEST" | grep '^MODEL_URL=' | cut -d= -f2-)
+          EXPECTED_BYTES=$(echo "$MANIFEST" | grep '^EXPECTED_BYTES=' | cut -d= -f2-)
+          curl -sL -o model.gguf "$MODEL_URL"
+          # mmproj is optional — only qwen3.5-4b has one (vision model).
+          MMPROJ_URL=$(echo "$MANIFEST" | grep '^MMPROJ_URL=' | cut -d= -f2- || true)
+          if [ -n "$MMPROJ_URL" ]; then
+            curl -sL -o mmproj.gguf "$MMPROJ_URL"
+            ls -la model.gguf mmproj.gguf
           else
-            URL="https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=qwen3.5-2b" >> $GITHUB_ENV
+            ls -la model.gguf
           fi
-          curl -sL -o model.gguf "$URL"
-          ls -la model.gguf
+          # Fail here on a truncated download — do not wait for the on-device
+          # isFileComplete gate (CI run 31420693167: "Modello non ancora scaricato").
+          actual=$(stat -c %s model.gguf)
+          if [ "$actual" != "$EXPECTED_BYTES" ]; then
+            echo "model.gguf size $actual != expected $EXPECTED_BYTES (truncated/corrupt download)"
+            exit 1
+          fi
+          echo "model.gguf OK ($actual bytes)"
 
       - name: Run bench arm on emulator
-        if: matrix.phase == inputs.phase
+        if: matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          # API 35: minSdkVersion 35 (Android 15+ ship policy) — API 34 emulators
-          # fail install with INSTALL_FAILED_OLDER_SDK (run 31223190695).
+          # API 35: the newest image these jobs are proven on. NOT a floor —
+          # minSdkVersion is 33 since 2026-08-22 (app.config.js), so an API 33
+          # device is supported and is NOT covered here.
           api-level: 35
           target: google_apis
           arch: x86_64
@@ -231,7 +1018,12 @@ jobs:
           # Public repo => 4-vCPU runners; a turn costs ~185s at 4 cores vs 516s at 2.
           cores: 4
           ram-size: 8192M
-          disk-size: 8192M
+          # 12 GB userdata: model 5.2 GB (LFM2.5-8B single-copy after mv fix) +
+          # system image ~1.5 GB + APK/data 0.5 GB + logs 0.3 GB + FS overhead
+          # 0.5 GB + runtime/mmap headroom 2.0 GB = ~10.0 GB peak.  The old
+          # 8 GB forced a 10.4 GB peak (cp doubled the 8B) and silently failed.
+          # qcow2 is sparse so a larger virtual disk does not slow AVD boot.
+          disk-size: 12288M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
           script: bash scripts/ci-bench.sh
@@ -242,12 +1034,28 @@ jobs:
           BLOCK_FORMAT: ${{ matrix.block_format }}
           THINKING: ${{ matrix.thinking }}
           COMPACTION: ${{ matrix.compaction }}
+          # Forcing (required) measured worse than auto on smoke 31640101893 — knob stays so the axis can be re-run; do not re-enable thinking it is untried.
+          TOOLCHOICE: ${{ matrix.toolchoice || 'auto' }}
+          TOOLGATE: ${{ matrix.toolgate || '1' }}
+          NCTX: ${{ inputs.nctx || '' }}
+          WINBUDGET: ${{ matrix.winbudget || inputs.winbudget || '' }}
+          LEGACYWINDOW: ${{ inputs.legacywindow || '' }}
+          RANKING: ${{ inputs.ranking || '' }}
+          DIGESTCADENCE: ${{ matrix.digestcadence || inputs.digestcadence || '' }}
+          NOREPACK: ${{ inputs.norepack || '' }}
+          NGL: ${{ inputs.ngl || '' }}
+          MEMORY: ${{ matrix.memory || inputs.memory || '0' }}
+          CISWIREFLAGS: ${{ matrix.ciswireflags || '' }}
+          PAIR_POS: ${{ matrix.pair_pos || '1' }}
+          CLEAR_GATE_AUDIT: ${{ matrix.clear_gate_audit || '' }}
           RUNS_PER_ARM: ${{ inputs.runs_per_arm || '3' }}
           MODEL_DIR: ${{ env.MODEL_DIR }}
           MODEL_FILE: ${{ env.MODEL_FILE }}
+          MMPROJ_FILE: ${{ env.MMPROJ_FILE }}
+          MMPROJ_BYTES: ${{ env.MMPROJ_BYTES }}
 
       - name: Upload arm result + evidence
-        if: always() && matrix.phase == inputs.phase
+        if: always() && matrix.phase == inputs.phase && (!matrix.seed || matrix.seed <= inputs.seeds)
         uses: actions/upload-artifact@v4
         with:
           name: bench-result-${{ matrix.phase }}-${{ matrix.arm }}-seed${{ matrix.seed || '0' }}
@@ -270,7 +1078,21 @@ jobs:
           if-no-files-found: warn
 
       - name: Aggregate + permutation test
-        run: node scripts/benchAggregate.mjs all-results | tee "$GITHUB_STEP_SUMMARY"
+        env:
+          # Gate only the dispatched phase; fase4/mem expect the seed count from the input.
+          BENCH_EXPECT_PHASE: ${{ inputs.phase }}
+          BENCH_EXPECT_SEEDS: ${{ (inputs.phase == 'fase4' || inputs.phase == 'mem') && inputs.seeds || '0' }}
+        run: |
+          # A pipe reports the pipe's exit status, so `node … | tee …` would
+          # swallow a non-zero from the completeness gate and mark the job
+          # green. Write the markdown first, tee it, then re-exit with the
+          # real node status.
+          set +e
+          node scripts/benchAggregate.mjs all-results > /tmp/aggregate.md
+          status=$?
+          set -e
+          tee "$GITHUB_STEP_SUMMARY" < /tmp/aggregate.md
+          exit $status
 
       - name: Upload aggregate
         if: always()

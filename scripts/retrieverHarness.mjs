@@ -12,7 +12,31 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
 function compile() {
-  const r = spawnSync(
+  // Compile both retriever.ts and ngramRank.ts since retriever imports ngramRank
+  const r1 = spawnSync(
+    "npx",
+    [
+      "tsc",
+      "src/context/ngramRank.ts",
+      "--outDir",
+      "scripts/.build",
+      "--module",
+      "nodenext",
+      "--target",
+      "es2020",
+      "--moduleResolution",
+      "nodenext",
+      "--skipLibCheck",
+      "--ignoreConfig",
+    ],
+    { cwd: projectRoot, encoding: "utf8", shell: true },
+  );
+  if (r1.status !== 0) {
+    console.error("tsc failed for ngramRank:\n", r1.stdout, r1.stderr);
+    process.exit(1);
+  }
+
+  const r2 = spawnSync(
     "npx",
     [
       "tsc",
@@ -30,8 +54,8 @@ function compile() {
     ],
     { cwd: projectRoot, encoding: "utf8", shell: true },
   );
-  if (r.status !== 0) {
-    console.error("tsc failed:\n", r.stdout, r.stderr);
+  if (r2.status !== 0) {
+    console.error("tsc failed:\n", r2.stdout, r2.stderr);
     process.exit(1);
   }
 }
@@ -46,6 +70,19 @@ function resolveBuiltModule() {
     if (existsSync(c)) return c;
   }
   console.error("Could not find compiled retriever.js. Tried:\n", candidates.join("\n"));
+  process.exit(1);
+}
+
+function resolveBuiltNgramRank() {
+  const candidates = [
+    path.join(projectRoot, "scripts/.build/ngramRank.js"),
+    path.join(projectRoot, "scripts/.build/context/ngramRank.js"),
+    path.join(projectRoot, "scripts/.build/src/context/ngramRank.js"),
+  ];
+  for (const c of candidates) {
+    if (existsSync(c)) return c;
+  }
+  console.error("Could not find compiled ngramRank.js. Tried:\n", candidates.join("\n"));
   process.exit(1);
 }
 
@@ -186,12 +223,15 @@ function rssMb() {
 }
 
 async function main() {
-  console.log("Compiling retriever.ts …");
+  console.log("Compiling retriever.ts and ngramRank.ts …");
   compile();
   const modPath = resolveBuiltModule();
-  console.log("Loading", modPath);
+  const ngramRankPath = resolveBuiltNgramRank();
+  console.log("Loading", modPath, "and", ngramRankPath);
   const mod = await import(pathToFileURL(modPath).href);
+  const ngramRankMod = await import(pathToFileURL(ngramRankPath).href);
   const { retrieveRelevant, RetrieverIndex } = mod;
+  const { ngramVec, cosine, rrf, DIM } = ngramRankMod;
   if (typeof retrieveRelevant !== "function") {
     console.error("retrieveRelevant not exported");
     process.exit(1);
@@ -371,6 +411,282 @@ async function main() {
   ];
   const edgeOk = edges.every((e) => Array.isArray(e) && e.length === 0);
   record("edge cases → []", edgeOk);
+
+  // --- userQuota selection rule ---
+  // Corpus mirrors the measured failure mode: 2 user fact plants + many assistant
+  // hedges that all match the probe query terms (lexically distinct → Jaccard fails).
+  const quotaCorpus = [
+    {
+      turnIndex: 0,
+      role: "user",
+      text: "Ricorda questi dati: il gatto si chiama Leopoldo e il budget e 4500 euro.",
+    },
+    {
+      turnIndex: 1,
+      role: "assistant",
+      text: "Non sono sicuro se questi dettagli gatto Leopoldo budget 4500 euro siano completi o specifici per il tuo contesto attuale.",
+    },
+    {
+      turnIndex: 2,
+      role: "assistant",
+      text: "Non sono sicuro se queste informazioni gatto Leopoldo budget 4500 euro siano complete o aggiornate per il tuo contesto specifico.",
+    },
+    {
+      turnIndex: 3,
+      role: "assistant",
+      text: "Forse i dettagli su gatto Leopoldo e budget 4500 euro necessitano di conferma prima di usarli come fatti consolidati.",
+    },
+    {
+      turnIndex: 4,
+      role: "user",
+      text: "Ricorda anche: la citta e Torino e il codice e PK42.",
+    },
+    {
+      turnIndex: 5,
+      role: "assistant",
+      text: "Non posso garantire che citta Torino codice PK42 gatto Leopoldo budget 4500 siano ancora validi nel tuo setup.",
+    },
+    {
+      turnIndex: 6,
+      role: "assistant",
+      text: "Verifica pure gatto Leopoldo budget 4500 euro citta Torino codice PK42 prima di dipenderne per decisioni.",
+    },
+    {
+      turnIndex: 7,
+      role: "assistant",
+      text: "I riferimenti a Leopoldo 4500 Torino PK42 potrebbero essere incompleti rispetto al contesto del progetto.",
+    },
+  ];
+  const quotaQuery =
+    "ricorda i dati del gatto Leopoldo budget 4500 euro citta Torino codice PK42";
+
+  // 1) Off → assistant-dominated; on → both user plants in top-4
+  const offQuota = retrieveRelevant(quotaCorpus, quotaQuery, { topN: 4 });
+  const onQuota = retrieveRelevant(quotaCorpus, quotaQuery, {
+    topN: 4,
+    userQuota: true,
+  });
+  const offUserCount = offQuota.filter((s) => s.role === "user").length;
+  const onUserTexts = onQuota.filter((s) => s.role === "user").map((s) => s.text);
+  const bothUsersOn =
+    onUserTexts.some((t) => /Leopoldo/i.test(t) && /4500/.test(t)) &&
+    onUserTexts.some((t) => /Torino/i.test(t) && /PK42/i.test(t));
+  const t1OffOk = offUserCount <= 1; // assistant-dominated without quota
+  const t1OnOk = bothUsersOn && onQuota.length === 4;
+  record(
+    "userQuota: hedges vs 2 user plants",
+    t1OffOk && t1OnOk,
+    `off users=${offUserCount}/4 roles=[${offQuota.map((s) => s.role[0]).join("")}] · on users=${onUserTexts.length}/4 bothPlants=${bothUsersOn}`,
+  );
+
+  // 2) Fewer user candidates than reserve → count unchanged, no crash, assistants fill
+  const fewUsers = [
+    {
+      turnIndex: 0,
+      role: "user",
+      text: "Il gatto si chiama Leopoldo e vive a casa con noi sempre.",
+    },
+    {
+      turnIndex: 1,
+      role: "assistant",
+      text: "Non sono sicuro che gatto Leopoldo sia un dettaglio completo per il contesto.",
+    },
+    {
+      turnIndex: 2,
+      role: "assistant",
+      text: "Forse gatto Leopoldo richiede conferma prima di considerarlo un fatto consolidato.",
+    },
+    {
+      turnIndex: 3,
+      role: "assistant",
+      text: "I riferimenti a gatto Leopoldo potrebbero essere incompleti nel tuo setup attuale.",
+    },
+    {
+      turnIndex: 4,
+      role: "assistant",
+      text: "Verifica pure gatto Leopoldo prima di dipenderne per decisioni importanti.",
+    },
+  ];
+  const fewQ = "come si chiama il gatto Leopoldo?";
+  const fewOff = retrieveRelevant(fewUsers, fewQ, { topN: 4 });
+  const fewOn = retrieveRelevant(fewUsers, fewQ, { topN: 4, userQuota: true });
+  const t2Ok =
+    fewOn.length === fewOff.length &&
+    fewOn.length === 4 &&
+    fewOn.some((s) => s.role === "user") &&
+    fewOn.some((s) => s.role === "assistant");
+  record(
+    "userQuota: fewer users than reserve",
+    t2Ok,
+    `off=${fewOff.length} on=${fewOn.length} roles=[${fewOn.map((s) => s.role[0]).join("")}]`,
+  );
+
+  // 3) No user candidates → identical output to userQuota off
+  const noUsers = [
+    {
+      turnIndex: 0,
+      role: "assistant",
+      text: "Il gatto si chiama Leopoldo secondo le note precedenti del progetto.",
+    },
+    {
+      turnIndex: 1,
+      role: "assistant",
+      text: "Non sono sicuro che gatto Leopoldo sia completo per il tuo contesto specifico.",
+    },
+    {
+      turnIndex: 2,
+      role: "assistant",
+      text: "Forse i dettagli su gatto Leopoldo necessitano di una conferma esplicita.",
+    },
+    {
+      turnIndex: 3,
+      role: "assistant",
+      text: "I riferimenti a gatto Leopoldo potrebbero essere datati nel tuo setup.",
+    },
+  ];
+  const noUserQ = "come si chiama il gatto Leopoldo?";
+  const noOff = retrieveRelevant(noUsers, noUserQ, { topN: 4 });
+  const noOn = retrieveRelevant(noUsers, noUserQ, {
+    topN: 4,
+    userQuota: true,
+  });
+  const t3Ok = JSON.stringify(noOff) === JSON.stringify(noOn);
+  record(
+    "userQuota: no users → identical to off",
+    t3Ok,
+    `off=${noOff.length} on=${noOn.length}`,
+  );
+
+  // 4) Ranking within each group unchanged (same relative order as without quota)
+  const rankOff = retrieveRelevant(quotaCorpus, quotaQuery, { topN: 8 });
+  const rankOn = retrieveRelevant(quotaCorpus, quotaQuery, {
+    topN: 4,
+    userQuota: true,
+  });
+  const offUserOrder = rankOff
+    .filter((s) => s.role === "user")
+    .map((s) => s.turnIndex);
+  const onUserOrder = rankOn
+    .filter((s) => s.role === "user")
+    .map((s) => s.turnIndex);
+  const offAsstOrder = rankOff
+    .filter((s) => s.role === "assistant")
+    .map((s) => s.turnIndex);
+  const onAsstOrder = rankOn
+    .filter((s) => s.role === "assistant")
+    .map((s) => s.turnIndex);
+  // on-group order must be a prefix of the off-group order (same relative ranking)
+  const isPrefix = (full, part) =>
+    part.every((id, i) => full[i] === id);
+  const t4Ok =
+    isPrefix(offUserOrder, onUserOrder) && isPrefix(offAsstOrder, onAsstOrder);
+  record(
+    "userQuota: ranking within groups preserved",
+    t4Ok,
+    `users off→on ${JSON.stringify(offUserOrder)}→${JSON.stringify(onUserOrder)} asst ${JSON.stringify(offAsstOrder.slice(0, 4))}→${JSON.stringify(onAsstOrder)}`,
+  );
+
+  // ─── Hybrid ranking tests ──────────────────────────────────────────────────
+  console.log("\n=== Hybrid ranking ===");
+
+  // Test 1: ngramVec is L2-normalized and deterministic
+  const vec1 = ngramVec("test string");
+  const vec2 = ngramVec("test string");
+  let norm = 0;
+  for (let i = 0; i < DIM; i++) {
+    norm += vec1[i] * vec1[i];
+  }
+  norm = Math.sqrt(norm);
+  const normOk = Math.abs(norm - 1.0) < 0.001;
+  const detOk2 = vec1.every((v, i) => v === vec2[i]);
+  record(
+    "ngramVec: L2-normalized and deterministic",
+    normOk && detOk2,
+    `norm=${norm.toFixed(4)}, deterministic=${detOk2}`
+  );
+
+  // Test 2: cosine similarity
+  const identicalCos = cosine(vec1, vec2);
+  const differentVec = ngramVec("completely different words");
+  const differentCos = cosine(vec1, differentVec);
+  const cosOk = identicalCos > 0.99 && differentCos < 0.5;
+  record(
+    "cosine: identical=1.0, different<<1.0",
+    cosOk,
+    `identical=${identicalCos.toFixed(4)}, different=${differentCos.toFixed(4)}`
+  );
+
+  // Test 3: Hybrid promotes inflected forms where BM25 is ambiguous
+  //
+  // Honest finding: BM25+ in this codebase operates on character n-grams (not
+  // words), so "gattino" and "gattini" share many n-grams and BM25 already
+  // finds the target. The hybrid leg (hashed 3-grams) is redundant with the
+  // n-gram-based BM25+. The privacy gate (MIN_SHARED_GRAMS=3) ensures documents
+  // with insufficient n-gram overlap are filtered before either ranking sees them.
+  //
+  // Observable effect: hybrid promotes the target from BM25 rank 2 to rank 1.
+  // This is a real effect that can be mutation-tested.
+  const inflectionCorpus = [
+    {
+      turnIndex: 0,
+      role: "assistant",
+      text: "Affettuosi giocherelloni, gattini adorano dormire divano rosso.",
+    },
+    // 15 distractors with "gattino" (singular) — BM25 matches these exactly
+    ...Array.from({ length: 15 }, (_, i) => ({
+      turnIndex: i + 1,
+      role: i % 2 === 0 ? "assistant" : "user",
+      text: `gattino del vicino numero ${i + 1} stato visitato veterinario oggi per controlli`,
+    })),
+    // 4 fillers
+    ...Array.from({ length: 4 }, (_, i) => ({
+      turnIndex: i + 16,
+      role: i % 2 === 0 ? "assistant" : "user",
+      text: `Documento generico numero ${i + 16} discussioni varie sul clima politica.`,
+    })),
+  ];
+  const inflectionQuery = "quanti gattino";
+
+  const inflectionBm25 = retrieveRelevant(inflectionCorpus, inflectionQuery, {
+    topN: 4,
+    ranking: "bm25",
+  });
+  const inflectionHybrid = retrieveRelevant(inflectionCorpus, inflectionQuery, {
+    topN: 4,
+    ranking: "hybrid",
+  });
+
+  // Find target rank (turnIndex 0 has "gattini" plural)
+  const bm25TargetRank = inflectionBm25.findIndex(s => s.turnIndex === 0);
+  const hybridTargetRank = inflectionHybrid.findIndex(s => s.turnIndex === 0);
+
+  // Assertions:
+  // 1. Target is in hybrid top-N (hybrid finds it)
+  const hybridFindsTarget = hybridTargetRank >= 0;
+  // 2. Hybrid strictly promotes (rank < BM25 rank) — hybrid must rank it higher
+  //    This fails if hybrid is just BM25 (mutation test) because both would be rank 2
+  const hybridStrictlyPromotes = hybridFindsTarget && bm25TargetRank >= 0 && hybridTargetRank < bm25TargetRank;
+
+  record(
+    "inflection-promotion: hybrid strictly promotes inflected target",
+    hybridStrictlyPromotes,
+    `bm25Rank=${bm25TargetRank === -1 ? "NOT_IN_TOP4" : bm25TargetRank + 1}, hybridRank=${hybridTargetRank === -1 ? "NOT_IN_TOP4" : hybridTargetRank + 1}`
+  );
+
+  // Test 4: Byte-identical when ranking is absent vs explicit "bm25"
+  const absentResult = retrieveRelevant(history, "come si chiama il gatto?", {
+    topN: 4,
+  });
+  const bm25ExplicitResult = retrieveRelevant(history, "come si chiama il gatto?", {
+    topN: 4,
+    ranking: "bm25",
+  });
+  const byteIdenticalOk = JSON.stringify(absentResult) === JSON.stringify(bm25ExplicitResult);
+  record(
+    "byte-identical: absent ranking = explicit bm25",
+    byteIdenticalOk,
+    `absent=${absentResult.length} snippets, bm25=${bm25ExplicitResult.length} snippets`
+  );
 
   const allPass = results.every((r) => r.pass);
   console.log("\n=== Summary ===");

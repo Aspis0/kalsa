@@ -1,0 +1,26 @@
+{
+  "lang": "it",
+  "turns": [
+    {
+      "i": 1,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Ciao, mi chiamo Elisabetta Quirino. Per favore tieni a mente il nome.",
+      "planted": ["Elisabetta Quirino"]
+    },
+    {
+      "i": 2,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Lavoro come restauratrice pale d'altare a Urbino, in laboratorio.",
+      "planted": ["restauratrice pale d'altare", "Urbino"]
+    },
+    {
+      "i": 3,
+      "intent": "plant-fact",
+      "axis": ["memory"],
+      "user": "Bevo solo caffè d'orzo, mai caffè di caffè. È una preferenza fissa.",
+      "planted": ["caffè d'orzo"]
+    }
+  ]
+}

@@ -93,13 +93,25 @@ import {
 import { resolveContextProfile } from "../engine/contextProfile";
 import {
   diskRequirementBytes,
-  estimateModelNonEvictableMiB,
   evaluateModelFit,
   getCachedDeviceProfile,
   getFreeDiskBytes,
   modelGateVerdict,
   type ModelGateVerdict,
 } from "../engine/deviceProfile";
+import { gateNonEvictableMiB } from "../engine/modelGateRAM";
+import { resolveLoadPolicy } from "../engine/loadPolicy";
+import {
+  deviceBandwidthForModel,
+  mergeDeviceBandwidthCalibrations,
+  recordDeviceBandwidthSample,
+  type DecodeMeasurement,
+  type DeviceBandwidthCalibration,
+} from "../engine/deviceThroughput";
+import {
+  loadDeviceBandwidthCalibration,
+  saveDeviceBandwidthCalibration,
+} from "../engine/deviceThroughputStore";
 import {
   completeOnce,
   disposeEngine,
@@ -107,15 +119,17 @@ import {
   getActiveEngineNCtx,
   getActiveModelId,
   initEngine,
+  invalidateConversationSessions,
   invalidateEngineSession,
   isEngineLostRecovery,
   isEngineReady,
   notifyStaticPrefixInputs,
   queueStaticPrefixPrewarm,
+  restoreEngineSession,
   saveEngineSession,
   streamAssistantTurn,
-  summarizeConversation,
   type EngineMessage,
+  type EngineToolResult,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
 import { runDeepResearch } from "../research/deepResearch";
@@ -134,13 +148,19 @@ import {
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import {
+  computeHistoryHashFromMessages,
   computePromptEnvHash,
+  memoryFactTextsForEnvHash,
   getBootHistoryHash,
   historyHash,
+  readBootMessages,
   resetBootHistoryHash,
   setBootMessagesKey,
   setSessionConversationId,
 } from "../engine/sessionPersistence";
+import { formatDigestLine } from "../engine/digestTelemetry";
+import { formatMemoryLine } from "../memory/memoryTelemetry";
+import { boundMemoryFacts } from "../memory/dnaBounding";
 import {
   conversationHasPersistedMessages,
   createEmptyConversationMeta,
@@ -184,8 +204,20 @@ import {
   DEVICE_TOOLS_KEY,
   parseToolToggle,
 } from "../agent/toolToggles";
-import { getEngineOverride, getSpeculativeOverride } from "../bench/benchConfig";
+import {
+  getBenchNCtx,
+  getBenchWindowBudget,
+  getBenchLegacyWindow,
+  getBenchRanking,
+  getBenchDigestCadence,
+  getBenchNoRepack,
+  getBlockFormat,
+  getEngineOverride,
+  getSpeculativeOverride,
+  getToolGateEnabled,
+} from "../bench/benchConfig";
 import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
 import {
   WEB_FETCH_TOOL,
   makeFetchAllowlist,
@@ -202,20 +234,27 @@ import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperServic
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import { RetrieverIndex } from "../context/retriever";
 import {
+  advanceAnchoredBoundary,
   advanceCompactionBoundary,
   assembleEngineHistory,
-  buildSummaryTranscript,
+  CISWIRE_FLAG_COMPACTION,
+  CISWIRE_FLAG_MEMORY,
+  CISWIRE_FLAG_TOOLHELP,
+  CISWIRE_TOOLHELP_KEY,
   COMPACTION_CHOICE_KEY,
   COMPACTION_ENABLED_KEY,
   compactorStorageKey,
   countUserTurns,
   DEFAULT_CHAT_ID,
-  DEFAULT_COMPACTOR_CONFIG,
   emptyCompactorState,
+  parseCiswireToolHelp,
   parseCompactorState,
+  shouldInjectOperativeBlock,
+  parseContextMode,
   refreshQueryDigest,
   resolveBoundaryIndex,
   serializeCompactorState,
+  shouldRebuildAnchored,
   shouldRebuild,
   splitAtBoundary,
   summaryStorageKey,
@@ -223,8 +262,12 @@ import {
   toRetrievalUnits,
   truncateBudget,
   type CompactorState,
+  type ContextMode,
   type HistoryRoleMessage,
+  LEGACY_MAX_CHARS,
+  LEGACY_MAX_CHARS_IMAGES,
 } from "../context/compactor";
+import { resolveWindowProfile, windowStartIndex } from "../context/windowProfile";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
 export type ModelPipelineState =
@@ -333,23 +376,46 @@ function gateForModel(
   model: ModelInfo,
   profile: Awaited<ReturnType<typeof getCachedDeviceProfile>>,
   freeDiskBytes: number | null,
+  checkVolatileMemory = true,
+  /** kalsa.bench.norepack tri-state; absent → the model's loadPolicy decides. */
+  benchNoRepack?: boolean,
+  deviceBandwidth: DeviceBandwidthCalibration = {},
 ): ModelGateVerdict {
   // RAM estimate includes optional mmproj (vision bundle); disk already bundles.
-  const bundleBytes = model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
-  return modelGateVerdict({
+  const resolvedContextTokens = resolveContextProfile({
+    hybrid: model.hybrid,
+    kvCache: model.kvCache,
+    catalogCtx: model.engineCtx,
     totalMemoryBytes: profile.totalMemoryBytes,
-    availableMemoryBytes: profile.availableMemoryBytes,
-    freeDiskBytes,
-    ramTier: profile.ramTier,
-    modelMinRamTier: model.minRamTier,
-    modelNonEvictableMiB: estimateModelNonEvictableMiB({
-      sizeBytes: bundleBytes,
-      engineCtx: model.engineCtx,
-      kvBytesPerToken: model.kvBytesPerToken,
-    }),
-    // Always margined so confirm/start/Settings share one disk requirement.
-    modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
-  });
+  }).nCtx;
+
+  // One responsibility: what the gate should charge this model for RAM. Measured
+  // streamed footprint when expert streaming is loaded, else the repack estimate
+  // (unchanged by this change). `repack` stays the bench norepack knob. Settings
+  // also calls gateNonEvictableMiB, but passes checkVolatileMemory:false today,
+  // so modelNonEvictableMiB is unused there. The shared helper guarantees they
+  // will agree on the RAM axis IF Settings ever consults it (as
+  // diskRequirementBytes already keeps them from drifting on disk).
+  return modelGateVerdict(
+    {
+      totalMemoryBytes: profile.totalMemoryBytes,
+      availableMemoryBytes: profile.availableMemoryBytes,
+      freeDiskBytes,
+      ramTier: profile.ramTier,
+      modelMinRamTier: model.minRamTier,
+      modelNonEvictableMiB: gateNonEvictableMiB({
+        model,
+        contextTokens: resolvedContextTokens,
+        availableMemoryBytes: profile.availableMemoryBytes,
+        benchNoRepack,
+      }),
+      modelWeightsBytesPerToken: model.weightsBytesPerToken,
+      deviceBandwidthBytesPerSecond: deviceBandwidthForModel(deviceBandwidth, model),
+      // Always margined so confirm/start/Settings share one disk requirement.
+      modelSizeBytes: diskRequirementBytes(modelBundleSizeBytes(model)),
+    },
+    { checkVolatileMemory },
+  );
 }
 
 /** Localized hard-gate reason for Alert / error banner. */
@@ -414,8 +480,6 @@ function gateReasonMessage(
 
 // ── ConversationCompactor (per-chat, module-level — survives remounts) ─────
 const compactorStateByChat = new Map<string, CompactorState>();
-/** Pending LLM summary (promoted into frozen rollingSummary on next boundary rebuild). */
-const pendingSummaryByChat = new Map<string, string>();
 /** Last known history length per chat — clearChat detection (shrink). */
 const lastHistoryLenByChat = new Map<string, number>();
 /** Force next-turn boundary rebuild after context_full (compaction ON). */
@@ -435,15 +499,6 @@ const digestIndexCorpusLenByChat = new Map<string, number>();
  * Unbounded corpus → linear rebuild cost (~1.3s at 5000 turns desktop).
  */
 const MAX_DIGEST_CORPUS_MESSAGES = 400;
-/** Soft message cap before buildSummaryTranscript's existing char budget. */
-const MAX_SUMMARY_CORPUS_MESSAGES = 200;
-/**
- * MULTI-CHAT: summaryAbortController / summaryDebounceTimer are still GLOBAL
- * singletons (other compactor state is per-chat Maps keyed by conversation id).
- * One active chat at a time — abortBackgroundSummary on switch / new / delete
- * so a pending summary cannot write into the next conversation.
- */
-let summaryAbortController: AbortController | null = null;
 /**
  * Monotonic per-send turn id for the web_fetch allowlist (F5).
  * Keying on message text alone re-used the allowlist when the user re-sent the
@@ -454,9 +509,6 @@ let fetchAllowlistTurnSeq = 0;
 let privateSearchLatchSeq = -1;
 /** Turn seq that ran calendar_agenda — skip extractMemory for that turn. */
 let calendarExtractSkipSeq = -1;
-/** Debounce timer: schedule summary only after idle (8s post-turn). */
-let summaryDebounceTimer: ReturnType<typeof setTimeout> | null = null;
-const SUMMARY_IDLE_DEBOUNCE_MS = 8_000;
 
 /**
  * Exclude error bubbles, kill-recovered partials, and abort-orphaned user turns
@@ -487,21 +539,6 @@ function filterCorpusHygiene(
   return out;
 }
 
-function abortBackgroundSummary(): void {
-  if (summaryDebounceTimer) {
-    clearTimeout(summaryDebounceTimer);
-    summaryDebounceTimer = null;
-  }
-  if (summaryAbortController) {
-    try {
-      summaryAbortController.abort();
-    } catch {
-      // ignore
-    }
-    summaryAbortController = null;
-  }
-}
-
 function resetDigestIndex(chatId: string): void {
   const id = chatId || DEFAULT_CHAT_ID;
   digestIndexByChat.delete(id);
@@ -512,8 +549,8 @@ function resetDigestIndex(chatId: string): void {
 /**
  * Keep the warm RetrieverIndex in sync with the older corpus under `boundary`.
  * - Same boundary as last sync → reuse index (query-time path).
- * - Boundary advanced and under cap → append newly older messages.
- * - Boundary shrunk / over cap / missing → full rebuild from last N older.
+ * - Boundary advanced (under or over cap) → append delta; dropOldestUnits when over cap.
+ * - Boundary shrunk / missing / corpus-identity drift at same boundary → full rebuild.
  */
 function syncDigestIndex(
   chatId: string,
@@ -533,13 +570,16 @@ function syncDigestIndex(
   const covered = digestIndexCoveredByChat.get(id) ?? -1;
   const corpusLen = digestIndexCorpusLenByChat.get(id) ?? 0;
 
+  // Full rebuild only for genuine non-forward cases. A monotonically advancing
+  // boundary past the cap is handled by append + dropOldestUnits below.
   const needsFullRebuild =
     !idx ||
     covered < 0 ||
     b < covered ||
-    // Cap sliding window dropped older units — ordinals/DF would be wrong if we only append.
-    (olderClean.length > MAX_DIGEST_CORPUS_MESSAGES &&
-      (b !== covered || corpus.length !== corpusLen));
+    // Same boundary but corpus length drifted (hygiene identity change).
+    (b === covered &&
+      olderClean.length > MAX_DIGEST_CORPUS_MESSAGES &&
+      corpus.length !== corpusLen);
 
   if (needsFullRebuild) {
     idx = new RetrieverIndex();
@@ -557,20 +597,14 @@ function syncDigestIndex(
   if (b > covered) {
     const delta = filterCorpusHygiene(history.slice(covered, b));
     if (delta.length > 0) {
-      if (corpusLen + delta.length > MAX_DIGEST_CORPUS_MESSAGES) {
-        // Append would exceed cap → rebuild from last N of full older corpus.
-        idx = new RetrieverIndex();
-        if (corpus.length > 0) {
-          const startIdx = Math.max(0, b - corpus.length);
-          idx.append(toRetrievalUnits(corpus, startIdx));
-        }
-        digestIndexByChat.set(id, idx);
-        digestIndexCoveredByChat.set(id, b);
-        digestIndexCorpusLenByChat.set(id, corpus.length);
-        return idx;
-      }
       idx!.append(toRetrievalUnits(delta, covered));
-      digestIndexCorpusLenByChat.set(id, corpusLen + delta.length);
+      let newLen = corpusLen + delta.length;
+      if (newLen > MAX_DIGEST_CORPUS_MESSAGES) {
+        // Sliding window: drop oldest units so the index stays at the cap.
+        idx!.dropOldestUnits(newLen - MAX_DIGEST_CORPUS_MESSAGES);
+        newLen = MAX_DIGEST_CORPUS_MESSAGES;
+      }
+      digestIndexCorpusLenByChat.set(id, newLen);
     }
     digestIndexCoveredByChat.set(id, b);
   }
@@ -581,7 +615,6 @@ function syncDigestIndex(
 async function resetCompactorChat(chatId: string): Promise<void> {
   const id = chatId || DEFAULT_CHAT_ID;
   compactorStateByChat.delete(id);
-  pendingSummaryByChat.delete(id);
   lastHistoryLenByChat.delete(id);
   forceRebuildByChat.delete(id);
   resetDigestIndex(id);
@@ -611,9 +644,17 @@ function validateHistoryMessages(history: unknown[] | undefined): HistoryRoleMes
         (m as { interrupted?: unknown }).interrupted === true ? true : undefined;
       const edited =
         (m as { edited?: unknown }).edited === true ? true : undefined;
+      const rawEmitted = (m as { modelEmittedText?: unknown }).modelEmittedText;
+      const modelEmittedText =
+        role === "assistant" &&
+        typeof rawEmitted === "string" &&
+        rawEmitted.trim().length > 0
+          ? rawEmitted.trim()
+          : undefined;
       const rec: HistoryRoleMessage & { edited?: boolean } = { role, text };
       if (interrupted !== undefined) rec.interrupted = interrupted;
       if (edited !== undefined) rec.edited = edited;
+      if (modelEmittedText !== undefined) rec.modelEmittedText = modelEmittedText;
       out.push(rec);
     }
   }
@@ -777,7 +818,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // ── User memory refs (declared early so agentOptions can read via getter) ──
   // State/sync for memoryFacts lives below; only injected facts count when enabled.
-  const memoryFactsRef = useRef<string[]>([]);
+  const memoryFactsRef = useRef<MemoryStore.MemoryFact[]>([]);
   /** Mirror of MemoryStore.getEnabled — never inject facts when false. */
   const memoryEnabledRef = useRef(false);
   /**
@@ -786,6 +827,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * user disables memory mid-turn (live enabled/facts refs would go empty).
    */
   const injectedFactsRef = useRef<string[]>([]);
+  /** Opt-in CisWire tool-help flag (kalsa.ciswire.toolhelp) — default OFF. */
+  const toolhelpRef = useRef(false);
 
   // ── Document library (local PDF/TXT chat) ────────────────────────────────
   // Owned here so the tool executor + DocumentsScreen share one snapshot.
@@ -1795,9 +1838,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // document_chat sits alongside web tools and reuses requestPdfText (no new host).
   // agentOptions is rebuilt when webToolsEnabled flips so the tool list matches.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
-    const searchExec = makeWebSearchExecutor(locale, {
-      getMemoryFacts: () => injectedFactsRef.current,
-    });
+    const searchExec = makeWebSearchExecutor(locale);
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
     const pdfCacheFs = makePdfCacheFs({
@@ -1913,27 +1954,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             ),
           };
         }
-
-        if (name === "web_search") {
-          if (privateSearchLatchSeq === fetchAllowlistTurnSeq) {
-            return { text: getStrings(locale).errors.searchSkippedPrivate };
-          }
-          const outcome = await searchExec(name, args, signal, rawUserText);
-          const sources = outcome.sources as Array<{ url?: string }> | undefined;
-          if (sources?.length) {
-            for (const source of sources) {
-              if (typeof source?.url === "string" && source.url) {
-                allowlist.add(source.url);
-              }
-            }
-          }
-          return outcome;
-        }
-
-        if (name === "web_fetch") {
-          return fetchExec(name, args, signal);
-        }
-
         if (
           !deviceToolsEnabledRef.current &&
           (name === "device_info" || name === "device_calc")
@@ -1947,48 +1967,68 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             text: getStrings(locale).errors.unknownTool.replace("{name}", name),
           };
         }
+        if (name === "web_search" && privateSearchLatchSeq === fetchAllowlistTurnSeq) {
+          return { text: getStrings(locale).errors.searchSkippedPrivate };
+        }
 
-        if (name === "device_info") {
+        // kalsa.bench.toolgate=0 skips the gate (CI A/B). Absent key → on.
+        const gate = (await getToolGateEnabled())
+          ? await runToolGate({
+              toolName: name,
+              args,
+              lastUserMessage: rawUserText,
+              memoryFacts: injectedFactsRef.current,
+              toolhelpOn: toolhelpRef.current,
+              locale,
+            })
+          : { blocked: false };
+        if (gate.blocked) return { text: gate.text ?? "" };
+
+        let outcome: EngineToolResult;
+        if (name === "web_search") {
+          outcome = await searchExec(name, args, signal, rawUserText);
+          const sources = outcome.sources as Array<{ url?: string }> | undefined;
+          if (sources?.length) {
+            for (const source of sources) {
+              if (typeof source?.url === "string" && source.url) {
+                allowlist.add(source.url);
+              }
+            }
+          }
+        } else if (name === "web_fetch") {
+          outcome = await fetchExec(name, args, signal);
+        } else if (name === "device_info") {
           privateSearchLatchSeq = fetchAllowlistTurnSeq;
           try {
             const info = await readDeviceInfo(locale);
-            return formatDeviceInfoResult(info);
+            outcome = formatDeviceInfoResult(info);
           } catch {
-            return { text: getStrings(locale).errors.deviceUnavailable };
+            outcome = { text: getStrings(locale).errors.deviceUnavailable };
           }
-        }
-
-        if (name === "device_calc") {
+        } else if (name === "device_calc") {
           const strings = getStrings(locale).errors;
-          return runDeviceCalc(args, strings.deviceCalcInvalid, strings.deviceCalcDivZero);
-        }
-
-        if (name === "calendar_agenda") {
+          outcome = runDeviceCalc(args, strings.deviceCalcInvalid, strings.deviceCalcDivZero);
+        } else if (name === "calendar_agenda") {
           privateSearchLatchSeq = fetchAllowlistTurnSeq;
           calendarExtractSkipSeq = fetchAllowlistTurnSeq;
-          return runCalendarAgenda(args, {
+          outcome = await runCalendarAgenda(args, {
             denied: getStrings(locale).errors.calendarDenied,
             failed: getStrings(locale).errors.calendarFailed,
             unavailable: getStrings(locale).errors.calendarUnavailable,
           });
-        }
-
-        if (name === "document_chat") {
-          const outcome = await documentExec(name, args, signal);
-          // Vision fallback: do NOT hand the model an instruction to use an
-          // unwired path. Return a user-facing scanned-document message only.
-          if (outcome.strategy === "vision_fallback") {
+        } else if (name === "document_chat") {
+          const docOutcome = await documentExec(name, args, signal);
+          if (docOutcome.strategy === "vision_fallback") {
             const strings = getStrings(locale);
             const msg =
               strings.errors.documentChatVisionFallback
                 ?.replace("{name}", "")
                 ?.replace("{pages}", "") ||
-              outcome.text.replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "");
-            // Prefer the tool's already-localized text (has name/pages filled).
-            const cleaned = outcome.text
+              docOutcome.text.replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "");
+            const cleaned = docOutcome.text
               .replace(/\[\[DOCUMENT_VISION_FALLBACK\]\]\s*/g, "")
               .trim();
-            return {
+            outcome = {
               text:
                 cleaned ||
                 msg ||
@@ -1996,20 +2036,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               kind: "document_chat" as const,
               strategy: "vision_fallback" as const,
             };
+          } else {
+            outcome = {
+              text: docOutcome.text,
+              passages: docOutcome.passages,
+              strategy: docOutcome.strategy,
+              error: docOutcome.error,
+              kind: "document_chat" as const,
+            };
           }
-          return {
-            text: outcome.text,
-            passages: outcome.passages,
-            provenance: outcome.provenance,
-            strategy: outcome.strategy,
-            error: outcome.error,
-            kind: "document_chat" as const,
+        } else {
+          outcome = {
+            text: getStrings(locale).errors.unknownTool.replace("{name}", name),
           };
         }
-
-        return {
-          text: getStrings(locale).errors.unknownTool.replace("{name}", name),
-        };
+        return applyWarnToResult(outcome, gate.warnNote);
       },
     };
   }, [calendarToolsEnabled, deviceToolsEnabled, locale, webToolsEnabled]);
@@ -2040,12 +2081,33 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
       persistFlushRef.current?.();
-      abortBackgroundSummary();
-      const modelId = getActiveModelId();
-      if (modelId) void invalidateEngineSession(modelId);
-      applyConversations(setActive(conversationsRef.current, id));
-      bindActiveConversation(id);
       setDrawerOpen(false);
+      const modelId = getActiveModelId();
+      // UI first. Keep sessionConversationId on the chat we are leaving so
+      // saveEngineSession still writes that stem; bind after save.
+      applyConversations(setActive(conversationsRef.current, id));
+      void (async () => {
+        if (modelId && isEngineReady() && !sendingInFlightRef.current) {
+          try {
+            const msgs = await readBootMessages();
+            await saveEngineSession(
+              modelId,
+              computeHistoryHashFromMessages(msgs),
+              msgs.length,
+            );
+          } catch {
+            // previous good .kvs stays if save skips/fails
+          }
+        }
+        bindActiveConversation(id);
+        if (modelId) {
+          try {
+            await restoreEngineSession(modelId);
+          } catch {
+            // miss → cold prefill on next send
+          }
+        }
+      })();
     },
     [applyConversations, bindActiveConversation],
   );
@@ -2060,7 +2122,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return;
     }
     persistFlushRef.current?.();
-    abortBackgroundSummary();
     newChatInFlightRef.current = true;
     void (async () => {
       try {
@@ -2087,7 +2148,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         const meta = createEmptyConversationMeta();
         const modelId = getActiveModelId();
-        if (modelId) void invalidateEngineSession(modelId);
+        if (modelId && isEngineReady() && !sendingInFlightRef.current) {
+          try {
+            const msgs = await readBootMessages();
+            await saveEngineSession(
+              modelId,
+              computeHistoryHashFromMessages(msgs),
+              msgs.length,
+            );
+          } catch {
+            // previous good .kvs stays
+          }
+        }
         applyConversations(setActive(upsertMeta(conversationsRef.current, meta), meta.id));
         bindActiveConversation(meta.id);
         setDrawerOpen(false);
@@ -2115,12 +2187,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       } catch {
         // ignore illegal id
       }
+      void invalidateConversationSessions(id);
       if (deletingActive) {
-        abortBackgroundSummary();
         bumpPersistEpochRef.current?.();
-        const modelId = getActiveModelId();
-        if (modelId) void invalidateEngineSession(modelId);
         bindActiveConversation(next.activeId);
+        const modelId = getActiveModelId();
+        if (modelId) void restoreEngineSession(modelId);
       }
       setDrawerOpen(false);
     },
@@ -2326,9 +2398,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // ── User memory (local facts; injected on last-user tail when flag on) ──
   // Refs declared above agentOptions; keep state + sync here.
-  const [memoryFacts, setMemoryFacts] = useState<string[]>([]);
+  const [memoryFacts, setMemoryFacts] = useState<MemoryStore.MemoryFact[]>([]);
   memoryFactsRef.current = memoryFacts;
-  /** Mirror of kalsa.context.compaction — default ON (incl. leftover "0"). */
+  /** Mirror of kalsa.context.compaction — default anchored (boolean ON). */
+  const contextModeRef = useRef<ContextMode>("anchored");
+  /** Boolean view of the same key — default ON (COMPACTION_ENABLED_DEFAULT). */
   const compactionEnabledRef = useRef(COMPACTION_ENABLED_DEFAULT);
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
   const memoryExtractRef = useRef<Promise<void> | null>(null);
@@ -2342,8 +2416,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
       const facts = await MemoryStore.listFacts();
-      // Most recent 10 facts (list is chronological ascending).
-      setMemoryFacts(facts.map((fact) => fact.text).slice(-10));
+      setMemoryFacts(facts);
     } catch {
       // best-effort; never block UI, never log contents
     }
@@ -2367,20 +2440,59 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const [modelErrorDetail, setModelErrorDetail] = useState<string | null>(null);
   /** Discriminates download vs engine-init failures when modelState === "error". */
   const [modelErrorKind, setModelErrorKind] = useState<"download" | "engine" | null>(null);
+  const [deviceBandwidth, setDeviceBandwidth] = useState<DeviceBandwidthCalibration>({});
+  const deviceBandwidthRef = useRef<DeviceBandwidthCalibration>(deviceBandwidth);
+  deviceBandwidthRef.current = deviceBandwidth;
+  useEffect(() => {
+    let mounted = true;
+    void loadDeviceBandwidthCalibration().then((loaded) => {
+      if (!mounted) return;
+      const merged = mergeDeviceBandwidthCalibrations(
+        deviceBandwidthRef.current,
+        loaded,
+      );
+      deviceBandwidthRef.current = merged;
+      setDeviceBandwidth(merged);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  const recordDecodeSample = useCallback(
+    (model: ModelInfo, sample: DecodeMeasurement) => {
+      const next = recordDeviceBandwidthSample(
+        deviceBandwidthRef.current,
+        model,
+        sample,
+      );
+      if (next === deviceBandwidthRef.current) return;
+      deviceBandwidthRef.current = next;
+      setDeviceBandwidth(next);
+      void saveDeviceBandwidthCalibration(next);
+    },
+    [],
+  );
   const currentModel = MODEL_REGISTRY[modelIndex];
   // Pre-init estimate: catalog n_ctx (+ optional high-RAM hybrid upgrade).
   // After initEngine succeeds we overwrite both state and ref with the
   // reported effectiveNCtx (memory clamp may shrink). Document tool
   // (getCtxTokens → chatEngineCtxRef) and AiChatPage longChat (engineCtx prop)
   // share that same resolved value — see comment on chatEngineCtxRef.
+  const [benchNCtxOverride, setBenchNCtxOverride] = useState<number | null>(null);
+  // Read bench nctx override on mount; applies to all three resolveContextProfile
+  // call sites so the engine reload key never disagrees mid-conversation.
+  useEffect(() => {
+    getBenchNCtx().then(setBenchNCtxOverride).catch(() => setBenchNCtxOverride(null));
+  }, []);
   const catalogEngineCtx = useMemo(
     () =>
       resolveContextProfile({
         hybrid: currentModel.hybrid,
         kvCache: currentModel.kvCache,
         catalogCtx: currentModel.engineCtx,
+        explicitNCtx: benchNCtxOverride ?? undefined,
       }).nCtx,
-    [currentModel],
+    [currentModel, benchNCtxOverride],
   );
   const [chatEngineCtx, setChatEngineCtx] = useState<number>(catalogEngineCtx);
   // Keep state in sync when the selected model changes (pre-init estimate).
@@ -2487,6 +2599,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // Abort-and-await lifecycle owned by AiChatPage: aborts send,
               // awaits stream finalization + turn-end save, returns real hash.
               let historyHashValue = historyHash("");
+              let historyMessageCount = 0;
               const lifecycle = backgroundDiscardLifecycleRef.current;
               if (lifecycle) {
                 try {
@@ -2496,6 +2609,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     typeof result.historyHashValue === "string"
                   ) {
                     historyHashValue = result.historyHashValue;
+                  }
+                  if (
+                    result &&
+                    typeof result.historyMessageCount === "number" &&
+                    Number.isInteger(result.historyMessageCount) &&
+                    result.historyMessageCount >= 0
+                  ) {
+                    historyMessageCount = result.historyMessageCount;
                   }
                 } catch {
                   // fall through with empty-history hash only if genuinely empty
@@ -2530,7 +2651,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // saveEngineSession itself gates on kvReproducible.
                 // Use the real historyHash from lifecycle (empty only if empty).
                 try {
-                  await saveEngineSession(modelId, historyHashValue);
+                  await saveEngineSession(
+                    modelId,
+                    historyHashValue,
+                    historyMessageCount,
+                  );
                 } catch {
                   // ignore
                 }
@@ -2594,6 +2719,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
+              // Gate on the load mode initEngine will really use: the model's
+              // policy with the bench lever folded in.
+              const load = resolveLoadPolicy({
+                policy: model.loadPolicy,
+                streamExperts: false,
+                benchNoRepack: await getBenchNoRepack(),
+              });
               const fit = evaluateModelFit(
                 {
                   sizeBytes: model.sizeBytes,
@@ -2604,6 +2736,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     : null,
                 },
                 available,
+                { repack: !load.noExtraBufts, mmap: load.useMmap },
               );
               console.info(
                 "model.fit",
@@ -2793,9 +2926,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       voiceDownloadAbortRef.current = null;
       embeddingDownloadAbortRef.current?.abort();
       embeddingDownloadAbortRef.current = null;
-      // Preempt background summary before dispose so FIFO does not hold a
-      // half-finished summarize across unmount.
-      abortBackgroundSummary();
       // FIX 1 / round 7: full chat disposal lifecycle through the native-op
       // barrier so a chat release cannot overlap an in-flight embed op.
       // Sequential: disposeEngine (wrapped) THEN releaseEmbedder (which itself
@@ -2948,7 +3078,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           totalMemoryBytes: totalMemKnown,
           chatModelIs2B: isChatModel2BClass(model.id),
         });
-        const gate = gateForModel(model, profile, free);
+        // Gate on the load mode initEngine will really use, not on a fixed one.
+        const gate = gateForModel(
+          model,
+          profile,
+          free,
+          true,
+          await getBenchNoRepack(),
+          deviceBandwidth,
+        );
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
         // Active-model exception: if getActiveModelId matches, never refuse
         // (already handled by the early ready return; keep explicit for safety).
@@ -3091,19 +3229,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
       // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
       // initEngine does not re-resolve — pass nCtx and cache types explicitly.
+      const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
         kvCache: model.kvCache,
         catalogCtx: model.engineCtx,
+        explicitNCtx: benchNCtx ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
       const engineOverride = await getEngineOverride();
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      // Same inputs the system prompt uses. Facts on the user tail must not
-      // enter this hash or a new fact cold-starts the entire KV prefix.
-      let sessionPromptEnvHash = computePromptEnvHash(locale, []);
+      // Tool names + blockFormat must match streamAssistantTurn (F6).
+      // Facts on the user tail must not enter this hash or a new fact
+      // cold-starts the entire KV prefix (MEMORY_FACTS_ON_USER_TAIL).
+      const blockFormat = await getBlockFormat();
+      const toolNames = (agentOptions.tools ?? []).map((t) => t.function.name);
+      let sessionPromptEnvHash = computePromptEnvHash(
+        locale,
+        [],
+        true,
+        toolNames,
+        blockFormat,
+      );
       if (!MEMORY_FACTS_ON_USER_TAIL) {
         try {
           const enabled = await MemoryStore.getEnabled();
@@ -3111,7 +3260,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const facts = await MemoryStore.listFacts();
             sessionPromptEnvHash = computePromptEnvHash(
               locale,
-              facts.map((f) => f.text).slice(-10),
+              memoryFactTextsForEnvHash(facts),
+              true,
+              toolNames,
+              blockFormat,
             );
           }
         } catch {
@@ -3220,7 +3372,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       setModelErrorDetail(rawErrorDetail(error));
       return false;
     }
-  }, [locale, t, bumpEmbedJobGeneration]);
+  }, [agentOptions.tools, deviceBandwidth, locale, t, bumpEmbedJobGeneration]);
   ensureEngineForModelRef.current = ensureEngineForModel;
 
   const selectModel = useCallback(
@@ -3236,11 +3388,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       if (nextIndex < 0 || nextIndex >= MODEL_REGISTRY.length) return;
       if (nextIndex === modelIndex) return;
 
-      // Single-file policy: drop the previous model's session artifacts on switch.
-      // A successful save also runs deleteOtherModelSessions — only one model's
-      // .kvs is kept at a time, so switch-back is always a cold start.
-      const prevId = MODEL_REGISTRY[modelIndex]?.id;
-      if (prevId) void invalidateEngineSession(prevId);
+      // Pool: keep the previous model's session on disk so switch-back can restore.
 
       // Sync transition: bump generation + show checking before dispose awaits.
       modelSwitchInFlightRef.current = true;
@@ -3259,10 +3407,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Persisti la selezione: riconoscimento al riavvio (come Atomic Chat).
       AsyncStorage.setItem(MODEL_STORAGE_KEY, MODEL_REGISTRY[nextIndex].id).catch(() => undefined);
 
-      // Preempt background summary BEFORE dispose — same rule as send: never
-      // leave a summarize job holding the engine across a model switch.
-      abortBackgroundSummary();
-
       // Extraction holds the engine: wait briefly so dispose does not race it.
       // Epoch checks discard any delayed writes after the engine is gone.
       void (async () => {
@@ -3278,6 +3422,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           memoryExtractRef.current = null;
         }
         try {
+          if (isEngineReady() && !sendingInFlightRef.current) {
+            const modelId = getActiveModelId();
+            if (modelId) {
+              try {
+                const msgs = await readBootMessages();
+                await saveEngineSession(
+                  modelId,
+                  computeHistoryHashFromMessages(msgs),
+                  msgs.length,
+                );
+              } catch {
+                // previous good .kvs stays
+              }
+            }
+          }
           // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
           // overlap an in-flight embed op (never-overlap invariant).
           await runNativeOp(() => disposeEngine());
@@ -3368,22 +3527,35 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       generation === engineGenerationRef.current &&
       MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
-    // Re-check free disk before downloadModelBundle (same margined requirement
-    // as gateForModel / Settings — diskRequirementBytes = size × 1.1).
+    // Re-check the stable download gate immediately before starting the
+    // transfer. Tier and disk are stable; volatile MemAvailable is checked
+    // by the full gate at load time, when the memory is actually used.
+    let downloadGate: ModelGateVerdict | undefined;
     try {
-      const free = await getFreeDiskBytes();
+      const [deviceProfile, free] = await Promise.all([
+        getCachedDeviceProfile(),
+        getFreeDiskBytes(),
+      ]);
       if (generation !== engineGenerationRef.current) {
         downloadInFlight.current = false;
         return;
       }
-      const need = diskRequirementBytes(modelBundleSizeBytes(model));
-      if (typeof free === "number" && free < need) {
-        Alert.alert(t("download.title"), t("models.blockedDisk"));
+      const gate = gateForModel(
+        model,
+        deviceProfile,
+        free,
+        false,
+        undefined, // disk-only gate: RAM axis unused (checkVolatileMemory false)
+        deviceBandwidth,
+      );
+      if (!gate.allowed) {
+        Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
         downloadInFlight.current = false;
         return;
       }
+      downloadGate = gate;
     } catch {
-      // Probe failure → proceed (existing path had no disk pre-check).
+      // Probe failure → proceed without a verdict, as the load path does.
     }
 
     if (generation !== engineGenerationRef.current) {
@@ -3428,6 +3600,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         },
         signal: controller.signal,
         locale,
+        gate: downloadGate,
       });
       if (!stillCurrent()) return;
       if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
@@ -3553,7 +3726,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;
           return;
         }
-        const gate = gateForModel(model, deviceProfile, free);
+        const gate = gateForModel(
+          model,
+          deviceProfile,
+          free,
+          true,
+          await getBenchNoRepack(),
+          deviceBandwidth,
+        );
         if (
           !gate.allowed &&
           (gate.reason === "blocked_ram" || gate.reason === "blocked_tier") &&
@@ -3573,17 +3753,27 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx + optional high-RAM upgrade.
+      const benchNCtx = await getBenchNCtx();
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
         kvCache: model.kvCache,
         catalogCtx: model.engineCtx,
+        explicitNCtx: benchNCtx ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
       const engineOverride = await getEngineOverride();
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
-      let sessionPromptEnvHash = computePromptEnvHash(locale, []);
+      const blockFormatDl = await getBlockFormat();
+      const toolNamesDl = (agentOptions.tools ?? []).map((t) => t.function.name);
+      let sessionPromptEnvHash = computePromptEnvHash(
+        locale,
+        [],
+        true,
+        toolNamesDl,
+        blockFormatDl,
+      );
       if (!MEMORY_FACTS_ON_USER_TAIL) {
         try {
           const enabled = await MemoryStore.getEnabled();
@@ -3591,7 +3781,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const facts = await MemoryStore.listFacts();
             sessionPromptEnvHash = computePromptEnvHash(
               locale,
-              facts.map((f) => f.text).slice(-10),
+              memoryFactTextsForEnvHash(facts),
+              true,
+              toolNamesDl,
+              blockFormatDl,
             );
           }
         } catch {
@@ -3712,8 +3905,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       await dismissDownloadProgressNotification();
     }
   }, [
+    agentOptions.tools,
     beginDownloadNotifications,
     bumpEmbedJobGeneration,
+    deviceBandwidth,
     dismissDownloadProgressNotification,
     locale,
     modelState,
@@ -3731,14 +3926,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Synchronous double-tap guard before any await (probes + Alert).
       if (downloadInFlight.current || confirmDownloadLockRef.current) return;
       confirmDownloadLockRef.current = true;
-      // Hard gate before the size Alert: refuse download of models that cannot fit.
+      // Stable download gate before the size Alert: tier and disk only.
       void (async () => {
         try {
           const [deviceProfile, free] = await Promise.all([
             getCachedDeviceProfile(),
             getFreeDiskBytes(),
           ]);
-          const gate = gateForModel(model, deviceProfile, free);
+          const gate = gateForModel(
+            model,
+            deviceProfile,
+            free,
+            false,
+            undefined, // disk-only gate: RAM axis unused (checkVolatileMemory false)
+            deviceBandwidth,
+          );
           if (!gate.allowed) {
             confirmDownloadLockRef.current = false;
             Alert.alert(t("download.title"), gateReasonMessage(gate.reason, t));
@@ -3770,7 +3972,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         );
       })();
     },
-    [startDownload, t],
+    [deviceBandwidth, startDownload, t],
   );
 
   const startVoiceDownload = useCallback(async () => {
@@ -4019,7 +4221,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           let turnFailed = false;
           let assistantFull = "";
           let extractScheduled = false;
-          let compactionFollowupScheduled = false;
+          // CisWire feature bits for this turn's telemetry lines. Assigned
+          // after the per-send toggle reads below; 0 → field omitted.
+          let turnCiswireFlags = 0;
 
           /**
            * Turn-end order (must preserve for KV save effectiveness):
@@ -4034,10 +4238,65 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
            * aborted/failed, sendRunId (AiChatPage).
            */
           let releaseSaveGate: (() => void) | undefined;
+          let extractGateSource = 0;
+          const emitSettledMemoryTelemetry = async (
+            snapshot?: ReturnType<typeof MemoryStore.snapshotMemoryTelemetry>,
+          ) => {
+            let extractTelemetry = snapshot;
+            if (!extractTelemetry) {
+              // The turn-end reset clears this state before the extract job runs.
+              // Re-read it here so the settled line is authoritative in both
+              // directions (memory on and memory off).
+              const settledMemoryEnabled = await MemoryStore.getEnabled();
+              MemoryStore.trackMemoryEnabled(settledMemoryEnabled);
+              const settledFacts = await MemoryStore.listFacts();
+              MemoryStore.trackMemoryStoreSize(settledFacts.length);
+              extractTelemetry = MemoryStore.snapshotMemoryTelemetry();
+            }
+            console.log(formatMemoryLine({
+              ...extractTelemetry,
+              // Injection belongs to the turn, not to extraction.
+              factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              dnaDeferred: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              dnaInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              dnaBudgetTokens: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+              ciswireFlags: turnCiswireFlags || undefined,
+            }, "KALSA_MEMORY_EXTRACT"));
+          };
+          const trackMemoryExtractJob = (extractJob: Promise<void>) => {
+            memoryExtractRef.current = extractJob;
+            void extractJob.finally(() => {
+              if (memoryExtractRef.current === extractJob) {
+                memoryExtractRef.current = null;
+              }
+            });
+          };
           const armMemoryExtract = () => {
             if (extractScheduled) return;
             extractScheduled = true;
-            if (signal.aborted || turnFailed || !assistantFull.trim()) return;
+            if (signal.aborted || turnFailed || !assistantFull.trim()) {
+              // Snapshot before any await: this turn never had an extract job,
+              // so a later turn's counters must not appear on its stop-reason line.
+              MemoryStore.trackMemoryEnabled(memoryEnabledRef.current);
+              MemoryStore.trackMemoryExtractStopReason(4);
+              const earlyTelemetry = {
+                ...MemoryStore.snapshotMemoryTelemetry(),
+                factsExtracted: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsStored: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsRejectedSensitive: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                dnaDeferred: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                dnaInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                dnaBudgetTokens: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                extractStopReason: 4,
+              };
+              trackMemoryExtractJob(emitSettledMemoryTelemetry(earlyTelemetry));
+              return;
+            }
             if (calendarExtractSkipSeq === fetchAllowlistTurnSeq) return;
 
             const capturedAssistant = assistantFull;
@@ -4049,6 +4308,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             });
             // clearChat/stop aborts the signal — release so we never hang the ref.
             const onAbortRelease = () => {
+              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
               releaseSaveGate?.();
             };
             signal.addEventListener("abort", onAbortRelease, { once: true });
@@ -4059,21 +4319,36 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // send. Worst case of firing early: the save skips with
             // kv_not_chat, which is the pre-feature behavior, never a hang.
             const gateTimeoutId = setTimeout(() => {
+              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 2;
               releaseSaveGate?.();
             }, 10_000);
 
             const extractJob = (async () => {
               try {
                 await saveGate;
-                if (signal.aborted || turnFailed) return;
-                if (!(await MemoryStore.getEnabled())) return;
-                if (MemoryStore.getEpoch() !== startEpoch) return;
+                if (signal.aborted || turnFailed) {
+                  MemoryStore.trackMemoryExtractStopReason(1);
+                  return;
+                }
+                if (!(await MemoryStore.getEnabled())) {
+                  MemoryStore.trackMemoryExtractStopReason(2);
+                  return;
+                }
+                if (MemoryStore.getEpoch() !== startEpoch) {
+                  MemoryStore.trackMemoryExtractStopReason(3);
+                  return;
+                }
 
-                const { add, remove } = await extractMemory(
+                MemoryStore.trackMemoryExtractStopReason(0);
+                const { add, remove, parseOutcome } = await extractMemory(
                   capturedUser,
                   capturedAssistant,
                   locale,
                 );
+
+                // Track parse outcome BEFORE the early return; outcome codes are
+                // documented with trackMemoryParseOutcome in MemoryStore.ts.
+                MemoryStore.trackMemoryParseOutcome(parseOutcome);
 
                 // Single batched apply: re-checks epoch + enabled under the store mutex
                 // so a clear/toggle-off during extract cannot be partially overwritten.
@@ -4090,8 +4365,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   await refreshMemoryFacts();
                 }
               } catch {
+                MemoryStore.trackMemoryParseOutcome(3);
                 // ignore — extraction must never surface to the user
               } finally {
+                // Record the gate source before taking the late-arriving snapshot.
+                MemoryStore.trackMemoryExtractGateSource(extractGateSource);
+                // Emit extract-complete telemetry even if the send signal aborted.
+                await emitSettledMemoryTelemetry();
+
                 clearTimeout(gateTimeoutId);
                 try {
                   signal.removeEventListener("abort", onAbortRelease);
@@ -4101,17 +4382,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               }
             })();
 
-            memoryExtractRef.current = extractJob;
-            void extractJob.finally(() => {
-              if (memoryExtractRef.current === extractJob) {
-                memoryExtractRef.current = null;
-              }
-            });
+            trackMemoryExtractJob(extractJob);
           };
           // AiChatPage: await saveEngineSession → afterSessionSave() (releases gate).
           afterSessionSave = () => {
             const release = releaseSaveGate;
             if (release) {
+              if (extractGateSource === 0) extractGateSource = 1;
               release();
               return;
             }
@@ -4119,14 +4396,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // arm now and release immediately so extract is not silently dropped.
             armMemoryExtract();
             const releaseAfterArm = releaseSaveGate;
-            if (releaseAfterArm) releaseAfterArm();
+            if (releaseAfterArm) {
+              if (extractGateSource === 0) extractGateSource = 1;
+              releaseAfterArm();
+            }
           };
 
           try {
-            // PREEMPT summary BEFORE any engine wait/enqueue so the FIFO never
-            // makes a user turn sit behind a background summarize job.
-            abortBackgroundSummary();
-
             // Wait out a pending memory extract so we never dual-complete on the engine.
             if (memoryExtractRef.current) {
               try {
@@ -4235,24 +4511,90 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               setMemoryFacts([]);
             }
             try {
-              const [raw, choice] = await Promise.all([
+              const [raw, choice, toolhelpRaw] = await Promise.all([
                 AsyncStorage.getItem(COMPACTION_ENABLED_KEY),
                 AsyncStorage.getItem(COMPACTION_CHOICE_KEY),
+                AsyncStorage.getItem(CISWIRE_TOOLHELP_KEY),
               ]);
+              contextModeRef.current = parseContextMode(raw);
               compactionEnabledRef.current = parseCompactionEnabled(
                 raw,
                 choice === "1",
               );
+              toolhelpRef.current = parseCiswireToolHelp(toolhelpRaw);
             } catch {
+              contextModeRef.current = "anchored";
               compactionEnabledRef.current = COMPACTION_ENABLED_DEFAULT;
+              toolhelpRef.current = false;
             }
 
-            const compactionOn = compactionEnabledRef.current;
+            const contextMode = contextModeRef.current;
+            // Telemetry bitmask only — no gating behavior here (S4 consumes it).
+            // bit0=compaction-ciswire, bit1=memory, bit2=toolhelp.
+            turnCiswireFlags =
+              (contextMode === "ciswire" ? CISWIRE_FLAG_COMPACTION : 0) |
+              (memoryEnabledRef.current ? CISWIRE_FLAG_MEMORY : 0) |
+              (toolhelpRef.current ? CISWIRE_FLAG_TOOLHELP : 0);
+            // Retrieval (digest + summary) is only ciswire. Anchored is a
+            // no-digest append-only window with its own pressure trigger.
+            const retrievalOn = contextMode === "ciswire";
+            const anchoredOn = contextMode === "anchored";
+            const legacyWindowMode =
+              contextMode === "off" || contextMode === "ciswire";
             let operativeContext: { digest?: string; summary?: string } | null = null;
-            let olderForSummary: HistoryRoleMessage[] = [];
             let boundaryForAssemble = 0;
-
-            if (compactionOn) {
+            // The verbatim window, resolved from the context the engine actually
+            // loaded (post-clamp) rather than from a constant — same treatment
+            // threads / ubatch / n_ctx already get. A bench override still wins,
+            // and expresses itself as a message cap with no char budget so the
+            // arms keep measuring exactly the count they ask for.
+            //
+            // Computed ONCE, as a start index, and handed to both consumers.
+            // They must not each derive it: assembly takes the window and the
+            // ciswire corpus takes everything outside it, so if the two ever
+            // disagreed a message would land in both or — worse — in neither.
+            // Passing one index makes them agree by construction.
+            const benchWindow = await getBenchLegacyWindow();
+            const windowProfile =
+              typeof benchWindow === "number"
+                ? {
+                    maxMessages: benchWindow,
+                    charBudget: Number.POSITIVE_INFINITY,
+                    source: `bench:${benchWindow}`,
+                  }
+                : resolveWindowProfile({
+                    nCtx: getActiveEngineNCtx(),
+                    hasImages,
+                    hasDigest: retrievalOn,
+                  });
+            // The turn being sent is appended to the prompt AFTER this walk, so
+            // it must be charged here or a long message would ride entirely
+            // outside the budget — exactly the overflow the budget exists to
+            // stop. Charged at the same per-message cap the history pays.
+            // Known under-count: the persona tail (up to
+            // PERSONA_INSTRUCTIONS_CAP) is added later still; it is bounded and
+            // small next to WINDOW_RESERVE_TOKENS, which is what covers it.
+            const perMessageCap = hasImages
+              ? LEGACY_MAX_CHARS_IMAGES
+              : LEGACY_MAX_CHARS;
+            const currentTurnChars = Math.min(text.length, perMessageCap);
+            const historyLengths = validatedHistory.map(
+              (m) => m.text?.length ?? 0,
+            );
+            const legacyWindowStart = legacyWindowMode
+              ? windowStartIndex(
+                  historyLengths,
+                  {
+                    ...windowProfile,
+                    charBudget: Math.max(
+                      0,
+                      windowProfile.charBudget - currentTurnChars,
+                    ),
+                  },
+                  perMessageCap,
+                )
+              : 0;
+            if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
               // Load per-chat compactor state (memory → AsyncStorage).
@@ -4261,19 +4603,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 try {
                   const raw = await AsyncStorage.getItem(compactorStorageKey(chatId));
                   state = parseCompactorState(raw, chatId);
-                  // Prefer dedicated summary key if present (may be newer pending).
-                  const sumRaw = await AsyncStorage.getItem(summaryStorageKey(chatId));
-                  if (typeof sumRaw === "string" && sumRaw.trim()) {
-                    state = {
-                      ...state,
-                      rollingSummary: truncateBudget(sumRaw.trim(), SUMMARY_BUDGET_CHARS),
-                    };
+                  if (!anchoredOn) {
+                    // Prefer the dedicated summary key when present (storage compatibility).
+                    const sumRaw = await AsyncStorage.getItem(summaryStorageKey(chatId));
+                    if (typeof sumRaw === "string" && sumRaw.trim()) {
+                      state = {
+                        ...state,
+                        rollingSummary: truncateBudget(sumRaw.trim(), SUMMARY_BUDGET_CHARS),
+                      };
+                    }
                   }
                   compactorStateByChat.set(chatId, state);
                 } catch {
                   state = emptyCompactorState(chatId);
                   compactorStateByChat.set(chatId, state);
                 }
+              }
+              if (anchoredOn) {
+                // Do not carry an operative block from another regime into
+                // the no-digest anchored prompt.
+                state = {
+                  ...state,
+                  frozenDigest: "",
+                  rollingSummary: "",
+                };
+                compactorStateByChat.set(chatId, state);
               }
 
               // Load-time guards: stale digest/summary after clearChat + app restart
@@ -4308,24 +4662,47 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 boundaryProbe,
               ).recent;
 
-              // Boundary + rolling summary: K-turn cadence (or early size / force).
-              // Verbatim window stays append-only between these rebuilds (KV prefix).
-              if (
-                shouldRebuild(state, userTurnCount, null, recentForBudget) ||
+              // Bench-only: shrink the verbatim-window budget so compaction
+              // fires often, the regime a phone actually runs in. Absent in
+              // production → null → WINDOW_CHAR_BUDGET. Read inline (not via
+              // React state) so there is no window where the trigger disagrees
+              // with itself.
+              const winBudget = await getBenchWindowBudget();
+              const compactorConfig =
+                winBudget == null ? null : { windowCharBudget: winBudget };
+
+              if (anchoredOn) {
+                const rebuild = shouldRebuildAnchored(state, {
+                  historyLengths,
+                  currentTurnLength: currentTurnChars,
+                  profile: windowProfile,
+                  maxCharsPerMessage: perMessageCap,
+                });
+                if (rebuild || forceRebuild) {
+                  state = advanceAnchoredBoundary(state, {
+                    chatId,
+                    userTurnCount,
+                    historyLengths,
+                    currentTurnLength: currentTurnChars,
+                    profile: windowProfile,
+                    maxCharsPerMessage: perMessageCap,
+                  });
+                }
+              } else if (
+                shouldRebuild(
+                  state,
+                  userTurnCount,
+                  compactorConfig,
+                  recentForBudget,
+                ) ||
                 forceRebuild
               ) {
-                const pending = pendingSummaryByChat.get(chatId);
                 state = advanceCompactionBoundary(state, {
                   chatId,
                   userTurnCount,
                   historyLength: validatedHistory.length,
                   hasImages,
-                  nextSummary:
-                    typeof pending === "string"
-                      ? pending
-                      : state.rollingSummary,
                 });
-                if (pending !== undefined) pendingSummaryByChat.delete(chatId);
               }
 
               boundaryForAssemble = resolveBoundaryIndex(
@@ -4333,67 +4710,100 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 validatedHistory.length,
               );
 
-              // Older corpus for summary scheduling + warm-index sync.
-              const olderClean = filterCorpusHygiene(
-                splitAtBoundary(validatedHistory, boundaryForAssemble).older,
-              );
-              olderForSummary =
-                olderClean.length > MAX_SUMMARY_CORPUS_MESSAGES
-                  ? olderClean.slice(-MAX_SUMMARY_CORPUS_MESSAGES)
-                  : olderClean;
+              if (anchoredOn) {
+                compactorStateByChat.set(chatId, state);
+                try {
+                  await AsyncStorage.setItem(
+                    compactorStorageKey(chatId),
+                    serializeCompactorState(state),
+                  );
+                } catch {
+                  // best-effort persistence
+                }
+              } else {
+                // Bench-only: ranking mode for the digest retriever.
+                // Absent in production → null → "bm25" (existing behavior).
+                const rankingOverride = await getBenchRanking();
 
-              // Warm index: append as boundary advances; query every turn.
-              const digestIndex = syncDigestIndex(
-                chatId,
-                validatedHistory,
-                boundaryForAssemble,
-              );
-              const olderForDigest =
-                olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
-                  ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
-                  : olderClean;
-              const oldUnits = toRetrievalUnits(olderForDigest);
+                // Corpus eligible for BM25 + rolling summary: everything
+                // outside ciswire's legacy sliding window.
+                const corpusBoundary = legacyWindowStart;
 
-              // Query-time BM25 digest — current user message is the retrieval query.
-              // (Digest rides on last user message via format B; freezing it saved
-              // zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
-              state = refreshQueryDigest(state, {
-                chatId,
-                index: digestIndex,
-                oldTurns: oldUnits,
-                currentQuery: text,
-              });
-              compactorStateByChat.set(chatId, state);
-
-              // Persist boundary/summary meta every turn (cheap JSON); digest is
-              // recomputed from warm index + query so staleness is not critical.
-              try {
-                await AsyncStorage.setItem(
-                  compactorStorageKey(chatId),
-                  serializeCompactorState(state),
+                // Older corpus for the warm-index sync.
+                const olderClean = filterCorpusHygiene(
+                  splitAtBoundary(validatedHistory, corpusBoundary).older,
                 );
-                await AsyncStorage.setItem(
-                  summaryStorageKey(chatId),
-                  state.rollingSummary,
-                );
-              } catch {
-                // best-effort persistence
-              }
 
-              if (state.frozenDigest || state.rollingSummary) {
-                operativeContext = {
-                  digest: state.frozenDigest || undefined,
-                  summary: state.rollingSummary || undefined,
-                };
+                // Warm index: append as boundary advances; query every turn.
+                const digestIndex = syncDigestIndex(
+                  chatId,
+                  validatedHistory,
+                  corpusBoundary,
+                );
+                const olderForDigest =
+                  olderClean.length > MAX_DIGEST_CORPUS_MESSAGES
+                    ? olderClean.slice(-MAX_DIGEST_CORPUS_MESSAGES)
+                    : olderClean;
+                const oldUnits = toRetrievalUnits(olderForDigest);
+
+                // Query-time BM25 digest — current user message is the retrieval query.
+                // (Digest rides on last user message via format B; freezing it saved
+                // zero prefill and cost recall — see RESEARCH_CONTEXT_LOSS.md.)
+                state = refreshQueryDigest(state, {
+                  chatId,
+                  index: digestIndex,
+                  oldTurns: oldUnits,
+                  currentQuery: text,
+                  onTelemetry: (t) =>
+                    console.log(
+                      formatDigestLine({
+                        ...t,
+                        ciswireFlags: turnCiswireFlags || undefined,
+                      }),
+                    ),
+                  ranking: rankingOverride ?? "bm25",
+                });
+                compactorStateByChat.set(chatId, state);
+
+                // Persist boundary/summary meta every turn (cheap JSON); digest is
+                // recomputed from warm index + query so staleness is not critical.
+                try {
+                  await AsyncStorage.setItem(
+                    compactorStorageKey(chatId),
+                    serializeCompactorState(state),
+                  );
+                  await AsyncStorage.setItem(
+                    summaryStorageKey(chatId),
+                    state.rollingSummary,
+                  );
+                } catch {
+                  // best-effort persistence
+                }
+
+                // Bench-only cadence: null → inject every turn (production). The
+                // block rides the last user message, so every injection costs the
+                // KV that user turn plus the reply generated after it; injecting
+                // every K turns pays that once per K instead (see §7.9).
+                const injectBlock = shouldInjectOperativeBlock(
+                  userTurnCount - 1,
+                  await getBenchDigestCadence(),
+                );
+                if (injectBlock && (state.frozenDigest || state.rollingSummary)) {
+                  operativeContext = {
+                    digest: state.frozenDigest || undefined,
+                    summary: state.rollingSummary || undefined,
+                  };
+                }
               }
             }
 
-            // History assembly: legacy sliding window (OFF) or boundary→end (ON,
-            // append-only growth between rebuilds — preserves KV prefix).
+            // History assembly: legacy sliding window (off/ciswire) or boundary→end
+            // (anchored — append-only growth between rebuilds, preserves KV prefix).
             const assembled = assembleEngineHistory(validatedHistory, {
-              compactionEnabled: compactionOn,
+              compactionEnabled: contextMode === "anchored",
               hasImages,
               boundaryIndex: boundaryForAssemble,
+              legacyWindowStart,
             });
             const persona = findPersona(
               personasStateRef.current,
@@ -4401,16 +4811,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               builtinCopyFromT(t),
             );
             // Persona on every history user so bake rematch keys equal
-            // applyPersonaTail(persist, persona) — the string that lands in
-            // the engine last-user slot. Matched tails then replace this
-            // with the full facts+persona prefix.
-            const engineMessages: EngineMessage[] = assembled.map((m) => ({
-              role: m.role,
-              content:
-                m.role === "user"
-                  ? applyPersonaTail(m.content, persona?.instructions)
-                  : m.content,
-            }));
+            // applyPersonaTail(persist, persona). Keep modelEmittedText so
+            // hybrid KV replay is byte-identical to the original completion.
+            const engineMessages: EngineMessage[] = assembled.map((m) => {
+              const msg: EngineMessage = {
+                role: m.role,
+                content:
+                  m.role === "user"
+                    ? applyPersonaTail(m.content, persona?.instructions)
+                    : m.content,
+              };
+              if (
+                m.role === "assistant" &&
+                typeof m.modelEmittedText === "string" &&
+                m.modelEmittedText.length > 0
+              ) {
+                msg.modelEmittedText = m.modelEmittedText;
+              }
+              return msg;
+            });
 
             // Immagini da allegare all'ultimo messaggio user (cap 5):
             // immagini dirette + pagine PDF renderizzate.
@@ -4442,78 +4861,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             engineMessages.push(userMessage);
 
             const promptFacts = memoryEnabledRef.current ? memoryFactsRef.current : [];
-            // Echo guard uses exactly the facts injected this turn (immune to
-            // mid-turn memory disable). Empty when memory off / no facts.
-            injectedFactsRef.current = promptFacts;
-
-            /**
-             * Schedule a preemptable background summary (debounced 8s idle) only
-             * when the NEXT user turn will rebuild anyway (turnsSinceRebuild ===
-             * K-1). Summary completion / clearCache destroys the KV prefix; by
-             * aligning with the pre-rebuild turn that destruction is absorbed by
-             * the rebuild turn's inevitable cold prefill (not a warm mid-cycle
-             * turn). Pending-summary promotion at rebuild time is unchanged.
-             */
-            const scheduleCompactionFollowup = () => {
-              if (compactionFollowupScheduled) return;
-              compactionFollowupScheduled = true;
-              if (!compactionOn || turnFailed || signal.aborted) return;
-              if (olderForSummary.length === 0) return;
-
-              // turnsSinceRebuild after this turn's state (post-rebuild → 0).
-              const st = compactorStateByChat.get(chatId);
-              const K = DEFAULT_COMPACTOR_CONFIG.rebuildEveryKUserTurns;
-              const turnsSinceRebuild =
-                st && typeof st.builtAtUserTurn === "number" && st.builtAtUserTurn >= 0
-                  ? countUserTurns(validatedHistory, true) - st.builtAtUserTurn
-                  : 0;
-              if (turnsSinceRebuild !== K - 1) return;
-
-              const transcript = buildSummaryTranscript(olderForSummary);
-              if (!transcript.trim()) return;
-
-              if (summaryDebounceTimer) clearTimeout(summaryDebounceTimer);
-              summaryDebounceTimer = setTimeout(() => {
-                summaryDebounceTimer = null;
-                // Still idle? streamInFlight means user already sent again.
-                if (streamInFlightRef.current) return;
-
-                const ac = new AbortController();
-                summaryAbortController = ac;
-                const capturedLocale = locale;
-                const capturedChatId = chatId;
-                void (async () => {
-                  try {
-                    const summary = await summarizeConversation(
-                      transcript,
-                      capturedLocale,
-                      ac.signal,
-                    );
-                    if (ac.signal.aborted || !summary.trim()) return;
-                    const trimmed = truncateBudget(
-                      summary.trim(),
-                      SUMMARY_BUDGET_CHARS,
-                    );
-                    // Store as pending — promoted into rollingSummary on next boundary rebuild.
-                    pendingSummaryByChat.set(capturedChatId, trimmed);
-                    try {
-                      await AsyncStorage.setItem(
-                        summaryStorageKey(capturedChatId),
-                        trimmed,
-                      );
-                    } catch {
-                      // best-effort
-                    }
-                  } catch {
-                    // keep previous rollingSummary
-                  } finally {
-                    if (summaryAbortController === ac) {
-                      summaryAbortController = null;
-                    }
-                  }
-                })();
-              }, SUMMARY_IDLE_DEBOUNCE_MS);
-            };
+            // Bound at send so echo-guard + telemetry see the same kept set
+            // LlamaService injects (pure; assembly site bounds again).
+            if (memoryEnabledRef.current) {
+              const dna = boundMemoryFacts(promptFacts);
+              MemoryStore.trackMemoryInjection(dna.health.injectedCount);
+              MemoryStore.trackMemoryDnaBound(
+                dna.health.deferredCount,
+                dna.health.injectedCount,
+                dna.health.budgetTokens,
+              );
+              injectedFactsRef.current = dna.keptTexts;
+            } else {
+              MemoryStore.trackMemoryInjection(0);
+              injectedFactsRef.current = [];
+            }
 
             await streamAssistantTurn(
               engineMessages,
@@ -4522,23 +4884,45 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   assistantFull = full;
                   callbacks.onDelta?.(delta, full);
                 },
+                onModelEmittedText: (text) => {
+                  callbacks.onModelEmittedText?.(text);
+                },
                 onStatus: (status) => callbacks.onStatus?.(status),
                 onSources: (sources) =>
                   callbacks.onSources?.(mapSearchSourcesToChat(sources as any, locale)),
                 onMiniapp: (miniapp) => callbacks.onMiniapp?.(miniapp),
                 onTool: (tool) => callbacks.onActions?.({ kind: "tool", tool }),
                 onDone: () => {
+                  // Emit turn telemetry before extraction is armed. Extraction
+                  // fields are explicitly not applicable here; the settled line
+                  // is the only source of truth for them.
+                  MemoryStore.trackMemoryEnabled(memoryEnabledRef.current);
+                  const turnTelemetry = MemoryStore.getAndResetMemoryTelemetry();
+                  const memTelemetry = {
+                    ...turnTelemetry,
+                    factsExtracted: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    factsStored: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    factsRejectedSensitive: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    extractStopReason: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
+                    ciswireFlags: turnCiswireFlags || undefined,
+                  };
+                  console.log(formatMemoryLine(memTelemetry));
                   // Arm extract (memoryExtractRef) before unlocking; gate opens
                   // only after AiChatPage's turn-end save settles.
                   armMemoryExtract();
-                  scheduleCompactionFollowup();
                   finish();
                 },
                 onError: (error) => {
                   turnFailed = true;
-                  // context_full + compaction ON → force rebuild next send.
+                  // context_full + an anchored window → force boundary rebuild
+                  // next send. ciswire keeps the legacy window; rebuild would
+                  // not shrink it.
                   if (
-                    compactionOn &&
+                    contextMode === "anchored" &&
                     error &&
                     typeof error === "object" &&
                     (error as { code?: string }).code === "context_full"
@@ -4562,19 +4946,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 operativeContext,
                 lastUserMessage: text,
                 lastUserBare: lastUserHistoryContent,
+                onDecodeSample: recordDecodeSample,
+                ciswireFlags: turnCiswireFlags || undefined,
               },
             );
             // Safety: if the stream returns without onDone/onError (e.g. abort path).
             // Arm extract (no-ops if aborted/empty); gate opens post-save.
             armMemoryExtract();
-            scheduleCompactionFollowup();
             finish();
           } catch (error) {
             fail(error instanceof Error ? error.message : String(error));
           }
         })();
       }),
-    [agentOptions, currentModel, ensureEngineForModel, locale, refreshMemoryFacts, t],
+    [
+      agentOptions,
+      currentModel,
+      ensureEngineForModel,
+      locale,
+      recordDecodeSample,
+      refreshMemoryFacts,
+      t,
+    ],
   );
 
   // ── Render barra modello ─────────────────────────────────────────────────
@@ -4934,6 +5327,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             modelErrorKind,
             streaming,
             downloadedById,
+            deviceBandwidth,
             onSelectModel: selectModelById,
             onDownloadModel: confirmDownload,
             onRetryLoad: () => {

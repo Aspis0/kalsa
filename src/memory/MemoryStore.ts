@@ -63,6 +63,120 @@ let migrationDirty = false;
 /** Serialize all store mutations (promise chain). */
 let mutationChain: Promise<void> = Promise.resolve();
 
+// ── Telemetry accumulator (per-turn counters) ────────────────────────────
+// Counts extraction/storage/rejection/injection events for bench telemetry.
+// Emitted as KALSA_MEMORY log line at turn boundaries.
+let telemetryAccum = {
+  memoryEnabled: 0,
+  factsExtracted: 0,
+  factsStored: 0,
+  factsRejectedSensitive: 0,
+  factsRejectedFull: 0,
+  factsInjected: 0,
+  totalFactsInStore: 0,
+  dnaDeferred: -1,
+  dnaInjected: -1,
+  dnaBudgetTokens: -1,
+  extractParseOutcome: 0,
+  extractGateSource: 0,
+  extractStopReason: 0,
+};
+
+/** Sentinel used on a telemetry line where a field is not knowable yet. */
+export const MEMORY_TELEMETRY_NOT_APPLICABLE = -1;
+
+/**
+ * Track whether memory is enabled (called from AppShell).
+ * @param enabled Whether memory is enabled
+ */
+export function trackMemoryEnabled(enabled: boolean): void {
+  telemetryAccum.memoryEnabled = enabled ? 1 : 0;
+}
+
+/**
+ * Track when facts are injected into the turn prompt (called from AppShell).
+ * @param count Number of facts injected after bounding
+ */
+export function trackMemoryInjection(count: number): void {
+  telemetryAccum.factsInjected = count;
+}
+
+/** Track DNA bounding health for this turn's injection (called from AppShell). */
+export function trackMemoryDnaBound(
+  deferredCount: number,
+  injectedCount: number,
+  budgetTokens: number,
+): void {
+  telemetryAccum.dnaDeferred = deferredCount;
+  telemetryAccum.dnaInjected = injectedCount;
+  telemetryAccum.dnaBudgetTokens = budgetTokens;
+}
+
+/** Track the settled number of facts in the store (called before extract telemetry). */
+export function trackMemoryStoreSize(count: number): void {
+  telemetryAccum.totalFactsInStore = count;
+}
+
+/**
+ * Memory extraction telemetry codes:
+ * - extractParseOutcome: 0=did not run/timeout, 1=parsed OK (including empty arrays),
+ *   2=parser rejected, 3=the extraction job threw before completion.
+ * - extractGateSource: 0=not released, 1=afterSessionSave, 2=safety timeout, 3=abort.
+ * - extractStopReason: 0=extraction attempted, 1=signal aborted or turn failed,
+ *   2=memory disabled, 3=store epoch changed, 4=never armed (empty reply or
+ *   aborted/failed before arming).
+ *
+ * KALSA_MEMORY (turn-end) emits MEMORY_TELEMETRY_NOT_APPLICABLE (-1) for all
+ * extraction fields because the extract job has not settled. KALSA_MEMORY_EXTRACT
+ * emits the actual codes. A zero on the turn-end line is never "not run" data.
+ */
+export function trackMemoryParseOutcome(outcome: number): void {
+  telemetryAccum.extractParseOutcome = outcome;
+}
+
+/** Track which path released the memory extraction save gate (called from AppShell). */
+export function trackMemoryExtractGateSource(source: number): void {
+  telemetryAccum.extractGateSource = source;
+}
+
+/** Track why extraction stopped before or after arming (called from AppShell). */
+export function trackMemoryExtractStopReason(reason: number): void {
+  telemetryAccum.extractStopReason = reason;
+}
+
+/**
+ * Get current telemetry snapshot WITHOUT resetting.
+ * Used by extract-complete telemetry to observe late-arriving counters.
+ */
+export function snapshotMemoryTelemetry(): typeof telemetryAccum {
+  return { ...telemetryAccum };
+}
+
+/**
+ * Get current telemetry snapshot and reset accumulator for next turn.
+ * Returns the counters accumulated since last call.
+ */
+export function getAndResetMemoryTelemetry(): typeof telemetryAccum {
+  const snapshot = { ...telemetryAccum };
+  // Reset for next turn
+  telemetryAccum = {
+    memoryEnabled: 0,
+    factsExtracted: 0,
+    factsStored: 0,
+    factsRejectedSensitive: 0,
+    factsRejectedFull: 0,
+    factsInjected: 0,
+    totalFactsInStore: 0,
+    dnaDeferred: -1,
+    dnaInjected: -1,
+    dnaBudgetTokens: -1,
+    extractParseOutcome: 0,
+    extractGateSource: 0,
+    extractStopReason: 0,
+  };
+  return snapshot;
+}
+
 function withMutex<T>(fn: () => Promise<T>): Promise<T> {
   const run = mutationChain.then(fn, fn);
   mutationChain = run.then(
@@ -462,6 +576,9 @@ export async function applyExtractResults(
   remove: string[],
   expectedEpoch: number,
 ): Promise<boolean> {
+  // Track extraction candidates (before filtering)
+  telemetryAccum.factsExtracted += add.length;
+  
   return withMutex(async () => {
     if (epoch !== expectedEpoch) return false;
     // Read enabled without nested mutex (we already hold it).
@@ -497,16 +614,27 @@ export async function applyExtractResults(
       if (!normalized) continue;
       // Check the FULL untruncated input — normalizeText() truncates to
       // MAX_TEXT_LEN, which could otherwise hide a sensitive keyword past the cutoff.
-      if (isSensitiveFact(rawAdd)) continue;
+      if (isSensitiveFact(rawAdd)) {
+        telemetryAccum.factsRejectedSensitive++;
+        continue;
+      }
       const key = normalizeKey(normalized);
       if (facts.some((fact) => normalizeKey(fact.text) === key)) continue;
+      if (facts.length >= MAX_FACTS) {
+        telemetryAccum.factsRejectedFull++;
+        continue;
+      }
       facts = facts.concat({
         id: makeId(),
         text: normalized,
         createdAt: Date.now(),
       });
+      telemetryAccum.factsStored++;
       changed = true;
     }
+
+    // Always report the true size, even if nothing changed
+    telemetryAccum.totalFactsInStore = facts.length;
 
     if (!changed) return false;
     // Final race check right before write.

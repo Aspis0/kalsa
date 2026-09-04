@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Prove that the app patch and the pinned engine reached the release binaries.
 #
-# The JSI marker is compiled into librnllama_jni*.so; the q23k marker is
-# compiled into the librnllama*.so engine libraries. Keep these checks
-# separate because the two libraries are intentionally linked separately.
+# Both markers live in the ENGINE libraries (librnllama*.so): the patch
+# marker "kalsa-native-patches" is appended by common_params_get_system_info
+# in common.cpp, which CMake compiles into librnllama.so, and "q23k" comes
+# from the pinned kalsallama kernels. RNLlamaJSI.cpp is the JNI wrapper
+# (always-from-source) and carries no marker — grepping librnllama_jni*.so
+# for either would fail on a correct build. The wrapper is still required
+# to exist, or the build did not produce a complete native set.
 #
 #   assert-native-patch.sh [patch-marker] [engine-marker]
 #
@@ -44,20 +48,17 @@ while IFS= read -r -d '' so; do
   base="${so##*/}"
   if [[ "$base" == librnllama_jni*.so ]]; then
     WRAPPER_COUNT=$((WRAPPER_COUNT + 1))
-    if "$STRING_TOOL" "$so" 2>/dev/null | grep -F "$PATCH_MARKER" >/dev/null; then
-      echo "[assert] $PATCH_MARKER present in $so"
-    else
-      echo "[assert] $PATCH_MARKER MISSING in $so"
-      FAILED=1
-    fi
+    echo "[assert] wrapper present: $so"
   elif [[ "$base" == librnllama*.so ]]; then
     ENGINE_COUNT=$((ENGINE_COUNT + 1))
-    if "$STRING_TOOL" "$so" 2>/dev/null | grep -F "$ENGINE_MARKER" >/dev/null; then
-      echo "[assert] $ENGINE_MARKER present in $so"
-    else
-      echo "[assert] $ENGINE_MARKER MISSING in $so"
-      FAILED=1
-    fi
+    for marker in "$PATCH_MARKER" "$ENGINE_MARKER"; do
+      if "$STRING_TOOL" "$so" 2>/dev/null | grep -F "$marker" >/dev/null; then
+        echo "[assert] $marker present in $so"
+      else
+        echo "[assert] $marker MISSING in $so"
+        FAILED=1
+      fi
+    done
   fi
 done < <(find android -type f -name 'librnllama*.so' -path '*release*' -print0 2>/dev/null | sort -z -u)
 

@@ -9,7 +9,7 @@
  *  (6) boundary rebuild cadence still every K user turns
  */
 import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -17,15 +17,26 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(__dirname, "..");
 
+// Dedicated, wiped-on-every-run outDir. The shared scripts/.build is NOT safe:
+// compactor.ts imports ../engine/digestTelemetry, so tsc's common root is src/
+// and the output lands in <outDir>/context/compactor.js — while an older build
+// (when the root was src/context) left a flat <outDir>/compactor.js that
+// resolveBuilt prefers. That shadow made this harness silently validate a stale
+// compiler output for a whole day. Wipe first, resolve second.
+const outDir = path.join(projectRoot, "scripts/.build/compactorHarness");
+
 function compile() {
+  rmSync(outDir, { recursive: true, force: true });
+  mkdirSync(outDir, { recursive: true });
   const r = spawnSync(
     "npx",
     [
       "tsc",
       "src/context/retriever.ts",
       "src/context/compactor.ts",
+      "src/context/windowProfile.ts",
       "--outDir",
-      "scripts/.build",
+      outDir,
       "--module",
       "nodenext",
       "--target",
@@ -45,9 +56,9 @@ function compile() {
 
 function resolveBuilt(name) {
   const candidates = [
-    path.join(projectRoot, `scripts/.build/${name}.js`),
-    path.join(projectRoot, `scripts/.build/context/${name}.js`),
-    path.join(projectRoot, `scripts/.build/src/context/${name}.js`),
+    path.join(outDir, `context/${name}.js`),
+    path.join(outDir, `src/context/${name}.js`),
+    path.join(outDir, `${name}.js`),
   ];
   for (const c of candidates) {
     if (existsSync(c)) return c;
@@ -103,6 +114,8 @@ async function main() {
   const compactorPath = resolveBuilt("compactor");
   console.log("Loading", compactorPath);
   const mod = await import(pathToFileURL(compactorPath).href);
+  const wmod = await import(pathToFileURL(resolveBuilt("windowProfile")).href);
+  const { resolveWindowProfile, windowStartIndex, WINDOW_MAX_MESSAGES } = wmod;
 
   const {
     DEFAULT_COMPACTOR_CONFIG,
@@ -114,7 +127,6 @@ async function main() {
     emptyCompactorState,
     advanceCompactionBoundary,
     refreshQueryDigest,
-    rebuildFrozenDigest,
     serializeCompactorState,
     parseCompactorState,
     truncateBudget,
@@ -122,6 +134,7 @@ async function main() {
     resolveBoundaryIndex,
     replaceLiteral,
     estimateWindowChars,
+    parseBenchWindowBudget,
     WINDOW_CHAR_BUDGET,
     LEGACY_MAX_HISTORY,
     LEGACY_MAX_HISTORY_IMAGES,
@@ -192,8 +205,6 @@ async function main() {
         userTurnCount,
         historyLength: history.length,
         hasImages,
-        // Promote a deterministic "pending" summary only on boundary rebuild.
-        nextSummary: `summary-at-user-turn-${userTurnCount}`,
       });
       // Sync warm index: full rebuild on boundary advance (corpus still small here).
       const b = resolveBoundaryIndex(state, history.length);
@@ -326,11 +337,11 @@ async function main() {
   }
   record("(2b) boundary rebuild resets verbatim window to R", rebuildWindowOk);
 
-  // (3) Rolling summary frozen for K turns (only changes on boundary rebuild)
+  // (3) Persisted rolling summary remains stable; this harness does not invoke
+  // an LLM summary producer.
   let summaryFrozenOk = true;
   for (let i = 1; i < digests.length; i++) {
     if (rebuiltFlags[i]) {
-      // On rebuild we inject nextSummary — must change (after first non-empty).
       continue;
     }
     if (digests[i].summary !== digests[i - 1].summary) {
@@ -342,19 +353,11 @@ async function main() {
       break;
     }
   }
-  // And summary must actually update on at least one boundary rebuild after the first.
-  let summaryAdvancedOnRebuild = false;
-  for (let i = 1; i < digests.length; i++) {
-    if (!rebuiltFlags[i]) continue;
-    if (digests[i].summary !== digests[i - 1].summary) {
-      summaryAdvancedOnRebuild = true;
-      break;
-    }
-  }
+  const summaryRemainsEmpty = digests.every((entry) => entry.summary === "");
   record(
-    "(3) rolling summary frozen between boundary rebuilds (K-cadence)",
-    summaryFrozenOk && summaryAdvancedOnRebuild,
-    `frozenOk=${summaryFrozenOk}, advancedOnRebuild=${summaryAdvancedOnRebuild}`,
+    "(3) persisted rolling summary remains stable",
+    summaryFrozenOk && summaryRemainsEmpty,
+    `frozenOk=${summaryFrozenOk}, remainsEmpty=${summaryRemainsEmpty}`,
   );
 
   // (3b) Boundary rebuild cadence every K
@@ -393,6 +396,145 @@ async function main() {
   const detOk = detA === detB && detA === detC;
   record("(4b) determinism", detOk, `len=${detA.length}`);
 
+  // (4c) Digest telemetry: exactly one emission per call, and corpusSize is the
+  // scanned corpus — NOT snippets.length, which is capped at top-N (4) and would
+  // make the cost look flat no matter how large the conversation grows.
+  const emitted = [];
+  buildDigest(idx, units, "come si chiama il gatto?", null, (t) =>
+    emitted.push(t),
+  );
+  record(
+    "(4c) telemetry emitted exactly once per buildDigest",
+    emitted.length === 1,
+    `got ${emitted.length}`,
+  );
+  record(
+    "(4c) corpusSize is the scanned corpus, not the top-N slice",
+    emitted[0]?.corpusSize === idx.documentCount && idx.documentCount > 4,
+    `corpusSize=${emitted[0]?.corpusSize} documentCount=${idx.documentCount}`,
+  );
+  record(
+    "(4c) selectedCount is capped by top-N",
+    emitted[0]?.selectedCount > 0 && emitted[0]?.selectedCount <= 4,
+    `selectedCount=${emitted[0]?.selectedCount}`,
+  );
+  record(
+    "(4c) durationMs is a finite non-negative number",
+    Number.isFinite(emitted[0]?.durationMs) && emitted[0]?.durationMs >= 0,
+    `durationMs=${emitted[0]?.durationMs}`,
+  );
+
+  // (4d) Bench-only windowCharBudget override — the knob that actually decides
+  // how often the compactor runs. n_ctx does NOT: shouldRebuild never reads it.
+  record(
+    "(4d) parseBenchWindowBudget rejects absent / malformed / sub-floor",
+    parseBenchWindowBudget(null) === null &&
+      parseBenchWindowBudget("") === null &&
+      parseBenchWindowBudget("   ") === null &&
+      parseBenchWindowBudget("abc") === null &&
+      parseBenchWindowBudget("1200.5") === null &&
+      parseBenchWindowBudget("0") === null &&
+      parseBenchWindowBudget("499") === null,
+  );
+  record(
+    "(4d) parseBenchWindowBudget accepts the floor and above",
+    parseBenchWindowBudget("500") === 500 &&
+      parseBenchWindowBudget(" 2000 ") === 2000,
+  );
+
+  // (4e) Bench-only legacy-window override — the knob that decides what falls
+  // out of context on BOTH arms of the primary comparison (ciswire vs off).
+  const parseBenchLegacyWindow = mod.parseBenchLegacyWindow;
+  const BENCH_LEGACY_WINDOW_FLOOR = mod.BENCH_LEGACY_WINDOW_FLOOR;
+  const legacyWindowStartIndex = mod.legacyWindowStartIndex;
+  
+  if (typeof parseBenchLegacyWindow !== "function") {
+    console.error("parseBenchLegacyWindow not exported");
+    process.exit(1);
+  }
+  if (typeof legacyWindowStartIndex !== "function") {
+    console.error("legacyWindowStartIndex not exported");
+    process.exit(1);
+  }
+  if (typeof BENCH_LEGACY_WINDOW_FLOOR !== "number") {
+    console.error("BENCH_LEGACY_WINDOW_FLOOR not exported");
+    process.exit(1);
+  }
+
+  record(
+    "(4e) parseBenchLegacyWindow rejects absent / malformed / sub-floor",
+    parseBenchLegacyWindow(null) === null &&
+      parseBenchLegacyWindow("") === null &&
+      parseBenchLegacyWindow("   ") === null &&
+      parseBenchLegacyWindow("abc") === null &&
+      parseBenchLegacyWindow("3.5") === null &&
+      parseBenchLegacyWindow("0") === null &&
+      parseBenchLegacyWindow("3") === null,
+  );
+  record(
+    "(4e) parseBenchLegacyWindow accepts the floor and above",
+    parseBenchLegacyWindow("4") === 4 &&
+      parseBenchLegacyWindow("10") === 10 &&
+      parseBenchLegacyWindow(" 12 ") === 12,
+  );
+
+  // legacyWindowStartIndex: override absent → identical to production constants.
+  // This is the safety net: the override must be invisible in production.
+  const prodNoImg = legacyWindowStartIndex(30, false);
+  const prodImg = legacyWindowStartIndex(30, true);
+  record(
+    "(4e) legacyWindowStartIndex override absent → production constants",
+    prodNoImg === Math.max(0, 30 - LEGACY_MAX_HISTORY) &&
+      prodImg === Math.max(0, 30 - LEGACY_MAX_HISTORY_IMAGES),
+    `noImg=${prodNoImg} (expect ${30 - LEGACY_MAX_HISTORY}), img=${prodImg} (expect ${30 - LEGACY_MAX_HISTORY_IMAGES})`,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override null → production constants",
+    legacyWindowStartIndex(30, false, null) === prodNoImg &&
+      legacyWindowStartIndex(30, true, null) === prodImg,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override below floor → production constants",
+    legacyWindowStartIndex(30, false, 3) === prodNoImg &&
+      legacyWindowStartIndex(30, true, 0) === prodImg,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override present → uses override",
+    legacyWindowStartIndex(30, false, 10) === 20 &&
+      legacyWindowStartIndex(30, true, 10) === 20 &&
+      legacyWindowStartIndex(30, false, 4) === 26,
+  );
+  record(
+    "(4e) legacyWindowStartIndex override at floor",
+    legacyWindowStartIndex(30, false, BENCH_LEGACY_WINDOW_FLOOR) ===
+      Math.max(0, 30 - BENCH_LEGACY_WINDOW_FLOOR),
+  );
+  // The override must change the size trigger: a window that is under the
+  // default budget but over the override has to force a rebuild.
+  const budgetProbe = [{ text: "x".repeat(3000) }];
+  const settled = { ...emptyCompactorState("default"), builtAtUserTurn: 1 };
+  record(
+    "(4d) window under default budget does NOT rebuild",
+    shouldRebuild(settled, 2, null, budgetProbe) === false,
+    `chars=${estimateWindowChars(budgetProbe)} default=${WINDOW_CHAR_BUDGET}`,
+  );
+  record(
+    "(4d) same window OVER the override DOES rebuild",
+    shouldRebuild(settled, 2, { windowCharBudget: 1000 }, budgetProbe) === true,
+  );
+
+  // Empty query short-circuits before any ranking: still exactly one emission,
+  // so nSamples in the aggregate can never be inflated by a skipped build.
+  const emptyEmitted = [];
+  buildDigest(idx, units, "   ", null, (t) => emptyEmitted.push(t));
+  record(
+    "(4c) empty query still emits exactly once, zeroed",
+    emptyEmitted.length === 1 &&
+      emptyEmitted[0].corpusSize === 0 &&
+      emptyEmitted[0].selectedCount === 0,
+    JSON.stringify(emptyEmitted),
+  );
+
   // (5) Toggle OFF → legacy sliding-window shape (byte-identical)
   const legacy = assembleEngineHistory(convo, {
     compactionEnabled: false,
@@ -418,6 +560,75 @@ async function main() {
     "(5) toggle OFF byte-identical to legacy sliding window (20×4000, 8×2000 w/ images)",
     offOk && offImgOk,
     `noImg=${legacy.length}/${offOk}, img=${legacyImg.length}/${offImgOk}`,
+  );
+
+  // (5b) The DERIVED window, and the invariant that made it worth deriving in
+  // one place: assembly takes the window, the ciswire corpus takes everything
+  // outside it. If the two ever disagree a message lands in both or — the bad
+  // one — in neither. Check (5) above only exercises the count-only fallback,
+  // which AppShell no longer uses, so without this the shipped path had no
+  // harness coverage at all.
+  const derivedProfile = resolveWindowProfile({
+    nCtx: 8192,
+    hasImages: false,
+    hasDigest: false,
+  });
+  const derivedStart = windowStartIndex(
+    convo.map((m) => m.text.length),
+    derivedProfile,
+    LEGACY_MAX_CHARS,
+  );
+  const derivedWindow = assembleEngineHistory(convo, {
+    compactionEnabled: false,
+    hasImages: false,
+    legacyWindowStart: derivedStart,
+  });
+  const derivedCorpus = splitAtBoundary(convo, derivedStart).older;
+  // Exact partition: no gap, no overlap, nothing invented.
+  const partitionOk =
+    derivedCorpus.length + derivedWindow.length === convo.length;
+  const usedChars = convo
+    .slice(derivedStart)
+    .reduce((a, m) => a + Math.min(m.text.length, LEGACY_MAX_CHARS), 0);
+  record(
+    "(5b) derived window partitions history exactly at n_ctx 8192",
+    partitionOk && usedChars <= derivedProfile.charBudget,
+    `start=${derivedStart} window=${derivedWindow.length} corpus=${derivedCorpus.length} ` +
+      `chars=${usedChars}/${derivedProfile.charBudget} src=${derivedProfile.source}`,
+  );
+
+  // (5c) …and the budget must be capable of binding, not merely present.
+  // It cannot bind at 8192 on THIS fixture: these messages are ~78 chars, so 40
+  // of them are ~3.1k against a 13.8k budget. Real Kalsa turns measured ~711
+  // chars each (20 messages ≈ 4743 prompt tokens), an order of magnitude more —
+  // the fixture is short, not the budget loose. So bind it explicitly with a
+  // context small enough for this data, which keeps (5b) honest: without this
+  // pair, (5b) would pass while silently measuring the message cap.
+  const tightProfile = resolveWindowProfile({
+    nCtx: 3072,
+    hasImages: false,
+    hasDigest: false,
+  });
+  const tightStart = windowStartIndex(
+    convo.map((m) => m.text.length),
+    tightProfile,
+    LEGACY_MAX_CHARS,
+  );
+  const tightWindow = assembleEngineHistory(convo, {
+    compactionEnabled: false,
+    hasImages: false,
+    legacyWindowStart: tightStart,
+  });
+  const tightChars = convo
+    .slice(tightStart)
+    .reduce((a, m) => a + Math.min(m.text.length, LEGACY_MAX_CHARS), 0);
+  record(
+    "(5c) a context too small for the history makes the char budget bind, not the message cap",
+    tightStart > 0 &&
+      tightWindow.length < convo.length &&
+      tightWindow.length < WINDOW_MAX_MESSAGES &&
+      tightChars <= tightProfile.charBudget,
+    `start=${tightStart} window=${tightWindow.length} chars=${tightChars}/${tightProfile.charBudget}`,
   );
 
   // Bonus: serialize/parse roundtrip includes boundaryIndex
@@ -481,41 +692,23 @@ async function main() {
     `digestLen=${stRefreshed.frozenDigest.length}`,
   );
 
-  // advanceCompactionBoundary does not require / change digest from query
+  // advanceCompactionBoundary preserves the digest and persisted summary
   const stAdv = advanceCompactionBoundary(stBase, {
     chatId: "default",
     userTurnCount: 6,
     historyLength: 20,
     hasImages: false,
-    nextSummary: "new-sum",
   });
   const advOk =
     stAdv.builtAtUserTurn === 6 &&
-    stAdv.rollingSummary === "new-sum" &&
+    stAdv.rollingSummary === "keep-me" &&
     stAdv.boundaryIndex === 20 - R &&
     stAdv.frozenDigest === "old"; // preserved until refreshQueryDigest
   record(
-    "advanceCompactionBoundary preserves digest, updates boundary+summary",
+    "advanceCompactionBoundary preserves digest+summary",
     advOk,
     `boundary=${stAdv.boundaryIndex}`,
   );
-
-  // rebuildFrozenDigest convenience still works (boundary + digest)
-  const stCombo = rebuildFrozenDigest(stBase, {
-    chatId: "default",
-    userTurnCount: 9,
-    historyLength: 20,
-    hasImages: false,
-    index: midIdx,
-    oldTurns: midUnits,
-    currentQuery: qA,
-    nextSummary: "combo-sum",
-  });
-  const comboOk =
-    stCombo.builtAtUserTurn === 9 &&
-    stCombo.rollingSummary === "combo-sum" &&
-    stCombo.frozenDigest.length > 0;
-  record("rebuildFrozenDigest convenience (boundary+digest)", comboOk);
 
   // replaceLiteral: $& / $$ / $` / $' must not be interpreted
   const rl1 = replaceLiteral("X {digest} Y", "{digest}", "a$&b$$c$`d$'e");

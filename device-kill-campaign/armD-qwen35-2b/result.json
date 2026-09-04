@@ -1,0 +1,1846 @@
+{
+  "schema": 2,
+  "phase": "fase4",
+  "arm": "killD-qwen35-2b",
+  "seed": 1,
+  "blockFormat": "none",
+  "thinking": "default",
+  "compaction": "ciswire",
+  "compactionPrefRaw": "ciswire",
+  "localePrefRaw": "it",
+  "compactionActive": "ciswire",
+  "toolGateActive": true,
+  "emittedAnyToolCall": true,
+  "firstTryValid": true,
+  "recoveredByFallback": 2,
+  "toolCallsSkipped": 1,
+  "toolCallsFailed": 0,
+  "privacyBlocks": 0,
+  "forcedCalls": 0,
+  "forcedThenBlocked": 0,
+  "toolPrecision": 0.5,
+  "toolRecall": 1,
+  "spuriousCalls": 2,
+  "missedCalls": 0,
+  "digestTelemetry": [
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 1,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ],
+    [
+      {
+        "durationMs": 0,
+        "corpusSize": 0,
+        "selectedCount": 0
+      }
+    ]
+  ],
+  "memoryTelemetry": [
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsInjected": 0
+      }
+    ]
+  ],
+  "memoryExtractTelemetry": [
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ],
+    [
+      {
+        "memoryEnabled": 0,
+        "factsExtracted": 0,
+        "factsStored": 0,
+        "factsRejectedSensitive": 0,
+        "factsRejectedFull": 0,
+        "factsInjected": -1,
+        "totalFactsInStore": 0,
+        "extractParseOutcome": 0,
+        "extractGateSource": 1,
+        "extractStopReason": 2
+      }
+    ]
+  ],
+  "no_extra_bufts": null,
+  "model": {
+    "dir": "qwen3.5-2b",
+    "file": "Qwen3.5-2B-Q4_K_M.gguf"
+  },
+  "fillerRotation": 0,
+  "historyChars": 37638,
+  "turns": [
+    {
+      "index": 1,
+      "kind": "plant",
+      "id": "plant_a",
+      "expectation": "must_not",
+      "prompt": "Ricorda questi dati il gatto si chiama Leopoldo il budget e 4500 euro la citta e Torino il codice e PK42",
+      "elapsed_s": 21,
+      "ttftApprox_s": 21,
+      "settled_s": 24,
+      "reply_len": 468,
+      "replyExcerpt": "Mi dispiace, ma non ho accesso a una base di dati personale. Non posso memorizzare informazioni che l'utente mi ha appena fornito o che non ho già accesso a.\n\nSe vuoi, puoi darmi questi dettagli e li potrò utilizzare per la prossima conversazione.\n\nPer quanto riguarda il codice PK42, se ti riferisci",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 1,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "1",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 72454.66500000001,
+      "predictedMs": 20563.799,
+      "turnComputeMs": 93018.464,
+      "tokensEvaluated": 1317,
+      "tokensPredicted": 346,
+      "predictedPerSecond": 16.825684787134907,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1276,
+      "promptTokens": 1317,
+      "reuseFrac": 0.9688686408504176,
+      "completions": 1
+    },
+    {
+      "index": 2,
+      "kind": "plant",
+      "id": "plant_b",
+      "expectation": "must_not",
+      "prompt": "Ricorda anche il colore e Zaffiro il modello e XR9 il porto e Brindisi il vino e Nebbiolo",
+      "elapsed_s": 21,
+      "ttftApprox_s": 21,
+      "settled_s": 24,
+      "reply_len": 487,
+      "replyExcerpt": "Mi dispiace, ma non posso ricordare le informazioni che hai fornito. Non ho accesso a una base di dati personale che mi permetta di memorizzare dettagli per una prossima conversazione.\n\nSe mi dai questi dettagli ora, li potrò utilizzare per la conversazione successiva.\n\nPer quanto riguarda il colore",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 1,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "2",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 2365.247,
+      "predictedMs": 19740.572999999997,
+      "turnComputeMs": 22105.819999999996,
+      "tokensEvaluated": 1459,
+      "tokensPredicted": 326,
+      "predictedPerSecond": 16.514211618882594,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1278,
+      "promptTokens": 1459,
+      "reuseFrac": 0.8759424263193969,
+      "completions": 1
+    },
+    {
+      "index": 3,
+      "kind": "filler",
+      "id": "filler_1",
+      "expectation": "either",
+      "prompt": "MotoreElettrico",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 1679,
+      "replyExcerpt": "L'utente sta chiedendo informazioni su un \"MotoreElettrico\". Dovrei cercare informazioni aggiornate su questo argomento tramite ricerca web, dato che l'utente ha chiesto informazioni aggiornate o su argomenti time-sensitive.\n\nDevo usare la funzione web_search con una query specifica su questo argome",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 1,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "3",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "3",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 7392.918,
+      "predictedMs": 30080.051999999996,
+      "turnComputeMs": 37472.97,
+      "tokensEvaluated": 3271,
+      "tokensPredicted": 483,
+      "predictedPerSecond": 15.642341766103486,
+      "rounds": 2,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1315,
+      "promptTokens": 1579,
+      "reuseFrac": 0.8328055731475618,
+      "completions": 2
+    },
+    {
+      "index": 4,
+      "kind": "filler",
+      "id": "filler_2",
+      "expectation": "either",
+      "prompt": "RicettaVeloce",
+      "elapsed_s": 21,
+      "ttftApprox_s": 21,
+      "settled_s": 24,
+      "reply_len": 283,
+      "replyExcerpt": "Mi dispiace, ma non ho accesso a una base di dati personale che mi permetta di memorizzare informazioni per una prossima conversazione.\n\nSe mi chiedi informazioni aggiornate su ricette veloci, posso aiutarti con una ricerca online.\n\nCosa posso aiutarti con la prossima conversazione?",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 4,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "4",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 6855.5560000000005,
+      "predictedMs": 10460.488,
+      "turnComputeMs": 17316.044,
+      "tokensEvaluated": 1942,
+      "tokensPredicted": 172,
+      "predictedPerSecond": 16.442827523916666,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1457,
+      "promptTokens": 1942,
+      "reuseFrac": 0.7502574665293512,
+      "completions": 1
+    },
+    {
+      "index": 5,
+      "kind": "filler",
+      "id": "filler_3",
+      "expectation": "either",
+      "prompt": "BeneficiSport",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 25,
+      "reply_len": 317,
+      "replyExcerpt": "Mi dispiace, ma non ho accesso a una base di dati personale che mi permetta di memorizzare informazioni per una prossima conversazione.\n\nSe mi chiedi informazioni aggiornate su BeneficiSport o su attività sportive in generale, posso aiutarti con una ricerca online.\n\nCosa posso aiutarti con la prossi",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 4,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "5",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 6501.135,
+      "predictedMs": 9790.635999999999,
+      "turnComputeMs": 16291.770999999999,
+      "tokensEvaluated": 2016,
+      "tokensPredicted": 160,
+      "predictedPerSecond": 16.34214569921709,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1577,
+      "promptTokens": 2016,
+      "reuseFrac": 0.7822420634920635,
+      "completions": 1
+    },
+    {
+      "index": 6,
+      "kind": "filler",
+      "id": "filler_4",
+      "expectation": "either",
+      "prompt": "CuriositaSpazio",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 1425,
+      "replyExcerpt": "L'utente mi chiede informazioni su \"CuriositaSpazio\" - sembra essere una mini-app che cerca curiosità sul tema spazio. Potrei usare la ricerca web o document_chat per trovare informazioni aggiornate su questo argomento. Dato che l'utente non ha specificato un documento locale, devo usare web_search ",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 0,
+      "builtAtUserTurn": 4,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "6",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "6",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "6",
+          "round": 2,
+          "toolChoice": "none",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 9306.407,
+      "predictedMs": 34930.486,
+      "turnComputeMs": 44236.893,
+      "tokensEvaluated": 6624,
+      "tokensPredicted": 557,
+      "predictedPerSecond": 15.408365621924297,
+      "rounds": 3,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 1940,
+      "promptTokens": 2099,
+      "reuseFrac": 0.9242496426869938,
+      "completions": 3
+    },
+    {
+      "index": 7,
+      "kind": "filler",
+      "id": "filler_5",
+      "expectation": "either",
+      "prompt": "ViaggioInTreno",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 1593,
+      "replyExcerpt": "L'utente sta chiedendo informazioni sul \"ViaggioInTreno\". Questo sembra essere un argomento specifico che l'utente potrebbe aver cercato online. Ho bisogno di cercare informazioni aggiornate su questo argomento.\n\nDato che l'utente ha chiesto informazioni aggiornate e time-sensitive, devo usare web_s",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 6,
+      "builtAtUserTurn": 7,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "7",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "7",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 10952.933,
+      "predictedMs": 33457.763999999996,
+      "turnComputeMs": 44410.697,
+      "tokensEvaluated": 4802,
+      "tokensPredicted": 530,
+      "predictedPerSecond": 15.41244885401909,
+      "rounds": 2,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2014,
+      "promptTokens": 2347,
+      "reuseFrac": 0.858116744780571,
+      "completions": 2
+    },
+    {
+      "index": 8,
+      "kind": "filler",
+      "id": "filler_6",
+      "expectation": "either",
+      "prompt": "ClimaOMeteo",
+      "elapsed_s": 21,
+      "ttftApprox_s": 21,
+      "settled_s": 24,
+      "reply_len": 350,
+      "replyExcerpt": "Il meteo non può essere consultato in tempo reale, poiché non ho accesso a dati aggiornati. Posso aiutarti con informazioni generali sul meteo o su come leggere le previsioni del tempo.\n\nPer informazioni specifiche su una località o sul meteo in tempo reale, potrei aiutarti con una ricerca online.\n\n",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 6,
+      "builtAtUserTurn": 7,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "8",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 8703.435,
+      "predictedMs": 11009.069,
+      "turnComputeMs": 19712.504,
+      "tokensEvaluated": 2660,
+      "tokensPredicted": 178,
+      "predictedPerSecond": 16.168487998394777,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2097,
+      "promptTokens": 2660,
+      "reuseFrac": 0.7883458646616541,
+      "completions": 1
+    },
+    {
+      "index": 9,
+      "kind": "filler",
+      "id": "filler_7",
+      "expectation": "either",
+      "prompt": "StoriaAntica",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 1676,
+      "replyExcerpt": "## La Storia Antica\n\nLa storia antica si concentra sull'epoca in cui le civiltà primitive hanno iniziato a costruire città, creare sistemi di scrittura e sviluppare la tecnologia.\n\n### Pioniere della Scrittura\n\n- **Civiltà Mesopotamica (3500-1200 a.C.)**: Ha sviluppato la prima scrittura su tavolett",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 6,
+      "builtAtUserTurn": 7,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "9",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 6316.945,
+      "predictedMs": 34256.796,
+      "turnComputeMs": 40573.741,
+      "tokensEvaluated": 2750,
+      "tokensPredicted": 515,
+      "predictedPerSecond": 15.033513350168532,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2345,
+      "promptTokens": 2750,
+      "reuseFrac": 0.8527272727272728,
+      "completions": 1
+    },
+    {
+      "index": 10,
+      "kind": "filler",
+      "id": "filler_8",
+      "expectation": "either",
+      "prompt": "MusicaClassica",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 61,
+      "reply_len": 1170,
+      "replyExcerpt": "La musica classica si riferisce a una vasta famiglia di composizioni musicali prodotte dagli artisti dell'epoca, in particolare dagli artisti del XIX secolo.\n\n## Caratteristiche Principali\n\n1. **Sviluppo Storico**:\n   - Ha avuto origine nel XVII secolo con l'opera lirica\n   - È stata influenzata dal",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 12,
+      "builtAtUserTurn": 10,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "10",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 9120.318,
+      "predictedMs": 53445.797999999995,
+      "turnComputeMs": 62566.115999999995,
+      "tokensEvaluated": 3205,
+      "tokensPredicted": 528,
+      "predictedPerSecond": 9.879167675632798,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2658,
+      "promptTokens": 3205,
+      "reuseFrac": 0.8293291731669267,
+      "completions": 1
+    },
+    {
+      "index": 11,
+      "kind": "probe",
+      "id": "probe_facts_early",
+      "expectation": "must_not",
+      "prompt": "Ripeti tutti i dati che ti ho dato nei primi due messaggi",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 575,
+      "replyExcerpt": "Mi dispiace, ma non posso ricordare le informazioni che l'utente mi ha fornito nei primi due messaggi. Non ho accesso a una base di dati personale che mi permetta di memorizzare dettagli per una prossima conversazione.\n\nI dati che ho menzionato sono:\n\n**Primo messaggio:**\n- Gatto si chiama Leopoldo\n",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 12,
+      "builtAtUserTurn": 10,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "11",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 13600.57,
+      "predictedMs": 35444.570999999996,
+      "turnComputeMs": 49045.140999999996,
+      "tokensEvaluated": 3520,
+      "tokensPredicted": 489,
+      "predictedPerSecond": 13.796188984767232,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 2748,
+      "promptTokens": 3520,
+      "reuseFrac": 0.7806818181818181,
+      "completions": 1
+    },
+    {
+      "index": 12,
+      "kind": "probe",
+      "id": "probe_tool",
+      "expectation": "must",
+      "prompt": "Cerca sul web le previsioni del meteo di domani a Milano",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 41,
+      "reply_len": 548,
+      "replyExcerpt": "L'utente sta chiedendo una ricerca online per le previsioni del meteo di domani a Milano. Devo usare la funzione web_search per cercare informazioni aggiornate su questo argomento.\n\n\n\nIl documento non contiene informazioni sul meteo. Devo usare web_search per cercare le previsioni del meteo di doman",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 12,
+      "builtAtUserTurn": 10,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "12",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "12",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 1,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "12",
+          "round": 2,
+          "toolChoice": "none",
+          "structuredCalls": 0,
+          "fallbackCalls": 1,
+          "fallbackDialect": "qwen",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": false,
+          "argsParsed": true,
+          "toolNames": [
+            "web_search"
+          ]
+        }
+      ],
+      "promptMs": 18020.165,
+      "predictedMs": 12815.794,
+      "turnComputeMs": 30835.959000000003,
+      "tokensEvaluated": 11372,
+      "tokensPredicted": 206,
+      "predictedPerSecond": 15.73495170963238,
+      "rounds": 3,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3203,
+      "promptTokens": 3692,
+      "reuseFrac": 0.8675514626218852,
+      "completions": 3
+    },
+    {
+      "index": 13,
+      "kind": "probe",
+      "id": "probe_miniapp",
+      "expectation": "must_not",
+      "prompt": "Fammi un quiz di tre domande sulla geografia",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 966,
+      "replyExcerpt": "L'utente sta chiedendo un quiz di tre domande sulla geografia. Devo creare un quiz di 3 domande con 4 opzioni ciascuna e includere l'answerIndex obbligatorio (0-3) e l'expansion explanation opzionale.\n\nLe domande devono essere su argomenti geografici generali.\n\n\n\n\nEcco un quiz di tre domande sulla g",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 18,
+      "builtAtUserTurn": 13,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "13",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "other"
+          ]
+        },
+        {
+          "turnId": "13",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 9971.960000000001,
+      "predictedMs": 28429.716999999997,
+      "turnComputeMs": 38401.676999999996,
+      "tokensEvaluated": 7720,
+      "tokensPredicted": 403,
+      "predictedPerSecond": 13.528823829125683,
+      "rounds": 2,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3518,
+      "promptTokens": 3825,
+      "reuseFrac": 0.9197385620915033,
+      "completions": 2
+    },
+    {
+      "index": 14,
+      "kind": "probe",
+      "id": "probe_language",
+      "expectation": "must_not",
+      "prompt": "In quale continente si trova il Brasile e perche",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 48,
+      "reply_len": 1309,
+      "replyExcerpt": "Il problema richiede di rispondere su un continente geografico e alla sua posizione. Devo usare il tool web_search per cercare informazioni aggiornate, ma prima devo pensare a quale strumento usare.\n\nL'utente sta cercando informazioni geologiche aggiornate sul Brasile. Posso usare document_chat per ",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 18,
+      "builtAtUserTurn": 13,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "14",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "14",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 12833.083,
+      "predictedMs": 25430.352,
+      "turnComputeMs": 38263.435,
+      "tokensEvaluated": 8177,
+      "tokensPredicted": 383,
+      "predictedPerSecond": 14.9216091952017,
+      "rounds": 2,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3690,
+      "promptTokens": 4034,
+      "reuseFrac": 0.9147248388696083,
+      "completions": 2
+    },
+    {
+      "index": 15,
+      "kind": "probe",
+      "id": "probe_honesty",
+      "expectation": "either",
+      "prompt": "Chi ha vinto il premio Zorblax nel 2019",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 40,
+      "reply_len": 1064,
+      "replyExcerpt": "L'utente sta chiedendo informazioni su chi ha vinto il premio Zorblax nel 2019. Devo usare la funzione web_search per cercare informazioni aggiornate su questo argomento, poiché si tratta di informazioni che potrebbero essere cambiate o non essere note. Non posso rispondere con informazioni generich",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 18,
+      "builtAtUserTurn": 13,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "15",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "document_chat"
+          ]
+        },
+        {
+          "turnId": "15",
+          "round": 1,
+          "toolChoice": "auto",
+          "structuredCalls": 1,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": [
+            "other"
+          ]
+        },
+        {
+          "turnId": "15",
+          "round": 2,
+          "toolChoice": "none",
+          "structuredCalls": 0,
+          "fallbackCalls": 1,
+          "fallbackDialect": "qwen",
+          "executed": 1,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": false,
+          "argsParsed": true,
+          "toolNames": [
+            "web_search"
+          ]
+        }
+      ],
+      "promptMs": 14806.054,
+      "predictedMs": 22474.558,
+      "turnComputeMs": 37280.612,
+      "tokensEvaluated": 12731,
+      "tokensPredicted": 343,
+      "predictedPerSecond": 14.840323872157775,
+      "rounds": 3,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 3823,
+      "promptTokens": 4140,
+      "reuseFrac": 0.9234299516908212,
+      "completions": 3
+    },
+    {
+      "index": 16,
+      "kind": "probe",
+      "id": "probe_facts_late",
+      "expectation": "must_not",
+      "prompt": "Ripeti tutti i dati che ti ho dato nei primi due messaggi",
+      "elapsed_s": 22,
+      "ttftApprox_s": 22,
+      "settled_s": 25,
+      "reply_len": 379,
+      "replyExcerpt": "I dati che mi hai fornito nei primi due messaggi sono:\n\n**Primo messaggio:**\n- Gatto si chiama Leopoldo\n- Budget è 4500 euro\n- Città è Torino\n- Codice PK42\n\n**Secondo messaggio:**\n- Colore e Zaffiro\n- Modello XR9\n- Porto Brindisi\n- Vino Nebbiolo\n\nNon ho memoria persistente tra le conversazioni. Se m",
+      "sources": 0,
+      "hasMiniapp": false,
+      "isErrorReply": false,
+      "isEmptyReply": false,
+      "boundaryIndex": 24,
+      "builtAtUserTurn": 16,
+      "digestChars": 0,
+      "summaryChars": 0,
+      "toolRounds": [
+        {
+          "turnId": "16",
+          "round": 0,
+          "toolChoice": "auto",
+          "structuredCalls": 0,
+          "fallbackCalls": 0,
+          "fallbackDialect": "none",
+          "executed": 0,
+          "skippedCap": 0,
+          "skippedDup": 0,
+          "skippedFailedRepeat": 0,
+          "failed": 0,
+          "blockedPrivacy": 0,
+          "namesValid": true,
+          "argsParsed": true,
+          "toolNames": []
+        }
+      ],
+      "promptMs": 6883.6630000000005,
+      "predictedMs": 16716.010000000002,
+      "turnComputeMs": 23599.673000000003,
+      "tokensEvaluated": 4400,
+      "tokensPredicted": 251,
+      "predictedPerSecond": 15.015544977539497,
+      "rounds": 1,
+      "extraCompletions": 0,
+      "contextFull": false,
+      "reusedTokens": 4032,
+      "promptTokens": 4400,
+      "reuseFrac": 0.9163636363636364,
+      "completions": 1
+    }
+  ],
+  "probes": [
+    {
+      "name": "fact_Leopoldo_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Leopoldo",
+      "found": true
+    },
+    {
+      "name": "fact_4500_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "4500",
+      "found": true
+    },
+    {
+      "name": "fact_Torino_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Torino",
+      "found": true
+    },
+    {
+      "name": "fact_PK42_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "PK42",
+      "found": true
+    },
+    {
+      "name": "fact_Zaffiro_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Zaffiro",
+      "found": true
+    },
+    {
+      "name": "fact_XR9_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "XR9",
+      "found": true
+    },
+    {
+      "name": "fact_Brindisi_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Brindisi",
+      "found": true
+    },
+    {
+      "name": "fact_Nebbiolo_t11",
+      "family": "fact_recall_early",
+      "turnIndex": 11,
+      "expected": "Nebbiolo",
+      "found": true
+    },
+    {
+      "name": "tool_call",
+      "family": "tool_call",
+      "turnIndex": 12,
+      "expected": "sources>=1",
+      "found": false
+    },
+    {
+      "name": "tool_call_emitted",
+      "family": "tool_call_emitted",
+      "turnIndex": 12,
+      "expected": "well-formed tool call emitted",
+      "found": true
+    },
+    {
+      "name": "miniapp",
+      "family": "miniapp",
+      "turnIndex": 13,
+      "expected": "miniapp_v1",
+      "found": false,
+      "miniappJsonValid": false,
+      "miniappJsonAttempted": false,
+      "quizInAnyForm": true
+    },
+    {
+      "name": "miniapp_task",
+      "family": "miniapp_task",
+      "turnIndex": 13,
+      "expected": "quiz in any form",
+      "found": true,
+      "miniappJsonValid": false,
+      "miniappJsonAttempted": false,
+      "quizInAnyForm": true
+    },
+    {
+      "name": "language",
+      "family": "language",
+      "turnIndex": 14,
+      "expected": "italian",
+      "found": true
+    },
+    {
+      "name": "honesty",
+      "family": "honesty",
+      "turnIndex": 15,
+      "expected": "admission",
+      "found": true
+    },
+    {
+      "name": "fact_Leopoldo_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Leopoldo",
+      "found": true
+    },
+    {
+      "name": "fact_4500_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "4500",
+      "found": true
+    },
+    {
+      "name": "fact_Torino_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Torino",
+      "found": true
+    },
+    {
+      "name": "fact_PK42_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "PK42",
+      "found": true
+    },
+    {
+      "name": "fact_Zaffiro_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Zaffiro",
+      "found": true
+    },
+    {
+      "name": "fact_XR9_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "XR9",
+      "found": true
+    },
+    {
+      "name": "fact_Brindisi_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Brindisi",
+      "found": true
+    },
+    {
+      "name": "fact_Nebbiolo_t16",
+      "family": "fact_recall_late",
+      "turnIndex": 16,
+      "expected": "Nebbiolo",
+      "found": true
+    }
+  ],
+  "recall": 1,
+  "byFamily": {
+    "fact_recall_early": {
+      "found": 8,
+      "total": 8,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "tool_call": {
+      "found": 0,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 0
+    },
+    "tool_call_emitted": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "miniapp": {
+      "found": 0,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 0
+    },
+    "miniapp_task": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "language": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "honesty": {
+      "found": 1,
+      "total": 1,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    },
+    "fact_recall_late": {
+      "found": 8,
+      "total": 8,
+      "excluded": 0,
+      "declined": 0,
+      "abstained": 0,
+      "rate": 1
+    }
+  },
+  "prefill": {
+    "meanPromptMs": 13505.315875000002,
+    "medianPromptMs": 9213.3625,
+    "meanReuseFrac": 0.8615859461363425,
+    "meanPromptTokens": 2811.5625,
+    "meanTurnComputeMs": 38445.7198125,
+    "nTurnComputeMs": 16,
+    "meanTtftApproxS": 21.75,
+    "nTtftApproxS": 16,
+    "turnsWithTelemetry": 16
+  },
+  "positiveControl": {
+    "promptTokensByTurn": {
+      "1": 1317,
+      "2": 1459,
+      "3": 1579,
+      "4": 1942,
+      "5": 2016,
+      "6": 2099,
+      "7": 2347,
+      "8": 2660,
+      "9": 2750,
+      "10": 3205,
+      "11": 3520,
+      "12": 3692,
+      "13": 3825,
+      "14": 4034,
+      "15": 4140,
+      "16": 4400
+    },
+    "reusedTokensByTurn": {
+      "1": 1276,
+      "2": 1278,
+      "3": 1315,
+      "4": 1457,
+      "5": 1577,
+      "6": 1940,
+      "7": 2014,
+      "8": 2097,
+      "9": 2345,
+      "10": 2658,
+      "11": 2748,
+      "12": 3203,
+      "13": 3518,
+      "14": 3690,
+      "15": 3823,
+      "16": 4032
+    },
+    "completionsByTurn": {
+      "1": 1,
+      "2": 1,
+      "3": 2,
+      "4": 1,
+      "5": 1,
+      "6": 3,
+      "7": 2,
+      "8": 1,
+      "9": 1,
+      "10": 1,
+      "11": 1,
+      "12": 3,
+      "13": 2,
+      "14": 2,
+      "15": 3,
+      "16": 1
+    },
+    "boundaryByTurn": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 6,
+      "8": 6,
+      "9": 6,
+      "10": 12,
+      "11": 12,
+      "12": 12,
+      "13": 18,
+      "14": 18,
+      "15": 18,
+      "16": 24
+    },
+    "digestCharsByTurn": {
+      "1": 0,
+      "2": 0,
+      "3": 0,
+      "4": 0,
+      "5": 0,
+      "6": 0,
+      "7": 0,
+      "8": 0,
+      "9": 0,
+      "10": 0,
+      "11": 0,
+      "12": 0,
+      "13": 0,
+      "14": 0,
+      "15": 0,
+      "16": 0
+    },
+    "compactorChars": 118,
+    "summaryChars": 0
+  },
+  "notes": [
+    "turn 3: telemetry attribution fell back to first group",
+    "turn 6: telemetry attribution fell back to first group",
+    "turn 7: telemetry attribution fell back to first group",
+    "turn 12: telemetry attribution fell back to first group",
+    "turn 13: telemetry attribution fell back to first group",
+    "turn 14: telemetry attribution fell back to first group",
+    "turn 15: telemetry attribution fell back to first group"
+  ],
+  "reasoningLeakTurns": [],
+  "contextFullTurns": [],
+  "errorTurns": [],
+  "emptyReplyTurns": [],
+  "captureFailedTurns": []
+}

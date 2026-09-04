@@ -40,6 +40,10 @@ import { en } from "../i18n/en";
 import { it } from "../i18n/it";
 import type { Locale } from "../i18n/types";
 import { DocRetrieverIndex, runRetrievalLoop } from "../context/retrievalLoop";
+import {
+  classifyHttpDetail,
+  classifyNetworkFailure,
+} from "../telemetry/pure";
 import { htmlToText } from "../util/htmlToText";
 import { normalizeFetchUrl } from "../util/url";
 
@@ -540,6 +544,32 @@ export type WebFetchExecutorDeps = {
   resolveNetworkTimeoutMs?: (url: string) => number;
 };
 
+function reportWebFetchTelemetry(input: {
+  code: "web.fetch";
+  detail: string;
+  rawMessage?: string;
+  phase: "turn";
+}): void {
+  try {
+    // require, not import(): Metro resolves a literal require at bundle time,
+    // and metro-resolver only APPENDS sourceExts to the path (resolve.js
+    // resolveSourceFile) — it never strips a ".js" to find a ".ts". So
+    // import("../telemetry/telemetry.js") would fail to resolve at runtime and
+    // the catch below would hide it, silently killing telemetry in production
+    // while every offline harness stayed green. An extension-less import()
+    // fails the harness instead, because it compiles with --module nodenext.
+    // The 17 harnesses that already pass "--types node" are the convention that
+    // makes require type-check here.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const tel = require("../telemetry/telemetry") as {
+      reportTelemetry: (i: typeof input) => void;
+    };
+    tel.reportTelemetry(input);
+  } catch {
+    /* telemetry never throws */
+  }
+}
+
 /**
  * Build a web_fetch executor bound to a per-turn allowlist.
  * Missing/empty args and policy refusals return i18n text (never throw).
@@ -667,57 +697,15 @@ export function makeWebFetchExecutor(
         }
         if (timedOut || isAbortError(error) || combined.aborted) {
           if (timedOut) {
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              const tel = require("../telemetry/telemetry") as {
-                reportTelemetry: (i: Record<string, unknown>) => void;
-              };
-              tel.reportTelemetry({
-                code: "web.fetch",
-                detail: "timeout",
-                phase: "turn",
-              });
-            } catch {
-              /* telemetry never throws */
-            }
+            reportWebFetchTelemetry({ code: "web.fetch", detail: "timeout", phase: "turn" });
           } else if (!isAbortError(error)) {
-            try {
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              const tel = require("../telemetry/telemetry") as {
-                reportTelemetry: (i: Record<string, unknown>) => void;
-                classifyNetworkFailure: (e: unknown) => string;
-              };
-              tel.reportTelemetry({
-                code: "web.fetch",
-                detail: tel.classifyNetworkFailure(error),
-                rawMessage:
-                  error instanceof Error ? error.message : String(error ?? ""),
-                phase: "turn",
-              });
-            } catch {
-              /* telemetry never throws */
-            }
+            reportWebFetchTelemetry({ code: "web.fetch", detail: classifyNetworkFailure(error), rawMessage: error instanceof Error ? error.message : String(error ?? ""), phase: "turn" });
           }
           return {
             text: abortMessage(urlPathLooksLikePdf(url)),
           };
         }
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const tel = require("../telemetry/telemetry") as {
-            reportTelemetry: (i: Record<string, unknown>) => void;
-            classifyNetworkFailure: (e: unknown) => string;
-          };
-          tel.reportTelemetry({
-            code: "web.fetch",
-            detail: tel.classifyNetworkFailure(error),
-            rawMessage:
-              error instanceof Error ? error.message : String(error ?? ""),
-            phase: "turn",
-          });
-        } catch {
-          /* telemetry never throws */
-        }
+        reportWebFetchTelemetry({ code: "web.fetch", detail: classifyNetworkFailure(error), rawMessage: error instanceof Error ? error.message : String(error ?? ""), phase: "turn" });
         return {
           text: errors.webFetchFailed.replace(
             "{message}",
@@ -772,20 +760,7 @@ export function makeWebFetchExecutor(
       }
 
       if (response.status < 200 || response.status >= 300) {
-        try {
-          // eslint-disable-next-line @typescript-eslint/no-require-imports
-          const tel = require("../telemetry/telemetry") as {
-            reportTelemetry: (i: Record<string, unknown>) => void;
-            classifyHttpDetail: (s: number) => string;
-          };
-          tel.reportTelemetry({
-            code: "web.fetch",
-            detail: tel.classifyHttpDetail(response.status),
-            phase: "turn",
-          });
-        } catch {
-          /* telemetry never throws */
-        }
+        reportWebFetchTelemetry({ code: "web.fetch", detail: classifyHttpDetail(response.status), phase: "turn" });
         return {
           text: errors.webFetchHttpError.replace("{status}", String(response.status)),
         };
@@ -1003,19 +978,7 @@ async function handlePdfResponse(ctx: {
       if (turnSignal?.aborted) {
         return { text: errors.webFetchPdfAborted };
       }
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-require-imports
-        const tel = require("../telemetry/telemetry") as {
-          reportTelemetry: (i: Record<string, unknown>) => void;
-        };
-        tel.reportTelemetry({
-          code: "web.fetch",
-          detail: "timeout",
-          phase: "turn",
-        });
-      } catch {
-        /* telemetry never throws */
-      }
+      reportWebFetchTelemetry({ code: "web.fetch", detail: "timeout", phase: "turn" });
       return { text: errors.webFetchPdfTimeout };
     }
     return {

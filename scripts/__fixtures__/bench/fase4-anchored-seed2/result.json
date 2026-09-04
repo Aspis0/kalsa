@@ -1,0 +1,24 @@
+{
+  "phase": "fase4",
+  "arm": "anchored",
+  "seed": 2,
+  "blockFormat": "user-prefix",
+  "thinking": "default",
+  "compaction": "anchored",
+  "turns": [
+    {"index":"1","prompt":"MioGattoLeopoldo Budget4500 Scadenza14Marzo ColoreBlu","elapsed_s":101,"reply_len":90,"reply_excerpt":"Ok, capito."},
+    {"index":"2","prompt":"SpiegaComeFunzionaUnMotoreElettrico","elapsed_s":99,"reply_len":260,"reply_excerpt":"Un motore elettrico..."},
+    {"index":"3","prompt":"DammiUnaRicettaVelocePerLaCena","elapsed_s":105,"reply_len":300,"reply_excerpt":"Puoi preparare..."},
+    {"index":"4","prompt":"QualiSonoIBeneficiDelloSportRegolare","elapsed_s":111,"reply_len":280,"reply_excerpt":"Lo sport regolare..."},
+    {"index":"5","prompt":"RaccontaUnaCuriositaSulloSpazio","elapsed_s":109,"reply_len":250,"reply_excerpt":"Lo spazio..."},
+    {"index":"6","prompt":"ComeSiOrganizzaUnViaggioInTreno","elapsed_s":103,"reply_len":240,"reply_excerpt":"Per organizzare..."},
+    {"index":"7","prompt":"SpiegaLaDifferenzaTraClimaEMeteo","elapsed_s":107,"reply_len":270,"reply_excerpt":"Il clima..."},
+    {"index":"8","prompt":"ComeSiChiamaIlMioGatto","elapsed_s":97,"reply_len":40,"reply_excerpt":"Si chiama Leopoldo."},
+    {"index":"9","prompt":"QualEIlBudgetCheTiHoDetto","elapsed_s":98,"reply_len":30,"reply_excerpt":"Non ricordo un numero preciso."}
+  ],
+  "probes": [
+    {"name":"cat_name","expected":"Leopoldo","found":true},
+    {"name":"budget","expected":"4500","found":false}
+  ],
+  "recall": 0.5000
+}
