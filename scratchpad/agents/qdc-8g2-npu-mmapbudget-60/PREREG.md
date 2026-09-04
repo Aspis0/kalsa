@@ -93,3 +93,44 @@ its absence proves nothing.
 
 No v75/v79 arms, no performance claims, no skel modification, no upstream filing (dossier text
 only), no HOSTBUF arms.
+
+## Pre-run amendment 1 (before any session; after the websearch and a second source read)
+
+Two facts sharpen H1 into H1′ and add a fix candidate:
+- Qualcomm (fastrpc issue #137, maintainer comment 2025-04-17): the cDSP user PD has a
+  32-bit VA space, "limited to 2GB on older devices and increased to 3GB on newer devices
+  (8gen3)". The host backend assumes `opt_vmem = 3000 MiB` for arch < 75
+  (ggml-hexagon.cpp:4373; `HTP_OP_MAX_VMEM_DEFAULT` = 3200 MiB for v75+) and passes it to
+  `htp_iface_start(..., max_vmem)`; the skel's `prep_op_bufs()` (main.c:743-777) drops unused
+  mappings ONLY when `mapped + extra > max_vmem`. With three ~1 GiB buffers the skel never
+  evicts (≤ 3000 MiB) while the real v73 budget is ~2 GiB → `HAP_mmap` fails → `abort()` :729.
+- The host can MEASURE the budget: `GGML_HEXAGON_VMEM=0` calls `ggml_hexagon_measure_max_vmem`
+  (ggml-hexagon.cpp:1608, pinned allocs until failure, logs "measured max vmem N"); the env is
+  in MiB (line 4395).
+
+Arms added (same T, HOSTBUF unset), run after B2 and before B3:
+- B5 `ngl99_vmem1800` (cap 900 s): T + `-ngl 99`, env `GGML_HEXAGON_VMEM=1800`. H1′ predicts
+  SURVIVE with proof 48 (eviction engages before the PD runs out). This is the fix candidate.
+- B6 `ngl99_vmem0` (cap 900 s): T + `-ngl 99`, env `GGML_HEXAGON_VMEM=0`. Records the measured
+  budget N (stderr line `measured max vmem`); predicted SURVIVE if N ≤ real budget − batch need.
+
+Grid refinement (binding): G1 now has two sub-rows. G1a (H1′ + FIX): B1 survives, B2 dies,
+B5 survives → the death is the host's 3000 MiB assumption for v73; the fix is a v73 default
+≤ the measured budget (B6's N is the number to propose upstream); F6 reformulated as in G1.
+G1b (H1 without fix): B1 survives, B2 dies, B5 dies at :729 → budget real but the eviction
+path does not save it (batch larger than budget or eviction bug); banked, fix needs skel work.
+B6 outcomes are informative only: its N is banked whatever the arm's exit; a B6 death is not
+a grid input. All other rows unchanged. Session estimate becomes ~14 min (six arms).
+
+## Audit response (AUDIT-PRERUN.md, before the session)
+
+- P2 (B2 slot count) REFUTED by arithmetic on the #59 log: the 8 mapped buffers are
+  1028657152 ×2 + 1019219968 + 698355712 (= 3600 MiB of experts, FOUR buffers) + four
+  non-expert buffers (33.5 MB, 12.3 MB, 8.9 MB, 2.0 MB). At MBUF=512 MiB the 48 expert
+  tensors of 72 MiB pack 7 per buffer → 7 expert buffers + 4 = 11 mappings ≤ 16. The
+  PREREG's "≈13" is corrected to "≈11 (7+4)". The METHOD-VOID clause stays.
+- P5 accepted: G6 (B2 METHOD-VOID by slot overflow, i.e. > 16 `mapped buffer` lines or a
+  non-:729 fault in B2) → B2 says nothing about H2; the cell is carried by B1/B5/B6/B3.
+- P6 REFUTED by reading d_run.sh: a died arm returns 9 (`[ "$e" = "0" ] && return 0; return 9`),
+  `ABORT=1` is set only on rc 7|8 (gate abort / launch failure), so B3 runs after B1/B2 deaths
+  exactly as the PREREG says.
