@@ -108,3 +108,94 @@ Turn line `KALSA_GOVERNOR {prefill_engine:... fallback_reason:\"\"}` (`rn-llama.
 Reviewer must demand before S3: (1) governor load finishes `completion`/`templates`/`n_ctx` like CPU path; (2) native or LlamaService CPU retry after FALLBACK with both models gone; (3) FALLBACK fields + logs on model-load fail; (4) tests: FLAG-OFF path identity, Reject→unload+FALLBACK, sticky no single-ctx, parallel/MTP/session loud fail, mmap ngl 99/0; (5) thermo after init before first decode without treating Invalid as a hard JSI throw unless specified; (6) `clearCache`/LoRA/mmproj through both contexts or refuse; (7) drop permissive `reload_budget_available=true`; (8) paired session API or an explicit S2 exception to PLAN.
 
 **NO-GO.**
+
+## Delta audit (42ddcf4 = b3a6137 + 1766cd3 + 42ddcf4 on 67c9f7f)
+
+Method: opened every cited site in `/Users/marco/Projects/kalsa-wt-governor`. No builds. Previous NO-GO crash (no `completion`/`n_ctx`) is gone. Residual: duplicate FALLBACK, init-Reject reason still swallowed, test not in the build.
+
+### 1. Convergence `rn-llama.cpp:629-784` — CONFIRMED with leftovers
+
+CPU-only unique: `moe_stream` + `llama_init` + optional draft (`:687-745`). Governor returns from `load_governor_models` then **joins** at `:748-784`: templates, `n_ctx`, lora metadata, `n_seq_max` log, `completion`, `ctx_shift` log.
+
+| member | CPU | governor |
+|---|---|---|
+| `templates` | `common_chat_templates_init(model, …)` `:753` | `…(governor_decode_init->model(), …)` `:749-750` (decode GGUF, while `model` is prefill `:133`) |
+| `n_ctx` | `llama_n_ctx(ctx)` `:754` | `llama_n_ctx(active_ctx())` `:751` |
+| `n_seq_max` log | `llama_n_seq_max(ctx)` `:769` | `llama_n_seq_max(active_ctx())` `:768` |
+| `lora` metadata | `:760-764` | same |
+| `completion` | `:776` | same |
+| `ctx_shift` log | `:779` | same |
+| `llama_init` | set `:696` | **stays null** (uses `governor_*_init`) |
+| `moe_stream` | `make_unique` `:688` | **not reset**; CPU→governor reload leaves a shutdown object (`:675` shutdown only) |
+| `draft_model` | maybe loaded `:740` | reset `:659`, stays null (MTP refused) |
+| `threadpool*` | `attachThreadpoolsIfAvailable` after load | skipped `if (governor) return false;` `:488-490` |
+
+Blocker from parent audit (null `completion` / `n_ctx=0`) **FIXED**.
+
+### 2. `KALSA_GOVERNOR_FALLBACK` — PARTIAL
+
+Logger `:62-64`: `{stage, models_loaded, reason, gpu_fit, profile_valid}`.
+
+| claim | actual |
+|---|---|
+| accelerator-load | CONFIRMED `:98-100` `stage:"accelerator_model_load"` models_loaded=0 |
+| cpu-load | CONFIRMED `:108-110` `stage:"cpu_model_load"` models_loaded=1; `cleanup()` drops the GPU model |
+| init | CONFIRMED `:125` `stage:"init"` (42ddcf4 renamed from `governor_init`) |
+| route Reject | **REFUTED as init stage.** `llama_kv_route::Reject` still throws `"governor contexts have incompatible KV routes"` (`llama-governor.cpp:45-50`); C API returns nullptr; wrapper throws `"llama_governor_init_with_params returned null"` (`rn-governor.cpp:18-20`). Logged as **`init`**, reason generic. A **second** line is emitted from the overlay C API: `stage:"route_reject"` `profile_valid:1` hardcoded (`llama-governor-runtime.cpp:193-197`) **before thermo is set**. Decode-time `"route Reject during phase handoff"` (`llama-governor.cpp:191`) maps to `route_reject` via `reason.find("route Reject")` (`rn-llama.cpp:584-587`) — that is commit fail, not `llama_kv_route::Reject`. |
+
+`common_init_from_params` does not throw (`common.cpp:1350+`); the `try/catch` at `:93-96/:103-106` is dead. The `if (model()==nullptr)` arms are live.
+
+### 3. Thermo — CONFIRMED load gate; citation sloppy
+
+- Absent `governor` key: `parseGovernorLoadParams` `return false` **before** `jsiToGovernorJson` (`RNLlamaJSI.cpp:236-238`).
+- Parse+validate is `rn-governor-params.cpp:153-156` (`thermo = parse_governor_thermo(governor.at("thermo")); if (!governor_thermo_profile_is_valid(thermo)) throw "governor: thermo profile invalid"`), called from `:239-240`, **before** `loadModel` / any mmap. Belt: `loadModel` `:639-640` same throw if pointer null/invalid.
+- Set-before-decode: **after both models** `set_thermo_profile` `:120-123`. Not before load. If this throws, FALLBACK `init` models_loaded=2 then `cleanup()`.
+- Per-turn: `governor_thermo` is now **optional** (`RNLlamaJSI.cpp:1107-1111`); missing key reuses init profile. Invalid turn throw is `"Invalid governor_thermo profile"` `:1150-1151`, different string.
+
+### 4. Refusals — CONFIRMED
+
+- LoRA load `:651-652`; runtime apply/remove `:929-931`, `:961-963`.
+- Multimodal `:980-982`.
+- Parallel load `:642-643`; `enableParallelMode` `:1051-1053`.
+- MTP load `:645-646`; `createMTPDraftContext` `:796-798`; `shouldUseMTP` `rn-completion.cpp:719-720`; `should_use_mtp` `rn-slot.cpp:334-335`.
+- Sessions `JSISession.h:48-49`, `:157-158`.
+- `clearCache` `:1125-1129`.
+
+Still no paired session API (S2 plan). Loud fail only.
+
+### 5. Defaults — CONFIRMED
+
+`reload_budget_available = bool_or(..., false)` (`rn-governor-params.cpp:125`) and vendor/node `llama-ext.h:214` now `= false` (fork overlay mutation). Absent `gpu_fit` → `""` → `Unknown` (`:59-60,:131`). Test asserts both (`scripts/governor-params-test.cpp:32-33`).
+
+### 6. Parser test — PLAUSIBLE run, no recipe
+
+Covers: minimal (Unknown fit, reload false, `batt_level_pct==100`), full enums, explicit reload true, `sensor_valid:false` → exact `"governor: thermo profile invalid"`, `enabled:false`. Does **not** cover missing `thermo`, `npu_lane_enabled`, plugged+bad `t_idle`, FLAG-OFF JSI.
+
+No compile command in `package.json` / `scripts/*.sh` / CMake. `logs/governor-params-test.log` is one line `governor_params=PASS` (printed at `:71` then `return 0`). No `echo $?`, no argv. **No exit-code evidence.**
+
+### 7. FLAG-OFF — CONFIRMED
+
+`:236-238` returns before JSON. `rn-llama.cpp:576-577` `if (!governor) { return llama_decode(ctx, batch); }` is the only `llama_decode(` in `rn-llama.cpp` / completion / slots / JSI. Engine still has `llama_decode(target, batch)` at `llama-governor.cpp:195`. Extra FLAG-OFF cost (empty unique_ptrs, parse probe) unchanged.
+
+### 8. Accessor sites — CONFIRMED
+
+| site | verbatim |
+|---|---|
+| `rn-completion.cpp:849` | `const int ret = parent_ctx->decode(spec_batch);` |
+| `:941` | `const int ret = parent_ctx->decode(spec_batch);` |
+| `:1104` | `if (parent_ctx->decode(llama_batch_get_one(&embd[n_past], n_eval)))` |
+| `:1473` | `const int ret = parent_ctx->decode(batch_view);` |
+| `rn-slot-manager.cpp:991` | `int ret = parent_ctx->decode(batch);` |
+| `rn-slot.cpp:468` | `const int ret = parent_ctx->decode(spec_batch);` |
+| `:543` | `const int ret = parent_ctx->decode(spec_batch);` |
+
+Zero `parent_ctx->ctx` in those three files. `tokenize` now uses `active_ctx()` (`rn-llama.cpp:918`). Leftover: `llama_encode(parent_ctx->active_ctx(), …)` `:639` (not governor-decode).
+
+### 9. New breakage
+
+- **Double FALLBACK** on init KV Reject: overlay C API `route_reject` + owner `init`/`returned null`. `profile_valid:1` is a lie (thermo not applied). CONFIRMED.
+- Thermo-on-null: `setThermoProfile` short-circuits (`:605-606`); `rn_governor::set_thermo_profile` guards `governor_ == nullptr` (`rn-governor.cpp:62-63`). After `cleanup()`, unique_ptrs empty then JSI `unique_ptr` dtor. **No double-free** seen: `cleanup()` `:78-84` is `governor` then decode then prefill. CONFIRMED OK.
+- `fail()` catch around non-throwing `common_init_from_params` is dead. Harmless.
+- Per-turn thermo no longer required: PLAN “once per turn” not enforced.
+
+**Delta verdict: GO-WITH-FIXES.** Ship-blockers from parent audit (null completion / n_ctx=0 / silent clearCache) are fixed. Do not start S3 until: (a) one FALLBACK line per init Reject with the KV-route reason, not `returned null` + hardcoded `profile_valid:1`; (b) `moe_stream.reset()` on the governor arm; (c) test hooked to a real compile+`echo $?` in-tree; (d) document that CPU retry is S4 (still absent).

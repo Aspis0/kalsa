@@ -479,6 +479,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (`scripts/governor-params-test.cpp`, PASS). Patch 3174 righe. Delta audit
 > grok in corso; CI run 33922285427 in volo. Il retry CPU resta in S4.
 
+> **4/09, 17:20 — DELTA AUDIT S2 (grok): GO-WITH-FIXES.** Crash chiuso;
+> residui: una sola riga FALLBACK sul Reject di init (stage route_reject),
+> `moe_stream.reset()` al reload CPU↔governor, test del parser compilato
+> con exit code. Accorpati al brief S3+S4 (Luna): modulo Kotlin
+> `GovernorBatteryModule` (BatteryManager: temp decimi, %, plugged,
+> sensorValid), JSI `setGovernorThermo`/`getGovernorStats`,
+> `src/engine/governorInputs.ts` (generation da SoC, model_kind dal
+> registry, gpu_fit con termine §7.18, override `kalsa.bench.thermo`),
+> wiring LlamaService dietro flag `kalsa.governor.enabled` (default OFF)
+> con retry CPU unico su FALLBACK e riga `KALSA_GOVERNOR` per turno; jest
+> sui moduli nuovi; CI a fine step. Solo `src/engine`, mai UI.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
