@@ -462,6 +462,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > bloccato da path relativi con cwd nel repo app (`find` sulla home):
 > path assoluti sempre. Worktree del bisect rimossi (kit tgz conservati).
 
+> **4/09, 16:50 — CI APK debug del branch `feat/governor-in-app` (run
+> 33916141291, commit 67c9f7f pre-fix) VERDE:** overlay dei 13 file governor
+> + patch llama.rn con rn-governor compilano su Android (NDK, arm64), assert
+> del marker nativo passato. Non dice nulla sul runtime (il NO-GO resta).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
