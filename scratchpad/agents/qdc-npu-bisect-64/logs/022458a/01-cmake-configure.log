@@ -1,4 +1,4 @@
-=== START 01-cmake-configure 2026-09-04T15:23:15Z ===
+=== START 01-cmake-configure 2026-09-04T15:49:47Z ===
 command: docker run --rm --name kalsa-bisect-022458a -u 501:20 --volume /Users/marco/Projects/kalsallama-wt-bisect-022458a:/workspace --platform linux/amd64 -w /workspace ghcr.io/snapdragon-toolchain/arm64-android:v0.7 cmake --preset arm64-android-snapdragon-release -B build-snapdragon
 CMAKE_BUILD_TYPE=ReleasePreset CMake variables:
 
@@ -203,7 +203,7 @@ CMake Warning at common/CMakeLists.txt:30 (message):
 
 -- UI: building llama-ui-embed with host compiler /opt/android-ndk-r29/toolchains/llvm/prebuilt/linux-x86_64/bin/clang++
 -- Generating embedded license file for target: llama-app
--- Configuring done (2.3s)
--- Generating done (1.5s)
+-- Configuring done (2.1s)
+-- Generating done (1.3s)
 -- Build files have been written to: /workspace/build-snapdragon
-=== END 01-cmake-configure exit=0 2026-09-04T15:23:19Z ===
+=== END 01-cmake-configure exit=0 2026-09-04T15:49:51Z ===

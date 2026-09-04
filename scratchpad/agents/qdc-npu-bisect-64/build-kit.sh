@@ -114,7 +114,10 @@ run_step() {
 }
 
 assemble_kit() {
-    local src="$WORKTREE/pkg-snapdragon/llama.cpp"
+    # Sourced from the build tree: cmake --install demands every HTP skel and
+    # every test binary, none of which this v73-only build produces.
+    local src="$WORKTREE/build-snapdragon/bin"
+    local skel="$WORKTREE/build-snapdragon/ggml/src/ggml-hexagon/libggml-htp-v73.so"
     local kit="$KIT_ROOT/kit-bisect-$SHA7"
     local staged="$KIT_ROOT/.kit-bisect-$SHA7.tmp.$$"
     local tgz="$KIT_ROOT/npu-kit-bisect-$SHA7.tgz"
@@ -147,21 +150,23 @@ assemble_kit() {
         libmtmd.so
     )
 
-    [ -d "$src/bin" ] || return 1
-    [ -d "$src/lib" ] || return 1
+    [ -d "$src" ] || return 1
+    [ -s "$skel" ] || { echo "libggml-htp-v73.so missing or empty"; return 1; }
     [ -f "$V6_ROOT/bin/test-backend-ops-153f" ] || return 1
     printf 'lib/ and lib-fix/ contain only libggml-htp-v73.so; v75/v79/v81 skels skipped\n'
     rm -rf "$staged"
     mkdir -p "$staged/bin" "$staged/lib" "$staged/lib-fix" || return 1
 
     for binary in "${binaries[@]:0:4}"; do
-        cp "$src/bin/$binary" "$staged/bin/$binary" || return 1
+        cp "$src/$binary" "$staged/bin/$binary" || return 1
     done
     cp "$V6_ROOT/bin/test-backend-ops-153f" "$staged/bin/test-backend-ops-153f" || return 1
 
     for lib in "${libs[@]}"; do
-        cp "$src/lib/$lib" "$staged/lib/$lib" || return 1
-        cp "$src/lib/$lib" "$staged/lib-fix/$lib" || return 1
+        local from="$src/$lib"
+        [ "$lib" = libggml-htp-v73.so ] && from="$skel"
+        cp "$from" "$staged/lib/$lib" || return 1
+        cp "$from" "$staged/lib-fix/$lib" || return 1
     done
 
     (
@@ -245,12 +250,6 @@ run_step 03-host-build \
     docker run --rm --name "$CONTAINER" -u "$(id -u):$(id -g)" \
     --volume "$WORKTREE:/workspace" --platform linux/amd64 -w /workspace "$IMAGE" \
     cmake --build build-snapdragon --target "${HOST_TARGETS[@]}" || exit $?
-
-busy_container_check
-run_step 04-install \
-    docker run --rm --name "$CONTAINER" -u "$(id -u):$(id -g)" \
-    --volume "$WORKTREE:/workspace" --platform linux/amd64 -w /workspace "$IMAGE" \
-    cmake --install build-snapdragon --prefix pkg-snapdragon/llama.cpp || exit $?
 
 run_step 05-assemble-kit assemble_kit || exit $?
 exit 0

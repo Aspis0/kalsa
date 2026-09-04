@@ -3,3 +3,6 @@
 
 === corrected runner launch 2026-09-04T15:23:15Z ===
 [2026-09-04T15:23:15Z] start good endpoint 022458a28b4539468f75b41ddbf10a2263e1f5a4
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-npu-bisect-64/build-kit.sh: line 252: unexpected EOF while looking for matching `"'
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-npu-bisect-64/build-kit.sh: line 257: syntax error: unexpected end of file
+[2026-09-04T15:45:17Z] good endpoint failed exit=2; midpoint not started

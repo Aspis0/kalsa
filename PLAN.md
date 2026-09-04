@@ -290,6 +290,23 @@
 > dir stale fra commit" è REFUTATA (worktree per sha7). Build step 0 in corso
 > (host 442/445 alle 11:42): la stima "10 min" era ottimista, sono ~25.
 
+> **4/09, 11:52 — APK DEBUGGABLE A/B PRONTI; KIT STEP 0 PRONTO; sessione #63
+> creata.** CI: A run 33886959263 → `apk-A-debug-c513f00/…/app-release.apk`
+> sha256 c645f691a9d16a896415a25d90bd3e179c7d9743c9bcdbde17603017112b0adc;
+> B run 33886967732 → `apk-B-debug-09bdfe9/…/app-release.apk` sha256
+> 1b8e2793a63d182a1fe422a50519e246d8d4d4e4ce510ed2660c6cbbf8370a46; entrambi
+> 142 033 466 B, `aapt2 dump badging` sul Mac: `application-debuggable`
+> PRESENTE (la release di #61: assente). Kit bisect step 0
+> `npu-kit-bisect-022458a.tgz` sha e8f5cfd1…, 39 voci, skel v73 711 880 B.
+> Tre fallimenti onesti prima del kit: (1) Luna ha editato build-kit.sh 2 min
+> DOPO il lancio del runner → bash legge lo script a pezzi → "unexpected end
+> of file" (lezione: mai editare uno script in esecuzione); (2) `cmake
+> --install` esige tutte e 4 le skel HTP; (3) e tutti i test binari → install
+> eliminato, il kit si assembla dal build tree (`build-snapdragon/bin` + skel
+> v73). macOS non ha `setsid`. Build midpoint 990e3bfee in corso (container
+> kalsa-bisect-990e3bf). Sessione QDC 799128 `kalsa63-apkdebug-runas-qrd8650`
+> (SSH only, 45 min) submitted 11:51.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

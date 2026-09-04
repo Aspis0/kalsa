@@ -1,0 +1,41 @@
+=== START 04-install 2026-09-04T15:49:00Z ===
+command: docker run --rm --name kalsa-bisect-022458a -u 501:20 --volume /Users/marco/Projects/kalsallama-wt-bisect-022458a:/workspace --platform linux/amd64 -w /workspace ghcr.io/snapdragon-toolchain/arm64-android:v0.7 cmake --install build-snapdragon --prefix pkg-snapdragon/llama.cpp
+-- Install configuration: "Release"
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-cpu.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-opencl.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-hexagon.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-htp-v73.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-htp-v75.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-htp-v79.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-htp-v81.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-cpu.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-alloc.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-backend.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-blas.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-cann.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-cpp.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-cuda.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-opt.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-metal.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-rpc.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-virtgpu.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-sycl.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-vulkan.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-webgpu.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-zendnn.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/ggml-openvino.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/include/gguf.h
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/libggml-base.so
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/cmake/ggml/ggml-config.cmake
+-- Up-to-date: /workspace/pkg-snapdragon/llama.cpp/lib/cmake/ggml/ggml-version.cmake
+CMake Error at build-snapdragon/tests/cmake_install.cmake:52 (file):
+  file INSTALL cannot find
+  "/workspace/build-snapdragon/bin/test-tokenizer-0": No such file or
+  directory.
+Call Stack (most recent call first):
+  build-snapdragon/cmake_install.cmake:67 (include)
+
+
+=== END 04-install exit=1 2026-09-04T15:49:00Z ===
