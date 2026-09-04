@@ -13,7 +13,7 @@ with n_exps_htp0 ≥ 24. `up_ngl99` recorded for the mapping question only.
 | 4 | 8 | 0a50d99 | 8e1044d2… | 799176 / sa803245 (unit 47874641) | exit 134 after 21 exps; `crashed in thread "work-queue:1" due to TLBMISS RW`, Fault PC 0x20089ECC | exit 134 | **BAD** |
 | 5 | 7 | c0bc859 | 25a83981… | 799176 / sa803245 (same session, model reused, kit re-pushed) | exit 0, n_exps_htp0=189 | exit 134, `dspqueue_read 0x2e` (mapping death) | **GOOD** |
 
-**RESULT (step 5, 4/09 15:01): G1 — CULPRIT FOUND. Index 7 GOOD, index 8 BAD → the first hexagon commit that introduces the v73 TLBMISS in `op_binary` is `0a50d9909a3478e82679f505bf8595d1eee4b0a8` = upstream #26049 "hexagon: further improved pipeline of the core bits (L2, DMA, MM, FA)".** Verdicts are monotone (GOOD: pin, 6, 7; BAD: 8, 9, 12), no G3. Caveat from PREREG: only hexagon-touching commits were candidates; non-hexagon commits between index 7 and 8 in the full history are a declared confound (the first BAD *hexagon* commit is the claim). Six sessions, ~44 min of the 8 Gen 2 pool.
+**RESULT (step 5, 4/09 15:01): G1 — CULPRIT FOUND. Index 7 GOOD, index 8 BAD → the first hexagon commit that introduces the v73 TLBMISS in `op_binary` is `0a50d9909a3478e82679f505bf8595d1eee4b0a8` = upstream #26049 "hexagon: further improved pipeline of the core bits (L2, DMA, MM, FA)".** Verdicts are monotone (GOOD: pin, 6, 7; BAD: 8, 9, 12), no G3. Caveat from PREREG: only hexagon-touching commits were candidates; non-hexagon commits between index 7 and 8 in the full history are a declared confound (the first BAD *hexagon* commit is the claim). Six runs in FOUR sessions (799155: pin + idx12; 799162: idx6; 799168: idx9; 799176: idx8 + idx7 with the model reused), portal durations ~10 + ~6 + ~6 + ~24 ≈ 46 min of the 8 Gen 2 pool (PLAUSIBLE: portal figures, not in raw; the 799176 figure includes ~9 min queue and ~12 min idle waiting for the idx7 kit).
 
 Range after step 4 (historical): culprit ∈ {7, 8} — 8 = 0a50d9909 #26049 "hexagon: further improved pipeline of the core bits (L2, DMA, MM, FA)" is BAD; 7 = c0bc8591e #26029 (op_poll Windows fix, tiny) to be tested (kit building since 14:32). If 7 is GOOD → culprit = #26049.
 
@@ -21,8 +21,9 @@ Range after step 3 (historical): culprit ∈ {7, 8, 9} — 7 c0bc859 (#26029 op_
 
 Range after step 2 (historical): culprit ∈ index 7..12. Next: index 9 (`355303e`, #26007
 "partial im2col support"); kit build started 4/09 13:33 (the index-3 kit
-built speculatively at 13:03 is now unneeded — kept, BUILDS.txt line
-`b2dd28a 0 - 431` was cut short by a pkill that also hit the runner).
+built speculatively at 13:03 is now unneeded; its BUILDS.txt line
+`b2dd28a 0 - 431` records exit 0 with no tgz sha because the orchestrator stopped
+that build once index 6 came back GOOD — see logs/runner-3-9.log).
 
 VOID run (kept in raw/990e3bf-VOID-ran-kit-022458a/): the first "990e3bf"
 run inherited the step-0 kit because the #62-derived driver's resume guard

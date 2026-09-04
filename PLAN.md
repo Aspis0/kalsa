@@ -455,6 +455,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (clearCache/LoRA/mmproj) in governor mode, `reload_budget_available`
 > permissivo, zero test. Fix in corso (Luna) → re-audit → CI.
 
+> **4/09, 16:40 — #64 BANCATA (ALIVE riga 47).** REPORT (Luna) → audit
+> deepseek BANK-WITH-FIXES (righe di BISECT.md sfalsate di −6, conteggio
+> sessioni: 6 run in 4 sessioni ≈ 46 min, path degli script, clausola pkill
+> non supportata) → fix applicati e ricontrollati. Primo audit deepseek
+> bloccato da path relativi con cwd nel repo app (`find` sulla home):
+> path assoluti sempre. Worktree del bisect rimossi (kit tgz conservati).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
