@@ -231,6 +231,10 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
     sizeClass: "2B",
+    // Governor-measured 6656 bytes/kv-token. Added here (alongside sizeClass /
+    // recommendForTiers) for the feat/moe-stream merge with feat/governor-in-app:
+    // both fields must survive that merge, so keep them adjacent.
+    kvBytesPerToken: 6656,
     // Budget caps the think block but cannot disable it (template has no off switch).
     thinking: { short: 256, extended: 512 },
     preserveThinking: true,
