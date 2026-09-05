@@ -214,3 +214,21 @@ Device: run 3 B `promptMs 0` because `JSICompletion.h:193` `llama_perf_context(c
 **6. CI `33947705999`:** `in_progress`.
 
 **Delta-6 verdict: GO** for S5 run 4 on QRD8650 (APK `e8c2b1f`).
+
+## Delta re-audit 7 (6/09, a6642b73d + 0517dc2)
+
+Device: S5 B2 Wait at 38.14 °C stalled (`-2`). Abort still `fail("prefill admission aborted")` (`runtime.cpp:46-47`).
+
+**1. Route.** First multi-token: `decode_impl` `:178-179` resets `prefill_route_` only if `last_phase != Prefill`. Wait or (`CPUFallback && thermal_state != FAST`) while Undecided → CPU (`runtime.cpp:49-59`) `return 0` then `target = ctx_decode` (`llama-governor.cpp:190-191`). CPUFallback in FAST is the exact-row GPU-request label (512/49 tails), **not** a thermal fallback — honouring it always would CPU-prefill cool 512s. Ignoring it in FAST: line 64-67 `return 0` ⇒ outer `llama_decode` of that batch on GPU. Safe for the 49-tail. Reset is **not** `beginCompletion`; only phase-edge + `clear_cache` (`runtime.cpp:161`). Prewarm (`n_predict:0`) leaves `last_phase=Prefill` and a sticky route into the chat turn. First 1-token after CPU prefill: `cpu_route_handoff` (`:202-204`) skips `commit_side`; `target=ctx_decode`. Test pos max 304 after 305-token prompt (`turns.cpp:249`), then 305 after generate (`:265`).
+
+**2. Later Wait on GPU route does not drop tokens.** `:64-67` `return 0` after GPU is already chosen = “do not chunk; `decode_impl` `llama_decode`s the **original** batch” (`:214`). Chunk-loop Wait (`:87-89`) returns 0 **before** the 128+128+49 `decode_impl` for-loop, so the outer call still evals the full n_eval. REFUTE drop. Side effect: a hot remainder after a cool 512 is GPU-eval’d anyway.
+
+**3. Tests I ran.** Build EXIT 0. Router EXIT 0. Turns EXIT 0: `governor_hot_cpu_prefill=PASS engine=CPU chunks=cpu:305 prefill_us=24694 generated=1 commit_bytes=0` and chunked `prefill_us=251327`. Assert is `generated < 0` (`turns.cpp:264`) — **accepts token 0**. Must be `generated >= 1`. `position_matches(..., 304)` is 305 tokens (max pos exclusive-end).
+
+**4. Telemetry.** `governorEngineName(CPU)="CPU"` (`RNLlamaJSI.cpp:53`). Hot path sets `prefill_engine=CPU`, `prefill_chunks="cpu:N"`, `prefill_us` around CPU `llama_decode`, `commit_bytes=0`. **Clobber:** every later `decode_impl` calls `refresh_policy_stats()` (`:183`) which does `stats_.prefill_engine = policy_.prefill_engine()` (`runtime.cpp:27`) — WARM still returns GPU (`policy.cpp` V75+measured). After the first generated token, `KALSA_GOVERNOR engine_prefill` is **GPU**. Test does not re-check engine after generate.
+
+**5. Vendor `0517dc2`.** Pin `a6642b73d`. MATCH after `lm_ggml_` rename. No new throw. Timing/clear_cache still present.
+
+**6. CI `33951262697`:** `in_progress`.
+
+**Delta-7 verdict: GO-WITH-FIXES** — stall is gone; S5 “engine_prefill CPU” is not guaranteed.

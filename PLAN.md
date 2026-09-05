@@ -1008,6 +1008,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > grok (attenzione: assert `generated >= 0` nel test hot è debole; condizione
 > `thermal_state != FAST` per il CPUFallback da giustificare).
 
+> **6/09 05:00 Mac — Delta audit 7 (grok): GO-WITH-FIXES, 3 cambi obbligatori
+> prima del run 5:** (1) `prefill_route_` non si resetta per turno JS: il
+> prewarm freddo lascia `last_phase=Prefill` e un turno caldo successivo
+> ignora il Wait (resto valutato su GPU); (2) `refresh_policy_stats()`
+> sovrascrive `prefill_engine` con l'etichetta della policy (GPU in WARM) dopo
+> il primo token → `KALSA_GOVERNOR` mentirebbe sul route eseguito; (3) test
+> `generated >= 0` → `>= 1` + test prewarm→turno caldo. Fix → Luna ee4741e9
+> (fork, un commit, pin+sync, una CI; la CI 33951262697 verrà cancellata dalla
+> concurrency: atteso).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
