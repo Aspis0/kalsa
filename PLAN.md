@@ -1278,6 +1278,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > ⇒ riga VOID `void_reason=toolcall`, exit 3 solo con `row_void=0`. Sessione
 > `S5b-8Elite-r3` (801374) creata.
 
+> **5/09 09:55 EDT Mac — S5b run 3 (sessione 801374, sa805443): PRIMA RIGA A VALIDA, poi
+> abort termico legittimo.** A1: composer 5142/5142 in 59 s, 925 token nuovi, promptMs 5842
+> (CPU non in cache), decode 26,9 tok/s, oracolo registrato, zero tool call. Skin post-turno
+> 42,5 °C (da 33,1; in S5 r7 lo stesso turno finiva a 34,8) → regola pre-registrata `<42`
+> → status=1 → ABORT dopo un turno. Non è un bug: 60 s di digitazione + prefill CPU da 900
+> token + 280 token di decode scaldano ~9,5 °C. Sonda a board ferma (16 campioni/30 s):
+> 42,5 → 36,0 in ~3,5 min, poi ~0,5 °C/min (`raw/sa805443/cooldown_probe.txt`). Fix a Luna:
+> cooldown a 36 °C prima di ogni turno (poll 15 s, cap 10 min, altrimenti VOID `hot`),
+> skin post-turno registrata non gatata, dumpsys con retry, deadline parametrica (85 min,
+> sessione da 90). Sessione chiusa. Budget 8 Elite ≈525 min.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

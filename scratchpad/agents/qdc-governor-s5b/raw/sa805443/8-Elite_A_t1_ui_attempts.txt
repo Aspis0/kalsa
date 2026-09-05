@@ -1,0 +1,2 @@
+attempt=1 edit_bounds=74 2724 1367 2854 send_bounds=1241 1842 1367 1968
+attempt=2 edit_bounds=74 2724 1367 2854 send_bounds=1241 1842 1367 1968
