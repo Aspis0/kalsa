@@ -761,6 +761,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > PREREG emendato pre-dati (run 1 VOID, identità APK run 2, driver 6bbb67b6).
 > Apro la sessione QDC `S5-QRD8650-r2`.
 
+> **5/09 (22:24 Mac) — S5 RUN 2 IN CORSO: sessione 799235 `S5-QRD8650-r2`
+> (45 min, SSH only), job sa803304, tunnel 6037 (`~/kalsa-qdc/tunnel-799235.pid`),
+> serial 7b5f6c52, APK db1606c, driver 6bbb67b6 (pid in
+> `raw/driver-sa803304.pid`).** Watcher attivo; a fine run: End Session
+> verificato, REPORT (Luna) → audit (deepseek) → ALIVE 48.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
