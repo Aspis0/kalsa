@@ -3162,10 +3162,16 @@ llama_perf_context_data llama_context::perf_get_data() const {
 }
 
 void llama_context::perf_reset() {
+    // Complete any queued backend work before dropping its timing state.  synchronize()
+    // clears n_queued_tokens and t_compute_start_us, so the work cannot be counted twice.
+    synchronize();
+
     t_start_us  = lm_ggml_time_us();
     t_eval_us   = n_eval = 0;
     t_p_eval_us = n_p_eval = 0;
     n_reused    = 0;
+    t_compute_start_us = 0;
+    n_queued_tokens    = 0;
 }
 
 llama_memory_breakdown llama_context::memory_breakdown() const {
