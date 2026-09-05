@@ -1175,6 +1175,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > equo sui ~15 token nuovi; la soglia ≤ 1/3 nasce per il prompt intero e va
 > letta di conseguenza). Apro `S5-8Elite-r7`.
 
+> **6/09 09:00 Mac — S5 RUN 7 (8 ELITE, TTFT equo) IN CORSO: sessione 800201
+> `S5-8Elite-r7`, job sa804270, tunnel 6037 (`~/kalsa-qdc/tunnel-800201.pid`),
+> serial 2a38935c (stessa board del run 6), `SM8750`, APK 8a56edc.** Budget
+> 8 Elite prima: 600 min. Watcher attivo. Attesa: A `promptMs` di poche
+> centinaia di ms (timer pulito), oracolo PASS, decode ≈ parità.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
