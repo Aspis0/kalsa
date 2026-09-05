@@ -1115,6 +1115,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > capito, il TTFT del turno A/B non è un confronto GPU-vs-CPU valido.
 > Memoria aggiornata (run 6, indice).
 
+> **6/09 06:20 Mac — Decisione prodotto per V75 (Adreno 750):** finché il difetto
+> f16/bf16-batched non è aggirato nel fork, l'app NON deve fare prefill GPU su
+> V75 → gate di correttezza per generazione in `governorInputs.ts`
+> (`GPU_PREFILL_CORRECT`: V79 true da run 6; V75 false da run 3-5; V73/Unknown
+> false), governor disabilitato con riga `KALSA_GOVERNOR_FALLBACK
+> {stage:"correctness", reason:"gpu-prefill-incorrect-V75"}`, override bench
+> `kalsa.bench.governor_force=1` per le celle di test. → Luna ee4741e9 (solo
+> src/engine, niente CI finché non atterrano anche le altre modifiche).
+> Indagine divergenza in `docs/GPU-PREFILL-DIVERGENCE-2026-09-06.md` (108 righe +
+> nota di conferma dal run 6): ipotesi `kernel_mul_mm_f16_f32_l4_lm`
+> miscompilato da E031/A7X; nessun flag di fix nel fork; contenimento possibile
+> via `GGML_OPENCL_OPFILTER`; esperimento #1 = test-backend-ops sulla board.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
