@@ -15,6 +15,7 @@ extract() {
 }
 for fn in log write_end deadline_check adbT logcat_all wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
 source "$LIB"
+source "$CELL/parse.sh"
 
 PKG=com.kalsa.app; SER=dryrun; BOARD=QRD8650; DEVICE_TMP=/data/local/tmp/kalsa-s5
 RAW="$TMP/observations"; /bin/mkdir -p "$RAW"
