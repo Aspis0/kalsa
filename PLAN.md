@@ -992,6 +992,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > per turno). Audit addendum → deepseek. Fix "Wait → prefill CPU" in corso
 > (ee4741e9).
 
+> **6/09 04:15 Mac — Addendum run 4 auditato (deepseek BANK-WITH-FIXES, 5 minori
+> di forma, applicati da me: 3 turni + abort, citazioni durata/budget da
+> portale non da raw, "consistent with" per l'overhead chunking, floor n=2/n=1
+> per le mediane, "first in this evidence base"). ALIVE 48 aggiornata col run 4.**
+> Stato S5: bancata con 4 run, 2 bug engine + 3 bug integrazione trovati e
+> fixati, gate termico osservato. In volo: fix "Wait → prefill CPU" (ee4741e9).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
