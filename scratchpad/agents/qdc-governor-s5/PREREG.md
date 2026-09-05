@@ -146,3 +146,20 @@ integration cell, not a consumer-phone battery or production thermal claim.
 - `n_probs:1` is enabled in both arms by the greedy key; its cost is symmetric and it does not
   change the chosen token (probabilities are read after sampling).
 
+## Amendment 5/09 — run 2 APK (pre-data, after run 1 VOID)
+
+Run 1 (QDC session 799218, job sa803287, APK `c5c55a4`, sha `12ecb731…3284`) is **VOID for every
+endpoint**: arm A turn 1 completed (TTFT 42.7 s, 24.3 tok/s, `KALSA_BENCH_TOKENS` present, 0
+fallback, 0 kalsa lmkd) but arm B turn 1 could not complete any generation because
+`shouldUseMTP()` threw in governor mode on every completion (root cause fixed in app commit
+`db1606c`). Run 1 evidence stays in `raw/sa803287/`; the first driver crash is in
+`raw/sa803287-VOID-crash-line90/`.
+
+Run 2 uses APK
+`/Users/marco/kalsa-qdc/apk/apk-gov-db1606c/kalsa-apk-arm64-v8a-debuggable-db1606ceb75fdbadf6577573e4fa1a2c75e3e545/app-release.apk`,
+branch `feat/governor-in-app` @ `db1606c`, CI run 33936537090 (debuggable=true), 142,751,510
+bytes, SHA-256 `dd77516ac3d8a2508985fad9b3e2a1e2c85a5ddfc7dc3f3fdca0d2b4703f2b6a`, aapt2 badging
+shows `application-debuggable`. Driver at commit 6bbb67b6 (set -u fixes, MemAvailable snapshots,
+all-process lmkd evidence file). Everything else in this PREREG is unchanged; QDC session name for
+run 2: `S5-QRD8650-r2`.
+

@@ -756,6 +756,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > loggato. Una riga `KALSA_GOVERNOR` + una `KALSA_BENCH_TOKENS` per turno
 > confermate (`:3247-3249`).
 
+> **5/09 (22:18 Mac) — CI 33936537090 VERDE (45 min di build): APK db1606c in
+> `~/kalsa-qdc/apk/apk-gov-db1606c/`, sha `dd77516a…2b6a`, debuggable ✓.**
+> PREREG emendato pre-dati (run 1 VOID, identità APK run 2, driver 6bbb67b6).
+> Apro la sessione QDC `S5-QRD8650-r2`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
