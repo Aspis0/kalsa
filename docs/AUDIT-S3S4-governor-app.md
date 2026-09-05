@@ -164,3 +164,19 @@ Device S5 run 2 (`QRD8650_B_t1_filtered.txt:1799-1809`): `admit_prefill: prompt 
 **5. Tests** do not exercise 1329/1024 or GPU tail. Quote: `:190-192` CPU 49 Admit; `:185-186` GPU 512 CPUFallback (exact row, not a tail).
 
 **Delta-3 verdict: NO-GO** for S5 run 3.
+
+## Delta re-audit 4 (5/09, e1a0f5028 + ac4820d)
+
+**1. Pre-fix vs post-fix.** Chunk loop was already at `runtime.cpp:56-89`. Pre-fix `return 0` after decoding 128+128+49, then `decode_impl` `llama_decode`’d the original 305 (`llama-governor.cpp` old `:176 return policy_rc`). Device: `n_batch:512` → 512+512 Admit (exact table rows) then 305 → partition Wait on 49 → `-2` `"cannot be partitioned"` → llama.rn `if (decode())` logs `failed to eval, n_eval:305, n_past:1024`. Post-fix: `enum { k_prefill_chunked = 1 }` (`llama-governor.h:41`); chunk loop `return k_prefill_chunked` (`runtime.cpp:90`); `return policy_rc == k_prefill_chunked ? 0 : policy_rc` (`llama-governor.cpp:176`) **skips** the original-batch `llama_decode` (`:196`). Sequence: `llama_decode` 512, 512, 128, 128, 49. `llama_batch_get_one` has `pos/n_seq_id/seq_id/logits = nullptr` (`llama-batch.cpp:937-941`); `token+offset` is the only live pointer — correct. Test `make_batch` (`turns.cpp:59-67`) sets last-token logits only; last 49-view `logits+256` keeps `logits[304]=1`. `seq_id` is `llama_seq_id**`; `+offset` is per-token. Failing chunk: `runtime.cpp:85-87` `if (rc != 0) return rc` (sticky `failed` from inner `decode_impl`). Then 1-token decode → `commit_side` prefill→decode (`llama-governor.cpp:187-190`). Measured `commit_bytes=9186048`.
+
+**2. Delta-3 finding 1: FIXED.** Quote `llama-governor.cpp:175-176` `if (policy_rc != 0) { return policy_rc == k_prefill_chunked ? 0 : policy_rc; }` — original 305 is not replayed. Residual: `k_prefill_chunked==1` equals llama.cpp “KV slot” rc; a chunk returning 1 would be swallowed. Unlikely at n_ctx 8192 / 1329 tokens.
+
+**3. Tests I ran.** `cmake --build …/build --target test-governor-v0-turns test-governor-v02-router -j8` exit 0. `test-governor-v02-router` EXIT 0 `router_v02_golden=PASS`. Assert `admitted == std::vector<uint32_t>{ 128, 128, 49 }` (`test-governor-v02-router.cpp:215-216`) under GPU request. `test-governor-v0-turns -m …/stories15M-q4_0.gguf` EXIT 0: `governor_chunked_prefill=PASS decodes=512+512+128+128+49 generated=1 commit_bytes=9186048`. No-double-eval: `prefill_ubatches != 5` fails (`turns.cpp:164-167`); 5 = 512+512+128+128+49, a replayed 305 would be 6.
+
+**4. Vendor `ac4820d`.** Pin + `VENDOR_SHA` + `build-info.cpp` + three governor files only. `diff` after `ggml_`/`GGML_` → `lm_ggml_`/`LM_GGML_` = MATCH.
+
+**5. Remainder.** Prewarm `803b499`: `LlamaService.ts:797-798` `evalFailed = (nativeError…) || tokensEvaluated <= 0 || promptMs <= 0`. Legit prewarm with `promptMs>0` and `tokensEvaluated>0` is not skipped. Device fail (`promptMs:0`) is now `op:skip eval-failed`. `gpu_prefill_measured: generation === "V75" || generation === "V79"` (`governorInputs.ts:117`). V79 still has no GPU branch in `prefill_engine()`; PLAN S5 still names 8 Elite with no written deferral. **Acceptable for QRD8650 (V75).** Not for the 8 Elite cell.
+
+**6. CI `33941962100`:** `status: in_progress`, `conclusion: ""`.
+
+**Delta-4 verdict: GO** for S5 run 3 on QRD8650 (APK must include `ac4820d`). No code change required for that board. Wait for CI green or sideload an `ac4820d` APK. Do not start 8 Elite until a V79 GPU prefill rule exists.

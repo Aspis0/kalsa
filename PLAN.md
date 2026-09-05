@@ -849,6 +849,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (waiter → `~/kalsa-qdc/apk/apk-gov-ac4820d/`). Delta audit 4 → grok, con
 > obbligo di rieseguire i test del fork.
 
+> **6/09 00:05 Mac — Delta audit 4 (grok): GO per il run 3 su QRD8650.**
+> Pre-fix ricostruito: il loop di chunking c'era già (runtime.cpp:56-89) ma il
+> chiamante rigiocava il batch intero dopo i chunk → `-2`; ora
+> `policy_rc == k_prefill_chunked ? 0 : policy_rc`. Test rieseguiti
+> dall'auditor: build 0, router golden PASS con assert {128,128,49} sotto
+> richiesta GPU, turns PASS. Vendor = fork (MATCH dopo rinomina). Prewarm
+> veritiero senza falsi skip. Residuo minore: `k_prefill_chunked==1` collide
+> con l'rc "KV slot" di llama.cpp (un chunk che torna 1 verrebbe inghiottito;
+> improbabile a 8192/1329) → da rinominare a un valore negativo dedicato in un
+> commit successivo. **Vincolo:** niente cella 8 Elite finché la policy non ha
+> un ramo GPU per V79. Gate run 3: CI 33941962100 (ac4820d).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
