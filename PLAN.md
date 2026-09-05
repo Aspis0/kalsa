@@ -1213,6 +1213,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > è prefill nuovo. Rischi dichiarati: troncamento IME del payload, conteggio
 > token non noto a priori. Audit pre-run → deepseek.
 
+> **6/09 10:25 Mac — Audit pre-run S5b (deepseek): GO-WITH-FIXES, 4 major (M1 nessuna
+> verifica della lunghezza del composer e il retry UI può raddoppiare il
+> prompt; M2 regola mediane/esclusione WARM sottospecificata; M3 soglia ≥3× che
+> ignora il prior 1.65× della cella stessa; M4 conteggio token non
+> pre-registrato: il prompt è 938 token, non 1300-1500) + 5 minori → fix a
+> Luna 5fcd34c9 con decisioni prese (verifica ≥90% + retype unico, retry mai
+> ridigita; mediane solo su coppie GPU/FAST, WARM separate; due attese
+> falsificabili ≥3× e ≈1.6×; colonna new_tokens da prefill_chunks/reusing).
+> Memoria consolidata per la compattazione.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
