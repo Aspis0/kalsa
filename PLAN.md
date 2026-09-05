@@ -1432,6 +1432,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **Run 7 in volo**: sessione 803252 (S5b-7pG3-r7, QRD7675/SM7675, tag `7p-Gen-3`, host sa807321,
 > Running 15:29, 120 min), driver 15:30 `ABABAB 85` → fine ~16:55. Attesa pre-registrata: parità.
 
+> **5/09 16:05 EDT Mac — run 7a (QRD7675) MORTA senza dati in 10 min (exit 1).** A1/B1 VOID
+> `composer` (3821/5142 char, clear lascia 17 char con hint_len=0), A2 ABORT su `run-as: /data
+> readable or writable by others: 40777`. Probe live mio sul board: (1) `screen_off_timeout`=60 s
+> su questo QRD Android 14 → lo schermo va in doze dopo 60 s mentre il typing dura 73 s → coda
+> persa; con `svc power stayon true` + timeout 1800 s il typing è lossless (500/500, 600/600);
+> (2) il dump uiautomator di Android 14 NON ha l'attributo `hint`: il composer vuoto riporta
+> text="Ask a question…" (15 char) → il check "cleared ≤3" fallisce e il retype non parte;
+> (3) /data torna 777 a tratti nonostante 202 chmod rc 0 del driver → retry con chmod attorno a
+> ogni run-as. Errore mio nel probe: tap fuori schermo e misure a schermo spento prima di
+> accorgermi del doze (mWakefulness=Dozing). Nota a margine: senza prefs il catalogo propone
+> Qwen 3.5 4B su questo device (dialog "Download model"). Fix a Luna (stayon+timeout, wake per
+> chunk, EMPTY_TEXT catturato a composer vuoto, retry run-as, dryrun, PREREG "7a → 7b").
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

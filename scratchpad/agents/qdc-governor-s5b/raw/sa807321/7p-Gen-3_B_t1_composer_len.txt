@@ -1,0 +1,2 @@
+attempt=initial actual=3776 expected=5142 minimum=4627 hint_len=0
+attempt=cleared actual=17 expected=5142 minimum=0 hint_len=0
