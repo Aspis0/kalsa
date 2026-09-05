@@ -41,3 +41,18 @@ Rule from now: changes under `src/engine/` get a heads-up in PLAN/handoff before
 Per fix: commit sha, files, `npx tsc --noEmit > /tmp/tsc.log 2>&1; echo $?`, targeted jest
 filters (never the full suite), exit codes, terse. No `git add -A`. Then hand back: the
 governor session dispatches APK build + E2E on `feat/moe-stream`.
+
+## F4 — src/engine ownership (merge prep, 2026-09-05)
+
+`src/engine/` is now **shared** between the moe-stream session and the governor session
+(merge-tree against `feat/governor-in-app` shows ONE conflict, the `lfm2.5-2.6b` entry in
+`ModelRegistry.ts`). Rule from now:
+
+- **Changes under `src/engine/` get a PLAN/handoff heads-up before push.** The moe-stream
+  session may edit it, but must flag it first so the merge stays clean.
+- **Governor-owned, do not touch:** `src/engine/governor*`, the governor sections of
+  `LlamaService.ts`, `patches/`, `plugins/`, `native/`.
+
+F4 added `kvBytesPerToken: 6656` (governor-measured) to the `lfm2.5-2.6b` entry alongside its
+existing `sizeClass` / `recommendForTiers` — both fields must survive the merge with
+`feat/governor-in-app`.
