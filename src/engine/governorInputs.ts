@@ -7,6 +7,16 @@ import { estimateMemory, fitMemoryEstimate } from "./memoryEstimate";
 const MIB = 1024 * 1024;
 const EIGHT_GIB = 8 * 1024 * MIB;
 const BENCH_THERMO_KEY = "kalsa.bench.thermo";
+export const BENCH_GOVERNOR_FORCE_KEY = "kalsa.bench.governor_force";
+
+type Generation = "V73" | "V75" | "V79" | "Unknown";
+
+const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
+  V79: true, // S5 run 6 oracle PASS 4/4 (kalsa-moe-experiments ALIVE 48)
+  V75: false, // Adreno 750 f16/bf16-batched MUL_MAT defect: S5 runs 3-5 deterministic divergence @token 14 (ALIVE 38/39/48)
+  V73: false, // never measured
+  Unknown: false,
+};
 
 type ThermoProfile = {
   batt_temp_tenths_c: number;
@@ -41,19 +51,19 @@ type GovernorModel = Pick<ModelInfo, "sizeBytes"> &
     model_kind?: "Dense" | "Hybrid" | "MoE";
   };
 
-function generationFor(profile: DeviceProfile) {
+function generationFor(profile: DeviceProfile): Generation {
   const soc = (profile.socModel ?? "").toUpperCase();
-  if (/(SM8550|KALAMA)/.test(soc)) return "V73" as const;
-  if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75" as const;
-  if (/(SM8750|SUN)/.test(soc)) return "V79" as const;
+  if (/(SM8550|KALAMA)/.test(soc)) return "V73";
+  if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75";
+  if (/(SM8750|SUN)/.test(soc)) return "V79";
   const text = [profile.modelName, profile.modelId, profile.manufacturer]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toUpperCase();
-  if (/(^|[^A-Z0-9])(QRD8650|SM8650)([^A-Z0-9]|$)/.test(text)) return "V75" as const;
-  if (/(^|[^A-Z0-9])(QRD8750|SM8750)([^A-Z0-9]|$)/.test(text)) return "V79" as const;
-  if (/(^|[^A-Z0-9])(HDK8550|SM8550)([^A-Z0-9]|$)/.test(text)) return "V73" as const;
-  return "Unknown" as const;
+  if (/(^|[^A-Z0-9])(QRD8650|SM8650)([^A-Z0-9]|$)/.test(text)) return "V75";
+  if (/(^|[^A-Z0-9])(QRD8750|SM8750)([^A-Z0-9]|$)/.test(text)) return "V79";
+  if (/(^|[^A-Z0-9])(HDK8550|SM8550)([^A-Z0-9]|$)/.test(text)) return "V73";
+  return "Unknown";
 }
 
 function modelKind(model: GovernorModel) {
@@ -106,18 +116,30 @@ export function buildGovernorParams(
   modelEntry: GovernorModel,
   deviceProfile: DeviceProfile,
   memory: MemorySnapshot,
+  force = false,
 ) {
   const generation = generationFor(deviceProfile);
+  const enabled = force || GPU_PREFILL_CORRECT[generation];
   // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
-    enabled: true as const,
+    enabled,
     generation,
     model_kind: modelKind(modelEntry),
     gpu_fit: gpuFit(modelEntry, deviceProfile, memory),
     gpu_prefill_measured: generation === "V75" || generation === "V79",
     npu_lane_enabled: false,
     reload_budget_available: false,
+    forced: force,
+    ...(enabled ? {} : { reason: `gpu-prefill-incorrect-${generation}` }),
   };
+}
+
+export async function readBenchGovernorForce(): Promise<boolean> {
+  try {
+    return (await AsyncStorage.getItem(BENCH_GOVERNOR_FORCE_KEY)) === "1";
+  } catch {
+    return false;
+  }
 }
 
 function numberValue(value: unknown, fallback: number) {
