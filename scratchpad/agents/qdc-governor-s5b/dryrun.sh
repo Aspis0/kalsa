@@ -46,7 +46,7 @@ adbT() {
   elif [[ "$joined" == *"cat /proc/meminfo"* ]]; then printf 'MemTotal: 8000000 kB\nMemFree: 1000000 kB\nMemAvailable: 2345678 kB\n'
   elif [[ "$joined" == *"dumpsys meminfo"* ]]; then printf 'Applications Memory Usage (in Kilobytes):\nUptime: 1000 Realtime: 1000\n** MEMINFO in pid 4242 [com.kalsa.app] **\nNative Heap 123456\nTOTAL 234567\n'
   elif [[ "$joined" == *"logcat -b all -c"* ]]; then :
-  elif [[ "$joined" == *"logcat -v epoch -d -b all"* ]]; then LOGCAT_CALLS=$((LOGCAT_CALLS + 1)); case "$LOGCAT_MODE" in fail) printf 'stub logcat failure\n'; return 7;; shrink) printf 'x\n';; *) if [ "$TOOL_MODE" -eq 1 ]; then /bin/cat "$TOOL_LOG"; else /bin/cat "$RAW_LOG"; fi;; esac
+  elif [[ "$joined" == *"logcat -v epoch -d -b all"* ]]; then LOGCAT_CALLS=$((LOGCAT_CALLS + 1)); case "$LOGCAT_MODE" in fail) printf 'stub logcat failure\n'; return 7;; newer) printf '1001 new\n';; truncated) printf '1002 truncated';; older) printf '1000 older complete\n';; *) if [ "$TOOL_MODE" -eq 1 ]; then /bin/cat "$TOOL_LOG"; else /bin/cat "$RAW_LOG"; fi;; esac
   elif [[ "$joined" == *"date '+%m-%d"* ]]; then printf '09-04 12:00:00.000\n'
   elif [[ "$joined" == *"date +%s"* ]]; then printf '1000\n'
   elif [[ "$joined" == *"pm list packages"* ]]; then printf '0\nlist_rc=1\n'
@@ -96,8 +96,10 @@ record adbT adbT 1 shell echo dryrun
 record write_end write_end dryrun
 record deadline_check deadline_check
 validate_deadline_minutes 10 && exit 1 || :; validate_deadline_minutes 200 && exit 1 || :; validate_deadline_minutes 85 || exit 1; [ "$COOL_TARGET_C" = 37.0 ] && [ "$COOL_MAX_S" -eq 720 ] || exit 1
-printf 'existing-log\n' > "$TMP/atomic.log"; LOGCAT_MODE=fail; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = existing-log ] && [ "$LOGCAT_CALLS" -eq 3 ] && [ "$LOGCAT_RC" -eq 7 ] && [ "$LOGCAT_RETRIES" -eq 3 ] && grep -q 'rc=7' "$TMP/atomic.log.failures" || exit 1
-LOGCAT_MODE=shrink; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = existing-log ] && [ "$LOGCAT_CALLS" -eq 3 ] && [ "$LOGCAT_RETRIES" -eq 3 ] || exit 1; LOGCAT_MODE=normal
+printf '1000 existing-long-line\n' > "$TMP/atomic.log"; LOGCAT_MODE=newer; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -eq 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 1 ] || exit 1
+LOGCAT_MODE=truncated; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && grep -q 'complete=0' "$TMP/atomic.log.failures" || exit 1
+LOGCAT_MODE=older; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && grep -q 'tmp_epoch=1000' "$TMP/atomic.log.failures" || exit 1
+LOGCAT_MODE=fail; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && [ "$LOGCAT_RC" -eq 7 ] && [ "$LOGCAT_RETRIES" -eq 3 ] && grep -q 'rc=7' "$TMP/atomic.log.failures" || exit 1; LOGCAT_MODE=normal
 record logcat_all logcat_all 60 "$TMP/logcat.txt"
 record wake_sequence wake_sequence
 record device_wake device_wake

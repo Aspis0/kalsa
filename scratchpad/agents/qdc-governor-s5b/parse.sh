@@ -6,22 +6,33 @@ last_json_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{x
 last_reuse_after() { awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&/reusing [0-9]+\/[0-9]+/{x=$0}END{print x}' "$1"; }
 json_field() { local json="$1"; local key="$2"; [ -n "$json" ] || return 0; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$k=shift;$t=do{local $/;<STDIN>};eval{$v=decode_json($t)->{$k};print defined($v)?$v:""}' "$key"; }
 parse_tokens() { local json="$1"; local out="$2"; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$o=decode_json(do{local $/;<STDIN>});die unless ref($o->{ids}) eq "ARRAY"&&defined($o->{n})&&$o->{n}>=32&&@{$o->{ids}}>=32;for $i(0..31){$v=$o->{ids}[$i];die unless defined($v)&&"$v"=~/^-?[0-9]+$/;print "$v\n"}' > "$out" 2>/dev/null; }
+last_epoch() {
+  local file="$1" value
+  [ -s "$file" ] || { printf '0'; return 0; }
+  value=$(tail -n 1 "$file" | awk 'NF { print $1; exit }')
+  awk -v value="$value" 'BEGIN { if (value ~ /^[0-9]+([.][0-9]+)?$/) print value + 0; else print 0 }'
+}
+complete_logcat() {
+  local file="$1" last_byte
+  [ -s "$file" ] || return 1
+  last_byte=$(tail -c 1 "$file" | od -An -t x1 | tr -d '[:space:]')
+  [ "$last_byte" = 0a ]
+}
 logcat_all() {
   local requested_timeout="$1" timeout_s
   local file="$2"
   local tmp="${file}.tmp"
-  local existing_size=0 tmp_size=0 attempt rc
-  [ -f "$file" ] && existing_size=$(wc -c < "$file" | tr -d '[:space:]')
-  [ -n "$existing_size" ] || existing_size=0
+  local existing_epoch tmp_epoch attempt rc complete
+  existing_epoch=$(last_epoch "$file")
   timeout_s=$(( requested_timeout > 120 ? requested_timeout : 120 ))
   LOGCAT_RC=1; LOGCAT_RETRIES=0
   for attempt in 1 2 3; do
     : > "$tmp"
     adbT "$timeout_s" -s "$SER" logcat -v epoch -d -b all > "$tmp" 2>&1
-    rc=$?; tmp_size=$(wc -c < "$tmp" | tr -d '[:space:]')
+    rc=$?; tmp_epoch=$(last_epoch "$tmp"); complete=0; complete_logcat "$tmp" && complete=1
     LOGCAT_RC="$rc"; LOGCAT_RETRIES="$attempt"
-    if [ "$rc" -eq 0 ] && [ "$tmp_size" -ge "$existing_size" ] && mv "$tmp" "$file"; then return 0; fi
-    printf 'logcat_attempt=%s rc=%s tmp_bytes=%s existing_bytes=%s\n' "$attempt" "$rc" "$tmp_size" "$existing_size" >> "${file}.failures"
+    if [ "$rc" -eq 0 ] && [ "$complete" -eq 1 ] && awk -v newer="$tmp_epoch" -v older="$existing_epoch" 'BEGIN { exit !(newer + 0 >= older + 0) }' >/dev/null 2>&1 && mv "$tmp" "$file"; then return 0; fi
+    printf 'logcat_attempt=%s rc=%s tmp_epoch=%s existing_epoch=%s complete=%s\n' "$attempt" "$rc" "$tmp_epoch" "$existing_epoch" "$complete" >> "${file}.failures"
     rm -f "$tmp"
     [ "$attempt" -lt 3 ] && sleep 3
   done
