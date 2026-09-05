@@ -1141,6 +1141,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > test di regressione con sleep) → Luna 9392e981, un commit, senza push; pin
 > bump dopo il gate V75 di ee4741e9, poi UNA CI.
 
+> **6/09 06:45 Mac — Gate di correttezza V75 consegnato (ee4741e9, app
+> `f98a9fa`, non ancora in CI):** tabella `GPU_PREFILL_CORRECT` (V79 true /
+> V75 false / V73 false / Unknown false con citazioni ALIVE), refusal JS
+> `KALSA_GOVERNOR_FALLBACK {stage:"correctness", reason:"gpu-prefill-incorrect-V75",
+> forced}`, override bench `kalsa.bench.governor_force=1`; jest 16/16, tsc 0.
+> Addendum run 6 nel REPORT (245 righe) con la nota sul timer inquinato di A →
+> audit deepseek in corso. Aspetto il fix perf del fork (9392e981) per pin bump
+> + sync + UNA CI, poi delta audit 9 (gate + perf + pin).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
