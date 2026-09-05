@@ -1036,6 +1036,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (`engine_prefill CPU`, `cpu:N`); nota sul gate B del driver (riga degradata
 > valida anche se il driver abortisce). Apro `S5-QRD8650-r5`.
 
+> **6/09 05:05 Mac — S5 RUN 5 (descrittivo, degradazione termica) IN CORSO:
+> sessione 799390 `S5-QRD8650-r5`, job sa803459, tunnel 6037
+> (`~/kalsa-qdc/tunnel-799390.pid`), serial 45207755 (terza board), APK 0265333.**
+> Budget 8 Gen 3 prima: 776 min. Watcher attivo. Attesa: se la board scalda
+> oltre 38 °C, un turno B con `engine_prefill CPU` e `cpu:N` che COMPLETA.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
