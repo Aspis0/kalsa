@@ -792,6 +792,24 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > il codice): tracciare la decisione di route del governor, il path del commit
 > e perché la generazione termina a 0 token; poi audit grok.
 
+> **5/09 (23:00 Mac) — Diagnosi run 2 (Luna ee4741e9) + verifica mia.** Due
+> difetti: (1) **ammissione**: `admit_prefill` rifiuta il prompt (1329 token,
+> 1024 in cache → 305 nuovi) perché la coda residua non si partiziona in
+> chunk "tabled" ≥ 128 → `failed to eval, n_eval 305, n_past 1024` → 0 token,
+> commit 0; prewarm stessa sorte ma JS lo dichiara `done` (promptMs 0). Fix
+> fork `6f0a33c0d` (coda corta ammessa se termicamente sicura; test) → app
+> `fcaf0df` (pin + sync solo policy.cpp); CI 33940693243 in volo. (2)
+> **routing — scoperto da me leggendo la policy**: `prefill_engine()` dà GPU
+> su V75 solo se `params_.gpu_prefill_measured` (`llama-governor-policy.cpp:158-160`),
+> e l'app non lo manda mai (`rn-governor-params.cpp:136` default false,
+> `governorInputs.ts` non lo emette) → il governor chiederebbe SEMPRE prefill
+> CPU sul QRD8650; inoltre `prefill_engine()` non ha alcun ramo GPU per V79.
+> Luna sostiene che l'esecuzione usi comunque `ctx_prefill` per n_tokens>1 e
+> che l'etichetta sia solo dalla policy: da provare. → Delta audit 3 (grok):
+> ammissione, routing policy-vs-esecuzione, V79, prewarm, test. In parallelo
+> Luna (solo src/engine): `gpu_prefill_measured` true per V75/V79 (celle
+> ALIVE #55-58, #38), prewarm veritiero. Poi UNA CI e run 3.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
