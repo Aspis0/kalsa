@@ -648,6 +648,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > worktree app appena ee4741e9 committa: pin → e131345b7, `sync-kalsallama.sh`,
 > import `com.facebook.react.ReactPackage`, CI.
 
+> **5/09 ~05:30 — Contratto sampling nell'app consegnato (Luna ee4741e9,
+> `826fe50`, pushato)**: `src/engine/benchSampling.ts` 50 righe + test 69,
+> riga `KALSA_BENCH_TOKENS {turnId,n,ids}` alle due uscite di completeChat
+> (`LlamaService.ts:3250,3561`, verificato), id raccolti in greedy via
+> `n_probs:1` e `generated_token_ids` (primi 32) esposti dal JSI nel patch
+> (ora 3538 righe). Jest 5/5, tsc 0, npm ci 0, syntax 0 (dichiarati).
+> Driver S5 D1-D5 fixati (7fe207ca): poll su tokensPredicted≥1, n≥32 solo
+> nell'oracolo (VOID-e-continua), dump extra +2 s, `list_rc` reale, seconda
+> ancora al Send. **In corso su ee4741e9:** pin → e131345b7 + sync vendor
+> (prova: righe `failure_reason`/friend nel vendor, diff solo sui 3 file
+> governor) + import `com.facebook.react.ReactPackage` + CI APK debug. Poi
+> delta audit grok unico (fix S3+S4, contratto, vendor, Kotlin), poi lock
+> PREREG con lo sha dell'artifact.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
