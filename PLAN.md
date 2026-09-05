@@ -636,6 +636,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Send. Fix a Luna 5fcd34c9. Puliti: parse_tokens, quoting, 13 colonne TSV,
 > evidenze prima di ogni exit.
 
+> **5/09 ~05:00 — Fix nel fork consegnato (Luna a51f22b6): `e131345b7`
+> "governor: expose init failure reason, fix friend/ctor access" sopra
+> 8665e9a9f, un commit.** `llama_governor::failure_reason()`, friend corretta
+> su `llama_governor_init_with_params_internal(..., std::string*)`
+> (`src/llama-governor.h:29-34`, verificate da me). Build Mac 0, router test
+> 0, syntax check Android 0. Branch `kalsa/governor-v0.3-on-12f6d9b6d`
+> pushato su Aspis0/kalsallama (backup; la CI app compila dal vendor). Nota:
+> le "174 differenze" vendor/fork sono la rinomina `lm_ggml_` del sync
+> script, non divergenze; quelle vere erano i 3 file governor. Prossimo, nel
+> worktree app appena ee4741e9 committa: pin → e131345b7, `sync-kalsallama.sh`,
+> import `com.facebook.react.ReactPackage`, CI.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
