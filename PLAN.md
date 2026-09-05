@@ -861,6 +861,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > commit successivo. **Vincolo:** niente cella 8 Elite finché la policy non ha
 > un ramo GPU per V79. Gate run 3: CI 33941962100 (ac4820d).
 
+> **6/09 00:20 Mac — CI 33941962100 VERDE (~50 min): APK ac4820d in
+> `~/kalsa-qdc/apk/apk-gov-ac4820d/`, sha `1a1356ac…e2bc`, debuggable ✓.**
+> PREREG emendato pre-dati (run 2 VOID con causa, identità APK run 3). Apro
+> la sessione `S5-QRD8650-r3`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

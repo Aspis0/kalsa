@@ -163,3 +163,26 @@ shows `application-debuggable`. Driver at commit 6bbb67b6 (set -u fixes, MemAvai
 all-process lmkd evidence file). Everything else in this PREREG is unchanged; QDC session name for
 run 2: `S5-QRD8650-r2`.
 
+## Amendment 5/09 (night) — run 3 APK (pre-data, after run 2 VOID)
+
+Run 2 (session 799235, job sa803304, APK `db1606c`) is **VOID for every endpoint**: A1 completed
+(TTFT 45.9 s, 24.9 tok/s, `ids_sha` identical to run 1's A1), B1 produced the first governor turn
+but with `engine_prefill:CPU`, `commit_bytes:0`, `tokensPredicted:0`: admission partitioned the
+305-token remainder (n_batch 512 ⇒ 1329 = 512+512+305) as 128+128+49 but the runtime replayed the
+whole batch after the chunks (`-2`, `failed to eval`). Fixed in fork `6f0a33c0d` (tail admit) +
+`e1a0f5028` (no replay of the original batch after admitted chunks); app `803b499` adds
+`gpu_prefill_measured` (telemetry honesty: the context is chosen by `n_tokens > 1`, not by the
+policy label) and a truthful prewarm (`eval-failed`); app `ac4820d` = pin bump. Delta audit 4: GO.
+Evidence of run 2 in `raw/sa803304/` (+ `raw/sa803304-VOID-gate-freshboard/` for the driver's
+fresh-board gate crash, fixed in driver commit df07c616).
+
+Run 3 uses APK
+`/Users/marco/kalsa-qdc/apk/apk-gov-ac4820d/kalsa-apk-arm64-v8a-debuggable-ac4820d48e60e1d540e15939bf5333a7d6745e2e/app-release.apk`,
+branch `feat/governor-in-app` @ `ac4820d`, CI run 33941962100 (debuggable=true), 142,752,314 bytes,
+SHA-256 `1a1356ac1f15c3362d45d7a9a16c1c79789d52130f5b44b1b50ad28371e2e2bc`, aapt2 badging shows
+`application-debuggable`; vendor = fork `e1a0f5028`. Session name `S5-QRD8650-r3`. Endpoints,
+arms, thresholds and driver contract unchanged. Expected B telemetry after the fix:
+`engine_prefill` is still the policy LABEL (GPU only with `gpu_prefill_measured`, now sent for
+V75), the executed prefill context is the GPU one for any multi-token batch; the driver's B gate
+(`prefill == GPU`) therefore tests label + execution together.
+
