@@ -866,6 +866,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > PREREG emendato pre-dati (run 2 VOID con causa, identità APK run 3). Apro
 > la sessione `S5-QRD8650-r3`.
 
+> **6/09 00:30 Mac — S5 RUN 3 IN CORSO: sessione 799285 `S5-QRD8650-r3`
+> (45 min, SSH only), job sa803354, tunnel 6037 (`~/kalsa-qdc/tunnel-799285.pid`),
+> serial 7b5f6c52 (stessa board del run 2), APK ac4820d, driver df07c616.**
+> Watcher attivo. Budget 8 Gen 3 prima della sessione: 822 min.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
