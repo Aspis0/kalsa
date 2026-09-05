@@ -741,6 +741,21 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (waiter scarica l'APK in `~/kalsa-qdc/apk/apk-gov-db1606c/`). Driver: Luna
 > 5fcd34c9 su `local`/set -u dry-run + MemAvailable + lmkd globali.
 
+> **5/09 — Delta audit 2 (grok, db1606c): GO-WITH-FIXES per il run 2.** Fix
+> MTP confermato con call-path completo: `createMTPDraftContext` è raggiungibile
+> solo via `shouldUseMTP()`/`should_use_mtp()` (ora false) → irraggiungibile.
+> Tabella dei 9 throw `hasGovernor()`: 7 UNREACHABLE (LoRA, multimodal
+> mutuamente esclusivo con `governorLoad`, parallel, thermo inverso, session
+> load su fresh install); **2 REACHABLE ma inghiottiti**: `clearCache`
+> (hash-miss settings `:848`, translate `:3922`, completeOnce `:4034` — throw
+> catturato, ma i KV NON vengono puliti: no-op silenzioso) e session save
+> (`:2115`, persist in background dopo il turno, catch `:2234`). Nessuno dei
+> due tocca il flusso S5 (fresh install → prewarm → un turno). **Follow-up
+> obbligatorio dopo il run 2:** clearCache in governor = pulizia di ENTRAMBI i
+> KV o reload CPU + riga FALLBACK; session save in governor = skip esplicito
+> loggato. Una riga `KALSA_GOVERNOR` + una `KALSA_BENCH_TOKENS` per turno
+> confermate (`:3247-3249`).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

@@ -118,3 +118,31 @@ Tree `/Users/marco/Projects/kalsa-wt-governor` @ `c5c55a4`. Commits `1c4b142 4df
 - CI unfinished — major for APK proof.
 
 **Delta verdict: GO-WITH-FIXES** — 0 blocker, 2 major (B2 t_idle contract, CI not green), 3 minor. S5 may proceed once CI is green **and** bench-skin JSON carries `t_idle_valid`/`t_idle_c` (not the plan’s 4-field example).
+
+## Delta re-audit 2 (5/09, db1606c)
+
+`db1606c` patch: `shouldUseMTP` / `should_use_mtp` `throw` → `return false`. Also deleted the stale `gpu-opencl` comment (`LlamaService.ts` was `:1608`).
+
+**MTP fix — CONFIRMED.** `rn-completion.cpp:720-721` `if (parent_ctx->hasGovernor()) { return false; }`. `rn-slot.cpp:334-335` same. Caller `rn-completion.cpp:1031-1032` `if (shouldUseMTP()) { return nextTokenMTP(); }` → plain `nextToken()`. `initMTP()` `:752-753` returns before `createMTPDraftContext`. Slot `:375` `if (!should_use_mtp() || spec != nullptr) { return; }`. JSI `:1260` media+MTP check also becomes false. No draft ctx, no `common_speculative_init`.
+
+**`createMTPDraftContext` (`rn-llama.cpp:788-790`) is NOT model-init.** Callers: `rn-completion.cpp:772` (inside `initMTP`), `rn-slot.cpp:409` (inside `init_mtp`), `rn-slot-manager.cpp:107` (`ensure_mtp_speculative`, only from `init_mtp` `:405`). After this fix all three are gated by `shouldUseMTP`/`should_use_mtp` = false. **UNREACHABLE** in governor mode. (Load-time MTP refusal is a different throw: `rn-llama.cpp:633` on `has_speculative_mode`; JS already `delete governorParams.speculative` `:1538-1539`.)
+
+**Telemetry.** S5 one chat turn (no tools) hits `:3247` `emitGovernorTelemetry` + `:3249` `KALSA_BENCH_TOKENS` then `return`. `:3558-3560` is the tool-exhaust path only. Mutually exclusive. Exactly one of each per completed chat turn.
+
+**CI `33936537090`:** `status: in_progress`, `conclusion: ""`.
+
+### Remaining `hasGovernor()` throws → app
+
+| site | throw | JSI | LlamaService | S5 run 2 | verdict |
+|---|---|---|---|---|---|
+| `rn-llama.cpp:788` | MTP draft ctx | (via completion) | `completion` | no, `shouldUseMTP` false | **UNREACHABLE** |
+| `:921` applyLora | runtime LoRA | `llamaApplyLoraAdapters` | none in `src/` | — | **UNREACHABLE** |
+| `:953` removeLora | runtime LoRA | `llamaRemoveLoraAdapters` | none | — | **UNREACHABLE** |
+| `:972` initMultimodal | mmproj | `llamaInitMultimodal` | `:1689` only when `mmprojPath`; `governorLoad` requires `!mmprojPath` (`:1302`) | vision models | **UNREACHABLE** in governor (mutually exclusive) |
+| `:1117` clearCache | `"Governor mode does not support clearCache"` | `llamaClearCache` | `:848` prefix-hash miss; `:3922` translate; `:4034` completeOnce; extract only if `EXTRACT_MEMORY_PRESERVE_CHAT_KV` false (`ttftFlags.ts:37` true) | S5 mount skips notify (`AppShell.tsx:2063-2067`) | **REACHABLE** (settings change / translate / completeOnce). Throw **swallowed** (`:849`, `:3923`, `:4035`); KV **not** cleared. Finding: degrade is silent no-op, not dual-KV clear / CPU reload+FALLBACK. |
+| `enableParallelMode :1044` | parallel slots | `llamaEnableParallelMode` | none | — | **UNREACHABLE** |
+| `RNLlamaJSI.cpp:834` | `"Governor mode is not enabled"` | `llamaSetGovernorThermo` | `:925` only if `activeGovernorActive` | inverse gate | **UNREACHABLE** while governor on (JS catch `:935` anyway) |
+| `JSISession.h:48` load | session load | `llamaLoadSession` | `:1662` skipped if `activeGovernorActive`; extract snapshot restore caught | fresh install | **UNREACHABLE** on S5; **REACHABLE-ONLY-WITH-FEATURE** restore |
+| `JSISession.h:158` save | session save | `llamaSaveSession` | `:2115` persist after chat, catch `:2234` | after turn, background | **REACHABLE-ONLY-WITH-FEATURE** (KV persist). Caught; turn still succeeds. |
+
+**Delta-2 verdict: GO-WITH-FIXES** for S5 run 2. The QDC hot-path throw is gone; prewarm+one chat turn no longer hits a `hasGovernor()` throw. Remaining REACHABLE throws (`clearCache`, session save) do not fail that turn but still must not throw — they currently throw-and-swallow without clearing both KV stores. CI not green yet.
