@@ -730,6 +730,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > memoria `audit-must-trace-call-paths-and-set-u`: ogni brief d'audit deve
 > chiedere il call-path di ogni throw; ogni driver una prova a secco con set -u.
 
+> **5/09 — Fix `shouldUseMTP()` consegnato (ee4741e9, `db1606c`, pushato):**
+> `rn-completion.cpp:721` e `rn-slot.cpp:335` ora `return false` in modalità
+> governor (verificato da me); i chiamanti prendono il decode semplice. Tabella
+> dei throw gated da `hasGovernor()` rimasti: rn-llama.cpp 788 (draft MTP,
+> init), 921/953 (LoRA), 972 (multimodal init), **1117 (`clearCache`, che
+> l'app chiama a `LlamaService.ts:848` su hash-miss del prewarm da idle →
+> potenziale throw in sessione normale)**, JSI 834. → Delta audit 2 a grok con
+> tracciamento obbligatorio dei call-path fino all'app. CI 33936537090 in volo
+> (waiter scarica l'APK in `~/kalsa-qdc/apk/apk-gov-db1606c/`). Driver: Luna
+> 5fcd34c9 su `local`/set -u dry-run + MemAvailable + lmkd globali.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
