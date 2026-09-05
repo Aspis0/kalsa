@@ -45,7 +45,7 @@ DEVICE_TMP=/data/local/tmp/kalsa-s5; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAVED=""; IME_SUSPENDED=0
 FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=900; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0
-source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/parse.next.sh
+source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/parse.sh
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
 deadline_check() { [ "$(date +%s)" -lt "$DEADLINE_EPOCH" ] || { log "DEADLINE_${DEADLINE_MINUTES}_MIN"; write_end "deadline_${DEADLINE_MINUTES}_min"; exit 124; }; }
@@ -96,7 +96,6 @@ adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WA
 {
   echo "serial=$SER"; echo "port=$ANDROID_ADB_SERVER_PORT"; echo "ro.soc.model"
   adbT 60 -s "$SER" shell getprop ro.soc.model
-  echo "ro.product.name"; adbT 60 -s "$SER" shell getprop ro.product.name
   echo "ro.product.model"; adbT 60 -s "$SER" shell getprop ro.product.model
   echo "ro.build.fingerprint"; adbT 60 -s "$SER" shell getprop ro.build.fingerprint
   echo "ro.build.type"; adbT 60 -s "$SER" shell getprop ro.build.type
@@ -104,13 +103,11 @@ adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WA
   echo "id"; adbT 60 -s "$SER" shell id
 } > "$RAW/recon.txt" 2>&1
 SOC=$(adbT 60 -s "$SER" shell getprop ro.soc.model | tr -d '\r')
-PRODUCT_NAME=$(adbT 60 -s "$SER" shell getprop ro.product.name | tr -d '\r')
 case "$SOC" in
-  SM8650|QRD8650|SM7675|QRD7675|SM8550|QRD8550|SM8635|QRD8635|SM8750|QRD8750) ;;
+  SM8650|QRD8650) log "GATED_OFF_QRD8650"; exit 6 ;;
+  SM8750|QRD8750) BOARD=8-Elite ;;
   *) log "UNSUPPORTED_SOC=$SOC"; exit 6 ;;
 esac
-BOARD=$(device_tag "$PRODUCT_NAME" "$SOC") || { log "DEVICE_TAG_FAIL product=$PRODUCT_NAME soc=$SOC"; exit 6; }
-printf 'device_tag=%s\n' "$BOARD" >> "$RAW/recon.txt"
 holder_loop & HOLDER_PID=$!; sleep 1
 make_thermo() {
   local skin="$1" now trend tenths
@@ -260,12 +257,12 @@ run_observation() {
     COOL_TARGET_C=$(cool_target_for_arm "$arm") || status=1
     if [ "$status" -eq 0 ]; then
       cooldown_to_target "$prefix"; cooldown_rc=$?; cooldown_s="$COOLDOWN_SECONDS"
-      if [ "$cooldown_rc" -eq 2 ]; then row_void=1; void_reason=hot; elif [ "$cooldown_rc" -ne 0 ]; then status=1; void_reason=thermal; fi
+      if [ "$cooldown_rc" -eq 2 ]; then row_void=1; void_reason=hot; elif [ "$cooldown_rc" -ne 0 ]; then status=1; fi
     fi
   fi
   flag=0; [ "$arm" = B ] && flag=1
   if [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]; then
-    skin_before=$(thermal_record "$(basename "$prefix")_before") || { skin_before=na; void_reason=thermal; status=1; }
+    skin_before=$(thermal_record "$(basename "$prefix")_before") || { skin_before=na; status=1; }
     if [ "$status" -eq 0 ] && [ "$arm" = A ] && awk -v v="$skin_before" -v target="$COOL_TARGET_C" 'BEGIN { exit !(v > target) }' >/dev/null 2>&1; then row_void=1; void_reason=hot; fi
     if [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]; then make_thermo "$skin_before"; thermo="$THERMO_JSON"; set_prefs "$flag" || status=1; fi
   fi
@@ -276,7 +273,7 @@ run_observation() {
     if [ "$load_rc" -eq 0 ] && [ "$status" -eq 0 ]; then device_wake; ime_suspend; ui_send "$prefix" "$turn"; ui_rc=$?; if [ "$ui_rc" -eq 2 ]; then row_void=1; elif [ "$ui_rc" -ne 0 ]; then status=1; fi; fi
     [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 120 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 120 "$logcat" || true
   fi
-  [ -f "$logcat" ] || : > "$logcat"; lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || status=1; skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; void_reason=thermal; status=1; }; grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
+  [ -f "$logcat" ] || : > "$logcat"; lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || status=1; skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; status=1; }; grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat"); lmkd=$(count_lmkd_after "$logcat"); telemetry=$(last_json_after KALSA_TELEMETRY "$logcat"); governor=$(last_json_after 'KALSA_GOVERNOR ' "$logcat"); bench=$(last_json_after 'KALSA_BENCH_TOKENS ' "$logcat"); tool_call=$(last_json_after 'KALSA_TOOLCALL ' "$logcat"); structured_calls=$(json_field "$tool_call" structuredCalls); [ -n "$structured_calls" ] || structured_calls=0; case "$structured_calls" in ''|*[!0-9]*) structured_calls=0;; esac; if [ "$structured_calls" -gt 0 ]; then tool_calls="$structured_calls"; void_reason=toolcall; row_void=1; fi
   ttft=$(json_field "$telemetry" promptMs); prefill_ms=$(json_field "$governor" prefill_ms); prefill_chunks=$(json_field "$governor" prefill_chunks); decode=$(json_field "$telemetry" predictedPerSecond); prefill=$(json_field "$governor" engine_prefill); decode_engine=$(json_field "$governor" engine_decode); thermal=$(json_field "$governor" thermal_state); commit_bytes=$(json_field "$governor" commit_bytes); commit_ms=$(json_field "$governor" commit_ms); thermo_source=$(json_field "$governor" thermo_source); governor_count=$(awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&index($0,"KALSA_GOVERNOR ")>0{n++}END{print n+0}' "$logcat"); n=$(json_field "$bench" n)
   [ -n "$ttft" ] || ttft=na; [ -n "$prefill_ms" ] || prefill_ms=na; [ -n "$prefill_chunks" ] || prefill_chunks=na; [ -n "$decode" ] || decode=na; [ -n "$prefill" ] || prefill=na; [ -n "$decode_engine" ] || decode_engine=na; [ -n "$thermal" ] || thermal=na; [ -n "$commit_bytes" ] || commit_bytes=na; [ -n "$commit_ms" ] || commit_ms=na; [ -n "$thermo_source" ] || thermo_source=na; [ -n "$n" ] || n=na
@@ -292,6 +289,6 @@ run_observation() {
   adbT 60 -s "$SER" shell "am force-stop $PKG" > "${prefix}_force_stop.txt" 2>&1 || status=1; adbT 120 -s "$SER" shell "pm uninstall $PKG" > "${prefix}_uninstall.txt" 2>&1; [ "$?" -eq 0 ] || status=1
   [ "$runtime_prereq" -eq 0 ] || exit 3; return "$status"
 }
-FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN void_reason=thermal"; exit 6; }; PREV_SKIN="$FIRST_SKIN_C"; PREV_TIME=$(date +%s); model_setup || exit 5; FINAL_RC=0; A_TURN=0; B_TURN=0
+FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN"; exit 6; }; PREV_SKIN="$FIRST_SKIN_C"; PREV_TIME=$(date +%s); model_setup || exit 5; FINAL_RC=0; A_TURN=0; B_TURN=0
 for ((i=0; i<${#ARM_ORDER}; i++)); do deadline_check; arm="${ARM_ORDER:i:1}"; if [ "$arm" = A ]; then A_TURN=$((A_TURN+1)); turn="$A_TURN"; else B_TURN=$((B_TURN+1)); turn="$B_TURN"; fi; run_observation "$arm" "$turn" || { FINAL_RC=1; log "ABORT arm=$arm turn=$turn"; break; }; done
 log "DONE board=$BOARD final_rc=$FINAL_RC results=$RESULTS"; exit "$FINAL_RC"

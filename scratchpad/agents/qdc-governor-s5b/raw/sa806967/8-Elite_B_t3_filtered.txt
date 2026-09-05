@@ -1,0 +1,1058 @@
+         1788635938.379 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.379 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_down.weight with q4_0_4x8
+         1788635938.382 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.382 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_up.weight with q4_0_4x8
+         1788635938.384 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.shortconv.in_proj.weight with q4_0_4x8
+         1788635938.386 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.386 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.shortconv.out_proj.weight with q4_0_4x8
+         1788635938.387 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_gate.weight with q4_0_4x8
+         1788635938.390 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.390 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_down.weight with q4_0_4x8
+         1788635938.392 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_up.weight with q4_0_4x8
+         1788635938.395 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.395 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_q.weight with q4_0_4x8
+         1788635938.396 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_k.weight with q4_0_4x8
+         1788635938.396 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_v.weight with q4_0_4x8
+         1788635938.396 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_output.weight with q4_0_4x8
+         1788635938.397 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_gate.weight with q4_0_4x8
+         1788635938.400 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.400 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_down.weight with q4_0_4x8
+         1788635938.402 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.403 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_up.weight with q4_0_4x8
+         1788635938.405 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.shortconv.in_proj.weight with q4_0_4x8
+         1788635938.407 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.407 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.shortconv.out_proj.weight with q4_0_4x8
+         1788635938.408 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_gate.weight with q4_0_4x8
+         1788635938.411 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.411 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_down.weight with q4_0_4x8
+         1788635938.413 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_up.weight with q4_0_4x8
+         1788635938.416 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.416 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.shortconv.in_proj.weight with q4_0_4x8
+         1788635938.418 28224 28264 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.shortconv.out_proj.weight with q4_0_4x8
+         1788635938.419 28224 28264 I ReactNativeJS: KALSA_NATIVE info .
+         1788635938.419 28224 28264 I ReactNativeJS: KALSA_NATIVE info 
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max     = 1
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx         = 16384
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq     = 16384
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch       = 512
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch      = 256
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn   = 1
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn    = auto
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified    = false
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base     = 10000000.0
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale    = 1
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq      = 0
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max = 512
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (16384) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: vector subgroup broadcast support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: subgroup shuffle support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device FP16 support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: mem base addr align: 128
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: global mem size: 7578 MB
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: max mem alloc size: 1024 MB
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max image buffer size (pixels): 134217728
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max image2d size: 16384 x 16384
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max workgroup size: 1024
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM coarse grain buffer support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM fine grain buffer support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM fine grain system support: false
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM atomics support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: cl_qcom_subgroup_shuffle support: true
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: flattening quantized weights representation as struct of arrays (LM_GGML_OPENCL_SOA_Q)
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: using kernels optimized for Adreno (LM_GGML_OPENCL_USE_ADRENO_KERNELS)
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info set_abort_callback: call
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   0: filtered
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   1: filtered
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   2: dev = GPUOpenCL
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   3: filtered
+         1788635938.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   4: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   5: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   6: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   7: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   8: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   9: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  10: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  11: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  12: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  13: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  14: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  15: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  16: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  17: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  18: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  19: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  20: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  21: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  22: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  23: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  24: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  25: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  26: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  27: dev = GPUOpenCL
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  28: filtered
+         1788635938.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  29: filtered
+         1788635938.433 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:     OpenCL KV buffer size =   104.01 MiB
+         1788635938.439 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =  104.00 MiB ( 16384 cells,   8 layers,  1/1 seqs), K (q8_0):   68.00 MiB, V (q4_0):   36.00 MiB
+         1788635938.439 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+         1788635938.439 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   0: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   1: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   2: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   3: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   4: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   5: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   6: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   7: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   8: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   9: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  10: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  11: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  12: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  13: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  14: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  15: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  16: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  17: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  18: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  19: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  20: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  21: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  22: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  23: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  24: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  25: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  26: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  27: skipped
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  28: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  29: dev = GPUOpenCL
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent:     OpenCL RS buffer size =     0.34 MiB
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: enumerating backends
+         1788635938.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: backend_ptrs.size() = 2
+         1788635938.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving ...
+         1788635938.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: max_nodes = 2136
+         1788635938.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving full memory module
+         1788635938.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: worst-case: n_tokens = 256, n_seqs = 1, n_outputs = 1
+         1788635938.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788635938.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: compiling fa f32
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: Flash Attention enabled
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: resolving fused Gated Delta Net support:
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+         1788635938.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve:     OpenCL compute buffer size =   129.00 MiB
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve:        CPU compute buffer size =    12.04 MiB
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph nodes  = 1110
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph splits = 2
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserve took 128.31 ms, sched copies = 1
+         1788635938.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max     = 1
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx         = 16384
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq     = 16384
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch       = 512
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch      = 256
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn   = 1
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn    = auto
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified    = false
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base     = 10000000.0
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale    = 1
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq      = 0
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max = 512
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (16384) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: 0800.70 Compiler E031.47.18.47
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: vector subgroup broadcast support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: subgroup shuffle support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device FP16 support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: mem base addr align: 128
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: global mem size: 7578 MB
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: max mem alloc size: 1024 MB
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max image buffer size (pixels): 134217728
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max image2d size: 16384 x 16384
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max workgroup size: 1024
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM coarse grain buffer support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM fine grain buffer support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM fine grain system support: false
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM atomics support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: cl_qcom_subgroup_shuffle support: true
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: flattening quantized weights representation as struct of arrays (LM_GGML_OPENCL_SOA_Q)
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: using kernels optimized for Adreno (LM_GGML_OPENCL_USE_ADRENO_KERNELS)
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info set_abort_callback: call
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+         1788635938.569 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   0: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   1: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   2: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   3: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   4: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   5: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   6: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   7: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   8: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   9: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  10: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  11: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  12: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  13: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  14: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  15: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  16: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  17: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  18: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  19: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  20: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  21: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  22: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  23: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  24: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  25: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  26: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  27: dev = CPU
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  28: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  29: filtered
+         1788635938.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:        CPU KV buffer size =   104.00 MiB
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =  104.00 MiB ( 16384 cells,   8 layers,  1/1 seqs), K (q8_0):   68.00 MiB, V (q4_0):   36.00 MiB
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   0: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   1: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   2: skipped
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   3: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   4: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   5: skipped
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   6: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   7: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   8: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   9: skipped
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  10: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  11: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  12: dev = CPU
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  13: skipped
+         1788635938.574 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  14: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  15: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  16: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  17: skipped
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  18: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  19: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  20: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  21: skipped
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  22: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  23: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  24: skipped
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  25: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  26: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  27: skipped
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  28: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  29: dev = CPU
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent:        CPU RS buffer size =     0.34 MiB
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: enumerating backends
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info llama_context: backend_ptrs.size() = 2
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving ...
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: max_nodes = 2136
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving full memory module
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: worst-case: n_tokens = 256, n_seqs = 1, n_outputs = 1
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: Flash Attention enabled
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: resolving fused Gated Delta Net support:
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788635938.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+         1788635938.576 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+         1788635938.576 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph nodes  = 1110
+         1788635938.576 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph splits = 1
+         1788635938.576 28224 28264 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserve took 1.74 ms, sched copies = 1
+         1788635938.589 28224 28264 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":{"prefill":99,"decode":0}}
+         1788635938.591 28224 28264 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"687350153","systemChars":3015,"toolCount":1}'
+         1788635938.609 28224 28310 W RNLlama : loadPrompt:434 KALSA_KVPREFIX embd=0 text_tokens=846 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000077eff22f70
+         1788635938.613 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: lazy-compiling flash_attn prepass for DK=64 DV=64
+         1788635938.613 28224 28264 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: compiling fa prepass f16
+         1788635941.380 28224 28264 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":2767.696,"hash":"687350153"}'
+         1788636029.002 28224 28264 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+         1788636029.006 28224 28264 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":7681}
+         1788636031.296 28224 28305 W RNLlama : loadPrompt:434 KALSA_KVPREFIX embd=846 text_tokens=1766 n_common=843 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000077eff22f70
+         1788636031.296 28224 28305 W RNLlama : loadPrompt:483 KALSA_KVDIVERGE n_common=843 shared_lo=835 embd_hi=846 text_hi=855 shared_ids=[11081 88075 19851 124900 207 124899 5922 207 ] embd_ids=[22 124900 207 ] text_ids=[22155 267 14991 2352 6133 836 267 1286 11319 11671 309 6986 ]
+         1788636031.297 28224 28305 I RNLlama : loadPrompt:536 restored state checkpoint: reusing 841/1766 prompt tokens
+         1788636043.506 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 25797 (`````)
+         1788636043.542 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19585 (`json`)
+         1788636043.575 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 207 (`
+         1788636043.610 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2718 (`{
+         1788636043.646 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+         1788636043.682 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636043.720 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11394 (`title`)
+         1788636043.755 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636043.790 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636043.826 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6978 (`Field`)
+         1788636043.863 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10771 (` Note`)
+         1788636043.898 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 34 (`:`)
+         1788636043.933 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7987 (` Long`)
+         1788636043.968 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15732 (` Mountain`)
+         1788636044.003 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 47779 (` Journey`)
+         1788636044.039 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636044.079 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+         1788636044.115 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636044.149 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4390 (`date`)
+         1788636044.185 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636044.220 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636044.253 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1217 (`202`)
+         1788636044.288 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 30 (`6`)
+         1788636044.325 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 21 (`-`)
+         1788636044.359 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5825 (`04`)
+         1788636044.394 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 21 (`-`)
+         1788636044.444 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 654 (`10`)
+         1788636044.480 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636044.522 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+         1788636044.558 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636044.593 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22061 (`location`)
+         1788636044.626 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636044.666 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636044.698 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 53 (`M`)
+         1788636044.734 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 29509 (`ountain`)
+         1788636044.767 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 31545 (` Basin`)
+         1788636044.802 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 26501 (` Trail`)
+         1788636044.837 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636044.872 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+         1788636044.916 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636044.960 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7319 (`summary`)
+         1788636044.995 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636045.031 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636045.064 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 41 (`A`)
+         1788636045.100 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1784 (` day`)
+         1788636045.136 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 26297 (`-long`)
+         1788636045.171 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 52400 (` traverse`)
+         1788636045.208 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1125 (` through`)
+         1788636045.241 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 34408 (` ced`)
+         1788636045.278 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 287 (`ar`)
+         1788636045.315 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7421 (` forest`)
+         1788636045.351 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636045.385 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636045.420 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4623 (` central`)
+         1788636045.453 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 38373 (` ridge`)
+         1788636045.487 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636045.520 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 61938 (` documenting`)
+         1788636045.556 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11270 (` observations`)
+         1788636045.592 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 302 (` of`)
+         1788636045.627 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2553 (` environment`)
+         1788636045.663 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636045.696 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4015 (` effort`)
+         1788636045.729 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636045.762 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636045.795 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5676 (` decision`)
+         1788636045.830 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19026 (`-making`)
+         1788636045.866 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636045.901 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636045.934 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636045.968 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 13780 (` maintained`)
+         1788636046.003 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636046.038 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20682 (` steady`)
+         1788636046.074 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17424 (` pace`)
+         1788636046.110 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636046.145 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4402 (` regular`)
+         1788636046.180 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 283 (` p`)
+         1788636046.223 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19730 (`auses`)
+         1788636046.259 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 462 (` at`)
+         1788636046.295 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8666 (` fixed`)
+         1788636046.331 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 59796 (` landmarks`)
+         1788636046.367 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636046.403 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14424 (` recording`)
+         1788636046.440 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5461 (` environmental`)
+         1788636046.474 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3151 (` conditions`)
+         1788636046.510 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636046.548 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3825 (` physical`)
+         1788636046.585 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15864 (` demands`)
+         1788636046.625 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636046.660 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636046.695 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6133 (` note`)
+         1788636046.735 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 40641 (` emphasizes`)
+         1788636046.766 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14991 (` careful`)
+         1788636046.802 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17705 (` separation`)
+         1788636046.838 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 302 (` of`)
+         1788636046.874 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7347 (` signal`)
+         1788636046.912 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788636046.947 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10424 (` noise`)
+         1788636046.986 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636047.023 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15169 (` systematic`)
+         1788636047.059 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1317 (` data`)
+         1788636047.094 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5610 (` collection`)
+         1788636047.129 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636047.165 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636047.202 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 23271 (` transparent`)
+         1788636047.255 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14424 (` recording`)
+         1788636047.291 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 302 (` of`)
+         1788636047.327 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1558 (` both`)
+         1788636047.362 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 44845 (` successes`)
+         1788636047.398 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636047.435 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 30894 (` failures`)
+         1788636047.469 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 66216 (`.",
+         1788636047.505 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 229 (` `)
+         1788636047.542 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636047.579 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 411 (`se`)
+         1788636047.625 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1315 (`ctions`)
+         1788636047.661 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636047.697 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19843 (` [
+         1788636047.742 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636047.780 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636047.817 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636047.853 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636047.889 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636047.925 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636047.959 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636048.008 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636048.044 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7512 (`Pre`)
+         1788636048.080 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4373 (`-D`)
+         1788636048.116 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 700 (`ep`)
+         1788636048.152 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 93963 (`arture`)
+         1788636048.188 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10704 (` Check`)
+         1788636048.224 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636048.260 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636048.293 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636048.327 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636048.363 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636048.409 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636048.445 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 597 (`The`)
+         1788636048.478 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11671 (` journey`)
+         1788636048.515 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3801 (` began`)
+         1788636048.553 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1575 (` before`)
+         1788636048.589 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4478 (` sun`)
+         1788636048.625 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 32069 (`rise`)
+         1788636048.661 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 902 (` when`)
+         1788636048.698 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636048.735 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20109 (` valley`)
+         1788636048.771 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636048.808 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14086 (` quiet`)
+         1788636048.844 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636048.880 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636048.916 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 18581 (` trail`)
+         1788636048.951 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6373 (` cool`)
+         1788636048.988 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636049.025 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 334 (` A`)
+         1788636049.062 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1710 (` small`)
+         1788636049.099 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636049.135 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 34242 (` verified`)
+         1788636049.174 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1382 (` water`)
+         1788636049.208 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11606 (` maps`)
+         1788636049.241 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636049.274 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1908 (` food`)
+         1788636049.311 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 13849 (` supplies`)
+         1788636049.348 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636049.384 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15439 (` clothing`)
+         1788636049.418 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636049.455 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636049.494 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 13142 (` instruments`)
+         1788636049.538 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1575 (` before`)
+         1788636049.580 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9413 (` leaving`)
+         1788636049.616 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636049.650 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19293 (` shelter`)
+         1788636049.686 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636049.721 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7634 (` Each`)
+         1788636049.758 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4983 (` member`)
+         1788636049.794 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7317 (` carried`)
+         1788636049.830 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636049.866 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7926 (` distinct`)
+         1788636049.902 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4388 (` task`)
+         1788636049.939 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1657 (` while`)
+         1788636049.980 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 12484 (` sharing`)
+         1788636050.014 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636050.050 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1542 (` same`)
+         1788636050.086 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8652 (` route`)
+         1788636050.123 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636050.160 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636050.196 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636050.233 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636050.269 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636050.306 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636050.340 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636050.373 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636050.411 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636050.448 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636050.485 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636050.522 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9077 (`First`)
+         1788636050.559 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4409 (` Mark`)
+         1788636050.600 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 269 (`er`)
+         1788636050.636 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636050.680 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 25214 (` Initial`)
+         1788636050.707 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17897 (` Observ`)
+         1788636050.742 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 631 (`ations`)
+         1788636050.779 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636050.816 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636050.853 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636050.890 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636050.926 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636050.962 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636051.000 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 597 (`The`)
+         1788636051.036 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1008 (` first`)
+         1788636051.074 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20484 (` marker`)
+         1788636051.111 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636051.149 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636051.182 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7507 (` river`)
+         1788636051.219 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 21711 (` crossing`)
+         1788636051.255 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636051.292 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636051.329 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3983 (` clear`)
+         1788636051.366 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2334 (` current`)
+         1788636051.404 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636051.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10891 (` stable`)
+         1788636051.477 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17937 (` stones`)
+         1788636051.514 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636051.551 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636051.588 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636051.624 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7611 (` recorded`)
+         1788636051.661 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636051.698 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 893 (` time`)
+         1788636051.735 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636051.772 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2576 (` air`)
+         1788636051.808 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4577 (` temperature`)
+         1788636051.845 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636051.879 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8528 (` cloud`)
+         1788636051.916 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3143 (` cover`)
+         1788636051.952 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636051.989 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636052.026 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3008 (` path`)
+         1788636052.063 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4075 (` condition`)
+         1788636052.100 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 462 (` at`)
+         1788636052.136 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 532 (` this`)
+         1788636052.174 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1628 (` point`)
+         1788636052.212 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636052.249 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 59132 (` Distance`)
+         1788636052.286 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636052.323 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7865 (` noted`)
+         1788636052.358 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 702 (` but`)
+         1788636052.396 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 513 (` not`)
+         1788636052.433 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1644 (` equ`)
+         1788636052.476 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 547 (`ated`)
+         1788636052.523 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636052.560 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4015 (` effort`)
+         1788636052.597 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 35 (`;`)
+         1788636052.634 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636052.671 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 24523 (` steep`)
+         1788636052.708 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2789 (` short`)
+         1788636052.745 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 24201 (` slope`)
+         1788636052.782 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636052.819 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10329 (` recognized`)
+         1788636052.855 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 405 (` as`)
+         1788636052.891 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 30597 (` demanding`)
+         1788636052.929 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 708 (` more`)
+         1788636052.971 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 835 (` work`)
+         1788636053.008 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 898 (` than`)
+         1788636053.046 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636053.083 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1286 (` long`)
+         1788636053.134 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 18794 (` gentle`)
+         1788636053.168 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 52400 (` traverse`)
+         1788636053.205 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636053.243 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636053.280 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636053.317 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636053.355 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636053.397 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636053.434 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636053.470 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636053.507 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636053.544 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636053.578 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636053.611 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 43 (`C`)
+         1788636053.645 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 290 (`ed`)
+         1788636053.682 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 287 (`ar`)
+         1788636053.719 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 12599 (` Forest`)
+         1788636053.756 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9497 (` Pass`)
+         1788636053.793 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 546 (`age`)
+         1788636053.830 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636053.872 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636053.909 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636053.947 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636053.985 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636054.022 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636054.060 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 597 (`The`)
+         1788636054.101 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 18581 (` trail`)
+         1788636054.138 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 47476 (` climbed`)
+         1788636054.174 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1125 (` through`)
+         1788636054.208 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 34408 (` ced`)
+         1788636054.243 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 287 (`ar`)
+         1788636054.281 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7421 (` forest`)
+         1788636054.315 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1194 (` where`)
+         1788636054.349 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2292 (` light`)
+         1788636054.383 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6592 (` changed`)
+         1788636054.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11597 (` slowly`)
+         1788636054.460 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1184 (` between`)
+         1788636054.497 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14371 (` branches`)
+         1788636054.531 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636054.565 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636054.603 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 29313 (` observer`)
+         1788636054.640 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7865 (` noted`)
+         1788636054.677 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 395 (` that`)
+         1788636054.715 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4015 (` effort`)
+         1788636054.752 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1676 (` does`)
+         1788636054.789 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 513 (` not`)
+         1788636054.828 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2968 (` always`)
+         1788636054.866 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22602 (` correlate`)
+         1788636054.904 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636054.942 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6092 (` distance`)
+         1788636054.979 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636055.017 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 372 (` P`)
+         1788636055.055 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19730 (`auses`)
+         1788636055.093 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 665 (` were`)
+         1788636055.131 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3780 (` taken`)
+         1788636055.169 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 462 (` at`)
+         1788636055.207 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8666 (` fixed`)
+         1788636055.245 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 59796 (` landmarks`)
+         1788636055.281 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636055.319 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1286 (` long`)
+         1788636055.357 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3374 (` enough`)
+         1788636055.395 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 310 (` to`)
+         1788636055.433 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 29043 (` breathe`)
+         1788636055.471 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 702 (` but`)
+         1788636055.508 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2789 (` short`)
+         1788636055.546 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3374 (` enough`)
+         1788636055.583 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 310 (` to`)
+         1788636055.621 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17373 (` preserve`)
+         1788636055.656 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 23028 (` rhythm`)
+         1788636055.693 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636055.731 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 27999 (` Notes`)
+         1788636055.770 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4524 (` described`)
+         1788636055.809 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1119 (` what`)
+         1788636055.847 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4202 (` actually`)
+         1788636055.881 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9361 (` happened`)
+         1788636055.917 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3785 (` rather`)
+         1788636055.955 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 898 (` than`)
+         1788636055.993 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1119 (` what`)
+         1788636056.030 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636056.068 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5058 (` expected`)
+         1788636056.108 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636056.157 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636056.199 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636056.237 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636056.275 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636056.312 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636056.350 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636056.387 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636056.425 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636056.463 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636056.501 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636056.539 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 18532 (`Bas`)
+         1788636056.578 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 268 (`in`)
+         1788636056.612 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636056.646 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 29642 (` Ridge`)
+         1788636056.683 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 44965 (` Approach`)
+         1788636056.717 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636056.755 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636056.793 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636056.827 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636056.864 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636056.897 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636056.940 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 116165 (`Above`)
+         1788636056.978 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636057.016 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7421 (` forest`)
+         1788636057.053 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636057.089 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3578 (` ground`)
+         1788636057.130 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7913 (` opened`)
+         1788636057.183 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 918 (` into`)
+         1788636057.221 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636057.259 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5765 (` wide`)
+         1788636057.297 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 28614 (` basin`)
+         1788636057.335 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636057.372 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2419 (` low`)
+         1788636057.409 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 39297 (` shrubs`)
+         1788636057.446 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636057.484 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 27212 (` scattered`)
+         1788636057.522 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9402 (` stone`)
+         1788636057.558 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636057.596 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636057.633 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3347 (` wind`)
+         1788636057.670 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 23828 (` crossed`)
+         1788636057.708 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788636057.743 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636057.787 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4855 (` west`)
+         1788636057.834 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636057.869 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14154 (` carrying`)
+         1788636057.903 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636057.941 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19443 (` smell`)
+         1788636057.979 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 302 (` of`)
+         1788636058.017 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7624 (` rain`)
+         1788636058.055 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636058.092 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636058.130 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636058.165 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4464 (` compared`)
+         1788636058.203 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2334 (` current`)
+         1788636058.240 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 31473 (` readings`)
+         1788636058.280 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636058.318 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6544 (` earlier`)
+         1788636058.356 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6030 (` ones`)
+         1788636058.400 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636058.438 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 14424 (` recording`)
+         1788636058.476 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1558 (` both`)
+         1788636058.511 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3895 (` values`)
+         1788636058.550 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2129 (` without`)
+         1788636058.602 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15899 (` replacement`)
+         1788636058.640 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636058.678 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 334 (` A`)
+         1788636058.716 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2284 (` change`)
+         1788636058.757 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 899 (` may`)
+         1788636058.792 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 373 (` be`)
+         1788636058.830 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1650 (` real`)
+         1788636058.868 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 432 (` or`)
+         1788636058.907 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2387 (` due`)
+         1788636058.948 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 310 (` to`)
+         1788636058.987 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636059.027 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1346 (` different`)
+         1788636059.065 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11630 (` angle`)
+         1788636059.103 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636059.138 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636059.177 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636059.216 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636059.254 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636059.292 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636059.326 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636059.364 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636059.403 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636059.441 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636059.476 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636059.515 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 41505 (`Central`)
+         1788636059.554 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 29642 (` Ridge`)
+         1788636059.590 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636059.628 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 25234 (` Shel`)
+         1788636059.666 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 78 (`f`)
+         1788636059.704 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 21525 (` Route`)
+         1788636059.753 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636059.791 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636059.826 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636059.863 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636059.897 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636059.935 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636059.973 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 597 (`The`)
+         1788636060.008 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4623 (` central`)
+         1788636060.045 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 38373 (` ridge`)
+         1788636060.083 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3071 (` became`)
+         1788636060.124 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9566 (` visible`)
+         1788636060.158 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6666 (` beyond`)
+         1788636060.197 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636060.244 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 28614 (` basin`)
+         1788636060.279 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636060.313 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636060.352 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8652 (` route`)
+         1788636060.391 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5614 (` followed`)
+         1788636060.426 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636060.459 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10396 (` narrow`)
+         1788636060.493 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 32564 (` shelf`)
+         1788636060.532 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6568 (` toward`)
+         1788636060.568 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 435 (` it`)
+         1788636060.605 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636060.640 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636060.679 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 32564 (` shelf`)
+         1788636060.718 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636060.756 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5966 (` safe`)
+         1788636060.798 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 902 (` when`)
+         1788636060.837 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 24847 (` staying`)
+         1788636060.874 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4275 (` close`)
+         1788636060.912 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 310 (` to`)
+         1788636060.949 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636060.988 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5161 (` inside`)
+         1788636061.023 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7179 (` wall`)
+         1788636061.057 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636061.096 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 702 (` but`)
+         1788636061.131 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20749 (` loose`)
+         1788636061.171 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 36452 (` gravel`)
+         1788636061.210 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1546 (` made`)
+         1788636061.249 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 677 (` has`)
+         1788636061.288 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 428 (`te`)
+         1788636061.326 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 445 (` un`)
+         1788636061.378 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6011 (`wise`)
+         1788636061.419 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636061.457 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636061.502 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8423 (` leader`)
+         1788636061.540 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1520 (` set`)
+         1788636061.577 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636061.615 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17424 (` pace`)
+         1788636061.653 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 395 (` that`)
+         1788636061.692 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6266 (` allowed`)
+         1788636061.731 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1472 (` every`)
+         1788636061.772 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4983 (` member`)
+         1788636061.807 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 310 (` to`)
+         1788636061.849 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4359 (` remain`)
+         1788636061.888 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 296 (` in`)
+         1788636061.922 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4066 (` contact`)
+         1788636061.960 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636061.998 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 372 (` P`)
+         1788636062.037 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 658 (`ace`)
+         1788636062.075 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636062.113 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 35797 (` pause`)
+         1788636062.153 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 13149 (` duration`)
+         1788636062.187 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636062.227 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636062.266 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6974 (` reasons`)
+         1788636062.305 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 374 (` for`)
+         1788636062.354 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1394 (` each`)
+         1788636062.392 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 35797 (` pause`)
+         1788636062.431 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 665 (` were`)
+         1788636062.468 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7611 (` recorded`)
+         1788636062.505 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636062.546 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636062.583 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636062.621 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636062.657 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636062.696 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636062.736 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636062.781 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636062.833 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636062.882 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636062.921 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636062.960 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 50598 (`Mid`)
+         1788636062.999 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1866 (`day`)
+         1788636063.051 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11079 (` Rest`)
+         1788636063.098 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636063.136 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 34287 (` Instrument`)
+         1788636063.175 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9103 (` Care`)
+         1788636063.214 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636063.248 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636063.283 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636063.322 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636063.356 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636063.390 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636063.424 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4756 (`At`)
+         1788636063.464 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5463 (` mid`)
+         1788636063.503 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1866 (`day`)
+         1788636063.541 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636063.580 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636063.615 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7606 (` reached`)
+         1788636063.654 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636063.692 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9144 (` flat`)
+         1788636063.730 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 16835 (` shoulder`)
+         1788636063.770 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 18498 (` beneath`)
+         1788636063.809 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636063.847 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 38373 (` ridge`)
+         1788636063.886 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636063.925 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7353 (` Water`)
+         1788636063.963 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636064.003 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8243 (` measured`)
+         1788636064.042 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1575 (` before`)
+         1788636064.080 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636064.120 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1219 (` after`)
+         1788636064.159 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636064.198 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1779 (` rest`)
+         1788636064.238 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636064.278 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636064.312 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 13142 (` instruments`)
+         1788636064.352 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 665 (` were`)
+         1788636064.386 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6565 (` placed`)
+         1788636064.425 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 296 (` in`)
+         1788636064.460 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 23673 (` shade`)
+         1788636064.495 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636064.529 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636064.570 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 29313 (` observer`)
+         1788636064.609 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5250 (` asked`)
+         1788636064.649 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3483 (` whether`)
+         1788636064.690 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1394 (` each`)
+         1788636064.730 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4686 (` reading`)
+         1788636064.768 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4524 (` described`)
+         1788636064.807 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636064.846 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2553 (` environment`)
+         1788636064.885 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 432 (` or`)
+         1788636064.921 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636064.960 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8513 (` instrument`)
+         1788636064.995 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4341 (` itself`)
+         1788636065.035 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22327 (`—a`)
+         1788636065.071 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3451 (` question`)
+         1788636065.116 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 395 (` that`)
+         1788636065.154 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 23024 (` prevented`)
+         1788636065.196 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2165 (` local`)
+         1788636065.245 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 28367 (` artifacts`)
+         1788636065.284 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788636065.323 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8139 (` becoming`)
+         1788636065.361 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5939 (` broad`)
+         1788636065.402 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20433 (` conclusions`)
+         1788636065.447 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636065.485 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636065.520 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636065.560 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 735 (` also`)
+         1788636065.601 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 19924 (` checked`)
+         1788636065.640 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3483 (` whether`)
+         1788636065.679 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636065.718 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8652 (` route`)
+         1788636065.754 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 819 (` had`)
+         1788636065.803 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6592 (` changed`)
+         1788636065.842 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2407 (` since`)
+         1788636065.882 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636065.920 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8031 (` morning`)
+         1788636065.960 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636065.998 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10806 (` marked`)
+         1788636066.033 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1022 (` any`)
+         1788636066.073 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 860 (` new`)
+         1788636066.113 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 825 (` ob`)
+         1788636066.152 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 41412 (`structions`)
+         1788636066.191 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636066.231 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636066.269 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636066.304 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636066.344 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636066.382 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636066.421 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636066.460 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636066.499 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636066.538 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636066.578 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636066.617 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2276 (`As`)
+         1788636066.653 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1132 (`cent`)
+         1788636066.693 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636066.732 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 788 (` Un`)
+         1788636066.771 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 57031 (`certain`)
+         1788636066.810 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1436 (`ty`)
+         1788636066.850 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9637 (` Management`)
+         1788636066.888 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636066.926 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636066.966 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636067.005 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636067.043 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636067.084 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636067.126 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 597 (`The`)
+         1788636067.165 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 405 (` as`)
+         1788636067.204 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1132 (`cent`)
+         1788636067.243 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788636067.282 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636067.317 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 16835 (` shoulder`)
+         1788636067.359 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636067.399 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 28583 (` slower`)
+         1788636067.439 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2387 (` due`)
+         1788636067.480 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 310 (` to`)
+         1788636067.521 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11682 (` thin`)
+         1788636067.559 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2576 (` air`)
+         1788636067.598 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636067.633 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 48569 (` uneven`)
+         1788636067.673 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17937 (` stones`)
+         1788636067.713 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636067.754 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7634 (` Each`)
+         1788636067.796 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3300 (` step`)
+         1788636067.836 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636067.877 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10419 (` chosen`)
+         1788636067.916 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 374 (` for`)
+         1788636067.955 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7885 (` balance`)
+         1788636067.994 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3785 (` rather`)
+         1788636068.035 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 898 (` than`)
+         1788636068.075 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6085 (` speed`)
+         1788636068.111 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636068.150 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2644 (` When`)
+         1788636068.191 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636068.229 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4983 (` member`)
+         1788636068.267 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7076 (` felt`)
+         1788636068.301 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11792 (` uncertain`)
+         1788636068.341 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636068.376 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636068.412 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2013 (` group`)
+         1788636068.451 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 13024 (` stopped`)
+         1788636068.489 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636068.527 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11148 (` confirmed`)
+         1788636068.565 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636068.600 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2779 (` next`)
+         1788636068.644 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5966 (` safe`)
+         1788636068.683 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3572 (` position`)
+         1788636068.722 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636068.760 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 969 (` This`)
+         1788636068.800 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6829 (` rule`)
+         1788636068.842 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636068.899 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7611 (` recorded`)
+         1788636068.937 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636068.979 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636069.020 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3868 (` moment`)
+         1788636069.060 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 435 (` it`)
+         1788636069.099 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636069.142 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1092 (` used`)
+         1788636069.190 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788636069.227 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 53375 (` distinguishing`)
+         1788636069.263 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636069.303 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 56679 (` stall`)
+         1788636069.342 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 36620 (`-pre`)
+         1788636069.383 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1141 (`vent`)
+         1788636069.425 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636069.464 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6829 (` rule`)
+         1788636069.502 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788636069.547 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636069.592 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 17868 (` mere`)
+         1788636069.633 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10904 (` delay`)
+         1788636069.669 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1917 (`."
+         1788636069.709 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636069.750 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10016 (` },
+         1788636069.788 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 360 (`   `)
+         1788636069.827 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 827 (` {
+         1788636069.866 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636069.907 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636069.946 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4050 (`head`)
+         1788636069.987 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 299 (`ing`)
+         1788636070.026 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636070.066 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636070.107 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 58 (`R`)
+         1788636070.147 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5402 (`idge`)
+         1788636070.187 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 31788 (` Weather`)
+         1788636070.222 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636070.265 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 43073 (` Decision`)
+         1788636070.305 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 12034 (` Point`)
+         1788636070.345 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6107 (`",
+         1788636070.395 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 733 (`     `)
+         1788636070.435 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636070.475 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7915 (`content`)
+         1788636070.512 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6380 (`":`)
+         1788636070.548 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 496 (` "`)
+         1788636070.588 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 59706 (`Near`)
+         1788636070.622 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636070.662 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 38373 (` ridge`)
+         1788636070.702 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636070.742 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7420 (` weather`)
+         1788636070.781 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6823 (` turned`)
+         1788636070.822 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 415 (` with`)
+         1788636070.863 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636070.904 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11682 (` thin`)
+         1788636070.942 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8528 (` cloud`)
+         1788636070.979 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 15363 (` covering`)
+         1788636071.019 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636071.059 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 32936 (` summit`)
+         1788636071.098 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636071.136 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636071.175 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2909 (` team`)
+         1788636071.210 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1671 (` did`)
+         1788636071.246 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 513 (` not`)
+         1788636071.281 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 10452 (` infer`)
+         1788636071.322 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636071.358 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 9819 (` storm`)
+         1788636071.397 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788636071.432 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 267 (` a`)
+         1788636071.472 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2936 (` single`)
+         1788636071.512 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6206 (` cold`)
+         1788636071.553 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 18322 (` gust`)
+         1788636071.591 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 35 (`;`)
+         1788636071.630 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 4977 (` instead`)
+         1788636071.669 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 685 (` they`)
+         1788636071.709 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20767 (` watched`)
+         1788636071.748 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636071.784 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11622 (` sky`)
+         1788636071.822 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788636071.863 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3347 (` wind`)
+         1788636071.903 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 3157 (` together`)
+         1788636071.944 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636071.985 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 334 (` A`)
+         1788636072.026 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5676 (` decision`)
+         1788636072.068 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 452 (` was`)
+         1788636072.106 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1546 (` made`)
+         1788636072.145 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1049 (` only`)
+         1788636072.181 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1219 (` after`)
+         1788636072.224 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2492 (` several`)
+         1788636072.260 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11270 (` observations`)
+         1788636072.295 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11359 (` agreed`)
+         1788636072.352 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788636072.395 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 440 (` The`)
+         1788636072.434 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2013 (` group`)
+         1788636072.481 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 6305 (` continued`)
+         1788636072.519 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 902 (` when`)
+         1788636072.560 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788636072.598 28224 28264 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 8652 (` route`)
+         1788636072.600 28224 28264 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2789,"tokensEvaluated":1766,"tokensPredicted":1023,"draftTokens":0,"draftAccepted":0,"promptMs":3321.319,"predictedMs":37977.787,"predictedPerSecond":26.93679860809162,"contextFull":false,"interrupted":false}
+         1788636072.600 28224 28264 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+         1788636072.601 28224 28264 I ReactNativeJS: KALSA_MEMORY {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedSensitive":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1}
+         1788636072.601 28224 28264 I ReactNativeJS: KALSA_GOVERNOR {"engine_prefill":"GPU","engine_decode":"CPU","commit_bytes":12114944,"commit_ms":10.796,"prefill_ms":3321.319,"prefill_chunks":"2+128+128+128+128+128+128+128+27","prefill_ctx_ngl":99,"forced":false,"thermal_state":"FAST","thermo_source":"bench-skin","fit":"Fit","fallback_reason":""}
+         1788636072.601 28224 28264 I ReactNativeJS: KALSA_BENCH_TOKENS {"turnId":"1","n":1023,"ids":[597,4695,10966,622,310,5272,267,14991,2352,6133,836,267,1286,11319,11671,2447,383,278,9688,8818,685,4116,22,969,355,267,11647,4361,4388,1194,358,1094]}
+         1788636072.611 28224 28264 I ReactNativeJS: KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}
+         1788636072.633 28224 28264 I ReactNativeJS: KALSA_MEMORY_EXTRACT {"memoryEnabled":0,"factsExtracted":0,"factsStored":0,"factsRejectedSensitive":0,"factsRejectedFull":0,"factsInjected":-1,"totalFactsInStore":0,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":0,"extractGateSource":1,"extractStopReason":2}

@@ -1,10 +1,10 @@
 #!/bin/bash
 set -u
 CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b
-DRIVER="$CELL/d_run.next.sh"
+DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
-THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0
+THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
@@ -12,7 +12,6 @@ trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.5, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_HOT"
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=39.5, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_VERY_HOT"
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=42.5, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_HOT_AFTER"
-/usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=cpu, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_MISSING"
 /usr/bin/printf '0\n' > "$THERMAL_COUNTER"
 /usr/bin/printf '%s\n' \
   '1000 1 1 I ReactNativeJS: llama_model_loader: loaded meta data with 42 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf' \
@@ -26,7 +25,7 @@ extract() {
 }
 for fn in log write_end deadline_check validate_deadline_minutes adbT logcat_all wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
 source "$LIB"
-source "$CELL/parse.next.sh"
+source "$CELL/parse.sh"
 
 PKG=com.kalsa.app; SER=dryrun; BOARD=QRD8650; DEVICE_TMP=/data/local/tmp/kalsa-s5
 RAW="$TMP/observations"; /bin/mkdir -p "$RAW"
@@ -44,7 +43,7 @@ adbT() {
   local push_file=""
   local thermal_calls
   printf '%s\n' "$joined" >> "$STUB_LOG"
-  if [[ "$joined" == *"dumpsys thermalservice"* ]]; then thermal_calls=$(tr -d '[:space:]' < "$THERMAL_COUNTER"); thermal_calls=$((thermal_calls + 1)); printf '%s\n' "$thermal_calls" > "$THERMAL_COUNTER"; case "$THERMAL_MODE" in initial) /bin/cat "$THERMAL_INPUT";; ready) /bin/cat "$THERMAL_READY";; cool) [ "$thermal_calls" -eq 1 ] && /bin/cat "$THERMAL_VERY_HOT" || /bin/cat "$THERMAL_READY";; never) /bin/cat "$THERMAL_VERY_HOT";; afterhot) [ "$thermal_calls" -eq 3 ] && /bin/cat "$THERMAL_HOT_AFTER" || /bin/cat "$THERMAL_READY";; missing) /bin/cat "$THERMAL_MISSING";; esac
+  if [[ "$joined" == *"dumpsys thermalservice"* ]]; then thermal_calls=$(tr -d '[:space:]' < "$THERMAL_COUNTER"); thermal_calls=$((thermal_calls + 1)); printf '%s\n' "$thermal_calls" > "$THERMAL_COUNTER"; case "$THERMAL_MODE" in initial) /bin/cat "$THERMAL_INPUT";; ready) /bin/cat "$THERMAL_READY";; cool) [ "$thermal_calls" -eq 1 ] && /bin/cat "$THERMAL_VERY_HOT" || /bin/cat "$THERMAL_READY";; never) /bin/cat "$THERMAL_VERY_HOT";; afterhot) [ "$thermal_calls" -eq 3 ] && /bin/cat "$THERMAL_HOT_AFTER" || /bin/cat "$THERMAL_READY";; esac
   elif [[ "$joined" == *"cat /proc/meminfo"* ]]; then printf 'MemTotal: 8000000 kB\nMemFree: 1000000 kB\nMemAvailable: 2345678 kB\n'
   elif [[ "$joined" == *"dumpsys meminfo"* ]]; then printf 'Applications Memory Usage (in Kilobytes):\nUptime: 1000 Realtime: 1000\n** MEMINFO in pid 4242 [com.kalsa.app] **\nNative Heap 123456\nTOTAL 234567\n'
   elif [[ "$joined" == *"logcat -b all -c"* ]]; then :
@@ -106,14 +105,12 @@ record adbT adbT 1 shell echo dryrun
 record write_end write_end dryrun
 record deadline_check deadline_check
 validate_deadline_minutes 10 && exit 1 || :; validate_deadline_minutes 200 && exit 1 || :; validate_deadline_minutes 85 || exit 1; [ "$COOL_TARGET_C" = 37.0 ] && [ "$COOL_MAX_S" -eq 900 ] || exit 1; [ "$(cool_target_for_arm A)" = 38.5 ] && [ "$(cool_target_for_arm B)" = 37.0 ] || exit 1
-[ "$(device_tag pineapple SM8650)" = 8-Gen-3 ] && [ "$(device_tag pineapple SM7675)" = 7p-Gen-3 ] && [ "$(device_tag kalama SM8550)" = 8-Gen-2 ] && [ "$(device_tag pineapple SM8635)" = 8s-Gen-3 ] && [ "$(device_tag sun SM8750)" = 8-Elite ] && [ "$(device_tag 'raw board' SM0000)" = raw-board ] || exit 1
 printf '1788626897.832 precise complete\n' > "$TMP/precision.log"; [ "$(last_epoch "$TMP/precision.log")" = 1788626897.832 ] || { echo "epoch precision assertion failed" >&2; exit 1; }
 printf '1000 existing-long-line\n' > "$TMP/atomic.log"; [ "$(wc -c < "$TMP/atomic.log")" -gt "$(printf '1001 new\n' | wc -c)" ] || exit 1; LOGCAT_MODE=newer; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -eq 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 1 ] || exit 1
 LOGCAT_MODE=truncated; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && grep -q 'complete=0' "$TMP/atomic.log.failures" || exit 1
 LOGCAT_MODE=older; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && grep -q 'tmp_epoch=1000' "$TMP/atomic.log.failures" || exit 1
 LOGCAT_MODE=fail; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && [ "$LOGCAT_RC" -eq 7 ] && [ "$LOGCAT_RETRIES" -eq 3 ] && grep -q 'rc=7' "$TMP/atomic.log.failures" || exit 1; LOGCAT_MODE=normal
 record logcat_all logcat_all 60 "$TMP/logcat.txt"
-THERMAL_MODE=missing; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; THERMAL_SKIN=$(thermal_record missing_sensor); THERMAL_RC=$?; [ "$THERMAL_RC" -ne 0 ] && [ -z "$THERMAL_SKIN" ] && grep -q 'void_reason=thermal' "$RAW/missing_sensor_thermal_gate.txt" || { echo "missing skin was not a thermal failure" >&2; exit 1; }; THERMAL_MODE=initial; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"
 record wake_sequence wake_sequence
 record device_wake device_wake
 record wake_state wake_state "$TMP/power.txt"
@@ -167,7 +164,6 @@ THERMAL_MODE=cool; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A
 THERMAL_MODE=never; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 4; HOT_RC=$?; [ "$HOT_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==4&&$16=="na"&&$17=="na"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'wait_s=900 skin=39.5 target_c=38.5' "$RAW/QRD8650_A_t4_cooldown.txt" || exit 1; grep -q 'status=0 row_void=1 cooldown_s=900.*cool_target_c=38.5.*void_reason=hot' "$RAW/QRD8650_A_t4_status.txt" || exit 1
 THERMAL_MODE=ready; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 5; READY_RC=$?; [ "$READY_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==5{ok=1} END{exit !ok}' "$RESULTS" || exit 1
 THERMAL_MODE=afterhot; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 6; AFTER_RC=$?; [ "$AFTER_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==6&&$13=="42.5"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 .*cooldown_s=0' "$RAW/QRD8650_A_t6_status.txt" || exit 1
-THERMAL_MODE=missing; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; MISSING_RUN_RC=0; run_observation A 7 || MISSING_RUN_RC=$?; [ "$MISSING_RUN_RC" -ne 0 ] && grep -q 'status=1 .*void_reason=thermal' "$RAW/QRD8650_A_t7_status.txt" && grep -q 'void_reason=thermal' "$RAW/QRD8650_A_t7_cooldown_thermal_gate.txt" || exit 1; THERMAL_MODE=initial; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"
 holder_loop & HOLDER_TEST_PID=$!; /bin/sleep 0.1; kill "$HOLDER_TEST_PID" 2>/dev/null || true; wait "$HOLDER_TEST_PID" 2>/dev/null; printf 'holder_loop\t%s\n' "$?" | tee -a "$RESULTS_LOG"
 END_WRITTEN=0
 record cleanup cleanup

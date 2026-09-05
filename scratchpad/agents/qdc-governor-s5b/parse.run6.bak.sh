@@ -1,23 +1,5 @@
 #!/bin/bash
 
-device_tag() {
-  local product_name="$1"
-  local soc="${2:-}"
-  local tag
-  case "$product_name:$soc" in
-    QRD8650:*|SM8650:*|*:SM8650|*:QRD8650) tag=8-Gen-3 ;;
-    QRD7675:*|SM7675:*|*:SM7675|*:QRD7675) tag=7p-Gen-3 ;;
-    HDK8550:*|SM8550:*|*:SM8550|*:HDK8550) tag=8-Gen-2 ;;
-    QRD8635:*|SM8635:*|*:SM8635|*:QRD8635) tag=8s-Gen-3 ;;
-    QRD8750:*|SM8750:*|*:SM8750|*:QRD8750) tag=8-Elite ;;
-    *)
-      tag=$(printf '%s' "$product_name" | sed 's/[^A-Za-z0-9_.-]/-/g;s/^[.-]*//;s/[.-]*$//')
-      [ -n "$tag" ] || tag=unknown
-      ;;
-  esac
-  printf '%s\n' "$tag"
-}
-
 count_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{n++}END{print n+0}' "$2"; }
 count_lmkd_after() { awk -v a="$ANCHOR_EPOCH" -v p="$APP_PID" '$1+0>=a&&$0~/(lmkd|am_kill|lowmemorykiller)/&&(index($0,"com.kalsa.app")>0||(p!=""&&index($0,p)>0)){n++}END{print n+0}' "$1"; }
 last_json_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{x=$0}END{sub(".*"m,"",x);sub(/^[[:space:]]+/,"",x);print x}' "$2"; }
@@ -85,10 +67,7 @@ thermal_record() {
   max_temp=$(grep -o 'mValue=[0-9.]*' "$gate" | cut -d= -f2 | sort -n | tail -1)
   thermal_status=$(grep 'Thermal Status:' "$file" | head -1 | grep -o '[0-9]*' | head -1)
   printf 'max_hal_temp=%s status=%s attempts=%s rc=%s\n' "$max_temp" "$thermal_status" "$attempt" "$rc" >> "$gate"
-  if [ "$rc" -ne 0 ] || [ "$skin_valid" -ne 1 ]; then
-    printf 'void_reason=thermal\n' >> "$gate"
-    return 1
-  fi
+  [ "$rc" -eq 0 ] && [ "$skin_valid" -eq 1 ] || return 1
   printf '%s' "$skin"
 }
 cooldown_to_target() {
