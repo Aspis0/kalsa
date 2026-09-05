@@ -40,6 +40,9 @@ private:
                    llama_governor_params governor_params, bool policy_enabled);
 
     enum class phase { None, Prefill, Decode };
+    // A turn chooses one prefill context at its first multi-token batch;
+    // later batches cannot switch between CPU and GPU.
+    enum class prefill_route { Undecided, GPU, CPU };
     // Internal control result; llama_decode uses 0, 1, 2, -1 and fatal values
     // below -1, so this cannot be mistaken for a native decode return.
     enum { k_prefill_chunked = -1001 };
@@ -76,6 +79,7 @@ private:
     llama_governor_prefill_tally prefill_tally_;
     llama_governor_stall_union stall_union_;
     phase last_phase = phase::None;
+    prefill_route prefill_route_ = prefill_route::Undecided;
     bool hot_plugged_announced_ = false;
     bool failed = false;
     const char * failure_reason_ = nullptr;

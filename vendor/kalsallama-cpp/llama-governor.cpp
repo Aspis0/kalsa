@@ -137,8 +137,9 @@ void llama_governor::record_side(llama_context * ctx, side_state & side, bool pr
         stats_.prefill_n += n_tokens;
         const size_t used = std::strlen(stats_.prefill_chunks);
         if (used < sizeof(stats_.prefill_chunks)) {
+            const char * separator = used == 0 ? (prefill_route_ == prefill_route::CPU ? "cpu:" : "") : "+";
             std::snprintf(stats_.prefill_chunks + used, sizeof(stats_.prefill_chunks) - used,
-                          "%s%u", used == 0 ? "" : "+", n_tokens);
+                          "%s%u", separator, n_tokens);
         }
     } else {
         stats_.decode_n_reused = side.n_reused;
@@ -173,11 +174,10 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
         }
     }
 
-    // Context routing is by n_tokens > 1; admission.engine is telemetry only.
     const bool is_prefill = batch.n_tokens > 1;
-    llama_context * target = is_prefill ? ctx_prefill : ctx_decode;
-    side_state * state = is_prefill ? &prefill_state : &decode_state;
-    const phase next_phase = is_prefill ? phase::Prefill : phase::Decode;
+    if (is_prefill && allow_chunking && last_phase != phase::Prefill) {
+        prefill_route_ = prefill_route::Undecided;
+    }
 
     if (policy_enabled_) {
         refresh_policy_stats();
@@ -187,6 +187,11 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
         }
     }
 
+    const bool cpu_prefill = is_prefill && prefill_route_ == prefill_route::CPU;
+    llama_context * target = cpu_prefill ? ctx_decode : (is_prefill ? ctx_prefill : ctx_decode);
+    side_state * state = cpu_prefill ? &decode_state : (is_prefill ? &prefill_state : &decode_state);
+    const phase next_phase = is_prefill ? phase::Prefill : phase::Decode;
+
     if (is_prefill && last_phase != phase::Prefill) {
         prefill_tally_.begin(telemetry_);
     } else if (!is_prefill && last_phase == phase::Prefill) {
@@ -194,7 +199,9 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
         record_tally();
     }
 
-    if (last_phase != phase::None && last_phase != next_phase) {
+    const bool cpu_route_handoff = prefill_route_ == prefill_route::CPU &&
+        (is_prefill || last_phase == phase::Prefill);
+    if (last_phase != phase::None && last_phase != next_phase && !cpu_route_handoff) {
         const bool ok = is_prefill
             ? commit_side(ctx_decode, ctx_prefill, decode_state, prefill_state, "decode-to-prefill")
             : commit_side(ctx_prefill, ctx_decode, prefill_state, decode_state, "prefill-to-decode");

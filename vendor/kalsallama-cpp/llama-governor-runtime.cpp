@@ -34,16 +34,37 @@ void llama_governor::refresh_policy_stats() {
 }
 
 int32_t llama_governor::admit_prefill(llama_batch batch, bool allow_chunking) {
+    if (prefill_route_ == prefill_route::CPU) {
+        return 0;
+    }
+
+    const auto requested = policy_.prefill_engine();
     const auto admission = policy_.admit_prefill(
-            policy_.prefill_engine(), static_cast<uint32_t>(batch.n_tokens),
+            requested, static_cast<uint32_t>(batch.n_tokens),
             policy_.current_temperature_c());
     stats_.last_router_rule = admission.rule;
     if (admission.decision == llama_governor_decision::Abort) {
         return fail("prefill admission aborted");
     }
-    if (admission.decision == llama_governor_decision::Wait) {
-        LLAMA_LOG_WARN("%s: prefill admission is waiting for a safe tabled chunk\n", __func__);
-        return -2;
+    const bool cpu_fallback = admission.decision == llama_governor_decision::CPUFallback &&
+        policy_.thermal_state() != llama_governor_thermal_state::FAST;
+    if (prefill_route_ == prefill_route::Undecided &&
+        (admission.decision == llama_governor_decision::Wait || cpu_fallback)) {
+        prefill_route_ = prefill_route::CPU;
+        stats_.prefill_engine = llama_governor_engine::CPU;
+        stats_.prefill_chunks[0] = '\0';
+        if (admission.decision == llama_governor_decision::Wait) {
+            LLAMA_LOG_WARN("%s: prefill admission is waiting; routing this turn to CPU\n", __func__);
+        }
+        return 0;
+    }
+    if (prefill_route_ == prefill_route::Undecided) {
+        prefill_route_ = prefill_route::GPU;
+    }
+    if (admission.decision == llama_governor_decision::Wait ||
+        admission.decision == llama_governor_decision::CPUFallback) {
+        // The first batch selected GPU; keep this turn on that context.
+        return 0;
     }
     if (admission.tokens >= static_cast<uint32_t>(batch.n_tokens)) {
         return 0;
@@ -59,10 +80,13 @@ int32_t llama_governor::admit_prefill(llama_batch batch, bool allow_chunking) {
         const auto next = policy_.admit_prefill(
                 policy_.prefill_engine(), static_cast<uint32_t>(remaining),
                 policy_.current_temperature_c());
-        if (next.decision == llama_governor_decision::Abort ||
-            next.decision == llama_governor_decision::Wait || next.tokens == 0) {
+        if (next.decision == llama_governor_decision::Abort || next.tokens == 0) {
             LLAMA_LOG_INFO("%s: prompt cannot be partitioned into safe tabled chunks\n", __func__);
             return -2;
+        }
+        if (next.decision == llama_governor_decision::Wait) {
+            // No GPU chunk has run in this call yet; keep the turn's first route.
+            return 0;
         }
         const int32_t count = std::min<int32_t>(next.tokens, remaining);
         if (count <= 1) {
@@ -134,6 +158,7 @@ void llama_governor::clear_cache(bool clear_data) {
     decode_state = side_state{};
     last_ctx = nullptr;
     last_phase = phase::None;
+    prefill_route_ = prefill_route::Undecided;
 
     stats_.commit_bytes = 0;
     stats_.commit_us = 0;
