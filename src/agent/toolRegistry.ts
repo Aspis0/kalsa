@@ -30,6 +30,7 @@ import { DEVICE_CALC_TOOL, DEVICE_INFO_TOOL } from "./deviceTools";
 import { ALL_TOOL_NAMES, type ToolName } from "./toolNames";
 import { WEB_FETCH_TOOL } from "./webFetchTool";
 import { WEB_SEARCH_TOOL } from "./webSearchTool";
+import { WRITE_NOTE_TOOL } from "./writeNoteTool";
 
 export { ALL_TOOL_NAMES, type ToolName } from "./toolNames";
 
@@ -98,6 +99,13 @@ export const TOOL_ENTRIES = [
   {
     name: "document_chat",
     def: DOCUMENT_CHAT_TOOL,
+    toggleKey: null,
+    defaultOn: true,
+    gateTable: null,
+  },
+  {
+    name: "write_note",
+    def: WRITE_NOTE_TOOL,
     toggleKey: null,
     defaultOn: true,
     gateTable: null,

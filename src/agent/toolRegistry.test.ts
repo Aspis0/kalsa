@@ -27,11 +27,12 @@ function names(flags: { web: boolean; device: boolean; calendar: boolean }): str
 }
 
 describe("tool registry", () => {
-  test("lists all six live tool names", () => {
+  test("lists all seven live tool names", () => {
     expect(ALL_TOOL_NAMES).toEqual([
       "web_search",
       "web_fetch",
       "document_chat",
+      "write_note",
       "device_info",
       "device_calc",
       "calendar_agenda",
@@ -57,6 +58,7 @@ describe("tool registry", () => {
       "web_search",
       "web_fetch",
       "document_chat",
+      "write_note",
       "device_info",
       "device_calc",
     ]);
@@ -65,6 +67,7 @@ describe("tool registry", () => {
   test("omits web tools while retaining independent local tools", () => {
     expect(names({ web: false, device: true, calendar: false })).toEqual([
       "document_chat",
+      "write_note",
       "device_info",
       "device_calc",
     ]);
@@ -75,30 +78,36 @@ describe("tool registry", () => {
       "web_search",
       "web_fetch",
       "document_chat",
+      "write_note",
       "calendar_agenda",
     ]);
     expect(names({ web: false, device: false, calendar: true })).toEqual([
       "document_chat",
+      "write_note",
       "calendar_agenda",
     ]);
     expect(names({ web: true, device: true, calendar: true })).toEqual([
       "web_search",
       "web_fetch",
       "document_chat",
+      "write_note",
       "device_info",
       "device_calc",
       "calendar_agenda",
     ]);
     expect(names({ web: false, device: false, calendar: false })).toEqual([
       "document_chat",
+      "write_note",
     ]);
     expect(names({ web: true, device: false, calendar: false })).toEqual([
       "web_search",
       "web_fetch",
       "document_chat",
+      "write_note",
     ]);
     expect(names({ web: false, device: true, calendar: true })).toEqual([
       "document_chat",
+      "write_note",
       "device_info",
       "device_calc",
       "calendar_agenda",

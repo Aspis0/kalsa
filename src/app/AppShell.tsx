@@ -212,6 +212,7 @@ import {
   getToolGateEnabled,
 } from "../bench/benchConfig";
 import { makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
 import {
   makeFetchAllowlist,
@@ -1853,6 +1854,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // agentOptions is rebuilt when webToolsEnabled flips so the tool list matches.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale);
+    const writeNoteExec = makeWriteNoteExecutor(locale);
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
     const pdfCacheFs = makePdfCacheFs({
@@ -2057,6 +2059,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               kind: "document_chat" as const,
             };
           }
+        } else if (name === "write_note") {
+          outcome = await writeNoteExec(name, args, signal);
         } else {
           outcome = {
             text: getStrings(locale).errors.unknownTool.replace("{name}", name),

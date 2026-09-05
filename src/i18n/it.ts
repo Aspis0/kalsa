@@ -781,6 +781,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     attachmentLimitReached: "Limite allegati raggiunto ({max}). Le pagine del PDF non sono state allegate.",
     attachmentLimitReachedGeneric: "Limite allegati raggiunto ({max}).",
     documentChatEmptyQuery: "document_chat richiede una query non vuota.",
+    writeNoteEmptyBody: "write_note richiede un corpo non vuoto.",
+    writeNoteAborted: "write_note interrotto.",
+    writeNoteFailed: "Impossibile salvare la nota.",
     documentChatNoDoc:
       "Nessun documento locale disponibile. Aggiungi un PDF o un TXT in Documenti, oppure passa docId.",
     documentChatDocNotFound: "Documento non trovato in libreria (id={id}).",

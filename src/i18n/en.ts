@@ -807,6 +807,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     attachmentLimitReached: "Attachment limit reached ({max}). The PDF pages were not attached.",
     attachmentLimitReachedGeneric: "Attachment limit reached ({max}).",
     documentChatEmptyQuery: "document_chat requires a non-empty query.",
+    writeNoteEmptyBody: "write_note requires a non-empty body.",
+    writeNoteAborted: "write_note was aborted.",
+    writeNoteFailed: "Could not save the note.",
     documentChatNoDoc:
       "No local document is available. Add a PDF or TXT in Documents, or pass docId.",
     documentChatDocNotFound: "Document not found in the library (id={id}).",
