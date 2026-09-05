@@ -1279,7 +1279,7 @@ index aaab748..a02aead 100644
                      auto resultCallback = [contextId, callInvoker, runtimePtr](int32_t requestId, const std::vector<float>& embedding) {
                          auto callbacks = RequestManager::getInstance().getRequest(contextId, requestId);
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..498c0c8 100644
+index a60bd15..e7fdc26 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
 @@ -42,6 +42,7 @@ void llama_rn_context_completion::rewind() {
@@ -1517,7 +1517,7 @@ index a60bd15..498c0c8 100644
  
  bool llama_rn_context_completion::shouldUseMTP() const {
 +    if (parent_ctx->hasGovernor()) {
-+        throw std::runtime_error("Governor mode does not support MTP or speculative decoding");
++        return false;
 +    }
 +    // Kalsa patch: DFLASH rides the same draft-speculative init/decode path as
 +    // MTP (common_speculative dispatches per-type); without this the whole
@@ -2960,7 +2960,7 @@ index c41fa5e..b65fa91 100644
  
                  slot.state = SLOT_STATE_DONE;
 diff --git a/node_modules/llama.rn/cpp/rn-slot.cpp b/node_modules/llama.rn/cpp/rn-slot.cpp
-index 9debb77..b64b364 100644
+index 9debb77..f894a8e 100644
 --- a/node_modules/llama.rn/cpp/rn-slot.cpp
 +++ b/node_modules/llama.rn/cpp/rn-slot.cpp
 @@ -175,8 +175,8 @@ void llama_rn_slot::load_prompt(const std::vector<llama_token>& tokens) {
@@ -3001,7 +3001,7 @@ index 9debb77..b64b364 100644
  
  bool llama_rn_slot::should_use_mtp() const {
 +    if (parent_ctx != nullptr && parent_ctx->hasGovernor()) {
-+        throw std::runtime_error("Governor mode does not support MTP or speculative decoding");
++        return false;
 +    }
      if (params == nullptr || params->speculative.draft.n_max <= 0) {
          return false;

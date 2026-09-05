@@ -1605,7 +1605,6 @@ export function initEngine(
       // behind a "Riprova caricamento" that cannot work — the same dead end
       // §7.11 documented. Fall back to CPU once, and say so loudly: a silent
       // fallback would hand a GPU arm a CPU number to publish. This now guards
-      // production too, not only the bench: deviceTuning selects gpu-opencl.
       if (Platform.OS === "android" && (params.n_gpu_layers ?? 0) > 0) {
         console.warn(
           `KALSA_GPU_FALLBACK ${JSON.stringify({
