@@ -51,6 +51,12 @@ their SHA-256 in `ids_sha`. Adjacent A/B rows are paired (A turn 1 with B turn
 Missing or short token evidence is oracle `VOID`; that pair is excluded from
 the speed medians. The first turn must produce the line or the driver writes
 `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/<job_id>/PREREQUISITE.txt` and exits 3.
+The telemetry completion poll requires only the first completed
+`KALSA_TELEMETRY` line with `tokensPredicted >= 1`; the `n >= 32` requirement
+belongs only to the oracle. A short EOS turn therefore records `oracle=VOID`,
+`ids_sha=na`, is excluded from speed medians, and does not timeout or set
+status 1. After that telemetry match, the driver waits at least two seconds
+and takes one extra logcat dump before parsing turn evidence.
 
 ## Arms, order, and budget
 
@@ -97,10 +103,11 @@ and median B decode ≥ median A.
 The promised TSV header is:
 `arm turn ttft_ms decode_tps engine_prefill engine_decode thermal_state skin_c_before skin_c_after fallback_count lmkd_count ids_sha oracle`.
 Secondary checks require exactly one `KALSA_GOVERNOR` line per B turn after
-the turn anchor, with `engine_prefill=GPU`, `engine_decode=CPU`, numeric
+a second anchor taken immediately before Send, with `engine_prefill=GPU`, `engine_decode=CPU`, numeric
 `commit_bytes` and `commit_ms`, `thermal_state`, and
 `thermo_source="bench-skin"`. B `KALSA_GOVERNOR_FALLBACK*` count must be 0.
-Telemetry must have `tokensPredicted >= 32`. Anchored logcat matches for
+Telemetry completion must have `tokensPredicted >= 1`; oracle rows separately
+require `n >= 32`. Anchored logcat matches for
 `lmkd|am_kill|lowmemorykiller` that also mention `com.kalsa.app` or its PID
 must be 0. Record skin before and after every turn and every adb exit code.
 

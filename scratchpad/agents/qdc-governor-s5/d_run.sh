@@ -21,7 +21,7 @@ MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf
 DEVICE_TMP=/data/local/tmp/kalsa-s5; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + 2400)); END_WRITTEN=0
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAVED=""; IME_SUSPENDED=0
-FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; APP_PID=""; ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0
+FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
 deadline_check() { [ "$(date +%s)" -lt "$DEADLINE_EPOCH" ] || { log "DEADLINE_40_MIN"; write_end deadline_40_min; exit 124; }; }
@@ -175,13 +175,14 @@ set_prefs() {
   rm -rf "$dir"
 }
 fresh_install() {
-  local prefix="$1" uninstall_rc list_rc package_count rc flags
+  local prefix="$1" uninstall_rc list_rc adb_list_rc package_count package_output rc flags
   adbT 120 -s "$SER" shell "pm uninstall $PKG" > "${prefix}_uninstall_old.txt" 2>&1
   uninstall_rc=$?
-  adbT 60 -s "$SER" shell "pm list packages | grep -c com.kalsa.app || true" > "${prefix}_package_count.txt" 2> "${prefix}_package_check.txt"
-  list_rc=$?; package_count=$(tr -d '\r[:space:]' < "${prefix}_package_count.txt")
-  printf 'uninstall_rc=%s package_count=%s list_rc=%s\n' "$uninstall_rc" "$package_count" "$list_rc" >> "${prefix}_uninstall_old.txt"
-  [ "$list_rc" -eq 0 ] && [ "${package_count:-1}" = 0 ] || return 1
+  package_output=$(adbT 60 -s "$SER" shell "pm list packages | grep -c com.kalsa.app; list_rc=\$?; printf 'list_rc=%s\\n' \"\$list_rc\"" 2> "${prefix}_package_check.txt")
+  adb_list_rc=$?; printf '%s\n' "$package_output" > "${prefix}_package_count.txt"
+  package_count=$(printf '%s\n' "$package_output" | sed -n '1p' | tr -d '\r[:space:]'); list_rc=$(printf '%s\n' "$package_output" | sed -n 's/.*list_rc=//p' | tr -d '\r[:space:]')
+  printf 'uninstall_rc=%s package_count=%s list_rc=%s adb_list_rc=%s\n' "$uninstall_rc" "$package_count" "$list_rc" "$adb_list_rc" >> "${prefix}_uninstall_old.txt"
+  [ "$adb_list_rc" -eq 0 ] && [ "$list_rc" -eq 1 ] && [ "${package_count:-1}" = 0 ] || return 1
   /usr/bin/shasum -a 256 "$APK" > "${prefix}_apk_sha.txt" 2>&1
   adbT 300 -s "$SER" install -r "$APK" > "${prefix}_install.txt" 2>&1
   rc=$?; [ "$rc" -eq 0 ] || return 1
@@ -202,13 +203,12 @@ json_field() {
   printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$k=shift;$t=do{local $/;<STDIN>};eval{$v=decode_json($t)->{$k};print defined($v)?$v:""}' "$key"
 }
 parse_tokens() {
-  local json="$1" out="$2"
-  printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$o=decode_json(do{local $/;<STDIN>});die unless ref($o->{ids}) eq "ARRAY"&&defined($o->{n})&&$o->{n}>=32&&@{$o->{ids}}>=32;for $i(0..31){$v=$o->{ids}[$i];die unless defined($v)&&"$v"=~/^-?[0-9]+$/;print "$v\n"}' > "$out" 2>/dev/null
+  local json="$1" out="$2"; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$o=decode_json(do{local $/;<STDIN>});die unless ref($o->{ids}) eq "ARRAY"&&defined($o->{n})&&$o->{n}>=32&&@{$o->{ids}}>=32;for $i(0..31){$v=$o->{ids}[$i];die unless defined($v)&&"$v"=~/^-?[0-9]+$/;print "$v\n"}' > "$out" 2>/dev/null
 }
-telemetry_32() {
+telemetry_complete() {
   local j n
   j=$(last_json_after KALSA_TELEMETRY "$1"); n=$(json_field "$j" tokensPredicted)
-  awk -v n="$n" 'BEGIN{exit !(n ~ /^[0-9]+([.][0-9]+)?$/&&n>=32)}' >/dev/null 2>&1
+  awk -v n="$n" 'BEGIN{exit !(n ~ /^[0-9]+([.][0-9]+)?$/&&n>=1)}' >/dev/null 2>&1
 }
 poll_load() {
   local file="$1" elapsed=0
@@ -224,10 +224,10 @@ poll_telemetry() {
   local file="$1" elapsed=0
   while [ "$elapsed" -lt 600 ]; do
     deadline_check; logcat_all 60 "$file" || true
-    telemetry_32 "$file" && return 0
+    telemetry_complete "$file" && return 0
     sleep 5; elapsed=$((elapsed + 5))
   done
-  logcat_all 60 "$file" || true; telemetry_32 "$file"
+  logcat_all 60 "$file" || true; telemetry_complete "$file"
 }
 clear_anchor() {
   local prefix="$1"
@@ -279,12 +279,12 @@ run_observation() {
     [ "$status" -eq 0 ] && poll_load "${prefix}_load.txt"; load_rc=$?; [ "$load_rc" -eq 0 ] || status=1
     if [ "$load_rc" -eq 0 ]; then device_wake; ime_suspend; dump_ui "${prefix}_edit.xml" && edit_bounds=$(bounds_edit "${prefix}_edit.xml") || edit_bounds=""; [ -n "$edit_bounds" ] && tap_bounds "$edit_bounds" && type_prompt || status=1; fi
     if [ "$status" -eq 0 ]; then ensure_awake "$prefix" || status=1; fi
-    if [ "$status" -eq 0 ]; then dump_ui "${prefix}_send.xml" && send_bounds=$(bounds_send "${prefix}_send.xml") || send_bounds=""; [ -n "$send_bounds" ] && tap_bounds "$send_bounds" || status=1; fi
-    [ "$status" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; [ -f "$logcat" ] || logcat_all 300 "$logcat" || true
+    if [ "$status" -eq 0 ]; then dump_ui "${prefix}_send.xml" && send_bounds=$(bounds_send "${prefix}_send.xml") || send_bounds=""; if [ -n "$send_bounds" ]; then adbT 60 -s "$SER" shell "date +%s" > "${prefix}_send_anchor_epoch.txt" 2>&1 && SEND_ANCHOR_EPOCH=$(cat "${prefix}_send_anchor_epoch.txt" | tr -d '\r[:space:]') && awk -v a="$SEND_ANCHOR_EPOCH" 'BEGIN{exit !(a ~ /^[0-9]+$/)}' >/dev/null 2>&1 || status=1; else status=1; fi; [ "$status" -eq 0 ] && tap_bounds "$send_bounds" || status=1; fi
+    [ "$status" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 60 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 300 "$logcat" || true
   fi
   skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; status=1; }; grep -E 'KALSA_|llama_model_loader' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat"); lmkd=$(count_lmkd_after "$logcat"); telemetry=$(last_json_after KALSA_TELEMETRY "$logcat"); governor=$(last_json_after 'KALSA_GOVERNOR ' "$logcat"); bench=$(last_json_after 'KALSA_BENCH_TOKENS ' "$logcat")
-  ttft=$(json_field "$telemetry" promptMs); decode=$(json_field "$telemetry" predictedPerSecond); prefill=$(json_field "$governor" engine_prefill); decode_engine=$(json_field "$governor" engine_decode); thermal=$(json_field "$governor" thermal_state); commit_bytes=$(json_field "$governor" commit_bytes); commit_ms=$(json_field "$governor" commit_ms); thermo_source=$(json_field "$governor" thermo_source); governor_count=$(count_after 'KALSA_GOVERNOR ' "$logcat"); n=$(json_field "$bench" n)
+  ttft=$(json_field "$telemetry" promptMs); decode=$(json_field "$telemetry" predictedPerSecond); prefill=$(json_field "$governor" engine_prefill); decode_engine=$(json_field "$governor" engine_decode); thermal=$(json_field "$governor" thermal_state); commit_bytes=$(json_field "$governor" commit_bytes); commit_ms=$(json_field "$governor" commit_ms); thermo_source=$(json_field "$governor" thermo_source); governor_count=$(awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&index($0,"KALSA_GOVERNOR ")>0{n++}END{print n+0}' "$logcat"); n=$(json_field "$bench" n)
   [ -n "$ttft" ] || ttft=na; [ -n "$decode" ] || decode=na; [ -n "$prefill" ] || prefill=na; [ -n "$decode_engine" ] || decode_engine=na; [ -n "$thermal" ] || thermal=na; [ -n "$commit_bytes" ] || commit_bytes=na; [ -n "$commit_ms" ] || commit_ms=na; [ -n "$thermo_source" ] || thermo_source=na; [ -n "$n" ] || n=na
   if [ -n "$bench" ] && parse_tokens "$bench" "$ids_file"; then ids_sha=$(/usr/bin/shasum -a 256 "$ids_file" | awk '{print $1}'); else printf 'VOID n=%s\n' "$n" > "$ids_file"; fi
   if [ "$arm" = A ]; then A_IDS_FILE="$ids_file"; [ "$ids_sha" = na ] && A_IDS_VALID=0 || A_IDS_VALID=1; else if [ "$ids_sha" = na ] || [ "$A_IDS_VALID" -ne 1 ]; then oracle=VOID; elif diff -q "$A_IDS_FILE" "$ids_file" >/dev/null 2>&1; then oracle=PASS; else oracle=FAIL; fi; fi
