@@ -1170,6 +1170,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `prompt_ms=0.000` → deve asserire `n_p_eval ≥ 2` e `0 < t_p_eval_ms < 100`
 > + controllo negativo dello sleep → Luna 9392e981, solo test, fork.
 
+> **6/09 07:45 Mac — Test perf-reset reso decisivo (fork `3f71159fd`, solo test,
+> pushato):** `n_p_eval=2, prompt_ms=3.84` dopo il reset vs controllo negativo
+> senza reset `prompt_ms=316.99` (≥ 300 = lo sleep) → la pollution è
+> riprodotta e il fix la elimina. Lo 0.000 di prima era `no_perf=true` di
+> default nel test. Non tocca l'APK (CI 33957267070 di 8a56edc in volo).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
