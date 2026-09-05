@@ -1388,6 +1388,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (A1 skin 34,883; letterale 38,5 → `$COOL_TARGET_C`; regola mediana; asimmetria). Verificato
 > su disco: bash -n 0/0, dryrun rc 0. Prossimo: sessione QDC 90 min, `d_run.sh <sa> <apk 8a56edc> ABABAB 85`.
 
+> **5/09 14:45 EDT Mac — run 6 in volo (sessione 802898, sa806967, driver 14:21, deadline 85):
+> A1 CPU 5855,5 ms VALIDA (925 tok, skin 33,2→42,7), B1 a 37,0 in 195 s.** Decisioni owner:
+> (1) Luna canale primario, grok razionato (78 % token in 2 giorni); (2) estendere S5b agli
+> altri Snapdragon QDC con minuti gratis — QRD8650/750 (757 min), QRD7675/732 (912), HDK8550/740
+> (868), QRD8635/735 (981) — "se riesci a essere multitasking". Correzione mia: quei SoC sono GIÀ
+> misurati da CLI (ALIVE #36 732 GPU ~11×, #37 740 piatto, #38 750 pp512 284 t/s, #39 735) e il
+> governor in-app ha già girato su QRD8650 (S5, #48); ciò che manca è la cella A/B in-app fuori
+> dall'8 Elite. Domanda di record: il guadagno TTFT in-app segue il rapporto CLI per SoC, e sul
+> 740 il governor NON aiuta come atteso? Luna in volo: PREREG "Runs 7+" + copie `d_run.next.sh`/
+> `parse.next.sh` (tag device da `ro.product.name`, sensore skin che fallisce forte); d_run.sh
+> NON si tocca finché gira. NPU in-app: non è cella numerata (S6 RAM, S7 termico) → da aprire dopo.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
