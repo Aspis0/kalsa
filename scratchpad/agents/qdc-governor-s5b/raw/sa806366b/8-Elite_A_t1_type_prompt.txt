@@ -1,0 +1,1 @@
+initial_seconds=73 rc=0 total_seconds=73

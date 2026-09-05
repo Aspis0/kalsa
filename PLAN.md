@@ -1369,6 +1369,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > correzione: in 5a i dump rc 0 rifiutati erano 147 (non ~45). Run 5b: B1 valida (GPU 3326 ms,
 > FAST, 26,5 tok/s, skin 37,0→47,0, cooldown 435 s), A2 in cooldown da 42,7. Run 6 pronta.
 
+> **5/09 13:45 EDT Mac — run 5b CHIUSA (deadline 55 min), sessione 802297 Completed 13:45:25.**
+> Righe: A1 VOID toolcall (5141/5142 char), B1 GPU 3325,7, A2 VOID hot (37,07 a 720 s),
+> B2 GPU 3324,1, A3 VOID hot (37,23 a 720 s), B3 GPU 3325,7 (FAST, 26,8 tok/s, skin
+> 36,96→47,0). Tre punti GPU identici (ids_sha 17b3765f…), nessuna A valida: A dopo B non
+> scende sotto 37,0 in 12 min (secondo run consecutivo). Dump atomico ok: rc 0, 1 tentativo
+> per turno, 30 rifiuti in tutto (147 in 5a). Tunnel chiuso. Portale: il primo `Confirm`
+> cliccato via JS era un pulsante nascosto (sessione ancora Running); funziona click JS su
+> "End Session" → `Yes` VISIBILE. Run 6: target cooldown per braccio (A 38,5 / B 37,0),
+> cap 900 s, ABABAB, deadline 85 → brief a Luna 5fcd34c9.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
