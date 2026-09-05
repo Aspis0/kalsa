@@ -163,6 +163,7 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
         }
     }
 
+    // Context routing is by n_tokens > 1; admission.engine is telemetry only.
     const bool is_prefill = batch.n_tokens > 1;
     llama_context * target = is_prefill ? ctx_prefill : ctx_decode;
     side_state * state = is_prefill ? &prefill_state : &decode_state;
@@ -172,7 +173,7 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
         refresh_policy_stats();
         const int32_t policy_rc = is_prefill ? admit_prefill(batch, allow_chunking) : select_decode();
         if (policy_rc != 0) {
-            return policy_rc;
+            return policy_rc == k_prefill_chunked ? 0 : policy_rc;
         }
     }
 

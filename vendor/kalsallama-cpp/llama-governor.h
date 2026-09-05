@@ -38,6 +38,7 @@ private:
                    llama_governor_params governor_params, bool policy_enabled);
 
     enum class phase { None, Prefill, Decode };
+    enum { k_prefill_chunked = 1 };
 
     struct side_state {
         llama_pos watermark = 0; // exclusive next position not committed to the other side
