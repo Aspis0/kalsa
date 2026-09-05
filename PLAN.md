@@ -625,6 +625,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > v03 (un commit sopra 8665e9a9f, build Mac + syntax); poi nell'app: pin bump
 > + sync vendor + import Kotlin, dopo che ee4741e9 (sampling) ha finito.
 
+> **5/09 ~04:45 — Delta audit driver S5 (deepseek): GO-WITH-FIXES, 0 blocker,
+> 1 major, 4 minori.** B1/B2/M1/M2/budget/m1-m6 tutti FIXED o PARTIAL
+> verificati riga per riga. Nuovo D1 (major): il poll telemetria esige n≥32
+> token → una risposta greedy corta per EOS farebbe scadere i 600 s e
+> abortire la sessione, mentre il contratto la vuole VOID-e-continua → poll
+> su tokensPredicted≥1, n≥32 solo nell'oracolo. D2: dump logcat extra dopo il
+> match telemetria (KALSA_BENCH_TOKENS arriva ms dopo). D3: `list_rc` sempre
+> 0. D5: `governor_count==1` conterebbe anche il prewarm → seconda ancora al
+> Send. Fix a Luna 5fcd34c9. Puliti: parse_tokens, quoting, 13 colonne TSV,
+> evidenze prima di ogni exit.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
