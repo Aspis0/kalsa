@@ -599,3 +599,54 @@ GO. 0 blockers, 0 majors, 1 minor (F2: typing_awake overhead vs the 150-s turn-1
 retype path — verify first-turn timing, exclude the overhead or re-register the cap), 2 nits
 (F1 claim-before-fact stayon line + no settings-get retry; F8 adb-exit range). Mechanics all
 CONFIRMED, dryrun exit 0. Launch run 7b.
+
+
+## Delta audit #11 — run 7c per-chunk typing
+
+F1 (verify_typed_chunk :267-300) — CONFIRMED. Reads via composer_text_attr — SAME extractor/
+encoding as composer_check: the prompt's apostrophes ("doesn't"…) are legal in double-quoted
+XML attributes (no `"` in the prompt, no entities in these dumps — 7a cleared.xml literal
+ellipsis) — no unescape needed, REFUTED as a risk. Classification exact/short/mismatch
+correct (first-char loss is mismatch, not short). NIT: a FAILED dump (rc≠0) → actual="" →
+prefix-match trivially true → "short" → the whole attempt discarded without a re-dump-once —
+recommend one re-dump on dump_rc≠0.
+F2 (first-loss :384) — CONFIRMED: chunk0-retype exactly once, clear_for_retry between,
+`expected_len=${#chunk}; offset=…; chunks=1` consistent; a second loss falls to the ladder —
+no infinite loop; with the 150-s cap gone the 7b post-retype rc=2 no longer aborts.
+F3 (ladder/caps) — CONFIRMED, 2 nits. Ladder `for chunk_size in 500 200 100` (:355),
+clear+break on mismatch, in-loop cap `[ "$elapsed" -ge 400 ]` (:367) vs the success post-check
+`[ "$elapsed" -gt 400 ]` (:413) — INCONSISTENT operators; a finish at exactly 400 s passes
+post-check rc=0 vs the in-loop ≥400 kill; unify to -ge. NIT: no deadline_check inside
+type_prompt — worst case 3×400 s = 20 min typing/turn can breach the 85-min deadline and the
+QDC session cap until the next per-turn checkpoint. The ladder's clear is not
+EMPTY_TEXT-verified before restart, but verify catches residue as mismatch (self-healing).
+F4 (return codes) — CONFIRMED: only rc=1 is the empty-prompt guard; all failures return 2 →
+VOID(composer), run continues (CONT_RAW A8 dryrun proves it). NIT: an adb/transport failure in
+a chunk ALSO returns 2 → VOID while the pre-registered abort list has "disconnect" — one
+wasted VOID turn (≤20 min) before the next turn aborts.
+F5 (records) — CONFIRMED: typing_chunks.txt `attempt=%s chunk=%s len=%s expected=%s
+result=%s t=%ss`; type_prompt.txt `attempt=%s chunk_size=%s seconds=%s rc=%s`; TYPE_COUNTS/
+TYPE_PROMPT_CALLS updated only on success (:416-417); d_run.sh has exactly one TYPE_ hit — the
+:47 init — status printf untouched, consistent.
+F6 (dryrun) — CONFIRMED: `bash dryrun.sh > /tmp/dr11.log 2>&1` → exit=0. Fixtures :203-205
+drive the REAL type_prompt/verify (stub serves incremental prefix-of-expected or shifted/wrong
+variants via TYPE_VERIFY_ACTIVE/tap-50-50): first_loss asserts chunk=1 mismatch AND chunk=1
+exact; mid_mismatch asserts attempt1/500 rc=1 + attempt2/200 rc=0; always_mismatch asserts
+three rc=1 lines + rc=2 + void_reason=composer + SEND_TAPS=0; CONT_RAW A8 returns 0 —
+genuine.
+F7 (set -u) — CONFIRMED: verify locals all declared; TYPE_VERIFY_* assigned before use;
+`TYPE_ATTEMPT_NO=${TYPE_ATTEMPT_NO:-0}`; first_loss_expected per-iteration.
+F8 (PREREG) — CONFIRMED: :140-146 re-cite raw/sa807321a/ (files exist — verified);
+:147-151 numbers verbatim: composer_len.txt:1 `actual=3976 expected=5142 minimum=4627
+hint_len=0 empty_text_len=17` and :2 `attempt=cleared actual=0 … empty_text_len=17`;
+type_prompt.txt:1-2 `initial_seconds=133 rc=0` / `retype_seconds=55 rc=2 total_seconds=188`
+(133+55=188 ✓); ui_attempts.txt:1-11 = the 11 Awake chunk records (17 Awake lines total, the
+6 extra are the send-loop records); 3976/5142 = 0.773 ≈ 23 % loss ✓; "PREREG:132-138 remains
+unchanged" ✓.
+
+## Delta verdict #11
+
+GO. 0 blockers, 0 majors, 2 minor (F3 -ge vs -gt cap inconsistency; no deadline_check in the
+typing ladder), 3 nits (F1 dump-glitch = short without re-dump; F4 transport failure → VOID
+vs pre-registered disconnect abort; ladder clear not EMPTY_TEXT-verified). Everything else
+CONFIRMED; dryrun exit 0. Launch run 7c.

@@ -138,8 +138,14 @@ For runs 7+, `PASS-1` means at most one differing token index between the A/B 32
 On each new device's first run, A uses 38.5 °C and B 37.0 °C with the 900 s cap: thermal targets are exploratory on the first run; a per-device amendment may follow after run 1, before any bank. The thermo override and HAL skin are recorded per turn.
 
 ### Run 7a (sa807321, QRD7675) → run 7b
-Run 7a produced no data: A1/B1 were composer VOID and A2 aborted [raw/sa807321/END.txt:1].
-C1 was the 60 s `screen_off_timeout=60000` doze threat; typing stopped at `attempt=initial actual=3821 expected=5142` [raw/sa807321/7p-Gen-3_A_t1_composer_len.txt:1].
-C2 was Android 14 hint omission: cleared text was `Ask a question…`, recorded as `actual=17 ... hint_len=0` [raw/sa807321/7p-Gen-3_A_t1_composer_cleared.xml:1; raw/sa807321/7p-Gen-3_A_t1_composer_len.txt:2].
-C3 was a transient `/data` permission reset: `run-as: /data readable or writable by others: 40777` despite successful chmod calls [raw/sa807321/7p-Gen-3_A_t2_model_copy.txt:1; raw/sa807321/adb-exit.log:12-381].
+Run 7a produced no data: A1/B1 were composer VOID and A2 aborted [raw/sa807321a/END.txt:1].
+C1 was the 60 s `screen_off_timeout=60000` doze threat; typing stopped at `attempt=initial actual=3821 expected=5142` [raw/sa807321a/7p-Gen-3_A_t1_composer_len.txt:1].
+C2 was Android 14 hint omission: cleared text was `Ask a question…`, recorded as `actual=17 ... hint_len=0` [raw/sa807321a/7p-Gen-3_A_t1_composer_cleared.xml:1; raw/sa807321a/7p-Gen-3_A_t1_composer_len.txt:2].
+C3 was a transient `/data` permission reset: `run-as: /data readable or writable by others: 40777` despite successful chmod calls [raw/sa807321a/7p-Gen-3_A_t2_model_copy.txt:1; raw/sa807321a/adb-exit.log:12-381].
 Run 7b+ uses the unchanged pre-registration at PREREG:132-138, with the new screen-stay-awake, EMPTY_TEXT, and retry-wrapper fixes. The 60 s screen-timeout threat also applies to the remaining boards.
+
+### Run 7b (sa807321) → run 7c
+Run 7b lost A1 to `actual=3976 expected=5142 ... empty_text_len=17`, then cleared to zero; typing took `initial_seconds=133 rc=0` and `retype_seconds=55 rc=2 total_seconds=188` [raw/sa807321/7p-Gen-3_A_t1_composer_len.txt:1-2; raw/sa807321/7p-Gen-3_A_t1_type_prompt.txt:1-2].
+The 150 s total typing cap caused the VOID; the 11 chunk wake records stayed `Awake` [raw/sa807321/7p-Gen-3_A_t1_ui_attempts.txt:1-11].
+Run 7c verifies the composer after every chunk, handles the first-character loss with one chunk-0 retype, and retries other mismatches through the 500 → 200 → 100 ladder, with a 400 s cap per attempt; failure remains `VOID(composer)` and never aborts the run.
+PREREG:132-138 remains unchanged.

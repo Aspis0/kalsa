@@ -4,7 +4,7 @@ CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-
 DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
-THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0
+THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0; TYPE_VERIFY_ACTIVE=0; TYPE_VERIFY_ATTEMPT=0; TYPE_VERIFY_CHUNK=0; TYPE_VERIFY_EXPECTED_LEN=0; FIRST_LOSS_USED=0; MID_MISMATCH_USED=0; ALWAYS_MISMATCH=0
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
@@ -61,6 +61,8 @@ adbT() {
   elif [[ "$joined" == *"exec-out run-as com.kalsa.app cat databases/RKStorage"* && "$joined" != *"-wal"* && "$joined" != *"-shm"* ]]; then RUNAS_CALLS=$((RUNAS_CALLS + 1)); if [ "$RUNAS_FAIL_ONCE" -eq 1 ] && [ "$RUNAS_CALLS" -eq 1 ]; then printf 'run-as: /data readable or writable by others: 40777\n' >&2; return 1; fi; /usr/bin/sqlite3 "$TMP/RKStorage" .dump | /usr/bin/sqlite3 :memory: >/dev/null 2>&1 || true; /bin/cat "$TMP/RKStorage"
   elif [[ "$joined" == *"run-as com.kalsa.app"* ]]; then RUNAS_CALLS=$((RUNAS_CALLS + 1)); if [ "$RUNAS_FAIL_ONCE" -eq 1 ] && [ "$RUNAS_CALLS" -eq 1 ]; then printf 'run-as: /data readable or writable by others: 40777\n' >&2; return 1; fi
   elif [[ "$joined" == *"KEYCODE_WAKEUP"* ]]; then WAKE_AWAKE=1
+  elif [[ "$joined" == *"am start -n"* ]]; then COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen
+  elif [[ "$joined" == *"input keycombination"* ]]; then COMPOSER_STAGE=cleared
   elif [[ "$joined" == *"input text"* ]]; then
     INPUT_TEXT_COUNT=$((INPUT_TEXT_COUNT + 1))
     chunk_cmd=$(printf '%s' "$joined" | sed -n "s/.*input text '\\(.*\\)'$/\\1/p")
@@ -74,46 +76,53 @@ adbT() {
     fi
   elif [[ "$joined" == *"input tap 150 50"* ]]; then
     SEND_TAPS=$((SEND_TAPS + 1))
+  elif [[ "$joined" == *"input tap 50 50"* ]]; then
+    COMPOSER_FOCUSED=1; COMPOSER_STAGE=typing
   elif [[ "$joined" == *"input tap"* ]]; then
     :
   elif [[ "$joined" == *"cat $DEVICE_TMP/ui.xml"* ]]; then
     UI_DUMP_COUNT=$((UI_DUMP_COUNT + 1))
-    if [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"
-    elif [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 3 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 4 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$PROMPT_TEXT"
-    elif [ "$COMPOSER_MODE" = exact ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = exact_fail ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"
-    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 3 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 4 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
-    elif [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 6 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 7 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
-    elif [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 8 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$COMPOSER_MODE" = exact ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
+    if [ "${TYPE_VERIFY_ACTIVE:-0}" -eq 1 ]; then
+      expected="${PROMPT_TEXT:0:${TYPE_VERIFY_EXPECTED_LEN}}"
+      if [ "$COMPOSER_MODE" = first_loss ] && [ "$TYPE_VERIFY_ATTEMPT" -eq 1 ] && [ "$TYPE_VERIFY_CHUNK" -eq 1 ] && [ "$FIRST_LOSS_USED" -eq 0 ]; then
+        expected="${PROMPT_TEXT:1:$((TYPE_VERIFY_EXPECTED_LEN - 1))}"; FIRST_LOSS_USED=1
+      elif [ "$COMPOSER_MODE" = mid_mismatch ] && [ "$TYPE_VERIFY_ATTEMPT" -eq 1 ] && [ "$TYPE_VERIFY_CHUNK" -eq 3 ] && [ "$MID_MISMATCH_USED" -eq 0 ]; then
+        expected="${PROMPT_TEXT:0:$((TYPE_VERIFY_EXPECTED_LEN - 1))}X"; MID_MISMATCH_USED=1
+      elif [ "$COMPOSER_MODE" = always_mismatch ]; then
+        expected="${PROMPT_TEXT:0:$((TYPE_VERIFY_EXPECTED_LEN - 1))}X"
+      fi
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$expected"
+    elif [ "$COMPOSER_FOCUSED" -eq 0 ]; then
+      if [ "$COMPOSER_MODE" = hint_text ]; then
+        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+      else
+        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+      fi
+    elif [ "$COMPOSER_STAGE" = typing ]; then
+      if [ "$VOID_MODE" -eq 1 ]; then
+        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
+      elif [ "$COMPOSER_MODE" = exact ]; then
+        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"; COMPOSER_STAGE=short
+      elif [ "$COMPOSER_MODE" = legacy ] || [ "$COMPOSER_MODE" = hint_text ]; then
+        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"; COMPOSER_STAGE=short
+      elif [ "$COMPOSER_MODE" = exact_fail ]; then
+        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"; COMPOSER_STAGE=short
+      else
+        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
+      fi
+    elif [ "$COMPOSER_STAGE" = cleared ]; then
+      if [ "$COMPOSER_MODE" = hint_text ]; then
+        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+      else
+        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+      fi
+      COMPOSER_STAGE=cleared_seen
+    elif [ "$COMPOSER_MODE" = exact_fail ]; then
       printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
-    elif [ "$COMPOSER_MODE" = exact_fail ] && { [ "$UI_DUMP_COUNT" -eq 2 ] || [ "$UI_DUMP_COUNT" -eq 4 ]; }; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
-    elif [ "$VOID_MODE" -eq 1 ] || [ "$UI_DUMP_COUNT" -eq 2 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"
-    elif [ "$UI_DUMP_COUNT" -eq 3 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
-    elif [ "$UI_DUMP_COUNT" -eq 4 ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$PROMPT_TEXT"
+    elif [ "$COMPOSER_STAGE" = cleared_seen ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=send_retry
+    elif [ "$COMPOSER_STAGE" = send_retry ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
     else
       printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
     fi
@@ -187,10 +196,14 @@ run_observation A 1; RUN_RC=$?; printf 'run_observation\t%s\n' "$RUN_RC" | tee -
 FINAL_RC=0; VOID_MODE=1; run_observation B 1; B_RC=$?; printf 'run_observation_B_VOID\t%s\n' "$B_RC" | tee -a "$RESULTS_LOG"; [ "$B_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="B"&&$2==1&&$16=="na"&&$17=="VOID"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1' "$RAW/QRD8650_B_t1_status.txt" || exit 1; grep -q 'wait_s=0 skin=35.5 target_c=37.0' "$RAW/QRD8650_B_t1_cooldown.txt" || exit 1; grep -q 'cool_target_c=37.0' "$RAW/QRD8650_B_t1_status.txt" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1
 VOID_MODE=0; run_observation A 2; A2_RC=$?; printf 'run_observation_A2_after_VOID\t%s\n' "$A2_RC" | tee -a "$RESULTS_LOG"; [ "$A2_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 55 ] || { echo "final chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 5 ] || { echo "final type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11,11,11,11," ] || { echo "final chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 55 ] || { echo "final chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "final chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }
 # An exact 5,141-character first dump must retype once and then send only at 5,142.
-EXACT_RAW="$TMP/exact-observations"; /bin/mkdir -p "$EXACT_RAW"; RAW="$EXACT_RAW"; COMPOSER_MODE=exact; VOID_MODE=0; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_RC=0; ui_send "$RAW/exact" 2 || EXACT_RC=$?; [ "$EXACT_RC" -eq 0 ] || exit 1; grep -q 'attempt=initial actual=5141' "$RAW/exact_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/exact_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
+EXACT_RAW="$TMP/exact-observations"; /bin/mkdir -p "$EXACT_RAW"; RAW="$EXACT_RAW"; COMPOSER_MODE=exact; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; VOID_MODE=0; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_RC=0; ui_send "$RAW/exact" 2 || EXACT_RC=$?; [ "$EXACT_RC" -eq 0 ] || exit 1; grep -q 'attempt=initial actual=5141' "$RAW/exact_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/exact_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
 # Under the old >=90% gate, this second 5,141-character dump would have sent; exact mode must VOID composer before any tap.
-COMPOSER_MODE=exact_fail; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_FAIL_RC=0; ui_send "$RAW/exact-fail" 2 || EXACT_FAIL_RC=$?; [ "$EXACT_FAIL_RC" -eq 2 ] && [ "$void_reason" = composer ] && [ "$SEND_TAPS" -eq 0 ] || exit 1; grep -q 'attempt=retype actual=5141' "$RAW/exact-fail_composer_len.txt" || exit 1
-HINT_RAW="$TMP/hint-observations"; /bin/mkdir -p "$HINT_RAW"; RAW="$HINT_RAW"; COMPOSER_MODE=hint_text; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; HINT_RC=0; ui_send "$RAW/hint" 2 || HINT_RC=$?; [ "$HINT_RC" -eq 0 ] || exit 1; grep -q 'attempt=cleared actual=0.*hint_len=0.*empty_text_len=' "$RAW/hint_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/hint_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
+COMPOSER_MODE=exact_fail; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_FAIL_RC=0; ui_send "$RAW/exact-fail" 2 || EXACT_FAIL_RC=$?; [ "$EXACT_FAIL_RC" -eq 2 ] && [ "$void_reason" = composer ] && [ "$SEND_TAPS" -eq 0 ] || exit 1; grep -q 'attempt=retype actual=5141' "$RAW/exact-fail_composer_len.txt" || exit 1
+HINT_RAW="$TMP/hint-observations"; /bin/mkdir -p "$HINT_RAW"; RAW="$HINT_RAW"; COMPOSER_MODE=hint_text; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; HINT_RC=0; ui_send "$RAW/hint" 2 || HINT_RC=$?; [ "$HINT_RC" -eq 0 ] || exit 1; grep -q 'attempt=cleared actual=0.*hint_len=0.*empty_text_len=' "$RAW/hint_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/hint_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
+FIRST_RAW="$TMP/first-loss"; /bin/mkdir -p "$FIRST_RAW"; RAW="$FIRST_RAW"; COMPOSER_MODE=first_loss; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; FIRST_LOSS_USED=0; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; FIRST_RC=0; ui_send "$RAW/first" 2 || FIRST_RC=$?; [ "$FIRST_RC" -eq 0 ] || exit 1; grep -q 'chunk=1 .*result=mismatch' "$RAW/first_typing_chunks.txt" && grep -q 'chunk=1 .*result=exact' "$RAW/first_typing_chunks.txt" || exit 1
+MID_RAW="$TMP/mid-mismatch"; /bin/mkdir -p "$MID_RAW"; RAW="$MID_RAW"; COMPOSER_MODE=mid_mismatch; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; MID_MISMATCH_USED=0; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; MID_RC=0; ui_send "$RAW/mid" 2 || MID_RC=$?; [ "$MID_RC" -eq 0 ] || exit 1; grep -q 'attempt=1 chunk_size=500 .*rc=1' "$RAW/mid_type_prompt.txt" && grep -q 'attempt=2 chunk_size=200 .*rc=0' "$RAW/mid_type_prompt.txt" || exit 1
+FAIL_RAW="$TMP/three-fail"; /bin/mkdir -p "$FAIL_RAW"; RAW="$FAIL_RAW"; COMPOSER_MODE=always_mismatch; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; ALWAYS_MISMATCH=1; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; FAIL_RC=0; ui_send "$RAW/fail" 2 || FAIL_RC=$?; [ "$FAIL_RC" -eq 2 ] && [ "$void_reason" = composer ] && [ "$SEND_TAPS" -eq 0 ] || exit 1; grep -q 'attempt=1 chunk_size=500 .*rc=1' "$RAW/fail_type_prompt.txt" && grep -q 'attempt=2 chunk_size=200 .*rc=1' "$RAW/fail_type_prompt.txt" && grep -q 'attempt=3 chunk_size=100 .*rc=1\|attempt=3 chunk_size=100 .*rc=2' "$RAW/fail_type_prompt.txt" || exit 1
+CONT_RAW="$TMP/after-three-fail"; /bin/mkdir -p "$CONT_RAW"; RAW="$CONT_RAW"; RESULTS="$CONT_RAW/results.tsv"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$RESULTS"; COMPOSER_MODE=normal; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; ALWAYS_MISMATCH=0; UI_DUMP_COUNT=0; run_observation A 8; CONT_RC=$?; [ "$CONT_RC" -eq 0 ] || exit 1
 WAKE_MODE=doze_once; WAKE_AWAKE=0; /bin/rm -f "$TMP/type-wake_ui_attempts.txt"; type_prompt "$TMP/type-wake" || exit 1; grep -q 'typing_chunk=1 wake_before=Dozing wake_after=Awake' "$TMP/type-wake_ui_attempts.txt" || exit 1; WAKE_MODE=normal; WAKE_AWAKE=1
 # Under the old if [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ] condition without a row_void guard, the TOOL_RC=0 assertion below fails (A1 exits 3).
 TOOL_RAW="$TMP/tool-observations"; TOOL_RESULTS="$TMP/tool-results.tsv"; /bin/mkdir -p "$TOOL_RAW"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$TOOL_RESULTS"; RAW="$TOOL_RAW"; RESULTS="$TOOL_RESULTS"; A_IDS_FILE=""; A_IDS_VALID=0; UI_DUMP_COUNT=0; TOOL_MODE=1; run_observation A 1; TOOL_RC=$?; printf 'run_observation_TOOLCALL_VOID\t%s\n' "$TOOL_RC" | tee -a "$RESULTS_LOG"; [ "$TOOL_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==1&&$16=="na"&&$17=="na"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1.*structuredCalls=1 tool_calls=1.*void_reason=toolcall' "$RAW/QRD8650_A_t1_status.txt" || exit 1; [ ! -e "$RAW/PREREQUISITE.txt" ] || exit 1; TOOL_MODE=0; run_observation A 2; CONTINUE_RC=$?; printf 'run_observation_after_TOOLCALL_VOID\t%s\n' "$CONTINUE_RC" | tee -a "$RESULTS_LOG"; [ "$CONTINUE_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1

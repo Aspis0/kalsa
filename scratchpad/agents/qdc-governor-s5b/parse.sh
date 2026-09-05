@@ -264,6 +264,61 @@ clear_composer() {
   adbT 60 -s "$SER" shell input keyevent KEYCODE_DEL
 }
 
+verify_typed_chunk() {
+  local prefix="$1"
+  local attempt="$2"
+  local chunk_no="$3"
+  local expected_len="$4"
+  local started="$5"
+  local file="${prefix}_typing_chunk_a${attempt}_c${chunk_no}.xml"
+  local actual expected actual_len result now elapsed dump_rc
+  TYPE_VERIFY_ATTEMPT="$attempt"
+  TYPE_VERIFY_CHUNK="$chunk_no"
+  TYPE_VERIFY_EXPECTED_LEN="$expected_len"
+  TYPE_VERIFY_ACTIVE=1
+  dump_ui "$file"
+  dump_rc=$?
+  TYPE_VERIFY_ACTIVE=0
+  actual=$(composer_text_attr "$file" text)
+  expected="${PROMPT_TEXT:0:expected_len}"
+  actual_len=$(printf '%s' "$actual" | wc -m | tr -d '[:space:]')
+  if [ "$dump_rc" -eq 0 ] && [ "$actual" = "$expected" ]; then
+    result=exact
+  elif [ "$actual_len" -lt "$expected_len" ] && [ "${PROMPT_TEXT:0:actual_len}" = "$actual" ]; then
+    result=short
+  else
+    result=mismatch
+  fi
+  now=$(date +%s)
+  elapsed=$((now - started))
+  printf 'attempt=%s chunk=%s len=%s expected=%s result=%s t=%ss\n' "$attempt" "$chunk_no" "$actual_len" "$expected_len" "$result" "$elapsed" >> "${prefix}_typing_chunks.txt"
+  TYPE_VERIFY_RESULT="$result"
+  TYPE_VERIFY_TEXT="$actual"
+  TYPE_VERIFY_LEN="$actual_len"
+  [ "$result" = exact ]
+}
+
+send_prompt_chunk() {
+  local prefix="$1"
+  local chunk_no="$2"
+  local offset="$3"
+  local chunk_size="$4"
+  local chunk encoded escaped rc
+  chunk="${PROMPT_TEXT:$offset:$chunk_size}"
+  [ -n "$chunk" ] || return 1
+  typing_awake "$prefix" "$chunk_no" || return 2
+  encoded=$(printf '%s' "$chunk" | sed 's/ /%s/g')
+  escaped=$(printf '%s' "$encoded" | sed "s/'/'\\\\''/g")
+  adbT 300 -s "$SER" shell "input text '$escaped'"
+  rc=$?
+  [ "$rc" -eq 0 ] || return "$rc"
+}
+
+clear_for_retry() {
+  clear_composer || return 1
+  sleep 2
+}
+
 typing_awake() {
   local prefix="$1"
   local chunk="$2"
@@ -294,27 +349,79 @@ chunk_sum() {
 
 type_prompt() {
   local prefix="$1"
-  local text_len offset chunk encoded escaped chunks
-  local rc
+  local text_len offset chunk chunks chunk_size chunk_no expected_len
+  local attempt attempt_start now elapsed rc result first_loss_expected
+  TYPE_ATTEMPT_NO=${TYPE_ATTEMPT_NO:-0}
   [ -n "$PROMPT_TEXT" ] || return 1
   text_len=${#PROMPT_TEXT}
-  offset=0
-  chunks=0
-  while [ "$offset" -lt "$text_len" ]; do
-    chunk="${PROMPT_TEXT:$offset:500}"
-    [ -n "$chunk" ] || return 1
-    typing_awake "$prefix" "$((chunks + 1))" || { void_reason=composer; return 2; }
-    encoded=$(printf '%s' "$chunk" | sed 's/ /%s/g')
-    escaped=$(printf '%s' "$encoded" | sed "s/'/'\\\\''/g")
-    adbT 300 -s "$SER" shell "input text '$escaped'"
-    rc=$?
-    [ "$rc" -eq 0 ] || return "$rc"
-    chunks=$((chunks + 1))
-    offset=$((offset + ${#chunk}))
-    [ "$offset" -lt "$text_len" ] && sleep 0.5
+  for chunk_size in 500 200 100; do
+    TYPE_ATTEMPT_NO=$((TYPE_ATTEMPT_NO + 1))
+    attempt="$TYPE_ATTEMPT_NO"
+    attempt_start=$(date +%s)
+    deadline_check
+    sleep 2
+    offset=0
+    chunks=0
+    while [ "$offset" -lt "$text_len" ]; do
+      now=$(date +%s)
+      elapsed=$((now - attempt_start))
+      if [ "$elapsed" -ge 400 ]; then
+        printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$elapsed" >> "${prefix}_type_prompt.txt"
+        return 2
+      fi
+      chunk_no=$((chunks + 1))
+      chunk="${PROMPT_TEXT:$offset:$chunk_size}"
+      expected_len=$((offset + ${#chunk}))
+      send_prompt_chunk "$prefix" "$chunk_no" "$offset" "$chunk_size"
+      rc=$?
+      if [ "$rc" -ne 0 ]; then
+        now=$(date +%s); elapsed=$((now - attempt_start))
+        printf 'attempt=%s chunk_size=%s seconds=%s rc=%s\n' "$attempt" "$chunk_size" "$elapsed" "$rc" >> "${prefix}_type_prompt.txt"
+        return 2
+      fi
+      verify_typed_chunk "$prefix" "$attempt" "$chunk_no" "$expected_len" "$attempt_start"
+      rc=$?
+      result="$TYPE_VERIFY_RESULT"
+      first_loss_expected="${PROMPT_TEXT:1:TYPE_VERIFY_LEN}"
+      if [ "$rc" -eq 0 ]; then
+        offset="$expected_len"
+        chunks=$((chunks + 1))
+        continue
+      fi
+      if [ "$chunk_no" -eq 1 ] && [ "$chunk_size" -eq 500 ] && [ "$TYPE_VERIFY_TEXT" = "$first_loss_expected" ]; then
+        clear_for_retry || { printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$(( $(date +%s) - attempt_start ))" >> "${prefix}_type_prompt.txt"; return 2; }
+        send_prompt_chunk "$prefix" "$chunk_no" 0 "$chunk_size"
+        rc=$?
+        if [ "$rc" -eq 0 ]; then
+          expected_len=${#chunk}
+          verify_typed_chunk "$prefix" "$attempt" "$chunk_no" "$expected_len" "$attempt_start"
+          rc=$?
+          result="$TYPE_VERIFY_RESULT"
+          if [ "$rc" -eq 0 ]; then
+            offset="$expected_len"
+            chunks=$((chunks + 1))
+            continue
+          fi
+        fi
+      fi
+      clear_for_retry || { printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$(( $(date +%s) - attempt_start ))" >> "${prefix}_type_prompt.txt"; return 2; }
+      now=$(date +%s); elapsed=$((now - attempt_start))
+      printf 'attempt=%s chunk_size=%s seconds=%s rc=1\n' "$attempt" "$chunk_size" "$elapsed" >> "${prefix}_type_prompt.txt"
+      break
+    done
+    if [ "$offset" -eq "$text_len" ]; then
+      now=$(date +%s); elapsed=$((now - attempt_start))
+      if [ "$elapsed" -ge 400 ]; then
+        printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$elapsed" >> "${prefix}_type_prompt.txt"
+        return 2
+      fi
+      printf 'attempt=%s chunk_size=%s seconds=%s rc=0\n' "$attempt" "$chunk_size" "$elapsed" >> "${prefix}_type_prompt.txt"
+      TYPE_PROMPT_CALLS=$((TYPE_PROMPT_CALLS + 1))
+      TYPE_COUNTS="${TYPE_COUNTS}${chunks},"
+      return 0
+    fi
   done
-  TYPE_PROMPT_CALLS=$((TYPE_PROMPT_CALLS + 1))
-  TYPE_COUNTS="${TYPE_COUNTS}${chunks},"
+  return 2
 }
 
 ui_send() {
@@ -331,9 +438,11 @@ ui_send() {
   : > "$attempts_file"
   : > "${prefix}_composer_len.txt"
   : > "${prefix}_type_prompt.txt"
+  : > "${prefix}_typing_chunks.txt"
   previous_send=""
   typing_total=0
   EMPTY_TEXT=""
+  TYPE_ATTEMPT_NO=0
 
   dump_ui "$edit_file" || true
   edit_bounds=""
@@ -349,9 +458,6 @@ ui_send() {
   typing_total=$type_elapsed
   printf 'initial_seconds=%s rc=%s total_seconds=%s\n' "$type_elapsed" "$type_rc" "$typing_total" >> "${prefix}_type_prompt.txt"
   [ "$type_rc" -ne 2 ] || { void_reason=composer; return 2; }
-  if [ "$turn" -eq 1 ] && [ "$typing_total" -gt 150 ]; then
-    return 1
-  fi
 
   dump_ui "$send_file" || true
   composer_ok=1
@@ -379,9 +485,6 @@ ui_send() {
     typing_total=$((typing_total + type_elapsed))
     printf 'retype_seconds=%s rc=%s total_seconds=%s\n' "$type_elapsed" "$type_rc" "$typing_total" >> "${prefix}_type_prompt.txt"
     [ "$type_rc" -ne 2 ] || { void_reason=composer; return 2; }
-    if [ "$turn" -eq 1 ] && [ "$typing_total" -gt 150 ]; then
-      return 1
-    fi
     dump_ui "$retry_file" || true
     [ "$type_rc" -eq 0 ] || { void_reason=composer; return 2; }
     composer_check "$prefix" "$retry_file" retype || { void_reason=composer; return 2; }

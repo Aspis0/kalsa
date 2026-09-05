@@ -1465,6 +1465,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > manca il primo char, ladder 500→200→100 su mismatch, cap PER TENTATIVO 400 s, mai abort.
 > Raw 7a spostati in `raw/sa807321a` (7b in `raw/sa807321`).
 
+> **5/09 17:30 EDT Mac — typing per chunk su disco (Luna), deepseek #11 GO (2 minori chiusi:
+> `-ge` unificato, `deadline_check` per tentativo).** `verify_typed_chunk` con prefisso esatto,
+> pausa 2 s dopo il focus, retype del solo chunk 0 se manca il primo char, ladder 500→200→100,
+> cap 400 s PER tentativo, sempre VOID composer mai abort; 3 fixture dryrun nuove, rc 0. PREREG
+> "Run 7b → 7c" (147-151), citazioni 7a su `raw/sa807321a/`. **moe-stream**: handback C3 chiuso
+> su 5d8b2eb (CI 33988146795, E2E 33988146799 77 min, APK 33989863108 verdi; artifact sha
+> 6eba835a…, 135,66 MB) — handoff aggiornato. **Run 7c**: sessione 803833 (S5b-7pG3-r7c) in
+> apertura; budget QRD7675 835 min prima di questa.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
