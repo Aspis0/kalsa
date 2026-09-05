@@ -1,7 +1,6 @@
 # PREREG — S5b: governor TTFT on a large, uncached prefill
 Date: 2026-09-05. **LOCKED 2026-09-05 (Mac 07:27 EDT)**: pre-run audit GO-WITH-FIXES → fixes → delta #1 GO-WITH-FIXES (F1 B-VOID abort) → fixes → delta #2 GO (deepseek, `AUDIT-PRERUN.md`). APK `8a56edc` SHA-256 `272f4547b097b0738f278e14fad50da0478b5533504d82e7eaefba99caf59946`; QDC session `S5b-8Elite-r1` (QRD8750). No numbers were collected before this lock. This cell measures the
 large user-tail prefill inside the app; it is not a no-prewarm cold-context cell.
-
 ## Motivation and hypothesis
 S5 reports that the prewarm KV leaves “only 15 tokens are new in both arms”
 (`/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/REPORT.md:245`),
@@ -11,27 +10,24 @@ the prewarm, “far below fork cell #38’s roughly `10×`” (`/Users/marco/Pro
 Hypothesis: on the same 8 Elite board, APK, model, sampler, and fixed large user
 prompt, governor B’s GPU prefill is at least 3× faster than CPU A: B/A ≤ 1/3.
 The result is reported with the native `prefill_ms` and `prefill_chunks` fields.
-
 ## Fixed materials and uncached mechanism
 
 Model: `/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf`,
 1,593,894,944 bytes, SHA-256
 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`.
 The driver verifies the local/device SHA and uses `run-as` for app data.
-
 APK: `/Users/marco/kalsa-qdc/apk/apk-gov-8a56edc/kalsa-apk-arm64-v8a-debuggable-8a56edc8926e388f27ceb575afd86024d35d3057/app-release.apk`,
 branch `feat/governor-in-app` @ `8a56edc`, SHA-256
 `272f4547b097b0738f278e14fad50da0478b5533504d82e7eaefba99caf59946`;
 the locked artifact must show `application-debuggable` and installed flags must
 show `DEBUGGABLE`. Model/APK/prompt are fixed; any identity mismatch aborts.
-
 Prompt: `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/PROMPT.txt`,
 893 whitespace words, 5,142 bytes, auditor-tokenized to 938 model tokens, SHA-256
 `9109f58516104950079a4a4ecbcd46b557b598741227e893c275bece27079ea6`.
 It contains lowercase English words, spaces, and line breaks only. The driver
-converts line breaks to spaces, sends one fixed `%s`-escaped argument after
-prewarm, and expects 5,142 composer characters.
-
+converts line breaks to spaces, splits the original text into ≤500-character
+chunks, encodes spaces as `%s`, and sends single-quoted commands 0.5 s apart
+(11 chunks; expected ≈55–65 s, nominal ≈60 s). Expected composer characters: 5,142.
 The inspected app has no `kalsa.bench.prewarm` key. `queueStaticPrefixPrewarm`
 is active whenever the app is active and sends system/tools plus user `"."`
 (`/Users/marco/Projects/kalsa-wt-governor/src/engine/LlamaService.ts:704-775`).
@@ -41,7 +37,6 @@ speculative, and toolgate; none disables prewarm (`/Users/marco/Projects/kalsa-w
 does not invent a prewarm key. The fixed user message differs from the prewarm
 probe at the user boundary, so the static system/tools prefix may be reused but
 the 893-word user tail is newly evaluated. Fresh app data is used per turn.
-
 ## Arms, order, and sampling
 
 A: `kalsa.governor.enabled="0"`, single-context CPU. B:
@@ -51,20 +46,17 @@ QRD8750/8 Elite is first and the only valid device. QRD8650/Adreno 750 is
 gated off before the run because its GPU-prefill correctness is not accepted.
 Session name: `S5b-8Elite-large` (under 30 characters). Budget: 45-minute
 session cap, 40-minute driver deadline, and 600 QDC minutes before booking.
-
 For both arms, `kalsa.bench.sampling="greedy"` forces temperature 0, top_k 1,
 top_p 1, min_p 0, repeat/presence/frequency penalties off, seed 42, and
 `n_predict` ≥ 48. Each completed turn must log one
 `KALSA_BENCH_TOKENS {"turnId":"<id>","n":<count>,"ids":[<first 32 ids>]}`.
 The driver requires `tokensPredicted ≥ 1` for telemetry; missing/short token
 evidence is oracle VOID only and does not timeout a completed turn.
-
-Before Send, the driver dumps the UI and records actual/expected composer
-characters. It requires actual ≥90% of 5,142; if short it uses
+Before Send, the driver dumps the UI and records actual/expected characters and
+hint_len; empty text equal to the hint counts as zero. It requires actual ≥90% of 5,142; if short it uses
 `input keycombination KEYCODE_CTRL_LEFT KEYCODE_A` then `KEYCODE_DEL`, redumps,
 and requires actual ≤3 before retyping once. Send retries only redump/re-find Send and never retype. A still-short
 composer is a row VOID, not an abort. Turn-1 total typing over 150 seconds aborts.
-
 ## Thermo, endpoints, and promised data
 
 Before every turn the driver refreshes `kalsa.bench.thermo` from HAL skin:
@@ -111,10 +103,18 @@ composer after one retype, and a new-token count outside the 938 ±10% band are
 row VOID conditions and do not abort the run.
 
 Threats: the static prefix remains warm, so this is a large uncached user tail,
-not a full cold prompt; `input text` may truncate or alter a long argument and
+not a full cold prompt; even chunked `input text` may alter characters and
 the code cannot prove its exact model-token count before device execution. The
 fixed prompt SHA/byte check, 90% UI-length gate, token-count gate, and raw UI/log
 evidence expose that risk. Typing is outside promptMs only if the app timer starts
 after Send as inspected above. Thermal override, USB/power behavior, two-context
 memory/commit cost, and QDC variance limit claims. Unresolved: whether the target
-IME preserves the full 5,142-byte `input text` payload end-to-end.
+IME preserves all chunked characters end-to-end.
+
+### Run 1 (sa804790) VOID — mechanism + fix
+Run 1 produced no speed/oracle number: one-shot 1,500 chars→1,073 (71%); the
+5,142-character strings landed 1,046–1,221, while 3×500 with 0.5 s landed
+1,501/1,500. Empty EditText reported text=hint “Ask a question…” (16–17 chars);
+the fix is ≤500-char original chunks, 0.5 s, `%s`, escaped single quotes, and
+hint-aware zero length with post-clear verification; 11 chunks/expected ≈55–65 s
+(nominal ≈60 s); the 150 s cap is retained.

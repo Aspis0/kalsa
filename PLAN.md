@@ -1245,6 +1245,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > PREREG "run 1 VOID". Raw in `scratchpad/agents/qdc-governor-s5b/raw/sa804790/`.
 > Budget 8 Elite dopo la run: ~561 min.
 
+> **5/09 08:35 EDT Mac — S5b fix post-run-1 applicati e auditati (GO).** Digitazione a blocchi
+> ≤500 (`${PROMPT_TEXT:offset:500}` sul testo originale, poi `%s` e single-quote), hint == text
+> ⇒ lunghezza 0 sia nel check iniziale sia nel post-clear, dryrun che distingue il codice
+> vecchio (2 chiamate) dal nuovo (22 chiamate, tutte ≤500 e quotate), emendamento PREREG
+> "Run 1 VOID". Delta audit #3 deepseek: 5/5 CONFIRMED-FIXED, GO. Lock invariato su APK
+> 8a56edc. Prossimo: sessione `S5b-8Elite-r2`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

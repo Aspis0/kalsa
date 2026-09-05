@@ -164,3 +164,57 @@ No regressions: keycombination is valid on Android 16; stub returns 0 for it; A1
 GO. 0 blockers, 0 majors, 0 minors. F1's VOID-never-aborts contract holds and is genuinely
 exercised by the stub; F2's clear-before-retype, single-retype, all-return-2 semantics, set -u
 safety, and PREREG wording all check out. The PREREG is lockable.
+
+## Delta re-audit #3 (run-1 fixes)
+
+T1 — CONFIRMED-FIXED. type_prompt (parse.sh:80-100): `chunk="${PROMPT_TEXT:$offset:500}"` cuts the
+ORIGINAL text; byte/char consistency holds — LC_ALL=C (d_run.sh:3) makes ${#}/substring
+byte-based and PROMPT.txt is pinned ASCII (sha 9109f585…, verified earlier as "ASCII text"), so
+wc -m (composer checks) counts identically. Each chunk: `sed 's/ /%s/g'` (parse.sh:90), then
+`sed "s/'/'\\\\''/g"` (parse.sh:91) — the classic `'`→`'\''` escape — then wrapped
+`"input text '$escaped'"` (parse.sh:93). Chunk rc≠0 → `return "$rc"` (parse.sh:95); caller
+trace (parse.sh:96-121): first failure → composer_ok=0 → clear → ONE retype → still failing →
+`[ "$type_rc" -eq 0 ] || return 2` (parse.sh:139) → row VOID; the only 1/abort is the
+pre-registered turn-1 `typing_total > 150` → return 1 (parse.sh:103,135-137). Last loop
+statement `[ "$offset" -lt "$text_len" ] && sleep 0.5` (parse.sh:99): safe — set -e is NOT
+enabled anywhere (d_run.sh:2 is `set -u` only; dryrun likewise) and all vars are bound; a
+failed sleep is benign (best-effort pause). 150-s cap vs the measured payload: 11 chunks at
+≈55–65 s nominal (PREREG.md:119), retype worst case ≈120–130 s < 150 — consistent. No set -u
+crash: TYPE_PROMPT_CALLS/TYPE_COUNTS are initialized (d_run.sh:39).
+T2 — CONFIRMED-FIXED. parse.sh:54-55 `if [ -z "$text" ] || [ "$text" = "$hint" ]; then
+actual=0` — feeds BOTH the initial ≥90% check (composer_check parse.sh:62-70) and the
+post-clear check (cleared_len parse.sh:129-133); hint_len recorded in both lines
+(parse.sh:66, :133). The hint attribute is REAL, not hypothetical: S5 run-6 raw dumps contain
+`hint="Ask a question…"` (raw/sa803609/8-Elite_A_t1_edit.xml) ✓. Empty-hint + empty text →
+text="" → actual=0 ✓ still zero. A real prompt coincidentally equal to the 16-char hint is
+irrelevant: it can never reach the 4,627-char gate, and a 16-char composer is a failed type
+that correctly VOIDs.
+T3 — CONFIRMED-FIXED. Retype exists exactly once (parse.sh:124-136, after
+`[ "$cleared_len" -le 3 ] || return 2`); send loop (parse.sh:144-172) never types; all failure
+paths return 2 (clear :122, cleared dump :123, cleared_len>3 :134, retype rc :139, retype check
+:140); B-gate guard intact: d_run.sh:281 `if [ "$arm" = B ] && [ "$row_void" -eq 0 ]; then …`;
+prereq guard d_run.sh:280; TSV 17/17 — header d_run.sh:31 and row printf d_run.sh:282 match in
+count and order.
+T4 — CONFIRMED-FIXED, genuine. The stub parses every call: dryrun.sh:49
+`chunk_cmd=$(… sed -n "s/.*input text '\\(.*\\)'$/\\1/p")`, flags CHUNK_UNQUOTED when not
+single-quoted (:52-53), CHUNK_BAD when >500 chars after %s→space (:55-56); assertions
+dryrun.sh:124 require INPUT_TEXT_COUNT==22 (11 initial + 11 retype), TYPE_PROMPT_CALLS==2,
+TYPE_COUNTS=="11,11,", CHUNK_CALLS==22, CHUNK_BAD==0, CHUNK_UNQUOTED==0 — the OLD one-shot code
+would produce INPUT_TEXT_COUNT==2 / TYPE_COUNTS=="1,1," and FAIL — so the dryrun distinguishes
+old from new ✓. Hint fixture genuine: dumps emit text="Ask a question…" hint="Ask a question…"
+(dryrun.sh:61,65) and the test asserts `attempt=cleared actual=0.*hint_len=` ✓.
+T5 — CONFIRMED-FIXED. PREREG.md:114-120: "Run 1 (sa804790) VOID — mechanism + fix" states the
+measured numbers (1500→1073 = 71%; 5142 landed 1,046–1,221; 3×500→1,501; empty text=hint
+16–17 chars; "11 chunks/expected ≈55–65 s (nominal ≈60 s); the 150 s cap is retained"); no
+speed/oracle number claimed — raw/sa804790/results.tsv has 4 rows, all na for every endpoint
+column (only skin/mem populated) ✓; the lock line PREREG.md:2 still names APK 8a56edc /
+272f4547… and session S5b-8Elite-r1; the pre-registered analysis (endpoints, ≥2-pair median,
+WARM exclusion, 1.4–1.9× band, 938±10%, oracle pairing — PREREG.md:68-83) is untouched.
+
+## Delta verdict #3
+
+GO. 0 blockers, 0 majors, 0 minors. Chunked typing matches the live measurement recipe
+(≤500, 0.5 s pause, %s, quoted); hint-aware zero-length is backed by real hint attributes in
+raw dumps; every failure path returns 2/VOID with the B-gate and prereq guards intact; the
+dryrun would fail on the old one-shot code; the run-1 amendment is accurate and self-contained.
+Launch run 2.

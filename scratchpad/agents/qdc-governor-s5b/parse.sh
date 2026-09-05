@@ -33,24 +33,37 @@ tap_bounds() {
 
 composer_text_len() {
   local file="$1"
-  local text
+  local node text hint actual hint_len
+  node=""
   text=""
+  hint=""
   if [ -s "$file" ]; then
-    text=$(tr '>' '\n' < "$file" | grep 'class="android.widget.EditText"' | sed -n 's/.*text="\([^"]*\)".*/\1/p' | head -1)
+    node=$(tr '>' '\n' < "$file" | grep 'class="android.widget.EditText"' | head -1)
+    text=$(printf '%s' "$node" | sed -n 's/.*text="\([^"]*\)".*/\1/p')
+    hint=$(printf '%s' "$node" | sed -n 's/.*hint="\([^"]*\)".*/\1/p')
   fi
-  printf '%s' "$text" | wc -m | tr -d '[:space:]'
+  hint_len=$(printf '%s' "$hint" | wc -m | tr -d '[:space:]')
+  if [ -z "$text" ] || [ "$text" = "$hint" ]; then
+    actual=0
+  else
+    actual=$(printf '%s' "$text" | wc -m | tr -d '[:space:]')
+  fi
+  printf '%s %s' "$actual" "$hint_len"
 }
 
 composer_check() {
   local prefix="$1"
   local file="$2"
   local attempt="$3"
-  local actual expected minimum
+  local actual expected minimum metrics hint_len
   expected="$PROMPT_EXPECTED_CHARS"
-  actual=$(composer_text_len "$file")
+  metrics=$(composer_text_len "$file")
+  actual=${metrics%% *}
+  hint_len=${metrics##* }
   [ -n "$actual" ] || actual=0
+  [ -n "$hint_len" ] || hint_len=0
   minimum=$((expected * 90 / 100))
-  printf 'attempt=%s actual=%s expected=%s minimum=%s\n' "$attempt" "$actual" "$expected" "$minimum" >> "${prefix}_composer_len.txt"
+  printf 'attempt=%s actual=%s expected=%s minimum=%s hint_len=%s\n' "$attempt" "$actual" "$expected" "$minimum" "$hint_len" >> "${prefix}_composer_len.txt"
   [ "$actual" -ge "$minimum" ]
 }
 
@@ -64,6 +77,29 @@ chunk_sum() {
   printf '%s\n' "$chunks" | awk -F+ '{total=0; for (i=1; i<=NF; i++) {part=$i; sub(/^[^0-9]*/, "", part); if (part !~ /^[0-9]+$/) exit 1; total+=part} print total}'
 }
 
+type_prompt() {
+  local text_len offset chunk encoded escaped chunks
+  local rc
+  [ -n "$PROMPT_TEXT" ] || return 1
+  text_len=${#PROMPT_TEXT}
+  offset=0
+  chunks=0
+  while [ "$offset" -lt "$text_len" ]; do
+    chunk="${PROMPT_TEXT:$offset:500}"
+    [ -n "$chunk" ] || return 1
+    encoded=$(printf '%s' "$chunk" | sed 's/ /%s/g')
+    escaped=$(printf '%s' "$encoded" | sed "s/'/'\\\\''/g")
+    adbT 300 -s "$SER" shell "input text '$escaped'"
+    rc=$?
+    [ "$rc" -eq 0 ] || return "$rc"
+    chunks=$((chunks + 1))
+    offset=$((offset + ${#chunk}))
+    [ "$offset" -lt "$text_len" ] && sleep 0.5
+  done
+  TYPE_PROMPT_CALLS=$((TYPE_PROMPT_CALLS + 1))
+  TYPE_COUNTS="${TYPE_COUNTS}${chunks},"
+}
+
 ui_send() {
   local prefix="$1"
   local turn="$2"
@@ -74,7 +110,7 @@ ui_send() {
   local cleared_file="${prefix}_composer_cleared.xml"
   local attempt edit_bounds send_bounds previous_send awake_rc send_anchor
   local type_start type_end type_rc type_elapsed typing_total
-  local composer_ok cleared_len
+  local composer_ok cleared_len metrics hint_len
   : > "$attempts_file"
   : > "${prefix}_composer_len.txt"
   : > "${prefix}_type_prompt.txt"
@@ -105,9 +141,12 @@ ui_send() {
   if [ "$composer_ok" -eq 0 ]; then
     clear_composer || return 2
     dump_ui "$cleared_file" || return 2
-    cleared_len=$(composer_text_len "$cleared_file")
+    metrics=$(composer_text_len "$cleared_file")
+    cleared_len=${metrics%% *}
+    hint_len=${metrics##* }
     [ -n "$cleared_len" ] || cleared_len=0
-    printf 'attempt=cleared actual=%s expected=%s minimum=0\n' "$cleared_len" "$PROMPT_EXPECTED_CHARS" >> "${prefix}_composer_len.txt"
+    [ -n "$hint_len" ] || hint_len=0
+    printf 'attempt=cleared actual=%s expected=%s minimum=0 hint_len=%s\n' "$cleared_len" "$PROMPT_EXPECTED_CHARS" "$hint_len" >> "${prefix}_composer_len.txt"
     [ "$cleared_len" -le 3 ] || return 2
     type_start=$(date +%s)
     type_prompt
