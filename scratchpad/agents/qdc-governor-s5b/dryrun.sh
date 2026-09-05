@@ -4,7 +4,7 @@ CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-
 DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
-THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0
+THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
@@ -68,10 +68,18 @@ adbT() {
       chunk_chars=$(printf '%s' "$chunk_text" | wc -m | tr -d '[:space:]')
       [ "$chunk_chars" -le 500 ] || CHUNK_BAD=$((CHUNK_BAD + 1))
     fi
+  elif [[ "$joined" == *"input tap 150 50"* ]]; then
+    SEND_TAPS=$((SEND_TAPS + 1))
+  elif [[ "$joined" == *"input tap"* ]]; then
+    :
   elif [[ "$joined" == *"cat $DEVICE_TMP/ui.xml"* ]]; then
     UI_DUMP_COUNT=$((UI_DUMP_COUNT + 1))
     if [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 8 ]; then
       printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = exact ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
+    elif [ "$COMPOSER_MODE" = exact_fail ] && { [ "$UI_DUMP_COUNT" -eq 2 ] || [ "$UI_DUMP_COUNT" -eq 4 ]; }; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
     elif [ "$VOID_MODE" -eq 1 ] || [ "$UI_DUMP_COUNT" -eq 2 ]; then
       printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"
     elif [ "$UI_DUMP_COUNT" -eq 3 ]; then
@@ -96,7 +104,8 @@ record adbT adbT 1 shell echo dryrun
 record write_end write_end dryrun
 record deadline_check deadline_check
 validate_deadline_minutes 10 && exit 1 || :; validate_deadline_minutes 200 && exit 1 || :; validate_deadline_minutes 85 || exit 1; [ "$COOL_TARGET_C" = 37.0 ] && [ "$COOL_MAX_S" -eq 720 ] || exit 1
-printf '1000 existing-long-line\n' > "$TMP/atomic.log"; LOGCAT_MODE=newer; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -eq 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 1 ] || exit 1
+printf '1788626897.832 precise complete\n' > "$TMP/precision.log"; [ "$(last_epoch "$TMP/precision.log")" = 1788626897.832 ] || { echo "epoch precision assertion failed" >&2; exit 1; }
+printf '1000 existing-long-line\n' > "$TMP/atomic.log"; [ "$(wc -c < "$TMP/atomic.log")" -gt "$(printf '1001 new\n' | wc -c)" ] || exit 1; LOGCAT_MODE=newer; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -eq 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 1 ] || exit 1
 LOGCAT_MODE=truncated; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && grep -q 'complete=0' "$TMP/atomic.log.failures" || exit 1
 LOGCAT_MODE=older; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && grep -q 'tmp_epoch=1000' "$TMP/atomic.log.failures" || exit 1
 LOGCAT_MODE=fail; LOGCAT_CALLS=0; logcat_all 120 "$TMP/atomic.log" >/dev/null 2>&1; [ "$?" -ne 0 ] && [ "$(cat "$TMP/atomic.log")" = '1001 new' ] && [ "$LOGCAT_CALLS" -eq 3 ] && [ "$LOGCAT_RC" -eq 7 ] && [ "$LOGCAT_RETRIES" -eq 3 ] && grep -q 'rc=7' "$TMP/atomic.log.failures" || exit 1; LOGCAT_MODE=normal
@@ -144,6 +153,10 @@ record ime_suspend ime_suspend
 run_observation A 1; RUN_RC=$?; printf 'run_observation\t%s\n' "$RUN_RC" | tee -a "$RESULTS_LOG"; [ "$RUN_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 22 ] || { echo "A1 chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 2 ] || { echo "A1 type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11," ] || { echo "A1 chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 22 ] || { echo "A1 chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "A1 chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }; grep -q 'attempt=initial actual=100' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "short composer was not detected" >&2; exit 1; }; grep -q 'attempt=cleared actual=0.*hint_len=' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "hint-aware clear fixture was not observed" >&2; exit 1; }; grep -q 'attempt=retype actual=5142' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "composer retype did not pass" >&2; exit 1; }; grep -q 'attempt=2' "$RAW/QRD8650_A_t1_ui_attempts.txt" || { echo "ui_send retry was not exercised" >&2; exit 1; }
 FINAL_RC=0; VOID_MODE=1; run_observation B 1; B_RC=$?; printf 'run_observation_B_VOID\t%s\n' "$B_RC" | tee -a "$RESULTS_LOG"; [ "$B_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="B"&&$2==1&&$16=="na"&&$17=="VOID"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1' "$RAW/QRD8650_B_t1_status.txt" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1
 VOID_MODE=0; run_observation A 2; A2_RC=$?; printf 'run_observation_A2_after_VOID\t%s\n' "$A2_RC" | tee -a "$RESULTS_LOG"; [ "$A2_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 55 ] || { echo "final chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 5 ] || { echo "final type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11,11,11,11," ] || { echo "final chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 55 ] || { echo "final chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "final chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }
+# An exact 5,141-character first dump must retype once and then send only at 5,142.
+EXACT_RAW="$TMP/exact-observations"; /bin/mkdir -p "$EXACT_RAW"; RAW="$EXACT_RAW"; COMPOSER_MODE=exact; VOID_MODE=0; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_RC=0; ui_send "$RAW/exact" 2 || EXACT_RC=$?; [ "$EXACT_RC" -eq 0 ] || exit 1; grep -q 'attempt=initial actual=5141' "$RAW/exact_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/exact_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
+# Under the old >=90% gate, this second 5,141-character dump would have sent; exact mode must VOID composer before any tap.
+COMPOSER_MODE=exact_fail; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_FAIL_RC=0; ui_send "$RAW/exact-fail" 2 || EXACT_FAIL_RC=$?; [ "$EXACT_FAIL_RC" -eq 2 ] && [ "$void_reason" = composer ] && [ "$SEND_TAPS" -eq 0 ] || exit 1; grep -q 'attempt=retype actual=5141' "$RAW/exact-fail_composer_len.txt" || exit 1
 # Under the old if [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ] condition without a row_void guard, the TOOL_RC=0 assertion below fails (A1 exits 3).
 TOOL_RAW="$TMP/tool-observations"; TOOL_RESULTS="$TMP/tool-results.tsv"; /bin/mkdir -p "$TOOL_RAW"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$TOOL_RESULTS"; RAW="$TOOL_RAW"; RESULTS="$TOOL_RESULTS"; A_IDS_FILE=""; A_IDS_VALID=0; UI_DUMP_COUNT=0; TOOL_MODE=1; run_observation A 1; TOOL_RC=$?; printf 'run_observation_TOOLCALL_VOID\t%s\n' "$TOOL_RC" | tee -a "$RESULTS_LOG"; [ "$TOOL_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==1&&$16=="na"&&$17=="na"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1.*structuredCalls=1 tool_calls=1.*void_reason=toolcall' "$RAW/QRD8650_A_t1_status.txt" || exit 1; [ ! -e "$RAW/PREREQUISITE.txt" ] || exit 1; TOOL_MODE=0; run_observation A 2; CONTINUE_RC=$?; printf 'run_observation_after_TOOLCALL_VOID\t%s\n' "$CONTINUE_RC" | tee -a "$RESULTS_LOG"; [ "$CONTINUE_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1
 THERMAL_MODE=cool; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 3; COOL_RC=$?; [ "$COOL_RC" -eq 0 ] || exit 1; grep -q 'wait_s=0 skin=37.5' "$RAW/QRD8650_A_t3_cooldown.txt" || exit 1; grep -q 'wait_s=15 skin=35.5' "$RAW/QRD8650_A_t3_cooldown.txt" || exit 1; grep -q 'status=0 .*cooldown_s=15' "$RAW/QRD8650_A_t3_status.txt" || exit 1

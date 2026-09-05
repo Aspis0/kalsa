@@ -10,7 +10,7 @@ last_epoch() {
   local file="$1" value
   [ -s "$file" ] || { printf '0'; return 0; }
   value=$(tail -n 1 "$file" | awk 'NF { print $1; exit }')
-  awk -v value="$value" 'BEGIN { if (value ~ /^[0-9]+([.][0-9]+)?$/) print value + 0; else print 0 }'
+  awk -v value="$value" 'BEGIN { if (value ~ /^[0-9]+([.][0-9]+)?$/) printf "%.3f\n", value; else print 0 }'
 }
 complete_logcat() {
   local file="$1" last_byte
@@ -142,7 +142,7 @@ composer_check() {
   [ -n "$hint_len" ] || hint_len=0
   minimum=$((expected * 90 / 100))
   printf 'attempt=%s actual=%s expected=%s minimum=%s hint_len=%s\n' "$attempt" "$actual" "$expected" "$minimum" "$hint_len" >> "${prefix}_composer_len.txt"
-  [ "$actual" -ge "$minimum" ]
+  [ "$actual" -eq "$expected" ]
 }
 
 clear_composer() {
@@ -217,15 +217,15 @@ ui_send() {
     composer_ok=0
   fi
   if [ "$composer_ok" -eq 0 ]; then
-    clear_composer || return 2
-    dump_ui "$cleared_file" || return 2
+    clear_composer || { void_reason=composer; return 2; }
+    dump_ui "$cleared_file" || { void_reason=composer; return 2; }
     metrics=$(composer_text_len "$cleared_file")
     cleared_len=${metrics%% *}
     hint_len=${metrics##* }
     [ -n "$cleared_len" ] || cleared_len=0
     [ -n "$hint_len" ] || hint_len=0
     printf 'attempt=cleared actual=%s expected=%s minimum=0 hint_len=%s\n' "$cleared_len" "$PROMPT_EXPECTED_CHARS" "$hint_len" >> "${prefix}_composer_len.txt"
-    [ "$cleared_len" -le 3 ] || return 2
+    [ "$cleared_len" -le 3 ] || { void_reason=composer; return 2; }
     type_start=$(date +%s)
     type_prompt
     type_rc=$?
@@ -237,8 +237,8 @@ ui_send() {
       return 1
     fi
     dump_ui "$retry_file" || true
-    [ "$type_rc" -eq 0 ] || return 2
-    composer_check "$prefix" "$retry_file" retype || return 2
+    [ "$type_rc" -eq 0 ] || { void_reason=composer; return 2; }
+    composer_check "$prefix" "$retry_file" retype || { void_reason=composer; return 2; }
     send_file="$retry_file"
   fi
 
