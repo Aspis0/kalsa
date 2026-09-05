@@ -2,19 +2,21 @@
  * Advisory thermal monitor. Tries sysfs thermal_zone0; falls back to a
  * memory-pressure heuristic. Never unloads the model — UI banner only.
  * No run-as / sudo. Dynamic requires keep node harnesses import-clean.
+ *
+ * Advisory ONLY: never hard-blocks send / load / download. `thermal_zone0` is
+ * an unknown / internal-like sensor (NOT battery, NOT proven skin), so its
+ * bands live in `src/engine/thermalThresholds.ts` and are deliberately warm.
  */
 import { useEffect, useRef, useState } from "react";
 
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
-
-export type ThermalStatus = "ok" | "warm" | "hot" | "unknown";
-
-export type ThermalMonitorState = {
-  status: ThermalStatus;
-  currentTempC: number | null;
-  source: "sysfs" | "memory_proxy" | "none";
-  sampledAt: number | null;
-};
+import {
+  type ThermalGovernorHint,
+  type ThermalStatus,
+  type ThermalMonitorState,
+  toGovernorHint,
+  statusFromTempC,
+} from "../engine/thermalThresholds";
 
 const DEFAULT_INTERVAL_MS = 30_000;
 
@@ -48,15 +50,9 @@ async function readSysfsText(absPath: string): Promise<string | null> {
   }
 }
 
-function statusFromTempC(tempC: number): ThermalStatus {
-  if (tempC >= 50) return "hot";
-  if (tempC >= 42) return "warm";
-  return "ok";
-}
-
 /**
  * Poll thermal_zone0 every intervalMs. On failure, proxy via MemAvailable:
- * very low free RAM is treated as "warm" (advisory only).
+ * very low free RAM is treated as "warm" (advisory only, no invented °C).
  */
 export function useThermalMonitor(opts?: {
   intervalMs?: number;
@@ -73,6 +69,7 @@ export function useThermalMonitor(opts?: {
     currentTempC: null,
     source: "none",
     sampledAt: null,
+    hint: toGovernorHint("unknown", null, "none"),
   });
   const mountedRef = useRef(true);
 
@@ -81,6 +78,8 @@ export function useThermalMonitor(opts?: {
     let timer: ReturnType<typeof setInterval> | null = null;
 
     const sample = async () => {
+      // iOS has no sysfs path; it would map ProcessInfo.thermalState → the
+      // same ThermalStatus enum. Wired here only when cheap (TODO).
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { Platform } = require("react-native") as {
@@ -95,10 +94,15 @@ export function useThermalMonitor(opts?: {
             if (tempC != null) {
               if (!mountedRef.current) return;
               setState({
-                status: statusFromTempC(tempC),
+                status: statusFromTempC(tempC, state.status),
                 currentTempC: tempC,
                 source: "sysfs",
                 sampledAt: Date.now(),
+                hint: toGovernorHint(
+                  statusFromTempC(tempC, state.status),
+                  tempC,
+                  "sysfs",
+                ),
               });
               return;
             }
@@ -118,6 +122,7 @@ export function useThermalMonitor(opts?: {
             currentTempC: null,
             source: "none",
             sampledAt: Date.now(),
+            hint: toGovernorHint("unknown", null, "none"),
           });
           return;
         }
@@ -129,6 +134,7 @@ export function useThermalMonitor(opts?: {
           currentTempC: null,
           source: "memory_proxy",
           sampledAt: Date.now(),
+          hint: toGovernorHint(status, null, "memory_proxy"),
         });
       } catch {
         if (!mountedRef.current) return;
@@ -137,6 +143,7 @@ export function useThermalMonitor(opts?: {
           currentTempC: null,
           source: "none",
           sampledAt: Date.now(),
+          hint: toGovernorHint("unknown", null, "none"),
         });
       }
     };
@@ -150,7 +157,7 @@ export function useThermalMonitor(opts?: {
       mountedRef.current = false;
       if (timer != null) clearInterval(timer);
     };
-  }, [intervalMs]);
+  }, [intervalMs, state.status]);
 
   return state;
 }

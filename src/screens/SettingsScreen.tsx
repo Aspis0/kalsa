@@ -2137,14 +2137,20 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
             </Text>
           ) : null}
-          {thermal.status === "warm" || thermal.status === "hot" ? (
+          {thermal.status === "warm" || thermal.status === "hot" || thermal.status === "critical" ? (
             <Text
               style={[
                 typography.bodyXs,
                 { color: colors.bad ?? colors.muted, marginBottom: spacing.xs },
               ]}
             >
-              {t("chat.thermalHot")}
+              {t(
+                thermal.status === "critical"
+                  ? "chat.thermalCritical"
+                  : thermal.status === "hot"
+                    ? "chat.thermalHot"
+                    : "chat.thermalWarm",
+              )}
               {thermal.currentTempC != null
                 ? ` · ${Math.round(thermal.currentTempC)}°C`
                 : ""}
