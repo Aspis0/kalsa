@@ -73,7 +73,14 @@ export async function loadKeptOrphanIds(): Promise<Set<string>> {
 export async function rememberKeptOrphanIds(ids: readonly string[]): Promise<void> {
   if (ids.length === 0) return;
   try {
-    await AsyncStorage.setItem(ORPHAN_KEEP_STORAGE_KEY, JSON.stringify({ orphans: [...ids] }));
+    // MERGE with previously kept ids rather than overwriting, so a second
+    // Keep round does not drop the first round's ids and re-prompt for them.
+    const existing = await loadKeptOrphanIds();
+    for (const id of ids) existing.add(id);
+    await AsyncStorage.setItem(
+      ORPHAN_KEEP_STORAGE_KEY,
+      JSON.stringify({ orphans: [...existing] }),
+    );
   } catch {
     // Best-effort: a failed remember just means we may re-prompt once.
   }

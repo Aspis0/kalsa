@@ -202,6 +202,39 @@ describe("orphan migration persistence (detect-only, no delete)", () => {
     expect(deleteAsync).not.toHaveBeenCalled();
   });
 
+  it("KEEP across two prompts accumulates the keep set (no re-prompt)", async () => {
+    // Two separate Keep rounds must accumulate — the second Keep must not drop
+    // the first round's ids (the F1 bug).
+    readDirectoryAsync.mockResolvedValue(["qwen3.5-2b", "gemma-4-e2b"]);
+
+    const first = await detectOrphansAtBoot(MODEL_REGISTRY[0]!.id);
+    expect(first).not.toBeNull();
+    await rememberKeptOrphanIds(first!.orphans);
+    await clearPendingOrphanMigration();
+
+    // Second boot surfaces a different orphan set; user Keeps those too.
+    readDirectoryAsync.mockResolvedValue(["lfm25-8b-a1b"]);
+    const second = await detectOrphansAtBoot(MODEL_REGISTRY[0]!.id);
+    expect(second).not.toBeNull();
+    await rememberKeptOrphanIds(second!.orphans);
+    await clearPendingOrphanMigration();
+
+    // Both rounds' ids survive in the keep set.
+    const kept = await loadKeptOrphanIds();
+    expect(kept).toEqual(
+      new Set([...first!.orphans, ...second!.orphans]),
+    );
+
+    // A later boot with both sets present must not re-prompt.
+    readDirectoryAsync.mockResolvedValue([
+      "qwen3.5-2b",
+      "gemma-4-e2b",
+      "lfm25-8b-a1b",
+    ]);
+    const next = await detectOrphansAtBoot(MODEL_REGISTRY[0]!.id);
+    expect(next).toBeNull();
+  });
+
   it("DELETE: removes those dirs + resume keys and clears the pending migration", async () => {
     readDirectoryAsync.mockResolvedValue(["qwen3.5-2b", "gemma-4-e2b"]);
     const migration = await detectOrphansAtBoot(MODEL_REGISTRY[0]!.id);
