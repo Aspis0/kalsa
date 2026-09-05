@@ -1018,6 +1018,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (fork, un commit, pin+sync, una CI; la CI 33951262697 verrà cancellata dalla
 > concurrency: atteso).
 
+> **6/09 05:20 Mac — Fix delta 7 consegnati (Luna): fork `39c35bd1e`
+> (`reset_prefill_stats()` azzera anche `prefill_route_`, chiamato da
+> `beginCompletion`; etichetta = route eseguita, policy solo se Undecided; test
+> hot con 3 token decodificati e label CPU stabile), app `0265333` (pin+sync).
+> Build/router/turns 0. CI 33951825993 in volo. Delta audit 8 → grok (verifica
+> anche il test prewarm→turno caldo e l'assert sui token generati).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
