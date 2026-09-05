@@ -939,6 +939,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > appena la CI 33946344038 è verde (TTFT B/A misurabile, skin corretta, oracolo
 > atteso FAIL), poi indagine divergenza.
 
+> **6/09 02:40 Mac — CI 33946344038 (64931c1) CANCELLATA dalla concurrency del
+> workflow** quando Luna ha pushato `e8c2b1f` "fix(governor): clear KV and skip
+> sessions" (residui delta 2 lato app) e lanciato la CI 33947705999. Lezione:
+> una sola CI viva per branch — non dispatchare residui mentre l'APK di una
+> cella è in build (o usare un tag dedicato). Decisione: run 4 con l'APK
+> e8c2b1f dopo delta audit 6 (residui app + fork: sentinella, V79, clear KV).
+> Waiter su 33947705999 → `~/kalsa-qdc/apk/apk-gov-e8c2b1f/`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
