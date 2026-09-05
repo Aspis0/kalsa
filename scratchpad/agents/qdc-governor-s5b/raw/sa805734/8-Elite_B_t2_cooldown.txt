@@ -1,0 +1,16 @@
+wait_s=0 skin=36.782 target_c=36.0
+wait_s=15 skin=36.735 target_c=36.0
+wait_s=30 skin=36.647 target_c=36.0
+wait_s=45 skin=36.576 target_c=36.0
+wait_s=60 skin=36.493 target_c=36.0
+wait_s=75 skin=36.434 target_c=36.0
+wait_s=90 skin=36.393 target_c=36.0
+wait_s=105 skin=36.327 target_c=36.0
+wait_s=120 skin=36.28 target_c=36.0
+wait_s=135 skin=36.238 target_c=36.0
+wait_s=150 skin=36.172 target_c=36.0
+wait_s=165 skin=36.136 target_c=36.0
+wait_s=180 skin=36.094 target_c=36.0
+wait_s=195 skin=36.052 target_c=36.0
+wait_s=210 skin=36.01 target_c=36.0
+wait_s=225 skin=35.986 target_c=36.0

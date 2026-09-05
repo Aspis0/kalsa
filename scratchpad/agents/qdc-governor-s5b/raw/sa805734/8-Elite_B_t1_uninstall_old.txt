@@ -1,0 +1,2 @@
+Failure [DELETE_FAILED_INTERNAL_ERROR]
+uninstall_rc=1 package_count=0 list_rc=1 adb_list_rc=0

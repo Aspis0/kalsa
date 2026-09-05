@@ -1324,6 +1324,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > size ≥), retry ×3, rc nello status; target cooldown da rivedere (37 °C o cap 15 min).
 > Regola bloccata: nessun cambio in corsa; la run prosegue (A3 in cooldown).
 
+> **5/09 11:50 EDT Mac — S5b run 4 COMPLETATA (final_rc 0, DONE 11:42, ~86 min QDC).** 8 righe:
+> A1 valida (CPU 5945 ms/925 tok, 26,6 tok/s), B1 valida (GPU 3201 ms, FAST, commit 12,1 MB/
+> 8,4 ms, oracolo FAIL per 1 token su 32), A2/A3/A4/B4 VOID `hot` (dopo un turno GPU la skin
+> in 600 s si ferma a 36,3-37,7 > 36,0), B2 VOID per logcat troncato (10 dump con rc=255 nella
+> run), B3 valida (GPU 3228 ms, FAST, 26,6 tok/s, oracolo VOID senza A). Velocità: 0 coppie
+> GPU/PASS → descrittivo: B/A = 0,54 (1,86×) sull'unica coppia, nella banda pre-registrata
+> 1,4-1,9 del prior prewarm; il ≥3× del fork non è supportato. Prossimo: REPORT (Luna) +
+> audit (deepseek); fix run 5: logcat atomico con retry, target cooldown 37 °C/cap 12 min.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

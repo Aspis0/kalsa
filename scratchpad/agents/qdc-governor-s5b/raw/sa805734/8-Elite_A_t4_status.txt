@@ -1,0 +1,1 @@
+status=0 row_void=1 cooldown_s=600 thermo= governor_count=0 commit_bytes=na commit_ms=na thermo_source=na anchor_epoch=1788621381 anchor_stamp=09-05 08:16:22.000 telemetry_rc=1 new_tokens_a=na new_tokens_b=na structuredCalls=0 tool_calls=0 void_reason=hot
