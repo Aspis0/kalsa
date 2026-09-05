@@ -767,6 +767,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `raw/driver-sa803304.pid`).** Watcher attivo; a fine run: End Session
 > verificato, REPORT (Luna) → audit (deepseek) → ALIVE 48.
 
+> 22:26 — Primo lancio run 2 morto in 30 s: board FRESCA senza app →
+> `pm uninstall` = DELETE_FAILED_INTERNAL_ERROR (normale) e `grep -c` esce 1
+> con zero match; il gate D3 di Luna esigeva `list_rc==0` e `uninstall_rc==0`
+> → abort sul caso PULITO, e a cascata il check prerequisito scattava senza
+> telemetria (exit 3 falso). Fix miei: gate = adb ok AND `package_count==0`;
+> prerequisito solo se `telemetry_rc==0`; guardie `${var:-0}` sui conteggi.
+> Raw del falso avvio in `raw/sa803304-VOID-gate-freshboard/`. Rilanciato 22:27.
+> (Il dry-run di Luna non poteva vederlo: stubbava `pm list packages` con rc 0.)
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

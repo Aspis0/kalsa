@@ -182,7 +182,8 @@ fresh_install() {
   adb_list_rc=$?; printf '%s\n' "$package_output" > "${prefix}_package_count.txt"
   package_count=$(printf '%s\n' "$package_output" | sed -n '1p' | tr -d '\r[:space:]'); list_rc=$(printf '%s\n' "$package_output" | sed -n 's/.*list_rc=//p' | tr -d '\r[:space:]')
   printf 'uninstall_rc=%s package_count=%s list_rc=%s adb_list_rc=%s\n' "$uninstall_rc" "$package_count" "$list_rc" "$adb_list_rc" >> "${prefix}_uninstall_old.txt"
-  [ "$uninstall_rc" -eq 0 ] && [ "$adb_list_rc" -eq 0 ] && [ "$list_rc" -eq 1 ] && [ "${package_count:-1}" = 0 ] || return 1
+  # Clean state = adb ok AND zero installed copies; uninstall_rc is 1 on a fresh board (nothing to delete) and grep -c exits 1 on zero matches.
+  [ "$adb_list_rc" -eq 0 ] && [ "${package_count:-1}" = 0 ] || return 1
   /usr/bin/shasum -a 256 "$APK" > "${prefix}_apk_sha.txt" 2>&1
   adbT 300 -s "$SER" install -r "$APK" > "${prefix}_install.txt" 2>&1
   rc=$?; [ "$rc" -eq 0 ] || return 1
@@ -286,9 +287,9 @@ run_observation() {
   [ -n "$ttft" ] || ttft=na; [ -n "$decode" ] || decode=na; [ -n "$prefill" ] || prefill=na; [ -n "$decode_engine" ] || decode_engine=na; [ -n "$thermal" ] || thermal=na; [ -n "$commit_bytes" ] || commit_bytes=na; [ -n "$commit_ms" ] || commit_ms=na; [ -n "$thermo_source" ] || thermo_source=na; [ -n "$n" ] || n=na
   if [ -n "$bench" ] && parse_tokens "$bench" "$ids_file"; then ids_sha=$(/usr/bin/shasum -a 256 "$ids_file" | awk '{print $1}'); else printf 'VOID n=%s\n' "$n" > "$ids_file"; fi
   if [ "$arm" = A ]; then A_IDS_FILE="$ids_file"; [ "$ids_sha" = na ] && A_IDS_VALID=0 || A_IDS_VALID=1; else if [ "$ids_sha" = na ] || [ "$A_IDS_VALID" -ne 1 ]; then oracle=VOID; elif diff -q "$A_IDS_FILE" "$ids_file" >/dev/null 2>&1; then oracle=PASS; else oracle=FAIL; fi; fi
-  if [ "$arm" = A ] && [ "$turn" = 1 ] && [ -z "$bench" ]; then runtime_prereq=1; printf 'PREREQUISITE OPEN: missing KALSA_BENCH_TOKENS after first turn; app sampling contract is absent.\n' > "$RAW/PREREQUISITE.txt"; fi
-  if [ "$arm" = B ]; then [ "$fallback" -eq 0 ] || status=1; [ "$prefill" = GPU ] && [ "$decode_engine" = CPU ] || status=1; [ "$thermal" != na ] || status=1; [ "$governor_count" -eq 1 ] || status=1; [ "$thermo_source" = bench-skin ] || status=1; awk -v v="$commit_bytes" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; awk -v v="$commit_ms" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; fi
-  [ "$lmkd" -eq 0 ] || status=1; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$arm" "$turn" "$ttft" "$decode" "$prefill" "$decode_engine" "$thermal" "$skin_before" "$skin_after" "$fallback" "$lmkd" "$ids_sha" "$oracle" | tee -a "$RESULTS"; printf 'status=%s thermo=%s governor_count=%s commit_bytes=%s commit_ms=%s thermo_source=%s anchor_epoch=%s anchor_stamp=%s telemetry_rc=%s\n' "$status" "$thermo" "$governor_count" "$commit_bytes" "$commit_ms" "$thermo_source" "$ANCHOR_EPOCH" "$ANCHOR_STAMP" "$telemetry_rc" > "${prefix}_status.txt"
+  if [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ]; then runtime_prereq=1; printf 'PREREQUISITE OPEN: missing KALSA_BENCH_TOKENS after first turn; app sampling contract is absent.\n' > "$RAW/PREREQUISITE.txt"; fi
+  if [ "$arm" = B ]; then [ "${fallback:-0}" -eq 0 ] || status=1; [ "$prefill" = GPU ] && [ "$decode_engine" = CPU ] || status=1; [ "$thermal" != na ] || status=1; [ "${governor_count:-0}" -eq 1 ] || status=1; [ "$thermo_source" = bench-skin ] || status=1; awk -v v="$commit_bytes" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; awk -v v="$commit_ms" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; fi
+  [ "${lmkd:-0}" -eq 0 ] || status=1; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$arm" "$turn" "$ttft" "$decode" "$prefill" "$decode_engine" "$thermal" "$skin_before" "$skin_after" "$fallback" "$lmkd" "$ids_sha" "$oracle" | tee -a "$RESULTS"; printf 'status=%s thermo=%s governor_count=%s commit_bytes=%s commit_ms=%s thermo_source=%s anchor_epoch=%s anchor_stamp=%s telemetry_rc=%s\n' "$status" "$thermo" "$governor_count" "$commit_bytes" "$commit_ms" "$thermo_source" "$ANCHOR_EPOCH" "$ANCHOR_STAMP" "$telemetry_rc" > "${prefix}_status.txt"
   adbT 60 -s "$SER" shell "am force-stop $PKG" > "${prefix}_force_stop.txt" 2>&1 || status=1; adbT 120 -s "$SER" shell "pm uninstall $PKG" > "${prefix}_uninstall.txt" 2>&1; [ "$?" -eq 0 ] || status=1
   [ "$runtime_prereq" -eq 0 ] || exit 3; return "$status"
 }
