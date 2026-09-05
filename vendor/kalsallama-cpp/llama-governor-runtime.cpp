@@ -24,7 +24,11 @@ void llama_governor::record_tally() {
 }
 
 void llama_governor::refresh_policy_stats() {
-    stats_.prefill_engine = policy_.prefill_engine();
+    if (prefill_route_ == prefill_route::Undecided) {
+        stats_.prefill_engine = policy_.prefill_engine();
+    } else if (prefill_route_ == prefill_route::CPU) {
+        stats_.prefill_engine = llama_governor_engine::CPU;
+    }
     stats_.thermal_state = policy_.thermal_state();
     stats_.npu_fit = policy_.npu_fit();
     stats_.prefill_token_cap = policy_.prefill_token_cap();
@@ -60,6 +64,7 @@ int32_t llama_governor::admit_prefill(llama_batch batch, bool allow_chunking) {
     }
     if (prefill_route_ == prefill_route::Undecided) {
         prefill_route_ = prefill_route::GPU;
+        stats_.prefill_engine = requested;
     }
     if (admission.decision == llama_governor_decision::Wait ||
         admission.decision == llama_governor_decision::CPUFallback) {
@@ -171,6 +176,7 @@ void llama_governor::clear_cache(bool clear_data) {
 }
 
 void llama_governor::reset_prefill_stats() {
+    prefill_route_ = prefill_route::Undecided;
     stats_.prefill_us = 0;
     stats_.prefill_n = 0;
     stats_.prefill_chunks[0] = '\0';
