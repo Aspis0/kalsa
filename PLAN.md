@@ -947,6 +947,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > e8c2b1f dopo delta audit 6 (residui app + fork: sentinella, V79, clear KV).
 > Waiter su 33947705999 → `~/kalsa-qdc/apk/apk-gov-e8c2b1f/`.
 
+> **6/09 02:50 Mac — Residui consegnati (Luna ee4741e9), verificati su disco:**
+> fork `135232fa0` (sentinella `k_prefill_chunked = -1001`), `8f939aa7d` (ramo
+> GPU V79 in `prefill_engine()` con cit. ALIVE #38 e test router V79),
+> `3a161adfc` (`llama_governor::clear_cache` pulisce ENTRAMBI i KV e azzera
+> watermark/fase/commit); app `e8c2b1f` (pin → 3a161adfc, `clearCache` in
+> governor mode chiama la nuova API invece di lanciare; session save/load in
+> governor mode = skip esplicito JS con riga `KALSA_SESSION
+> {"op":"save","ok":false,"reason":"governor-mode"}`). CI 33947705999 in volo →
+> APK del run 4. Delta audit 6 → grok.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
