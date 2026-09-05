@@ -724,6 +724,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Run 1 = VOID per la velocità, ma diagnosi bancabile. Raw in
 > `raw/sa803287/`, crash del driver in `raw/sa803287-VOID-crash-line90/`.
 
+> Sessione 799218 chiusa e verificata: "Completed", Ended On 09/04/26 9:27:07 PM
+> (17 min). Tunnel chiuso. Fix `shouldUseMTP()` → Luna ee4741e9 (poi CI, poi
+> run 2 su QRD8650 con MemAvailable pre/post per il dubbio lmkd). Lezione in
+> memoria `audit-must-trace-call-paths-and-set-u`: ogni brief d'audit deve
+> chiedere il call-path di ogni throw; ogni driver una prova a secco con set -u.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
