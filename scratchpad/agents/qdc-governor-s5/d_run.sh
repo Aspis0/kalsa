@@ -94,7 +94,7 @@ thermal_record() {
   max_temp=$(grep -o 'mValue=[0-9.]*' "$gate" | cut -d= -f2 | sort -n | tail -1)
   thermal_status=$(grep 'Thermal Status:' "$file" | head -1 | grep -o '[0-9]*' | head -1)
   printf 'max_hal_temp=%s status=%s\n' "$max_temp" "$thermal_status" >> "$gate"
-  skin=$(sed -n 's/.*mValue=\([0-9][0-9.]*\), mType=3, mName=skin.*/\1/p' "$file" | head -1 | tr -d '\r')
+  skin=$(sed -n 's/.*mValue=\([0-9][0-9.]*\), mType=3, mName=skin.*/\1/p' "$gate" | head -1 | tr -d '\r')
   awk -v v="$skin" 'BEGIN { exit !(v ~ /^[0-9]+([.][0-9]+)?$/ && v < 42.0) }' >/dev/null 2>&1 || rc=1
   [ "$rc" -eq 0 ] || return 1
   printf '%s' "$skin"

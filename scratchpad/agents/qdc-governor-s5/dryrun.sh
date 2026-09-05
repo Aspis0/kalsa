@@ -3,10 +3,11 @@ set -u
 CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5
 DRIVER="$CELL/d_run.sh"
 RAW_LOG="$CELL/raw/sa803287/QRD8650_A_t1_logcat_all.txt"
-THERMAL_INPUT="$CELL/raw/sa803287/session_pre_thermal.txt"
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
+THERMAL_INPUT="$TMP/thermal.txt"
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
+/usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
 
 extract() {
   local wanted="$1"
@@ -51,7 +52,9 @@ record ensure_awake ensure_awake "$TMP/awake"
 record restore_device restore_device
 record restore_ime restore_ime
 /bin/sleep 30 & HOLDER_PID=$!; stop_holder >/dev/null 2>&1; printf 'stop_holder\t%s\n' "$?" | tee -a "$RESULTS_LOG"
-thermal_record session_pre > /dev/null 2>&1; printf 'thermal_record\t%s\n' "$?" | tee -a "$RESULTS_LOG"
+THERMAL_SKIN=$(thermal_record session_pre); THERMAL_RC=$?
+printf 'thermal_record\t%s skin=%s\n' "$THERMAL_RC" "$THERMAL_SKIN" | tee -a "$RESULTS_LOG"
+[ "$THERMAL_RC" -eq 0 ] && [ "$THERMAL_SKIN" = 37.25 ] || { echo "thermal fixture assertion failed: expected HAL skin 37.25, got $THERMAL_SKIN" >&2; exit 1; }
 record make_thermo make_thermo 39.291
 record model_setup model_setup
 record copy_model copy_model "$TMP/copy"

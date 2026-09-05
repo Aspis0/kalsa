@@ -933,6 +933,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > DESCRITTIVO (TTFT B vs A con `promptMs`/`prefill_ms` del turno, decode, skin
 > HAL corretta), non come nuovo test dell'ipotesi. Da decidere dopo il bank.
 
+> **6/09 02:00 Mac — S5 BANCATA (ALIVE 48, registro).** REPORT corretto per
+> F1-F10 (145 righe); driver: skin dalla sezione HAL (dry-run prova 37.25 ≠
+> cached), PREREG post-data note. Prossimo: run 4 DESCRITTIVO con APK 64931c1
+> appena la CI 33946344038 è verde (TTFT B/A misurabile, skin corretta, oracolo
+> atteso FAIL), poi indagine divergenza.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
@@ -945,6 +951,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 ## Registro checkpoint
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
+
+- **2026-09-06 — S5 qdc-governor-s5: BANCATA (audit REPORT deepseek
+  BANK-WITH-FIXES, applicati) — G1-REFUTED su APK ac4820d, meccanismo PROVATO:
+  primi turni governor end-to-end nell'app (prefill GPU, commit KV, decode CPU,
+  4/4 B); oracolo FAIL @14 deterministico; endpoint 2 non analizzabile
+  (zero coppie PASS), descrittivo B 21.9 < A 24.4 tok/s; TTFT B non misurabile
+  (fixato 64931c1); termica non interpretabile (skin cached, fixato driver).**
+  PREREG locked 694d3154 + emendamenti; REPORT 145 righe; raw sa803287/sa803304
+  (VOID) + sa803354; ALIVE 48. Fix codice nati dalla cella: fork
+  e131345b7/6f0a33c0d/e1a0f5028/6ed44f567, app db1606c/803b499/ac4820d/64931c1.
 
 - **2026-08-30 — #40 qdc-8elite-speed-kexp: BANCATA (audit GLM fresco FIX →
   APPLY al re-audit) — decision table KEXP su Adreno 830 completa la serie

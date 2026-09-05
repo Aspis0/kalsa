@@ -186,3 +186,11 @@ arms, thresholds and driver contract unchanged. Expected B telemetry after the f
 V75), the executed prefill context is the GPU one for any multi-token batch; the driver's B gate
 (`prefill == GPU`) therefore tests label + execution together.
 
+## Amendment 6/09 — post-data note (driver skin source)
+
+Run 3's `skin_c_before`/`skin_c_after` columns and the thermo override were
+stale-cached: the app received `batt_temp_tenths_c=314` and `t_idle_c=31.4`
+on every turn (raw `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803354/QRD8650_B_t1_status.txt:1`), while the live
+HAL skin changed (raw `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803354/QRD8650_B_t3_before_thermal.txt:45`, `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803354/QRD8650_B_t4_after_thermal.txt:45`). Run 3's thermal dimension is therefore declared not
+interpretable. Run 4 uses the HAL value from the `Current temperatures from
+HAL` block, not the cached block, for the skin field and thermo override.
