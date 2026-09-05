@@ -1158,6 +1158,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > pin bump + sync + UNA CI (ee4741e9) e delta audit 9 di grok (gate V75
 > f98a9fa + perf e31b914 + pin). Poi run 7 sull'8 Elite: primo TTFT equo.
 
+> **6/09 07:15 Mac — Pin bump app `8a56edc` (→ fork e31b9144c; vendor: solo
+> llama-context.cpp + VENDOR_SHA + build-info; npm ci/clang/jest 16/tsc 0),
+> CI 33957267070 in volo (waiter → `~/kalsa-qdc/apk/apk-gov-8a56edc/`).** Delta
+> audit 9 di grok in corso.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
