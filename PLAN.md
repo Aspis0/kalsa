@@ -1355,6 +1355,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > artifact 57.6 MB release).** ci.yml + E2E on push + APK tutti verdi sullo stesso sha; handoff
 > chiuso. S5b run 5b partita 12:45 (job sa806366b, deadline 55) con criterio ring-buffer.
 
+> **5/09 13:00 EDT Mac — run 5b A1 VOID `toolcall`, causa a monte: composer 5141/5142.** Un
+> carattere perso anche a blocchi da 500; il check ≥90% lo lascia passare, il modello
+> (greedy, deterministico) prende un'altra strada e chiama un tool DOCUMENTI (sempre attivo,
+> nessuna pref lo spegne) → round 1 → VOID. In run 4 con 5142/5142 lo stesso prompt non
+> chiamava tool. Fix run 6 (Luna, solo parse.sh/dryrun/PREREG, d_run.sh in esecuzione non si
+> tocca): lunghezza ESATTA obbligatoria, retype unico, altrimenti VOID `composer`; `last_epoch`
+> in awk stampava 1.78863e+09 (precisione persa) → printf. Il dump atomico ring-buffer ha
+> funzionato (2 rc=255 ritentati, terzo ok). Run continua: B1 in cooldown a 37,9.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
