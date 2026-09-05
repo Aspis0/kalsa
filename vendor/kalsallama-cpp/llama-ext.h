@@ -392,6 +392,9 @@ LLAMA_API void llama_governor_get_stats(
         const struct llama_governor * governor,
         struct llama_governor_stats * stats);
 
+LLAMA_API void llama_governor_clear_cache(
+        struct llama_governor * governor, bool clear_data);
+
 LLAMA_API void llama_governor_reset_prefill_stats(struct llama_governor * governor);
 
 //

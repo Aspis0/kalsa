@@ -20,6 +20,7 @@ struct llama_governor {
     llama_context * prefill_context() const;
     llama_context * decode_context() const;
     llama_governor_stats stats() const;
+    void clear_cache(bool clear_data);
     void reset_prefill_stats();
     bool set_thermo_profile(const llama_governor_thermo_profile & profile, int64_t now_ms);
     void record_telemetry(const llama_governor_telemetry_sample & sample);
@@ -39,7 +40,9 @@ private:
                    llama_governor_params governor_params, bool policy_enabled);
 
     enum class phase { None, Prefill, Decode };
-    enum { k_prefill_chunked = 1 };
+    // Internal control result; llama_decode uses 0, 1, 2, -1 and fatal values
+    // below -1, so this cannot be mistaken for a native decode return.
+    enum { k_prefill_chunked = -1001 };
 
     struct side_state {
         llama_pos watermark = 0; // exclusive next position not committed to the other side
