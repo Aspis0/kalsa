@@ -1,7 +1,7 @@
 # PREREG — S5: governor in the app, A/B on Qualcomm Device Cloud
 
-Date: 2026-09-04. This cell is locked only when the APK identity and sampling
-contract below are verified. QDC sessions: `S5-QRD8650` and `S5-8Elite`;
+Date: 2026-09-04. **LOCKED 2026-09-05**: sampling contract closed by app commit `826fe50`,
+APK identity verified below; no numbers were collected before this lock. QDC sessions: `S5-QRD8650` and `S5-8Elite`;
 both names are under 30 characters.
 
 ## Hypothesis and fixed materials
@@ -17,8 +17,11 @@ Model: id `lfm2.5-2.6b`; file `LFM2.5-2.6B-QAD-Q4_0.gguf`; size
 The driver pushes this exact file to `/data/local/tmp/kalsa-s5/`, verifies the
 device SHA, and copies it into the app sandbox only with `run-as`.
 
-APK: absolute CI artifact path filled at lock time, from branch
-`feat/governor-in-app`; SHA-256: `<FILL_AT_LOCK>`. The locked artifact record
+APK: `/Users/marco/kalsa-qdc/apk/apk-gov-c5c55a4/kalsa-apk-arm64-v8a-debuggable-c5c55a4897f96398c707987e65afce97274e08d9/app-release.apk`,
+branch `feat/governor-in-app` @ `c5c55a4`, CI run 33932740946 (debuggable=true), 142,751,510 bytes,
+SHA-256 `12ecb73145ca3ea161c9a259424926523b085caa8b51d683ec6abd0f46c33284`, aapt2 badging shows
+`application-debuggable`; vendor = fork `e131345b7`. The QDC job id / tunnel host is per session and is
+recorded by the driver in `raw/`. The locked artifact record
 must show `application-debuggable=true`, and installed-package evidence must
 show `DEBUGGABLE` in `dumpsys package com.kalsa.app` flags. No other APK is
 valid. Prompt: `Reply with one short sentence about mountains`.

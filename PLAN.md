@@ -686,6 +686,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > default, JS manda false: coerente col piano. Gate per S5: CI 33932740946
 > verde + JSON bench con t_idle_* (già nel driver). PREREG emendato pre-lock.
 
+> **5/09 — CI 33932740946 su c5c55a4 VERDE: primo APK con governor + contratto
+> bench compilato.** Artifact in `~/kalsa-qdc/apk/apk-gov-c5c55a4/`, sha
+> `12ecb73145ca…3284`, 142,751,510 byte, `application-debuggable` ✓. **PREREG S5
+> LOCKED** con identità APK; host QDC per sessione nei raw. Prossimo: sessione
+> QDC `S5-QRD8650` (45 min), tunnel 6037, `d_run.sh <job> <apk> ABABABAB`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
