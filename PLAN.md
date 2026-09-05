@@ -908,6 +908,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `prefill_ctx_ngl`; riga `KALSA_GOVERNOR` estesa). CI 33946344038 in volo.
 > Delta audit 5 → grok.
 
+> **6/09 01:35 Mac — Audit REPORT S5 (deepseek): BANK-WITH-FIXES, 0 blocker,
+> 3 major di etichetta, 7 minori; TUTTI i numeri riprodotti (incl. tokenizer:
+> id 20 = "," → A "a simple, general" vs B "a simple request").** F1: la regola
+> pre-registrata usa solo coppie oracle-PASS → endpoint 2 = NON ANALIZZABILE,
+> mediane 24.4/21.9 solo descrittive. **F2 (importante anche per il run 4): il
+> driver ha letto la skin dal blocco CACHED del dumpsys (31.4 fisso) e quel
+> valore è finito nell'override thermo dell'app; la HAL viva andava 29.3 →
+> 40.0 °C (alcuni "after" di B sopra la soglia di warning 39.5) → il FAST del
+> governor è stato calcolato su input stantio; dimensione termica del run 3
+> non interpretabile.** F3: numerica f16 GPU = ipotesi principale, alternative
+> (fedeltà del commit KV, bordi dei chunk, routing) da escludere. Fix REPORT +
+> driver (skin dalla sezione HAL, dry-run con fixture doppia) → Luna 5fcd34c9.
+> Poi bank: ALIVE 48 + registro.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
