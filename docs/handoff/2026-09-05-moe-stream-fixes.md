@@ -91,3 +91,10 @@ pushes it and ci.yml + E2E-on-push are green, the governor session re-dispatches
 659a644 (`isDevBuild()` instead of bare `__DEV__`): ci.yml GREEN (33972399509) and E2E on push
 GREEN with real inference (33972399507). APK build re-dispatched by the governor session:
 run 33976887711 (arm64-v8a, debuggable=false). Handoff closed once that APK run is green.
+
+## CLOSED 2026-09-05 ~12:55 EDT — APK build GREEN
+apk.yml run 33976887711 on 659a644: success (16:07→16:50 UTC), artifact
+`kalsa-apk-arm64-v8a-659a644d5e9233a29405d534fcb2fe8e85ea2ed2` 57,627,793 B (release, not
+debuggable). With ci.yml and E2E-on-push green at the same sha, all five fixes are closed.
+Open for the app session going forward: any change under `src/engine/` gets a heads-up first
+(F4 rule); the governor branch merge resolves the ModelRegistry LFM entry keeping both fields.

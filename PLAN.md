@@ -1351,6 +1351,10 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > riga completa + timestamp finale ≥; mai dimensioni. Sessione tenuta aperta (fine ~13:50):
 > rilancio con deadline ridotta appena il fix è verificato. Memoria corretta.
 
+> **5/09 12:55 EDT Mac — moe-stream CHIUSO: APK build VERDE su 659a644 (run 33976887711,
+> artifact 57.6 MB release).** ci.yml + E2E on push + APK tutti verdi sullo stesso sha; handoff
+> chiuso. S5b run 5b partita 12:45 (job sa806366b, deadline 55) con criterio ring-buffer.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
