@@ -367,3 +367,46 @@ turn; B3's 480 s followed an idle/VOID stretch) — direction correct, wording i
 GO. 0 blockers, 0 majors, 2 nits (dead timeout param; loose "CPU-turn" label). logcat_all is
 atomic and evidence-preserving exactly as pre-registered, the dryrun proves the new behavior
 and falsifies the old one, constants/status/PREREG agree; launch run 5.
+
+
+## Delta re-audit #7 (exact composer, ring-buffer dump, epoch)
+
+W1 — CONFIRMED-FIXED. logcat_all (parse.sh:22-39): `[ "$rc" -eq 0 ] && [ "$complete" -eq 1 ]
+&& awk newer>=older && mv` (parse.sh:32) — no size comparison anywhere; complete = last byte
+0x0a (:19-21); last_epoch `printf "%.3f"` — no exponent, missing/unparseable → 0 (:12-16); mv
+atomic; .failures records rc/tmp_epoch/existing_epoch/complete (:33); LOGCAT_RC/RETRIES every
+path (:28-29); delta-6 nit fixed: `timeout_s=$(( requested > 120 ? requested : 120 ))` (:25).
+Dryrun (:108-111) through the real logcat_all: smaller-but-newer complete `'1001 new\n'` (8 B
+vs 26 B, asserted) ACCEPTED with CALLS==1 ✓; truncated `'1002 truncated'` rejected 3×, file
+kept, `complete=0` in .failures ✓; older `'1000 …'` rejected 3×, `tmp_epoch=1000` ✓; fail
+rc=7 → RC=7/RETRIES=3 ✓. Old size-based code rejects the newer fixture → assertion fails —
+distinguishable ✓.
+W2 — CONFIRMED-FIXED. composer_check (parse.sh:134-145) `[ "$actual" -eq "$expected" ]` (:145),
+exact + hint-aware; `minimum` diagnostic-only. ui_send gates before any Send tap: initial exact
+(:217), clear (:223), cleared dump (:224), `cleared_len -le 3` (:231), retype rc (:242), retype
+exact (:244) — only then the send loop; all five composer failures set `void_reason=composer`
+and `return 2`. Dryrun genuine: (:157) exact mode serves 5141 at dump 2 / 5142 at dump 4 — real
+ui_send retypes and taps (Send bounds ⇒ `input tap 150 50`, counted at dryrun.sh:71-72);
+asserts actual=5141→5142, SEND_TAPS>0; (:159) exact_fail serves 5141 twice → rc=2,
+void_reason=composer, SEND_TAPS==0 — the old ≥90% gate would have sent → fails — distinguishable
+✓.
+W3 — CONFIRMED. `git diff -- d_run.sh` = 0 lines; HEAD dd457086 (delta-6 era); the running
+driver is the audited one.
+W4 — CONFIRMED-FIXED. PREREG.md:122-128: run4→5 text now matches epoch/newline semantics; 5a
+paragraph vs raw/sa806366 — first dump `existing_bytes=2034143`, 147 rc=0 rejections at
+1.85-1.99 MB ✓; 5b paragraph vs raw/sa806366b — 5141 chars/73 s, tool-call VOID with
+`toolNames":["document_chat"]`/structuredCalls=1, «covers non-web local tools», exact + VOID
+(composer) + «≥90% diagnostic only», 3-dp last_epoch ✓. Clarification: the 5b logcat has three
+reuse lines (841/1765, 843/1849, 1764/1929); the Send-anchored last_reuse_after picks the chat
+line 1764/1929 ⇒ new_tokens_a=165 ✓ (the 841/1765 pair is the prewarm line, not the source).
+Lock line + analysis unchanged.
+W5 — clean. void_reason init "na" everywhere before use; metrics degrades to 0-safe on empty
+fields; composer-VOID keeps status=0, guards intact, return 0, run continues; remaining aborts
+are only pre-registered categories. set -u sweep: last_epoch guarded by `[ -s ]` early return +
+regex fallback; logcat_all locals initialized; no `local a=$1 b=${a}`.
+
+## Delta verdict #7
+
+GO. 0 blockers, 0 majors, 0 minors. W1-W4 confirmed by inspection, verbatim raw cross-checks
+(2034143/147 rejections; 5141/73 s/document_chat/1764→1929=165), and old-code-falsifying
+dryrun assertions; W5 clean. Launch run 6.

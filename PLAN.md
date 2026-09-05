@@ -1364,6 +1364,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > in awk stampava 1.78863e+09 (precisione persa) → printf. Il dump atomico ring-buffer ha
 > funzionato (2 rc=255 ritentati, terzo ok). Run continua: B1 in cooldown a 37,9.
 
+> **5/09 13:15 EDT Mac — delta audit #7 (deepseek): GO, 0 rilievi.** Dump ring-buffer-safe,
+> lunghezza esatta con retype unico e VOID `composer`, epoch a 3 decimali, d_run.sh intatto;
+> correzione: in 5a i dump rc 0 rifiutati erano 147 (non ~45). Run 5b: B1 valida (GPU 3326 ms,
+> FAST, 26,5 tok/s, skin 37,0→47,0, cooldown 435 s), A2 in cooldown da 42,7. Run 6 pronta.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
