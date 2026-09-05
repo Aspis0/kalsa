@@ -198,3 +198,19 @@ Device: run 3 B `promptMs 0` because `JSICompletion.h:193` `llama_perf_context(c
 **6. CI `33946344038`:** `in_progress`, `conclusion: ""`.
 
 **Delta-5 verdict: GO** for S5 run 4 TTFT on QRD8650 (APK `64931c1`). Use `KALSA_TELEMETRY promptMs` / `KALSA_GOVERNOR prefill_ms` as this-turn new-token prefill; do not compare to prewarm.
+
+## Delta re-audit 6 (6/09, residuals)
+
+**1. Sentinel.** `k_prefill_chunked = -1001` (`llama-governor.h:45`). Documented `llama_decode` rcs (`include/llama.h:964-968`): `0` success, `1` KV slot, `2` aborted, `-1` invalid batch, `< -1` fatal. Implemented in `llama-context.cpp`: `-1`, `-2`, `-3`, `1` (no `-1001`). Callers: `runtime.cpp:90` return; `llama-governor.cpp:186` map to `0`. Residual: `-1001` is in the documented fatal class; a future `llama_decode` using that value would be swallowed. Not in this tree.
+
+**2. V79.** `prefill_engine` (`policy.cpp:157-163`): `(V75 || V79) && Fit && gpu_prefill_measured` — same guards, no thermal change. ALIVE **cell** #38 (table row 21): G ttft **1434/1470** vs C **16476/14412**, decode **25.3/24.2**. Router: V79 FAST → GPU (`test-governor-v02-router.cpp:211-212`); V75 without measured stays CPU (`:39-40`); V73 is GPU_COOLMODE decode, not this GPU prefill branch. No new Unknown-generation assert; code excludes it.
+
+**3. clear_cache.** Both ctx: `llama_memory_clear(..., clear_data)` (`runtime.cpp:126-132`); `llama.h:718-721` honours `data`. Null mem no-op (`llama-context.cpp:3799-3801`). Resets `prefill_state`/`decode_state` (watermarks), `last_phase=None`, commit counters (`:134-146`). Does **not** clear sticky `failed`. App: `rn-llama.cpp:1123-1132` no throw; also `embd.clear()`/`n_past=0`. Callers inside `withEngineJob`: prefix miss `:868` (skips if `engineJobPendingCount > 0` `:859-863`); translate `:3964`; completeOnce `:4076`. Lock comment `:629`. JSI still `throwIfContextBusy` (`RNLlamaJSI.cpp:2315`) — not new; FIFO should not hit it. No new hot-path throw.
+
+**4. Session skip.** Save: `saveEngineSession` `:2044-2046` **before** native; one `KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}` (`:3678`). `snapshotNativeSession` same (`:3687-3689`). Load: `:1688` `console.warn` (not that JSON); `restoreNativeSession` `:3710` silent `return false`. FLAG-OFF save path unchanged (gate is `activeGovernorActive`).
+
+**5. Vendor `e8c2b1f`.** Pin `3a161adfc`. vendor MATCH after `ggml_`/`GGML_` rename (cpp/h/runtime/policy/ext). Tests I ran: router EXIT 0; turns EXIT 0 `governor_chunked_prefill=PASS decodes=512+512+128+128+49 prefill_us=251039 generated=1 commit_bytes=9186048` (telemetry intact; clear_cache asserted).
+
+**6. CI `33947705999`:** `in_progress`.
+
+**Delta-6 verdict: GO** for S5 run 4 on QRD8650 (APK `e8c2b1f`).
