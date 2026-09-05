@@ -1343,6 +1343,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > atomico distinguibile dal vecchio codice, 37.0/720). Nit `requested_timeout` morto → ora
 > `timeout_s = max(arg,120)`. Prossimo: sessione `S5b-8Elite-r5` (90 min, deadline 85).
 
+> **5/09 12:45 EDT Mac — S5b run 5a (sessione 802297, sa806366) ABORTITA DA ME ad A1: errore MIO
+> nel criterio del dump atomico.** `logcat -d -b all` è un ring buffer: un dump più recente e
+> completo può essere più piccolo. La regola "size(tmp) ≥ size(file)" che ho dettato nel brief
+> ha rifiutato ~45 dump con rc 0 → file mai aggiornato → telemetria mai vista → poll da 600 s
+> per turno. L'audit #6 non poteva vederlo dal dryrun. Fix a Luna: accettare rc 0 + ultima
+> riga completa + timestamp finale ≥; mai dimensioni. Sessione tenuta aperta (fine ~13:50):
+> rilancio con deadline ridotta appena il fix è verificato. Memoria corretta.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
