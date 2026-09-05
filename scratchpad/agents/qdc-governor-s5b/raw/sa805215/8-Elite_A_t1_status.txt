@@ -1,0 +1,1 @@
+status=0 row_void=0 thermo={"batt_temp_tenths_c":301,"batt_level_pct":100,"plugged":false,"sensor_valid":true,"t_idle_valid":true,"t_idle_c":29.126,"trend_c_per_min":0.421} governor_count=0 commit_bytes=na commit_ms=na thermo_source=na anchor_epoch=1788613208 anchor_stamp=09-05 06:00:08.000 telemetry_rc=0 new_tokens_a=1016 new_tokens_b=na

@@ -1261,6 +1261,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > conflitto in ModelRegistry (LFM: `kvBytesPerToken` governor vs `sizeClass` C1+C2), regola
 > heads-up. Dopo i fix: dispatch APK + E2E su moe-stream da me. S5b run 2 in corso.
 
+> **5/09 09:25 EDT Mac — S5b run 2 (sessione 801146, sa805215): digitazione RIPARATA, ma
+> il driver è uscito (exit 3) dopo A1.** A1 pulita: composer 5142/5142 in 59 s (11 blocchi),
+> 1016 token nuovi, promptMs 6582 (CPU), decode 28,4 tok/s. Il modello ha risposto al prompt
+> lungo con una TOOL CALL (`web_search`, bloccata dal gate privacy) → round 1 → nessun
+> `KALSA_BENCH_TOKENS` (l'app lo emette solo nei round senza tool call, LlamaService:3294) →
+> prerequisito "contratto assente" scattato per la ragione sbagliata. Non è un bug app: la
+> cella va con i tool OFF (`kalsa.web.enabled`, `kalsa.tools.*`). Sessione chiusa (~15 min).
+> Fix a Luna: pref tool OFF in set_prefs, tool call ⇒ riga VOID (mai exit 3), fixture
+> dryrun, emendamento PREREG run 2. Raw in `raw/sa805215/`. Budget 8 Elite ≈545 min.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
