@@ -87,7 +87,7 @@ int32_t llama_governor::admit_prefill(llama_batch batch, bool allow_chunking) {
         }
         offset += count;
     }
-    return 0;
+    return k_prefill_chunked;
 }
 
 int32_t llama_governor::select_decode() {
