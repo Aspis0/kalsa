@@ -608,6 +608,23 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > iniettato in entrambi i bracci. Delta audit → deepseek (706f8d2f, appende
 > in AUDIT-PRERUN.md). CI APK 33930036540 (2646e77): completed failure.
 
+> **5/09 ~04:20 — CI 33930036540 (2646e77) ROSSA per CODICE, non Maven.**
+> (1) C++: `llama-governor-runtime.cpp:196` chiama il costruttore privato di
+> `llama_governor` — la `friend` nel .h dichiara `llama_governor_init_with_params`,
+> il chiamante è `..._internal`. Causa radice: Luna ha modificato i file
+> governor DIRETTAMENTE nel vendor dell'app (b3a6137, 74390c5) invece che nel
+> fork → `vendor/kalsallama-cpp/llama-governor.{h,cpp}` e `-runtime.cpp`
+> DIVERGONO dal fork @8665e9a9f (verificato con diff -q). Il syntax check su
+> Mac dichiarato da Luna non copriva questi file. **Regola (memoria):** il
+> vendor non si edita mai a mano; si fixa nel fork, si bumpa il pin e si
+> rigenera con `scripts/sync-kalsallama.sh`. (2) Kotlin:
+> `GovernorBatteryModule.kt` importa `com.facebook.react.bridge.ReactPackage`
+> (non esiste: è `com.facebook.react.ReactPackage`) → "overrides nothing" +
+> mismatch in MainApplication; la CI precedente era morta su Maven prima di
+> compilare Kotlin, quindi mai visto. Fix fork → Luna fresca nel worktree
+> v03 (un commit sopra 8665e9a9f, build Mac + syntax); poi nell'app: pin bump
+> + sync vendor + import Kotlin, dopo che ee4741e9 (sampling) ha finito.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
