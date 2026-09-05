@@ -810,6 +810,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Luna (solo src/engine): `gpu_prefill_measured` true per V75/V79 (celle
 > ALIVE #55-58, #38), prewarm veritiero. Poi UNA CI e run 3.
 
+> **5/09 (23:15 Mac) — App `803b499` (Luna, verificato):** `governorInputs.ts:117`
+> `gpu_prefill_measured: generation === "V75" || generation === "V79"` con
+> test (V75 true, V73/Unknown false); prewarm ora logga `op:"skip",
+> reason:"eval-failed"` su errore nativo / 0 token valutati / prompt_ms ≤ 0.
+> CI APK debug dispatchata su 803b499: run 33941238832 803b499. Delta audit 3 di grok
+> ancora in corso (routing policy-vs-esecuzione, V79, ammissione, test).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
