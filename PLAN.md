@@ -1030,6 +1030,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > per il run 5: un turno B caldo completa con `engine_prefill CPU` e
 > `prefill_chunks "cpu:…"`. Gate: CI 33951825993.
 
+> **6/09 04:55 Mac (Roma 10:55) — CI 33951825993 VERDE (~50 min): APK 0265333
+> in `~/kalsa-qdc/apk/apk-gov-0265333/`, sha `38d63210…b35b`.** PREREG emendato
+> pre-dati: run 5 descrittivo, attesa turno B caldo completato su CPU
+> (`engine_prefill CPU`, `cpu:N`); nota sul gate B del driver (riga degradata
+> valida anche se il driver abortisce). Apro `S5-QRD8650-r5`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

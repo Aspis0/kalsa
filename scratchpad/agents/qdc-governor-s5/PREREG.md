@@ -216,3 +216,21 @@ SHA-256 `e16cf0b6fd8fbd77c6566de03150c13ed93cacd7bc21c42ad4df56dd21c08eaf`, aapt
 `application-debuggable`; vendor = fork `3a161adfc`. Session name `S5-QRD8650-r4`. Same board class,
 same model, same prompt, same arms and order (ABABABAB).
 
+## Amendment 6/09 — run 5 (pre-data): descriptive run with thermal degradation
+
+Run 4 showed the policy's thermal gate live (Wait at skin 38.14 °C) and that a Wait stalled the
+turn. Fork `a6642b73d` + `39c35bd1e` now route a Wait/CPUFallback turn's whole prompt to the CPU
+(decode) context, label `engine_prefill CPU`, `prefill_chunks "cpu:N"`, `commit_bytes 0`, and reset
+the route per JS turn (delta audits 7-8: GO). Run 5 is DESCRIPTIVE like run 4 (oracle expected to
+FAIL, endpoint 2 not analyzable); its purpose: (a) confirm a hot B turn completes on CPU with the
+labels above instead of stalling; (b) collect this-turn TTFT/decode/skin per turn.
+Driver gate note: the B gate `prefill == GPU` is a run-3-era rule; for run 5 a B row with
+`engine_prefill CPU` AND thermo skin ≥ 38.0 °C at the turn is a VALID degraded row (recorded as
+such in the addendum), not an abort reason — if the driver aborts on it, the abort is a driver
+limitation and the raw evidence still counts.
+
+APK: `/Users/marco/kalsa-qdc/apk/apk-gov-0265333/kalsa-apk-arm64-v8a-debuggable-0265333681a2070cdfb92ad27a0cdc19e38d7473/app-release.apk`,
+branch `feat/governor-in-app` @ `0265333`, CI run 33951825993 (debuggable=true), 142,758,038 bytes,
+SHA-256 `38d6321008fe2bc9db320a2955c70876cde87302ef05294d81ee0b3f7672b35b`, aapt2 badging shows
+`application-debuggable`; vendor = fork `39c35bd1e`. Session name `S5-QRD8650-r5`.
+
