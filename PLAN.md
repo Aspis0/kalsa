@@ -1307,6 +1307,10 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (riga 465, introdotto da B3). Fix all'altra sessione; E2E lo rilancio dopo. S5b r4 (801665,
 > sa805734) partita alle 10:24 con deadline 85.
 
+> **5/09 10:50 EDT Mac — APK build moe-stream (33972096001) ROSSA allo stesso step/errore
+> `__DEV__` di benchConfig.ts:465: apk.yml esegue lo stesso gate harness dell'E2E.** Un solo
+> fix sblocca entrambi; ri-dispatch APK dopo il push dell'altra sessione.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

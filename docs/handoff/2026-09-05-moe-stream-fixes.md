@@ -80,3 +80,9 @@ compiles `src/bench/benchConfig.ts` standalone (scripts/.build) without React Na
 B3 17c6afc, "bench bypass only in __DEV__"). App-wide tsc passes because RN types declare
 `__DEV__`; the harness tsconfig does not. Fix belongs to the app session; E2E re-dispatch by
 the governor session waits for it.
+
+## Status 2026-09-05 ~10:50 EDT — APK build RED on the same __DEV__ error
+APK run 33972096001 (aa12471) failed at "Typecheck + logic harnesses" with the identical
+`src/bench/benchConfig.ts(465,14): error TS2304: Cannot find name '__DEV__'`. apk.yml runs the
+same harness gate as e2e-emulator.yml, so the `__DEV__` fix unblocks both. Once the app session
+pushes it and ci.yml + E2E-on-push are green, the governor session re-dispatches apk.yml.
