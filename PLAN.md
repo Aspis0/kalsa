@@ -1499,6 +1499,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > poll_load. Quinto difetto device-specific su QRD7675 in quattro run: ognuno nascosto dal
 > precedente. Raw 7d → `raw/sa807902b`; sessione 803833 viva fino alle 19:32.
 
+> **5/09 18:35 EDT Mac — fix wake/AOD su disco (Luna), deepseek #13 GO (2 minori: citazioni
+> PREREG corrette da me → `raw/sa807902b/`, wake.log:10,15; `poll_load` fatale su ogni rc di
+> dumpsys power invece che solo 124/255 → da fare a Luna DOPO la run, d_run.sh non si tocca
+> mentre gira).** wake_sequence = locksettings + WAKEUP + dismiss-keyguard + tap sul composer
+> (bounds dell'ultimo dump buono o 540,2047), dump valido solo con `package="com.kalsa.app"`
+> (altrimenti `aod` → ri-wake e retry), poll_load con re-wake per iterazione; dryrun 0.
+> **Run 7e lanciata sulla sessione 803833/sa807902 con `ABABAB 45`** (fine ≤19:20).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

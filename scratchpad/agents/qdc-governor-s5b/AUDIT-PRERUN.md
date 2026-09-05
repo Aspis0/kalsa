@@ -690,3 +690,37 @@ rather than an abort" and "no 7c data are analyzed" match the code and run state
 GO. 0 blockers, 0 majors, 0 minors, 2 nits (tr/mv failure; conservative 124/255 transport
 classification). Mechanics, VOID-vs-abort split, send-fail semantics, dryrun (exit 0), set -u
 safety and PREREG:153-156 all CONFIRMED. Launch run 7d.
+
+
+## Delta audit #13 — run 7e wake/AOD
+
+1 (wake_tap, d_run.sh:61-76) — CONFIRMED, safe: LAST_EDIT_BOUNDS set from the last good
+edit dump (parse.sh:515) and reset per turn (parse.sh:500, d_run.sh:301) — no stale leak;
+fallback (540,2047), source logged; the tap fires only after locksettings-disable +
+dismiss-keyguard (wake_sequence order) — an AOD/lockscreen tap is impossible; on home/app a
+single mute tap (bottom-center/gesture zone). PLAUSIBLE-safe.
+2 (transport) — CONFIRMED: WAKE_SEQUENCE_TRANSPORT per-command 124|255, reset at entry,
+gates the final success; dump_ui propagates it to DUMP_UI_TRANSPORT; poll_load returns 1 on
+ANY power_rc≠0 — MINOR: a transient (non-transport) power-dumpsys failure aborts the load
+without retry — recommend 124/255-only fatal.
+3 (dump_ui AOD, parse.sh:247-248) — CONFIRMED: `! grep -q 'package="com.kalsa.app"'` →
+`attempt=%s aod` → continue in the 5-attempt loop (counts, sleeps 3, finite → VOID);
+legitimate app dumps carry the package; only systemui-hosted overlays false-AOD (no
+permission dialogs in these runs; worst case 5× then VOID, never hangs).
+4 (poll_load) — CONFIRMED: the per-iteration dumpsys (~1-2 s/5 s) does not touch the
+app-internal prewarm timer; a mid-load wake-tap neither disables the field nor types.
+5 (removed behaviour) — CONFIRMED: diff additive; stayon/timeout/locksettings retained.
+6 (dryrun) — CONFIRMED: `bash dryrun.sh > /tmp/dr13.log 2>&1` → exit=0; DUMP_AOD_FAILS=1
+drives one systemui dump → `aod` in the .dump.log + ui_send rc 0; poll_load with
+doze_load/LOAD_DOZE_REMAINING=2 → two wakes → `rewakes=2` asserted. Genuine.
+7 (set -u) — CONFIRMED: all new globals/locals declared; dryrun runs set -u.
+8 (PREREG:157-161) — facts CONFIRMED, MINOR citations: the 9.6 kB systemui edit.xml =
+raw/sa807902b/7p-Gen-3_A_t1_edit.xml (9663 B, 48 systemui hits); mIsPowered=false/
+mStayOn=false at sa807902b/wake.log:10,15 — but the amendment cites the now-absent
+sa807902 paths; mLastSleepReason=timeout is uncited (orchestrator-live only).
+
+## Delta verdict #13
+
+GO. 0 blockers, 0 majors, 2 minor (poll_load non-transport power failure → abort; PREREG
+citations sa807902→sa807902b + uncited sleep-reason), 1 nit. Mechanics, bounds reset,
+transport propagation, finite AOD loop, dryrun exit 0, set -u all CONFIRMED. Launch 7e.

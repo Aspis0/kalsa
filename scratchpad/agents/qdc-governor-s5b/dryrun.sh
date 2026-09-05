@@ -4,7 +4,7 @@ CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-
 DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
-THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; DUMP_FAILS=0; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0; TYPE_VERIFY_ACTIVE=0; TYPE_VERIFY_ATTEMPT=0; TYPE_VERIFY_CHUNK=0; TYPE_VERIFY_EXPECTED_LEN=0; FIRST_LOSS_USED=0; MID_MISMATCH_USED=0; ALWAYS_MISMATCH=0
+THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; DUMP_FAILS=0; DUMP_AOD_FAILS=0; LOAD_LOGCAT_CALLS=0; LOAD_DOZE_REMAINING=0; POWER_CHECK_CONTEXT=""; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0; TYPE_VERIFY_ACTIVE=0; TYPE_VERIFY_ATTEMPT=0; TYPE_VERIFY_CHUNK=0; TYPE_VERIFY_EXPECTED_LEN=0; FIRST_LOSS_USED=0; MID_MISMATCH_USED=0; ALWAYS_MISMATCH=0
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
@@ -24,7 +24,7 @@ extract() {
   local wanted="$1"
   /usr/bin/awk -v wanted="$wanted" '$0 ~ ("^" wanted "\\(\\) \\{"){on=1;print;if($0~/;[[:space:]]*}$/)on=0;next} on{print;if($0~/^}$/)on=0}' "$DRIVER"
 }
-for fn in log write_end deadline_check validate_deadline_minutes adbT logcat_all wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
+for fn in log write_end deadline_check validate_deadline_minutes adbT logcat_all wake_tap wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
 source "$LIB"
 source "$CELL/parse.sh"
 
@@ -34,7 +34,7 @@ ADB_LOG="$TMP/adb-exit.log"; DRIVER_LOG="$TMP/driver.log"; END_MARKER="$TMP/END.
 : > "$ADB_LOG"; : > "$DRIVER_LOG"; : > "$RESULTS"
 JOB=dryrun; ARM_ORDER=ABABABAB; APK="$CELL/dryrun.sh"; MODEL="$CELL/dryrun.sh"; MODEL_SIZE=$(wc -c < "$MODEL" | tr -d '[:space:]'); MODEL_SHA=$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')
 MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
-DEADLINE_EPOCH=2147483647; DEADLINE_MINUTES=40; END_WRITTEN=0; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=60000; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SUSPEND=1; IME_SAVED=com.stub/.Ime; IME_SUSPENDED=0; UI_DUMP_COUNT=0; INPUT_TEXT_COUNT=0; VOID_MODE=0; TOOL_MODE=0; THERMAL_MODE=initial; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=900; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; CHUNK_CALLS=0; CHUNK_BAD=0; CHUNK_UNQUOTED=0
+DEADLINE_EPOCH=2147483647; DEADLINE_MINUTES=40; END_WRITTEN=0; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=60000; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SUSPEND=1; IME_SAVED=com.stub/.Ime; IME_SUSPENDED=0; UI_DUMP_COUNT=0; INPUT_TEXT_COUNT=0; VOID_MODE=0; TOOL_MODE=0; THERMAL_MODE=initial; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=900; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; CHUNK_CALLS=0; CHUNK_BAD=0; CHUNK_UNQUOTED=0; LAST_EDIT_BOUNDS=""; WAKE_SEQUENCE_TRANSPORT=0
 FIRST_SKIN_C=39.291; PREV_SKIN=39.291; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=4242; ANCHOR_EPOCH=1000; SEND_ANCHOR_EPOCH=1000; ANCHOR_STAMP=dryrun; A_IDS_FILE=""; A_IDS_VALID=0
 MODEL_LOAD_PATTERN='llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf'; PREWARM_PATTERN='KALSA_PREWARM.*"op":"done"'; PROMPT_FILE="$CELL/PROMPT.txt"; PROMPT_SHA=9109f58516104950079a4a4ecbcd46b557b598741227e893c275bece27079ea6; PROMPT_BYTES=5142; PROMPT_INPUT=""; PROMPT_TEXT=""; PROMPT_EXPECTED_CHARS=0
 sleep() { /bin/sleep 0.01; }
@@ -48,13 +48,13 @@ adbT() {
   elif [[ "$joined" == *"cat /proc/meminfo"* ]]; then printf 'MemTotal: 8000000 kB\nMemFree: 1000000 kB\nMemAvailable: 2345678 kB\n'
   elif [[ "$joined" == *"dumpsys meminfo"* ]]; then printf 'Applications Memory Usage (in Kilobytes):\nUptime: 1000 Realtime: 1000\n** MEMINFO in pid 4242 [com.kalsa.app] **\nNative Heap 123456\nTOTAL 234567\n'
   elif [[ "$joined" == *"logcat -b all -c"* ]]; then :
-  elif [[ "$joined" == *"logcat -v epoch -d -b all"* ]]; then LOGCAT_CALLS=$((LOGCAT_CALLS + 1)); case "$LOGCAT_MODE" in fail) printf 'stub logcat failure\n'; return 7;; newer) printf '1001 new\n';; truncated) printf '1002 truncated';; older) printf '1000 older complete\n';; *) if [ "$TOOL_MODE" -eq 1 ]; then /bin/cat "$TOOL_LOG"; else /bin/cat "$RAW_LOG"; fi;; esac
+  elif [[ "$joined" == *"logcat -v epoch -d -b all"* ]]; then LOGCAT_CALLS=$((LOGCAT_CALLS + 1)); case "$LOGCAT_MODE" in fail) printf 'stub logcat failure\n'; return 7;; newer) printf '1001 new\n';; truncated) printf '1002 truncated';; older) printf '1000 older complete\n';; load-wake) LOAD_LOGCAT_CALLS=$((LOAD_LOGCAT_CALLS + 1)); if [ "$LOAD_LOGCAT_CALLS" -ge 3 ]; then /bin/cat "$RAW_LOG"; else printf '1000 no-proof\n'; fi;; *) if [ "$TOOL_MODE" -eq 1 ]; then /bin/cat "$TOOL_LOG"; else /bin/cat "$RAW_LOG"; fi;; esac
   elif [[ "$joined" == *"uiautomator dump"* ]]; then
     if [ "$DUMP_FAILS" -gt 0 ]; then DUMP_FAILS=$((DUMP_FAILS - 1)); printf 'ERROR: could not get idle state\n' >&2; return 1; fi
   elif [[ "$joined" == *"date '+%m-%d"* ]]; then printf '09-04 12:00:00.000\n'
   elif [[ "$joined" == *"date +%s"* ]]; then printf '1000\n'
   elif [[ "$joined" == *"pm list packages"* ]]; then printf '0\nlist_rc=1\n'
-  elif [[ "$joined" == *"dumpsys power"* ]]; then if [ "$WAKE_MODE" = doze_once ] && [ "$WAKE_AWAKE" -eq 0 ]; then printf 'mWakefulness=Dozing\n'; else printf 'mWakefulness=Awake\n'; fi
+  elif [[ "$joined" == *"dumpsys power"* ]]; then if [ "$WAKE_MODE" = doze_load ] && [ "$POWER_CHECK_CONTEXT" = load ] && [ "$LOAD_DOZE_REMAINING" -gt 0 ]; then LOAD_DOZE_REMAINING=$((LOAD_DOZE_REMAINING - 1)); printf 'mWakefulness=Dozing\n'; elif [ "$WAKE_MODE" = doze_once ] && [ "$WAKE_AWAKE" -eq 0 ]; then printf 'mWakefulness=Dozing\n'; else printf 'mWakefulness=Awake\n'; fi
   elif [[ "$joined" == *"dumpsys package"* || "$joined" == *"pm dump"* ]]; then printf 'Package [com.kalsa.app] flags=[ DEBUGGABLE ]\n'
   elif [[ "$joined" == *"pidof"* ]]; then printf '4242\n'
   elif [[ "$joined" == *"sha256sum"* ]]; then printf '%s  %s\n' "$MODEL_SHA" "$MODEL_REMOTE"
@@ -83,6 +83,10 @@ adbT() {
   elif [[ "$joined" == *"input tap"* ]]; then
     :
   elif [[ "$joined" == *"cat $DEVICE_TMP/ui.xml"* ]]; then
+    if [ "$DUMP_AOD_FAILS" -gt 0 ]; then
+      DUMP_AOD_FAILS=$((DUMP_AOD_FAILS - 1))
+      printf '<hierarchy package="com.android.systemui"><node class="android.widget.TextView" text="12:00"/></hierarchy>\n'
+    else
     UI_DUMP_COUNT=$((UI_DUMP_COUNT + 1))
     if [ "${TYPE_VERIFY_ACTIVE:-0}" -eq 1 ]; then
       expected="${PROMPT_TEXT:0:${TYPE_VERIFY_EXPECTED_LEN}}"
@@ -93,40 +97,41 @@ adbT() {
       elif [ "$COMPOSER_MODE" = always_mismatch ]; then
         expected="${PROMPT_TEXT:0:$((TYPE_VERIFY_EXPECTED_LEN - 1))}X"
       fi
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$expected"
+      printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$expected"
     elif [ "$COMPOSER_FOCUSED" -eq 0 ]; then
       if [ "$COMPOSER_MODE" = hint_text ]; then
-        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
       else
-        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
       fi
     elif [ "$COMPOSER_STAGE" = typing ]; then
       if [ "$VOID_MODE" -eq 1 ]; then
-        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
       elif [ "$COMPOSER_MODE" = exact ]; then
-        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"; COMPOSER_STAGE=short
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"; COMPOSER_STAGE=short
       elif [ "$COMPOSER_MODE" = legacy ] || [ "$COMPOSER_MODE" = hint_text ]; then
-        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"; COMPOSER_STAGE=short
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"; COMPOSER_STAGE=short
       elif [ "$COMPOSER_MODE" = exact_fail ]; then
-        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"; COMPOSER_STAGE=short
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"; COMPOSER_STAGE=short
       else
-        printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
       fi
     elif [ "$COMPOSER_STAGE" = cleared ]; then
       if [ "$COMPOSER_MODE" = hint_text ]; then
-        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
       else
-        printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+        printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
       fi
       COMPOSER_STAGE=cleared_seen
     elif [ "$COMPOSER_MODE" = exact_fail ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
+      printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
     elif [ "$COMPOSER_STAGE" = cleared_seen ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=send_retry
+      printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=send_retry
     elif [ "$COMPOSER_STAGE" = send_retry ]; then
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
+      printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"; COMPOSER_STAGE=complete
     else
-      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
+      printf '<hierarchy package="com.kalsa.app"><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
+    fi
     fi
   elif [[ "$joined" == *"settings get system screen_off_timeout"* ]]; then printf '60000\n'
   elif [[ "$joined" == *"settings get secure default_input_method"* ]]; then printf 'com.stub/.Ime\n'
@@ -194,9 +199,11 @@ record tap_bounds tap_bounds '0 0 100 100'
 load_prompt || exit 1; record load_prompt load_prompt
 record type_prompt type_prompt "$TMP/type"
 record ime_suspend ime_suspend
+DUMP_AOD_RAW="$TMP/aod-retry"; /bin/mkdir -p "$DUMP_AOD_RAW"; RAW="$DUMP_AOD_RAW"; COMPOSER_MODE=normal; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; SEND_TAPS=0; DUMP_AOD_FAILS=1; AOD_RC=0; ui_send "$RAW/aod" 2 || AOD_RC=$?; [ "$AOD_RC" -eq 0 ] || exit 1; grep -q 'aod' "$RAW/aod_edit.xml.dump.log" || exit 1
+DUMP_LOAD_FILE="$TMP/poll-wake_load.txt"; LOAD_LOGCAT_CALLS=0; LOAD_DOZE_REMAINING=2; WAKE_MODE=doze_load; LOGCAT_MODE=load-wake; LAST_EDIT_BOUNDS=""; record poll_load poll_load "$DUMP_LOAD_FILE"; grep -q 'rewakes=2' "$TMP/poll-wake_load_wakes.txt" || exit 1; WAKE_MODE=normal; LOGCAT_MODE=normal; LOAD_LOGCAT_CALLS=0; LOAD_DOZE_REMAINING=0
 DUMP_RETRY_RAW="$TMP/dump-retry"; /bin/mkdir -p "$DUMP_RETRY_RAW"; RAW="$DUMP_RETRY_RAW"; COMPOSER_MODE=normal; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; SEND_TAPS=0; DUMP_FAILS=2; DUMP_RETRY_RC=0; ui_send "$RAW/retry" 2 || DUMP_RETRY_RC=$?; [ "$DUMP_RETRY_RC" -eq 0 ] || exit 1; grep -q 'attempt=3 .*rc=0' "$RAW/retry_edit.xml.dump.log" || exit 1
  DUMP_RUN_RAW="$TMP/dump-run"; /bin/mkdir -p "$DUMP_RUN_RAW"; RAW="$DUMP_RUN_RAW"; RESULTS="$DUMP_RUN_RAW/results.tsv"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$RESULTS"; THERMAL_MODE=ready; COMPOSER_MODE=normal; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; DUMP_FAILS=5; DUMP_VOID_RC=0; run_observation A 9 || DUMP_VOID_RC=$?; [ "$DUMP_VOID_RC" -eq 0 ] || exit 1; grep -q 'status=0 row_void=1' "$RAW/QRD8650_A_t9_status.txt" || exit 1; grep -q 'dump_fail stage=edit' "$RAW/QRD8650_A_t9_ui_attempts.txt" || exit 1; DUMP_FAILS=0; run_observation A 10 || exit 1; awk -F '\t' '$1=="A"&&$2==10{ok=1} END{exit !ok}' "$RESULTS" || exit 1
-RAW="$TMP/observations"; RESULTS="$TMP/observations.tsv"; THERMAL_MODE=ready; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; SEND_TAPS=0; DUMP_FAILS=0; INPUT_TEXT_COUNT=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; CHUNK_CALLS=0; CHUNK_BAD=0; CHUNK_UNQUOTED=0; VOID_MODE=0
+RAW="$TMP/observations"; RESULTS="$TMP/observations.tsv"; THERMAL_MODE=ready; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; UI_DUMP_COUNT=0; SEND_TAPS=0; DUMP_FAILS=0; INPUT_TEXT_COUNT=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; CHUNK_CALLS=0; CHUNK_BAD=0; CHUNK_UNQUOTED=0; VOID_MODE=0; LAST_EDIT_BOUNDS=""
 run_observation A 1; RUN_RC=$?; printf 'run_observation\t%s\n' "$RUN_RC" | tee -a "$RESULTS_LOG"; [ "$RUN_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 22 ] || { echo "A1 chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 2 ] || { echo "A1 type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11," ] || { echo "A1 chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 22 ] || { echo "A1 chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "A1 chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }; grep -q 'attempt=initial actual=100' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "short composer was not detected" >&2; exit 1; }; grep -q 'attempt=cleared actual=0.*hint_len=' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "hint-aware clear fixture was not observed" >&2; exit 1; }; grep -q 'attempt=retype actual=5142' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "composer retype did not pass" >&2; exit 1; }; grep -q 'attempt=2' "$RAW/QRD8650_A_t1_ui_attempts.txt" || { echo "ui_send retry was not exercised" >&2; exit 1; }; grep -q 'wait_s=0 skin=35.5 target_c=38.5' "$RAW/QRD8650_A_t1_cooldown.txt" || exit 1; grep -q 'cool_target_c=38.5' "$RAW/QRD8650_A_t1_status.txt" || exit 1
 FINAL_RC=0; VOID_MODE=1; run_observation B 1; B_RC=$?; printf 'run_observation_B_VOID\t%s\n' "$B_RC" | tee -a "$RESULTS_LOG"; [ "$B_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="B"&&$2==1&&$16=="na"&&$17=="VOID"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1' "$RAW/QRD8650_B_t1_status.txt" || exit 1; grep -q 'wait_s=0 skin=35.5 target_c=37.0' "$RAW/QRD8650_B_t1_cooldown.txt" || exit 1; grep -q 'cool_target_c=37.0' "$RAW/QRD8650_B_t1_status.txt" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1
 VOID_MODE=0; run_observation A 2; A2_RC=$?; printf 'run_observation_A2_after_VOID\t%s\n' "$A2_RC" | tee -a "$RESULTS_LOG"; [ "$A2_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 55 ] || { echo "final chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 5 ] || { echo "final type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11,11,11,11," ] || { echo "final chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 55 ] || { echo "final chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "final chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }

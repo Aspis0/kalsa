@@ -44,7 +44,7 @@ MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf
 DEVICE_TMP=/data/local/tmp/kalsa-s5; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAVED=""; IME_SUSPENDED=0
-FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=900; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0
+FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=900; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0; LAST_EDIT_BOUNDS=""; POWER_CHECK_CONTEXT=""; WAKE_SEQUENCE_TRANSPORT=0
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/parse.sh
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
@@ -58,27 +58,59 @@ adbT() {
   printf 'rc=%s%s\n' "$rc" "$argline" >> "$ADB_LOG"
   return "$rc"
 }
+wake_tap() {
+  local wake_log="$1"
+  local bounds tap x y source rc
+  bounds="${LAST_EDIT_BOUNDS:-}"
+  tap=$(printf '%s\n' "$bounds" | awk 'NF==4&&$1~/^[0-9]+$/&&$2~/^[0-9]+$/&&$3~/^[0-9]+$/&&$4~/^[0-9]+$/{printf "%d %d",($1+$3)/2,($2+$4)/2}')
+  if [ -n "$tap" ]; then
+    read -r x y <<< "$tap"
+    source=bounds
+  else
+    x=540; y=2047; source=fallback
+  fi
+  adbT 60 -s "$SER" shell input tap "$x" "$y" >> "$wake_log" 2>&1
+  rc=$?
+  printf 'wake_tap=%s,%s source=%s rc=%s\n' "$x" "$y" "$source" "$rc" >> "$wake_log"
+  case "$rc" in 124|255) WAKE_SEQUENCE_TRANSPORT=1 ;; esac
+  return "$rc"
+}
 wake_sequence() {
-  adbT 60 -s "$SER" shell locksettings set-disabled true >> "$RAW/wake.log" 2>&1 || true
-  adbT 60 -s "$SER" shell input keyevent KEYCODE_WAKEUP >> "$RAW/wake.log" 2>&1 || true
-  adbT 60 -s "$SER" shell wm dismiss-keyguard >> "$RAW/wake.log" 2>&1 || true
-  adbT 60 -s "$SER" shell svc power stayon true >> "$RAW/wake.log" 2>&1 || true
-  adbT 60 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$RAW/wake.log" 2>&1 || true
+  local wake_log
+  local check_file rc tap_rc check_rc
+  wake_log="${1:-$RAW/wake.log}"
+  check_file="${wake_log}.power"
+  WAKE_SEQUENCE_TRANSPORT=0
+  adbT 60 -s "$SER" shell locksettings set-disabled true >> "$wake_log" 2>&1; rc=$?; case "$rc" in 124|255) WAKE_SEQUENCE_TRANSPORT=1 ;; esac
+  adbT 60 -s "$SER" shell input keyevent KEYCODE_WAKEUP >> "$wake_log" 2>&1; rc=$?; case "$rc" in 124|255) WAKE_SEQUENCE_TRANSPORT=1 ;; esac
+  adbT 60 -s "$SER" shell wm dismiss-keyguard >> "$wake_log" 2>&1; rc=$?; case "$rc" in 124|255) WAKE_SEQUENCE_TRANSPORT=1 ;; esac
+  sleep 1
+  wake_tap "$wake_log"; tap_rc=$?
+  adbT 60 -s "$SER" shell svc power stayon true >> "$wake_log" 2>&1; rc=$?; case "$rc" in 124|255) WAKE_SEQUENCE_TRANSPORT=1 ;; esac
+  adbT 60 -s "$SER" shell settings put system screen_off_timeout 1800000 >> "$wake_log" 2>&1; rc=$?; case "$rc" in 124|255) WAKE_SEQUENCE_TRANSPORT=1 ;; esac
+  POWER_CHECK_CONTEXT=wake
+  adbT 60 -s "$SER" shell dumpsys power > "$check_file" 2>&1
+  check_rc=$?
+  POWER_CHECK_CONTEXT=""
+  cat "$check_file" >> "$wake_log"
+  printf 'wake_recheck_rc=%s\n' "$check_rc" >> "$wake_log"
+  [ "$tap_rc" -eq 0 ] && [ "$check_rc" -eq 0 ] && grep -q 'mWakefulness=Awake' "$check_file" || return 1
+  [ "$WAKE_SEQUENCE_TRANSPORT" -eq 0 ]
 }
 device_wake() {
   if [ "$SCREEN_OFF_TIMEOUT_SAVED" -eq 0 ]; then
     SCREEN_OFF_TIMEOUT_SAVED=1
     SCREEN_OFF_TIMEOUT=$(adbT 60 -s "$SER" shell settings get system screen_off_timeout | tr -d '\r')
   fi
-  wake_sequence
-  adbT 60 -s "$SER" shell dumpsys power >> "$RAW/wake.log" 2>&1 || true
+  wake_sequence "$RAW/wake.log" || return 1
+  adbT 60 -s "$SER" shell dumpsys power >> "$RAW/wake.log" 2>&1 || return 1
 }
 wake_state() { sed -n 's/.*mWakefulness=\([^, ]*\).*/\1/p' "$1" | head -1 | tr -d '\r'; }
 ensure_awake() {
   local prefix="$1" first second
   adbT 60 -s "$SER" shell dumpsys power > "${prefix}_wake_before.txt" 2>&1 || return 1
   first=$(wake_state "${prefix}_wake_before.txt")
-  if [ "${first:-missing}" != Awake ]; then wake_sequence; fi
+  if [ "${first:-missing}" != Awake ]; then wake_sequence "${prefix}_wake.log" || return 1; fi
   adbT 60 -s "$SER" shell dumpsys power > "${prefix}_wake_after.txt" 2>&1 || return 1
   second=$(wake_state "${prefix}_wake_after.txt")
   printf 'before=%s\nafter=%s\n' "${first:-missing}" "${second:-missing}" > "${prefix}_wakefulness.txt"
@@ -210,10 +242,28 @@ has_load_proof() { grep -E "$MODEL_LOAD_PATTERN" "$1" >/dev/null 2>&1 && grep -E
 memory_before() { local prefix="$1"; local file="${prefix}_meminfo_before.txt"; adbT 60 -s "$SER" shell "cat /proc/meminfo | head -3" > "$file" 2>&1 || return 1; MEM_BEFORE_KB=$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$file" | head -1 | tr -d '\r'); [ -n "$MEM_BEFORE_KB" ]; }
 memory_after() { local prefix="$1"; local file="${prefix}_meminfo_after.txt"; adbT 60 -s "$SER" shell "cat /proc/meminfo | head -3" > "$file" 2>&1 || return 1; adbT 90 -s "$SER" shell "dumpsys meminfo $PKG | head -25" > "${prefix}_appmem_after.txt" 2>&1 || return 1; MEM_AFTER_KB=$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$file" | head -1 | tr -d '\r'); [ -n "$MEM_BEFORE_KB" ] && [ -n "$MEM_AFTER_KB" ] || return 1; printf 'MEM before=%s after=%s\n' "$MEM_BEFORE_KB" "$MEM_AFTER_KB" | tee -a "$DRIVER_LOG"; }
 poll_load() {
-  local file="$1" elapsed=0
+  local file="$1"
+  local elapsed=0
+  local wake_file="${file%_load.txt}_load_wakes.txt"
+  local power_file power_rc current_wake wake_rc wakes=0
   : > "$file"
+  : > "$wake_file"
   while [ "$elapsed" -lt 300 ]; do
-    deadline_check; logcat_all 60 "$file" || true
+    deadline_check
+    power_file="${wake_file}.power"
+    POWER_CHECK_CONTEXT=load
+    adbT 60 -s "$SER" shell dumpsys power > "$power_file" 2>&1
+    power_rc=$?
+    POWER_CHECK_CONTEXT=""
+    [ "$power_rc" -eq 0 ] || return 1
+    current_wake=$(wake_state "$power_file")
+    if [ "${current_wake:-missing}" != Awake ]; then
+      wakes=$((wakes + 1))
+      printf 'iteration=%s wake_before=%s\n' "$((elapsed / 5 + 1))" "${current_wake:-missing}" >> "$wake_file"
+      wake_sequence "$wake_file" || { printf 'rewakes=%s\n' "$wakes" >> "$wake_file"; return 1; }
+    fi
+    printf 'rewakes=%s\n' "$wakes" >> "$wake_file"
+    logcat_all 60 "$file" || true
     has_load_proof "$file" && return 0
     sleep 5; elapsed=$((elapsed + 5))
   done
@@ -248,6 +298,7 @@ run_observation() {
   local turn="$2"
   local prefix="$RAW/${BOARD}_${arm}_t${turn}"
   local logcat="${prefix}_logcat_all.txt"
+  LAST_EDIT_BOUNDS=""
   local flag skin_before=na skin_after=na thermo="" status=0 load_rc=1 telemetry_rc=1 ui_rc=0 row_void=0 cooldown_rc=0 cooldown_s=na
   local telemetry governor bench reuse_line ttft=na prefill_ms=na prefill_chunks=na new_tokens_a=na new_tokens_b=na decode=na prefill=na decode_engine=na thermal=na commit_bytes=na commit_ms=na thermo_source=na fallback=0 lmkd=0 governor_count=0 ids_sha=na oracle=na n=na runtime_prereq=0
   local structured_calls=0 tool_calls=0 void_reason=na

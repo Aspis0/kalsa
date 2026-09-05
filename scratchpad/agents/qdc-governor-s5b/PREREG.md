@@ -154,3 +154,8 @@ PREREG:132-138 remains unchanged.
 Run 7c aborted before typing: `raw/sa807902a/7p-Gen-3_A_t1_edit.xml` was 64 bytes (`cat: /data/local/tmp/kalsa-s5/ui.xml: No such file or directory`); the prewarm took 118 s.
 The driver now retries `uiautomator dump` five times at 3 s intervals, captures dump diagnostics, and treats an exhausted UI dump as `VOID(composer)` rather than an abort.
 The 7d+ run uses the unchanged PREREG:132-138 endpoint and abort rules; no 7c data are analyzed.
+
+### Run 7d (sa807902) → run 7e
+Run 7d lost A1 and B1 to `VOID(composer)`: the successful edit dump was 9.6 kB of `com.android.systemui` AOD content with no `EditText` [raw/sa807902b/7p-Gen-3_A_t1_edit.xml].
+The board reported `mStayOn=false` and `mIsPowered=false`; bare `KEYCODE_WAKEUP` re-dosed in ≈9 s, while wakeup+dismiss-keyguard+tap stayed Awake for ≥40 s [raw/sa807902b/driver-sa807902.log]. Power facts: `mIsPowered=false`/`mStayOn=false` [raw/sa807902b/wake.log:10,15]; the 9 s re-doze (`mLastSleepReason=timeout`) was measured live by the orchestrator and is not in raw.
+Run 7e retries dumps, wakes before each attempt and load poll, taps the composer for user activity, and records `aod`/wake evidence; the unchanged PREREG:132-138 rules remain in force.

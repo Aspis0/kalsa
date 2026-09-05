@@ -202,11 +202,34 @@ cool_target_for_arm() {
 dump_ui() {
   local out="$1"
   local dump_log="${out}.dump.log"
-  local attempt rc rm_rc cat_rc
+  local attempt rc rm_rc cat_rc power_file power_rc wake_rc wake_status
   DUMP_UI_TRANSPORT=0
   : > "$dump_log"
   : > "$out"
   for attempt in 1 2 3 4 5; do
+    power_file="${out}.power_attempt${attempt}.txt"
+    POWER_CHECK_CONTEXT=dump
+    adbT 60 -s "$SER" shell dumpsys power > "$power_file" 2>&1
+    power_rc=$?
+    POWER_CHECK_CONTEXT=""
+    wake_status=$(wake_state "$power_file")
+    cat "$power_file" >> "$dump_log"
+    printf 'attempt=%s power_rc=%s wake=%s\n' "$attempt" "$power_rc" "${wake_status:-missing}" >> "$dump_log"
+    case "$power_rc" in 124|255) DUMP_UI_TRANSPORT=1 ;; esac
+    if [ "$power_rc" -ne 0 ]; then
+      [ "$attempt" -lt 5 ] && sleep 3
+      continue
+    fi
+    if [ "${wake_status:-missing}" != Awake ]; then
+      printf 'attempt=%s wake_action=sequence\n' "$attempt" >> "$dump_log"
+      wake_sequence "$dump_log"
+      wake_rc=$?
+      [ "${WAKE_SEQUENCE_TRANSPORT:-0}" -eq 1 ] && DUMP_UI_TRANSPORT=1
+      if [ "$wake_rc" -ne 0 ]; then
+        [ "$attempt" -lt 5 ] && sleep 3
+        continue
+      fi
+    fi
     adbT 60 -s "$SER" shell "rm -f $DEVICE_TMP/ui.xml" >> "$dump_log" 2>&1
     rm_rc=$?
     adbT 60 -s "$SER" shell "uiautomator dump $DEVICE_TMP/ui.xml" >> "$dump_log" 2>&1
@@ -220,7 +243,17 @@ dump_ui() {
       printf 'attempt=%s cat_rc=%s\n' "$attempt" "$cat_rc" >> "$dump_log"
       if [ "$cat_rc" -eq 0 ] && [ -s "$out" ]; then
         tr -d '\r' < "$out" > "$out.tmp" && mv "$out.tmp" "$out"
-        [ -s "$out" ] && return 0
+        if [ -s "$out" ]; then
+          if ! grep -q 'package="com.kalsa.app"' "$out"; then
+            printf 'attempt=%s aod\n' "$attempt" >> "$dump_log"
+            wake_sequence "$dump_log"
+            wake_rc=$?
+            [ "${WAKE_SEQUENCE_TRANSPORT:-0}" -eq 1 ] && DUMP_UI_TRANSPORT=1
+            [ "$attempt" -lt 5 ] && sleep 3
+            continue
+          fi
+          return 0
+        fi
       fi
     fi
     [ "$attempt" -lt 5 ] && sleep 3
@@ -345,7 +378,7 @@ typing_awake() {
   local chunk="$2"
   local before_file="${prefix}_typing_wake_${chunk}_before.txt"
   local after_file="${prefix}_typing_wake_${chunk}_after.txt"
-  local before after
+  local before after wake_rc
   adbT 60 -s "$SER" shell dumpsys power > "$before_file" 2>&1 || return 1
   if grep -q 'mWakefulness=Awake' "$before_file"; then
     before=Awake
@@ -353,9 +386,9 @@ typing_awake() {
   else
     before=$(wake_state "$before_file")
     printf 'typing_chunk=%s wake_before=%s action=wake\n' "$chunk" "${before:-missing}" >> "${prefix}_ui_attempts.txt"
-    adbT 60 -s "$SER" shell input keyevent KEYCODE_WAKEUP >> "${prefix}_typing_wake.log" 2>&1 || return 1
-    adbT 60 -s "$SER" shell wm dismiss-keyguard >> "${prefix}_typing_wake.log" 2>&1 || return 1
-    sleep 1
+    wake_sequence "${prefix}_typing_wake.log"
+    wake_rc=$?
+    [ "$wake_rc" -eq 0 ] || return 1
     adbT 60 -s "$SER" shell dumpsys power > "$after_file" 2>&1 || return 1
     after=$(wake_state "$after_file")
   fi
@@ -464,6 +497,7 @@ ui_send() {
   previous_send=""
   typing_total=0
   EMPTY_TEXT=""
+  LAST_EDIT_BOUNDS=""
   TYPE_ATTEMPT_NO=0
 
   sleep 3
@@ -478,6 +512,7 @@ ui_send() {
     void_reason=composer
     return 2
   fi
+  LAST_EDIT_BOUNDS="$edit_bounds"
   EMPTY_TEXT=$(composer_text_attr "$edit_file" text)
   tap_bounds "$edit_bounds" || return 1
   type_start=$(date +%s)
