@@ -113,3 +113,34 @@ runs 7+ only; for runs 4–6 it is an exploratory reading and the strict verdict
 F3 — CONFIRMED-FIXED. :107 "| B2 | … | na→37.066 (at 900 s cap) | 900 |".
 
 VERDICT: BANK (descriptive) — F1-F3 all fixed, no regressions; 1.81× in the 1.4-1.9× band, strict endpoint NOT MET.
+
+## Delta audit #14 — REPORT run 7
+
+Line-by-line — CONFIRMED, every number/quote reproduced: results.tsv:2-4 EXACT (A1 na/
+33.073→35.471; B1 12082.106/16.7674810783565/35.29→44.526/fallback=1/VOID; A2 12575.789/925/
+16.5567619207553/38.429→46.69/647f906d); statuses A1 row_void=1/composer, B1 row_void=1/
+new_tokens_b=na/governor_count=0, A2 row_void=0/new_tokens_a=925; B1:604 FALLBACK
+`{"stage":"correctness","reason":"gpu-prefill-incorrect-Unknown",…}` VERBATIM; B1:1149 and
+A2:1164 `offloaded 0/31 layers to GPU`; B1:6951 and A2:7743 `KALSA_BENCH_TOKENS …"n":1023…`;
+typing_wake_4_before:7 `mWakefulness=Awake`; typing_chunks:3 `len=1412 expected=1500
+result=short t=59s`; type_prompt:2 `attempt=2 chunk_size=200 seconds=34 rc=2`; adb-exit
+:160/:213/:352 `rc=255 … dumpsys power`; B2 cooldown:53 `wait_s=780 skin=37.139`; driver
+log:7 `DEADLINE_45_MIN`; recon:3-6 SM7675/pineapple; ratio 12082.106/12575.789 = 0.960743
+→ "0.96" ✓.
+Altitude — CONFIRMED. B1-as-CPU justified by :604 correctness-FALLBACK + :1149 0/31;
+"labelled CPU vs CPU, not the pre-registered B/A" explicit; parity NOT-tested stated (also
+PREREG:192-193); strict oracle correctly not evaluable (the pair lacks A-side ids); 
+bankability confined to CPU TTFT + governor-inert-by-allowlist — no overclaim.
+Omissions — CONFIRMED none: n=1023 recorded on both rows; B2/deadline included.
+Cross-file — CONFIRMED: consistent with the post hoc (:191-193, :201-202, :215-217,
+:224-240; "MemTotal ≤ 8 GiB" matches PREREG:233) and the :11 pointer; the 0.55-0.58 band
+matches the delta-9b-corrected numbers.
+F1 — MINOR, PLAUSIBLE: "oracle=VOID by construction" — the B-side ids ARE extractable from
+:6951; VOID comes from the row rules; prefer "pair not evaluable (A side missing)".
+F2 — NIT: PREREG:192-193 compound citation for the band quote.
+
+## Delta audit #14 — verdict
+
+BANK (descriptive, as a null + CPU numbers). All citations/arithmetic reproduce; CPU-vs-CPU
+labelling, parity NOT-tested, oracle not-evaluable, bankability scope right; 1 minor (F1),
+1 nit (F2).
