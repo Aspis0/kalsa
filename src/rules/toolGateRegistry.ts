@@ -3,7 +3,7 @@
  * row with a gateTable is therefore enough to make it resolvable; unregistered
  * names (miniapps, document_chat, …) remain exempt by construction.
  *
- * Flag OFF (expand=false): only web_search resolves — today's behavior.
+ * Flag OFF (expand=false): web_search and web_fetch resolve for privacy.
  * Flag ON: the rest of the TOOL_ENTRIES gate rows are visible.
  */
 
@@ -26,6 +26,8 @@ export function resolveToolGateTable(
   toolName: string,
   expand: boolean,
 ): RuleTable | undefined {
-  if (!expand && toolName !== "web_search") return undefined;
+  if (!expand && toolName !== "web_search" && toolName !== "web_fetch") {
+    return undefined;
+  }
   return TOOL_GATE_REGISTRY[toolName];
 }

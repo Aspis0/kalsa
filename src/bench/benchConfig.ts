@@ -457,11 +457,12 @@ export async function getBenchRanking(): Promise<RankingMode | null> {
 }
 
 /**
- * Bench-only rules-gate switch. Absent / anything but "0" → on (production).
- * "0" disables the echo-of-context veto so the required arm can be measured
- * with and without the gate.
+ * Bench-only rules-gate switch. Privacy gates are always on in release builds;
+ * only a dev build may use "0" to disable the echo-of-context veto for an A/B
+ * measurement.
  */
 export async function getToolGateEnabled(): Promise<boolean> {
+  if (typeof __DEV__ === "undefined" || __DEV__ !== true) return true;
   try {
     const raw = await AsyncStorage.getItem(BENCH_TOOLGATE_KEY);
     if (raw === "0") return false;

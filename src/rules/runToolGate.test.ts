@@ -1,3 +1,11 @@
+// runToolGate resolves tables from toolRegistry; mock its native transitive
+// storage dependency so this rule test remains Node-safe.
+jest.mock("expo-secure-store", () => ({
+  deleteItemAsync: jest.fn(),
+  getItemAsync: jest.fn(),
+  setItemAsync: jest.fn(),
+}));
+
 jest.mock("@react-native-async-storage/async-storage", () => {
   const store = new Map<string, string>();
   return {
@@ -21,6 +29,7 @@ jest.mock("expo-file-system/legacy", () => ({
 
 import { getStrings } from "../i18n";
 import { clearGateAudit, readGateAudit } from "./gateAuditLog";
+import * as toolGateRegistry from "./toolGateRegistry";
 import {
   applyWarnToResult,
   prependWarnNote,
@@ -117,6 +126,116 @@ describe("runToolGate", () => {
     expect(result.blocked).toBe(true);
     expect(result.decision?.ruleId).toBe("sensitive-pattern-in-query");
     expect(result.decision?.reason).toBe("sensitive-pattern-in-query");
+  });
+
+  test.each([
+    ["IBAN", "https://example.com/pay?iban=DE89370400440532013000"],
+    ["card", "https://example.com/pay?card=4111111111111111"],
+  ])("web_fetch blocks a sensitive %s in the URL", async (_label, url) => {
+    const result = await runToolGate({
+      toolName: "web_fetch",
+      args: { url, query: "weather in Milano" },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: true,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("sensitive-pattern-in-url");
+    expect(result.decision?.reason).toBe("sensitive-pattern-in-url");
+  });
+
+  test("web_fetch blocks a sensitive query argument", async () => {
+    const result = await runToolGate({
+      toolName: "web_fetch",
+      args: {
+        url: "https://example.com/article",
+        query: "my password is hunter2",
+      },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: true,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("sensitive-pattern-in-query");
+    expect(result.decision?.reason).toBe("sensitive-pattern-in-query");
+  });
+
+  test("web_fetch allows a clean URL and query", async () => {
+    const result = await runToolGate({
+      toolName: "web_fetch",
+      args: {
+        url: "https://example.com/article",
+        query: "weather in Milano",
+      },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(false);
+    expect(result.decision?.blocked).toBe(false);
+  });
+
+  test("web_fetch blocks sensitive input when expand is off", async () => {
+    const result = await runToolGate({
+      toolName: "web_fetch",
+      args: {
+        url: "https://example.com/article",
+        query: "email me at alex@example.com",
+      },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("sensitive-pattern-in-query");
+  });
+
+  test("web_fetch blocks a sensitive URL when expand is off", async () => {
+    const result = await runToolGate({
+      toolName: "web_fetch",
+      args: {
+        url: "https://example.com/pay?iban=DE89370400440532013000",
+        query: "weather in Milano",
+      },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("sensitive-pattern-in-url");
+    expect(result.decision?.reason).toBe("sensitive-pattern-in-url");
+  });
+
+  test("gate evaluation failure blocks the tool call", async () => {
+    const resolve = jest
+      .spyOn(toolGateRegistry, "resolveToolGateTable")
+      .mockReturnValueOnce({ rules: null as never });
+
+    const result = await runToolGate({
+      toolName: "web_fetch",
+      args: {
+        url: "https://example.com/article",
+        query: "weather in Milano",
+      },
+      lastUserMessage: "",
+      memoryFacts: [],
+      toolhelpOn: false,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.text).toBe(getStrings("en").errors.toolPrivacyBlocked);
+    resolve.mockRestore();
   });
 
   test("warn prepends the localized note without blocking the result", () => {

@@ -27,6 +27,17 @@ import {
 } from "./benchConfig";
 
 const MAX_TOOL_ROUNDS = 3;
+type DevGlobal = typeof globalThis & { __DEV__?: boolean };
+const devGlobal = globalThis as DevGlobal;
+const originalDev = devGlobal.__DEV__;
+
+afterEach(() => {
+  if (originalDev === undefined) {
+    delete devGlobal.__DEV__;
+  } else {
+    devGlobal.__DEV__ = originalDev;
+  }
+});
 
 describe("retired thinking off value", () => {
   beforeEach(() => {
@@ -134,9 +145,16 @@ describe("getToolChoiceMode / getToolGateEnabled defaults", () => {
     await expect(getToolGateEnabled()).resolves.toBe(true);
   });
 
-  test("toolgate 0 disables", async () => {
+  test("toolgate 0 disables in dev builds", async () => {
+    devGlobal.__DEV__ = true;
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
     await expect(getToolGateEnabled()).resolves.toBe(false);
+  });
+
+  test("toolgate 0 cannot disable gates in release builds", async () => {
+    devGlobal.__DEV__ = false;
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
+    await expect(getToolGateEnabled()).resolves.toBe(true);
   });
 });
 

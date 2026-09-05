@@ -9,14 +9,15 @@
  * 5. If user-visible, add the Settings UI read/write path and storage key.
  * 6. Add required i18n strings.
  * 7. For privacy gates, add the RuleTable and set TOOL_ENTRIES.gateTable;
- *    toolGateRegistry derives its lookup from those rows. Do not gate
- *    web_fetch here unless its separate follow-up is implemented.
+ *    toolGateRegistry derives its lookup from those rows. web_fetch is gated
+ *    for sensitive patterns on url + query.
  */
 
 import type { EngineTool } from "../engine/LlamaService";
 import { DOCUMENT_CHAT_TOOL } from "../documents/documentChatTool";
 import { CALENDAR_GATE_TABLE } from "../rules/calendarGate";
 import { TOOL_GATE_TABLE } from "../rules/toolGate";
+import { WEB_FETCH_GATE_TABLE } from "../rules/webFetchGate";
 import type { RuleTable } from "../rules/evaluate";
 import {
   CALENDAR_TOOLS_KEY,
@@ -92,7 +93,7 @@ export const TOOL_ENTRIES = [
     def: WEB_FETCH_TOOL,
     toggleKey: WEB_TOOLS_ENABLED_KEY,
     defaultOn: true,
-    gateTable: null,
+    gateTable: WEB_FETCH_GATE_TABLE,
   },
   {
     name: "document_chat",
