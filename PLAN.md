@@ -1071,6 +1071,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Indagine documentale parallela su Luna ee4741e9
 > (`docs/GPU-PREFILL-DIVERGENCE-2026-09-06.md`). Apro `S5-8Elite-r6`.
 
+> **6/09 05:40 Mac — S5 RUN 6 (8 ELITE) IN CORSO: sessione 799540 `S5-8Elite-r6`,
+> job sa803609, tunnel 6037 (`~/kalsa-qdc/tunnel-799540.pid`), serial 2a38935c,
+> `ro.soc.model SM8750` (driver BOARD=8-Elite), Android 16, APK 0265333.** Budget
+> 8 Elite prima: 623 min. Watcher attivo. Test pre-registrato: oracolo PASS su
+> B con prefill GPU ⇒ il difetto è del 750; FAIL ⇒ divergenza generica OpenCL.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
