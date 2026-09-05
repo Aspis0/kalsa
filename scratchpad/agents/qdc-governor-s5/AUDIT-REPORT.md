@@ -135,3 +135,42 @@ the qualifier.
 ## Verdict
 
 BANK-WITH-FIXES. 0 blockers, 0 majors, 5 minors (F1-F5); every number, citation, and quoted log line reproduced verbatim.
+
+## Addendum audit (run 6)
+
+
+## Addendum audit (run 6)
+
+Re-derived vs raw/sa803609 + driver log + PREREG run-6 amendment + ARM-A-PREFIX-REUSE doc.
+
+Verified clean: 8 TSV rows exact (A1 43677.83/28.68714, B1 358.167/28.47050, A2 41147.348/
+28.42617, B2 358.721/28.45468, A3 41689.67/28.65690, B3 359.635/28.19212, A4 41206.687/
+28.53287, B4 246.45/28.33153); decode medians 28.5328696529083/28.3315347742104, ratio
+0.992944 → 0.7056% lower, formal inclusive B>=A FAIL; TTFT medians 41206.687/358.721, ratio
+0.00870541; oracle 4/4 PASS, sha 0f4b385a in every row; B1-B3 GPU lines :6671/:5939/:5761
+(9206272, 2+13), :2814 variant 99/0; B4 :2868/:5441 routing verbatim, :5754 governor verbatim
+(CPU/CPU, 0/0, 246.45, cpu:2+13, WARM), 38.084 in gate:18 and thermal:60; prewarm all 8 exact
+(A 6595.56/6632.219/6748.909/6818.095, GPU-B 4063.01/4064.049/4303.089, B4 CPU 7162.874
+correctly excluded); A median (6632.219+6748.909)/2=6690.564, B 4064.049; MemAvailable
+driver-log:1-16 exact; skin 30.323→39.491; lmkd 0 all rows; ABORT :17/DONE :18; recon
+SM8750/Android 16/2a38935c; anchors 01:23:45→01:40:08. Timer note: run-6 A logs show "reusing
+1314/1329" (A_t1:6276) and "n_past=1314" (:6277), also in A2-A4; run-6 A1 gap prewarm-done
+1788596641.248 → native reuse 1788596684.662 = 43.41 s vs promptMs 43677.83 — gap+eval ≈
+promptMs, matching run-5's 44.471 vs 44925.62; pollution mechanism corroborated in both runs;
+"reuses the prefix exactly like B" correct.
+
+F1 — MINOR. "B4 … skin 38.084 (…gate.txt:4)": :4 is nsp4 41.1; skin sits at :18. Fix: :18.
+F2 — MINOR. "budget … PREREG.md:249": 623 is at :252. Fix citation.
+F3 — MINOR. "#38's 10× (ALIVE.md:418)": :418 is row 17; #38 = row 21 (~:438, ">=9.8x"). Fix.
+F4 — MINOR. "CPU/GPU=1.647×": exact 6690.564/4064.049 = 1.6463×. Fix digit.
+F5 — MINOR. "divergence is confined to Adreno 750": preregistered falsification logic OK, but
+one 830 board + board/build confounds; kernel cause correctly stays hypothesis. Fix: "not
+reproduced on the 830; attribution stands per the preregistered rule".
+F6 — MINOR. Note asserts "It is timer pollution: … not the asynchronous accumulation state"
+as fact; its own ARM doc says "Most likely root cause … do not print the raw stale fields needed
+to prove that exact mechanism". Fix: "most consistent explanation".
+
+## Verdict
+
+BANK-WITH-FIXES. 0 blockers, 0 majors, 6 minors (F1-F6); every row, median, ratio, prewarm
+value, oracle row, CPU-route line, and gap arithmetic reproduced verbatim.
