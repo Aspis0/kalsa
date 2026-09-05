@@ -1,0 +1,44 @@
+name: CI (typecheck + jest)
+
+# Lightweight gate for the feat/** branch line: TypeScript typecheck + the
+# jest suite, run in-band. No emulator — minutes, not the ~35-min E2E run.
+# Fires on push to any feat/** branch and on PRs; docs-only pushes are ignored
+# (a mutation matrix that runs on no push is decoration, not a gate).
+on:
+  push:
+    branches: [feat/**]
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+      - docs/**
+  pull_request:
+    branches: [feat/**]
+    paths-ignore:
+      - "**/*.md"
+      - LICENSE
+      - docs/**
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JS deps
+        run: npm ci
+
+      - name: Typecheck (tsc --noEmit)
+        run: npx tsc --noEmit
+
+      - name: Jest (in-band)
+        run: npx jest --runInBand

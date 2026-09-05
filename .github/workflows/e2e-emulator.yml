@@ -4,7 +4,7 @@ name: E2E emulator (real inference)
 # inference turn: sideloads a GGUF, sends a message, captures the reply.
 on:
   push:
-    branches: [main, v4.2-context-compaction]
+    branches: [main, v4.2-context-compaction, feat/moe-stream]
     # A ~35 min emulator run is pointless for docs-only commits.
     paths-ignore:
       - "**/*.md"
