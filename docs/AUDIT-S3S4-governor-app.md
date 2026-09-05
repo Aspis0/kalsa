@@ -232,3 +232,17 @@ Device: S5 B2 Wait at 38.14 °C stalled (`-2`). Abort still `fail("prefill admis
 **6. CI `33951262697`:** `in_progress`.
 
 **Delta-7 verdict: GO-WITH-FIXES** — stall is gone; S5 “engine_prefill CPU” is not guaranteed.
+
+## Delta re-audit 8 (6/09, 39c35bd1e + 0265333)
+
+**1. Reset per JS turn — FIXED.** `beginCompletion` `:681` `parent_ctx->resetGovernorPrefillStats()`. `reset_prefill_stats()` now `prefill_route_ = Undecided` (`runtime.cpp:178-179`). Every completion including prewarm. `clear_cache` still sets `prefill_route_ = Undecided` (`:166`) independently — needed (clear without `beginCompletion`); not absent.
+
+**2. Label — FIXED.** `refresh_policy_stats` (`:27-31`): Undecided → policy; CPU-routed → CPU; **no GPU branch** so GPU-routed keeps `stats_.prefill_engine = requested` set at `:65-67`. WARM policy is still GPU (`prefill_engine()` V75+measured), not CPU — no “CPU label / GPU exec”. CPU Wait path sets CPU at `:57-58` and refresh keeps it.
+
+**3. Tests.** First token: `(i == 0 && generated < 1)` (`turns.cpp:290`) **fails the test on 0**. Tokens 2–3 still `generated < 0` (allows 0). CPU label required after each of 3 decodes (`:291`). Prewarm-then-hot: cool 512 GPU (`:242-248`), `llama_governor_reset_prefill_stats` (`:248`), hot 305 CPU (`:270-271`). I ran: router EXIT 0; turns EXIT 0 `governor_hot_cpu_prefill=PASS engine=CPU chunks=cpu:305 prefill_us=24761 generated=3 commit_bytes=0` and chunked `prefill_us=251189`.
+
+**4. Vendor `0265333`.** Pin `39c35bd1e`. runtime.cpp MATCH after `lm_ggml_` rename.
+
+**5. CI `33951825993`:** `in_progress`.
+
+**Delta-8 verdict: GO** for S5 run 5 (APK `0265333`). Hot B should complete with `engine_prefill CPU` / `prefill_chunks cpu:N`.

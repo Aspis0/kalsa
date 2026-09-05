@@ -1025,6 +1025,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Build/router/turns 0. CI 33951825993 in volo. Delta audit 8 → grok (verifica
 > anche il test prewarm→turno caldo e l'assert sui token generati).
 
+> **6/09 05:40 Mac — Delta audit 8 (grok): GO per il run 5 con APK 0265333**
+> (reset route per turno, etichetta = route eseguita, test rieseguiti). Attesa
+> per il run 5: un turno B caldo completa con `engine_prefill CPU` e
+> `prefill_chunks "cpu:…"`. Gate: CI 33951825993.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
