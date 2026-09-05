@@ -232,8 +232,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
 
   /**
    * On-device model catalog — user-facing descriptions + RAM policy shown in
-   * Settings → Models. Qwen 3.5 4B is THE default model; Q3 and 2B are
-   * fallbacks for lower-RAM phones only (see engine/contextProfile.ts).
+   * Settings → Models. Recommendation ownership lives on ModelInfo.
    */
   models: {
     qwen4b: {
@@ -241,26 +240,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
         "Default. Best quality, understands images. Needs 8 GB RAM or more (3.5 GB download).",
       ramBadge: "8 GB+ RAM",
     },
-    qwen4bQ3: {
-      description:
-        "Same model, lighter compression for phones with 6–8 GB RAM. Slightly lower quality.",
-      ramBadge: "6–8 GB RAM",
-    },
-    qwen2b: {
-      description: "Fallback for phones under 6 GB RAM. Fast, text only (no images).",
-      ramBadge: "Under 6 GB RAM",
-    },
-    gemmaE2b: {
-      description:
-        "Alternative vision-capable model with native tool calling. Not part of the Qwen RAM-tier fallback chain — pick it if you prefer Gemma.",
-    },
     lfm25: {
       description:
         "Liquid AI hybrid model. Always-on reasoning, text only (no images). ~1.7 GB download.",
-    },
-    lfm258b: {
-      description:
-        "Liquid AI 8B MoE model (~1B active). Always-on reasoning, text only. ~4.8 GB download.",
+      ramBadge: "Under 6 GB RAM",
     },
     whisperTiny: {
       description:
@@ -357,7 +340,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     models: {
       title: "Downloading models",
       body:
-        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; use the 2B model on low-RAM devices). Download asks for confirmation, shows progress, and may send a notification if notifications are enabled. You need free disk space (about 3.5 GB for the default Qwen 3.5 4B bundle; the exact size is shown in Settings). Incomplete downloads resume where they left off. Updating the app keeps your models; uninstalling it deletes them (they live in the app's private storage).",
+        "Open Settings → Models. Pick a model (Qwen 4B is the recommended default; LFM 2.6B is the lighter option). Download asks for confirmation, shows progress, and may send a notification if notifications are enabled. You need free disk space (about 3.5 GB for the default Qwen 3.5 4B bundle; the exact size is shown in Settings). Incomplete downloads resume where they left off. Updating the app keeps your models; uninstalling it deletes them (they live in the app's private storage).",
     },
     websearch: {
       title: "Web search",
@@ -409,7 +392,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       },
       modelDiff: {
         q: "What is the difference between models?",
-        a: "Qwen 4B: default, more capable, ~3.5 GB. Qwen 3.5 2B: lighter and faster on low-RAM devices. Gemma 4 E2B: vision-specialized (photos/PDFs). Q3: low-RAM variant of the 4B.",
+        a: "Qwen 4B: default, more capable, and vision-capable (~3.5 GB). LFM 2.6B: lighter, text-only, and recommended for lower-RAM devices (~1.7 GB).",
       },
       clearHistory: {
         q: "How do I clear chat history?",
@@ -417,7 +400,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       },
       sendImages: {
         q: "Can I send images?",
-        a: "Yes, with vision-capable models (Qwen 4B with vision components, Gemma). Attach them from the attachment sheet.",
+        a: "Yes, with the vision-capable Qwen 4B. Attach an image from the attachment sheet.",
       },
     },
   },
@@ -506,7 +489,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     saveToNotes: "Save to notes",
     lookAtAttachedFile: "Look at the attached file.",
     visionUnsupportedNotice:
-      "The active model can't see images — switch to a vision model (Qwen 3.5 4B or Gemma 4) in Settings to analyze photos.",
+      "The active model can't see images — switch to Qwen 3.5 4B in Settings to analyze photos.",
     a11yAttach: "Add attachment",
     a11yRemoveAttachment: "Remove attachment",
     a11yStop: "Stop generation",

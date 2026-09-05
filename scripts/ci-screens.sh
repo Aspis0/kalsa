@@ -8,11 +8,13 @@
 set -uo pipefail
 OUT="e2e-out"; mkdir -p "$OUT" "$OUT/seeds"
 PKG=com.kalsa.app
-MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
-MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
-# Must match ModelRegistry sizeBytes for qwen3.5-2b — isModelBundleDownloaded
+# Default LFM2.5-2.6b (not the 4B) is intentional: lighter screens CI uses the
+# smaller model so emulator captures stay fast and cheap (no inference runs).
+MODEL_DIR="${MODEL_DIR:-lfm2.5-2.6b}"
+MODEL_FILE="${MODEL_FILE:-LFM2.5-2.6B-QAD-Q4_0.gguf}"
+# Must match ModelRegistry sizeBytes for the default model — isModelBundleDownloaded
 # requires exact byte length, not just file presence.
-MODEL_SIZE_BYTES="${MODEL_SIZE_BYTES:-1280835840}"
+MODEL_SIZE_BYTES="${MODEL_SIZE_BYTES:-1593894944}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
 
 # shellcheck source=ci-lib.sh
@@ -482,7 +484,7 @@ install_and_sideload "$APK_PATH" "model.gguf" "$MODEL_DIR" "$MODEL_FILE"
 
 # isModelBundleDownloaded (ModelDownloader.ts) requires the GGUF to exist at
 # exact registry sizeBytes. A tiny dummy fails that check → header shows
-# "Download 1.3 GB" and Settings shows Active + Not downloaded while chat is
+# "Download 1.7 GB" and Settings shows Active + Not downloaded while chat is
 # seeded. Sparse-pad on device so size matches without filling the disk;
 # screens never run inference so zero-filled content is fine.
 # Skip when the file is already the expected size (real model present).

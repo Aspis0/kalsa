@@ -15,9 +15,9 @@ on:
       model:
         description: "Model to test"
         required: true
-        default: "qwen3.5-2b"
+        default: "qwen3.5-4b"
         type: choice
-        options: [qwen3.5-2b, qwen3.5-4b]
+        options: [qwen3.5-4b, lfm2.5-2.6b]
       compaction:
         description: "Context compaction (PIANO V4.2)"
         required: true
@@ -118,17 +118,25 @@ jobs:
       - name: Download GGUF model
         run: |
           set -e
-          if [ "${{ inputs.model || 'qwen3.5-2b' }}" = "qwen3.5-4b" ]; then
-            URL="https://huggingface.co/unsloth/Qwen3.5-4B-MTP-GGUF/resolve/86835bf9949e4d14d6860f7910b1340ad4f271a9/Qwen3.5-4B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=Qwen3.5-4B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=qwen3.5-4b" >> $GITHUB_ENV
-          else
-            URL="https://huggingface.co/unsloth/Qwen3.5-2B-GGUF/resolve/f6d5376be1edb4d416d56da11e5397a961aca8ae/Qwen3.5-2B-Q4_K_M.gguf?download=true"
-            echo "MODEL_FILE=Qwen3.5-2B-Q4_K_M.gguf" >> $GITHUB_ENV
-            echo "MODEL_DIR=qwen3.5-2b" >> $GITHUB_ENV
+          MODEL="${{ inputs.model || 'qwen3.5-4b' }}"
+          MANIFEST=$(node scripts/benchPreflight.mjs --env "$MODEL")
+          echo "$MANIFEST" >> "$GITHUB_ENV"
+          MODEL_URL=$(echo "$MANIFEST" | grep '^MODEL_URL=' | cut -d= -f2-)
+          EXPECTED_BYTES=$(echo "$MANIFEST" | grep '^EXPECTED_BYTES=' | cut -d= -f2-)
+          curl -sL -o model.gguf "$MODEL_URL"
+          actual=$(stat -c %s model.gguf)
+          if [ "$actual" != "$EXPECTED_BYTES" ]; then
+            echo "model.gguf size $actual != expected $EXPECTED_BYTES (truncated/corrupt download)"
+            exit 1
           fi
-          curl -sL -o model.gguf "$URL"
-          ls -la model.gguf
+          echo "model.gguf OK ($actual bytes)"
+          MMPROJ_URL=$(echo "$MANIFEST" | grep '^MMPROJ_URL=' | cut -d= -f2- || true)
+          if [ -n "$MMPROJ_URL" ]; then
+            curl -sL -o mmproj.gguf "$MMPROJ_URL"
+            ls -la model.gguf mmproj.gguf
+          else
+            ls -la model.gguf
+          fi
 
       - name: Run E2E on emulator
         uses: reactivecircus/android-emulator-runner@v2
@@ -159,7 +167,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: e2e-evidence-${{ inputs.model || 'qwen3.5-2b' }}-compaction-${{ inputs.compaction || 'on' }}
+          name: e2e-evidence-${{ inputs.model || 'qwen3.5-4b' }}-compaction-${{ inputs.compaction || 'on' }}
           path: |
             e2e-out/**
           if-no-files-found: warn

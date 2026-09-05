@@ -195,12 +195,11 @@ async function main() {
   });
 
   check("isChatModel2BClass / isChatModel4BClass helpers", () => {
-    assert(isChatModel2BClass("qwen3.5-2b") === true, "2b");
-    assert(isChatModel2BClass("gemma-4-e2b") === true, "e2b");
+    assert(isChatModel2BClass("lfm2.5-2.6b") === true, "2b class");
+    assert(isChatModel2BClass("removed-model") === false, "unknown");
     assert(isChatModel2BClass("qwen3.5-4b") === false, "4b not 2b");
     assert(isChatModel4BClass("qwen3.5-4b") === true, "4b");
-    assert(isChatModel4BClass("qwen3.5-4b-q3") === true, "4b-q3");
-    assert(isChatModel4BClass("qwen3.5-2b") === false, "2b not 4b");
+    assert(isChatModel4BClass("lfm2.5-2.6b") === false, "2b not 4b");
     assert(isChatModel2BClass(null) === false, "null");
   });
 

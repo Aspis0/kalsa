@@ -26,8 +26,8 @@ import {
 describe("sessionStem", () => {
   test("includes model, conversation, and computePromptEnvHash", () => {
     const env = computePromptEnvHash("en", ["User likes espresso"], true);
-    const stem = sessionStem("lfm2.5-8b-a1b-kexp", "conv-1", env);
-    expect(stem).toBe(`lfm2_002e5-8b-a1b-kexp__conv-1__${env}`);
+    const stem = sessionStem("lfm2.5-2.6b", "conv-1", env);
+    expect(stem).toBe(`lfm2_002e5-2_002e6b__conv-1__${env}`);
   });
 
   test("different prompt env hashes produce different stems", () => {

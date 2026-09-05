@@ -99,18 +99,18 @@ export function shouldSkipStaticPrefixPrewarm(
  *
  * This used to skip only for DENSE models, on the assumption that "hybrid /
  * kvUnified restores are not real (n_past=0)". **Measured false on 2026-08-21**
- * (HARNESS_FINDINGS §7.29): on LFM2.5-8B-A1B-KEXP — hybrid — a restore after
- * force-stop logged `is_hybrid=1 resumable=1`, loaded in 19 ms, and the next
+ * (HARNESS_FINDINGS §7.29): on a hybrid model a restore after force-stop
+ * logged `is_hybrid=1 resumable=1`, loaded in 19 ms, and the next
  * send ran at `n_past=1473` with `promptMs` ~2 s, twice. The KV was real, and
  * the architecture never told us whether it would be.
  *
  * §7.30 measured hybrid/kvUnified restores with 1814–1946 resident and reused
  * tokens, confirming that a successful restore can leave real reusable KV.
  * So the condition is whether KV holds a chat session, not how it got there
- * or which architecture produced it. Qwen3.5-2B also restores, then loses the
- * KV at prompt time ("no usable state checkpoint … doing full cache clear")
- * because its prompt diverges — a prewarm would not have survived that
- * either, so skipping is right there too.
+ * or which architecture produced it. A second hybrid restore also lost the KV
+ * at prompt time ("no usable state checkpoint … doing full cache clear") because
+ * its prompt diverged — a prewarm would not have survived that either, so
+ * skipping is right there too.
  */
 export function shouldSkipPrewarmWhenKvHoldsChat(
   kvHoldsChatSession: boolean,

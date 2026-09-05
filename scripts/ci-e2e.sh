@@ -5,8 +5,8 @@
 # Evidence (screenshots, UI dumps, logcat, chat DB, telemetry) lands in ./e2e-out.
 set -uo pipefail
 OUT="e2e-out"; mkdir -p "$OUT"
-MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
-MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
+MODEL_FILE="${MODEL_FILE:-Qwen3.5-4B-Q4_K_M.gguf}"
+MODEL_DIR="${MODEL_DIR:-qwen3.5-4b}"
 COMPACTION_IN="${COMPACTION:-on}"
 THINKING="${THINKING:-default}"
 PKG=com.kalsa.app
@@ -51,6 +51,19 @@ install_and_sideload \
   "model.gguf" \
   "$MODEL_DIR" \
   "$MODEL_FILE"
+
+if [ -n "${MMPROJ_FILE:-}" ]; then
+  [ -f mmproj.gguf ] || die "mmproj.gguf missing for $MMPROJ_FILE"
+  [ -n "${MMPROJ_BYTES:-}" ] || die "MMPROJ_BYTES missing for $MMPROJ_FILE"
+  adb push mmproj.gguf /data/local/tmp/mmproj.gguf 2>&1 | tail -1
+  adb shell "cp /data/local/tmp/mmproj.gguf /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE"
+  adb shell "rm -f /data/local/tmp/mmproj.gguf"
+  _mmproj_uid=$(adb shell "stat -c %U /data/data/$PKG" | tr -d '\r')
+  adb shell "chown -R $_mmproj_uid:$_mmproj_uid /data/data/$PKG/files/models"
+  _mmproj_size=$(adb shell "stat -c %s /data/data/$PKG/files/models/$MODEL_DIR/$MMPROJ_FILE" | tr -d '\r')
+  [ "$_mmproj_size" = "$MMPROJ_BYTES" ] \
+    || die "mmproj size $_mmproj_size != expected $MMPROJ_BYTES"
+fi
 
 log "set prefs: model=$MODEL_DIR compaction=$COMPACTION_IN thinking=$THINKING"
 sql "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR');"

@@ -235,26 +235,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
         "Predefinito. Qualità migliore, capisce le immagini. Richiede 8 GB di RAM o più (3,5 GB di download).",
       ramBadge: "8 GB+ di RAM",
     },
-    qwen4bQ3: {
-      description:
-        "Stesso modello, compressione più leggera per telefoni con 6–8 GB di RAM. Qualità leggermente inferiore.",
-      ramBadge: "6–8 GB di RAM",
-    },
-    qwen2b: {
-      description: "Ripiego per telefoni con meno di 6 GB di RAM. Veloce, solo testo (niente immagini).",
-      ramBadge: "Meno di 6 GB di RAM",
-    },
-    gemmaE2b: {
-      description:
-        "Modello alternativo con visione e tool calling nativo. Non fa parte della catena di fallback RAM di Qwen — scegli questo se preferisci Gemma.",
-    },
     lfm25: {
       description:
         "Modello ibrido Liquid AI. Ragionamento sempre attivo, solo testo (niente immagini). Download ~1,7 GB.",
-    },
-    lfm258b: {
-      description:
-        "Modello Liquid AI 8B MoE (~1B attivo). Ragionamento sempre attivo, solo testo. Download ~4,8 GB.",
+      ramBadge: "Meno di 6 GB di RAM",
     },
     whisperTiny: {
       description:
@@ -351,7 +335,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     models: {
       title: "Scaricare i modelli",
       body:
-        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; usa il 2B su dispositivi con poca RAM). Il download chiede conferma, mostra il progresso e può inviare una notifica se le notifiche sono abilitate. Serve spazio su disco (circa 3,5 GB per il bundle Qwen 3.5 4B predefinito; la dimensione esatta è mostrata in Impostazioni). I download interrotti riprendono da dove erano. Aggiornare l'app mantiene i modelli; disinstallarla li elimina (vivono nello storage privato dell'app).",
+        "Apri Impostazioni → Modelli. Scegli un modello (Qwen 4B è il default consigliato; LFM 2,6B è l'opzione più leggera). Il download chiede conferma, mostra il progresso e può inviare una notifica se le notifiche sono abilitate. Serve spazio su disco (circa 3,5 GB per il bundle Qwen 3.5 4B predefinito; la dimensione esatta è mostrata in Impostazioni). I download interrotti riprendono da dove erano. Aggiornare l'app mantiene i modelli; disinstallarla li elimina (vivono nello storage privato dell'app).",
     },
     websearch: {
       title: "Ricerca web",
@@ -403,7 +387,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       },
       modelDiff: {
         q: "Differenza tra i modelli?",
-        a: "Qwen 4B: default, più capace, ~3,5 GB; Qwen 3.5 2B: più leggero e veloce su dispositivi con poca RAM; Gemma 4 E2B: specializzato nella visione (foto/PDF); Q3: variante a bassa RAM del 4B.",
+        a: "Qwen 4B: default, più capace e compatibile con la visione (~3,5 GB). LFM 2,6B: più leggero, solo testo e consigliato per dispositivi con poca RAM (~1,7 GB).",
       },
       clearHistory: {
         q: "Come cancello la cronologia?",
@@ -411,7 +395,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       },
       sendImages: {
         q: "Posso mandare immagini?",
-        a: "Sì, con i modelli che supportano la visione (Qwen 4B con componenti per la visione, Gemma); allegali dal foglio di allegati.",
+        a: "Sì, con Qwen 4B, l'unico modello con visione. Allega un'immagine dal foglio di allegati.",
       },
     },
   },
@@ -503,7 +487,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     saveToNotes: "Salva nelle note",
     lookAtAttachedFile: "Guarda il file allegato.",
     visionUnsupportedNotice:
-      "Il modello attivo non vede le immagini — passa a un modello vision (Qwen 3.5 4B o Gemma 4) nelle Impostazioni per analizzare le foto.",
+      "Il modello attivo non vede le immagini — passa a Qwen 3.5 4B nelle Impostazioni per analizzare le foto.",
     a11yAttach: "Aggiungi allegato",
     a11yRemoveAttachment: "Rimuovi allegato",
     a11yStop: "Interrompi generazione",

@@ -51,7 +51,13 @@ import { handleAskAssistantMiniappAction } from "./miniappActions";
 import * as Notifications from "expo-notifications";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
-import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
+import {
+  downloadModelBundle,
+  friendlyNetworkError,
+  isModelBundleDownloaded,
+  modelLocalPath,
+  sweepOrphanModelDirs,
+} from "../engine/ModelDownloader";
 import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
@@ -2592,6 +2598,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (savedIndex >= 0) setModelIndex(savedIndex);
       })
       .catch(() => undefined);
+    // M1: best-effort boot sweep of orphaned model folders left by a catalog
+    // prune (no UI delete path). Fire-and-forget — never blocks UI.
+    void sweepOrphanModelDirs().catch(() => undefined);
     return () => {
       mounted = false;
     };

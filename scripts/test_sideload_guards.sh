@@ -34,10 +34,10 @@ fi
 
 # ── Test 2: short file (should die with both numbers + label) ────────
 _died=""
-assert_size_match "1000000" "1234567" "LFM2.5-8B.gguf"
+assert_size_match "1000000" "1234567" "short-model.gguf"
 if echo "$_died" | grep -q "1000000" \
   && echo "$_died" | grep -q "1234567" \
-  && echo "$_died" | grep -q "LFM2.5-8B.gguf"; then
+  && echo "$_died" | grep -q "short-model.gguf"; then
   echo "PASS: short file — die fired: $_died"
   pass=$((pass + 1))
 else
@@ -47,8 +47,8 @@ fi
 
 # ── Test 3: insufficient space (should die with model name + both sizes) ─
 _died=""
-check_free_space "5000000000" "5200000000" "LFM2.5-8B-A1B.gguf"
-if echo "$_died" | grep -q "LFM2.5-8B-A1B.gguf" \
+check_free_space "5000000000" "5200000000" "large-model.gguf"
+if echo "$_died" | grep -q "large-model.gguf" \
   && echo "$_died" | grep -q "5200000000" \
   && echo "$_died" | grep -q "5000000000"; then
   echo "PASS: insufficient space — die fired: $_died"

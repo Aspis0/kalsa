@@ -29,13 +29,19 @@ const projectRoot = path.resolve(__dirname, "..");
 function parseModelRegistry() {
   const registryPath = path.join(projectRoot, "src/engine/ModelRegistry.ts");
   const content = readFileSync(registryPath, "utf8");
+  const registryStart = content.indexOf("export const MODEL_REGISTRY: ModelInfo[] = [");
+  const registryEnd = content.indexOf("\n];", registryStart);
+  if (registryStart < 0 || registryEnd < 0) {
+    throw new Error("MODEL_REGISTRY array not found");
+  }
+  const registryContent = content.slice(registryStart, registryEnd);
 
   const models = [];
   // Match each model object in MODEL_REGISTRY array
   // Pattern: find blocks starting with { id: and ending with },
   const modelBlockRegex = /\{\s*id:\s*"([^"]+)",[\s\S]*?^\s{2}\},?/gm;
   let match;
-  while ((match = modelBlockRegex.exec(content)) !== null) {
+  while ((match = modelBlockRegex.exec(registryContent)) !== null) {
     const block = match[0];
     const id = match[1];
 
@@ -53,6 +59,7 @@ function parseModelRegistry() {
       revision: revisionMatch[1],
       file: fileMatch[1],
       sizeBytes: parseInt(sizeBytesMatch[1].replace(/_/g, ""), 10),
+      listed: !/listed:\s*false/.test(block),
     };
 
     // Check for mmproj
@@ -210,7 +217,7 @@ function checkModel(model) {
  * Output format: KEY=VALUE (one per line, for >> $GITHUB_ENV).
  */
 function printEnvVars(modelId, models) {
-  const model = models.find((m) => m.id === modelId);
+  const model = models.find((m) => m.id === modelId && m.listed !== false);
   if (!model) {
     console.error(`Model ${modelId} not found in registry`);
     process.exit(1);
@@ -244,12 +251,11 @@ if (args[0] === "--env") {
   process.exit(0);
 }
 
-// Default: check all models
+// Default: check every listed model in the registry. The catalog is the only
+// source of truth; adding/removing a listed entry automatically changes this
+// preflight set.
 const models = parseModelRegistry();
-// Filter to only the 4 models the workflow can select
-const workflowModels = models.filter((m) =>
-  ["qwen3.5-2b", "qwen3.5-4b", "lfm2.5-2.6b", "lfm2.5-8b-a1b"].includes(m.id)
-);
+const workflowModels = models.filter((m) => m.listed !== false);
 
 console.log(`Preflight: checking ${workflowModels.length} models...\n`);
 

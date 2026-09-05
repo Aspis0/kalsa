@@ -684,7 +684,7 @@ export function queueStaticPrefixPrewarm(
   }
   const prefix = resolvePrewarmPrefix(locale, tools);
   // Chat KV must not be prewarmed over — restore and live-chat KV included.
-  // §7.29 measured n_past=1473 after a hybrid restore on KEXP, so the old
+  // §7.29 measured n_past=1473 after a hybrid restore, so the old
   // "hybrid restores are not real" carve-out was wrong.
   if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
     logPrewarm({ op: "skip", reason: "kv_holds_chat" });
@@ -1161,7 +1161,8 @@ export function initEngine(
     // value as contextBudget. Memory budget may only SHRINK when available RAM
     // is known and non-evictable would OOM — never invents an upgrade (preserves
     // high-RAM hybrid 16k path). cache_type_k/v stay catalog/caller-owned
-    // (Q3 q4/q4 must not be overwritten by the layer's q8/q4 default).
+    // (the selected catalog profile must not be overwritten by the layer's
+    // q8/q4 default).
     // Resolve BEFORE idempotence so effectiveNCtx is the single key for init,
     // activeEngineCtx, KV-session meta, restore validation, and skip-reload.
     // deviceProfile.cpuCapacities is forwarded so the G99 measured prefill
@@ -1338,7 +1339,7 @@ export function initEngine(
       !options.speculativeOverride?.draftModelPath
     ) {
       // Hostile-review F1: chat-set "mtp" on a model whose catalog carries no
-      // MTP (2B, 4B-Q3, Gemma — no NextN tensors) would force same-model draft
+      // A model without catalog MTP capability would force same-model draft
       // speculation; the documented failure mode is a native hang at init
       // (run 31274549105: 35 min, zero tokens). Fall back to plain decode.
       nextSpecType = "none";
@@ -1507,7 +1508,7 @@ export function initEngine(
         enabled = await context.initMultimodal({
           path: options.mmprojPath,
           use_gpu: Platform.OS === "ios",
-          // Cap image tokens for dynamic-resolution models (Qwen3.5-VL):
+          // Cap image tokens for dynamic-resolution vision models:
           // uncapped, a 1280px photo explodes into thousands of image tokens
           // and the CPU encode+prefill runs for minutes with no feedback
           // (field: "descrivi immagine" stuck, 2026-08-07). PocketPal ships

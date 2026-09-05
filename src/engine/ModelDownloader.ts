@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
 import { getStrings, type Locale } from "../i18n";
+import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL } from "./ModelRegistry";
 import type { ModelInfo, ModelFileSpec } from "./ModelRegistry";
 import type { ModelGateVerdict } from "./deviceProfile";
 import { resolveModelArtifact } from "./modelHost";
@@ -442,5 +443,124 @@ export async function deleteModelFiles(model: ModelInfo): Promise<void> {
   for (const { file, spec } of entries) {
     await FileSystem.deleteAsync(modelLocalPath(model, file), { idempotent: true }).catch(() => undefined);
     await AsyncStorage.removeItem(resumeKeyFor(model, file, spec)).catch(() => undefined);
+  }
+}
+
+// ── Orphan cleanup (catalog-prune disk leak, M1) ─────────────────────────────
+/**
+ * Orphan cleanup for catalog prunes.
+ *
+ * `MODELS_DIR/<id>/` holds one folder per downloaded model. When the catalog
+ * prunes a model (see ModelRegistry), the on-disk folder and its resume blobs
+ * survive with no UI delete path — a permanent disk leak (M1). `sweepOrphanModelDirs`
+ * removes those folders at boot.
+ *
+ * The catalog ids that legitimately own a folder: every MODEL_REGISTRY entry
+ * (chat LLMs) plus WHISPER_MODEL and EMBEDDING_MODEL, which are downloaded
+ * through the same pipeline but are not part of the chat catalog list.
+ */
+function catalogKeepIds(): ReadonlySet<string> {
+  const ids = new Set<string>([WHISPER_MODEL.id, EMBEDDING_MODEL.id]);
+  for (const model of MODEL_REGISTRY) ids.add(model.id);
+  return ids;
+}
+
+export type OrphanSweepResult = {
+  /** Orphaned model directory names that were removed (best-effort). */
+  removed: string[];
+};
+
+/**
+ * Subdirectory names under MODELS_DIR whose id is not in the live catalog.
+ * Pure and FS-free so it is unit-testable without React Native.
+ *
+ * `dirNames` are the raw entries returned by `readDirectoryAsync(MODELS_DIR)`
+ * (each entry is a model id, since `modelLocalPath` is
+ * `${MODELS_DIR}${model.id}/${file}`). `keepIds` is the set of catalog ids that
+ * still own a folder. Anything else is an orphan left by a prune.
+ */
+export function listOrphanModelDirNames(
+  dirNames: readonly string[],
+  keepIds: ReadonlySet<string>,
+): string[] {
+  const orphan: string[] = [];
+  for (const name of dirNames) {
+    if (keepIds.has(name)) continue;
+    orphan.push(name);
+  }
+  return orphan;
+}
+
+/**
+ * Best-effort boot cleanup of orphaned model directories (M1). Removes any
+ * `MODELS_DIR/<id>/` folder whose id is no longer in the catalog, plus its
+ * persisted resume blobs. Never throws to the caller — a failed delete on one
+ * orphan must not abort the sweep of the others.
+ *
+ * Fire-and-forget at app boot (see AppShell): it must not block UI.
+ */
+export async function sweepOrphanModelDirs(): Promise<OrphanSweepResult> {
+  const keepIds = catalogKeepIds();
+
+  // MODELS_DIR may be absent (fresh install, or documentDirectory empty). A
+  // missing dir is not an error — nothing to sweep.
+  let names: string[];
+  try {
+    names = await FileSystem.readDirectoryAsync(MODELS_DIR);
+  } catch {
+    return { removed: [] };
+  }
+
+  const orphans = listOrphanModelDirNames(names, keepIds);
+  if (orphans.length === 0) return { removed: [] };
+
+  const removed: string[] = [];
+  for (const id of orphans) {
+    const target = `${MODELS_DIR}${id}`;
+    // Only ever remove directories: never a stray file that happens to sit
+    // directly under MODELS_DIR, and never a live catalog id (guarded by
+    // keepIds above).
+    try {
+      const info = await FileSystem.getInfoAsync(target);
+      if (info.exists && info.isDirectory === true) {
+        await FileSystem.deleteAsync(target, { idempotent: true }).catch(
+          () => undefined,
+        );
+      }
+    } catch {
+      // Best-effort: skip this orphan and continue with the rest.
+    }
+    // Clear any resume blobs for the removed model (cheap, best-effort).
+    await clearOrphanResumeKeys(id);
+    removed.push(id);
+  }
+  return { removed };
+}
+
+/**
+ * Remove persisted resume blobs whose model id no longer exists on disk.
+ * Enumerate AsyncStorage keys and drop those matching
+ * `kalsa.download.resume.<id>.…`. Best-effort: never throws.
+ */
+async function clearOrphanResumeKeys(orphanId: string): Promise<void> {
+  // getAllKeys is optional on some AsyncStorage builds — bail cleanly if absent.
+  if (
+    typeof (AsyncStorage as { getAllKeys?: unknown }).getAllKeys !== "function"
+  ) {
+    return;
+  }
+  // Every resume key is written as `<prefix><id>.<revision>.<file>`, so the id
+  // is always followed by a dot. Matching the trailing dot avoids clearing a
+  // longer id that merely starts with this one.
+  const prefix = `${RESUME_KEY_PREFIX}${orphanId}`;
+  try {
+    const keys = await AsyncStorage.getAllKeys();
+    await Promise.all(
+      keys
+        .filter((key) => key.startsWith(prefix))
+        .map((key) => AsyncStorage.removeItem(key).catch(() => undefined)),
+    );
+  } catch {
+    // Enumeration/clearing is best-effort here.
   }
 }

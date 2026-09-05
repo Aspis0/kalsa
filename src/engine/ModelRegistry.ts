@@ -69,6 +69,11 @@ export type ModelInfo = {
   /** Modelli ibridi/ricorrenti (Qwen3.5): stato unificato. */
   kvUnified?: boolean;
   /**
+   * Declarative model size used by runtime gates that need a coarse class.
+   * This is metadata, not an inference from the model id.
+   */
+  sizeClass?: "2B" | "4B" | "8B" | "other";
+  /**
    * MTP (NextN speculative) embedded nel GGUF. `nMax` is the capability;
    * `defaultEnabled` (default false) gates the PRODUCTION path — plain decode
    * beat MTP on open text on CI (3x) and on the Xiaomi 14 (2x, +53% decode,
@@ -93,15 +98,24 @@ export type ModelInfo = {
   descriptionKey: TranslationKey;
   /**
    * i18n key for a compact RAM badge (e.g. "8 GB+ RAM") shown in Settings.
-   * Only set for models that are part of the qwen3.5 RAM-tier fallback chain.
+   * Set for models that participate in the RAM-tier recommendation UI.
    */
   ramBadgeKey?: TranslationKey;
   /**
-   * Minimum RAM tier this model is recommended for (advisory only — see
-   * contextProfile.ts §RAM tiers). Only set for the qwen3.5 fallback chain;
-   * other models (Gemma, Whisper) are not part of that tier scheme.
+   * Minimum RAM tier for loading this model (advisory only — see
+   * contextProfile.ts §RAM tiers).
    */
   minRamTier?: RamTier;
+  /**
+   * RAM tiers for which this is the advisory recommendation. The first
+   * matching listed entry in MODEL_REGISTRY wins; tests enforce one primary
+   * recommendation per tier.
+   */
+  recommendForTiers?: RamTier[];
+  /** Hidden catalog entries remain available to code but are not listed or
+   * eligible for recommendations. Omitted means listed (the default).
+   */
+  listed?: boolean;
   /**
    * Measured (or honestly derived) KV cache cost in bytes per token at the
    * catalog `kvCache` quant. Used by `memoryEstimate.ts`. Prefer phone
@@ -184,6 +198,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
     kvUnified: true,
+    sizeClass: "4B",
     // kvBytesPerToken intentionally omitted: no on-device measurement for the 4B
     // at q8_0/q4_0, and the registry lacks attention-layer count / n_embd_k_gqa
     // fields needed to derive it honestly from the hybrid layout (header comment
@@ -194,100 +209,8 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     descriptionKey: "models.qwen4b.description",
     ramBadgeKey: "models.qwen4b.ramBadge",
     minRamTier: "high",
+    recommendForTiers: ["high"],
     default: true,
-  },
-  {
-    id: "qwen3.5-4b-q3",
-    name: "Qwen 3.5 4B · Q3",
-    vendor: "Alibaba",
-    quant: "Q3_K_M",
-    hfRepo: "unsloth/Qwen3.5-4B-MTP-GGUF",
-    revision: "86835bf9949e4d14d6860f7910b1340ad4f271a9",
-    file: "Qwen3.5-4B-Q3_K_M.gguf",
-    sizeBytes: 2_374_564_160,
-    weightsBytesPerToken: {
-      bytes: 2_349_627_392,
-      source: "tensor-map",
-    },
-    mmproj: {
-      file: "mmproj-F16.gguf",
-      sizeBytes: 672_423_616,
-      hfRepo: "unsloth/Qwen3.5-4B-GGUF",
-      revision: "e87f176479d0855a907a41277aca2f8ee7a09523",
-    },
-    contextLength: 262144,
-    engineCtx: 8192,
-    // Low-RAM hybrid: q4/q4 KV (~half of q8) so Q3 weights + KV fit on ~4GB devices.
-    kvCache: { k: "q4_0", v: "q4_0" },
-    hybrid: true,
-    kvUnified: true,
-    // MTP non impostato: GGUF Q3 non validato con tensori NextN (da device test).
-    thinking: { short: 256, extended: 512 },
-    // Measured §7.29: without this the think block stays in KV and vanishes
-    // from stored history, so the prompt diverges every turn and a recurrent
-    // model clears the whole cache — 104-138 s of prefill on the Jelly.
-    preserveThinking: true,
-    descriptionKey: "models.qwen4bQ3.description",
-    ramBadgeKey: "models.qwen4bQ3.ramBadge",
-    minRamTier: "mid",
-  },
-  {
-    id: "gemma-4-e2b",
-    name: "Gemma 4 E2B",
-    vendor: "Google",
-    quant: "Q4_K_M",
-    hfRepo: "unsloth/gemma-4-E2B-it-GGUF",
-    revision: "0314792d7f1f7e229411f620751375812bb9faf2",
-    file: "gemma-4-E2B-it-Q4_K_M.gguf",
-    sizeBytes: 3_106_738_272,
-    weightsBytesPerToken: {
-      bytes: 1_448_577_164,
-      source: "tensor-map",
-    },
-    mmproj: { file: "mmproj-F16.gguf", sizeBytes: 985_654_080 },
-    contextLength: 131072,
-    engineCtx: 8192,
-    kvCache: { k: "q8_0", v: "q4_0" },
-    // One of the two models that did not load at all on an 8 GB phone (lmkd
-    // kill): with repack on, load_tensors builds CPU_REPACK ≈ file size of
-    // ANONYMOUS memory on top of the weights (2265.50 MiB on a 2264.53 MiB
-    // file). Repack off keeps the weights entirely file-backed/reclaimable.
-    loadPolicy: { mmap: true, repack: false },
-    descriptionKey: "models.gemmaE2b.description",
-  },
-  {
-    id: "qwen3.5-2b",
-    name: "Qwen 3.5 2B",
-    vendor: "Alibaba",
-    quant: "Q4_K_M",
-    hfRepo: "unsloth/Qwen3.5-2B-GGUF",
-    revision: "f6d5376be1edb4d416d56da11e5397a961aca8ae",
-    file: "Qwen3.5-2B-Q4_K_M.gguf",
-    sizeBytes: 1_280_835_840,
-    weightsBytesPerToken: {
-      bytes: 1_269_865_728,
-      source: "tensor-map",
-    },
-    contextLength: 262144,
-    // Catalog-authoritative: resolveContextProfile never downgrades this (16k on all devices).
-    engineCtx: 16384,
-    // V-cache quant: q4_0 baseline; revisit after Fase 4 quality bench.
-    kvCache: { k: "q8_0", v: "q4_0" },
-    hybrid: true,
-    kvUnified: true,
-    // Measured on-device at q8_0/q4_0: 4.88 KiB/token (hybrid layers filter
-    // most of the stack out of KV — naive n_layer×n_embd overestimates).
-    kvBytesPerToken: Math.round(4.88 * 1024),
-    // nPredict 2560 = extended 1536 + the 1024 answer floor (miniapp JSON blew
-    // past 512; n_predict counts think + answer, so 2048 would leave only 512).
-    thinking: { short: 512, extended: 1536, nPredict: 2560 },
-    // Measured §7.29: without this the think block stays in KV and vanishes
-    // from stored history, so the prompt diverges every turn and a recurrent
-    // model clears the whole cache — 104-138 s of prefill on the Jelly.
-    preserveThinking: true,
-    descriptionKey: "models.qwen2b.description",
-    ramBadgeKey: "models.qwen2b.ramBadge",
-    minRamTier: "low",
   },
   {
     id: "lfm2.5-2.6b",
@@ -307,90 +230,14 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
+    sizeClass: "2B",
     // Budget caps the think block but cannot disable it (template has no off switch).
     thinking: { short: 256, extended: 512 },
     preserveThinking: true,
     descriptionKey: "models.lfm25.description",
-  },
-  {
-    id: "lfm2.5-8b-a1b",
-    name: "LFM2.5 8B-A1B",
-    vendor: "Liquid AI",
-    quant: "Q4_K_M",
-    hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
-    revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
-    file: "LFM2.5-8B-A1B-Q4_K_M.gguf",
-    sizeBytes: 5_155_564_768,
-    // text-only: no mmproj in the HF repo
-    contextLength: 131072,
-    engineCtx: 8192, // consistent with lfm2.5-2.6b and other large models
-    kvCache: { k: "q8_0", v: "q4_0" },
-    hybrid: true,
-    // Budget caps the think block but cannot disable it (template has no off switch).
-    thinking: { short: 256, extended: 512 },
-    preserveThinking: true,
-    canStreamExperts: true,
-    // Peak RssAnon with expert streaming (arm killE-8b-a1b-moestream,
-    // Samsung S23, 2026-08-23, engineCtx 8192): 2 750 692 kB × 1024.
-    // Covers weights + KV + compute. Do not scale; refuse on ctx mismatch.
-    streamingResident: {
-      bytes: 2_816_708_608,
-      measuredAtContextTokens: 8192,
-    },
-    // Same failure as gemma-4-e2b: repack's anonymous copy ≈ file size kills
-    // the load on an 8 GB phone. When the gate arms expert streaming it
-    // re-forces no_extra_bufts anyway and outranks this (loadPolicy.ts).
-    loadPolicy: { mmap: true, repack: false },
-    descriptionKey: "models.lfm258b.description",
-  },
-  {
-    // Our own KEXP requantization of the entry above: q2_k on routed gate/up,
-    // q3_k on routed down, q5_k/q6_k on the two leading dense blocks, f32 norms.
-    // 3.10 GiB against 4.80 — and the point is not disk, it is page cache. The
-    // Q4_K_M build measured a page-fault storm on an S23 (93.5 GiB of file pages
-    // re-read from flash in ONE turn, 309 MiB per generated token, decode
-    // 0.31 tok/s against 18.6 prefill, §7.14) because it cannot stay resident.
-    // 3.10 GiB against ~4.3 GB of MemAvailable might.
-    //
-    // Download source is resolved from hfArtifactRepo once KALSA_HF_ORG is set;
-    // until then the resolver declines this own artifact instead of treating
-    // the upstream provenance repo as its host.
-    //
-    // Quality, measured on our multi5 corpus at the same k=4, against gates that
-    // were frozen before the numbers existed and are not renegotiated here:
-    // macro bpb 1.2926 vs 1.2221 (+0.0705, gate +0.05 — MISSES) and zh +0.1053
-    // (per-language gate +0.10 — MISSES). Italian +0.0909 passes. Shipping it is
-    // a product decision, not a technical one.
-    id: "lfm2.5-8b-a1b-kexp",
-    name: "LFM2.5 8B-A1B KEXP",
-    vendor: "Liquid AI",
-    quant: "KEXP",
-    hfRepo: "LiquidAI/LFM2.5-8B-A1B-GGUF",
-    revision: "dfd5fdcad7a1c0d31473fb4ca443b8befbacddf0",
-    file: "LFM2.5-8B-A1B-KEXP.gguf",
-    sizeBytes: 3_326_160_384,
-    hfArtifactRepo: "LFM2.5-8B-A1B-KEXP-GGUF",
-    contextLength: 131072,
-    engineCtx: 8192,
-    kvCache: { k: "q8_0", v: "q4_0" },
-    hybrid: true,
-    weightsBytesPerToken: {
-      bytes: 848_000_000,
-      source: "tensor-map",
-    },
-    thinking: { short: 256, extended: 512 },
-    preserveThinking: true,
-    // Capability only. No streamingResident: no in-app measurement, so the
-    // gate will not stream this build. The missing measurement is the guard,
-    // not the flag.
-    canStreamExperts: true,
-    // MEASURED deviation — the only mmap-off entry. With eviction active the
-    // whole plan went 3055 s with mmap against 464 s with use_mmap=false on the
-    // S23 (HARNESS_FINDINGS §7.45; §7.48 confirmed the mechanism: on the Jelly,
-    // which never evicts, the same flag bought nothing). Anonymous weights are
-    // what keeps this model off the reclaim path it provokes.
-    loadPolicy: { mmap: false, repack: true },
-    descriptionKey: "models.lfm258b.description",
+    ramBadgeKey: "models.lfm25.ramBadge",
+    minRamTier: "low",
+    recommendForTiers: ["low", "mid"],
   },
 ];
 
