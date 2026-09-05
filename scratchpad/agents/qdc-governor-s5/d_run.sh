@@ -87,7 +87,7 @@ case "$SOC" in
 esac
 holder_loop & HOLDER_PID=$!; sleep 1
 thermal_record() {
-  local name="$1" file="$RAW/${name}_thermal.txt" rc skin gate="${file%.txt}_gate.txt" max_temp thermal_status
+  local name="$1"; local file="$RAW/${name}_thermal.txt"; local gate="${file%.txt}_gate.txt"; local rc skin max_temp thermal_status
   adbT 90 -s "$SER" shell dumpsys thermalservice > "$file" 2>&1; rc=$?
   awk '/Current temperatures from HAL/{f=1} f{print} /Current cooling devices from HAL/{f=0}' "$file" > "$gate"
   grep 'Thermal Status:' "$file" | head -1 >> "$gate"
@@ -269,7 +269,7 @@ ime_suspend() {
   adbT 60 -s "$SER" shell "ime disable $IME_SAVED" >/dev/null 2>&1 && IME_SUSPENDED=1 || true
 }
 run_observation() {
-  local arm="$1" turn="$2" prefix="$RAW/${BOARD}_${arm}_t${turn}" flag skin_before=na skin_after=na thermo="" logcat="${prefix}_logcat_all.txt" status=0 load_rc=1 telemetry_rc=1 edit_bounds send_bounds
+  local arm="$1" turn="$2"; local prefix="$RAW/${BOARD}_${arm}_t${turn}"; local logcat="${prefix}_logcat_all.txt"; local flag skin_before=na skin_after=na thermo="" status=0 load_rc=1 telemetry_rc=1 edit_bounds send_bounds
   local telemetry governor bench ttft=na decode=na prefill=na decode_engine=na thermal=na commit_bytes=na commit_ms=na thermo_source=na fallback=0 lmkd=0 governor_count=0 ids_sha=na oracle=na n=na runtime_prereq=0 ids_file="${prefix}_ids.txt"
   deadline_check; fresh_install "$prefix" || status=1; [ "$status" -eq 0 ] && copy_model "$prefix" || status=1; [ "$status" -eq 0 ] && bootstrap_db "$prefix" || status=1
   flag=0; [ "$arm" = B ] && flag=1

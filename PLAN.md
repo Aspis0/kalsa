@@ -692,6 +692,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > LOCKED** con identità APK; host QDC per sessione nei raw. Prossimo: sessione
 > QDC `S5-QRD8650` (45 min), tunnel 6037, `d_run.sh <job> <apk> ABABABAB`.
 
+> **5/09 (21:10 ora Mac) — S5 IN CORSO su QDC: sessione 799218 `S5-QRD8650`
+> (45 min, SSH only, chiave kalsa-mac; il form richiede la SSH key, NON il
+> pacchetto), job sa803287, tunnel 6037 pid in `~/kalsa-qdc/tunnel-799218.pid`,
+> serial a652109b, skin 28.9 °C.** Primo lancio del driver morto al secondo:
+> `line 90: name: unbound variable` — con `set -u`, `local a="$1" b="${a}"`
+> espande `${a}` PRIMA dell'assegnazione (bash espande gli argomenti del
+> builtin). Stesso pattern alla riga 272 (`prefix`/`logcat`). Fixati da me
+> spezzando le `local` (urgenza: sessione a tempo; `bash -n` ok, raw del crash
+> in `raw/sa803287-VOID-crash-line90/`); rilanciato 21:13. Lezione da memoria:
+> `bash -n` non vede gli unbound di `set -u`; una prova a secco con `set -u` su
+> funzioni con `local` multiple andava fatta nel pre-run audit.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
