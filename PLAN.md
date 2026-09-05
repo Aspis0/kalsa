@@ -1474,6 +1474,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 6eba835a…, 135,66 MB) — handoff aggiornato. **Run 7c**: sessione 803833 (S5b-7pG3-r7c) in
 > apertura; budget QRD7675 835 min prima di questa.
 
+> **5/09 17:45 EDT Mac — run 7c (sa807902, sessione 803833) ABORT ad A1 prima del typing.**
+> `uiautomator dump` fallito in silenzio (stdout/stderr scartati; `edit.xml` = 64 byte "No such
+> file"), `edit_bounds` vuoto → `return 1` → ABORT dell'intera run a un turno. Contesto: il prewarm
+> dell'app su 732 dura 117,8 s (3,9 s sull'8 Elite) e il primo dump arrivava subito dopo. Quarta
+> causa device-specific in tre run. Fix a Luna: dump_ui con 5 retry a 3 s e log dell'errore,
+> pausa 3 s dopo il load, dump fallito ⇒ VOID composer (rc 2) e mai abort; PREREG "7c → 7d".
+> Sessione 803833 tenuta viva (scade 19:32) per run 7d sullo stesso tunnel.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

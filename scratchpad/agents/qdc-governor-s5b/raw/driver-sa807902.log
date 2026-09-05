@@ -1,0 +1,4 @@
+MEM before=8894048 after=6544872
+A	1	na	na	na	na	na	na	na	na	na	27.974	28.731	0	0	na	na
+[17:25:02] ABORT arm=A turn=1
+[17:25:02] DONE board=7p-Gen-3 final_rc=1 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/raw/sa807902/results.tsv
