@@ -47,6 +47,15 @@ SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAV
 FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=900; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0; LAST_EDIT_BOUNDS=""; POWER_CHECK_CONTEXT=""; WAKE_SEQUENCE_TRANSPORT=0
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/parse.sh
 log() { echo "[$(date +%H:%M:%S)] $*"; }
+gpu_fit_ram_gate() {
+  local device_tag="$1"
+  local memtotal_kb="$2"
+  case "$memtotal_kb" in ''|*[!0-9]*) return 0;; esac
+  if [ "$device_tag" = 8-Gen-3 ] && [ "$memtotal_kb" -le 8388608 ]; then
+    log "GPU_FIT_RAM memtotal_kb=$memtotal_kb"
+    return 2
+  fi
+}
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
 deadline_check() { [ "$(date +%s)" -lt "$DEADLINE_EPOCH" ] || { log "DEADLINE_${DEADLINE_MINUTES}_MIN"; write_end "deadline_${DEADLINE_MINUTES}_min"; exit 124; }; }
 adbT() {
@@ -57,6 +66,25 @@ adbT() {
   for arg in "$@"; do printf -v argline '%s %q' "$argline" "$arg"; done
   printf 'rc=%s%s\n' "$rc" "$argline" >> "$ADB_LOG"
   return "$rc"
+}
+power_capture() {
+  local file="$1"
+  local attempt rc has_wakefulness all_transport=1
+  POWER_CAPTURE_TRANSPORT=0
+  : > "${file}.log"
+  for attempt in 1 2 3; do
+    adbT 60 -s "$SER" shell dumpsys power > "$file" 2>&1
+    rc=$?
+    has_wakefulness=0
+    grep -q 'mWakefulness=' "$file" && has_wakefulness=1
+    printf 'attempt=%s rc=%s has_wakefulness=%s\n' "$attempt" "$rc" "$has_wakefulness" >> "${file}.log"
+    if [ "$has_wakefulness" -eq 1 ]; then
+      return 0
+    fi
+    case "$rc" in 124|255) ;; *) all_transport=0 ;; esac
+  done
+  [ "$all_transport" -eq 1 ] && POWER_CAPTURE_TRANSPORT=1
+  return 1
 }
 wake_tap() {
   local wake_log="$1"
@@ -133,6 +161,7 @@ adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WA
   echo "ro.build.fingerprint"; adbT 60 -s "$SER" shell getprop ro.build.fingerprint
   echo "ro.build.type"; adbT 60 -s "$SER" shell getprop ro.build.type
   echo "ro.debuggable"; adbT 60 -s "$SER" shell getprop ro.debuggable
+  echo "MemTotal"; adbT 60 -s "$SER" shell "cat /proc/meminfo | grep '^MemTotal:'"
   echo "id"; adbT 60 -s "$SER" shell id
 } > "$RAW/recon.txt" 2>&1
 configure_screen || { log "SCREEN_SETUP_FAIL"; exit 2; }
@@ -144,6 +173,9 @@ case "$SOC" in
 esac
 BOARD=$(device_tag "$PRODUCT_NAME" "$SOC") || { log "DEVICE_TAG_FAIL product=$PRODUCT_NAME soc=$SOC"; exit 6; }
 printf 'device_tag=%s\n' "$BOARD" >> "$RAW/recon.txt"
+MEMTOTAL_KB=$(sed -n 's/^MemTotal:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$RAW/recon.txt" | head -1 | tr -d '\r')
+printf 'memtotal_kb=%s\n' "${MEMTOTAL_KB:-missing}" >> "$RAW/recon.txt"
+gpu_fit_ram_gate "$BOARD" "$MEMTOTAL_KB" || exit $?
 holder_loop & HOLDER_PID=$!; sleep 1
 make_thermo() {
   local skin="$1" now trend tenths
@@ -194,13 +226,16 @@ bootstrap_db() {
   return 1
 }
 set_prefs() {
-  local flag="$1" dir remote run_rc
+  local flag="$1"
+  local governor_force=0
+  local dir remote run_rc
   local step_file="${RAW}/set_prefs_${flag}.txt"
   [ "$#" -ge 2 ] && step_file="$2_set_prefs.txt"
+  [ "$flag" -eq 1 ] && [ "$BOARD" = 8-Gen-3 ] && governor_force=1
   dir=$(mktemp -d /tmp/kalsa-s5-rkstorage.XXXXXX) || return 1
   : > "$step_file"
   pull_rkstorage "$dir" || { rm -rf "$dir"; return 1; }
-  /usr/bin/sqlite3 -bail "$dir/RKStorage" "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','$flag'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','false'),('kalsa.tools.device','false'),('kalsa.tools.calendar','false');" >/dev/null || { rm -rf "$dir"; return 1; }
+  /usr/bin/sqlite3 -bail "$dir/RKStorage" "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','$flag'),('kalsa.bench.governor_force','$governor_force'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','false'),('kalsa.tools.device','false'),('kalsa.tools.calendar','false');" >/dev/null || { rm -rf "$dir"; return 1; }
   /usr/bin/sqlite3 -bail "$dir/RKStorage" 'PRAGMA wal_checkpoint(TRUNCATE);' >/dev/null || { rm -rf "$dir"; return 1; }
   remote="$DEVICE_TMP/rkstorage-$JOB-$$"
   adbT 300 -s "$SER" push "$dir/RKStorage" "$remote" >> "$step_file" 2>&1; run_rc=$?
@@ -252,7 +287,7 @@ poll_load() {
     deadline_check
     power_file="${wake_file}.power"
     POWER_CHECK_CONTEXT=load
-    adbT 60 -s "$SER" shell dumpsys power > "$power_file" 2>&1
+    power_capture "$power_file"
     power_rc=$?
     POWER_CHECK_CONTEXT=""
     [ "$power_rc" -eq 0 ] || return 1
@@ -330,6 +365,10 @@ run_observation() {
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat"); lmkd=$(count_lmkd_after "$logcat"); telemetry=$(last_json_after KALSA_TELEMETRY "$logcat"); governor=$(last_json_after 'KALSA_GOVERNOR ' "$logcat"); bench=$(last_json_after 'KALSA_BENCH_TOKENS ' "$logcat"); tool_call=$(last_json_after 'KALSA_TOOLCALL ' "$logcat"); structured_calls=$(json_field "$tool_call" structuredCalls); [ -n "$structured_calls" ] || structured_calls=0; case "$structured_calls" in ''|*[!0-9]*) structured_calls=0;; esac; if [ "$structured_calls" -gt 0 ]; then tool_calls="$structured_calls"; void_reason=toolcall; row_void=1; fi
   ttft=$(json_field "$telemetry" promptMs); prefill_ms=$(json_field "$governor" prefill_ms); prefill_chunks=$(json_field "$governor" prefill_chunks); decode=$(json_field "$telemetry" predictedPerSecond); prefill=$(json_field "$governor" engine_prefill); decode_engine=$(json_field "$governor" engine_decode); thermal=$(json_field "$governor" thermal_state); commit_bytes=$(json_field "$governor" commit_bytes); commit_ms=$(json_field "$governor" commit_ms); thermo_source=$(json_field "$governor" thermo_source); governor_count=$(awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&index($0,"KALSA_GOVERNOR ")>0{n++}END{print n+0}' "$logcat"); n=$(json_field "$bench" n)
   [ -n "$ttft" ] || ttft=na; [ -n "$prefill_ms" ] || prefill_ms=na; [ -n "$prefill_chunks" ] || prefill_chunks=na; [ -n "$decode" ] || decode=na; [ -n "$prefill" ] || prefill=na; [ -n "$decode_engine" ] || decode_engine=na; [ -n "$thermal" ] || thermal=na; [ -n "$commit_bytes" ] || commit_bytes=na; [ -n "$commit_ms" ] || commit_ms=na; [ -n "$thermo_source" ] || thermo_source=na; [ -n "$n" ] || n=na
+  if [ "$arm" = B ] && [ "$row_void" -eq 0 ] && { [ "${fallback:-0}" -gt 0 ] || [ -z "$governor" ]; }; then
+    row_void=1
+    void_reason=governor_fallback
+  fi
   reuse_line=$(last_reuse_after "$logcat"); a_reused=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p'); a_total=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
   if [ "$arm" = A ]; then [ -n "${a_reused:-}" ] && [ -n "${a_total:-}" ] && new_tokens_a=$((a_total - a_reused)); else new_tokens_b=$(chunk_sum "$prefill_chunks" 2>/dev/null || printf 'na'); fi
   if [ "$arm" = A ]; then awk -v n="$new_tokens_a" 'BEGIN{exit !(n ~ /^[0-9]+$/&&n>=938*0.9&&n<=938*1.1)}' >/dev/null 2>&1 || row_void=1; else awk -v n="$new_tokens_b" 'BEGIN{exit !(n ~ /^[0-9]+$/&&n>=938*0.9&&n<=938*1.1)}' >/dev/null 2>&1 || row_void=1; fi

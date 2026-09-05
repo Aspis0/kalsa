@@ -4,7 +4,7 @@ CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-
 DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
-THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; DUMP_FAILS=0; DUMP_AOD_FAILS=0; LOAD_LOGCAT_CALLS=0; LOAD_DOZE_REMAINING=0; POWER_CHECK_CONTEXT=""; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0; TYPE_VERIFY_ACTIVE=0; TYPE_VERIFY_ATTEMPT=0; TYPE_VERIFY_CHUNK=0; TYPE_VERIFY_EXPECTED_LEN=0; FIRST_LOSS_USED=0; MID_MISMATCH_USED=0; ALWAYS_MISMATCH=0
+THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; DUMP_FAILS=0; DUMP_AOD_FAILS=0; LOAD_LOGCAT_CALLS=0; LOAD_DOZE_REMAINING=0; POWER_CHECK_CONTEXT=""; POWER_MODE=normal; POWER_CALLS=0; COMPOSER_MODE=legacy; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0; TYPE_VERIFY_ACTIVE=0; TYPE_VERIFY_ATTEMPT=0; TYPE_VERIFY_CHUNK=0; TYPE_VERIFY_EXPECTED_LEN=0; FIRST_LOSS_USED=0; MID_MISMATCH_USED=0; ALWAYS_MISMATCH=0
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
@@ -24,7 +24,7 @@ extract() {
   local wanted="$1"
   /usr/bin/awk -v wanted="$wanted" '$0 ~ ("^" wanted "\\(\\) \\{"){on=1;print;if($0~/;[[:space:]]*}$/)on=0;next} on{print;if($0~/^}$/)on=0}' "$DRIVER"
 }
-for fn in log write_end deadline_check validate_deadline_minutes adbT logcat_all wake_tap wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
+for fn in log gpu_fit_ram_gate write_end deadline_check validate_deadline_minutes adbT power_capture logcat_all wake_tap wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
 source "$LIB"
 source "$CELL/parse.sh"
 
@@ -54,7 +54,11 @@ adbT() {
   elif [[ "$joined" == *"date '+%m-%d"* ]]; then printf '09-04 12:00:00.000\n'
   elif [[ "$joined" == *"date +%s"* ]]; then printf '1000\n'
   elif [[ "$joined" == *"pm list packages"* ]]; then printf '0\nlist_rc=1\n'
-  elif [[ "$joined" == *"dumpsys power"* ]]; then if [ "$WAKE_MODE" = doze_load ] && [ "$POWER_CHECK_CONTEXT" = load ] && [ "$LOAD_DOZE_REMAINING" -gt 0 ]; then LOAD_DOZE_REMAINING=$((LOAD_DOZE_REMAINING - 1)); printf 'mWakefulness=Dozing\n'; elif [ "$WAKE_MODE" = doze_once ] && [ "$WAKE_AWAKE" -eq 0 ]; then printf 'mWakefulness=Dozing\n'; else printf 'mWakefulness=Awake\n'; fi
+  elif [[ "$joined" == *"dumpsys power"* ]]; then
+    POWER_CALLS=$((POWER_CALLS + 1))
+    if [ "$POWER_MODE" = rc255_good ]; then printf 'mWakefulness=Awake\n'; return 255; fi
+    if [ "$POWER_MODE" = no_wake ]; then printf 'power dump without wakefulness\n'; return 1; fi
+    if [ "$WAKE_MODE" = doze_load ] && [ "$POWER_CHECK_CONTEXT" = load ] && [ "$LOAD_DOZE_REMAINING" -gt 0 ]; then LOAD_DOZE_REMAINING=$((LOAD_DOZE_REMAINING - 1)); printf 'mWakefulness=Dozing\n'; elif [ "$WAKE_MODE" = doze_once ] && [ "$WAKE_AWAKE" -eq 0 ]; then printf 'mWakefulness=Dozing\n'; else printf 'mWakefulness=Awake\n'; fi
   elif [[ "$joined" == *"dumpsys package"* || "$joined" == *"pm dump"* ]]; then printf 'Package [com.kalsa.app] flags=[ DEBUGGABLE ]\n'
   elif [[ "$joined" == *"pidof"* ]]; then printf '4242\n'
   elif [[ "$joined" == *"sha256sum"* ]]; then printf '%s  %s\n' "$MODEL_SHA" "$MODEL_REMOTE"
@@ -161,6 +165,8 @@ record wake_sequence wake_sequence
 record device_wake device_wake
 record wake_state wake_state "$TMP/power.txt"
 record ensure_awake ensure_awake "$TMP/awake"
+POWER_MODE=rc255_good; POWER_RC=0; power_capture "$TMP/power-rc255.txt" || POWER_RC=$?; [ "$POWER_RC" -eq 0 ] && grep -q 'attempt=1 rc=255 has_wakefulness=1' "$TMP/power-rc255.txt.log" || exit 1
+POWER_MODE=no_wake; POWER_RC=0; power_capture "$TMP/power-no-wake.txt" || POWER_RC=$?; [ "$POWER_RC" -ne 0 ] && [ "$(grep -c '^attempt=' "$TMP/power-no-wake.txt.log")" -eq 3 ] || exit 1; POWER_MODE=normal
 printf 'serial=dryrun\n' > "$RAW/recon.txt"; record configure_screen configure_screen; grep -q 'screen_off_timeout_previous=60000' "$RAW/recon.txt" || exit 1
 record restore_device restore_device
 record restore_ime restore_ime
@@ -177,6 +183,10 @@ RUNAS_FAIL_ONCE=1; RUNAS_CALLS=0; record copy_model_retry copy_model "$TMP/copy-
 record bootstrap_db bootstrap_db "$TMP/bootstrap"
 record set_prefs set_prefs 0
 for pref in kalsa.web.enabled kalsa.tools.device kalsa.tools.calendar; do /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'$pref','false'" || { echo "tool preference missing: $pref" >&2; exit 1; }; done
+BOARD=8-Gen-3; set_prefs 0 "$TMP/prefs-a-8" || exit 1; /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'kalsa.governor.enabled','0'" || exit 1; /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'kalsa.bench.governor_force','0'" || exit 1
+set_prefs 1 "$TMP/prefs-b-8" || exit 1; /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'kalsa.governor.enabled','1'" || exit 1; /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'kalsa.bench.governor_force','1'" || exit 1
+for board in 7p-Gen-3 8-Elite; do BOARD="$board"; set_prefs 1 "$TMP/prefs-b-$board" || exit 1; /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'kalsa.bench.governor_force','0'" || exit 1; done
+BOARD=QRD8650
 record fresh_install fresh_install "$TMP/install"
 record has_load_proof has_load_proof "$RAW_LOG"
 record count_after count_after KALSA_TELEMETRY "$RAW_LOG"
@@ -224,6 +234,16 @@ THERMAL_MODE=never; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation 
 THERMAL_MODE=ready; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 5; READY_RC=$?; [ "$READY_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==5{ok=1} END{exit !ok}' "$RESULTS" || exit 1
 THERMAL_MODE=afterhot; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 6; AFTER_RC=$?; [ "$AFTER_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==6&&$13=="42.5"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 .*cooldown_s=0' "$RAW/QRD8650_A_t6_status.txt" || exit 1
 THERMAL_MODE=missing; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; MISSING_RUN_RC=0; run_observation A 7 || MISSING_RUN_RC=$?; [ "$MISSING_RUN_RC" -ne 0 ] && grep -q 'status=1 .*void_reason=thermal' "$RAW/QRD8650_A_t7_status.txt" && grep -q 'void_reason=thermal' "$RAW/QRD8650_A_t7_cooldown_thermal_gate.txt" || exit 1; THERMAL_MODE=initial; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"
+COMPOSER_VOID_RAW="$TMP/composer-void"; /bin/mkdir -p "$COMPOSER_VOID_RAW"; RAW="$COMPOSER_VOID_RAW"; RESULTS="$COMPOSER_VOID_RAW/results.tsv"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$RESULTS"; THERMAL_MODE=ready; COMPOSER_MODE=normal; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; DUMP_FAILS=5; VOID_MODE=0
+[ ! -e "$RAW/QRD8650_B_t3_logcat_all.txt" ] || exit 1
+COMPOSER_VOID_RC=0; run_observation B 3 || COMPOSER_VOID_RC=$?; [ "$COMPOSER_VOID_RC" -eq 0 ] && grep -q 'status=0 row_void=1.*void_reason=composer' "$RAW/QRD8650_B_t3_status.txt" || exit 1; DUMP_FAILS=0
+RAM_LOG="$TMP/ram-gate.log"; RAM_RC=0; (gpu_fit_ram_gate 8-Gen-3 7864320) > "$RAM_LOG" 2>&1 || RAM_RC=$?; [ "$RAM_RC" -eq 2 ] && grep -q 'GPU_FIT_RAM memtotal_kb=7864320' "$RAM_LOG" || exit 1
+RAM_RC=0; (gpu_fit_ram_gate 8-Gen-3 12582912) > "$RAM_LOG" 2>&1 || RAM_RC=$?; [ "$RAM_RC" -eq 0 ] || exit 1
+RAM_RC=0; (gpu_fit_ram_gate 7p-Gen-3 7864320) > "$RAM_LOG" 2>&1 || RAM_RC=$?; [ "$RAM_RC" -eq 0 ] || exit 1
+ROW_RAW="$TMP/governor-rows"; /bin/mkdir -p "$ROW_RAW"; ROW_LOGCAT_FILE="$TMP/row-logcat.txt"; ROW_IDS='[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32]'; RAW="$ROW_RAW"; RESULTS="$ROW_RAW/results.tsv"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$RESULTS"; THERMAL_MODE=ready; COMPOSER_MODE=normal; COMPOSER_FOCUSED=0; COMPOSER_STAGE=screen; VOID_MODE=0; TOOL_MODE=0; BOARD=QRD8650
+/usr/bin/printf '%s\n' '1000 1 1 I ReactNativeJS: llama_model_loader: loaded meta data with 42 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf' '1000 1 1 I ReactNativeJS: KALSA_PREWARM {"op":"done"}' '1001 1 1 I llama: reusing 0/938' "1001 1 1 I ReactNativeJS: KALSA_TELEMETRY {\"tokensPredicted\":1,\"promptMs\":1,\"predictedPerSecond\":1}" "1001 1 1 I ReactNativeJS: KALSA_BENCH_TOKENS {\"n\":938,\"ids\":$ROW_IDS}" '1001 1 1 I ReactNativeJS: KALSA_GOVERNOR_FALLBACK reason=cpu' '1001 1 1 I ReactNativeJS: KALSA_GOVERNOR {"prefill_chunks":938,"engine_prefill":"GPU","engine_decode":"CPU","thermal_state":"FAST","commit_bytes":1,"commit_ms":1,"thermo_source":"bench-skin"}' > "$ROW_LOGCAT_FILE"; RAW_LOG="$ROW_LOGCAT_FILE"; ROW_RC=0; run_observation B 1 || ROW_RC=$?; [ "$ROW_RC" -eq 0 ] && grep -q 'status=0 row_void=1.*void_reason=governor_fallback' "$ROW_RAW/QRD8650_B_t1_status.txt" || exit 1
+/usr/bin/printf '%s\n' '1000 1 1 I ReactNativeJS: llama_model_loader: loaded meta data with 42 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf' '1000 1 1 I ReactNativeJS: KALSA_PREWARM {"op":"done"}' "1001 1 1 I ReactNativeJS: KALSA_TELEMETRY {\"tokensPredicted\":1,\"promptMs\":1,\"predictedPerSecond\":1}" "1001 1 1 I ReactNativeJS: KALSA_BENCH_TOKENS {\"n\":938,\"ids\":$ROW_IDS}" > "$ROW_LOGCAT_FILE"; ROW_RC=0; run_observation B 2 || ROW_RC=$?; [ "$ROW_RC" -eq 0 ] && grep -q 'status=0 row_void=1.*void_reason=governor_fallback' "$ROW_RAW/QRD8650_B_t2_status.txt" || exit 1
+/usr/bin/printf '%s\n' '1000 1 1 I ReactNativeJS: llama_model_loader: loaded meta data with 42 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf' '1000 1 1 I ReactNativeJS: KALSA_PREWARM {"op":"done"}' '1001 1 1 I llama: reusing 0/938' "1001 1 1 I ReactNativeJS: KALSA_TELEMETRY {\"tokensPredicted\":1,\"promptMs\":1,\"predictedPerSecond\":1}" "1001 1 1 I ReactNativeJS: KALSA_BENCH_TOKENS {\"n\":938,\"ids\":$ROW_IDS}" > "$ROW_LOGCAT_FILE"; ROW_RC=0; run_observation A 1 || ROW_RC=$?; [ "$ROW_RC" -eq 0 ] && grep -q 'status=0 row_void=0' "$ROW_RAW/QRD8650_A_t1_status.txt" && ! grep -q 'void_reason=governor_fallback' "$ROW_RAW/QRD8650_A_t1_status.txt" || exit 1
 holder_loop & HOLDER_TEST_PID=$!; /bin/sleep 0.1; kill "$HOLDER_TEST_PID" 2>/dev/null || true; wait "$HOLDER_TEST_PID" 2>/dev/null; printf 'holder_loop\t%s\n' "$?" | tee -a "$RESULTS_LOG"
 END_WRITTEN=0
 record cleanup cleanup

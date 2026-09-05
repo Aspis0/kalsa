@@ -1537,6 +1537,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > deepseek. **QRD8635 e HDK8550 NON scartati da me: parcheggiati per la decisione dell'owner**
 > (nessuna B possibile senza estendere la policy del governor). REPORT run 7 in arrivo (Luna nuova).
 
+> **5/09 19:45 EDT Mac — run 7 BANCATA (ALIVE 50, f39da521; REPORT §Run 7 Luna e57dbe5e, audit #14
+> deepseek BANK, 1 minore di wording applicato). Driver run 8 (Luna 2d5dfbe0): `power_capture` (dump
+> accettato se contiene `mWakefulness=`, 3 tentativi, trasporto solo su 3×124/255) in typing_awake /
+> dump_ui / poll_load; `kalsa.bench.governor_force='1'` solo per B su 8-Gen-3; B senza `KALSA_GOVERNOR {`
+> o con FALLBACK → VOID `governor_fallback` (guardia `row_void -eq 0` dopo il MAJOR F1 di #15: non
+> sovrascrive composer/hot); gate `GPU_FIT_RAM` ≤ 8 GiB prima dell'install. dryrun rc=0 (rieseguito
+> da me). Audit #15 GO (1 major fixato, minore poll_load accettato), #15b in volo. Sessione QDC
+> **804701** QRD8650 = sa808770 aperta 19:41 (120 min), tunnel 6037, board SM8650/pineapple 11,5 GB,
+> Dozing/mIsPowered=false. Nota portale: allo step 3 esiste `deviceConfiguration.ScreenAlwaysOn`
+> (non usato per tenere l'harness identico; sonda futura). `setsid` non esiste su macOS.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

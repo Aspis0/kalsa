@@ -724,3 +724,80 @@ sa807902 paths; mLastSleepReason=timeout is uncited (orchestrator-live only).
 GO. 0 blockers, 0 majors, 2 minor (poll_load non-transport power failure → abort; PREREG
 citations sa807902→sa807902b + uncited sleep-reason), 1 nit. Mechanics, bounds reset,
 transport propagation, finite AOD loop, dryrun exit 0, set -u all CONFIRMED. Launch 7e.
+
+
+## Delta audit #15 — run 8 driver
+
+F1 — CONFIRMED, MAJOR. d_run.sh:368-370 `if [ "$arm" = B ] && { [ "${fallback:-0}" -gt 0 ]
+|| [ -z "$governor" ]; }; then row_void=1; void_reason=governor_fallback; fi` sits after
+ui_send's composer/hot VOID: a B row already VOID for composer/hot (no governor line exists —
+turn never sent) has `governor` empty → void_reason OVERWRITTEN composer/hot →
+governor_fallback — the status reason lies for exactly the row classes run 8 expects;
+recoverable from composer_len/cooldown files but the promised void_reason is wrong. Fix:
+`[ "$row_void" -eq 0 ]` guard (or `&& [ "$void_reason" = na ]`). A rows untouched
+(`[ "$arm" = B ]` ✓); dryrun's row fixtures (B+FALLBACK-line, B+completed-turn-no-governor,
+A) don't cover the composer/hot-B overwrite.
+F2 — MINOR (carried): poll_load `[ "$power_rc" -eq 0 ] || return 1` — persistent 3×
+non-transport power-dumpsys failure still aborts the load; power_capture's retries shrink it.
+power_capture (d_run.sh:70-87) — CONFIRMED: content-good rc=255 → has_wakefulness=1 →
+rc 0 (the 7e rc-only trap FIXED); 3 bad → rc 1; POWER_CAPTURE_TRANSPORT=1 only when ALL THREE
+rcs 124|255; per-attempt log to ${file}.log. Call sites: dump_ui (:212-220) keeps the
+not-Awake → wake_sequence branch and propagates via POWER_CAPTURE_TRANSPORT; typing_awake
+(:383/:393) `power_capture || return 1` with wake-on-Dozing intact; poll_load (:290) same
+downstream.
+set_prefs (d_run.sh:229-238) — CONFIRMED: `[ "$flag" -eq 1 ] && [ "$BOARD" = 8-Gen-3 ] &&
+governor_force=1` (local init 0); INSERT now has `('kalsa.bench.governor_force',
+'$governor_force')`; A/non-8Gen3 → '0'; dryrun sqlite assertions (:186-189) verify all four
+combinations through the real push.
+RAM gate (:50-58,164,176-178) — CONFIRMED: before install, BOARD= at :174 then :178
+`gpu_fit_ram_gate "$BOARD" "$MEMTOTAL_KB" || exit $?`; unparsable → `return 0` fail-open
+(acceptable — dead adb surfaces elsewhere; live path enforces the spec); boundary `-le
+8388608` = 8 GiB exact; `|| exit $?` fires only on nonzero (2 → exit 2; rc-0 never reaches
+exit — `||` short-circuits); `tr -d '\r'` ✓.
+Removed behaviour — CONFIRMED: only dump_ui's single-attempt 124|255→DUMP_UI_TRANSPORT line
+replaced by the 3×-rule; per-attempt power logging retained.
+set -u — CONFIRMED: POWER_CAPTURE_TRANSPORT set at :73 before reads (`:-0`-guarded);
+MEMTOTAL_KB/governor_force/BOARD assigned before use.
+dryrun — CONFIRMED: `bash dryrun.sh > /tmp/dr15.log 2>&1` → rc=0; fixtures drive the real
+functions (rc255_good single-attempt PASS; no_wake 3 attempts; force-key matrix; RAM gate
+7864320→2/12582912→0/7p→0; governor-rows through real run_observation with synthetic logcat
+including the A-row non-affection check).
+Hot-path exits — CONFIRMED: none new on the turn path (gate exit 2 is pre-turn).
+
+## Delta verdict #15
+
+GO for launch (evidence chain intact) with F1 fixed before bank (one-line guard), ideally
+before launch. 1 major (F1), 1 minor (F2), rest CONFIRMED; dryrun rc=0.
+
+## Delta audit #15b
+
+(1) Guard — CONFIRMED. d_run.sh:368 `if [ "$arm" = B ] && [ "$row_void" -eq 0 ] && {
+[ "${fallback:-0}" -gt 0 ] || [ -z "$governor" ]; }; then row_void=1;
+void_reason=governor_fallback; fi`. Traces: (a) B row VOID composer/hot earlier (ui_send rc 2)
+→ `row_void` already 1 → the guard short-circuits → void_reason=composer/hot preserved ✓;
+(b) B row that completed with a FALLBACK line or no `KALSA_GOVERNOR {` line → row_void=0 at
+that point → guard fires → VOID governor_fallback ✓; (c) row_void cannot be unset at :368 —
+it is a run_observation local initialized `row_void=0` before any turn path reaches the parse
+section, and every prior write is conditional `=1` assignments ✓ set -u safe.
+(2) The ±10% band-vs-guard ORDER — CONFIRMED, no mask. The guard (:368) runs BEFORE the band
+gate (`awk … new_tokens_b … || row_void=1`, two lines below the reuse parsing): for the
+completed-FALLBACK/no-governor B row the guard sets row_void=1 + governor_fallback FIRST, so
+the band's `|| row_void=1` is a no-op and the reason survives — the run-7e B1 shape now
+yields governor_fallback, not na. The reverse (band first) cannot occur. The residual
+band-only case — a B row with a valid governor line but chunks outside 938±10% → row_void=1
+with void_reason=na — is pre-existing, reason-tag-unlabelled but benign (the oracle column
+VOIDs it; the band evidence is in new_tokens_b). Acceptable; a reason tag there would be
+cosmetic.
+(3) Dryrun — CONFIRMED and genuine: dryrun.sh:239 `run_observation B 3 || …
+grep -q 'status=0 row_void=1.*void_reason=composer'` follows a DUMP_FAILS=5 setup (the edit
+dump exhausts → ui_send rc 2 → VOID composer) — the guard's skip is exercised through the
+real run_observation and the assertion proves void_reason=composer survives.
+(4) Scope — CONFIRMED: git diff remains 70+/10- (only the guard and the fixture added since
+#15; nothing else changed).
+Ran `bash dryrun.sh > /tmp/dr15b.log 2>&1` → rc=0 (tail: cleanup 0 /
+RESULTS=/tmp/kalsa-s5-dryrun.bFkhri/results.tsv).
+
+## Delta verdict #15b
+
+GO. 0 blockers, 0 majors, 0 minors — F1 correctly fixed (guard order verified, no masking,
+reason preservation proven by the new dryrun fixture), dryrun rc=0. Launch run 8 on QRD8650.

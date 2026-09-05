@@ -209,14 +209,15 @@ dump_ui() {
   for attempt in 1 2 3 4 5; do
     power_file="${out}.power_attempt${attempt}.txt"
     POWER_CHECK_CONTEXT=dump
-    adbT 60 -s "$SER" shell dumpsys power > "$power_file" 2>&1
+    power_capture "$power_file"
     power_rc=$?
     POWER_CHECK_CONTEXT=""
     wake_status=$(wake_state "$power_file")
     cat "$power_file" >> "$dump_log"
+    cat "${power_file}.log" >> "$dump_log"
     printf 'attempt=%s power_rc=%s wake=%s\n' "$attempt" "$power_rc" "${wake_status:-missing}" >> "$dump_log"
-    case "$power_rc" in 124|255) DUMP_UI_TRANSPORT=1 ;; esac
     if [ "$power_rc" -ne 0 ]; then
+      [ "${POWER_CAPTURE_TRANSPORT:-0}" -eq 1 ] && DUMP_UI_TRANSPORT=1
       [ "$attempt" -lt 5 ] && sleep 3
       continue
     fi
@@ -379,7 +380,7 @@ typing_awake() {
   local before_file="${prefix}_typing_wake_${chunk}_before.txt"
   local after_file="${prefix}_typing_wake_${chunk}_after.txt"
   local before after wake_rc
-  adbT 60 -s "$SER" shell dumpsys power > "$before_file" 2>&1 || return 1
+  power_capture "$before_file" || return 1
   if grep -q 'mWakefulness=Awake' "$before_file"; then
     before=Awake
     after=Awake
@@ -389,7 +390,7 @@ typing_awake() {
     wake_sequence "${prefix}_typing_wake.log"
     wake_rc=$?
     [ "$wake_rc" -eq 0 ] || return 1
-    adbT 60 -s "$SER" shell dumpsys power > "$after_file" 2>&1 || return 1
+    power_capture "$after_file" || return 1
     after=$(wake_state "$after_file")
   fi
   printf 'typing_chunk=%s wake_before=%s wake_after=%s\n' "$chunk" "${before:-missing}" "${after:-missing}" >> "${prefix}_ui_attempts.txt"
