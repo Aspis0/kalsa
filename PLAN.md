@@ -886,6 +886,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > run 1-2. Sessione 799285 chiusa. Prossimo: REPORT (Luna 5fcd34c9) → audit
 > deepseek → ALIVE 48 come "governor funziona, endpoint FAIL con diagnosi".
 
+> **6/09 01:00 Mac — REPORT S5 scritto (Luna 5fcd34c9, 136 righe, ogni numero
+> con file:riga): "G1-REFUTED on this APK; governor mechanism PROVEN".** Il
+> tokenizer del fork ha decodificato gli id: A inizia con il blocco di
+> ragionamento ("The user wants a short sentence about mountains…"), B
+> diverge al token 14. Prewarm come unico confronto prefill GPU vs CPU
+> (etichettato, non endpoint): B ≈ 5.16 s vs A 9.3-9.9 s per i 1024 token
+> cached (1.8×). B3: un kill lmkd (`com.android.dynsystem`), 76 righe. Difetto
+> driver scoperto dal report: la skin letta è la riga cached (31.4 fissa), non
+> la sezione HAL → colonne skin da trattare come non valide. Audit REPORT →
+> deepseek (706f8d2f). In volo: telemetria `prefill_ms` (ee4741e9).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
