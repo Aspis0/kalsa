@@ -510,7 +510,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     thermalCritical: "Telefono molto caldo — le prestazioni possono calare",
     thermalHardGateTitle: "Telefono criticamente caldo",
     thermalHardGateBody:
-      "Il modello è stato scaricato per lasciarlo raffreddare. Attendi che si raffreddi prima di avviare un'altra risposta.",
+      "Il modello è stato rimosso dalla memoria per far raffreddare il dispositivo. Attendi che si raffreddi prima di avviare un'altra risposta.",
     regenFailed: "Rigenera fallita",
     editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
     sendAborted: "Generazione interrotta prima della risposta.",
