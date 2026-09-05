@@ -1163,6 +1163,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > CI 33957267070 in volo (waiter → `~/kalsa-qdc/apk/apk-gov-8a56edc/`).** Delta
 > audit 9 di grok in corso.
 
+> **6/09 07:30 Mac — Delta audit 9 (grok): GO-WITH-FIXES per il run 7.** (1)
+> pin bump: già atterrato (8a56edc, CI 33957267070 in volo); (2) commento V79
+> "ALIVE 48 = run 6 PASS": corretto, la riga 48 include il run 6 dal commit
+> 4df043e6 (l'auditor l'ha letta prima); (3) `test-perf-reset` passa con
+> `prompt_ms=0.000` → deve asserire `n_p_eval ≥ 2` e `0 < t_p_eval_ms < 100`
+> + controllo negativo dello sleep → Luna 9392e981, solo test, fork.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

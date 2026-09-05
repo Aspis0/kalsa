@@ -246,3 +246,13 @@ Device: S5 B2 Wait at 38.14 °C stalled (`-2`). Abort still `fail("prefill admis
 **5. CI `33951825993`:** `in_progress`.
 
 **Delta-8 verdict: GO** for S5 run 5 (APK `0265333`). Hot B should complete with `engine_prefill CPU` / `prefill_chunks cpu:N`.
+
+## Delta re-audit 9 (6/09, f98a9fa + e31b9144c)
+
+**A. Correctness gate `f98a9fa`.** `GPU_PREFILL_CORRECT` V79 true, V75/V73/Unknown false (`governorInputs.ts:14-20`). `enabled = force || GPU_PREFILL_CORRECT[generation]` (`:122`). `governorLoad` requires `governorBase.enabled` (`LlamaService.ts:1369-1371`); no `governor` in params (`:1457`); `n_gpu_layers = 0` (`:1463-1464`, `:1483-1484`). Single-context CPU. One JS line `KALSA_GOVERNOR_FALLBACK {stage:"correctness", reason, forced}` (`:1403-1410`) after skip-reload, before dispose; no native FALLBACK. Key `kalsa.bench.governor_force` only in `governorInputs.ts` (no Settings). Jest EXIT 0: V75 `enabled:false` reason `gpu-prefill-incorrect-V75`; V79 enabled; V75 `force=true` enabled. Flag-off does not read the force key (`:1307-1309`). **Citations:** V75 “ALIVE 38/39/48” — 38 (750 f16 20 FAIL) and 48 (S5 token-14 FAIL) are right; **39 says the defect is 750-only / not generation-wide**. V79 “ALIVE 48 oracle PASS” is **wrong**: row 48 is QRD8650 FAIL. Run 6 PASS lives in `GPU-PREFILL-DIVERGENCE-2026-09-06.md`. `PINEAPPLE`→V75 also matches SM8635/735 (row 39 clean).
+
+**B. perf_reset `e31b9144c`.** `perf_reset` `synchronize()` then zeros timers (`llama-context.cpp:3164-3174`). `synchronize()` (`:652-655`) no-ops if `!sched`; else `ggml_backend_sched_synchronize` then counts queued work and clears `n_queued_tokens`/`t_compute_start_us`. Legal at `beginCompletion` `:681-682` `llama_perf_context_reset(active_ctx())` before the new prompt. Empty queue: wait is cheap. Pending work: **blocks** until it finishes, then **drops** that interval (idle included). Fixes prompt **and** decode pollution (both use `t_compute_start_us`). Governor: reset is **only** `active_ctx()` (decode after a 1-token, prefill after n_predict 0) — arm A is single-ctx. Prefill ctx not reset; arm B uses `prefill_us`. Test I ran EXIT 0 `perf_reset_async_prompt=PASS prompt_ms=0.000`. Assert is `t_p_eval_ms >= 100` (`test-perf-reset.cpp:67`) after 300 ms sleep — **does** reject sleep pollution (`decode` does not sync, `:2020-2021` `//synchronize();`). **Does not** require `prompt_ms > 0`; 0.000 still PASS. A reset that never records the 2-token eval would pass.
+
+**C. Pin bump:** not yet landed (`git log` HEAD `f98a9fa`).
+
+**Delta-9 verdict: GO-WITH-FIXES** for S5 run 7. V79 may load governor; fair arm-A TTFT needs `e31b9144c` in the APK.
