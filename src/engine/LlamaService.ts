@@ -2041,6 +2041,10 @@ export async function saveEngineSession(
   historyHashValue: string,
   historyMessageCount?: number,
 ): Promise<boolean> {
+  if (activeGovernorActive) {
+    logGovernorSessionSaveSkip();
+    return false;
+  }
   // Capture identity NOW: the FIFO serializes work but not conversation id.
   // bindActiveConversation can run while this job is queued; resolving the
   // stem inside the job would write chat A's KV under chat B's filename.
@@ -3668,10 +3672,22 @@ function nativeSessionPath(uri: string): string {
   return uri.replace(/^file:\/\//, "");
 }
 
+function logGovernorSessionSaveSkip(): void {
+  try {
+    console.log('KALSA_SESSION {"op":"save","ok":false,"reason":"governor-mode"}');
+  } catch {
+    // telemetry must never throw
+  }
+}
+
 async function snapshotNativeSession(
   engine: LlamaContext,
   destPath: string,
 ): Promise<boolean> {
+  if (activeGovernorActive && engine === context) {
+    logGovernorSessionSaveSkip();
+    return false;
+  }
   try {
     if (!(await hasEnoughDiskForSession(await sessionDiskGateInput()))) return false;
     await ensureSessionsDir();
@@ -3691,6 +3707,7 @@ async function restoreNativeSession(
   engine: LlamaContext,
   srcPath: string,
 ): Promise<boolean> {
+  if (activeGovernorActive && engine === context) return false;
   try {
     const result = await engine.loadSession(srcPath);
     return sessionLoadHasTokens(result);

@@ -2034,10 +2034,10 @@ index 0000000..8a86f5f
 +} // namespace rnllama
 diff --git a/node_modules/llama.rn/cpp/rn-governor.cpp b/node_modules/llama.rn/cpp/rn-governor.cpp
 new file mode 100644
-index 0000000..62b3670
+index 0000000..2d32928
 --- /dev/null
 +++ b/node_modules/llama.rn/cpp/rn-governor.cpp
-@@ -0,0 +1,83 @@
+@@ -0,0 +1,87 @@
 +#include "rn-governor.h"
 +#include "llama-governor.h"
 +
@@ -2101,6 +2101,10 @@ index 0000000..62b3670
 +    return result;
 +}
 +
++void rn_governor::clear_cache(bool clear_data) {
++    llama_governor_clear_cache(governor_, clear_data);
++}
++
 +void rn_governor::reset_prefill_stats() {
 +    llama_governor_reset_prefill_stats(governor_);
 +}
@@ -2123,10 +2127,10 @@ index 0000000..62b3670
 +} // namespace rnllama
 diff --git a/node_modules/llama.rn/cpp/rn-governor.h b/node_modules/llama.rn/cpp/rn-governor.h
 new file mode 100644
-index 0000000..9f4f21f
+index 0000000..b432ad7
 --- /dev/null
 +++ b/node_modules/llama.rn/cpp/rn-governor.h
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,39 @@
 +#pragma once
 +
 +#include "llama-ext.h"
@@ -2147,6 +2151,7 @@ index 0000000..9f4f21f
 +    llama_context * active_ctx() const;
 +    llama_context * prefill_ctx() const;
 +    int32_t decode(llama_batch batch);
++    void clear_cache(bool clear_data);
 +    void reset_prefill_stats();
 +    bool set_thermo_profile(const llama_governor_thermo_profile & profile);
 +    llama_governor_stats stats() const;
@@ -2166,7 +2171,7 @@ index 0000000..9f4f21f
 +
 +} // namespace rnllama
 diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
-index 1126dec..822ae32 100644
+index 1126dec..2413ce9 100644
 --- a/node_modules/llama.rn/cpp/rn-llama.cpp
 +++ b/node_modules/llama.rn/cpp/rn-llama.cpp
 @@ -1,8 +1,11 @@
@@ -2431,6 +2436,14 @@ index 1126dec..822ae32 100644
 -    llama_init = common_init_from_params(params);
 -    model = llama_init != nullptr ? llama_init->model() : nullptr;
 -    ctx = llama_init != nullptr ? llama_init->context() : nullptr;
+-
+-    // common_init_from_params() can fail after loading the model but before
+-    // constructing the context, so both pointers must be validated here.
+-    if (model == nullptr || ctx == nullptr) {
+-        if (model == nullptr) {
+-            LOG_ERROR("unable to load model: %s", params_.model.path.c_str());
+-        } else {
+-            LOG_ERROR("unable to initialize context for model: %s", params_.model.path.c_str());
 +    // Source buffers back the expert tensors: shut the streamer, then drop the old
 +    // context, then the hook. Inverse of this order dangling-cb_eval or UAF on reload.
 +    if (moe_stream) moe_stream->shutdown();
@@ -2453,28 +2466,6 @@ index 1126dec..822ae32 100644
 +            if (!moe_stream->arm(params, moe_err)) {
 +                LOG_INFO("kalsa moe stream: %s", moe_err.c_str());
 +            }
-+        }
- 
--    // common_init_from_params() can fail after loading the model but before
--    // constructing the context, so both pointers must be validated here.
--    if (model == nullptr || ctx == nullptr) {
--        if (model == nullptr) {
--            LOG_ERROR("unable to load model: %s", params_.model.path.c_str());
--        } else {
--            LOG_ERROR("unable to initialize context for model: %s", params_.model.path.c_str());
-+        llama_init = common_init_from_params(params);
-+        model = llama_init != nullptr ? llama_init->model() : nullptr;
-+        ctx = llama_init != nullptr ? llama_init->context() : nullptr;
-+
-+        // common_init_from_params() can fail after loading the model but before
-+        // constructing the context, so both pointers must be validated here.
-+        if (model == nullptr || ctx == nullptr) {
-+            if (model == nullptr) {
-+                LOG_ERROR("unable to load model: %s", params_.model.path.c_str());
-+            } else {
-+                LOG_ERROR("unable to initialize context for model: %s", params_.model.path.c_str());
-+            }
-+            return false;
          }
 -        return false;
 -    }
@@ -2489,7 +2480,21 @@ index 1126dec..822ae32 100644
 -        params_dft.cache_type_k = draft_params.cache_type_k;
 -        params_dft.cache_type_v = draft_params.cache_type_v;
 -        params_dft.tensor_buft_overrides = draft_params.tensor_buft_overrides;
--
++        llama_init = common_init_from_params(params);
++        model = llama_init != nullptr ? llama_init->model() : nullptr;
++        ctx = llama_init != nullptr ? llama_init->context() : nullptr;
++
++        // common_init_from_params() can fail after loading the model but before
++        // constructing the context, so both pointers must be validated here.
++        if (model == nullptr || ctx == nullptr) {
++            if (model == nullptr) {
++                LOG_ERROR("unable to load model: %s", params_.model.path.c_str());
++            } else {
++                LOG_ERROR("unable to initialize context for model: %s", params_.model.path.c_str());
++            }
++            return false;
++        }
+ 
 -        if (draft_params.cpuparams.n_threads > 0) {
 -            params_dft.cpuparams.n_threads = draft_params.cpuparams.n_threads;
 -            params_dft.cpuparams_batch.n_threads = draft_params.cpuparams_batch.n_threads;
@@ -2637,15 +2642,20 @@ index 1126dec..822ae32 100644
      if (ctx == nullptr) {
          LOG_ERROR("Cannot enable parallel mode: context not initialized");
          throw std::runtime_error("Cannot enable parallel mode: context not initialized");
-@@ -857,6 +1120,12 @@ void llama_rn_context::disableParallelMode() {
+@@ -857,6 +1120,17 @@ void llama_rn_context::disableParallelMode() {
  }
  
  void llama_rn_context::clearCache(bool clear_data) {
 +    if (hasGovernor()) {
-+        // The engine exposes no operation that clears both governor KV stores.
-+        // Refuse explicitly instead of clearing only the prefill context.
-+        throw std::runtime_error(
-+            "Governor mode does not support clearCache");
++        governor->clear_cache(clear_data);
++        if (completion != nullptr) {
++            completion->embd.clear();
++            completion->n_past = 0;
++            completion->clearStateCheckpoints();
++        }
++        LOG_INFO("Governor caches cleared and completion state reset (clear_data=%s)",
++                 clear_data ? "true" : "false");
++        return;
 +    }
      if (ctx == nullptr) {
          LOG_WARNING("Cannot clear cache: context not initialized");

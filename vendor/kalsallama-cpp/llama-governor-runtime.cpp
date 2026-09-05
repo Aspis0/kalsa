@@ -123,6 +123,28 @@ llama_governor_stats llama_governor::stats() const {
     return result;
 }
 
+void llama_governor::clear_cache(bool clear_data) {
+    if (ctx_prefill != nullptr) {
+        llama_memory_clear(llama_get_memory(ctx_prefill), clear_data);
+    }
+    if (ctx_decode != nullptr) {
+        llama_memory_clear(llama_get_memory(ctx_decode), clear_data);
+    }
+    prefill_state = side_state{};
+    decode_state = side_state{};
+    last_ctx = nullptr;
+    last_phase = phase::None;
+
+    stats_.commit_bytes = 0;
+    stats_.commit_us = 0;
+    stats_.commit_count = 0;
+    stats_.commit_naive_count = 0;
+    stats_.commit_staged_count = 0;
+    stats_.commit_transfers_k = 0;
+    stats_.commit_transfers_naive = 0;
+    stats_.commit_transfers_staged = 0;
+}
+
 void llama_governor::reset_prefill_stats() {
     stats_.prefill_us = 0;
     stats_.prefill_n = 0;
@@ -260,6 +282,12 @@ llama_context * llama_governor_get_decode_context(const llama_governor * governo
 void llama_governor_get_stats(const llama_governor * governor, llama_governor_stats * stats) {
     if (stats) {
         *stats = governor ? governor->stats() : llama_governor_stats{};
+    }
+}
+
+void llama_governor_clear_cache(llama_governor * governor, bool clear_data) {
+    if (governor != nullptr) {
+        governor->clear_cache(clear_data);
     }
 }
 
