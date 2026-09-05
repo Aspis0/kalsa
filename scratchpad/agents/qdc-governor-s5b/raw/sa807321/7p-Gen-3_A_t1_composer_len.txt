@@ -1,2 +1,2 @@
-attempt=initial actual=3821 expected=5142 minimum=4627 hint_len=0
-attempt=cleared actual=17 expected=5142 minimum=0 hint_len=0
+attempt=initial actual=3976 expected=5142 minimum=4627 hint_len=0 empty_text_len=17
+attempt=cleared actual=0 expected=5142 minimum=0 hint_len=0 empty_text_len=17

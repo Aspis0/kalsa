@@ -1454,6 +1454,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (ABORT); se succede, cap da ri-registrare. **Run 7b rilanciata sulla STESSA sessione 803252**
 > (scade 17:29, modello già sul board) con `ABABAB 50`.
 
+> **5/09 16:50 EDT Mac — run 7b MORTA a A1 (VOID composer 3976/5142), driver ucciso da me 16:47,
+> sessione 803252 chiusa 16:45:35.** EMPTY_TEXT funziona (cleared=0), schermo Awake su 11/11
+> chunk: il doze NON era l'unica causa. Typing su 732: 133 s (73 sull'8 Elite); il retype è stato
+> ucciso dal cap TOTALE 150 s (rc 2 a 55 s) — il minore #10 era vero. Probe live mio col prompt
+> intero e dump dopo ogni chunk: 499/999/…/4999/5141 → UN solo carattere perso, il PRIMO del
+> prompt (`w`), tutto il resto esatto; la perdita di massa (23 %) è il ritmo 0,5 s senza verifica,
+> il dump per chunk fa da pacing. Stessa firma del 5141/5142 dell'8 Elite (run 5b A1). Fix a
+> Luna: pausa 2 s dopo il focus, verifica prefisso esatto per chunk, retype del solo chunk 0 se
+> manca il primo char, ladder 500→200→100 su mismatch, cap PER TENTATIVO 400 s, mai abort.
+> Raw 7a spostati in `raw/sa807321a` (7b in `raw/sa807321`).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

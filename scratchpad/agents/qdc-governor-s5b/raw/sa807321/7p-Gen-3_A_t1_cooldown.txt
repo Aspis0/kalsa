@@ -1,1 +1,1 @@
-wait_s=0 skin=28.792 target_c=38.5
+wait_s=0 skin=32.328 target_c=38.5

@@ -14,9 +14,9 @@ Cached temperatures:
 	Temperature{mValue=56.6, mType=0, mName=CPU1, mStatus=0}
 	Temperature{mValue=56.6, mType=0, mName=CPU2, mStatus=0}
 	Temperature{mValue=54.7, mType=0, mName=CPU3, mStatus=0}
-	Temperature{mValue=56.6, mType=0, mName=CPU4, mStatus=0}
-	Temperature{mValue=55.5, mType=0, mName=CPU5, mStatus=0}
-	Temperature{mValue=58.6, mType=0, mName=CPU6, mStatus=0}
+	Temperature{mValue=44.4, mType=0, mName=CPU4, mStatus=0}
+	Temperature{mValue=44.4, mType=0, mName=CPU5, mStatus=0}
+	Temperature{mValue=44.8, mType=0, mName=CPU6, mStatus=0}
 	Temperature{mValue=66.6, mType=0, mName=CPU7, mStatus=0}
 	Temperature{mValue=41.2, mType=1, mName=GPU0, mStatus=0}
 	Temperature{mValue=40.4, mType=1, mName=GPU1, mStatus=0}
@@ -35,24 +35,24 @@ HAL connection:
 Current temperatures from HAL:
 	Temperature{mValue=0.0, mType=8, mName=socd, mStatus=0}
 	Temperature{mValue=42.0, mType=2, mName=battery, mStatus=0}
-	Temperature{mValue=30.1, mType=9, mName=nsp3, mStatus=0}
-	Temperature{mValue=27.974, mType=3, mName=skin, mStatus=0}
-	Temperature{mValue=29.7, mType=9, mName=nsp2, mStatus=0}
-	Temperature{mValue=29.7, mType=9, mName=nsp1, mStatus=0}
-	Temperature{mValue=29.7, mType=9, mName=nsp0, mStatus=0}
-	Temperature{mValue=30.1, mType=1, mName=GPU3, mStatus=0}
-	Temperature{mValue=30.1, mType=1, mName=GPU2, mStatus=0}
-	Temperature{mValue=29.7, mType=1, mName=GPU1, mStatus=0}
-	Temperature{mValue=29.7, mType=1, mName=GPU0, mStatus=0}
-	Temperature{mValue=29.7, mType=0, mName=CPU7, mStatus=0}
-	Temperature{mValue=30.9, mType=0, mName=CPU6, mStatus=0}
-	Temperature{mValue=29.7, mType=0, mName=CPU5, mStatus=0}
-	Temperature{mValue=29.7, mType=0, mName=CPU3, mStatus=0}
+	Temperature{mValue=34.4, mType=9, mName=nsp3, mStatus=0}
+	Temperature{mValue=31.95, mType=3, mName=skin, mStatus=0}
+	Temperature{mValue=33.7, mType=9, mName=nsp2, mStatus=0}
+	Temperature{mValue=34.0, mType=9, mName=nsp1, mStatus=0}
+	Temperature{mValue=34.0, mType=9, mName=nsp0, mStatus=0}
+	Temperature{mValue=33.7, mType=1, mName=GPU3, mStatus=0}
+	Temperature{mValue=34.0, mType=1, mName=GPU2, mStatus=0}
+	Temperature{mValue=33.7, mType=1, mName=GPU1, mStatus=0}
+	Temperature{mValue=33.7, mType=1, mName=GPU0, mStatus=0}
+	Temperature{mValue=34.4, mType=0, mName=CPU7, mStatus=0}
+	Temperature{mValue=33.3, mType=0, mName=CPU6, mStatus=0}
+	Temperature{mValue=32.5, mType=0, mName=CPU5, mStatus=0}
+	Temperature{mValue=34.4, mType=0, mName=CPU3, mStatus=0}
 	Temperature{mValue=4.285, mType=6, mName=vbat, mStatus=0}
-	Temperature{mValue=30.1, mType=0, mName=CPU2, mStatus=0}
-	Temperature{mValue=30.9, mType=0, mName=CPU1, mStatus=0}
-	Temperature{mValue=29.3, mType=0, mName=CPU4, mStatus=0}
-	Temperature{mValue=30.5, mType=0, mName=CPU0, mStatus=0}
+	Temperature{mValue=34.4, mType=0, mName=CPU2, mStatus=0}
+	Temperature{mValue=35.2, mType=0, mName=CPU1, mStatus=0}
+	Temperature{mValue=34.0, mType=0, mName=CPU4, mStatus=0}
+	Temperature{mValue=34.8, mType=0, mName=CPU0, mStatus=0}
 Current cooling devices from HAL:
 	CoolingDevice{mValue=0, mType=2, mName=thermal-pause-1}
 	CoolingDevice{mValue=0, mType=2, mName=cpufreq-cpu3}

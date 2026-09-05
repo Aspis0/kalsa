@@ -1,1 +1,2 @@
-initial_seconds=120 rc=0 total_seconds=120
+initial_seconds=133 rc=0 total_seconds=133
+retype_seconds=55 rc=2 total_seconds=188
