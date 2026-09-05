@@ -1092,6 +1092,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (pattern "prewarm non riusato" anche qui), B 358 ms (15 token); prewarm GPU
 > 4.06 s; MemAvailable 12.3 → 8.0 GB (B). Run in corso (B2-B4).
 
+> **6/09 06:00 Mac — RUN 6 (8 ELITE, sa803609) COMPLETO: 8/8 turni, ORACOLO
+> PASS 4/4** (B1-B3 con prefill GPU; B4 instradato su CPU a 38.08 °C / WARM e
+> completato: `cpu:2+13`, 246 ms, 28.3 tok/s). **Decode: mediane turni 2-4 A
+> 28.53 vs B 28.33 tok/s** — parità entro l'1%, formalmente sotto il "≥" della
+> regola bloccata (da riportare come tale). **TTFT del turno: B 358 ms vs A
+> 41-43 s** — MA il braccio A non riusa il KV del prewarm (rivaluta 1329 token
+> a ~30 tok/s; `tokensCached 1397` uguale in entrambi) mentre B sì: il
+> confronto è "riuso vs non-riuso", non GPU vs CPU → va dichiarato non equo;
+> la cifra GPU vs CPU comparabile è il prewarm a 1024 token: B GPU 4.06/4.30 s
+> vs A CPU 6.6-6.8 s (≈1.6×; il #38 del fork su prompt 512 senza cache dava
+> ~10×: differenza da spiegare, sospetto overhead non-GPU nel prewarm). RAM:
+> MemAvailable 12.2-12.4 → 7.8-8.0 GB (B), → 10.0 (A); nessun lmkd. Skin 30.3
+> → 39.5 °C. Sessione 799540 chiusa (~23 min). Addendum → Luna 5fcd34c9.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

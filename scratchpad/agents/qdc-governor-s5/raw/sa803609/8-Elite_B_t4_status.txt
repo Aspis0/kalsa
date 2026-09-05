@@ -1,0 +1,1 @@
+status=1 thermo={"batt_temp_tenths_c":381,"batt_level_pct":100,"plugged":false,"sensor_valid":true,"t_idle_valid":true,"t_idle_c":29.462,"trend_c_per_min":0.278} governor_count=1 commit_bytes=0 commit_ms=0 thermo_source=bench-skin anchor_epoch=1788597607 anchor_stamp=09-05 01:40:08.000 telemetry_rc=0

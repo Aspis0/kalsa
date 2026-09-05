@@ -1,0 +1,26 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 13711492 Realtime: 13711492
+
+** MEMINFO in pid 22264 [com.kalsa.app] **
+                   Pss  Private  Private     Swap      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap  1927344  1927304        0        0  1931904  2144848  2054890    85413
+  Dalvik Heap    17919    17828        0        0    25596    36787     9197    27590
+ Dalvik Other    12677     7148        0        0    18876                           
+        Stack     2128     2128        0        0     2136                           
+       Ashmem        8        0        0        0      616                           
+      Gfx dev    11324    11324        0        0    11328                           
+    Other dev       17        0       16        0      892                           
+     .so mmap    27283     1564    23344        0    73012                           
+    .jar mmap     1965        0        0        0    46452                           
+    .apk mmap    65073      908    63756        0    68500                           
+    .ttf mmap     1436        0     1208        0     1816                           
+    .dex mmap       18       12        0        0      920                           
+    .oat mmap       97        0        0        0     2164                           
+    .art mmap     9171     8904        0        0    32148                           
+   Other mmap  1542227        4  1329300        0  1756752                           
+   EGL mtrack    37000    37000        0        0    37000                           
+    GL mtrack      576      576        0        0      576                           
+      Unknown    32358    32248      104        0    33920                           
+Failed to write while dumping service meminfo: Broken pipe
