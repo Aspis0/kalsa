@@ -957,6 +957,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > {"op":"save","ok":false,"reason":"governor-mode"}`). CI 33947705999 in volo →
 > APK del run 4. Delta audit 6 → grok.
 
+> **6/09 03:15 Mac — CI 33947705999 VERDE (~47 min): APK e8c2b1f in
+> `~/kalsa-qdc/apk/apk-gov-e8c2b1f/`, sha `e16cf0b6…8eaf`, debuggable ✓.** PREREG
+> emendato pre-dati: run 4 DESCRITTIVO (TTFT B misurabile, skin HAL, oracolo
+> atteso FAIL → endpoint 2 resta non analizzabile). Apro `S5-QRD8650-r4`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

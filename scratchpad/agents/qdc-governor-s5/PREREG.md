@@ -194,3 +194,25 @@ on every turn (raw `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agent
 HAL skin changed (raw `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803354/QRD8650_B_t3_before_thermal.txt:45`, `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803354/QRD8650_B_t4_after_thermal.txt:45`). Run 3's thermal dimension is therefore declared not
 interpretable. Run 4 uses the HAL value from the `Current temperatures from
 HAL` block, not the cached block, for the skin field and thermo override.
+
+## Amendment 6/09 — run 4 (pre-data): DESCRIPTIVE run, not a re-test of the hypothesis
+
+The cell is already banked on run 3 (G1-REFUTED on APK `ac4820d`, mechanism PROVEN). Run 4 exists
+to obtain the numbers run 3 could not give, with the fixes audited since (delta audits 5 and 6):
+- TTFT of the governor arm: `KALSA_TELEMETRY promptMs` / `KALSA_GOVERNOR prefill_ms` now measure
+  the governor prefill (this turn's new tokens only; fork `6ed44f567`, app `64931c1`). Compare
+  this-turn promptMs B vs A; do NOT compare against prewarm.
+- Thermals: the driver now reads the HAL skin (driver commit `93f6c862`), so the bench
+  override and the skin columns are live values.
+- The oracle is EXPECTED to FAIL again (known deterministic divergence at token 14); therefore, by
+  the locked rule, endpoint 2 stays NOT ANALYZABLE and run 4 reports TTFT/decode/thermal medians
+  as DESCRIPTIVE only. No pass/fail claim on the hypothesis is made from run 4.
+- New fields in `KALSA_GOVERNOR` (`prefill_ms`, `prefill_chunks`, `prefill_ctx_ngl`) and the
+  `KALSA_SESSION governor-mode` skip line are recorded, not gated.
+
+APK: `/Users/marco/kalsa-qdc/apk/apk-gov-e8c2b1f/kalsa-apk-arm64-v8a-debuggable-e8c2b1f7b4dea2960457b32477ba2111cdf2fef7/app-release.apk`,
+branch `feat/governor-in-app` @ `e8c2b1f`, CI run 33947705999 (debuggable=true), 142,758,038 bytes,
+SHA-256 `e16cf0b6fd8fbd77c6566de03150c13ed93cacd7bc21c42ad4df56dd21c08eaf`, aapt2 badging shows
+`application-debuggable`; vendor = fork `3a161adfc`. Session name `S5-QRD8650-r4`. Same board class,
+same model, same prompt, same arms and order (ABABABAB).
+
