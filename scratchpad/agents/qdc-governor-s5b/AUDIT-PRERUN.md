@@ -264,3 +264,64 @@ uninstall, typing budget); B-gate skipped via row_void (d_run.sh:281).
 GO-WITH-FIXES. 0 blockers, 1 finding (U3 PARTIAL: add a turn-1 TOOL_MODE dryrun case to
 regression-prove the exit-3 suppression that cost run 2). U1/U2/U4 CONFIRMED-FIXED by
 inspection and app-source quote; launch run 3 after the dryrun case lands.
+
+## Delta re-audit #5 (cooldown)
+
+V1 — CONFIRMED-FIXED. cooldown_to_target (parse.sh:24-60): samples via thermal_record to
+"${prefix}_cooldown.txt" with `printf 'wait_s=%s skin=%s target_c=%s'`; target
+COOL_TARGET_C=36.0, COOL_POLL_S=15, COOL_MAX_S=600 (d_run.sh:47); loop with deadline_check,
+`[ "$rc" -eq 0 ] || return 1` (parse.sh:37), exit-on `v <= target` (parse.sh:41-42), cap
+`COOLDOWN_SECONDS="$COOL_MAX_S"; return 2` (parse.sh:61-62). Caller d_run.sh:258-259
+`cooldown_to_target "$prefix"; cooldown_rc=$?; cooldown_s="$COOLDOWN_SECONDS"` inside the
+status-0 block after fresh_install/copy/bootstrap_db (:256) and before skin_before/prefs/am
+start (:261-266); rc2 → `row_void=1; void_reason=hot` — the row is skipped cleanly: :261/:266
+are re-gated `[ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]` so no skin_before/set_prefs/am
+start/typing run; the empty-logcat guard `[ -f "$logcat" ] || : > "$logcat"` (d_run.sh:269)
+keeps the parse section live; row written na+VOID, status=0, return 0, loop continues; rc1
+(unparseable) → status=1 → pre-registered abort ("unparseable thermal skin after retries",
+PREREG.md:90-91). set -u: COOLDOWN_SECONDS init "na" (d_run.sh:47) and set on every path
+(entry, reached, cap; return-1 keeps the entry value), cooldown_s init "na" (:250) — VOID rows
+written before cooldown (install failure) print cooldown_s=na, bound.
+V2 — CONFIRMED-FIXED. thermal_record (parse.sh:11-22): retries 3× with `[ "$attempt" -lt 3 ] &&
+sleep 2` (parse.sh:20); skin gate is parse-only: `awk -v v="$skin" 'BEGIN { exit !(v ~
+/^[0-9]+([.][0-9]+)?$/) }'` (parse.sh:16-17); the return `[ "$rc" -eq 0 ] && [ "$skin_valid" -eq
+1 ] || return 1` (parse.sh:22) has NO <42 clause. Caller d_run.sh:269 `skin_after=$(thermal_record
+"$…_after") || { skin_after=na; status=1; }` — the || fires only on unparseable/dump failure;
+42.547 returns rc0 and is recorded with status untouched; skin_before (:261) same shape and
+ungated — the cooldown enforces ≤36 pre-turn, so no <42 gate is needed. No other ≥42 gate
+exists in the driver or in PREREG's abort list (PREREG.md:89-91 now says "unparseable thermal
+skin after retries", not skin ≥42).
+V3 — CONFIRMED-FIXED. d_run.sh:7-15: usage includes `[deadline_minutes]`; validate 20-110
+(`[ "$value" -ge 20 ] && [ "$value" -le 110 ]`, d_run.sh:9); default 40, 4th arg overrides;
+d_run.sh:44 `DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60))`. Dryrun: `record`
+list adds validate_deadline_minutes (dryrun.sh:25); dryrun.sh:98 `validate_deadline_minutes 10
+&& exit 1 || :; validate_deadline_minutes 200 && exit 1 || :; validate_deadline_minutes 85 ||
+exit 1` — rejects 10/200, accepts 85.
+V4 — CONFIRMED-FIXED, genuine and distinguishable. Stub serves per-call thermal sequences via
+THERMAL_COUNTER + modes (dryrun.sh:45: `case "$THERMAL_MODE" in initial|ready|cool|never|
+afterhot` — cool: call 1 → HOT(37.5) else READY(35.5); never: always HOT; afterhot: call 3 →
+HOT_AFTER(42.5) else READY). Scenarios through the REAL run_observation: :145 cool asserts
+`wait_s=0 skin=37.5`, `wait_s=15 skin=35.5`, `status=0 .*cooldown_s=15`; :146 never asserts
+`status=0 row_void=1 cooldown_s=600.*void_reason=hot` + row na, with :147 ready-mode A5
+continuing; :148 afterhot asserts col13 == "42.5" with `status=0 .*cooldown_s=0`. The OLD code
+would fail all three: no cooldown call ⇒ no cooldown.txt/cooldown_s; the old <42 gate ⇒
+after-42.5 → rc1 → status=1 (assertions demand status=0). Distinguishable.
+V5 — CONFIRMED-FIXED. PREREG.md:117-120 amendment matches raw: TSV A1 5842.393 /
+new_tokens_a=925 / decode 26.9251863562422≈26.93 / before 33.084 (results.tsv:2);
+after_thermal.txt:64 `mValue=42.547`; ABORT at driver log [09:39:37]; probe file starts
+09:43:08 skin=36.04 (42.5→36.04 ≈ 3.5 min after the 09:39:37 abort — consistent); tail
+09:50:53 skin=33.227. A1 explicitly excluded; factors pre-registered (36.0/15 s/10 min/VOID
+hot/skin_after not gated/85-min deadline); lock line PREREG.md:2 unchanged. Nits: "≈0.5
+°C/min" overstates the file's 36.04→33.227 over 7.75 min ≈ 0.36 °C/min (design unaffected);
+run 2's fixed-factor sentence and the tool-call clause are untouched.
+Budget (V5 partial): measured per-turn ≈4 min + cooldown 2-4 min (worst 3.5) ⇒ 8 × ~6.5-8 min
+≈ 52-64 min + setup ≈ 3-5 ⇒ ≈ 57-69 min — inside the 85-min deadline and a 90-min session
+with ≈15-25 min slack; one VOID(hot) row (~13 min cost incl. the 10-min cap) still fits
+(≈ 79-82 min worst); the 40-min default deadline would NOT fit — run 4 must pass 85 as the
+4th argument (pre-registered).
+
+## Delta verdict #5
+
+GO. 0 blockers, 0 majors, 2 nits (0.5-vs-0.36 °C/min wording; two hot-VOIDs would consume the
+90-min session — watch the wall clock and the deadline arg 85). V1-V4 CONFIRMED-FIXED by
+inspection and dryrun assertions; V5 amendment accurate against raw/sa805443; launch run 4.

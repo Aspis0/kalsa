@@ -1295,6 +1295,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `isDocumentUnreadable` importato in AppShell/DocumentDetailView ma definito da nessuna parte
 > (rotto da B5, prima dei fix). Dispatch APK+E2E rimandato a typecheck verde; handoff aggiornato.
 
+> **5/09 10:25 EDT Mac — S5b cooldown applicato e auditato (delta #5 deepseek: 5/5
+> CONFIRMED-FIXED, GO; nit 0,5→0,36 °C/min corretto).** cooldown_to_target prima di ogni
+> turno (36 °C, 15 s, cap 10 min → VOID hot, niente am start), skin post-turno registrata non
+> gatata, dumpsys con 3 retry, deadline = 4° argomento (85). Budget stimato 57-69 min su 90.
+> Prossimo: sessione `S5b-8Elite-r4` da 90 min, driver con deadline 85.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

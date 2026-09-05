@@ -15,6 +15,52 @@ telemetry_complete() {
   awk -v n="$n" 'BEGIN{exit !(n ~ /^[0-9]+([.][0-9]+)?$/&&n>=1)}' >/dev/null 2>&1
 }
 lmkd_all_after() { local file="$1"; local out="$2"; awk -v a="$ANCHOR_EPOCH" '($1+0)>=a&&tolower($0)~/lmkd|lowmemorykiller/&&tolower($0)~/kill/{print}' "$file" > "$out"; }
+thermal_record() {
+  local name="$1"
+  local file="$RAW/${name}_thermal.txt"
+  local gate="${file%.txt}_gate.txt"
+  local attempt rc skin max_temp thermal_status skin_valid
+  rc=1; skin=""; skin_valid=0
+  for attempt in 1 2 3; do
+    adbT 90 -s "$SER" shell dumpsys thermalservice > "$file" 2>&1
+    rc=$?
+    awk '/Current temperatures from HAL/{f=1} f{print} /Current cooling devices from HAL/{f=0}' "$file" > "$gate"
+    grep 'Thermal Status:' "$file" | head -1 >> "$gate"
+    skin=$(sed -n 's/.*mValue=\([0-9][0-9.]*\), mType=3, mName=skin.*/\1/p' "$gate" | head -1 | tr -d '\r')
+    skin_valid=0
+    awk -v v="$skin" 'BEGIN { exit !(v ~ /^[0-9]+([.][0-9]+)?$/) }' >/dev/null 2>&1 && skin_valid=1
+    [ "$rc" -eq 0 ] && [ "$skin_valid" -eq 1 ] && break
+    [ "$attempt" -lt 3 ] && sleep 2
+  done
+  max_temp=$(grep -o 'mValue=[0-9.]*' "$gate" | cut -d= -f2 | sort -n | tail -1)
+  thermal_status=$(grep 'Thermal Status:' "$file" | head -1 | grep -o '[0-9]*' | head -1)
+  printf 'max_hal_temp=%s status=%s attempts=%s rc=%s\n' "$max_temp" "$thermal_status" "$attempt" "$rc" >> "$gate"
+  [ "$rc" -eq 0 ] && [ "$skin_valid" -eq 1 ] || return 1
+  printf '%s' "$skin"
+}
+cooldown_to_target() {
+  local prefix="$1"
+  local sample_file="${prefix}_cooldown.txt"
+  local sample skin rc elapsed
+  : > "$sample_file"
+  elapsed=0; COOLDOWN_SECONDS=na
+  while [ "$elapsed" -le "$COOL_MAX_S" ]; do
+    deadline_check
+    sample=$(thermal_record "$(basename "$prefix")_cooldown")
+    rc=$?
+    [ "$rc" -eq 0 ] || return 1
+    printf 'wait_s=%s skin=%s target_c=%s\n' "$elapsed" "$sample" "$COOL_TARGET_C" >> "$sample_file"
+    if awk -v v="$sample" -v target="$COOL_TARGET_C" 'BEGIN { exit !(v <= target) }' >/dev/null 2>&1; then
+      COOLDOWN_SECONDS="$elapsed"
+      return 0
+    fi
+    [ "$elapsed" -lt "$COOL_MAX_S" ] || break
+    sleep "$COOL_POLL_S"
+    elapsed=$((elapsed + COOL_POLL_S))
+  done
+  COOLDOWN_SECONDS="$COOL_MAX_S"
+  return 2
+}
 dump_ui() {
   local out="$1"
   adbT 60 -s "$SER" shell "uiautomator dump $DEVICE_TMP/ui.xml >/dev/null 2>&1" || return 1

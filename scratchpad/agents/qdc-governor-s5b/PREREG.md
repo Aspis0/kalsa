@@ -41,8 +41,8 @@ A: `kalsa.governor.enabled="0"`, single-context CPU. B:
 SQLite AsyncStorage injection; run exactly `ABABABAB`, with turns 2–4 as plateau.
 QRD8750/8 Elite is first and the only valid device. QRD8650/Adreno 750 is
 gated off before the run because its GPU-prefill correctness is not accepted.
-Session name: `S5b-8Elite-large` (under 30 characters). Budget: 45-minute
-session cap, 40-minute driver deadline, and 600 QDC minutes before booking.
+Session name: `S5b-8Elite-large` (under 30 characters). Budget: 90-minute
+session cap, 85-minute driver deadline, and 90-minute QDC session.
 For both arms, `kalsa.bench.sampling="greedy"` forces temperature 0, top_k 1,
 top_p 1, min_p 0, repeat/presence/frequency penalties off, seed 42, and
 `n_predict` ≥ 48. Each completed turn must log one
@@ -88,12 +88,11 @@ typing wall time and the composer evidence.
 
 Abort on device/APK/model/prompt identity, disconnect, install/run-as/load/prewarm/UI
 failure, invalid thermo, process crash, counted kill, FAST B non-GPU route, turn-1
-typing over 150 seconds, or skin ≥42 °C; preserve raw evidence and write `END.txt`.
+typing over 150 seconds, unparseable thermal skin after retries, or deadline; preserve raw evidence and write `END.txt`.
 A failed wake/uninstall or missing telemetry is status 1. First-turn absence of
 `KALSA_BENCH_TOKENS` writes `PREREQUISITE.txt` and exits 3. Short EOS, a short
 composer after one retype, and a new-token count outside the 938 ±10% band are
 row VOID conditions and do not abort the run.
-
 Threats: the static prefix remains warm, so this is a large uncached user tail,
 not a full cold prompt; even chunked `input text` may alter characters and
 the code cannot prove its exact model-token count before device execution. The
@@ -109,10 +108,13 @@ Run 1 produced no speed/oracle number: one-shot 1,500 chars→1,073 (71%); the
 the fix is ≤500-char original chunks, 0.5 s, `%s`, escaped single quotes, and
 hint-aware zero length with post-clear verification; 11 chunks/expected ≈55–65 s
 (nominal ≈60 s); the 150 s cap is retained.
-
 ### Run 2 (sa805215): typing fixed, tool-call confound
 A1 is excluded: 5,142/5,142 composer characters in 59 s (11 chunks),
 new_tokens_a=1,016, CPU promptMs=6,581.954 (uncached), decode=28.36 tok/s;
 tools were enabled; this single row has no oracle, produced no speed result, and is not analyzed.
 Fixed factors set `kalsa.web.enabled`, `kalsa.tools.device`, and
 `kalsa.tools.calendar` to `"false"`; tool-call rows are VOID, not prereq exits.
+
+### Run 3 (sa805443): first valid A row, thermal abort
+A1 was valid but excluded: composer 5,142/5,142, new_tokens_a=925, CPU uncached promptMs=5,842.393, decode=26.93 tok/s, ids_sha present, structuredCalls=0; one row/no pair. After skin was 42.547 °C (before 33.084 °C; S5 run 7 comparison 34.761 °C); idle probe 42.5→36.04 °C in ≈3.5 min after force-stop, then 33.2 °C at +11 min (≈0.36 °C/min), `/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/raw/sa805443/`.
+Pre-register `COOL_TARGET_C=36.0 °C`, 15 s polls, 10 min cap, `VOID(hot)`, post-turn skin recorded but not gated, and an 85-minute deadline; every turn starts from the same cooled skin, while B `thermal_state` is read from `KALSA_GOVERNOR` at Send.
