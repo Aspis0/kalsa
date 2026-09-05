@@ -1,0 +1,5 @@
+MEM before=8812912 after=6532268
+A	1	na	na	na	na	na	na	na	na	na	28.153	28.951	0	0	na	na
+MEM before=8837976 after=6507312
+B	1	na	na	na	na	na	na	na	na	na	29.088	29.553	1	0	na	VOID
+./d_run.sh: line 212: 29785 Killed: 9               sleep 5

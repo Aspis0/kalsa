@@ -1488,6 +1488,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > "5 fail ⇒ VOID e il turno dopo gira". Raw 7c → `raw/sa807902a`. **Run 7d lanciata sulla stessa
 > sessione 803833/sa807902** con `ABABAB 85` (fine ≤19:25).
 
+> **5/09 18:25 EDT Mac — run 7d: A1/B1 VOID composer, driver ucciso 18:08.** Il dump riusciva
+> (9,6 kB) ma era SOLO systemui (orologio/data/batteria = AOD): schermo in doze al primo dump.
+> Probe live: `mStayOn=false` perché `mIsPowered=false` (il board non si dichiara alimentato →
+> `svc power stayon` inerte); timeout 1800 s onorato solo dopo attività utente VERA: dopo un
+> `KEYCODE_WAKEUP` nudo ridorme in 9 s (`mLastSleepReason=timeout`), dopo WAKEUP + dismiss-keyguard
+> + un tap resta Awake ≥40 s. In 7b il typing (133 s) faceva da attività; i 150 s di poll_load
+> (prewarm 118 s) no. adb è root. Fix a Luna: tap sul composer (bounds noti o 540,2047) in ogni
+> wake, dump con nodo com.kalsa.app obbligatorio (systemui ⇒ ri-wake e retry), re-wake in
+> poll_load. Quinto difetto device-specific su QRD7675 in quattro run: ognuno nascosto dal
+> precedente. Raw 7d → `raw/sa807902b`; sessione 803833 viva fino alle 19:32.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

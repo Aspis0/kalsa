@@ -1,0 +1,48 @@
+         1788645612.887   766   766 D lowmemorykiller: medium pressure event triggered
+         1788645612.889   766   766 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788645612.889   766   766 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788645612.889   766   766 D lowmemorykiller: Not killing for medium pressure event trigger
+         1788645612.990   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645612.990   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.090   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.091   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.191   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.191   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.292   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.292   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.392   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.393   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.493   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.493   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.594   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.594   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.695   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.695   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.795   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.796   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.896   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.896   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.926   766   766 D lowmemorykiller: medium pressure event triggered
+         1788645613.927   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645613.995   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645613.996   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.096   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.096   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.197   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.197   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.297   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.298   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.398   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.399   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.499   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.499   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.599   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.600   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.700   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.700   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.801   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.801   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645614.901   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645614.902   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788645615.002   766   766 D lowmemorykiller: medium pressure event polling check
+         1788645615.002   766   766 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
