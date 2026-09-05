@@ -1,0 +1,9 @@
+MEM before=8914548 after=6590964
+A	1	334.86	24.4265858960893	na	na	na	30.35	33.409	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	na
+MEM before=8838288 after=4626560
+B	1	454.259	20.7110123411334	GPU	CPU	FAST	34.378	35.448	0	0	ed228033333477decf40f4362a8c59da5fcfaa25dbb0112015da2367e794a77b	FAIL
+MEM before=8892920 after=6586488
+A	2	323.599	23.4699846919652	na	na	na	35.726	38.078	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	na
+B	2	na	na	na	na	na	38.14	36.913	0	0	na	VOID
+[02:39:32] ABORT arm=B turn=2
+[02:39:32] DONE board=QRD8650 final_rc=1 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803390/results.tsv

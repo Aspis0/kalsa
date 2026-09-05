@@ -967,6 +967,24 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > serial 72c4dabb (board diversa dai run 2-3), APK e8c2b1f, driver con skin HAL.**
 > Budget 8 Gen 3 prima: 797 min. Watcher attivo.
 
+> **6/09 03:40 Mac — S5 RUN 4 (sa803390, board 72c4dabb): 4 turni poi ABORT a B2
+> — IL GATE TERMICO DEL GOVERNOR SI È VISTO DAL VIVO.** Skin HAL viva: 30.3 →
+> 33.4 (A1) → 35.4 (B1) → 38.1 (A2) °C. A B2 il bench thermo mandava 38.1 °C
+> con trend +0.92 °C/min (`t_idle 29.5`): la policy ha risposto
+> `admit_prefill: prefill admission is waiting for a safe tabled chunk` →
+> nessun prefill GPU, prewarm `skip eval-failed` (veritiero), turno senza
+> telemetria → il driver ha abortito (gate B). **Finding di prodotto (S7):** il
+> "Wait" della policy deve degradare a prefill CPU (l'`engine=CPUFallback`
+> dell'ammissione non è consumato dal runtime, delta 3), non bloccare il turno.
+> Numeri descrittivi ottenuti: B1 `promptMs 454 ms`, `prefill_chunks "2+13"`,
+> `commit 9.2 MB / 6.2 ms`, decode 20.7 tok/s; A1/A2 TTFT 335/324 ms (!) vs 44 s
+> del run 3 con lo STESSO `tokensCached 1397`: nel run 3 la cache del prewarm
+> non veniva sfruttata dal turno, nel run 4 sì (APK e8c2b1f: sospetto il fix
+> clearCache/session, da spiegare nell'addendum). Il TTFT del turno confronta
+> ~15 token nuovi (sistema in cache): il confronto GPU/CPU su 1024 token resta
+> il prewarm (run 3: 5.2 s vs 9.3-9.9 s). Sessione 799321 chiusa (~19 min).
+> Addendum REPORT → Luna 5fcd34c9; poi fix "Wait → CPU fallback" (fork+app).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
