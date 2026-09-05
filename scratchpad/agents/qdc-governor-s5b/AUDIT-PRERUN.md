@@ -540,3 +540,62 @@ mechanism; add a B-side gate/warm-A→B target there. Nits: PREREG:130 qualifier
 
 
 VERDICT: GO — 0 blockers, 0 majors, 2 nits (750-band top 0.58, "always reachable" clause vs run-6 B2); F1-F3+F6 fixed, dryrun.next exit 0, runs 7+ go.
+
+
+## Delta audit #10 — run 7b device fixes
+
+F1 (configure_screen) — CONFIRMED. parse.sh:23-34: previous timeout read BEFORE the change
+and written to recon.txt (`screen_off_timeout_previous=%s` + `screen_stayon=true
+screen_off_timeout_set=1800000`), then `svc power stayon true` + `settings put system
+screen_off_timeout 1800000`, both `|| return 1`; d_run.sh:106 `configure_screen || {
+log "SCREEN_SETUP_FAIL"; exit 2; }` — fail-fast pre-turn, defensible. Nits: the
+`screen_stayon=true` line is printed before the svc call (claim-before-fact); no retry on the
+settings-get (transient on fresh boot wastes the session); exit 2 aborts the whole run —
+acceptable because typing_awake (F2) is the per-chunk fallback for stayon-ignoring builds.
+F2 (typing_awake) — CONFIRMED mechanics, ONE risk. parse.sh:267-289: on `mWakefulness !=
+Awake` → KEYCODE_WAKEUP + wm dismiss-keyguard + sleep 1 + re-dump with
+`typing_chunk=… wake_before=… wake_after=…` logged to ui_attempts; failure → type_prompt
+`|| { void_reason=composer; return 2; }` (parse.sh:306) → ui_send propagates rc 2 to
+VOID(composer) (parse.sh:351) — aborts the typing attempt, not the run ✓. RISK: ≥11 extra
+dumpsys calls per typing (~1-2 s each over the tunnel, +15-25% on the 73-s baseline) inflate
+typing_total; on turn 1 the retype path (≈85+85 s apparent) can cross the pre-registered
+`typing_total > 150 → return 1` ABORT (parse.sh:310,380) where the same typing previously
+passed. Fix: exclude typing_awake overhead from typing_total or pre-register the cap as
+input-time-only; verify first-turn timing before relying on it.
+F3 (EMPTY_TEXT) — CONFIRMED. parse.sh:3 `EMPTY_TEXT="${EMPTY_TEXT:-}"`; reset per ui_send
+(:336) and captured from the pre-typing edit dump (:342); emptiness test :234-235
+`[ -z "$text" ] || [ "$text" = "$hint" ] || [ "$text" = "$EMPTY_TEXT" ]`. Encoding consistent:
+raw/sa807321 cleared.xml has the literal `text="Ask a question…"` (0 `&#8230;` entities,
+checked), and both comparison sides use the same attribute extractor. Mask-risk refuted: the
+5142-char prompt can never equal the 17-char hint; a 17-char composer fails the exact gate
+anyway; missing EditText → "" → empty. Three-field metrics parse correctly in composer_check
+(:250-256) and ui_send (:365-372) with [ -n ] fallbacks.
+F4 (run_as_retry) — CONFIRMED. parse.sh:35-70: chmod-771 per attempt; retry only on
+`grep -qi 'readable or writable by others'` (output and err_file), sleep 2, 3 tries, `return
+"$rc"` on non-40777/exhaustion; shell mode requires one arg, exec passes "$@"; stdout→output,
+stderr→err_file (cat'ed into record); `: > "$output"` truncates only dedicated temp files —
+record files are append-only, no caller append-target truncated; the `sh -c '… && …'` quoting
+survives; all five call sites wrapped (d_run.sh:155,169-183; parse.sh:76,79,90,92-96); no
+un-wrapped `run-as` remains (grep clean).
+F5 (removed behaviour) — CONFIRMED. Only copy_model/pull_rkstorage relocated into parse.sh
+with identical semantics (exec-out cat binary-safe); everything else additive; the 17-column
+TSV header and row printf unchanged (not in the diff).
+F6 (dryrun) — CONFIRMED. `bash dryrun.sh > /tmp/dr10.log 2>&1` → exit=0 (tail: holder_loop
+143 / cleanup 0). Real assertions: configure_screen `screen_off_timeout_previous=60000`
+(:148); copy_model retry `readable or writable by others: 40777` + `run_as_attempt=2`
+(:159); hint_text `attempt=cleared actual=0.*hint_len=0.*empty_text_len=` + retype 5142 +
+SEND_TAPS>0 (:194); doze_once `typing_chunk=1 wake_before=Dozing wake_after=Awake` (:195).
+F7 (set -u) — CONFIRMED clean (EMPTY_TEXT init, err_file per attempt, guarded metrics
+locals).
+F8 (PREREG:139-145) — CONFIRMED. Citations verified: END.txt:1 exit_1 ✓; composer_len.txt:1
+actual=3821 ✓ :2 actual=17/hint_len=0 ✓; cleared.xml literal ellipsis ✓; A_t2_model_copy.txt:1
+= the 40777 message ✓; adb-exit.log:12-381 = the chmod/run-as activity window (the message
+itself lives in the model_copy file — range citation loose but defensible). "unchanged
+pre-registration at PREREG:132-138" ✓ — the diff touches only 139+.
+
+## Delta verdict #10
+
+GO. 0 blockers, 0 majors, 1 minor (F2: typing_awake overhead vs the 150-s turn-1 cap on the
+retype path — verify first-turn timing, exclude the overhead or re-register the cap), 2 nits
+(F1 claim-before-fact stayon line + no settings-get retry; F8 adb-exit range). Mechanics all
+CONFIRMED, dryrun exit 0. Launch run 7b.

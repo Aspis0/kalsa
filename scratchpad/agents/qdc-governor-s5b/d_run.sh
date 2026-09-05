@@ -103,6 +103,7 @@ adbT 60 -s "$SER" wait-for-device > "$RAW/wait_for_device.txt" 2>&1 || { log "WA
   echo "ro.debuggable"; adbT 60 -s "$SER" shell getprop ro.debuggable
   echo "id"; adbT 60 -s "$SER" shell id
 } > "$RAW/recon.txt" 2>&1
+configure_screen || { log "SCREEN_SETUP_FAIL"; exit 2; }
 SOC=$(adbT 60 -s "$SER" shell getprop ro.soc.model | tr -d '\r')
 PRODUCT_NAME=$(adbT 60 -s "$SER" shell getprop ro.product.name | tr -d '\r')
 case "$SOC" in
@@ -143,20 +144,6 @@ model_setup() {
   [ "$device_sha" = "$MODEL_SHA" ] || { log "DEVICE_MODEL_SHA_FAIL=$device_sha"; return 1; }
   adbT 60 -s "$SER" shell "chmod 644 $MODEL_REMOTE" > "$RAW/model_chmod.txt" 2>&1
 }
-copy_model() {
-  local prefix="$1" stat_out size
-  adbT 300 -s "$SER" shell "run-as $PKG sh -c 'mkdir -p files/models/$MODEL_DIR && cp $MODEL_REMOTE files/models/$MODEL_DIR/$MODEL_FILE'" > "${prefix}_model_copy.txt" 2>&1 || return 1
-  stat_out=$(adbT 60 -s "$SER" shell "run-as $PKG stat -c %s files/models/$MODEL_DIR/$MODEL_FILE" 2>&1)
-  printf '%s\n' "$stat_out" >> "${prefix}_model_copy.txt"
-  size=$(printf '%s' "$stat_out" | tr -d '[:space:]')
-  [ "$size" = "$MODEL_SIZE" ]
-}
-pull_rkstorage() {
-  local dir="$1"
-  adbT 300 -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage > "$dir/RKStorage" 2> "$dir/pull.err" || return 1
-  if adbT 60 -s "$SER" shell "run-as $PKG test -f databases/RKStorage-wal" >/dev/null 2>&1; then adbT 300 -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage-wal > "$dir/RKStorage-wal" 2>> "$dir/pull.err" || return 1; fi
-  if adbT 60 -s "$SER" shell "run-as $PKG test -f databases/RKStorage-shm" >/dev/null 2>&1; then adbT 300 -s "$SER" exec-out run-as "$PKG" cat databases/RKStorage-shm > "$dir/RKStorage-shm" 2>> "$dir/pull.err" || return 1; fi
-}
 bootstrap_db() {
   local prefix="$1" i
   device_wake
@@ -164,7 +151,9 @@ bootstrap_db() {
   sleep 25
   adbT 60 -s "$SER" shell "am force-stop $PKG" >> "${prefix}_bootstrap.txt" 2>&1 || true
   for i in 1 2; do
-    if adbT 60 -s "$SER" shell "run-as $PKG test -f databases/RKStorage" >/dev/null 2>&1; then return 0; fi
+    local check_out="${prefix}_bootstrap.runas"
+    run_as_retry shell "${prefix}_bootstrap.txt" "$check_out" 60 "test -f databases/RKStorage"; local run_rc=$?; rm -f "$check_out"
+    if [ "$run_rc" -eq 0 ]; then return 0; fi
     if [ "$i" -eq 1 ]; then
       device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" >> "${prefix}_bootstrap.txt" 2>&1 || true
       sleep 25; adbT 60 -s "$SER" shell "am force-stop $PKG" >> "${prefix}_bootstrap.txt" 2>&1 || true
@@ -173,13 +162,23 @@ bootstrap_db() {
   return 1
 }
 set_prefs() {
-  local flag="$1" dir remote
+  local flag="$1" dir remote run_rc
+  local step_file="${RAW}/set_prefs_${flag}.txt"
+  [ "$#" -ge 2 ] && step_file="$2_set_prefs.txt"
   dir=$(mktemp -d /tmp/kalsa-s5-rkstorage.XXXXXX) || return 1
+  : > "$step_file"
   pull_rkstorage "$dir" || { rm -rf "$dir"; return 1; }
   /usr/bin/sqlite3 -bail "$dir/RKStorage" "INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','$flag'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','false'),('kalsa.tools.device','false'),('kalsa.tools.calendar','false');" >/dev/null || { rm -rf "$dir"; return 1; }
   /usr/bin/sqlite3 -bail "$dir/RKStorage" 'PRAGMA wal_checkpoint(TRUNCATE);' >/dev/null || { rm -rf "$dir"; return 1; }
   remote="$DEVICE_TMP/rkstorage-$JOB-$$"
-  if ! adbT 300 -s "$SER" push "$dir/RKStorage" "$remote" >/dev/null 2>&1 || ! adbT 120 -s "$SER" shell "run-as $PKG cp $remote databases/RKStorage" >/dev/null 2>&1 || ! adbT 60 -s "$SER" shell "run-as $PKG rm -f databases/RKStorage-wal databases/RKStorage-shm" >/dev/null 2>&1; then
+  adbT 300 -s "$SER" push "$dir/RKStorage" "$remote" >> "$step_file" 2>&1; run_rc=$?
+  if [ "$run_rc" -eq 0 ]; then
+    run_as_retry shell "$step_file" "${step_file}.copy" 120 "cp $remote databases/RKStorage"; run_rc=$?; cat "${step_file}.copy" >> "$step_file"; rm -f "${step_file}.copy"
+  fi
+  if [ "$run_rc" -eq 0 ]; then
+    run_as_retry shell "$step_file" "${step_file}.remove" 60 "rm -f databases/RKStorage-wal databases/RKStorage-shm"; run_rc=$?; cat "${step_file}.remove" >> "$step_file"; rm -f "${step_file}.remove"
+  fi
+  if [ "$run_rc" -ne 0 ]; then
     adbT 60 -s "$SER" shell "rm -f $remote" >/dev/null 2>&1 || true
     rm -rf "$dir"
     return 1
@@ -267,7 +266,7 @@ run_observation() {
   if [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]; then
     skin_before=$(thermal_record "$(basename "$prefix")_before") || { skin_before=na; void_reason=thermal; status=1; }
     if [ "$status" -eq 0 ] && [ "$arm" = A ] && awk -v v="$skin_before" -v target="$COOL_TARGET_C" 'BEGIN { exit !(v > target) }' >/dev/null 2>&1; then row_void=1; void_reason=hot; fi
-    if [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]; then make_thermo "$skin_before"; thermo="$THERMO_JSON"; set_prefs "$flag" || status=1; fi
+    if [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]; then make_thermo "$skin_before"; thermo="$THERMO_JSON"; set_prefs "$flag" "$prefix" || status=1; fi
   fi
   if [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ]; then
     memory_before "$prefix" || status=1; clear_anchor "$prefix" || status=1; device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_launch.txt" 2>&1 || status=1; APP_PID=$(adbT 60 -s "$SER" shell pidof "$PKG" | awk 'NR==1{print $1;exit}' | tr -d '\r')

@@ -1445,6 +1445,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Qwen 3.5 4B su questo device (dialog "Download model"). Fix a Luna (stayon+timeout, wake per
 > chunk, EMPTY_TEXT catturato a composer vuoto, retry run-as, dryrun, PREREG "7a → 7b").
 
+> **5/09 16:35 EDT Mac — fix 7b su disco (Luna) + deepseek #10 GO (1 minore, 2 nit).** `configure_screen`
+> (stayon + timeout 1800 s, previous registrato in recon, exit 2 se fallisce), `typing_awake` prima
+> di ogni chunk (Dozing → WAKEUP + dismiss-keyguard, se resta spento VOID composer), EMPTY_TEXT
+> catturato a composer vuoto per turno (Android 14 senza attributo hint), `run_as_retry` (chmod +
+> 3 tentativi sul solo 40777) su tutti gli 11 call site, 4 scenari dryrun nuovi, rc 0. Minore
+> accettato: +15-25 % di tempo typing per i dumpsys → un retype potrebbe superare il cap 150 s
+> (ABORT); se succede, cap da ri-registrare. **Run 7b rilanciata sulla STESSA sessione 803252**
+> (scade 17:29, modello già sul board) con `ABABAB 50`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

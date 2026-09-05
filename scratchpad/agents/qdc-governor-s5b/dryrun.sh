@@ -4,7 +4,7 @@ CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-
 DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
-THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0
+THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0; WAKE_MODE=normal; WAKE_AWAKE=1; RUNAS_FAIL_ONCE=0; RUNAS_CALLS=0
 LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
@@ -52,13 +52,15 @@ adbT() {
   elif [[ "$joined" == *"date '+%m-%d"* ]]; then printf '09-04 12:00:00.000\n'
   elif [[ "$joined" == *"date +%s"* ]]; then printf '1000\n'
   elif [[ "$joined" == *"pm list packages"* ]]; then printf '0\nlist_rc=1\n'
-  elif [[ "$joined" == *"dumpsys power"* ]]; then printf 'mWakefulness=Awake\n'
+  elif [[ "$joined" == *"dumpsys power"* ]]; then if [ "$WAKE_MODE" = doze_once ] && [ "$WAKE_AWAKE" -eq 0 ]; then printf 'mWakefulness=Dozing\n'; else printf 'mWakefulness=Awake\n'; fi
   elif [[ "$joined" == *"dumpsys package"* || "$joined" == *"pm dump"* ]]; then printf 'Package [com.kalsa.app] flags=[ DEBUGGABLE ]\n'
   elif [[ "$joined" == *"pidof"* ]]; then printf '4242\n'
   elif [[ "$joined" == *"sha256sum"* ]]; then printf '%s  %s\n' "$MODEL_SHA" "$MODEL_REMOTE"
   elif [[ "$joined" == *"stat -c %s"* ]]; then printf '%s\n' "$MODEL_SIZE"
   elif [[ "$joined" == *"push"* && "$joined" == *"/RKStorage"* ]]; then push_file=$(printf '%s' "$joined" | sed -n 's/.*push \([^ ]*\/RKStorage\) .*/\1/p'); [ -f "$push_file" ] && /bin/cp "$push_file" "$TMP/pushed-rkstorage"
-  elif [[ "$joined" == *"exec-out run-as com.kalsa.app cat databases/RKStorage"* && "$joined" != *"-wal"* && "$joined" != *"-shm"* ]]; then /usr/bin/sqlite3 "$TMP/RKStorage" .dump | /usr/bin/sqlite3 :memory: >/dev/null 2>&1 || true; /bin/cat "$TMP/RKStorage"
+  elif [[ "$joined" == *"exec-out run-as com.kalsa.app cat databases/RKStorage"* && "$joined" != *"-wal"* && "$joined" != *"-shm"* ]]; then RUNAS_CALLS=$((RUNAS_CALLS + 1)); if [ "$RUNAS_FAIL_ONCE" -eq 1 ] && [ "$RUNAS_CALLS" -eq 1 ]; then printf 'run-as: /data readable or writable by others: 40777\n' >&2; return 1; fi; /usr/bin/sqlite3 "$TMP/RKStorage" .dump | /usr/bin/sqlite3 :memory: >/dev/null 2>&1 || true; /bin/cat "$TMP/RKStorage"
+  elif [[ "$joined" == *"run-as com.kalsa.app"* ]]; then RUNAS_CALLS=$((RUNAS_CALLS + 1)); if [ "$RUNAS_FAIL_ONCE" -eq 1 ] && [ "$RUNAS_CALLS" -eq 1 ]; then printf 'run-as: /data readable or writable by others: 40777\n' >&2; return 1; fi
+  elif [[ "$joined" == *"KEYCODE_WAKEUP"* ]]; then WAKE_AWAKE=1
   elif [[ "$joined" == *"input text"* ]]; then
     INPUT_TEXT_COUNT=$((INPUT_TEXT_COUNT + 1))
     chunk_cmd=$(printf '%s' "$joined" | sed -n "s/.*input text '\\(.*\\)'$/\\1/p")
@@ -76,7 +78,31 @@ adbT() {
     :
   elif [[ "$joined" == *"cat $DEVICE_TMP/ui.xml"* ]]; then
     UI_DUMP_COUNT=$((UI_DUMP_COUNT + 1))
-    if [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 8 ]; then
+    if [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"
+    elif [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 3 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = legacy ] && [ "$UI_DUMP_COUNT" -eq 4 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "$PROMPT_TEXT"
+    elif [ "$COMPOSER_MODE" = exact ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = exact_fail ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 1 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:100}"
+    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 3 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$COMPOSER_MODE" = hint_text ] && [ "$UI_DUMP_COUNT" -eq 4 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
+    elif [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 6 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
+    elif [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 7 ]; then
+      printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
+    elif [ "$VOID_MODE" -eq 1 ] && [ "$UI_DUMP_COUNT" -eq 8 ]; then
       printf '<hierarchy><node class="android.widget.EditText" text="Ask a question…" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n'
     elif [ "$COMPOSER_MODE" = exact ] && [ "$UI_DUMP_COUNT" -eq 2 ]; then
       printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/></hierarchy>\n' "${PROMPT_TEXT:0:5141}"
@@ -91,6 +117,7 @@ adbT() {
     else
       printf '<hierarchy><node class="android.widget.EditText" text="%s" hint="Ask a question…" bounds="[0,0][100,100]"/><node content-desc="Send" bounds="[100,0][200,100]"/></hierarchy>\n' "$PROMPT_TEXT"
     fi
+  elif [[ "$joined" == *"settings get system screen_off_timeout"* ]]; then printf '60000\n'
   elif [[ "$joined" == *"settings get secure default_input_method"* ]]; then printf 'com.stub/.Ime\n'
   fi
 }
@@ -118,6 +145,7 @@ record wake_sequence wake_sequence
 record device_wake device_wake
 record wake_state wake_state "$TMP/power.txt"
 record ensure_awake ensure_awake "$TMP/awake"
+printf 'serial=dryrun\n' > "$RAW/recon.txt"; record configure_screen configure_screen; grep -q 'screen_off_timeout_previous=60000' "$RAW/recon.txt" || exit 1
 record restore_device restore_device
 record restore_ime restore_ime
 /bin/sleep 30 & HOLDER_PID=$!; stop_holder >/dev/null 2>&1; printf 'stop_holder\t%s\n' "$?" | tee -a "$RESULTS_LOG"
@@ -128,6 +156,7 @@ THERMAL_MODE=ready; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"
 record make_thermo make_thermo 39.291
 record model_setup model_setup
 record copy_model copy_model "$TMP/copy"
+RUNAS_FAIL_ONCE=1; RUNAS_CALLS=0; record copy_model_retry copy_model "$TMP/copy-once"; grep -q 'readable or writable by others: 40777' "$TMP/copy-once_model_copy.txt" && grep -q 'run_as_attempt=2' "$TMP/copy-once_model_copy.txt" || exit 1; RUNAS_FAIL_ONCE=0
 /bin/mkdir -p "$TMP/rk"; /usr/bin/sqlite3 "$TMP/RKStorage" 'CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY,value TEXT);'; record pull_rkstorage pull_rkstorage "$TMP/rk"
 record bootstrap_db bootstrap_db "$TMP/bootstrap"
 record set_prefs set_prefs 0
@@ -152,7 +181,7 @@ record bounds_edit bounds_edit "$TMP/ui.xml"
 record bounds_send bounds_send "$TMP/ui.xml"
 record tap_bounds tap_bounds '0 0 100 100'
 load_prompt || exit 1; record load_prompt load_prompt
-record type_prompt type_prompt
+record type_prompt type_prompt "$TMP/type"
 record ime_suspend ime_suspend
 run_observation A 1; RUN_RC=$?; printf 'run_observation\t%s\n' "$RUN_RC" | tee -a "$RESULTS_LOG"; [ "$RUN_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 22 ] || { echo "A1 chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 2 ] || { echo "A1 type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11," ] || { echo "A1 chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 22 ] || { echo "A1 chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "A1 chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }; grep -q 'attempt=initial actual=100' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "short composer was not detected" >&2; exit 1; }; grep -q 'attempt=cleared actual=0.*hint_len=' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "hint-aware clear fixture was not observed" >&2; exit 1; }; grep -q 'attempt=retype actual=5142' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "composer retype did not pass" >&2; exit 1; }; grep -q 'attempt=2' "$RAW/QRD8650_A_t1_ui_attempts.txt" || { echo "ui_send retry was not exercised" >&2; exit 1; }; grep -q 'wait_s=0 skin=35.5 target_c=38.5' "$RAW/QRD8650_A_t1_cooldown.txt" || exit 1; grep -q 'cool_target_c=38.5' "$RAW/QRD8650_A_t1_status.txt" || exit 1
 FINAL_RC=0; VOID_MODE=1; run_observation B 1; B_RC=$?; printf 'run_observation_B_VOID\t%s\n' "$B_RC" | tee -a "$RESULTS_LOG"; [ "$B_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="B"&&$2==1&&$16=="na"&&$17=="VOID"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1' "$RAW/QRD8650_B_t1_status.txt" || exit 1; grep -q 'wait_s=0 skin=35.5 target_c=37.0' "$RAW/QRD8650_B_t1_cooldown.txt" || exit 1; grep -q 'cool_target_c=37.0' "$RAW/QRD8650_B_t1_status.txt" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1
@@ -161,6 +190,8 @@ VOID_MODE=0; run_observation A 2; A2_RC=$?; printf 'run_observation_A2_after_VOI
 EXACT_RAW="$TMP/exact-observations"; /bin/mkdir -p "$EXACT_RAW"; RAW="$EXACT_RAW"; COMPOSER_MODE=exact; VOID_MODE=0; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_RC=0; ui_send "$RAW/exact" 2 || EXACT_RC=$?; [ "$EXACT_RC" -eq 0 ] || exit 1; grep -q 'attempt=initial actual=5141' "$RAW/exact_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/exact_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
 # Under the old >=90% gate, this second 5,141-character dump would have sent; exact mode must VOID composer before any tap.
 COMPOSER_MODE=exact_fail; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; EXACT_FAIL_RC=0; ui_send "$RAW/exact-fail" 2 || EXACT_FAIL_RC=$?; [ "$EXACT_FAIL_RC" -eq 2 ] && [ "$void_reason" = composer ] && [ "$SEND_TAPS" -eq 0 ] || exit 1; grep -q 'attempt=retype actual=5141' "$RAW/exact-fail_composer_len.txt" || exit 1
+HINT_RAW="$TMP/hint-observations"; /bin/mkdir -p "$HINT_RAW"; RAW="$HINT_RAW"; COMPOSER_MODE=hint_text; UI_DUMP_COUNT=0; SEND_TAPS=0; void_reason=na; HINT_RC=0; ui_send "$RAW/hint" 2 || HINT_RC=$?; [ "$HINT_RC" -eq 0 ] || exit 1; grep -q 'attempt=cleared actual=0.*hint_len=0.*empty_text_len=' "$RAW/hint_composer_len.txt" || exit 1; grep -q 'attempt=retype actual=5142' "$RAW/hint_composer_len.txt" || exit 1; [ "$SEND_TAPS" -gt 0 ] || exit 1
+WAKE_MODE=doze_once; WAKE_AWAKE=0; /bin/rm -f "$TMP/type-wake_ui_attempts.txt"; type_prompt "$TMP/type-wake" || exit 1; grep -q 'typing_chunk=1 wake_before=Dozing wake_after=Awake' "$TMP/type-wake_ui_attempts.txt" || exit 1; WAKE_MODE=normal; WAKE_AWAKE=1
 # Under the old if [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ] condition without a row_void guard, the TOOL_RC=0 assertion below fails (A1 exits 3).
 TOOL_RAW="$TMP/tool-observations"; TOOL_RESULTS="$TMP/tool-results.tsv"; /bin/mkdir -p "$TOOL_RAW"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$TOOL_RESULTS"; RAW="$TOOL_RAW"; RESULTS="$TOOL_RESULTS"; A_IDS_FILE=""; A_IDS_VALID=0; UI_DUMP_COUNT=0; TOOL_MODE=1; run_observation A 1; TOOL_RC=$?; printf 'run_observation_TOOLCALL_VOID\t%s\n' "$TOOL_RC" | tee -a "$RESULTS_LOG"; [ "$TOOL_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==1&&$16=="na"&&$17=="na"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1.*structuredCalls=1 tool_calls=1.*void_reason=toolcall' "$RAW/QRD8650_A_t1_status.txt" || exit 1; [ ! -e "$RAW/PREREQUISITE.txt" ] || exit 1; TOOL_MODE=0; run_observation A 2; CONTINUE_RC=$?; printf 'run_observation_after_TOOLCALL_VOID\t%s\n' "$CONTINUE_RC" | tee -a "$RESULTS_LOG"; [ "$CONTINUE_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1
 THERMAL_MODE=cool; /usr/bin/printf '0\n' > "$THERMAL_COUNTER"; run_observation A 3; COOL_RC=$?; [ "$COOL_RC" -eq 0 ] || exit 1; grep -q 'wait_s=0 skin=39.5 target_c=38.5' "$RAW/QRD8650_A_t3_cooldown.txt" || exit 1; grep -q 'wait_s=15 skin=35.5' "$RAW/QRD8650_A_t3_cooldown.txt" || exit 1; grep -q 'status=0 .*cooldown_s=15' "$RAW/QRD8650_A_t3_status.txt" || exit 1
