@@ -42,7 +42,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
   vive, pieno muore (mapping su OGNI commit incl. pin); la TLBMISS v73 è
   bisezionata: culprit `0a50d9909` = upstream #26049 (#64, ALIVE 47) — si
   fixa nel fork o si lascia, MAI issue upstream.
-- **Governor nell'app (fase 1, `docs/PLAN-governor-in-app.md`) — stato 6/09 mattina:** S1-S4 fatti, cella S5 BANCATA (ALIVE 48, 6 run QDC): il governor gira end-to-end nell'app (prefill GPU + commit KV + decode CPU), la degradazione termica funziona (Wait a ≥38 °C → turno su CPU, completato), l'oracolo greedy PASSA su 8 Elite (Adreno 830) e FALLISCE solo su Adreno 750 (difetto f16/bf16-batched noto, ALIVE #38/#39) → gate di correttezza per generazione (V75 OFF). Decode: parità con la CPU (28.3 vs 28.5 tok/s su 8 Elite). TTFT: il timer di A era inquinato (fix fork e31b9144c), il confronto equo arriva col run 7. Branch app `feat/governor-in-app` @8a56edc (pin fork e31b9144c), 9 delta audit grok GO; nove bug trovati e fixati dalla cella (elenco nel diario). Aperti: 1.65× prewarm GPU vs ~10× del fork #38 da spiegare; headroom RAM a due contesti; workaround del difetto 750 nel fork; S6 (gate RAM con GPU) e S7 (loop termico in produzione via BatteryManager).
+- **Governor nell'app (fase 1, `docs/PLAN-governor-in-app.md`) — stato 6/09 mattina:** S1-S4 fatti, cella S5 BANCATA (ALIVE 48, 6 run QDC): il governor gira end-to-end nell'app (prefill GPU + commit KV + decode CPU), la degradazione termica funziona (Wait a ≥38 °C → turno su CPU, completato), l'oracolo greedy PASSA su 8 Elite (Adreno 830) e FALLISCE solo su Adreno 750 (difetto f16/bf16-batched noto, ALIVE #38/#39) → gate di correttezza per generazione (V75 OFF). Decode: parità con la CPU (28.3 vs 28.5 tok/s su 8 Elite). TTFT: il timer di A era inquinato (fix fork e31b9144c); col run 7 il confronto equo sui ~15 token nuovi (sistema in cache dal prewarm) dà parità CPU/GPU (A 205-488 ms, B 358 ms); il vantaggio GPU sta nel prefill grande: prewarm 1024 token 4.1-4.3 s vs 6.6-6.8 s (1.6×) — ma il fork #38 misurava ~10× su 512 token senza cache: prossima cella = prefill grande SENZA prewarm nell'app. Branch app `feat/governor-in-app` @8a56edc (pin fork e31b9144c), 9 delta audit grok GO; nove bug trovati e fixati dalla cella (elenco nel diario). Aperti: 1.65× prewarm GPU vs ~10× del fork #38 da spiegare; headroom RAM a due contesti; workaround del difetto 750 nel fork; S6 (gate RAM con GPU) e S7 (loop termico in produzione via BatteryManager).
 - **Mali G57 (Jelly)**: PARKED per decisione owner 22/08 (ALIVE 405): f32 e
   q8_0 corretti ma GPU < CPU in tutti i 20 casi; si riapre con G610/G615.
 - **Strumenti pronti**: APK debuggable A/B (run-as, ALIVE 46), QDC con 8 Gen
@@ -1192,6 +1192,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 32.9 → 38.2 °C. Sessione 800201 chiusa (~17 min; 8 Elite ≈ 583 min).
 > Addendum → Luna 5fcd34c9. Nota driver: il flake Send va reso robusto
 > (retry del dump UI) prima di un'altra cella.
+
+> **6/09 09:30 Mac — Addendum run 7 nel REPORT (265 righe) → audit deepseek in
+> corso. Driver reso robusto (retry UI in parse.sh, gate B solo in FAST;
+> dry-run 0).** Prossima cella proposta (S5b): TTFT su prefill GRANDE senza
+> prewarm (stesso driver, `kalsa.bench.prewarm=off` se esiste o prompt lungo
+> nuovo), per riconciliare 1.6× (prewarm app) con ~10× (fork #38).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
