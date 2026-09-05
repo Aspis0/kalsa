@@ -836,6 +836,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > doppio eval, ≥1 token e commit>0 su 1329/512), un commit fork, pin+sync,
 > UNA CI. CI 33941238832 (803b499) cancellata: superata.
 
+> **5/09 (23:50 Mac) — Chunking consegnato (Luna): fork `e1a0f5028` "decode
+> prefill batches in admitted chunks" (runtime.cpp loop su `chunk_sizes` con
+> sub-view di `llama_batch` per offset, `return k_prefill_chunked` e al
+> chiamante `policy_rc == k_prefill_chunked ? 0 : policy_rc` per evitare il
+> replay del batch intero; commento "routing is by n_tokens > 1;
+> admission.engine is telemetry only"; test +115 righe: partizione
+> {128,128,49}, no doppio eval, `governor_chunked_prefill=PASS
+> decodes=512+512+128+128+49 generated=1 commit_bytes=9186048` — dichiarato,
+> da rieseguire dall'auditor). App `ac4820d` pin+sync (solo governor files +
+> VENDOR_SHA/build-info, verificato). Fork pushato. CI 33941962100 in volo
+> (waiter → `~/kalsa-qdc/apk/apk-gov-ac4820d/`). Delta audit 4 → grok, con
+> obbligo di rieseguire i test del fork.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
