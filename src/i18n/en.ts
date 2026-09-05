@@ -509,6 +509,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thermalWarm: "Device warm — inference may be slower",
     thermalHot: "Device hot — consider taking a break",
     thermalCritical: "Device is very warm — performance may drop",
+    thermalHardGateTitle: "Device is critically hot",
+    thermalHardGateBody:
+      "The model has been unloaded to let the device cool. Wait until it cools before starting another response.",
     regenFailed: "Regenerate failed",
     editEmpty: "Add a caption or keep an attachment.",
     sendAborted: "Generation stopped before a reply started.",

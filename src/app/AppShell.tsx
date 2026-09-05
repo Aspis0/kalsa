@@ -151,6 +151,8 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
+import { useThermalHardGate } from "../hooks/useThermalHardGate";
+import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
@@ -685,6 +687,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { locale, t } = useLocale();
+  const thermalHardGateRef = useRef(false);
+  const onThermalHardGateChange = useCallback((gated: boolean) => {
+    // Native events update the imperative guard before React paints the gate.
+    thermalHardGateRef.current = gated;
+  }, []);
+  const { gated: thermalHardGated } = useThermalHardGate({
+    onGateChange: onThermalHardGateChange,
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1399,6 +1409,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   /** Shared embedder availability check; preserves the cached status contract. */
   const ensureEmbedderDownloaded = useCallback(
     async (signal?: AbortSignal): Promise<boolean> => {
+      if (thermalHardGateRef.current) return false;
       if (embedderDownloadedRef.current) return true;
       const status = await getEmbeddingModelStatus(
         signal ? { signal } : undefined,
@@ -1411,6 +1422,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
 
   const scheduleBackgroundEmbed = useCallback(async (entry: LibraryDoc) => {
+    if (thermalHardGateRef.current) return;
     if (!entry?.id || !entry.fileUri) return;
     // Single-flight: set SYNCHRONOUSLY before the first await so a concurrent
     // import cannot sneak a second job past the flag.
@@ -1448,7 +1460,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
 
     try {
-      if (!stillCurrent() || signal.aborted) {
+      if (thermalHardGateRef.current || !stillCurrent() || signal.aborted) {
         // eslint-disable-next-line no-console
         console.log(
           `[embed] skip: aborted before work {"docId":${JSON.stringify(entry.id)}}`,
@@ -1472,7 +1484,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
 
       if (!(await ensureEmbedderDownloaded(signal))) {
-        if (!stillCurrent() || signal.aborted) {
+        if (thermalHardGateRef.current || !stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
           console.log(
             `[embed] skip: aborted during embedder status {"docId":${JSON.stringify(entry.id)}}`,
@@ -1656,6 +1668,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
 
         // FIX B: pass job signal so EmbeddingService aborts at every await.
+        if (thermalHardGateRef.current) {
+          logEmbedDone(embeddedCount > 0 ? "partial" : "aborted");
+          return;
+        }
         const vec = await embedDocumentChunk(chunk.text, { signal });
         if (!stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
@@ -1848,6 +1864,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    */
   const rebuildSemanticIndex = useCallback(
     async (id: string): Promise<RebuildSemanticIndexResult> => {
+      if (thermalHardGateRef.current) {
+        return { ok: false, reason: "unavailable" };
+      }
       if (!id || typeof id !== "string") {
         return { ok: false, reason: "unavailable" };
       }
@@ -1987,7 +2006,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         isEmbedderDownloaded: () => embedderDownloadedRef.current,
         // FIX 6: thread AbortSignal into embedQuery (native abort gate).
         embedQuery: (text: string, signal?: AbortSignal) =>
-          embedQueryVec(text, signal ? { signal } : undefined),
+          thermalHardGateRef.current
+            ? Promise.resolve(null)
+            : embedQueryVec(text, signal ? { signal } : undefined),
       },
       { locale },
     );
@@ -2791,12 +2812,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (state === "active") {
           void (async () => {
             try {
+              if (thermalHardGateRef.current) return;
               const model = MODEL_REGISTRY[modelIndexRef.current];
               if (!model) return;
               // Foreground does not mark lost (RSS collapse is mmap eviction,
               // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
+              if (thermalHardGateRef.current) return;
               // Gate on the load mode initEngine will really use: the model's
               // policy with the bench lever folded in.
               const load = resolveLoadPolicy({
@@ -2971,6 +2994,85 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     };
   }, [applySharePayload]);
 
+  // Platform CRITICAL is a hard resource boundary. The native event callback
+  // flips thermalHardGateRef synchronously; this edge effect performs the safe
+  // async lifecycle (abort, dispose, and release) exactly once per entry.
+  const thermalGateEdgeRef = useRef(false);
+  useEffect(() => {
+    const gated = thermalHardGated;
+    thermalHardGateRef.current = gated;
+    const wasGated = thermalGateEdgeRef.current;
+    thermalGateEdgeRef.current = gated;
+    if (!gated || wasGated) return;
+
+    // Invalidate pending load/download continuations before the first await.
+    // A falling edge only clears the UI; it never starts a reload.
+    engineGenerationRef.current += 1;
+    regenAbortRef.current?.abort();
+    downloadAbortRef.current?.abort();
+    embeddingDownloadAbortRef.current?.abort();
+    bumpEmbedJobGeneration();
+
+    // Do not leave a load/download spinner behind while the gate is visible.
+    if (modelStateRef.current === "loading") {
+      modelStateRef.current = "ready";
+      setModelState("ready");
+    } else if (modelStateRef.current === "downloading") {
+      modelStateRef.current = "missing";
+      setModelState("missing");
+    }
+
+    const releasedGen = chatGateGenRef.current;
+    chatGateGenRef.current = null;
+    const lifecycle = backgroundDiscardLifecycleRef.current;
+    void (async () => {
+      try {
+        // AiChatPage owns the active stream controller and turn-end save.
+        try {
+          await lifecycle?.();
+        } catch {
+          // Disposal must still happen if the UI lifecycle callback fails.
+        }
+
+        const startedAt = Date.now();
+        while (
+          (streamInFlightRef.current ||
+            sendingInFlightRef.current ||
+            regenInFlightRef.current ||
+            sendClaimRef.current) &&
+          Date.now() - startedAt < 5000
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        // Use the shared barrier so dispose never overlaps a llama operation.
+        await runNativeOp(() => disposeEngine());
+        resetBootHistoryHash();
+        console.info(
+          "model.unload",
+          JSON.stringify({ reason: "platform_thermal_critical" }),
+        );
+      } catch {
+        // Thermal protection must not surface a second error over the gate.
+      } finally {
+        if (releasedGen !== null) {
+          markChatReleased(releasedGen);
+        } else {
+          const gate = getLlamaContextGateState();
+          if (gate === "chat_loading" || gate === "chat_ready") {
+            markChatReleased(getChatGeneration());
+          }
+        }
+        try {
+          // Embedding is another resident llama resource.
+          await releaseEmbedder();
+        } catch {
+          // Best effort; the active gate still blocks new loads.
+        }
+      }
+    })();
+  }, [bumpEmbedJobGeneration, thermalHardGated]);
+
   const handleSaveToNotes = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
@@ -3108,6 +3210,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [modelIndex]);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+    // C3 — refuse every model load while the OS is at platform CRITICAL.
+    // The ref closes the event-to-render race; the query covers a transition
+    // that arrived before the listener was attached.
+    if (thermalHardGateRef.current) return false;
+    try {
+      if (await getPlatformThermalHardGate()) {
+        thermalHardGateRef.current = true;
+        return false;
+      }
+    } catch {
+      // The platform reader is fail-open; an unavailable API never blocks.
+    }
+    if (thermalHardGateRef.current) return false;
     // Capture generation + expected model BEFORE any await (race with selectModel).
     const generation = engineGenerationRef.current;
     const expectedModelId = model.id;
@@ -3139,6 +3254,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     try {
       if (!(await isModelBundleDownloaded(model))) return false;
       if (!stillCurrent()) return false;
+      if (thermalHardGateRef.current) return false;
 
       // Hard RAM gate before initEngine. Never force-evict the currently active
       // model (if this model is already active and ready we returned above).
@@ -3372,6 +3488,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
+      if (thermalHardGateRef.current) {
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        return false;
+      }
       const boundedInit = await runNativeOpBounded(
         () =>
           initEngine(modelLocalPath(model, model.file), model.id, {
@@ -3455,6 +3576,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const selectModel = useCallback(
     (nextIndex: number) => {
+      if (thermalHardGateRef.current) return;
       if (
         downloadInFlight.current ||
         modelSwitchInFlightRef.current ||
@@ -3590,6 +3712,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
 
   const startDownload = useCallback(async (modelId: string) => {
+    if (thermalHardGateRef.current) return;
+    try {
+      if (await getPlatformThermalHardGate()) {
+        thermalHardGateRef.current = true;
+        return;
+      }
+    } catch {
+      // The platform reader is fail-open; an unavailable API never blocks.
+    }
     const model = MODEL_REGISTRY.find((m) => m.id === modelId);
     if (!model) return;
 
@@ -3640,6 +3771,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       downloadInFlight.current = false;
       return;
     }
+    if (thermalHardGateRef.current) {
+      downloadInFlight.current = false;
+      return;
+    }
 
     const controller = new AbortController();
     downloadAbortRef.current = controller;
@@ -3680,7 +3815,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         locale,
         gate: downloadGate,
       });
-      if (!stillCurrent()) return;
+      if (!stillCurrent() || thermalHardGateRef.current) return;
       if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
         setModelState("missing");
         return;
@@ -3692,7 +3827,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelError(t("download.incomplete"));
         return;
       }
-      if (!stillCurrent()) return;
+      if (!stillCurrent() || thermalHardGateRef.current) return;
       errorPhase = "engine";
       // Round 8 FIX 2: hung guard at TOP of download→init path — same as
       // ensureEngineForModel. Never acquire/submit when embedder is hung
@@ -4122,6 +4257,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [startVoiceDownload, t]);
 
   const startEmbeddingDownload = useCallback(async () => {
+    if (thermalHardGateRef.current) return;
     if (embeddingDownloadInFlight.current || embeddingState === "downloading") {
       return;
     }
@@ -4135,6 +4271,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Free-disk check via existing download flow (not subject to chat RAM gate).
       try {
         const free = await getFreeDiskBytes();
+        if (thermalHardGateRef.current) return;
         const need = diskRequirementBytes(EMBEDDING_MODEL.sizeBytes);
         if (typeof free === "number" && free >= 0 && free < need) {
           setEmbeddingState("error");
@@ -4145,6 +4282,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       } catch {
         // Probe failure → proceed with download.
       }
+      if (thermalHardGateRef.current) return;
       const outcome = await downloadModelBundle(EMBEDDING_MODEL, {
         onBundleProgress: (progress) => {
           setEmbeddingDownloadPercent(Math.round(progress.overall * 100));
@@ -4289,6 +4427,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           finish();
         };
 
+        // Synchronous backstop for a CRITICAL event that lands after
+        // AiChatPage's pre-send guard but before this callback runs.
+        if (thermalHardGateRef.current || thermalHardGated) {
+          fail(t("chat.thermalHardGateBody"), "chat.thermalHardGateBody");
+          return;
+        }
         streamInFlightRef.current = true;
         setStreaming(true);
         lastUserRawRef.current = typeof text === "string" ? text : "";
@@ -5042,6 +5186,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       locale,
       recordDecodeSample,
       refreshMemoryFacts,
+      thermalHardGated,
       t,
     ],
   );
@@ -5121,6 +5266,51 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // remounts (otherwise an in-flight extract is rejected as "unmounted" /
     // cancelled while the user only changed text size).
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
+      {/* C3 — HARD gate overlay: blocks ALL UI while the OS reports CRITICAL
+          thermal severity. Unloads the model (see effect above) and refuses send
+          + load. Honest copy: device is critically hot, model unloaded, wait.
+          Rendered only while gated; falls away on the falling edge. */}
+      {thermalHardGated && (
+        <View
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 60,
+            backgroundColor: "rgba(0,0,0,0.88)",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 28,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              backgroundColor: colors.panelSolid,
+              borderRadius: 16,
+              padding: 24,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={[
+                typography.bodyLg,
+                { color: colors.bad, fontWeight: "700", marginBottom: 12 },
+              ]}
+            >
+              {t("chat.thermalHardGateTitle")}
+            </Text>
+            <Text
+              style={[
+                typography.bodyMd,
+                { color: colors.ink, textAlign: "center" },
+              ]}
+            >
+              {t("chat.thermalHardGateBody")}
+            </Text>
+          </View>
+        </View>
+      )}
     {/*
       PainterlyBg + header + AiChatPage stay unkeyed: they already call
       useTypography() and re-render via theme context. key=fontScaleId lives
@@ -5302,6 +5492,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               void handleSaveToNotes(text);
             }}
             onSendStream={handleSendStream}
+            inferenceBlocked={thermalHardGated}
             voiceReady={voiceState === "ready"}
             ttsEnabled={ttsEnabled}
             engineCtx={chatEngineCtx}

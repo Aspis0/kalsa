@@ -358,6 +358,8 @@ type Props = {
    * Missing / unknown → treat as text-only so the notice is conservative.
    */
   supportsVision?: boolean;
+  /** OS thermal CRITICAL gate; blocks every new inference entry point. */
+  inferenceBlocked?: boolean;
 };
 
 type SuggestionItem = {
@@ -789,6 +791,7 @@ export function AiChatPage({
   isActiveChatEmptyRef,
   bumpPersistEpochRef,
   supportsVision = false,
+  inferenceBlocked = false,
 }: Props) {
   const { colors, mode, fontScaleId } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
@@ -2006,6 +2009,10 @@ export function AiChatPage({
       currentAttachments?: LocalAttachment[],
       opts?: HandleSendOpts,
     ): Promise<HandleSendResult> => {
+      if (inferenceBlocked) {
+        showVoiceNote(t("chat.thermalHardGateBody"));
+        return { ok: false, reasonKey: "chat.thermalHardGateBody" };
+      }
       const trimmed = text.trim();
       const hasAttachments = (currentAttachments?.length ?? 0) > 0;
       let jsReady = false;
@@ -2826,7 +2833,7 @@ export function AiChatPage({
         }
       }
     },
-    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, showVoiceNote, supportsVision, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, inferenceBlocked, invalidateVoice, onSendStream, showVoiceNote, supportsVision, t, updateMessage],
   );
 
   // Publish the active handleSend promise so background discard can await it.
@@ -3448,6 +3455,7 @@ export function AiChatPage({
       !translatingId &&
       historyLoaded &&
       !voiceBlocksComposer &&
+      !inferenceBlocked &&
       // Audit follow-up: block submission while a PDF conversion is in
       // flight — otherwise the late handlePdfDone queues the PDF chip into
       // the NEXT message instead of the one being sent now.
@@ -3456,6 +3464,7 @@ export function AiChatPage({
       attachedItems.length,
       draft,
       historyLoaded,
+      inferenceBlocked,
       pdfToRender,
       sending,
       translatingId,
@@ -3475,12 +3484,16 @@ export function AiChatPage({
       handleStop();
       return;
     }
+    if (inferenceBlocked) {
+      showVoiceNote(t("chat.thermalHardGateBody"));
+      return;
+    }
     if (pdfToRenderRef.current) return;
     const text = draftRef.current;
     const attachments = attachedItemsRef.current;
     if (!text.trim() && attachments.length === 0) return;
     handleSendTracked(text, attachments);
-  }, [handleSendTracked, handleStop]);
+  }, [handleSendTracked, handleStop, inferenceBlocked, showVoiceNote, t]);
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
@@ -5821,4 +5834,3 @@ function MiniappCard({
     </View>
   );
 }
-
