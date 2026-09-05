@@ -1106,6 +1106,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > MemAvailable 12.2-12.4 → 7.8-8.0 GB (B), → 10.0 (A); nessun lmkd. Skin 30.3
 > → 39.5 °C. Sessione 799540 chiusa (~23 min). Addendum → Luna 5fcd34c9.
 
+> **6/09 06:10 Mac — In volo:** addendum run 6 (Luna 5fcd34c9); indagine
+> documentale divergenza (ee4741e9, `docs/GPU-PREFILL-DIVERGENCE-2026-09-06.md`,
+> ora già confermata dal device); **nuova indagine (Luna 9392e981,
+> `docs/ARM-A-PREFIX-REUSE-2026-09-06.md`)**: perché il braccio A non riusa il
+> KV del prewarm (TTFT 41-45 s su 3 board, 335 ms su 72c4dabb) — sospetto
+> session save/load KV attivo solo fuori dal governor mode. Finché non è
+> capito, il TTFT del turno A/B non è un confronto GPU-vs-CPU valido.
+> Memoria aggiornata (run 6, indice).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
