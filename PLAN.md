@@ -1082,6 +1082,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > verbale: il trend a B3 era +0.422 °C/min (il +0.917 era il B2 del run 4).
 > Audit addendum → deepseek. Run 6 (8 Elite) in corso.
 
+> **6/09 05:55 Mac — RUN 6 (8 ELITE, sa803609): ORACOLO PASS CON PREFILL GPU.**
+> B1: `engine_prefill GPU`, commit 9.2 MB / 7.7 ms, `prefill_ms 358`, `2+13`,
+> FAST, ids_sha = A (0f4b385a…) → **il test pre-registrato conferma
+> l'attribuzione: la divergenza al token 14 era il difetto f16/bf16-batched
+> del SOLO Adreno 750 (ALIVE #38/#39); su Adreno 830 il prefill GPU del
+> governor è token-identico alla CPU.** Prime coppie oracle-PASS ⇒ endpoint 2
+> analizzabile. Parziali: A 28.7/28.4 tok/s, B 28.5; TTFT A 43.7/41.1 s
+> (pattern "prewarm non riusato" anche qui), B 358 ms (15 token); prewarm GPU
+> 4.06 s; MemAvailable 12.3 → 8.0 GB (B). Run in corso (B2-B4).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
