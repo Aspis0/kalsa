@@ -504,8 +504,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     regenBusy: "Rigenera già in corso",
     unloaded: "Scaricato per pressione di memoria",
     lazyReload: "Tocca per ricaricare",
-    thermalWarm: "Telefono caldo — l'inference peut-être più lenta",
-    thermalHot: "Telefono caldo — prova a fargli una pausa",
+    thermalWarm: "Telefono tiepido — l'inferenza può essere più lenta",
+    thermalHot: "Telefono caldo — meglio una pausa",
+
     thermalCritical: "Telefono molto caldo — le prestazioni possono calare",
     regenFailed: "Rigenera fallita",
     editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
