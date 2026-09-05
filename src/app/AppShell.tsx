@@ -56,8 +56,8 @@ import {
   friendlyNetworkError,
   isModelBundleDownloaded,
   modelLocalPath,
-  sweepOrphanModelDirs,
 } from "../engine/ModelDownloader";
+import { detectOrphansAtBoot } from "../engine/ModelDownloader.orphanMigration";
 import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
@@ -2598,9 +2598,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (savedIndex >= 0) setModelIndex(savedIndex);
       })
       .catch(() => undefined);
-    // M1: best-effort boot sweep of orphaned model folders left by a catalog
-    // prune (no UI delete path). Fire-and-forget — never blocks UI.
-    void sweepOrphanModelDirs().catch(() => undefined);
+    // M1: detect orphaned model folders left by a catalog prune (no UI delete
+    // path). Detect-ONLY: never deletes at boot. A one-time "Delete / Keep"
+    // notice surfaces in Settings. Fire-and-forget — never blocks UI.
+    void detectOrphansAtBoot(getActiveModelId()).catch(() => undefined);
     return () => {
       mounted = false;
     };

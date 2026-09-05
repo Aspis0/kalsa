@@ -259,6 +259,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     cannotEvaluate: "Cannot determine memory, free space and try",
     tightNow: "Memory low — regenerate not supported, free",
     memoryUnknown: "Memory could not be determined — policy used unknown",
+    orphanNoticeTitle: "{count} models no longer in the catalog",
+    orphanNoticeBody: "Downloaded on this device but removed from the catalog. Delete to free space, or Keep to leave them.",
+    orphanDelete: "Delete",
+    orphanKeep: "Keep",
   },
 
 

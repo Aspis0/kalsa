@@ -254,6 +254,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     cannotEvaluate: "Impossibile determinare la memoria, libera spazio e riprova",
     tightNow: "Memoria ridotta — la rigenerazione non è supportata, libera",
     memoryUnknown: "Memoria non determinata — policy usata unknown",
+    orphanNoticeTitle: "{count} modelli non più nel catalog",
+    orphanNoticeBody: "Scaricati su questo dispositivo ma rimossi dal catalog. Elimina per liberare spazio, oppure Keep per lasciarli.",
+    orphanDelete: "Elimina",
+    orphanKeep: "Tieni",
   },
 
 
