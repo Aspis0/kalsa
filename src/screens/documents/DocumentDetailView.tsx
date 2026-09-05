@@ -6,6 +6,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -19,6 +20,7 @@ import {
   formatAddedBucket,
   formatAddedDate,
   formatBytesLocalized,
+  isDocumentUnreadable,
   type LibraryDoc,
 } from "../../documents/DocumentLibrary";
 import { readPreviewSnippet } from "../../documents/documentStorage";
@@ -28,21 +30,29 @@ import { spacing } from "../../theme/tokens";
 import { useTypography, fontFamilies } from "../../theme/typography";
 import { useLabTheme } from "../../ui/labTheme";
 
+export type RebuildSemanticIndexResult =
+  | true
+  | {
+      ok: false;
+      reason: "busy" | "in_progress" | "no_embedder" | "unavailable";
+    };
+
 type Props = {
   doc: LibraryDoc;
   onBack: () => void;
   onDelete: (doc: LibraryDoc) => void;
+  onRebuildSemanticIndex: (id: string) => Promise<RebuildSemanticIndexResult>;
   /** When true, disable delete (import / other op busy). */
   busy?: boolean;
 };
 
-function isUnreadable(doc: LibraryDoc): boolean {
-  if (doc.docCount > 0) return false;
-  const s = doc.extractionStatus;
-  return s === "timeout" || s === "renderer_error" || s === "fs_error";
-}
-
-export function DocumentDetailView({ doc, onBack, onDelete, busy }: Props) {
+export function DocumentDetailView({
+  doc,
+  onBack,
+  onDelete,
+  onRebuildSemanticIndex,
+  busy,
+}: Props) {
   const { colors } = useLabTheme<any>();
   const typography = useTypography();
   const insets = useSafeAreaInsets();
@@ -50,6 +60,30 @@ export function DocumentDetailView({ doc, onBack, onDelete, busy }: Props) {
   const [coverFailed, setCoverFailed] = useState(false);
   const [snippet, setSnippet] = useState<string | null>(null);
   const [snippetLoading, setSnippetLoading] = useState(doc.kind === "txt");
+  const [rebuilding, setRebuilding] = useState(false);
+
+  const handleRebuild = async () => {
+    if (busy || rebuilding) return;
+    setRebuilding(true);
+    try {
+      const accepted = await onRebuildSemanticIndex(doc.id);
+      if (accepted === true) {
+        Alert.alert(t("documents.title"), t("documents.rebuildIndexStarted"));
+        return;
+      }
+      const messageKey =
+        accepted.reason === "no_embedder"
+          ? "documents.rebuildIndexNoEmbedder"
+          : accepted.reason === "in_progress"
+            ? "documents.rebuildIndexInProgress"
+            : accepted.reason === "busy"
+              ? "documents.errorBusy"
+              : "documents.rebuildIndexUnavailable";
+      Alert.alert(t("documents.title"), t(messageKey));
+    } finally {
+      setRebuilding(false);
+    }
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -188,7 +222,7 @@ export function DocumentDetailView({ doc, onBack, onDelete, busy }: Props) {
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {metaLine}
           </Text>
-          {isUnreadable(doc) ? (
+          {isDocumentUnreadable(doc) ? (
             <Text
               style={[
                 typography.bodySm,
@@ -199,6 +233,36 @@ export function DocumentDetailView({ doc, onBack, onDelete, busy }: Props) {
             </Text>
           ) : null}
         </View>
+
+        {!isDocumentUnreadable(doc) ? (
+          <Pressable
+            onPress={() => void handleRebuild()}
+            disabled={!!busy || rebuilding}
+            accessibilityRole="button"
+            accessibilityLabel={t("documents.rebuildIndex")}
+            accessibilityHint={t("documents.rebuildIndexHint")}
+            style={{
+              marginTop: spacing.sm,
+              paddingVertical: spacing.md,
+              borderRadius: 14,
+              backgroundColor: colors.accentSoft ?? colors.panelSolid,
+              alignItems: "center",
+              opacity: busy || rebuilding ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={[
+                typography.bodySm,
+                {
+                  color: colors.accent,
+                  fontFamily: fontFamilies.bodySemi,
+                },
+              ]}
+            >
+              {t("documents.rebuildIndex")}
+            </Text>
+          </Pressable>
+        ) : null}
 
         <Pressable
           onPress={() => onDelete(doc)}

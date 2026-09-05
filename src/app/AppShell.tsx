@@ -10,10 +10,12 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 import { AccountScreen } from "../screens/AccountScreen";
 import { ProScreen } from "../screens/ProScreen";
 import { DocumentsScreen } from "../screens/DocumentsScreen";
+import type { RebuildSemanticIndexResult } from "../screens/documents/DocumentDetailView";
 import { NotesScreen } from "../screens/NotesScreen";
 import { PersonasScreen, builtinCopyFromT } from "../screens/PersonasScreen";
 import {
   emptyLibraryState,
+  isDocumentUnreadable,
   loadLibraryState,
   saveLibraryState,
   getDefaultLibraryStorage,
@@ -965,6 +967,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * Set SYNCHRONOUSLY before the first await so a second import cannot race in.
    */
   const embedJobInFlightRef = useRef(false);
+  /** Reactive busy flag for a user-triggered rebuild, not ordinary imports. */
+  const [semanticRebuildInFlight, setSemanticRebuildInFlight] = useState(false);
   /**
    * Generation token for the background embed job. Bumped on unmount, on
    * library delete of the doc being embedded, and when the chat model starts
@@ -1359,6 +1363,47 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    *
    * Never throws; never holds the chat path.
    */
+  const isChatResidentForEmbed = useCallback((): boolean => {
+    const state = modelStateRef.current;
+    if (state === "loading") return true;
+    try {
+      return isEngineReady();
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /** Shared RAM preflight for imports and user-triggered rebuilds. */
+  const mustSkipEmbedForRam = useCallback(async (): Promise<boolean> => {
+    if (!isChatResidentForEmbed()) return false;
+    try {
+      const profile = await getCachedDeviceProfile();
+      const total = profile.totalMemoryBytes ?? 0;
+      setCoResidencyContext({
+        totalMemoryBytes: total,
+        chatModelIs2B: isChatModel2BClass(getActiveModelId()),
+      });
+      if (total <= 0 || total <= CO_RESIDENCY_MIN_MEMORY_BYTES) return true;
+      return isChatModel4BClass(getActiveModelId());
+    } catch {
+      return true;
+    }
+  }, [isChatResidentForEmbed]);
+
+  /** Shared embedder availability check; preserves the cached status contract. */
+  const ensureEmbedderDownloaded = useCallback(
+    async (signal?: AbortSignal): Promise<boolean> => {
+      if (embedderDownloadedRef.current) return true;
+      const status = await getEmbeddingModelStatus(
+        signal ? { signal } : undefined,
+      );
+      if (signal?.aborted) return false;
+      embedderDownloadedRef.current = status === "downloaded";
+      return embedderDownloadedRef.current;
+    },
+    [],
+  );
+
   const scheduleBackgroundEmbed = useCallback(async (entry: LibraryDoc) => {
     if (!entry?.id || !entry.fileUri) return;
     // Single-flight: set SYNCHRONOUSLY before the first await so a concurrent
@@ -1384,49 +1429,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       `[embed] start {"docId":${JSON.stringify(entry.id)},"kind":${JSON.stringify(entry.kind)}}`,
     );
 
-    /**
-     * Chat residency gate for the soft RAM pre-check.
-     * "Resident" means the ENGINE is loaded (or loading), NOT that the GGUF is
-     * merely on disk. modelState "ready" after the download probe means
-     * downloaded-on-disk only — treating it as resident blocked embeds on cold
-     * start (header "Ready · local") even when isEngineReady() was false.
-     * Use loading UI state + isEngineReady only.
-     */
-    const isChatResident = () => {
-      const st = modelStateRef.current;
-      // "loading" covers the window between setModelState("loading") and
-      // isEngineReady() flipping true (engine init in flight).
-      if (st === "loading") return true;
-      try {
-        if (isEngineReady()) return true;
-      } catch {
-        /* ignore */
-      }
-      return false;
-    };
-
-    /** Soft pre-gate: skip job early when chat resident on ≤6 GB (log). */
-    const mustSkipForRam = async (): Promise<boolean> => {
-      if (!isChatResident()) return false;
-      try {
-        const profile = await getCachedDeviceProfile();
-        const total = profile.totalMemoryBytes ?? 0;
-        // Keep gate co-residency inputs fresh for tryAcquireEmbed (§5).
-        setCoResidencyContext({
-          totalMemoryBytes: total,
-          chatModelIs2B: isChatModel2BClass(getActiveModelId()),
-        });
-        // <= 6 GB: refuse co-residence. Unknown RAM (0/null) → conservative skip.
-        // Hard gate is still llamaContextGate.tryAcquireEmbed.
-        if (total <= 0 || total <= CO_RESIDENCY_MIN_MEMORY_BYTES) return true;
-        // 4B chat: no co-residency even on 8GB+.
-        if (isChatModel4BClass(getActiveModelId())) return true;
-        return false;
-      } catch {
-        return true;
-      }
-    };
-
     // Shared READ latch for the whole run so delete cannot remove the file /
     // index mid-embed, and so we cannot resurrect a deleted index.
     if (!tryAcquireRead()) {
@@ -1448,7 +1450,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
 
-      if (await mustSkipForRam()) {
+      if (await mustSkipEmbedForRam()) {
         // eslint-disable-next-line no-console
         console.log(
           "[embed] skip: chat resident on ≤6GB RAM — BM25-only until chat released",
@@ -1463,31 +1465,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
 
-      if (!embedderDownloadedRef.current) {
-        try {
-          const status = await getEmbeddingModelStatus({ signal });
-          if (!stillCurrent() || signal.aborted) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `[embed] skip: aborted during embedder status {"docId":${JSON.stringify(entry.id)}}`,
-            );
-            return;
-          }
-          embedderDownloadedRef.current = status === "downloaded";
-        } catch {
+      if (!(await ensureEmbedderDownloaded(signal))) {
+        if (!stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
           console.log(
-            `[embed] skip: embedder status failed {"docId":${JSON.stringify(entry.id)}}`,
+            `[embed] skip: aborted during embedder status {"docId":${JSON.stringify(entry.id)}}`,
           );
           return;
         }
-        if (!embedderDownloadedRef.current) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[embed] skip: embedder missing {"docId":${JSON.stringify(entry.id)}}`,
-          );
-          return;
-        }
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: embedder missing {"docId":${JSON.stringify(entry.id)}}`,
+        );
+        return;
       }
 
       // Load text the same way document_chat does (txt / pdf pages).
@@ -1641,7 +1631,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           logEmbedDone("aborted");
           return;
         }
-        if (await mustSkipForRam()) {
+        if (await mustSkipEmbedForRam()) {
           // eslint-disable-next-line no-console
           console.log(
             "[embed] abort mid-job: chat became resident on ≤6GB — no embedder init",
@@ -1843,7 +1833,67 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       embedJobInFlightRef.current = false;
       if (embedJobAbortRef.current === ac) embedJobAbortRef.current = null;
     }
-  }, []); // refs only — bumpEmbedJobGeneration is stable via useCallback([])
+  }, [ensureEmbedderDownloaded, mustSkipEmbedForRam]);
+
+  /**
+   * Clear one document's dense state and start a fresh incremental embed.
+   * The shared DELETE gate keeps chat, delete, and background embed from
+   * touching the sidecar or in-memory index during the reset.
+   */
+  const rebuildSemanticIndex = useCallback(
+    async (id: string): Promise<RebuildSemanticIndexResult> => {
+      if (!id || typeof id !== "string") {
+        return { ok: false, reason: "unavailable" };
+      }
+      if (embedJobInFlightRef.current) {
+        return { ok: false, reason: "in_progress" };
+      }
+      if (!tryAcquireDelete()) {
+        return { ok: false, reason: "busy" };
+      }
+
+      let entry: LibraryDoc | undefined;
+      try {
+        entry = (documentLibraryRef.current.docs ?? []).find((doc) => doc.id === id);
+        if (!entry || !entry.fileUri || isDocumentUnreadable(entry)) {
+          return { ok: false, reason: "unavailable" };
+        }
+
+        // Preflight all known no-op conditions before destroying the old index.
+        if (await mustSkipEmbedForRam()) {
+          return { ok: false, reason: "unavailable" };
+        }
+        try {
+          if (!(await ensureEmbedderDownloaded())) {
+            return { ok: false, reason: "no_embedder" };
+          }
+        } catch {
+          return { ok: false, reason: "no_embedder" };
+        }
+
+        bumpEmbedJobGeneration();
+        await deleteVectorIndexFile(id);
+        docSemanticByIdRef.current.delete(id);
+        docEmbedHashesByIdRef.current.delete(id);
+        docDenseReasonByIdRef.current.delete(id);
+      } finally {
+        releaseDelete();
+      }
+
+      if (!entry) return { ok: false, reason: "unavailable" };
+      setSemanticRebuildInFlight(true);
+      void scheduleBackgroundEmbed(entry).finally(() => {
+        setSemanticRebuildInFlight(false);
+      });
+      return true;
+    },
+    [
+      bumpEmbedJobGeneration,
+      ensureEmbedderDownloaded,
+      mustSkipEmbedForRam,
+      scheduleBackgroundEmbed,
+    ],
+  );
 
   // ── Web tools (search + fetch): default ON, per-user toggleable (HIGH-5).
   // Queries / fetches only run when the tool is called (privacy by design).
@@ -5392,6 +5442,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           library={documentLibrary}
           onAddDocument={addDocument}
           onDeleteDocument={deleteDocument}
+          onRebuildSemanticIndex={rebuildSemanticIndex}
+          isSemanticRebuildBusy={semanticRebuildInFlight}
           onReorderDocuments={reorderDocuments}
           onUpdateDocumentPreview={updateDocumentPreview}
           isDocumentDeleteInFlight={isDocumentDeleteInFlight}

@@ -213,6 +213,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     detailA11yDrag: "Maniglia per riordinare",
     dragHint: "Tieni premuto e trascina per riordinare",
     deleteHint: "L'eliminazione è permanente",
+    rebuildIndex: "Ricostruisci indice",
+    rebuildIndexHint: "Ricalcola l'indice semantico del documento",
+    rebuildIndexStarted: "Ricostruzione dell'indice avviata in background.",
+    rebuildIndexNoEmbedder: "Scarica il modello di embedding nelle Impostazioni prima di ricostruire.",
+    rebuildIndexUnavailable: "Questo documento non può essere ricostruito ora. Riprova più tardi.",
+    rebuildIndexInProgress: "La ricostruzione dell'indice è già in corso.",
     errorSave: "Salvataggio non riuscito. Riprova più tardi.",
     // Tool keys (model-facing) — preserved for documentChatTool.ts.
     extraction: {

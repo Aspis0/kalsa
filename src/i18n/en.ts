@@ -214,6 +214,12 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     detailA11yDrag: "Reorder handle",
     dragHint: "Long press and drag to reorder",
     deleteHint: "Deletion is permanent",
+    rebuildIndex: "Rebuild index",
+    rebuildIndexHint: "Re-embed this document for semantic search",
+    rebuildIndexStarted: "Index rebuild started in the background.",
+    rebuildIndexNoEmbedder: "Download the embedding model in Settings before rebuilding.",
+    rebuildIndexUnavailable: "This document cannot be rebuilt right now. Try again later.",
+    rebuildIndexInProgress: "This document's index rebuild is already in progress.",
     errorSave: "Couldn't save. Please try again later.",
     // Tool keys (model-facing) — preserved for documentChatTool.ts.
     extraction: {
