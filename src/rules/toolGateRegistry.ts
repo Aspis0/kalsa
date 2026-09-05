@@ -1,20 +1,22 @@
 /**
- * Per-tool rule tables. Resolution is the only extension point: add an entry
- * to register a new gated tool. Unregistered names (miniapps, document_chat,
- * …) are exempt by construction.
+ * Per-tool rule tables are declared on TOOL_ENTRIES and read here. Adding a
+ * row with a gateTable is therefore enough to make it resolvable; unregistered
+ * names (miniapps, document_chat, …) remain exempt by construction.
  *
  * Flag OFF (expand=false): only web_search resolves — today's behavior.
- * Flag ON: the rest of the map is visible (calendar_agenda today).
+ * Flag ON: the rest of the TOOL_ENTRIES gate rows are visible.
  */
 
-import { CALENDAR_GATE_TABLE } from "./calendarGate";
+import { TOOL_ENTRIES } from "../agent/toolRegistry";
 import type { RuleTable } from "./evaluate";
-import { TOOL_GATE_TABLE } from "./toolGate";
 
-export const TOOL_GATE_REGISTRY: Readonly<Record<string, RuleTable>> = {
-  web_search: TOOL_GATE_TABLE,
-  calendar_agenda: CALENDAR_GATE_TABLE,
-};
+const gateRegistry: Record<string, RuleTable> = {};
+for (const entry of TOOL_ENTRIES) {
+  if (entry.gateTable) gateRegistry[entry.name] = entry.gateTable;
+}
+
+export const TOOL_GATE_REGISTRY: Readonly<Record<string, RuleTable>> =
+  Object.freeze(gateRegistry);
 
 /**
  * Resolve the rule table for a tool. `expand` is the toolhelp flag.
@@ -24,7 +26,6 @@ export function resolveToolGateTable(
   toolName: string,
   expand: boolean,
 ): RuleTable | undefined {
-  if (toolName === "web_search") return TOOL_GATE_REGISTRY.web_search;
-  if (!expand) return undefined;
+  if (!expand && toolName !== "web_search") return undefined;
   return TOOL_GATE_REGISTRY[toolName];
 }

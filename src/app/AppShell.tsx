@@ -28,10 +28,7 @@ import {
   writeVectorIndexFile,
 } from "../documents/documentStorage";
 import { DocumentCoverHost } from "../documents/documentCover";
-import {
-  DOCUMENT_CHAT_TOOL,
-  createDocumentChatExecutor,
-} from "../documents/documentChatTool";
+import { createDocumentChatExecutor } from "../documents/documentChatTool";
 import {
   tryAcquireDelete,
   releaseDelete,
@@ -191,16 +188,15 @@ import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shar
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { saveNote } from "../notes/NotesStore";
 import {
-  DEVICE_CALC_TOOL,
-  DEVICE_INFO_TOOL,
   formatDeviceInfoResult,
   readDeviceInfo,
   runDeviceCalc,
 } from "../agent/deviceTools";
-import { CALENDAR_AGENDA_TOOL, runCalendarAgenda } from "../agent/calendarTool";
+import { runCalendarAgenda } from "../agent/calendarTool";
 import {
   CALENDAR_TOOLS_KEY,
   DEVICE_TOOLS_KEY,
+  WEB_TOOLS_ENABLED_KEY,
   parseToolToggle,
 } from "../agent/toolToggles";
 import {
@@ -215,14 +211,14 @@ import {
   getSpeculativeOverride,
   getToolGateEnabled,
 } from "../bench/benchConfig";
-import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
 import {
-  WEB_FETCH_TOOL,
   makeFetchAllowlist,
   makeWebFetchExecutor,
   type FetchAllowlist,
 } from "../agent/webFetchTool";
+import { assembleTools } from "../agent/toolRegistry";
 import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
 import { makePdfCacheFs } from "../pdf/pdfCacheFs";
 import { isPdfTextExtractionBusy, requestPdfText } from "../pdf/pdfTextService";
@@ -308,8 +304,6 @@ type ActiveOverlay =
   | null;
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
-/** Per-user web tool gate (search + fetch). Default ON; AsyncStorage-backed. */
-const WEB_TOOLS_ENABLED_KEY = "kalsa.web.enabled";
 
 // ── Model download: keep-awake + progress notification (MIUI/Xiaomi fix) ──
 // Aggressive Android power managers (MIUI in particular) freeze the app the
@@ -695,11 +689,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     void AsyncStorage.getItem(WEB_TOOLS_ENABLED_KEY)
       .then((raw) => {
         if (cancelled) return;
-        // Missing key → default ON (current historical behavior).
-        if (raw === "0" || raw === "false") {
-          setWebToolsEnabled(false);
-          webToolsEnabledRef.current = false;
-        }
+        const webOn = parseToolToggle(raw, true);
+        setWebToolsEnabled(webOn);
+        webToolsEnabledRef.current = webOn;
       })
       .catch(() => undefined);
     return () => {
@@ -1943,14 +1935,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     );
     // ensureSemanticIndexLoaded is stable (useCallback []); captured above.
 
-    // HIGH-5: omit web tools when the user toggled Web off. document_chat always
-    // stays available so library attachments keep working offline.
-    const tools = [
-      ...(webToolsEnabled ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL] : []),
-      DOCUMENT_CHAT_TOOL,
-      ...(deviceToolsEnabled ? [DEVICE_INFO_TOOL, DEVICE_CALC_TOOL] : []),
-      ...(calendarToolsEnabled ? [CALENDAR_AGENDA_TOOL] : []),
-    ];
+    // New tool checklist and ordering live in src/agent/toolRegistry.ts.
+    const tools = assembleTools({
+      web: webToolsEnabled,
+      device: deviceToolsEnabled,
+      calendar: calendarToolsEnabled,
+    });
 
     return {
       tools,
