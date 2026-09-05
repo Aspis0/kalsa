@@ -650,3 +650,43 @@ GO. 0 blockers, 0 majors, 2 minor (F3 -ge vs -gt cap inconsistency; no deadline_
 typing ladder), 3 nits (F1 dump-glitch = short without re-dump; F4 transport failure → VOID
 vs pre-registered disconnect abort; ladder clear not EMPTY_TEXT-verified). Everything else
 CONFIRMED; dryrun exit 0. Launch run 7c.
+
+
+## Delta audit #12 — run 7d dump retry
+
+1 (dump_ui, parse.sh:202-230) — CONFIRMED. 5 attempts / 3 s apart; `rm -f $DEVICE_TMP/
+ui.xml` before EVERY dump (stale ui.xml can never be cat'ed), cat gated by
+`[ "$rm_rc" -eq 0 ] && [ "$rc" -eq 0 ]` and `[ -s "$out" ]`; `: > "$out"` at entry;
+per-attempt `attempt/rm_rc/rc` + cat lines to "${out}.dump.log". DUMP_UI_TRANSPORT=0 at
+entry (:206), set on `case "$rm_rc:$rc" in *:124|*:255|124:*|255:*)` and cat_rc 124|255;
+callers reset it before each call and read with `:-0`. The success `[ -s "$out" ] && return
+0` is reachable on attempt 5; after the loop `return 1`. Nits: tr/mv failure returns 0 with
+CRLF content (pre-existing pattern); any rc=255 classified transport (conservative).
+2 (ui_send) — CONFIRMED. parse.sh:469 `sleep 3` once per ui_send after load. Edit-dump
+failure (:476-482): `dump_fail stage=edit` logged; transport → `return 1`; else
+`void_reason=composer; return 2`. d_run.sh:275 `if [ "$ui_rc" -eq 2 ]; then row_void=1;
+elif [ "$ui_rc" -ne 0 ]; then status=1; fi` — 2 → VOID, 1 → ABORT (pre-registered) ✓.
+Send-dump failure post-typing (:497): transport → 1, else 2 — typed-but-never-sent correctly
+VOIDs; the end-of-row force-stop/uninstall still runs. Retry-loop dumps (:550) log
+`dump_fail stage=send attempt=…`; after the loop transport → 1 else VOID 2 ✓.
+3 (sleep 3) — CONFIRMED: one 3 s settle per ui_send before the first dump; the other sleeps
+are inter-attempt/retry — no compounding.
+4 (removed behaviour) — CONFIRMED: the old edit-missing `return 1` had no caller relying on
+rc=1 (single caller d_run.sh:275 handles both); dryrun fixtures rebuilt for the new rc.
+5 (dryrun) — CONFIRMED: `bash dryrun.sh > /tmp/dr12.log 2>&1` → exit=0. The two fixtures hit
+the real code: DUMP_FAILS=2 → stub emits the real `ERROR: could not get idle state` twice
+then succeeds — asserts `attempt=3 .*rc=0` in retry_edit.xml.dump.log and ui_send rc=0
+(typing proceeds); DUMP_FAILS=5 → A 9 has `status=0 row_void=1` + `dump_fail stage=edit`,
+then A 10 runs — continuation proven. Genuine.
+6 (set -u) — CONFIRMED: DUMP_UI_TRANSPORT assigned before use, reads `:-0`-guarded;
+edit_dump_rc/send_dump_rc/send_dump_transport declared.
+7 (PREREG:153-156) — CONFIRMED vs raw/sa807902: edit.xml = 64 bytes with exactly `cat:
+/data/local/tmp/kalsa-s5/ui.xml: No such file or directory`; load.txt has
+`"promptMs":117820.522` (117.8 s ≈ "118 s"); "five times at 3 s intervals … VOID(composer)
+rather than an abort" and "no 7c data are analyzed" match the code and run state.
+
+## Delta verdict #12
+
+GO. 0 blockers, 0 majors, 0 minors, 2 nits (tr/mv failure; conservative 124/255 transport
+classification). Mechanics, VOID-vs-abort split, send-fail semantics, dryrun (exit 0), set -u
+safety and PREREG:153-156 all CONFIRMED. Launch run 7d.

@@ -149,3 +149,8 @@ Run 7b lost A1 to `actual=3976 expected=5142 ... empty_text_len=17`, then cleare
 The 150 s total typing cap caused the VOID; the 11 chunk wake records stayed `Awake` [raw/sa807321/7p-Gen-3_A_t1_ui_attempts.txt:1-11].
 Run 7c verifies the composer after every chunk, handles the first-character loss with one chunk-0 retype, and retries other mismatches through the 500 → 200 → 100 ladder, with a 400 s cap per attempt; failure remains `VOID(composer)` and never aborts the run.
 PREREG:132-138 remains unchanged.
+
+### Run 7c (sa807902) → run 7d
+Run 7c aborted before typing: `raw/sa807902a/7p-Gen-3_A_t1_edit.xml` was 64 bytes (`cat: /data/local/tmp/kalsa-s5/ui.xml: No such file or directory`); the prewarm took 118 s.
+The driver now retries `uiautomator dump` five times at 3 s intervals, captures dump diagnostics, and treats an exhausted UI dump as `VOID(composer)` rather than an abort.
+The 7d+ run uses the unchanged PREREG:132-138 endpoint and abort rules; no 7c data are analyzed.

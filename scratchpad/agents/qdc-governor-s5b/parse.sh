@@ -201,10 +201,31 @@ cool_target_for_arm() {
 }
 dump_ui() {
   local out="$1"
-  adbT 60 -s "$SER" shell "uiautomator dump $DEVICE_TMP/ui.xml >/dev/null 2>&1" || return 1
-  adbT 60 -s "$SER" shell "cat $DEVICE_TMP/ui.xml" > "$out" 2>&1 || return 1
-  tr -d '\r' < "$out" > "$out.tmp" && mv "$out.tmp" "$out"
-  [ -s "$out" ]
+  local dump_log="${out}.dump.log"
+  local attempt rc rm_rc cat_rc
+  DUMP_UI_TRANSPORT=0
+  : > "$dump_log"
+  : > "$out"
+  for attempt in 1 2 3 4 5; do
+    adbT 60 -s "$SER" shell "rm -f $DEVICE_TMP/ui.xml" >> "$dump_log" 2>&1
+    rm_rc=$?
+    adbT 60 -s "$SER" shell "uiautomator dump $DEVICE_TMP/ui.xml" >> "$dump_log" 2>&1
+    rc=$?
+    case "$rm_rc:$rc" in *:124|*:255|124:*|255:*) DUMP_UI_TRANSPORT=1 ;; esac
+    printf 'attempt=%s rm_rc=%s rc=%s\n' "$attempt" "$rm_rc" "$rc" >> "$dump_log"
+    if [ "$rm_rc" -eq 0 ] && [ "$rc" -eq 0 ]; then
+      adbT 60 -s "$SER" shell "cat $DEVICE_TMP/ui.xml" > "$out" 2>> "$dump_log"
+      cat_rc=$?
+      case "$cat_rc" in 124|255) DUMP_UI_TRANSPORT=1 ;; esac
+      printf 'attempt=%s cat_rc=%s\n' "$attempt" "$cat_rc" >> "$dump_log"
+      if [ "$cat_rc" -eq 0 ] && [ -s "$out" ]; then
+        tr -d '\r' < "$out" > "$out.tmp" && mv "$out.tmp" "$out"
+        [ -s "$out" ] && return 0
+      fi
+    fi
+    [ "$attempt" -lt 5 ] && sleep 3
+  done
+  return 1
 }
 bounds_edit() { tr '>' '\n' < "$1" | grep 'class="android.widget.EditText"' | sed -n 's/.*bounds="\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]".*/\1 \2 \3 \4/p' | head -1; }
 bounds_send() { tr '>' '\n' < "$1" | grep -E 'content-desc="Send"|text="Send"' | sed -n 's/.*bounds="\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]".*/\1 \2 \3 \4/p' | head -1; }
@@ -433,6 +454,7 @@ ui_send() {
   local retry_file="${prefix}_composer_retry.xml"
   local cleared_file="${prefix}_composer_cleared.xml"
   local attempt edit_bounds send_bounds previous_send awake_rc send_anchor
+  local edit_dump_rc send_dump_rc send_dump_transport
   local type_start type_end type_rc type_elapsed typing_total
   local composer_ok cleared_len metrics hint_len empty_text_len
   : > "$attempts_file"
@@ -444,10 +466,18 @@ ui_send() {
   EMPTY_TEXT=""
   TYPE_ATTEMPT_NO=0
 
-  dump_ui "$edit_file" || true
+  sleep 3
+  DUMP_UI_TRANSPORT=0
+  dump_ui "$edit_file"
+  edit_dump_rc=$?
   edit_bounds=""
-  [ -s "$edit_file" ] && edit_bounds=$(bounds_edit "$edit_file") || edit_bounds=""
-  [ -n "$edit_bounds" ] || return 1
+  [ "$edit_dump_rc" -eq 0 ] && [ -s "$edit_file" ] && edit_bounds=$(bounds_edit "$edit_file") || edit_bounds=""
+  if [ -z "$edit_bounds" ]; then
+    printf 'dump_fail stage=edit rc=%s transport=%s\n' "$edit_dump_rc" "${DUMP_UI_TRANSPORT:-0}" >> "$attempts_file"
+    [ "${DUMP_UI_TRANSPORT:-0}" -eq 1 ] && return 1
+    void_reason=composer
+    return 2
+  fi
   EMPTY_TEXT=$(composer_text_attr "$edit_file" text)
   tap_bounds "$edit_bounds" || return 1
   type_start=$(date +%s)
@@ -459,7 +489,16 @@ ui_send() {
   printf 'initial_seconds=%s rc=%s total_seconds=%s\n' "$type_elapsed" "$type_rc" "$typing_total" >> "${prefix}_type_prompt.txt"
   [ "$type_rc" -ne 2 ] || { void_reason=composer; return 2; }
 
-  dump_ui "$send_file" || true
+  DUMP_UI_TRANSPORT=0
+  dump_ui "$send_file"
+  send_dump_rc=$?
+  send_dump_transport="${DUMP_UI_TRANSPORT:-0}"
+  if [ "$send_dump_rc" -ne 0 ]; then
+    printf 'dump_fail stage=send attempt=0 rc=%s transport=%s\n' "$send_dump_rc" "$send_dump_transport" >> "$attempts_file"
+    [ "$send_dump_transport" -eq 1 ] && return 1
+    void_reason=composer
+    return 2
+  fi
   composer_ok=1
   if [ "$type_rc" -ne 0 ] || ! [ -s "$send_file" ] || ! composer_check "$prefix" "$send_file" initial; then
     composer_ok=0
@@ -492,7 +531,8 @@ ui_send() {
   fi
 
   send_bounds=""
-  [ -s "$send_file" ] && send_bounds=$(bounds_send "$send_file") || send_bounds=""
+  [ "$send_dump_rc" -eq 0 ] && [ -s "$send_file" ] && send_bounds=$(bounds_send "$send_file") || send_bounds=""
+  [ -n "$send_bounds" ] || printf 'dump_fail stage=send attempt=0 rc=%s transport=%s\n' "$send_dump_rc" "$send_dump_transport" >> "$attempts_file"
   for attempt in 1 2 3; do
     if [ "$attempt" -gt 1 ]; then
       sleep 3
@@ -501,9 +541,13 @@ ui_send() {
         adbT 60 -s "$SER" shell input keyevent 4 > "${prefix}_ime_dismiss_${attempt}.txt" 2>&1 || true
       fi
       send_file="${prefix}_send_attempt${attempt}.xml"
-      dump_ui "$send_file" || true
+      DUMP_UI_TRANSPORT=0
+      dump_ui "$send_file"
+      send_dump_rc=$?
+      [ "${DUMP_UI_TRANSPORT:-0}" -eq 1 ] && send_dump_transport=1
       send_bounds=""
-      [ -s "$send_file" ] && send_bounds=$(bounds_send "$send_file") || send_bounds=""
+      [ "$send_dump_rc" -eq 0 ] && [ -s "$send_file" ] && send_bounds=$(bounds_send "$send_file") || send_bounds=""
+      [ -n "$send_bounds" ] || printf 'dump_fail stage=send attempt=%s rc=%s transport=%s\n' "$attempt" "$send_dump_rc" "${DUMP_UI_TRANSPORT:-0}" >> "$attempts_file"
     fi
     printf 'attempt=%s edit_bounds=%s send_bounds=%s\n' "$attempt" "${edit_bounds:-na}" "${send_bounds:-na}" >> "$attempts_file"
     awake_rc=0
@@ -518,5 +562,7 @@ ui_send() {
     fi
     previous_send="$send_bounds"
   done
-  return 1
+  [ "$send_dump_transport" -eq 1 ] && return 1
+  void_reason=composer
+  return 2
 }

@@ -1482,6 +1482,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > pausa 3 s dopo il load, dump fallito ⇒ VOID composer (rc 2) e mai abort; PREREG "7c → 7d".
 > Sessione 803833 tenuta viva (scade 19:32) per run 7d sullo stesso tunnel.
 
+> **5/09 18:00 EDT Mac — dump retry su disco (Luna), deepseek #12 GO pulito (2 nit).** dump_ui
+> 5 tentativi con `rm -f` prima di ognuno, log per tentativo, flag transport (124/255 ⇒ abort
+> pre-registrato, altro ⇒ VOID composer), pausa 3 s dopo il load, dryrun con "2 fail poi ok" e
+> "5 fail ⇒ VOID e il turno dopo gira". Raw 7c → `raw/sa807902a`. **Run 7d lanciata sulla stessa
+> sessione 803833/sa807902** con `ABABAB 85` (fine ≤19:25).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
