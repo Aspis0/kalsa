@@ -29,8 +29,9 @@ struct llama_governor {
     const char * failure_reason() const { return failure_reason_; }
 
 private:
-    friend llama_governor * llama_governor_init_with_params(
-            llama_model *, llama_model *, llama_context_params, llama_context_params, llama_governor_params);
+    friend llama_governor * llama_governor_init_with_params_internal(
+            llama_model *, llama_model *, llama_context_params, llama_context_params,
+            llama_governor_params, std::string * failure_reason);
 
     llama_governor(llama_model * model_prefill, llama_model * model_decode,
                    llama_context_params params_prefill, llama_context_params params_decode,

@@ -211,7 +211,7 @@ struct llama_governor_params {
     bool cool_delta_measured = false;
     bool kexp_cool_scope = false;
     llama_governor_cool_pays cool_pays = llama_governor_cool_pays::Unknown;
-    bool reload_budget_available = false;
+    bool reload_budget_available = true;
     float admission_margin_c = 0.5f;
     uint64_t cache_budget_bytes = 0;
     uint64_t expert_cycle_bytes = 0;
