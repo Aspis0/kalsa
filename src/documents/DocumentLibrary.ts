@@ -63,6 +63,18 @@ export type LibraryDoc = {
   previewUri?: string;
 };
 
+/** True when import-time extraction failed and re-embedding cannot succeed. */
+export function isDocumentUnreadable(
+  doc: Pick<LibraryDoc, "docCount" | "extractionStatus">,
+): boolean {
+  if (doc.docCount > 0) return false;
+  return (
+    doc.extractionStatus === "timeout" ||
+    doc.extractionStatus === "renderer_error" ||
+    doc.extractionStatus === "fs_error"
+  );
+}
+
 export type LibraryState = {
   docs: LibraryDoc[];
 };
