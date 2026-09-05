@@ -6,12 +6,10 @@ S5 reports that the prewarm KV leaves “only 15 tokens are new in both arms”
 (`/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/REPORT.md:245`),
 so this-turn TTFT was a cached-tail comparison. Its only large-prefill figure was
 the prewarm, “far below fork cell #38’s roughly `10×`” (`/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/REPORT.md:239`).
-
 Hypothesis: on the same 8 Elite board, APK, model, sampler, and fixed large user
 prompt, governor B’s GPU prefill is at least 3× faster than CPU A: B/A ≤ 1/3.
 The result is reported with the native `prefill_ms` and `prefill_chunks` fields.
 ## Fixed materials and uncached mechanism
-
 Model: `/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf`,
 1,593,894,944 bytes, SHA-256
 `a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03`.
@@ -38,7 +36,6 @@ does not invent a prewarm key. The fixed user message differs from the prewarm
 probe at the user boundary, so the static system/tools prefix may be reused but
 the 893-word user tail is newly evaluated. Fresh app data is used per turn.
 ## Arms, order, and sampling
-
 A: `kalsa.governor.enabled="0"`, single-context CPU. B:
 `kalsa.governor.enabled="1"`, governor. Same board, APK, model, prompt, and
 SQLite AsyncStorage injection; run exactly `ABABABAB`, with turns 2–4 as plateau.
@@ -64,7 +61,6 @@ Before every turn the driver refreshes `kalsa.bench.thermo` from HAL skin:
 `sensor_valid=true`, `t_idle_valid=true`, first-skin `t_idle_c`, and measured
 trend. The QDC board’s plugged report is not used; the override is not production
 input. Record skin before/after, thermal state, memory, lmkd, fallback, and exits.
-
 Primary speed endpoint: over adjacent oracle-PASS pairs, retain only B rows with
 `engine_prefill=GPU` and `thermal_state=FAST`; use the median of each B
 `prefill_ms` divided by its same-turn A `promptMs`. Require ≥2 such pairs for a
@@ -75,23 +71,19 @@ prewarm prior is B/A ≈1.6× (measured 1.647×); pre-register it as supported f
 The report will say whether the data supports the ≥3× expectation, the ≈1.6×
 prior, both, or neither. Secondary endpoints: greedy oracle, decode tok/s,
 `commit_ms` versus prompt size, governor fields, skin, memory, and fallback/lmkd.
-
 TSV header:
 `arm turn ttft_ms prefill_ms prefill_chunks new_tokens_a new_tokens_b decode_tps engine_prefill engine_decode thermal_state skin_c_before skin_c_after fallback_count lmkd_count ids_sha oracle`.
 Use adjacent A/B pairs for the oracle; first 32 IDs must match for PASS.
-
 `new_tokens_a` is derived from the turn-anchored native `reusing X/Y` line;
 `new_tokens_b` is the integer sum of B `prefill_chunks` (including `cpu:` prefixes).
 Each must be within 938 ±10% (845–1031 inclusive); otherwise that row is VOID.
 The promised TSV adds `new_tokens_a` and `new_tokens_b` after `prefill_chunks`.
-
 `promptMs` is the native completion timing: `roundTelemetryFromResult` copies
 `result.timings.prompt_ms` (`/Users/marco/Projects/kalsa-wt-governor/src/engine/turnTelemetry.ts:164-177`),
 and the completion occurs after the bench reads (`/Users/marco/Projects/kalsa-wt-governor/src/engine/LlamaService.ts:2787-2792,3174`).
 Thus driver typing, UI wait, launch, and prewarm are outside promptMs; input
 typing time is not silently counted as prefill. The driver records per-turn
 typing wall time and the composer evidence.
-
 ## Abort, VOID, and threats
 
 Abort on device/APK/model/prompt identity, disconnect, install/run-as/load/prewarm/UI
@@ -110,7 +102,6 @@ evidence expose that risk. Typing is outside promptMs only if the app timer star
 after Send as inspected above. Thermal override, USB/power behavior, two-context
 memory/commit cost, and QDC variance limit claims. Unresolved: whether the target
 IME preserves all chunked characters end-to-end.
-
 ### Run 1 (sa804790) VOID — mechanism + fix
 Run 1 produced no speed/oracle number: one-shot 1,500 chars→1,073 (71%); the
 5,142-character strings landed 1,046–1,221, while 3×500 with 0.5 s landed
@@ -118,3 +109,10 @@ Run 1 produced no speed/oracle number: one-shot 1,500 chars→1,073 (71%); the
 the fix is ≤500-char original chunks, 0.5 s, `%s`, escaped single quotes, and
 hint-aware zero length with post-clear verification; 11 chunks/expected ≈55–65 s
 (nominal ≈60 s); the 150 s cap is retained.
+
+### Run 2 (sa805215): typing fixed, tool-call confound
+A1 is excluded: 5,142/5,142 composer characters in 59 s (11 chunks),
+new_tokens_a=1,016, CPU promptMs=6,581.954 (uncached), decode=28.36 tok/s;
+tools were enabled; this single row has no oracle, produced no speed result, and is not analyzed.
+Fixed factors set `kalsa.web.enabled`, `kalsa.tools.device`, and
+`kalsa.tools.calendar` to `"false"`; tool-call rows are VOID, not prereq exits.

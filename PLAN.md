@@ -1271,6 +1271,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Fix a Luna: pref tool OFF in set_prefs, tool call ⇒ riga VOID (mai exit 3), fixture
 > dryrun, emendamento PREREG run 2. Raw in `raw/sa805215/`. Budget 8 Elite ≈545 min.
 
+> **5/09 09:40 EDT Mac — Fix "tool OFF" applicati e auditati (delta #4 deepseek:
+> GO-WITH-FIXES → fix dryrun al turno 1 → verificato da me: con la condizione vecchia il
+> dryrun esce 3, con la nuova 0).** set_prefs scrive `kalsa.web.enabled`/`kalsa.tools.device`/
+> `kalsa.tools.calendar`="false" (forma letta da AppShell:704 e toolToggles:10); tool call
+> ⇒ riga VOID `void_reason=toolcall`, exit 3 solo con `row_void=0`. Sessione
+> `S5b-8Elite-r3` (801374) creata.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

@@ -218,3 +218,49 @@ GO. 0 blockers, 0 majors, 0 minors. Chunked typing matches the live measurement 
 raw dumps; every failure path returns 2/VOID with the B-gate and prereq guards intact; the
 dryrun would fail on the old one-shot code; the run-1 amendment is accurate and self-contained.
 Launch run 2.
+
+
+## Delta re-audit #4 (run-2 fixes)
+
+U1 — CONFIRMED-FIXED. d_run.sh:182 adds `('kalsa.web.enabled','false'),
+('kalsa.tools.device','false'),('kalsa.tools.calendar','false')`. Keys exact: AppShell.tsx:313
+`WEB_TOOLS_ENABLED_KEY = "kalsa.web.enabled"`; toolToggles.ts:3-4 DEVICE/CALENDAR keys. "false"
+⇒ OFF for all three: AppShell.tsx:704-705 `if (raw === "0" || raw === "false") {
+setWebToolsEnabled(false); …}`; toolToggles.ts:10-11 `if (raw === "0" || raw === "false")
+return false;` (device defaultOn=true, calendar false — both → false). Reads: web at boot
+(AppShell.tsx:~697-708 mount effect); device/calendar via `refreshToolFlags()` at :745 (boot)
+and :5318 (event path) — same persisted "false"; injection precedes `am start`, typing ~59 s
+later, so no lazy read can see "true".
+U2 — CONFIRMED-FIXED. d_run.sh:272 `tool_call=$(last_json_after 'KALSA_TOOLCALL ' "$logcat");
+structured_calls=$(json_field "$tool_call" structuredCalls); … if [ "$structured_calls" -gt 0 ];
+then tool_calls="$structured_calls"; void_reason=toolcall; row_void=1; fi` (+ numeric
+case-guard). Prereq d_run.sh:280 `if [ "$row_void" -eq 0 ] && [ "$arm" = A ] && [ "$turn" = 1 ]
+&& [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ]` — toolcall A1 ⇒ row_void=1 ⇒ exit 3 blocked.
+Anchoring: TOOLCALL parsed at ANCHOR_EPOCH (turn-start), not SEND_ANCHOR_EPOCH — equivalent
+here: per-turn `logcat -b all -c` (d_run.sh:262) makes stale lines impossible and a toolcall
+line is only emitted post-Send at round end. TSV 17/17 (header :31 vs printf :283); status
+gets structuredCalls/tool_calls/void_reason.
+U3 — PARTIAL. Genuine scenario: TOOL_LOG (dryrun.sh:15-16) has BOTH telemetry
+(tokensPredicted:1) and `KALSA_TOOLCALL {"turnId":"3","structuredCalls":1}`; stub cats it in
+TOOL_MODE (:44); dryrun.sh:136 runs the REAL run_observation A 3, asserts status=0 row_void=1
+structuredCalls=1 tool_calls=1 void_reason=toolcall, no PREREQUISITE.txt, A4 continues; the
+sqlite assertion (:110) checks the three keys='false' in the pushed DB captured by the stub's
+push branch (:53). BUT turn=3: runtime_prereq fires only on turn 1, so the no-PREREQUISITE
+assertion would pass even with the OLD condition — the exact run-2 regression (A1 toolcall +
+telemetry + no bench ⇒ exit 3) remains unproven. Fix: run TOOL_MODE at turn 1.
+U4 — CONFIRMED-FIXED. PREREG.md:113-118 run-2 amendment: A1 excluded with numbers
+(5,142/5,142 in 59 s, 11 chunks, new_tokens_a=1,016, promptMs=6,581.954, decode=28.36), no
+oracle/speed result, fixed factors named, "tool-call rows are VOID, not prereq exits". Lock
+line PREREG.md:2 unchanged; analysis (PREREG.md:68-83) untouched.
+U5 — design note, not a blocker. A1 toolcall-VOID ⇒ B1 oracle=VOID: acceptable — turn 1 is
+off-plateau, medians need ≥2 PASS pairs in turns 2-4 (pre-registered), oracle is secondary for
+S5b. Recommendation: do NOT retry A1 (breaks the fixed order/adjacent pairing); the toggles
+should stop future tool calls; keep the VOID net; ≥2 plateau toolcalls ⇒ descriptive-only,
+pre-declared. No abort-on-VOID beyond pre-registered categories (thermo, kill, adb death,
+uninstall, typing budget); B-gate skipped via row_void (d_run.sh:281).
+
+## Delta verdict #4
+
+GO-WITH-FIXES. 0 blockers, 1 finding (U3 PARTIAL: add a turn-1 TOOL_MODE dryrun case to
+regression-prove the exit-3 suppression that cost run 2). U1/U2/U4 CONFIRMED-FIXED by
+inspection and app-source quote; launch run 3 after the dryrun case lands.

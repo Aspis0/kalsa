@@ -5,9 +5,15 @@ DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
 THERMAL_INPUT="$TMP/thermal.txt"
-LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"
+LIB="$TMP/driver-functions.sh"; RESULTS_LOG="$TMP/results.tsv"; STUB_LOG="$TMP/adb-stub.log"; TOOL_LOG="$TMP/tool-log.txt"
 trap '[ "${BASHPID:-}" = "$$" ] && /bin/rm -rf "$TMP"' EXIT
 /usr/bin/printf '%s\n' 'Cached temperatures:' '    Temperature{mValue=31.4, mType=3, mName=skin, mStatus=0}' 'Current temperatures from HAL:' '    Temperature{mValue=37.25, mType=3, mName=skin, mStatus=0}' 'Current cooling devices from HAL:' > "$THERMAL_INPUT"
+/usr/bin/printf '%s\n' \
+  '1000 1 1 I ReactNativeJS: llama_model_loader: loaded meta data with 42 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf' \
+  '1000 1 1 I ReactNativeJS: KALSA_PREWARM {"op":"done"}' \
+  '1001 1 1 I llama: reusing 0/938' \
+  '1001 1 1 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","tokensPredicted":1,"promptMs":1,"predictedPerSecond":1}' \
+  '1001 1 1 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"3","structuredCalls":1}' > "$TOOL_LOG"
 extract() {
   local wanted="$1"
   /usr/bin/awk -v wanted="$wanted" '$0 ~ ("^" wanted "\\(\\) \\{"){on=1;print;if($0~/;[[:space:]]*}$/)on=0;next} on{print;if($0~/^}$/)on=0}' "$DRIVER"
@@ -22,19 +28,20 @@ ADB_LOG="$TMP/adb-exit.log"; DRIVER_LOG="$TMP/driver.log"; END_MARKER="$TMP/END.
 : > "$ADB_LOG"; : > "$DRIVER_LOG"; : > "$RESULTS"
 JOB=dryrun; ARM_ORDER=ABABABAB; APK="$CELL/dryrun.sh"; MODEL="$CELL/dryrun.sh"; MODEL_SIZE=$(wc -c < "$MODEL" | tr -d '[:space:]'); MODEL_SHA=$(/usr/bin/shasum -a 256 "$MODEL" | awk '{print $1}')
 MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
-DEADLINE_EPOCH=2147483647; END_WRITTEN=0; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=60000; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SUSPEND=1; IME_SAVED=com.stub/.Ime; IME_SUSPENDED=0; UI_DUMP_COUNT=0; INPUT_TEXT_COUNT=0; VOID_MODE=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; CHUNK_CALLS=0; CHUNK_BAD=0; CHUNK_UNQUOTED=0
+DEADLINE_EPOCH=2147483647; END_WRITTEN=0; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=60000; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SUSPEND=1; IME_SAVED=com.stub/.Ime; IME_SUSPENDED=0; UI_DUMP_COUNT=0; INPUT_TEXT_COUNT=0; VOID_MODE=0; TOOL_MODE=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; CHUNK_CALLS=0; CHUNK_BAD=0; CHUNK_UNQUOTED=0
 FIRST_SKIN_C=39.291; PREV_SKIN=39.291; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=4242; ANCHOR_EPOCH=1000; SEND_ANCHOR_EPOCH=1000; ANCHOR_STAMP=dryrun; A_IDS_FILE=""; A_IDS_VALID=0
 MODEL_LOAD_PATTERN='llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf'; PREWARM_PATTERN='KALSA_PREWARM.*"op":"done"'; PROMPT_FILE="$CELL/PROMPT.txt"; PROMPT_SHA=9109f58516104950079a4a4ecbcd46b557b598741227e893c275bece27079ea6; PROMPT_BYTES=5142; PROMPT_INPUT=""; PROMPT_TEXT=""; PROMPT_EXPECTED_CHARS=0
 sleep() { /bin/sleep 0.01; }
 adbT() {
   local joined="$*"
   local chunk_cmd="" chunk_text="" chunk_chars=0
+  local push_file=""
   printf '%s\n' "$joined" >> "$STUB_LOG"
   if [[ "$joined" == *"dumpsys thermalservice"* ]]; then /bin/cat "$THERMAL_INPUT"
   elif [[ "$joined" == *"cat /proc/meminfo"* ]]; then printf 'MemTotal: 8000000 kB\nMemFree: 1000000 kB\nMemAvailable: 2345678 kB\n'
   elif [[ "$joined" == *"dumpsys meminfo"* ]]; then printf 'Applications Memory Usage (in Kilobytes):\nUptime: 1000 Realtime: 1000\n** MEMINFO in pid 4242 [com.kalsa.app] **\nNative Heap 123456\nTOTAL 234567\n'
   elif [[ "$joined" == *"logcat -b all -c"* ]]; then :
-  elif [[ "$joined" == *"logcat -v epoch -d -b all"* ]]; then /bin/cat "$RAW_LOG"
+  elif [[ "$joined" == *"logcat -v epoch -d -b all"* ]]; then if [ "$TOOL_MODE" -eq 1 ]; then /bin/cat "$TOOL_LOG"; else /bin/cat "$RAW_LOG"; fi
   elif [[ "$joined" == *"date '+%m-%d"* ]]; then printf '09-04 12:00:00.000\n'
   elif [[ "$joined" == *"date +%s"* ]]; then printf '1000\n'
   elif [[ "$joined" == *"pm list packages"* ]]; then printf '0\nlist_rc=1\n'
@@ -43,6 +50,7 @@ adbT() {
   elif [[ "$joined" == *"pidof"* ]]; then printf '4242\n'
   elif [[ "$joined" == *"sha256sum"* ]]; then printf '%s  %s\n' "$MODEL_SHA" "$MODEL_REMOTE"
   elif [[ "$joined" == *"stat -c %s"* ]]; then printf '%s\n' "$MODEL_SIZE"
+  elif [[ "$joined" == *"push"* && "$joined" == *"/RKStorage"* ]]; then push_file=$(printf '%s' "$joined" | sed -n 's/.*push \([^ ]*\/RKStorage\) .*/\1/p'); [ -f "$push_file" ] && /bin/cp "$push_file" "$TMP/pushed-rkstorage"
   elif [[ "$joined" == *"exec-out run-as com.kalsa.app cat databases/RKStorage"* && "$joined" != *"-wal"* && "$joined" != *"-shm"* ]]; then /usr/bin/sqlite3 "$TMP/RKStorage" .dump | /usr/bin/sqlite3 :memory: >/dev/null 2>&1 || true; /bin/cat "$TMP/RKStorage"
   elif [[ "$joined" == *"input text"* ]]; then
     INPUT_TEXT_COUNT=$((INPUT_TEXT_COUNT + 1))
@@ -99,6 +107,7 @@ record copy_model copy_model "$TMP/copy"
 /bin/mkdir -p "$TMP/rk"; /usr/bin/sqlite3 "$TMP/RKStorage" 'CREATE TABLE catalystLocalStorage (key TEXT PRIMARY KEY,value TEXT);'; record pull_rkstorage pull_rkstorage "$TMP/rk"
 record bootstrap_db bootstrap_db "$TMP/bootstrap"
 record set_prefs set_prefs 0
+for pref in kalsa.web.enabled kalsa.tools.device kalsa.tools.calendar; do /usr/bin/sqlite3 "$TMP/pushed-rkstorage" .dump | grep -Fq "'$pref','false'" || { echo "tool preference missing: $pref" >&2; exit 1; }; done
 record fresh_install fresh_install "$TMP/install"
 record has_load_proof has_load_proof "$RAW_LOG"
 record count_after count_after KALSA_TELEMETRY "$RAW_LOG"
@@ -124,6 +133,8 @@ record ime_suspend ime_suspend
 run_observation A 1; RUN_RC=$?; printf 'run_observation\t%s\n' "$RUN_RC" | tee -a "$RESULTS_LOG"; [ "$RUN_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 22 ] || { echo "A1 chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 2 ] || { echo "A1 type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11," ] || { echo "A1 chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 22 ] || { echo "A1 chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "A1 chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }; grep -q 'attempt=initial actual=100' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "short composer was not detected" >&2; exit 1; }; grep -q 'attempt=cleared actual=0.*hint_len=' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "hint-aware clear fixture was not observed" >&2; exit 1; }; grep -q 'attempt=retype actual=5142' "$RAW/QRD8650_A_t1_composer_len.txt" || { echo "composer retype did not pass" >&2; exit 1; }; grep -q 'attempt=2' "$RAW/QRD8650_A_t1_ui_attempts.txt" || { echo "ui_send retry was not exercised" >&2; exit 1; }
 FINAL_RC=0; VOID_MODE=1; run_observation B 1; B_RC=$?; printf 'run_observation_B_VOID\t%s\n' "$B_RC" | tee -a "$RESULTS_LOG"; [ "$B_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="B"&&$2==1&&$16=="na"&&$17=="VOID"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1' "$RAW/QRD8650_B_t1_status.txt" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1
 VOID_MODE=0; run_observation A 2; A2_RC=$?; printf 'run_observation_A2_after_VOID\t%s\n' "$A2_RC" | tee -a "$RESULTS_LOG"; [ "$A2_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1; [ "$FINAL_RC" -eq 0 ] || exit 1; [ "$INPUT_TEXT_COUNT" -eq 55 ] || { echo "final chunk input count unexpected: $INPUT_TEXT_COUNT" >&2; exit 1; }; [ "$TYPE_PROMPT_CALLS" -eq 5 ] || { echo "final type_prompt call count unexpected: $TYPE_PROMPT_CALLS" >&2; exit 1; }; [ "$TYPE_COUNTS" = "11,11,11,11,11," ] || { echo "final chunk counts unexpected: $TYPE_COUNTS" >&2; exit 1; }; [ "$CHUNK_CALLS" -eq 55 ] || { echo "final chunk validation count unexpected: $CHUNK_CALLS" >&2; exit 1; }; [ "$CHUNK_BAD" -eq 0 ] && [ "$CHUNK_UNQUOTED" -eq 0 ] || { echo "final chunk validation failed bad=$CHUNK_BAD unquoted=$CHUNK_UNQUOTED" >&2; exit 1; }
+# Under the old if [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ] condition without a row_void guard, the TOOL_RC=0 assertion below fails (A1 exits 3).
+TOOL_RAW="$TMP/tool-observations"; TOOL_RESULTS="$TMP/tool-results.tsv"; /bin/mkdir -p "$TOOL_RAW"; printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$TOOL_RESULTS"; RAW="$TOOL_RAW"; RESULTS="$TOOL_RESULTS"; A_IDS_FILE=""; A_IDS_VALID=0; UI_DUMP_COUNT=0; TOOL_MODE=1; run_observation A 1; TOOL_RC=$?; printf 'run_observation_TOOLCALL_VOID\t%s\n' "$TOOL_RC" | tee -a "$RESULTS_LOG"; [ "$TOOL_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==1&&$16=="na"&&$17=="na"{ok=1} END{exit !ok}' "$RESULTS" || exit 1; grep -q 'status=0 row_void=1.*structuredCalls=1 tool_calls=1.*void_reason=toolcall' "$RAW/QRD8650_A_t1_status.txt" || exit 1; [ ! -e "$RAW/PREREQUISITE.txt" ] || exit 1; TOOL_MODE=0; run_observation A 2; CONTINUE_RC=$?; printf 'run_observation_after_TOOLCALL_VOID\t%s\n' "$CONTINUE_RC" | tee -a "$RESULTS_LOG"; [ "$CONTINUE_RC" -eq 0 ] || exit 1; awk -F '\t' '$1=="A"&&$2==2{ok=1} END{exit !ok}' "$RESULTS" || exit 1
 holder_loop & HOLDER_TEST_PID=$!; /bin/sleep 0.1; kill "$HOLDER_TEST_PID" 2>/dev/null || true; wait "$HOLDER_TEST_PID" 2>/dev/null; printf 'holder_loop\t%s\n' "$?" | tee -a "$RESULTS_LOG"
 END_WRITTEN=0
 record cleanup cleanup
