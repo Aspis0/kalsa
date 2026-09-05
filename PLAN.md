@@ -962,6 +962,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > emendato pre-dati: run 4 DESCRITTIVO (TTFT B misurabile, skin HAL, oracolo
 > atteso FAIL → endpoint 2 resta non analizzabile). Apro `S5-QRD8650-r4`.
 
+> **6/09 03:25 Mac — S5 RUN 4 (descrittivo) IN CORSO: sessione 799321
+> `S5-QRD8650-r4`, job sa803390, tunnel 6037 (`~/kalsa-qdc/tunnel-799321.pid`),
+> serial 72c4dabb (board diversa dai run 2-3), APK e8c2b1f, driver con skin HAL.**
+> Budget 8 Gen 3 prima: 797 min. Watcher attivo.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
