@@ -1,0 +1,949 @@
+         1788582889.764 21575 21604 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+         1788582889.804 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+         1788582889.815 21575 21604 I ReactNativeJS: KALSA_NATIVE info 
+         1788582889.816 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+         1788582889.859 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+         1788582889.859 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+         1788582889.859 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   0:                       general.architecture str              = lfm2
+         1788582889.859 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   1:                               general.type str              = model
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   2:                     general.sampling.top_k i32              = 80
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   3:                      general.sampling.temp f32              = 0.200000
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   4:                         general.size_label str              = 2.7B
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   5:                           lfm2.block_count u32              = 30
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   6:                        lfm2.context_length u32              = 128000
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   7:                      lfm2.embedding_length u32              = 2048
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   8:                   lfm2.feed_forward_length u32              = 10752
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   9:                  lfm2.attention.head_count u32              = 32
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  10:               lfm2.attention.head_count_kv arr[i32,30]      = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, ...
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  11:                        lfm2.rope.freq_base f32              = 10000000.000000
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  12:      lfm2.attention.layer_norm_rms_epsilon f32              = 0.000010
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  13:                            lfm2.vocab_size u32              = 128000
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  14:                     lfm2.shortconv.l_cache u32              = 3
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  15:                       tokenizer.ggml.model str              = gpt2
+         1788582889.860 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  16:                         tokenizer.ggml.pre str              = lfm2
+         1788582889.872 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  17:                      tokenizer.ggml.tokens arr[str,128000]  = ["ĊĊĊĊĊĊĊĊĊĊ", "ĊĊĊĊĊ
+         1788582889.876 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  18:                  tokenizer.ggml.token_type arr[i32,128000]  = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, ...
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  19:                      tokenizer.ggml.merges arr[str,293320]  = ["ĊĊĊĊĊĊĊĊĊ Ċ", "ĊĊĊĊĊ...
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  20:                tokenizer.ggml.bos_token_id u32              = 124894
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  21:                tokenizer.ggml.eos_token_id u32              = 124900
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  22:            tokenizer.ggml.padding_token_id u32              = 124893
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  23:                    tokenizer.chat_template str              = {{- bos_token -}}\n{%- set preserve_th...
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  24:               general.quantization_version u32              = 2
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  25:                          general.file_type u32              = 2
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  26:                               general.name str              = LFM2.5-2.6B-QAD-Q4_0
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  27:                           general.finetune str              = QAD
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  28:                           general.basename str              = LFM2.5-2.6B-QAD
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  29:                             general.author str              = Liquid AI
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  30:                       general.organization str              = Liquid AI
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  31:                        general.description str              = LFM2.5-2.6B Q4_0 Quantization-Aware D...
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  32:                       general.quantized_by str              = Liquid AI
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  33:                            general.license str              = other
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  34:                       general.license.name str              = lfm1.0
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  35:                       general.license.link str              = LICENSE
+         1788582889.905 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  36:                          general.languages arr[str,8]       = ["en", "ar", "zh", "fr", "de", "ja", ...
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  37:                               general.tags arr[str,8]       = ["liquid", "lfm2.5", "edge", "text-ge...
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type  f32:   99 tensors
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q4_0:  166 tensors
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q6_K:    1 tensors
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: file format = GGUF V3 (latest)
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: file type   = Q4_0
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: file size   = 1.48 GiB (4.70 BPW) 
+         1788582889.906 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_prepare_model_devices: using device GPUOpenCL (QUALCOMM Adreno(TM) 750) (unknown id) - 4612 MiB free
+         1788582889.994 21575 21604 I ReactNativeJS: KALSA_NATIVE info init_tokenizer: initializing tokenizer for type 2
+         1788582889.999 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: 0 unused tokens
+         1788582889.999 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125014 '<|text_end|>' is not marked as EOG
+         1788582889.999 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125013 '<|text_start|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125011 '<|image_split|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125010 '<|image_end|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125009 '<|image_start|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125008 '<|img_thumbnail|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125007 '<|img_row_10_col_10|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125006 '<|img_row_10_col_9|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125005 '<|img_row_10_col_8|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125004 '<|img_row_10_col_7|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125002 '<|img_row_10_col_5|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125001 '<|img_row_10_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125000 '<|img_row_10_col_3|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124994 '<|img_row_9_col_7|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124992 '<|img_row_9_col_5|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124990 '<|img_row_9_col_3|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124988 '<|img_row_9_col_1|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124987 '<|img_row_8_col_10|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124985 '<|img_row_8_col_8|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124983 '<|img_row_8_col_6|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124981 '<|img_row_8_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124980 '<|img_row_8_col_3|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124979 '<|img_row_8_col_2|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124976 '<|img_row_7_col_9|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124974 '<|img_row_7_col_7|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124973 '<|img_row_7_col_6|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124971 '<|img_row_7_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124969 '<|img_row_7_col_2|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124968 '<|img_row_7_col_1|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124967 '<|img_row_6_col_10|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124963 '<|img_row_6_col_6|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124962 '<|img_row_6_col_5|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124961 '<|img_row_6_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124960 '<|img_row_6_col_3|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124957 '<|img_row_5_col_10|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124954 '<|img_row_5_col_7|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124953 '<|img_row_5_col_6|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124952 '<|img_row_5_col_5|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124951 '<|img_row_5_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124949 '<|img_row_5_col_2|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124946 '<|img_row_4_col_9|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124945 '<|img_row_4_col_8|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124944 '<|img_row_4_col_7|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124941 '<|img_row_4_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124939 '<|img_row_4_col_2|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124937 '<|img_row_3_col_10|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124936 '<|img_row_3_col_9|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124933 '<|img_row_3_col_6|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124932 '<|img_row_3_col_5|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124931 '<|img_row_3_col_4|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124930 '<|img_row_3_col_3|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124927 '<|img_row_2_col_10|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124926 '<|img_row_2_col_9|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124922 '<|img_row_2_col_5|>' is not marked as EOG
+         1788582890.000 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124921 '<|img_row_2_col_4|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124919 '<|img_row_2_col_2|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124917 '<|img_row_1_col_10|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124916 '<|img_row_1_col_9|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124913 '<|img_row_1_col_6|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124912 '<|img_row_1_col_5|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124911 '<|img_row_1_col_4|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124908 '<|img_row_1_col_1|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124903 '<|tool_list_start|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124899 '<|im_start|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124898 '<|fim_suf|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124897 '<|fim_mid|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124923 '<|img_row_2_col_6|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124929 '<|img_row_3_col_2|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124959 '<|img_row_6_col_2|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124906 '<|tool_call_end|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124905 '<|tool_call_start|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125016 '<|mixed_end|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124972 '<|img_row_7_col_5|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124965 '<|img_row_6_col_8|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124934 '<|img_row_3_col_7|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124918 '<|img_row_2_col_1|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124989 '<|img_row_9_col_2|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124914 '<|img_row_1_col_7|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124907 '<image>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124978 '<|img_row_8_col_1|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124896 '<|fim_pre|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124943 '<|img_row_4_col_6|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124893 '<|pad|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124958 '<|img_row_6_col_1|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124995 '<|img_row_9_col_8|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124942 '<|img_row_4_col_5|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124935 '<|img_row_3_col_8|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124948 '<|img_row_5_col_1|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124993 '<|img_row_9_col_6|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124975 '<|img_row_7_col_8|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124986 '<|img_row_8_col_9|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124970 '<|img_row_7_col_3|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124950 '<|img_row_5_col_3|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124998 '<|img_row_10_col_1|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124984 '<|img_row_8_col_7|>' is not marked as EOG
+         1788582890.001 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124925 '<|img_row_2_col_8|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124940 '<|img_row_4_col_3|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124966 '<|img_row_6_col_9|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124964 '<|img_row_6_col_7|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124977 '<|img_row_7_col_10|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124910 '<|img_row_1_col_3|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124924 '<|img_row_2_col_7|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124938 '<|img_row_4_col_1|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124991 '<|img_row_9_col_4|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125012 '<|audio_start|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124999 '<|img_row_10_col_2|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124894 '<|startoftext|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124909 '<|img_row_1_col_2|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124996 '<|img_row_9_col_9|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124915 '<|img_row_1_col_8|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124904 '<|tool_list_end|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125003 '<|img_row_10_col_6|>' is not marked as EOG
+         1788582890.002 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124928 '<|img_row_3_col_1|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 125015 '<|mixed_start|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124982 '<|img_row_8_col_5|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124920 '<|img_row_2_col_3|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124955 '<|img_row_5_col_8|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124956 '<|img_row_5_col_9|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124997 '<|img_row_9_col_10|>' is not marked as EOG
+         1788582890.003 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: control token: 124947 '<|img_row_4_col_10|>' is not marked as EOG
+         1788582890.005 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: printing all EOG tokens:
+         1788582890.005 21575 21604 I ReactNativeJS: KALSA_NATIVE info load:   - 124895 ('<|endoftext|>')
+         1788582890.005 21575 21604 I ReactNativeJS: KALSA_NATIVE info load:   - 124900 ('<|im_end|>')
+         1788582890.005 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: special tokens cache size = 124
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info load: token to piece cache size = 0.7666 MB
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: arch                  = lfm2
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: vocab_only            = 0
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: no_alloc              = 0
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_train           = 128000
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_inp            = 2048
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd                = 2048
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_out            = 2048
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer               = 30
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_layer_all           = 30
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_head                = 32
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_head_kv             = [0, 0, 8, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 0, 8, 0, 0, 8, 0, 0, 8, 0, 0]
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_rot                 = 64
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_swa                 = 0
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: is_swa_any            = 0
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_k         = 64
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_head_v         = 64
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_gqa                 = [0, 0, 4, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 0, 4, 0, 0, 4, 0, 0, 4, 0, 0]
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_k_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_embd_v_gqa          = [0, 0, 512, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 0, 512, 0, 0, 512, 0, 0, 512, 0, 0]
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_eps            = 0.0e+00
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_norm_rms_eps        = 1.0e-05
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_clamp_kqv           = 0.0e+00
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_max_alibi_bias      = 0.0e+00
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_logit_scale         = 0.0e+00
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_scale          = 0.0e+00
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: f_attn_value_scale    = 0.0000
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_ff                  = 10752
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert              = 0
+         1788582890.035 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_used         = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_expert_groups       = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_group_used          = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: causal attn           = 1
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: pooling type          = -1
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: rope type             = 2
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: rope scaling          = linear
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: freq_base_train       = 10000000.0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: freq_scale_train      = 1
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_ctx_orig_yarn       = 128000
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: rope_yarn_log_mul     = 0.0000
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: rope_finetuned        = unknown
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: model type            = 2.6B
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: model params          = 2.70 B
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: general.name          = LFM2.5-2.6B-QAD-Q4_0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: vocab type            = BPE
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_vocab               = 128000
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: n_merges              = 293320
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: BOS token             = 124894 '<|startoftext|>'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: EOS token             = 124900 '<|im_end|>'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: EOT token             = 124900 '<|im_end|>'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: PAD token             = 124893 '<|pad|>'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: LF token              = 207 'Ċ'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124895 '<|endoftext|>'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: EOG token             = 124900 '<|im_end|>'
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info print_info: max token length      = 386
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: loading model tensors, this can take a while... (mmap = true, direct_io = false)
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   0 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   1 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   2 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   3 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   4 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   5 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   6 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   7 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   8 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer   9 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  10 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  11 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  12 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  13 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  14 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  15 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  16 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  17 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  18 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  19 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  20 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  21 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  22 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  23 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  24 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  25 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  26 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  27 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  28 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  29 assigned to device CPU, is_swa = 0
+         1788582890.036 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: layer  30 assigned to device CPU, is_swa = 0
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor token_embd.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor token_embd_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor token_embd.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.ffn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.ffn_gate.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.ffn_down.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.ffn_up.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.attn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.shortconv.conv.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.shortconv.in_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.0.shortconv.out_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.ffn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.ffn_gate.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.ffn_down.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.ffn_up.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.attn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.shortconv.conv.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.shortconv.in_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.1.shortconv.out_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.ffn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.ffn_gate.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.ffn_down.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.ffn_up.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_q_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_k_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_q.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_k.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_v.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.2.attn_output.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.ffn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.ffn_gate.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.ffn_down.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.ffn_up.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.attn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.shortconv.conv.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.shortconv.in_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.3.shortconv.out_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.ffn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.ffn_gate.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.ffn_down.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.ffn_up.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.attn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.shortconv.conv.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.shortconv.in_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.4.shortconv.out_proj.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.ffn_norm.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.ffn_gate.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.ffn_down.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.ffn_up.weight
+         1788582890.037 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_q_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_k_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_q.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_k.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_v.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.5.attn_output.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.ffn_gate.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.ffn_down.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.ffn_up.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.shortconv.conv.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.shortconv.in_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.6.shortconv.out_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.ffn_gate.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.ffn_down.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.ffn_up.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.shortconv.conv.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.shortconv.in_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.7.shortconv.out_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.ffn_gate.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.ffn_down.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.ffn_up.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.shortconv.conv.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.shortconv.in_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.8.shortconv.out_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.ffn_gate.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.ffn_down.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.ffn_up.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_q_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_k_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_q.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_k.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_v.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.9.attn_output.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.ffn_gate.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.ffn_down.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.ffn_up.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.shortconv.conv.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.shortconv.in_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.10.shortconv.out_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.ffn_gate.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.ffn_down.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.ffn_up.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.attn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.shortconv.conv.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.shortconv.in_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.11.shortconv.out_proj.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.ffn_norm.weight
+         1788582890.038 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.shortconv.conv.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.shortconv.in_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.12.shortconv.out_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.ffn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_q_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_k_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_q.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_k.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_v.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.13.attn_output.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.ffn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.shortconv.conv.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.shortconv.in_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.14.shortconv.out_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.ffn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.shortconv.conv.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.shortconv.in_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.15.shortconv.out_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.ffn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.shortconv.conv.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.shortconv.in_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.16.shortconv.out_proj.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.ffn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_q_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_k_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_q.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_k.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_v.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.17.attn_output.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.ffn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.ffn_gate.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.ffn_down.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.ffn_up.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.attn_norm.weight
+         1788582890.039 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.shortconv.conv.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.shortconv.in_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.18.shortconv.out_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.ffn_gate.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.ffn_down.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.ffn_up.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.attn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.shortconv.conv.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.shortconv.in_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.19.shortconv.out_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.ffn_gate.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.ffn_down.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.ffn_up.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.attn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.shortconv.conv.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.shortconv.in_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.20.shortconv.out_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.ffn_gate.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.ffn_down.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.ffn_up.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_q_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_k_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_q.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_k.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_v.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_output.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_gate.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_down.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_up.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.attn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.shortconv.conv.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.shortconv.in_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.22.shortconv.out_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_gate.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_down.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_up.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.attn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.shortconv.conv.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.shortconv.in_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.23.shortconv.out_proj.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_gate.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_down.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_up.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_q_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_k_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_q.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_k.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_v.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_output.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_norm.weight
+         1788582890.040 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_gate.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_down.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_up.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.attn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.shortconv.conv.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.shortconv.in_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.25.shortconv.out_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_gate.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_down.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_up.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.attn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.shortconv.conv.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.shortconv.in_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.26.shortconv.out_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_gate.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_down.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_up.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_q_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_k_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_q.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_k.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_v.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_output.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_gate.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_down.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_up.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.attn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.shortconv.conv.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.shortconv.in_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.28.shortconv.out_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_gate.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_down.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_up.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.attn_norm.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.shortconv.conv.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.shortconv.in_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info create_tensor: loading tensor blk.29.shortconv.out_proj.weight
+         1788582890.041 21575 21604 I ReactNativeJS: KALSA_NATIVE info done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 99 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloading 0 repeating layers to GPU
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors: offloaded 0/31 layers to GPU
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_Mapped model buffer size =  1503.20 MiB
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE warn warning: failed to mlock 223281152-byte buffer (after previously locking 0 bytes): Out of memory
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.070 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor token_embd.weight with q6_K_8x8
+         1788582890.193 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.194 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.ffn_gate.weight with q4_0_4x8
+         1788582890.195 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.195 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.ffn_down.weight with q4_0_4x8
+         1788582890.197 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.197 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.ffn_up.weight with q4_0_4x8
+         1788582890.199 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.199 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.201 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.201 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.ffn_gate.weight with q4_0_4x8
+         1788582890.203 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.203 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.ffn_down.weight with q4_0_4x8
+         1788582890.206 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.ffn_up.weight with q4_0_4x8
+         1788582890.208 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.208 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.209 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.210 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.210 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.ffn_gate.weight with q4_0_4x8
+         1788582890.212 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.ffn_down.weight with q4_0_4x8
+         1788582890.215 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.215 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.ffn_up.weight with q4_0_4x8
+         1788582890.217 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.217 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_q.weight with q4_0_4x8
+         1788582890.217 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_k.weight with q4_0_4x8
+         1788582890.217 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_v.weight with q4_0_4x8
+         1788582890.218 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_output.weight with q4_0_4x8
+         1788582890.218 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.ffn_gate.weight with q4_0_4x8
+         1788582890.221 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.221 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.ffn_down.weight with q4_0_4x8
+         1788582890.223 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.ffn_up.weight with q4_0_4x8
+         1788582890.225 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.225 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.227 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.227 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.227 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.ffn_gate.weight with q4_0_4x8
+         1788582890.229 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.ffn_down.weight with q4_0_4x8
+         1788582890.232 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.232 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.ffn_up.weight with q4_0_4x8
+         1788582890.234 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.234 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.235 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.236 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.ffn_gate.weight with q4_0_4x8
+         1788582890.239 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.239 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.ffn_down.weight with q4_0_4x8
+         1788582890.241 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.241 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.ffn_up.weight with q4_0_4x8
+         1788582890.243 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_q.weight with q4_0_4x8
+         1788582890.243 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_k.weight with q4_0_4x8
+         1788582890.244 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_v.weight with q4_0_4x8
+         1788582890.244 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_output.weight with q4_0_4x8
+         1788582890.244 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.244 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.ffn_gate.weight with q4_0_4x8
+         1788582890.247 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.ffn_down.weight with q4_0_4x8
+         1788582890.249 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.249 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.ffn_up.weight with q4_0_4x8
+         1788582890.251 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.251 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.253 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.253 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.ffn_gate.weight with q4_0_4x8
+         1788582890.256 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.256 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.ffn_down.weight with q4_0_4x8
+         1788582890.258 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.258 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.ffn_up.weight with q4_0_4x8
+         1788582890.260 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.262 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.262 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.262 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.ffn_gate.weight with q4_0_4x8
+         1788582890.264 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.ffn_down.weight with q4_0_4x8
+         1788582890.267 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.267 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.ffn_up.weight with q4_0_4x8
+         1788582890.269 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.269 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.271 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.271 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.ffn_gate.weight with q4_0_4x8
+         1788582890.274 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.274 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.ffn_down.weight with q4_0_4x8
+         1788582890.276 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.276 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.ffn_up.weight with q4_0_4x8
+         1788582890.278 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_q.weight with q4_0_4x8
+         1788582890.279 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.279 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_k.weight with q4_0_4x8
+         1788582890.279 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_v.weight with q4_0_4x8
+         1788582890.279 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_output.weight with q4_0_4x8
+         1788582890.279 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.ffn_gate.weight with q4_0_4x8
+         1788582890.282 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.ffn_down.weight with q4_0_4x8
+         1788582890.284 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.284 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.ffn_up.weight with q4_0_4x8
+         1788582890.286 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.286 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.288 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.288 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.ffn_gate.weight with q4_0_4x8
+         1788582890.291 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.291 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.ffn_down.weight with q4_0_4x8
+         1788582890.293 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.293 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.ffn_up.weight with q4_0_4x8
+         1788582890.295 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.297 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.297 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.297 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.ffn_gate.weight with q4_0_4x8
+         1788582890.299 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.299 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.ffn_down.weight with q4_0_4x8
+         1788582890.301 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.ffn_up.weight with q4_0_4x8
+         1788582890.304 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.304 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.305 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.306 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.ffn_gate.weight with q4_0_4x8
+         1788582890.308 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.308 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.ffn_down.weight with q4_0_4x8
+         1788582890.310 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.310 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.ffn_up.weight with q4_0_4x8
+         1788582890.312 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.312 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_q.weight with q4_0_4x8
+         1788582890.313 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_k.weight with q4_0_4x8
+         1788582890.313 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_v.weight with q4_0_4x8
+         1788582890.313 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_output.weight with q4_0_4x8
+         1788582890.313 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.ffn_gate.weight with q4_0_4x8
+         1788582890.315 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.316 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.ffn_down.weight with q4_0_4x8
+         1788582890.318 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.ffn_up.weight with q4_0_4x8
+         1788582890.320 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.320 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.321 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.322 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.ffn_gate.weight with q4_0_4x8
+         1788582890.324 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.324 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.ffn_down.weight with q4_0_4x8
+         1788582890.326 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.326 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.ffn_up.weight with q4_0_4x8
+         1788582890.328 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.328 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.330 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.330 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.ffn_gate.weight with q4_0_4x8
+         1788582890.332 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.332 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.ffn_down.weight with q4_0_4x8
+         1788582890.335 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.ffn_up.weight with q4_0_4x8
+         1788582890.337 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.337 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.338 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.338 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.339 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.ffn_gate.weight with q4_0_4x8
+         1788582890.341 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.ffn_down.weight with q4_0_4x8
+         1788582890.343 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.343 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.ffn_up.weight with q4_0_4x8
+         1788582890.345 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.345 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_q.weight with q4_0_4x8
+         1788582890.346 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_k.weight with q4_0_4x8
+         1788582890.346 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_v.weight with q4_0_4x8
+         1788582890.346 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_output.weight with q4_0_4x8
+         1788582890.346 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.ffn_gate.weight with q4_0_4x8
+         1788582890.348 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.349 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.ffn_down.weight with q4_0_4x8
+         1788582890.351 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.ffn_up.weight with q4_0_4x8
+         1788582890.353 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.353 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.354 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.355 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.355 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.ffn_gate.weight with q4_0_4x8
+         1788582890.357 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.ffn_down.weight with q4_0_4x8
+         1788582890.359 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.359 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.ffn_up.weight with q4_0_4x8
+         1788582890.361 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.361 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.363 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.363 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.ffn_gate.weight with q4_0_4x8
+         1788582890.365 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.365 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.ffn_down.weight with q4_0_4x8
+         1788582890.368 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.368 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.ffn_up.weight with q4_0_4x8
+         1788582890.370 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.371 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.371 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.372 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.ffn_gate.weight with q4_0_4x8
+         1788582890.374 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.ffn_down.weight with q4_0_4x8
+         1788582890.376 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.376 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.ffn_up.weight with q4_0_4x8
+         1788582890.378 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.378 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_q.weight with q4_0_4x8
+         1788582890.379 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_k.weight with q4_0_4x8
+         1788582890.379 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_v.weight with q4_0_4x8
+         1788582890.379 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_output.weight with q4_0_4x8
+         1788582890.379 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.ffn_gate.weight with q4_0_4x8
+         1788582890.382 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.382 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.ffn_down.weight with q4_0_4x8
+         1788582890.384 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.384 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.ffn_up.weight with q4_0_4x8
+         1788582890.386 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.387 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.387 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.388 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.ffn_gate.weight with q4_0_4x8
+         1788582890.390 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.ffn_down.weight with q4_0_4x8
+         1788582890.392 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.392 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.ffn_up.weight with q4_0_4x8
+         1788582890.394 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.395 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.396 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.396 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.ffn_gate.weight with q4_0_4x8
+         1788582890.399 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.399 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.ffn_down.weight with q4_0_4x8
+         1788582890.401 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.401 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.ffn_up.weight with q4_0_4x8
+         1788582890.403 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_q.weight with q4_0_4x8
+         1788582890.403 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.403 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_k.weight with q4_0_4x8
+         1788582890.403 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_v.weight with q4_0_4x8
+         1788582890.404 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_output.weight with q4_0_4x8
+         1788582890.404 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.ffn_gate.weight with q4_0_4x8
+         1788582890.406 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.ffn_down.weight with q4_0_4x8
+         1788582890.408 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.409 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.ffn_up.weight with q4_0_4x8
+         1788582890.411 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.411 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.412 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.413 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_gate.weight with q4_0_4x8
+         1788582890.415 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.415 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_down.weight with q4_0_4x8
+         1788582890.417 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.417 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_up.weight with q4_0_4x8
+         1788582890.419 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.420 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.420 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.421 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_gate.weight with q4_0_4x8
+         1788582890.423 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.423 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_down.weight with q4_0_4x8
+         1788582890.425 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_up.weight with q4_0_4x8
+         1788582890.428 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.428 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_q.weight with q4_0_4x8
+         1788582890.428 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_k.weight with q4_0_4x8
+         1788582890.428 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_v.weight with q4_0_4x8
+         1788582890.428 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_output.weight with q4_0_4x8
+         1788582890.429 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_gate.weight with q4_0_4x8
+         1788582890.431 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.431 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_down.weight with q4_0_4x8
+         1788582890.433 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.433 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_up.weight with q4_0_4x8
+         1788582890.435 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.437 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.437 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.437 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_gate.weight with q4_0_4x8
+         1788582890.439 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.439 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_down.weight with q4_0_4x8
+         1788582890.442 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_up.weight with q4_0_4x8
+         1788582890.444 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.444 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.shortconv.in_proj.weight with q4_0_4x8
+         1788582890.445 21575 21604 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.shortconv.out_proj.weight with q4_0_4x8
+         1788582890.446 21575 21604 I ReactNativeJS: KALSA_NATIVE info .
+         1788582890.446 21575 21604 I ReactNativeJS: KALSA_NATIVE info 
+         1788582890.447 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max     = 1
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx         = 16384
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq     = 16384
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch       = 512
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch      = 256
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn   = 1
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn    = auto
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified    = false
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base     = 10000000.0
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale    = 1
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq      = 0
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max = 512
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (16384) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+         1788582890.448 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: mem base addr align: 128 bytes | IMAGE base addr align: 64 bytes
+         1788582890.505 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: OpenCL driver: OpenCL 3.0 QUALCOMM build: commit unknown Compiler E031.45.02.06
+         1788582890.505 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: vector subgroup broadcast support: false
+         1788582890.505 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: subgroup shuffle support: true
+         1788582890.505 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device FP16 support: true
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: mem base addr align: 128
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: global mem size: 5636 MB
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: max mem alloc size: 1024 MB
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max image buffer size (pixels): 134217728
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max image2d size: 16384 x 16384
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: device max workgroup size: 1024
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM coarse grain buffer support: true
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM fine grain buffer support: true
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM fine grain system support: false
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: SVM atomics support: true
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: cl_qcom_subgroup_shuffle support: true
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: flattening quantized weights representation as struct of arrays (LM_GGML_OPENCL_SOA_Q)
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info lm_ggml_opencl: using kernels optimized for Adreno (LM_GGML_OPENCL_USE_ADRENO_KERNELS)
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info set_abort_callback: call
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   0: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   1: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   2: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   3: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   4: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   5: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   6: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   7: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   8: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   9: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  10: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  11: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  12: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  13: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  14: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  15: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  16: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  17: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  18: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  19: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  20: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  21: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  22: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  23: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  24: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  25: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  26: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  27: dev = CPU
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  28: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  29: filtered
+         1788582890.506 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:        CPU KV buffer size =   104.00 MiB
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =  104.00 MiB ( 16384 cells,   8 layers,  1/1 seqs), K (q8_0):   68.00 MiB, V (q4_0):   36.00 MiB
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   0: dev = CPU
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   1: dev = CPU
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   2: skipped
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   3: dev = CPU
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   4: dev = CPU
+         1788582890.511 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   5: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   6: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   7: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer   8: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer   9: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  10: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  11: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  12: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  13: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  14: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  15: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  16: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  17: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  18: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  19: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  20: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  21: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  22: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  23: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  24: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  25: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  26: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: layer  27: skipped
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  28: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent, layer  29: dev = CPU
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent:        CPU RS buffer size =     0.34 MiB
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: enumerating backends
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info llama_context: backend_ptrs.size() = 2
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving ...
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: max_nodes = 2136
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserving full memory module
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: worst-case: n_tokens = 256, n_seqs = 1, n_outputs = 1
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: Flash Attention enabled
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: resolving fused Gated Delta Net support:
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788582890.512 21575 21604 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+         1788582890.513 21575 21604 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+         1788582890.513 21575 21604 I ReactNativeJS: KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+         1788582890.513 21575 21604 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+         1788582890.513 21575 21604 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph nodes  = 1110
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: graph splits = 1
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info sched_reserve: reserve took 2.62 ms, sched copies = 1
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info set_adapters_lora: adapters = 0x0
+         1788582890.514 21575 21604 I ReactNativeJS: KALSA_NATIVE info adapters_lora_are_same: adapters = 0x0
+         1788582890.586 21575 21604 I ReactNativeJS: KALSA_NATIVE info attach_threadpool: call
+         1788582890.590 21575 21604 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+         1788582890.597 21575 21604 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":7,"ok":false,"reason":"no_file"}
+         1788582890.597 21575 21604 I ReactNativeJS: 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'
+         1788582890.597 21575 21604 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"30001358","systemChars":3015,"toolCount":5}'
+         1788582890.610 21575 21653 W RNLlama : loadPrompt:434 KALSA_KVPREFIX embd=0 text_tokens=1319 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000074f1b57790
+         1788582900.562 21575 21604 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":9879.509,"hash":"30001358"}'
+         1788582942.291 21575 21604 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+         1788582942.304 21575 21604 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":6167}
+         1788582942.350 21575 21658 W RNLlama : loadPrompt:434 KALSA_KVPREFIX embd=1319 text_tokens=1329 n_common=1316 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb4000074f1b57790
+         1788582942.350 21575 21658 W RNLlama : loadPrompt:483 KALSA_KVDIVERGE n_common=1316 shared_lo=1308 embd_hi=1319 text_hi=1328 shared_ids=[98304 88075 19851 124900 207 124899 5922 207 ] embd_ids=[22 124900 207 ] text_ids=[57922 415 734 2789 12683 836 16369 124900 207 124899 63514 207 ]
+         1788582944.584 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 44246 (`Mount`)
+         1788582944.621 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1689 (`ains`)
+         1788582944.660 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 437 (` are`)
+         1788582944.702 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 25082 (` tow`)
+         1788582944.743 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 2143 (`ering`)
+         1788582944.786 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 28154 (` peaks`)
+         1788582944.824 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 395 (` that`)
+         1788582944.865 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 7359 (` rise`)
+         1788582944.907 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 21930 (` dramatically`)
+         1788582944.948 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 487 (` from`)
+         1788582944.990 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 278 (` the`)
+         1788582945.031 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 5502 (` earth`)
+         1788582945.073 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 20 (`,`)
+         1788582945.113 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 39901 (` shaping`)
+         1788582945.155 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 32187 (` landscapes`)
+         1788582945.199 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 309 (` and`)
+         1788582945.240 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 42280 (` inspiring`)
+         1788582945.280 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 60661 (` awe`)
+         1788582945.321 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 296 (` in`)
+         1788582945.360 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 1018 (` people`)
+         1788582945.401 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 11668 (` worldwide`)
+         1788582945.464 21575 21604 I ReactNativeJS: KALSA_NATIVE info Grammar still awaiting trigger after token 22 (`.`)
+         1788582945.480 21575 21604 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":1397,"tokensEvaluated":1329,"tokensPredicted":67,"draftTokens":0,"draftAccepted":0,"promptMs":42169.747,"predictedMs":2779.5570000000002,"predictedPerSecond":24.104560546878513,"contextFull":false,"interrupted":false}
+         1788582945.480 21575 21604 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+         1788582945.481 21575 21604 I ReactNativeJS: KALSA_MEMORY {"memoryEnabled":0,"factsExtracted":-1,"factsStored":-1,"factsRejectedSensitive":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1}
+         1788582945.481 21575 21604 I ReactNativeJS: KALSA_BENCH_TOKENS {"turnId":"1","n":67,"ids":[597,4695,10966,267,2789,12683,836,16369,22,969,355,267,3547,20,2676,3830,3451,395,5034,1400,3174,4924,5009,22,358,510,5141,5327,2129,1022,6189,1016]}
+         1788582945.510 21575 21604 I ReactNativeJS: KALSA_NATIVE info state_write_data: writing state
+         1788582945.510 21575 21604 I ReactNativeJS: KALSA_NATIVE info state_write_data: - writing model info
+         1788582945.510 21575 21604 I ReactNativeJS: KALSA_NATIVE info state_write_data: - writing memory module
+         1788582945.575 21575 21604 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":73,"ok":true,"estimatedBytes":91553792,"usedTokens":1397,"tokens":1397,"hash":"683309232","messageCount":2}
+         1788582945.576 21575 21604 I ReactNativeJS: KALSA_MEMORY_EXTRACT {"memoryEnabled":0,"factsExtracted":0,"factsStored":0,"factsRejectedSensitive":0,"factsRejectedFull":0,"factsInjected":-1,"totalFactsInStore":0,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":0,"extractGateSource":1,"extractStopReason":2}

@@ -871,6 +871,21 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > serial 7b5f6c52 (stessa board del run 2), APK ac4820d, driver df07c616.**
 > Watcher attivo. Budget 8 Gen 3 prima della sessione: 822 min.
 
+> **6/09 00:40 Mac — S5 RUN 3 COMPLETO (sa803354, 8/8 turni, exit 0): PRIMI
+> TURNI END-TO-END DEL GOVERNOR SU UN DEVICE.** B×4: `engine_prefill GPU`,
+> `engine_decode CPU`, `commit_bytes 9.2 MB / 10.5 ms`, thermal FAST, prewarm
+> GPU 5.2 s (1024 token). Endpoint PREREG però: **oracolo FAIL** — i 32 id
+> greedy divergono al token 14 (A=20, B=5439), deterministico su 4/4 turni B
+> (stesso ids_sha) e 4/4 A → numerica GPU≠CPU nel prefill, non rumore;
+> **decode**: mediana B turni 2-4 = 21.9 vs A 24.4 tok/s (FAIL, richiesto ≥),
+> con B3 a 4.26 tok/s e 76 righe lowmemorykiller nel turno (pressione RAM a
+> due contesti: MemAvailable 8.7 → 4.4 GB); **TTFT B non misurabile**:
+> `promptMs 0` su tutti i B (il timer del prompt dell'app non copre il
+> prefill del governor) → endpoint 2 NON VALUTABILE, fix di telemetria
+> necessario. A: 4 turni stabili 42-44 s / 24.1-24.5 tok/s, ids identici ai
+> run 1-2. Sessione 799285 chiusa. Prossimo: REPORT (Luna 5fcd34c9) → audit
+> deepseek → ALIVE 48 come "governor funziona, endpoint FAIL con diagnosi".
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
