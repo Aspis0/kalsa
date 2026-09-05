@@ -1233,6 +1233,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > etichettate male, il Mac segna 5/09 EDT. Prossimo: sessione QDC `S5b-8Elite-r1` su
 > QRD8750, ordine ABABABAB, budget 8 Elite ≈583 min.
 
+> **5/09 08:15 EDT Mac — S5b run 1 (sessione 800721, sa804790, QRD8750): 3 righe VOID, run
+> fermata da me, sessione chiusa (Completed 7:56, ~22 min).** Meccanismo, misurato dal vivo
+> sulla stessa board: `adb shell input text` PERDE caratteri sulle stringhe lunghe (one-shot
+> 1500 → 1073 arrivati, 71%; nella run 5142 → 1046-1221), mentre a blocchi da 500 con pausa
+> 0,5 s arrivano tutti (1501/1500). Secondo difetto: a composer vuoto uiautomator riporta il
+> hint "Ask a question…" come `text` (16-17 char), quindi il check post-clear "≤3" non passa
+> mai e ogni retype torna VOID. Nessun numero di velocità/oracolo prodotto; il gate
+> "VOID non aborta" ha funzionato (3 VOID, loop proseguito). Fix a Luna 5fcd34c9: digitazione
+> a blocchi ≤500 + quoting single-quote, hint = lunghezza 0, fixture dryrun, emendamento
+> PREREG "run 1 VOID". Raw in `scratchpad/agents/qdc-governor-s5b/raw/sa804790/`.
+> Budget 8 Elite dopo la run: ~561 min.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

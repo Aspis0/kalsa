@@ -1,0 +1,2 @@
+attempt=initial actual=1086 expected=5142 minimum=4627
+attempt=cleared actual=17 expected=5142 minimum=0
