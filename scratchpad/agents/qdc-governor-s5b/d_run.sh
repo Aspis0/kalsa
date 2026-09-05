@@ -44,7 +44,7 @@ MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf
 DEVICE_TMP=/data/local/tmp/kalsa-s5; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAVED=""; IME_SUSPENDED=0
-FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; COOL_TARGET_C=36.0; COOL_POLL_S=15; COOL_MAX_S=600; COOLDOWN_SECONDS=na
+FIRST_SKIN_C=""; PREV_SKIN=""; PREV_TIME=0; THERMO_JSON=""; MEM_BEFORE_KB=""; MEM_AFTER_KB=""; APP_PID=""; ANCHOR_EPOCH=0; SEND_ANCHOR_EPOCH=0; ANCHOR_STAMP=""; A_IDS_FILE=""; A_IDS_VALID=0; TYPE_PROMPT_CALLS=0; TYPE_COUNTS=""; COOL_TARGET_C=37.0; COOL_POLL_S=15; COOL_MAX_S=720; COOLDOWN_SECONDS=na; LOGCAT_RC=na; LOGCAT_RETRIES=0
 source /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/parse.sh
 log() { echo "[$(date +%H:%M:%S)] $*"; }
 write_end() { [ "$END_WRITTEN" -eq 1 ] || { printf 'END reason=%s\n' "$1" > "$END_MARKER"; END_WRITTEN=1; }; }
@@ -58,7 +58,6 @@ adbT() {
   printf 'rc=%s%s\n' "$rc" "$argline" >> "$ADB_LOG"
   return "$rc"
 }
-logcat_all() { adbT "$1" -s "$SER" logcat -v epoch -d -b all > "$2" 2>&1; }
 wake_sequence() {
   adbT 60 -s "$SER" shell locksettings set-disabled true >> "$RAW/wake.log" 2>&1 || true
   adbT 60 -s "$SER" shell input keyevent KEYCODE_WAKEUP >> "$RAW/wake.log" 2>&1 || true
@@ -252,7 +251,7 @@ run_observation() {
   local structured_calls=0 tool_calls=0 void_reason=na
   local a_reused a_total
   local ids_file="${prefix}_ids.txt"
-  SEND_ANCHOR_EPOCH=0
+  SEND_ANCHOR_EPOCH=0; LOGCAT_RC=na; LOGCAT_RETRIES=0
   deadline_check; fresh_install "$prefix" || status=1; [ "$status" -eq 0 ] && copy_model "$prefix" || status=1; [ "$status" -eq 0 ] && bootstrap_db "$prefix" || status=1
   if [ "$status" -eq 0 ]; then
     cooldown_to_target "$prefix"; cooldown_rc=$?; cooldown_s="$COOLDOWN_SECONDS"
@@ -265,7 +264,7 @@ run_observation() {
     [ "$status" -eq 0 ] && poll_load "${prefix}_load.txt"; load_rc=$?; [ "$load_rc" -eq 0 ] || status=1
     [ "$load_rc" -eq 0 ] && memory_after "$prefix" || status=1
     if [ "$load_rc" -eq 0 ] && [ "$status" -eq 0 ]; then device_wake; ime_suspend; ui_send "$prefix" "$turn"; ui_rc=$?; if [ "$ui_rc" -eq 2 ]; then row_void=1; elif [ "$ui_rc" -ne 0 ]; then status=1; fi; fi
-    [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 60 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 300 "$logcat" || true
+    [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 120 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 120 "$logcat" || true
   fi
   [ -f "$logcat" ] || : > "$logcat"; lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || status=1; skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; status=1; }; grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat"); lmkd=$(count_lmkd_after "$logcat"); telemetry=$(last_json_after KALSA_TELEMETRY "$logcat"); governor=$(last_json_after 'KALSA_GOVERNOR ' "$logcat"); bench=$(last_json_after 'KALSA_BENCH_TOKENS ' "$logcat"); tool_call=$(last_json_after 'KALSA_TOOLCALL ' "$logcat"); structured_calls=$(json_field "$tool_call" structuredCalls); [ -n "$structured_calls" ] || structured_calls=0; case "$structured_calls" in ''|*[!0-9]*) structured_calls=0;; esac; if [ "$structured_calls" -gt 0 ]; then tool_calls="$structured_calls"; void_reason=toolcall; row_void=1; fi
@@ -279,7 +278,7 @@ run_observation() {
   if [ "$arm" = A ]; then A_IDS_FILE="$ids_file"; [ "$ids_sha" = na ] && A_IDS_VALID=0 || A_IDS_VALID=1; else if [ "$ids_sha" = na ] || [ "$A_IDS_VALID" -ne 1 ]; then oracle=VOID; elif diff -q "$A_IDS_FILE" "$ids_file" >/dev/null 2>&1; then oracle=PASS; else oracle=FAIL; fi; fi
   if [ "$row_void" -eq 0 ] && [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ]; then runtime_prereq=1; printf 'PREREQUISITE OPEN: missing KALSA_BENCH_TOKENS after first turn; app sampling contract is absent.\n' > "$RAW/PREREQUISITE.txt"; fi
   if [ "$arm" = B ] && [ "$row_void" -eq 0 ]; then [ "${fallback:-0}" -eq 0 ] || status=1; [ "$decode_engine" = CPU ] || status=1; if [ "$thermal" = FAST ] && [ "$prefill" != GPU ]; then status=1; fi; [ "$thermal" != na ] || status=1; [ "${governor_count:-0}" -eq 1 ] || status=1; [ "$thermo_source" = bench-skin ] || status=1; awk -v v="$commit_bytes" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; awk -v v="$commit_ms" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; fi
-  [ "${lmkd:-0}" -eq 0 ] || status=1; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$arm" "$turn" "$ttft" "$prefill_ms" "$prefill_chunks" "$new_tokens_a" "$new_tokens_b" "$decode" "$prefill" "$decode_engine" "$thermal" "$skin_before" "$skin_after" "$fallback" "$lmkd" "$ids_sha" "$oracle" | tee -a "$RESULTS"; printf 'status=%s row_void=%s cooldown_s=%s thermo=%s governor_count=%s commit_bytes=%s commit_ms=%s thermo_source=%s anchor_epoch=%s anchor_stamp=%s telemetry_rc=%s new_tokens_a=%s new_tokens_b=%s structuredCalls=%s tool_calls=%s void_reason=%s\n' "$status" "$row_void" "$cooldown_s" "$thermo" "$governor_count" "$commit_bytes" "$commit_ms" "$thermo_source" "$ANCHOR_EPOCH" "$ANCHOR_STAMP" "$telemetry_rc" "$new_tokens_a" "$new_tokens_b" "$structured_calls" "$tool_calls" "$void_reason" > "${prefix}_status.txt"
+  [ "${lmkd:-0}" -eq 0 ] || status=1; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$arm" "$turn" "$ttft" "$prefill_ms" "$prefill_chunks" "$new_tokens_a" "$new_tokens_b" "$decode" "$prefill" "$decode_engine" "$thermal" "$skin_before" "$skin_after" "$fallback" "$lmkd" "$ids_sha" "$oracle" | tee -a "$RESULTS"; printf 'status=%s row_void=%s cooldown_s=%s thermo=%s governor_count=%s commit_bytes=%s commit_ms=%s thermo_source=%s anchor_epoch=%s anchor_stamp=%s telemetry_rc=%s new_tokens_a=%s new_tokens_b=%s structuredCalls=%s tool_calls=%s void_reason=%s logcat_rc=%s logcat_retries=%s\n' "$status" "$row_void" "$cooldown_s" "$thermo" "$governor_count" "$commit_bytes" "$commit_ms" "$thermo_source" "$ANCHOR_EPOCH" "$ANCHOR_STAMP" "$telemetry_rc" "$new_tokens_a" "$new_tokens_b" "$structured_calls" "$tool_calls" "$void_reason" "$LOGCAT_RC" "$LOGCAT_RETRIES" > "${prefix}_status.txt"
   adbT 60 -s "$SER" shell "am force-stop $PKG" > "${prefix}_force_stop.txt" 2>&1 || status=1; adbT 120 -s "$SER" shell "pm uninstall $PKG" > "${prefix}_uninstall.txt" 2>&1; [ "$?" -eq 0 ] || status=1
   [ "$runtime_prereq" -eq 0 ] || exit 3; return "$status"
 }
