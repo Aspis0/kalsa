@@ -1507,6 +1507,35 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (altrimenti `aod` → ri-wake e retry), poll_load con re-wake per iterazione; dryrun 0.
 > **Run 7e lanciata sulla sessione 803833/sa807902 con `ABABAB 45`** (fine ≤19:20).
 
+> **5/09 18:45 EDT Mac — run 7e: il lancio 18:26 è stato ucciso dalla compattazione della
+> sessione (`Terminated: 15` durante l'install, raw rimossa); rilancio 18:33, fine ≤19:18.
+> A1 VOID composer, nuova trappola n. 8:** typing a 500 perde caratteri (chunk 3: 1412/1500),
+> la scala a 200 è esatta, ma al chunk 4 del tentativo 2 `adbT 60 dumpsys power` torna
+> **rc=255 con output completo** (`typing_wake_4_before.txt` 147 KB, `mWakefulness=Awake`) e
+> `typing_awake` lo tratta come fatale → rc 2 → VOID. rc=255 su `dumpsys power` in 3/76 dump
+> della run (4%): stesso flake di trasporto del `logcat -d`. B1 procede (tentativo 2 a 200,
+> chunk 16/26 a t=179 s, sotto il cap 400 s). Fix per Luna A FINE RUN (d_run/parse intoccabili
+> col driver vivo): accettare il dump se contiene `mWakefulness=` a prescindere dal rc, o
+> retry ×3, in typing_awake / dump_ui / poll_load; stesso trattamento del minore #13.
+
+> **5/09 19:20 EDT Mac — run 7e CHIUSA alla deadline (19:17:51): A1 VOID (trappola 8), B1 TTFT
+> 12,08 s con `KALSA_GOVERNOR_FALLBACK stage=correctness reason=gpu-prefill-incorrect-Unknown`
+> (0/31 layer su GPU → B ≡ CPU), A2 12,58 s / 925 token / 16,6 tok/s valida, B2 tagliata dopo
+> 780 s di cooldown. Sessione 803833 Completed, tunnel chiuso.** Scoperta di scopo: "correctness"
+> non è un check a runtime ma l'allowlist `GPU_PREFILL_CORRECT={V79:true, V75:false, V73:false,
+> Unknown:false}` in `src/engine/governorInputs.ts` (app @8a56edc) e `generationFor()` non conosce
+> SM7675 → Unknown; la policy del fork (`llama-governor-policy.cpp:160-168`) dà GPU solo a V75/V79
+> con Fit+measured, cool-mode a V73 solo MoE, CPU altrimenti. Quindi su QRD7675 e QRD8635 (Unknown)
+> e HDK8550 (V73, modello dense) **la B in-app non esiste per design**: la A/B multi-SoC come l'avevo
+> pre-registrata era cieca su questa tabella (punto cieco mio, ownato in PREREG §"Run 7e — post
+> hoc"). Il prior 1,59× (riga ALIVE 40 / cella 57, che ritira l'11× di #36) con lo sconto in-app dà
+> parità → la scelta CPU della policy sul 732 è coerente coi dati; il gap è di copertura della
+> tabella, non di esito. **Prossimo: run 8 su QRD8650 (V75) con `kalsa.bench.governor_force=1`
+> sulla sola B**, pre-registrata in PREREG §"Run 7e → run 8" (4 punti: wakefulness dal contenuto,
+> force V75, VOID governor_fallback, gate RAM > 8 GiB); Luna 2d5dfbe0 implementa, poi audit
+> deepseek. **QRD8635 e HDK8550 NON scartati da me: parcheggiati per la decisione dell'owner**
+> (nessuna B possibile senza estendere la policy del governor). REPORT run 7 in arrivo (Luna nuova).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

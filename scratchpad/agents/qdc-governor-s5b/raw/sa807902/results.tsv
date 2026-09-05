@@ -1,0 +1,4 @@
+arm	turn	ttft_ms	prefill_ms	prefill_chunks	new_tokens_a	new_tokens_b	decode_tps	engine_prefill	engine_decode	thermal_state	skin_c_before	skin_c_after	fallback_count	lmkd_count	ids_sha	oracle
+A	1	na	na	na	na	na	na	na	na	na	33.073	35.471	0	0	na	na
+B	1	12082.106	na	na	na	na	16.7674810783565	na	na	na	35.29	44.526	1	0	na	VOID
+A	2	12575.789	na	na	925	na	16.5567619207553	na	na	na	38.429	46.69	0	0	647f906da19958f2ed5acd8f80f17f5c01946a292743dd57e0ad3a68d4d5b27d	na

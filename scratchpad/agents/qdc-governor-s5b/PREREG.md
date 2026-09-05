@@ -159,3 +159,82 @@ The 7d+ run uses the unchanged PREREG:132-138 endpoint and abort rules; no 7c da
 Run 7d lost A1 and B1 to `VOID(composer)`: the successful edit dump was 9.6 kB of `com.android.systemui` AOD content with no `EditText` [raw/sa807902b/7p-Gen-3_A_t1_edit.xml].
 The board reported `mStayOn=false` and `mIsPowered=false`; bare `KEYCODE_WAKEUP` re-dosed in ≈9 s, while wakeup+dismiss-keyguard+tap stayed Awake for ≥40 s [raw/sa807902b/driver-sa807902.log]. Power facts: `mIsPowered=false`/`mStayOn=false` [raw/sa807902b/wake.log:10,15]; the 9 s re-doze (`mLastSleepReason=timeout`) was measured live by the orchestrator and is not in raw.
 Run 7e retries dumps, wakes before each attempt and load poll, taps the composer for user activity, and records `aod`/wake evidence; the unchanged PREREG:132-138 rules remain in force.
+
+## Run 7e — post hoc (written 5/09 18:58 EDT while the run was still going; not a change to the protocol)
+
+Two facts learned from run 7e on QRD7675 (SM7675, `ro.product.name=pineapple`, Adreno 732), both
+outside what §"Runs 7+" pre-registered:
+
+1. **Harness trap n. 8 (A1 VOID composer).** Typing at 500 chars/chunk loses characters
+   (attempt 1 chunk 3: 1412/1500), the 200-chunk ladder is exact, but at attempt 2 chunk 4
+   `adbT 60 dumpsys power` returned rc=255 with a complete dump
+   [raw/sa807902/7p-Gen-3_A_t1_typing_wake_4_before.txt, 147 KB, `mWakefulness=Awake`] and
+   `typing_awake` treats any rc≠0 as fatal (parse.sh, `typing_awake`, first `adbT ... || return 1`)
+   → `send_prompt_chunk` rc 2 → type_prompt rc 2 → VOID [raw/sa807902/7p-Gen-3_A_t1_type_prompt.txt].
+   `dumpsys power` rc=255 with good output: 3 of 76 calls in this run [raw/sa807902/adb-exit.log:160,213,352].
+   Fix for the next driver: judge wakefulness from the dump CONTENT (`mWakefulness=` present) with
+   ≤3 retries; rc alone is not evidence. Same treatment for `dump_ui`'s power check and `poll_load`
+   (audit #13 minor).
+
+2. **The governor is inert on this SoC by design, so arm B ≡ arm A here.** B1 logged
+   `KALSA_GOVERNOR_FALLBACK {"stage":"correctness","reason":"gpu-prefill-incorrect-Unknown","forced":false}`
+   and loaded `offloaded 0/31 layers to GPU` [raw/sa807902/7p-Gen-3_B_t1_logcat_all.txt].
+   "correctness" is not a runtime check: app `src/engine/governorInputs.ts` (feat/governor-in-app @8a56edc)
+   has `GPU_PREFILL_CORRECT = { V79: true, V75: false, V73: false, Unknown: false }` and
+   `generationFor()` maps only SM8550/KALAMA→V73, SM8650/PINEAPPLE(soc)→V75, SM8750/SUN→V79; SM7675 →
+   Unknown → `enabled=false` → CPU. Even with the bench key `kalsa.bench.governor_force=1` (read only
+   when `kalsa.governor.enabled` is true) the fork policy `llama_governor_policy::prefill_engine()`
+   (kalsallama-wt-governor-v03 `src/llama-governor-policy.cpp:160-168`) returns GPU only for V75/V79
+   with `gpu_fit==Fit && gpu_prefill_measured`, GPU_COOLMODE for V73 only when `model_kind==MoE`, and
+   CPU otherwise; `gpuFit()` also returns NoFit on Unknown. Consequences for the pre-registered device
+   list:
+   - QRD7675 (SM7675) and QRD8635 (SM8635): Unknown → no in-app GPU prefill path exists. The B/A
+     ratio cannot be measured in-app; the pre-registered mid-tier band (1.01–1.05, parity) is
+     consistent with the policy's choice (CPU) but run 7e does not test it. What run 7e can bank:
+     CPU TTFT of the shipped app on the 732 (A rows and B rows alike), and the fact that the shipped
+     governor routes CPU there.
+   - HDK8550 (V73): LFM2.5-2.6B is dense → CPU by policy; same situation.
+   - QRD8650 (V75): GPU path exists but is allowlisted off (Adreno 750 f16/bf16-batched defect, ALIVE
+     38/39/48); `kalsa.bench.governor_force=1` re-enables it for the bench. An in-app A/B is measurable
+     there, **descriptive only** as already stated in §"Runs 7+" (strict oracle expected to FAIL at
+     token 14 by the known defect; PASS-1 not expected to rescue it).
+   Blind spot owned by the orchestrator: §"Runs 7+" was written from ALIVE #57/#58 (CLI kit) without
+   reading the app allowlist. It is left as written; this section records the correction.
+   Prior check: ALIVE row 36 (cell #52) reported GPU prefill ~11× CPU on this very board, but ALIVE row
+   40 (cell qdc-cpu-tuned-57) retired that CPU number as build-suspect and left ~1.6× on the mid-tiers,
+   which is the 1.59× used in §"Runs 7+". With the 0.597–0.620 in-app discount that is parity, so the
+   shipped policy's CPU choice on the 732 is consistent with the corrected data; the gap is in the
+   device table's *coverage* (SM7675 → Unknown), not in the routing outcome.
+
+**Proposed next step (needs the owner's call, not taken unilaterally):** skip the in-app A/B on QRD8635
+and HDK8550 (no B arm exists), run QRD8650 with `kalsa.bench.governor_force=1` set in `set_prefs` for
+arm B only, pre-registered in a "Run 7 → run 8" section before launch. The rc=255 fix ships first.
+
+## Run 7e → run 8 (QRD8650, SM8650 → V75) — pre-registered 5/09 ~19:05 EDT, before any driver change
+
+Device order changes: QRD8650 is next because it is the only remaining board on which an in-app B arm
+can reach the GPU (see §"Run 7e — post hoc", point 2). QRD8635 and HDK8550 are NOT dropped here; they
+are parked for the owner's call (no B arm exists there under the shipped policy).
+
+Driver changes (Luna; delta audit before launch):
+1. **Wakefulness from content, not rc.** `typing_awake`, `dump_ui`'s per-attempt power check and
+   `poll_load` accept a `dumpsys power` capture when it contains `mWakefulness=`, regardless of adb rc;
+   otherwise retry up to 3 times; only 3 consecutive captures without `mWakefulness=` are fatal for that
+   check (rc 124/255 on all three → transport). Closes trap n. 8 and audit #13's minor.
+2. **Arm B forces the governor on V75 only.** `set_prefs` writes `kalsa.bench.governor_force='1'` for
+   arm B when `device_tag` is `8-Gen-3`, and `'0'` otherwise (arm A always `kalsa.governor.enabled=false`,
+   under which the force key is never read: `LlamaService.ts:1307-1309`). Without this key
+   `GPU_PREFILL_CORRECT[V75]=false` sends B to CPU.
+3. **B must actually reach the GPU.** A B row whose logcat has `KALSA_GOVERNOR_FALLBACK` or lacks a
+   `KALSA_GOVERNOR {` line with `engine_prefill` = GPU is VOID with `void_reason=governor_fallback`
+   (new reason; today it surfaces only as `new_tokens_b=na`).
+4. **RAM precondition.** `gpuFit()` returns NoFit when total RAM ≤ 8 GiB. The driver records
+   `MemTotal` in recon and, for `8-Gen-3`, exits 2 with `GPU_FIT_RAM` before installing if MemTotal ≤
+   8 GiB, so a session is not spent on a run whose B arm cannot exist.
+
+Endpoint on QRD8650 (unchanged from §"Runs 7+"): descriptive only. Expected band B/A 0.55–0.58 from
+ALIVE #58 (2.87–2.94× CLI) × in-app discount 0.597–0.620. Strict oracle expected FAIL by the known
+Adreno 750 f16/bf16-batched MUL_MAT defect (deterministic divergence at token 14, ALIVE 38/39/48);
+PASS-1 is not expected to rescue it; the pair (ratio, oracle) is what gets banked, never the ratio alone.
+Pairing: same-turn adjacent pairs, median. Cooldown A 38.5 / B 37.0 °C, cap 900 s, first run on this
+board thermally exploratory. Order ABABAB, deadline 85 min on a fresh 120-min session.

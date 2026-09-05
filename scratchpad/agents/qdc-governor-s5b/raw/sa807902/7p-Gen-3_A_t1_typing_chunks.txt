@@ -1,0 +1,6 @@
+attempt=1 chunk=1 len=500 expected=500 result=exact t=18s
+attempt=1 chunk=2 len=1000 expected=1000 result=exact t=40s
+attempt=1 chunk=3 len=1412 expected=1500 result=short t=59s
+attempt=2 chunk=1 len=200 expected=200 result=exact t=12s
+attempt=2 chunk=2 len=400 expected=400 result=exact t=23s
+attempt=2 chunk=3 len=600 expected=600 result=exact t=33s
