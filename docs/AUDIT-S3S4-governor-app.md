@@ -75,3 +75,46 @@ Kotlin camelCase `battTempTenthsC` (BatteryManager tenths °C) → JS accepts bo
 
 ## Verdict
 **NO-GO** — 2 blocker, 9 major, 5 minor. Do not run S5 until B1+B2 (and M1 probe) are fixed; otherwise the cell is CPU vs CPU with `thermo_source`/`fit` that will be misread as a governor result.
+
+## Delta re-audit (5/09)
+
+Tree `/Users/marco/Projects/kalsa-wt-governor` @ `c5c55a4`. Commits `1c4b142 4df562d 2646e77 826fe50 04ba9a9 c5c55a4`. CI `33932740946` **in_progress**.
+
+### Part A — prior 16
+
+| id | verdict | quote |
+|---|---|---|
+| B1 | **FIXED** | `ModelRegistry.ts:311` `kvBytesPerToken: 6656,` — logcat `A_sa803197e_s4_logcat.txt:9231` `size =  104.00 MiB ( 16384 cells…)` → `104×1048576/16384 = 6656`. |
+| B2 | **PARTIAL** | JS no longer ANDs idle (`governorInputs.ts:138` `sensor_valid: sensor,`). Native still `t_idle_valid && t_idle_c + 1.0f < 42` when plugged (`llama-governor-policy.cpp:63`). Plan example `{plugged:true, sensor_valid:true}` without idle → init throw → CPU retry. S5 **must** send `t_idle_*` (test does, `:135-136`). |
+| M1 | **FIXED** | `governorInputs.ts:47` `if (/(SM8650\|PINEAPPLE)/.test(soc)) return "V75"`. `deviceProfile.ts:520` `NativeModules?.GovernorBattery?.readSoc?.()`. Residual: modelName-only `"Pineapple for arm64"` still misses if `SOC_MODEL` empty. |
+| M2 | **FIXED** | `LlamaService.ts:1528` `beginNativeLogEpoch()`; `:1545-1546` both logs are `nativeLogForEpoch(governorLoadEpoch)`. Stale epoch filtered. Test `governorRuntime.test.ts:64`. |
+| M3 | **FIXED** | Only two emits: `:3248` then `return`; `:3559` after tool-exhaust path. Mutually exclusive. Prewarm/extract/translate/completeOnce only refresh, no emit. |
+| M4 | **FIXED** | `GovernorBatteryModule.kt:45` `sensorValid", present && temperature > 0`. |
+| M5 | **FIXED** | `governorInputs.ts:96-100` adds `estimate.computeMiB + estimate.kvMiB` on top of `nonEvictableMiB + gpuReserve` (second compute + second KV). LFM test Fit @12 GiB / NoFit @8 (`governorInputs.test.ts:113-125`). |
+| M6 | **FIXED** | `LlamaService.ts:1538-1539` `delete governorParams.speculative`. Regex includes `Governor mode does not support` (`governorRuntime.ts:31`). |
+| M7 | **FIXED** | `RNLlamaJSI.cpp:837-838` invalid thermo `return … jsi::Value(false)`. JS `:925-944` logs `KALSA_GOVERNOR_THERMO` and **does not throw**. Re-checks `engine === context` after await (`:923`). |
+| M8 | **NOT FIXED** | New run `33932740946` `status: in_progress`, `conclusion: ""`. No APK proof yet. |
+| M9 | **PARTIAL** | `resetAllMocks` (`governorInputs.test.ts:59`, `governorRuntime.test.ts:16`). Stale-log + LFM + pineapple tests added. Still no LlamaService wiring test. |
+| m1 | **PARTIAL** | `engineParams.ts:101` no longer claims GPU offload. `LlamaService.ts:1608` still `deviceTuning selects gpu-opencl` vs `deviceTuning.ts:374` `cpu-only`. |
+| m2 | **FIXED** | `isGovernorFallback` now used (`governorRuntime.test.ts:10,64`). |
+| m3 | **FIXED** | `rn-llama.cpp:99` `"accelerator model load failed"` (no path). `RNLlamaJSI.cpp:672-676` `profile_valid:%d` from `governor_thermo_profile_is_valid`. |
+| m4 | **FIXED** | `LlamaService.ts:1566-1568` governor logs `{ prefill: 99, decode: 0 }`. |
+| m5 | **NOT FIXED** | still `temperature > 0` (`GovernorBatteryModule.kt:45`). |
+
+### Part B — new
+
+**Greedy (`826fe50`).** `benchSampling.ts:23-25` key `"greedy"` else `undefined`. `:36-48` temp 0, top_k 1, top_p 1, min_p 0, `penalty_last_n:0` / `penalty_repeat:1` (off), seed 42, `n_predict: Math.max(48,…)`, plus `n_probs:1`. Non-greedy: `:35` `if (mode !== "greedy") return params;` — `826fe50` LlamaService wraps the **same** `temperature: 0.7, top_k: 40, top_p: 0.95` object; no field changes when key unset. `KALSA_BENCH_TOKENS` only at `:3250` and `:3561`, both behind `benchSampling === "greedy"`, same mutually exclusive chat-turn exits. Not on prewarm/extract/translate. `n` sums `tokens_predicted`; `ids` first 32 (`:2748-2763`). Native: `rn-completion.cpp:45` `generated_token_ids.clear()` on rewind; `:1245-1246` push if `n_probs>0 && tok != -1`. **EOS omitted:** `:1176-1180` EOG returns with `result.tok` still `-1` (`:1036`). Symmetric in both S5 arms → oracle still comparable. `n_probs` applied **after** `common_sampler_sample` (`:1165-1170`); comment `common.h:224` “output the probabilities”. Does not choose the token. Both S5 arms set the key ⇒ both greedy + `n_probs:1` ⇒ cost symmetric. Privacy: key unset ⇒ `n_probs` stays 0, no push, no `KALSA_BENCH_TOKENS`. Tool rounds can fill the first 32 ids before the user-visible reply (S5 is tool-less).
+
+**Vendor (`04ba9a9`).** Pin `e131345b7c1e14dcc081cae3591270aeec6d8659`. Fork HEAD same. `sed GGML_/ggml_ → LM_GGML_/lm_ggml_` then `diff` vendor vs fork `llama-governor.cpp/.h`, `llama-governor-runtime.cpp`, `llama-ext.h` = **empty**. Pure sync. Fork commit is **not** only friend+failure_reason: `llama-governor.cpp` also `fail("route Reject during phase handoff")` (was `"phase handoff failed"`) and stores `failure_reason_`. Header default `reload_budget_available = true` (`llama-ext.h:214`) restored from fork; JS still sends `false` (`governorInputs.ts:116`).
+
+**Kotlin (`c5c55a4`).** `GovernorBatteryModule.kt:12` `import com.facebook.react.ReactPackage` matches Expo 57 `MainApplication.kt:11`. `readSoc` API<31: `:58-60` `putNull("socModel")`. Prebuild `MainApplication.kt:26` `add(GovernorBatteryPackage())`. QDC is API 34 (`VERSION_CODES.S`=31).
+
+**CI.** `33932740946` in_progress. Not green, not red.
+
+### Delta findings
+- B2 residual (native plugged+no idle) — major until S5 JSON includes `t_idle_*`.
+- EOS skipped in `generated_token_ids` — minor, both arms.
+- Stale `gpu-opencl` comment — minor.
+- CI unfinished — major for APK proof.
+
+**Delta verdict: GO-WITH-FIXES** — 0 blocker, 2 major (B2 t_idle contract, CI not green), 3 minor. S5 may proceed once CI is green **and** bench-skin JSON carries `t_idle_valid`/`t_idle_c` (not the plan’s 4-field example).

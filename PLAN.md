@@ -673,6 +673,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > path non-greedy intatto), purezza del vendor vs fork e131345b7, Kotlin,
 > CI. Appende in `docs/AUDIT-S3S4-governor-app.md`.
 
+> **5/09 ~06:30 — Delta audit grok (appeso a `docs/AUDIT-S3S4-governor-app.md`):
+> GO-WITH-FIXES, 0 blocker.** 16 finding: 12 FIXED, B2/M9/m1 PARTIAL, M8 (CI)
+> e m5 NOT FIXED. B1 ricalcolato dall'auditor (104 MiB/16384 = 6656 ✓). Vendor
+> = sync puro del fork e131345b7 (diff vuoto dopo rinomina lm_ggml_). Contratto
+> sampling: path non-greedy byte-identico, riga solo dietro la chiave,
+> `n_probs` letto DOPO il sampling (non cambia il token); **gli ids omettono
+> l'EOS** (simmetrico, annotato nel PREREG). Residui accettati: commento
+> stantio `LlamaService.ts:1608` "deviceTuning selects gpu-opencl" e
+> `temperature > 0` in Kotlin (0.0 °C = invalido) → da piegare nel prossimo
+> commit app, non bloccanti. Header fork `reload_budget_available=true` di
+> default, JS manda false: coerente col piano. Gate per S5: CI 33932740946
+> verde + JSON bench con t_idle_* (già nel driver). PREREG emendato pre-lock.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

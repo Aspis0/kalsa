@@ -130,3 +130,16 @@ unobserved rack power, QDC transport variance, display/UI timing,
 fresh-install load cost, shared thermal drift, and the synthetic thermo
 override. The result is an app
 integration cell, not a consumer-phone battery or production thermal claim.
+
+## Amendment 5/09 (pre-lock, from the S3+S4 delta audit)
+
+- The app's `ids` list excludes the end-of-generation token (native `generated_token_ids` is filled
+  only for sampled tokens with `tok != -1`; the EOG return path leaves `tok = -1`). Both arms share
+  this behaviour, so the oracle compares the same first-32 window in A and B. A turn that ends by
+  EOS before 32 tokens is `oracle=VOID` per the contract, never a failure.
+- The bench-skin JSON MUST carry `plugged:false`, `t_idle_valid:true`, `t_idle_c` (driver line
+  `THERMO_JSON=` does): the native policy treats plugged-without-idle as CPU mode, and JS no longer
+  pre-validates the profile.
+- `n_probs:1` is enabled in both arms by the greedy key; its cost is symmetric and it does not
+  change the chosen token (probabilities are read after sampling).
+
