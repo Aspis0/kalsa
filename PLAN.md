@@ -1042,6 +1042,25 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Budget 8 Gen 3 prima: 776 min. Watcher attivo. Attesa: se la board scalda
 > oltre 38 °C, un turno B con `engine_prefill CPU` e `cpu:N` che COMPLETA.
 
+> **6/09 05:15 Mac — S5 RUN 5 (sa803459, board 45207755): 6 turni, poi abort
+> dopo B3 per il gate GPU del driver (riga degradata VALIDA). DUE RISULTATI
+> CHIAVE.** (1) **Degradazione termica funziona end-to-end**: skin 30.6 →
+> 38.5 °C in 5 turni; a B3 (38.53 °C, stato WARM) la policy ha detto Wait e il
+> runtime ha instradato il turno su CPU e lo ha COMPLETATO: prewarm CPU 10.3 s
+> (vs GPU 5.6 s a B2), `KALSA_GOVERNOR {engine_prefill:"CPU", commit_bytes:0,
+> prefill_ms:337.6, prefill_chunks:"cpu:2+13", thermal_state:"WARM"}`, decode
+> 22.1 tok/s. (2) **ORACOLO PASS sul turno CPU-routed**: ids_sha di B3 =
+> 0f4b385a… = A → con il prefill su CPU il governor produce ESATTAMENTE i token
+> di A; B1/B2 (prefill GPU) FAIL con il solito ed228033… → la divergenza al
+> token 14 è isolata causalmente nel prefill GPU (numerica OpenCL Adreno 750
+> nel KV), non nel commit né nel routing. B1/B2: GPU 452.9/457.4 ms `2+13`,
+> commit 6.8/14.5 ms, decode 22.8/22.2. A: TTFT 44.9/41.8/42.1 s (come run 3;
+> il 335 ms del run 4 era della board 72c4dabb — dipende dalla board/sessione,
+> non dall'APK), decode 24.8/24.1/24.1. Sessione 799390 chiusa (~15 min).
+> Addendum → Luna 5fcd34c9; poi audit, ALIVE 48, memoria. Prossimo tecnico:
+> indagine numerica del prefill GPU (fork: precisione f16 nel path OpenCL /
+> KV) — ora con un test causale a portata di mano (CPU-routed = identico).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

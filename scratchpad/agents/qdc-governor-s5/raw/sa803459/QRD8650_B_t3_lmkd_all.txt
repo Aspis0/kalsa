@@ -1,0 +1,131 @@
+         1788595984.609   789   789 D lowmemorykiller: critical pressure event triggered
+         1788595984.609   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595984.609   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595984.610   789   789 I lowmemorykiller: Kill 'com.android.calendar' (5526), uid 10123, oom_score_adj 995 to free 97292kB rss, 4084kB swap; reason: critical pressure and device is low on memory
+         1788595984.610   789   789 D lowmemorykiller: medium pressure event triggered
+         1788595984.611   789   789 D lowmemorykiller: Ignoring medium pressure event; kill already in progress
+         1788595984.621   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595984.622   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595984.622   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595984.622   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595984.622   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595984.721   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595984.721   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595984.721   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595984.721   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595984.721   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595984.821   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595984.822   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595984.822   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595984.822   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595984.822   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595984.923   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595984.923   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595984.924   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595984.924   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595984.924   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.024   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.025   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.025   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.025   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.025   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.125   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.126   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.126   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.126   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.126   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.226   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.227   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595985.327   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.328   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595985.428   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.429   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.429   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.429   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.429   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.529   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.530   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.530   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.530   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.530   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.631   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.631   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.631   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.632   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.649   789   789 D lowmemorykiller: critical pressure event triggered
+         1788595985.650   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.650   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.650   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.651   789   789 I lowmemorykiller: Kill 'com.android.contacts' (5625), uid 10105, oom_score_adj 995 to free 92884kB rss, 3348kB swap; reason: critical pressure and device is low on memory
+         1788595985.651   789   789 D lowmemorykiller: medium pressure event triggered
+         1788595985.651   789   789 D lowmemorykiller: Ignoring medium pressure event; kill already in progress
+         1788595985.655   789   901 E lowmemorykiller: process_mrelease 5625 failed: No such process
+         1788595985.666   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.666   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595985.765   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.766   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.766   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.766   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.766   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.866   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.867   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.867   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.867   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.867   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595985.967   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595985.968   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595985.968   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595985.968   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595985.968   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595986.068   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.069   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595986.069   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595986.069   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595986.069   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595986.169   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.170   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595986.170   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595986.170   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595986.170   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595986.271   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.271   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595986.272   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595986.272   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595986.272   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595986.372   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.372   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.473   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.473   789   789 D lowmemorykiller: thrashing: 0% thrashing_limit: 30%
+         1788595986.474   789   789 E lowmemorykiller: zoneinfo_parse_node per-node stats not found in zone DMA32; moving to next zone
+         1788595986.474   789   789 E lowmemorykiller: calc_zone_watermarks pgskip_deltas_val: 0 pgskip_deltas[PGSKIP_IDX(i++)]: 0
+         1788595986.474   789   789 D lowmemorykiller: Not killing for medium pressure event polling check
+         1788595986.574   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.574   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.674   789   789 D lowmemorykiller: medium pressure event polling check
+         1788595986.675   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.689   789   789 D lowmemorykiller: critical pressure event triggered
+         1788595986.690   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.690   789   789 D lowmemorykiller: medium pressure event triggered
+         1788595986.690   789   789 D lowmemorykiller: Ignoring medium pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.774   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595986.775   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.875   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595986.875   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595986.976   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595986.976   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.076   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.077   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.177   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.177   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.278   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.278   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.378   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.379   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.479   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.479   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.580   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.580   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.680   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.681   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
+         1788595987.781   789   789 D lowmemorykiller: critical pressure event polling check
+         1788595987.781   789   789 D lowmemorykiller: Ignoring critical pressure event; system is not in reclaim or compaction and no refaults
