@@ -234,3 +234,20 @@ branch `feat/governor-in-app` @ `0265333`, CI run 33951825993 (debuggable=true),
 SHA-256 `38d6321008fe2bc9db320a2955c70876cde87302ef05294d81ee0b3f7672b35b`, aapt2 badging shows
 `application-debuggable`; vendor = fork `39c35bd1e`. Session name `S5-QRD8650-r5`.
 
+## Amendment 6/09 — run 6 (pre-data): second device, QRD8750 / Snapdragon 8 Elite (Adreno 830, V79)
+
+Run 5 isolated the token-14 divergence to the GPU prefill path on the Adreno 750 (CPU-routed
+governor turn = token-identical to arm A). The repository already documents an upstream
+f16/bf16×f32 batched MUL_MAT defect specific to the Adreno 750 (ALIVE #38: 20 deterministic
+FAILs on QRD8650; ALIVE #39: the 735 is clean). Run 6 therefore moves to the PREREG's second
+device, QRD8750 (8 Elite, Adreno 830, generation V79 — GPU prefill branch in the policy since fork
+`8f939aa7d`), with the SAME APK `0265333` (sha `38d63210…b35b`), model, prompt, arms, order and
+driver. Pre-registered expectation (falsifiable): on the 8 Elite the greedy oracle PASSES for
+GPU-prefilled B turns (no 750 defect), and the governor B turns show `engine_prefill GPU`,
+`commit_bytes > 0`, `thermal_state FAST` while cool. If the oracle FAILS on the 8 Elite too, the
+750-defect attribution is refuted and the divergence is generic to the OpenCL prefill path.
+Speed endpoints remain per the locked rule (oracle-PASS pairs only); with PASS pairs run 6 can
+produce the first analyzable endpoint-2 medians (this-turn TTFT is the ~15-new-token comparison;
+prewarm promptMs gives the 1024-token GPU-vs-CPU figure, labelled as such). Session name
+`S5-8Elite-r6` (≤ 30 chars). Budget: 8 Elite 623 min before the session.
+

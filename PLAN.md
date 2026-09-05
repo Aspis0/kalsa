@@ -1061,6 +1061,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > indagine numerica del prefill GPU (fork: precisione f16 nel path OpenCL /
 > KV) — ora con un test causale a portata di mano (CPU-routed = identico).
 
+> **6/09 05:30 Mac — Attribuzione della divergenza: il repo lo sapeva.** ALIVE
+> #38 (QRD8650): `MUL_MAT 905/925 — 20 FAIL, tutti f16|bf16 × f32 batched
+> m=128 n=1 k=1056 k_v=2112` = difetto driver/compiler del 750; ALIVE #39: il
+> 735 è pulito → "SOLO del 750". Il prefill GPU del governor sul QRD8650 passa
+> per quel path. **Test decisivo pre-registrato (run 6): stesso APK 0265333 e
+> driver sull'8 Elite (QRD8750, Adreno 830, V79 con ramo GPU in policy):
+> attesa oracolo PASS su B GPU; se FAIL, l'attribuzione al 750 è refutata.**
+> Indagine documentale parallela su Luna ee4741e9
+> (`docs/GPU-PREFILL-DIVERGENCE-2026-09-06.md`). Apro `S5-8Elite-r6`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
