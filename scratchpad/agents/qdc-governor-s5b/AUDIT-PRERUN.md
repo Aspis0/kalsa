@@ -410,3 +410,51 @@ regex fallback; logcat_all locals initialized; no `local a=$1 b=${a}`.
 GO. 0 blockers, 0 majors, 0 minors. W1-W4 confirmed by inspection, verbatim raw cross-checks
 (2034143/147 rejections; 5141/73 s/document_chat/1764→1929=165), and old-code-falsifying
 dryrun assertions; W5 clean. Launch run 6.
+
+
+## Delta audit #8 — run 6 per-arm cooldown + REPORT addendum
+
+W1 — CONFIRMED overall. cool_target_for_arm (parse.sh:96-102): `A) printf '38.5\n' ;; B)
+printf '37.0\n' ;; *) return 1`; call d_run.sh:257 `COOL_TARGET_C=$(cool_target_for_arm
+"$arm") || status=1` — global (init :47), read by cooldown_to_target (parse.sh:85); safe under
+set -u (no set -e; arm is always A|B). A-only gate d_run.sh:266 `[ "$status" -eq 0 ] &&
+[ "$arm" = A ] && awk -v v="$skin_before" 'BEGIN { exit !(v > 38.5) }' … row_void=1;
+void_reason=hot` — NOT redundant: enforces the pre-registered skin_before>38.5 VOID at the
+second read (boundary noise; ~2 s gap, no heat source before launch). F2: the 38.5 literal is
+duplicated at :266 instead of `awk -v v="$skin_before" -v t="$COOL_TARGET_C"` (parse.sh:98 is
+the source) — latent drift. B counterpart absent: asymmetric but defensible (B's 37.0 always
+reachable 75-435 s; plateau is A-only) — state it. Status d_run.sh:288 adds `cool_target_c=%s`
+(19%19 ✓). ARM_ORDER d_run.sh:19 accepts ABABAB|ABABABAB ✓.
+W2 — CONFIRMED: old cooldown rc handling (2→row_void=hot, ≠0→status=1) unchanged inside a
+`[ "$status" -eq 0 ]` guard; nothing that previously ran on cooldown failure now differs.
+W3 — CONFIRMED: ran `bash dryrun.sh > /tmp/dr8.log 2>&1` → exit=0 (tail: holder_loop 143 /
+cleanup 0). Assertions real: :107 `cool_target_for_arm A = 38.5`, B = 37.0, `COOL_MAX_S -eq
+900`; :154 A1 `wait_s=0 skin=35.5 target_c=38.5` + `cool_target_c=38.5`; :155 B1 `target_c=37.0`
++ `cool_target_c=37.0`; :163 A3 `wait_s=0 skin=39.5 target_c=38.5`; :164 never-mode
+`wait_s=900 skin=39.5 target_c=38.5` + `status=0 row_void=1 cooldown_s=900
+…cool_target_c=38.5…void_reason=hot` — fixture-driven through real run_observation.
+W4 — CONFIRMED clean: cool_target_c/cooldown_s always bound; nit: a row failing before the
+cooldown block prints the previous arm's cool_target_c (stale, harmless).
+W5 (REPORT 72-93) — verified vs raw/sa806366b: rows table = results.tsv:2-7 (A1 7023.858/165/
+28.4355/34.883→44.15; B1 3325.721/36.993→47.007/17b3765f/VOID; A2 na/37.072; B2 3324.109/
+36.974→46.37; A3 na/37.23; B3 3325.665/36.956→47.007) ✓; statuses cooldown_s 0/435/75/120/720
+✓; END.txt:1 `deadline_55_min` ✓ (deadline_check writes `"deadline_${DEADLINE_MINUTES}_min"`);
+.failures 4+7+1+10+8=30 ✓; ratios computed: 3200.713/5945.225=0.538367, 3325.721/5945.225=
+0.559394, reciprocals 1.85747/1.78765 → "0.54–0.56 / 1.79–1.86×" ✓ in band; cooldown line
+citations exist verbatim (A2:49 `wait_s=720 skin=37.078`, A3:49 `37.248`, B1:30 `435/36.998`,
+B2:6 `75/36.98`, B3:9 `120/36.962`) ✓; acceptance rule at PREREG:123/125 within "122-128" ✓.
+A1: addendum table A1 skin "na→44.15" is wrong — results.tsv:2 has skin_c_before=34.883 (na is
+correct only for A2/A3). A2: "VOID (oracle; row valid)" is accurate, not misleading.
+W6 (PREREG.md:129) — CONFIRMED honest: "A now starts up to 1.5 °C hotter… in favour of B" —
+direction right (hotter A ⇒ throttled CPU ⇒ bias toward PASS); matches the :266 gate. P1: the
+6-turn ABABAB shrinks the plateau to turns 2-3 (2 pairs max) without restating the median rule
+— the ≥2-pair rule still holds; pre-register the plateau set explicitly.
+W7 — F2 (38.5 literal) is the only duplication; no duplicated loops.
+W8 — CONFIRMED: hypothesis and endpoint definition unchanged; bands and ≥2-PASS-pair rule
+untouched.
+
+## Delta verdict #8
+
+GO. 0 blockers, 0 majors, 4 minors (F2 38.5 literal; A1 "na" skin-before; P1 ABABAB plateau
+unstated; B-gate asymmetry unstated) — textual/maintenance only; mechanics confirmed, dryrun
+exit 0. Launch run 6.

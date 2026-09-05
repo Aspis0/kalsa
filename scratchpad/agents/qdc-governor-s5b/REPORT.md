@@ -68,3 +68,26 @@ It shows GPU prefill plus KV commit executing on the 8 Elite in B1 and B3, with 
 ## Recommendation for run 5
 
 Use the atomic logcat dump and parse only the last good file; retain failed/rejected attempts as evidence. Register 37.0 °C and a 720-second cooldown cap, preserving `VOID(hot)` semantics, so the observed 36.3–37.7 °C GPU cooldown plateau is not converted into avoidable VOID rows [PREREG.md:122-124].
+
+## Addendum — runs 5a and 5b (2026-09-05)
+
+I aborted run 5a from the orchestrator: 147 `rc=0` ring-buffer dumps were rejected by the obsolete size rule, wasting the 600-second poll. This was an orchestrator-side acceptance-rule error, not a harness defect [raw/sa806366/8-Elite_A_t1_logcat_all.txt.failures:1-147; raw/sa806366/driver.log:1]. The corrected acceptance rule is recorded in PREREG [PREREG.md:122-128].
+
+Run 5b ended at `END reason=deadline_55_min` [raw/sa806366b/END.txt:1].
+
+| arm/turn | ttft_ms | oracle / void_reason | skin before→after °C | cooldown_s |
+|---|---:|---|---:|---:|
+| A1 | 7023.858 | VOID(toolcall) | 34.883→44.15 | 0 |
+| B1 | 3325.721 | VOID (oracle; row valid) | 36.993→47.007 | 435 |
+| A2 | na | VOID(hot) | na→37.072 | 720 |
+| B2 | 3324.109 | VOID (oracle; row valid) | 36.974→46.37 | 75 |
+| A3 | na | VOID(hot) | na→37.23 | 720 |
+| B3 | 3325.665 | VOID (oracle; row valid) | 36.956→47.007 | 120 |
+
+Rows: [raw/sa806366b/results.tsv:2-7; raw/sa806366b/8-Elite_A_t1_status.txt:1; raw/sa806366b/8-Elite_B_t1_status.txt:1; raw/sa806366b/8-Elite_A_t2_status.txt:1; raw/sa806366b/8-Elite_B_t2_status.txt:1; raw/sa806366b/8-Elite_A_t3_status.txt:1; raw/sa806366b/8-Elite_B_t3_status.txt:1].
+
+All three valid B GPU rows were deterministic: `ids_sha=17b3765fa8caf224072703547f747e2f2a58139b7e54e266476798f3ae38c277` [raw/sa806366b/results.tsv:3,5,7]. Atomic logging recorded 30 rejection records across five `.failures` files, versus 147 in 5a; accepted refreshes were `rc=0` on attempt 1 or 2 [raw/sa806366b/8-Elite_A_t1_logcat_all.txt.failures:1-4; raw/sa806366b/8-Elite_B_t1_logcat_all.txt.failures:1-7; raw/sa806366b/8-Elite_B_t2_load.txt.failures:1; raw/sa806366b/8-Elite_B_t2_logcat_all.txt.failures:1-10; raw/sa806366b/8-Elite_B_t3_logcat_all.txt.failures:1-8].
+
+Across runs, GPU points are now n=5: 3200.713 and 3228.259 ms in run 4, then 3325.721, 3324.109, and 3325.665 ms in 5b [raw/sa805734/results.tsv:3,7; raw/sa806366b/results.tsv:3,5,7]. The CPU A point remains n=1 at 5945.225 ms [raw/sa805734/results.tsv:2]. The descriptive B/A range is 0.54–0.56 (A/B 1.79–1.86×): inside the 1.4–1.9× prewarm-prior band, not the fork’s ≥3× [raw/sa805734/results.tsv:2-3,7; raw/sa806366b/results.tsv:2-7].
+
+The pre-registered endpoint remains **NOT MET**: zero valid A rows produced zero adjacent A/B pairs [raw/sa806366b/results.tsv:2-7]. Thermal asymmetry caused this: GPU rows ended at 46.37–47.007 °C, while the post-GPU A cooldowns capped at 37.078/37.248 °C after 720 s; B cooldowns reached 37.0 °C in 75–435 s [raw/sa806366b/results.tsv:3-7; raw/sa806366b/8-Elite_A_t2_cooldown.txt:49; raw/sa806366b/8-Elite_A_t3_cooldown.txt:49; raw/sa806366b/8-Elite_B_t1_cooldown.txt:30; raw/sa806366b/8-Elite_B_t2_cooldown.txt:6; raw/sa806366b/8-Elite_B_t3_cooldown.txt:9]. Thus every A after B was `VOID(hot)` and no further pair existed [raw/sa806366b/8-Elite_A_t2_status.txt:1; raw/sa806366b/8-Elite_A_t3_status.txt:1].

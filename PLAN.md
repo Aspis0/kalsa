@@ -42,7 +42,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
   vive, pieno muore (mapping su OGNI commit incl. pin); la TLBMISS v73 è
   bisezionata: culprit `0a50d9909` = upstream #26049 (#64, ALIVE 47) — si
   fixa nel fork o si lascia, MAI issue upstream.
-- **S5b (5/09 pomeriggio, ALIVE 49):** prefill GPU 3.20 s vs CPU 5.95 s su 925 token non in cache nell'app (1.86×, una coppia, descrittivo); GPU scalda a 45 °C, cooldown obbligatorio; run 5 con dump atomico e target 37 °C per ≥2 coppie.
+- **S5b (5/09 pomeriggio, ALIVE 49):** prefill GPU 3.20-3.33 s vs CPU 5.95 s su 925 token non in cache nell'app (1.79-1.86×, una coppia, descrittivo); GPU scalda a 47 °C e la skin non torna a 37,0 in 12 min → run 5b senza A valide; run 6 con target per braccio (A 38,5 / B 37,0), cap 900 s, ABABAB.
 - **Governor nell'app (fase 1, `docs/PLAN-governor-in-app.md`) — stato 6/09 mattina:** S1-S4 fatti, cella S5 BANCATA (ALIVE 48, 6 run QDC): il governor gira end-to-end nell'app (prefill GPU + commit KV + decode CPU), la degradazione termica funziona (Wait a ≥38 °C → turno su CPU, completato), l'oracolo greedy PASSA su 8 Elite (Adreno 830) e FALLISCE solo su Adreno 750 (difetto f16/bf16-batched noto, ALIVE #38/#39) → gate di correttezza per generazione (V75 OFF). Decode: parità con la CPU (28.3 vs 28.5 tok/s su 8 Elite). TTFT: il timer di A era inquinato (fix fork e31b9144c); col run 7 il confronto equo sui ~15 token nuovi (sistema in cache dal prewarm) dà parità CPU/GPU (A 205-488 ms, B 358 ms); il vantaggio GPU sta nel prefill grande: prewarm 1024 token 4.1-4.3 s vs 6.6-6.8 s (1.6×) — ma il fork #38 misurava ~10× su 512 token senza cache: prossima cella = prefill grande SENZA prewarm nell'app. Branch app `feat/governor-in-app` @8a56edc (pin fork e31b9144c), 9 delta audit grok GO; nove bug trovati e fixati dalla cella (elenco nel diario). Aperti: 1.65× prewarm GPU vs ~10× del fork #38 da spiegare; headroom RAM a due contesti; workaround del difetto 750 nel fork; S6 (gate RAM con GPU) e S7 (loop termico in produzione via BatteryManager).
 - **Mali G57 (Jelly)**: PARKED per decisione owner 22/08 (ALIVE 405): f32 e
   q8_0 corretti ma GPU < CPU in tutti i 20 casi; si riapre con G610/G615.
@@ -1379,6 +1379,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > "End Session" → `Yes` VISIBILE. Run 6: target cooldown per braccio (A 38,5 / B 37,0),
 > cap 900 s, ABABAB, deadline 85 → brief a Luna 5fcd34c9.
 
+> **5/09 14:20 EDT Mac — run 6 pronta: addendum REPORT 5a/5b + fix per braccio, delta #8 GO.**
+> Luna: `cool_target_for_arm` (A 38,5 / B 37,0), cap 900 s, ordine ABABAB accettato, status
+> `cool_target_c=`, gate A post-cooldown `skin_before > target` ⇒ VOID hot, dryrun con fixture
+> 39,5 °C (target A e cap 900 asseriti), PREREG §"Run 5b → run 6" con caveat equità (A parte
+> più calda ⇒ bias CONTRO il nullo CPU) e aggregazione a 6 turni (plateau 2-3, ≤2 coppie,
+> mediana invariata, asimmetria gate B dichiarata). Deepseek #8: GO, 4 minori tutti chiusi
+> (A1 skin 34,883; letterale 38,5 → `$COOL_TARGET_C`; regola mediana; asimmetria). Verificato
+> su disco: bash -n 0/0, dryrun rc 0. Prossimo: sessione QDC 90 min, `d_run.sh <sa> <apk 8a56edc> ABABAB 85`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
@@ -1390,7 +1399,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 
 ## Registro checkpoint
 
-- **2026-09-05 — S5b run 4 BANCATA (ALIVE 49)**: GPU/CPU prefill 3200.7/5945.2 ms su 925 token nell'app (8 Elite), 0.538; endpoint NOT MET (1 coppia, oracolo 1 token); REPORT BANK, fix run 5 GO. Raw `scratchpad/agents/qdc-governor-s5b/raw/sa805734`.
+- **2026-09-05 — S5b run 4 BANCATA (ALIVE 49)**: GPU/CPU prefill 3200.7/5945.2 ms su 925 token nell'app (8 Elite), 0.538; endpoint NOT MET (1 coppia, oracolo 1 token); REPORT BANK, fix run 5 GO. Raw `scratchpad/agents/qdc-governor-s5b/raw/sa805734`. **Run 5b (raw sa806366b): +3 GPU 3324-3326 ms, 0 A valide (plateau skin 37,1-37,3); addendum REPORT + delta #8 GO; run 6 = target per braccio.**
 
 *(voci ≤ 2026-08-11 in `PLAN-archive.md` → «Registro checkpoint (archivio)»)*
 

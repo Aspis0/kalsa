@@ -93,6 +93,13 @@ cooldown_to_target() {
   COOLDOWN_SECONDS="$COOL_MAX_S"
   return 2
 }
+cool_target_for_arm() {
+  case "$1" in
+    A) printf '38.5\n' ;;
+    B) printf '37.0\n' ;;
+    *) return 1 ;;
+  esac
+}
 dump_ui() {
   local out="$1"
   adbT 60 -s "$SER" shell "uiautomator dump $DEVICE_TMP/ui.xml >/dev/null 2>&1" || return 1
