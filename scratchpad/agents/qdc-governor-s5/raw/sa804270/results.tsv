@@ -1,0 +1,6 @@
+arm	turn	ttft_ms	decode_tps	engine_prefill	engine_decode	thermal_state	skin_c_before	skin_c_after	fallback_count	lmkd_count	ids_sha	oracle
+A	1	205.416	28.3625856010349	na	na	na	32.906	34.761	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	na
+B	1	358.065	27.6198471199614	GPU	CPU	FAST	34.766	35.908	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	PASS
+A	2	487.685	29.2644021260807	na	na	na	35.795	36.993	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	na
+B	2	359.42	28.3722943685724	GPU	CPU	FAST	36.817	37.736	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	PASS
+A	3	na	na	na	na	na	37.55	38.22	0	0	na	na

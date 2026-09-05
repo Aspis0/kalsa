@@ -1,0 +1,1 @@
+/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf: 1 file pushed, 0 skipped. 21.7 MB/s (1593894944 bytes in 69.906s)

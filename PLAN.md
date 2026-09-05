@@ -1181,6 +1181,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 8 Elite prima: 600 min. Watcher attivo. Attesa: A `promptMs` di poche
 > centinaia di ms (timer pulito), oracolo PASS, decode ≈ parità.
 
+> **6/09 09:05 Mac — RUN 7 (8 ELITE, sa804270): 4 turni validi + abort ad A3
+> per flake UI del driver (Send non trovato dopo il prewarm; regola PREREG).**
+> **IL TIMER È CORRETTO E IL TTFT È FINALMENTE EQUO:** A `promptMs` 205 / 488
+> ms (era 41-45 s), B GPU 358 / 359 ms sui ~15 token nuovi (`2+13`, commit
+> 9.2 MB / 7.0 ms) → sui batch minuscoli CPU e GPU sono alla pari (la soglia
+> ≤ 1/3 del PREREG, scritta per il prompt intero, non si applica al tail);
+> prewarm 1024 token: A CPU 6.60/6.77/6.82 s vs B GPU 4.06/4.32 s (1.6×).
+> Oracolo PASS 2/2 (GPU). Decode A 28.4/29.3 vs B 27.6/28.4 tok/s. Skin
+> 32.9 → 38.2 °C. Sessione 800201 chiusa (~17 min; 8 Elite ≈ 583 min).
+> Addendum → Luna 5fcd34c9. Nota driver: il flake Send va reso robusto
+> (retry del dump UI) prima di un'altra cella.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
