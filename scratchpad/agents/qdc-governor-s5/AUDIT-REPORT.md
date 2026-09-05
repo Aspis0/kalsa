@@ -92,6 +92,7 @@ labelled NOT the endpoint. App-scoped lmkd=0 with the global-1-kill caveat state
 claim backed by meminfo. Skin ≥42 abort never triggered; thresholds acknowledged. t_idle_c/
 trend units consistent. No old-contract reliance. All 13 TSV columns per PREREG. Evidence
 preservation on runs 1-2 acceptable (VOID dirs + driver logs + END.txt reasons all coherent).
+BANK-WITH-FIXES for the run-5 addendum. 0 blockers, 0 majors, 5 minors (F1-F5); every number, citation, and quoted log line reproduced verbatim.
 
 ## Verdict
 
@@ -99,43 +100,38 @@ BANK-WITH-FIXES. Every number reproduced; three labeling/conformance fixes (F1 e
 verdict per the oracle-PASS rule, F2 cached-thermo caveat on the FAST evidence, F3 mechanism →
 leading hypothesis) plus the listed minors must be applied with the report. No finding changes
 
-## Addendum audit (run 4)
+## Addendum audit (run 5)
 
-Re-derived against raw/sa803390 + PREREG amendment 6/09 (PREREG.md:189-217).
+Re-derived against raw/sa803459, driver-sa803459.log, PLAN.md:1038-1062, PREREG run-5 amendment.
 
-Verified clean (all reproduce): TSV/driver-log rows A1 334.86/24.4266…, B1 454.259/20.7110…,
-A2 323.599/23.4700…, B2 na/VOID (results.tsv:2-5, driver-sa803390.log:1-9, ABORT :8, DONE :9);
-skin 30.35→33.409 / 34.378→35.448 / 35.726→38.078 / 38.14→36.913; thermo JSON 304/344/357/381,
-t_idle 29.521, trends 0.363/1.569/0.539/0.917 — recomputed from Δskin/Δmin between successive
-before-readings, all exact; MemAvailable 8914548→6590964, 8838288→4626560, 8892920→6586488,
-B2 8834808→not captured; B1 :5847/:5850/:5852 verbatim (promptMs/prefill_ms 454.259,
-prefill_chunks "2+13", ngl 99, commit 9206272/6.181, FAST, 20.71, save ok:false governor-mode);
-TTFT semantics sound — 1329-1314 = 15 = 2+13; addendum clearly states this-turn TTFT is the
-~15-token comparison, NOT the 1024-token prewarm one; oracle hashes equal run 3 on a different
-board (determinism claim justified); "44 s vs 335 ms": both runs share tokensCached 1397,
-"reusing 1314/1329" (:5378/:7017), save ok=true (:5736/:7105), no clearCache line —
-not-determinable is honest and consistent with run-3's stale-timer pattern; B2 gate: 38.14 live
-skin (:45), trend +0.917, verbatim :2589 "…waiting for a safe tabled chunk" and :2592 skip
-eval-failed, governor_count=0/telemetry_rc=1; policy constant CONFIRMED —
-llama-governor-policy.cpp:43 `return { 38.0f, 36.0f, 39.5f, 36.5f, 42.0f, 34.0f };`;
-CPUFallback-not-consumed matches AUDIT-S3S4:154-160; APK e8c2b1f/sha e16cf0b6…/session
-799321/serial 72c4dabb exact.
+Verified clean: 6 TSV rows (results.tsv:2-7): A1 44925.62/24.7691, B1 452.87/22.8428, A2
+41845.602/24.1104, B2 457.385/22.1608, A3 42063.723/24.1201, B3 337.606/22.1401; ABORT/DONE
+:13-14; skin 30.6→32.773/33.324→34.658/35.025→36.244/36.393→37.351/37.514→38.479/38.528→
+39.796; thermo 306/333/350/364/375/385, t_idle 29.736, trends 0.343/1.119/0.676/0.555/0.448/
+0.422 — recomputed from Δskin/Δmin, all exact; MemAvailable 8843824→6578164, 8798196→4609744, 8835648→6528764, 8821492→4586644, 8803508→6496668, 8787236→4534132; B1 :2607/:5388 (commit
+9206272/6.811), B2 :2603/:5356 (14.485); B3 :2631/:5288 verbatim "…routing this turn to CPU",
+:2880 prewarm 10332.545 CPU vs B2 :2818 5603.961 GPU, :5754 governor verbatim (CPU/CPU, 0/0,
+337.606, cpu:2+13, WARM); gate :4 = 38.528; ids A3==B3 byte-identical (0f4b385a…), B1:14=5439
+vs B3:14=20; A1 :4677/:5066, B3 :5272/:5750 (1397/1329, reusing 1314/1329) support the ~15-token
+semantics; anchors 01:00:21→01:12:40; APK 0265333/sha 38d63210…/session 799390/serial
+45207755; PREREG.md:227-230 gate-note quoted correctly (38.528 ≥ 38.0 ⇒ valid degraded row;
+driver abort documented as limitation, status.txt:1 status=1). Causal wording compliant:
+"CPU-prefilled B3 is token-identical to A" + "commit … exonerated only indirectly" as required.
 
-F1 — MINOR, CONFIRMED. "Four turns completed, then B2 aborted": three completed; the fourth
-(B2) aborted. Fix wording.
-F2 — MINOR, CONFIRMED. "session … approximately 19 minutes and … budget was 797 minutes" cited
-to anchors + driver-sa803390.log:8-9 — neither contains duration/budget; 797 min is
-PLAN.md:969, and the diary implies ~15 min not 19. Fix citation and source.
-F3 — MINOR, CONFIRMED. "indicating GPU chunking overhead on tiny batches" — hypothesis, not
-indication (commit/admission timing, CPU timer path not excluded). Fix: "consistent with".
-F4 — MINOR, CONFIRMED. Amendment promises descriptive TTFT/decode/thermal medians
-(PREREG.md:207-209); addendum gives per-turn values only. Fix: add them or state the n=2/n=1
-floor.
-F5 — MINOR, PLAUSIBLE. "first live observation of the policy thermal gate" — no prior live Wait
-in evidence (run-2 B1 was the partition failure), but a negative is unprovable. Keep
-"first in this evidence base".
+F1 — MINOR, CONFIRMED. "not the requested +0.917": nothing requests it; +0.917 was run-4 B2's
+observed trend. Fix: "vs the +0.917 observed in run-4 B2".
+F2 — MINOR, CONFIRMED. "≈15 min and 776 min budget" cited to status.txt files that contain
+neither; sources are PLAN.md:1042/:1059. Fix citation.
+F3 — MINOR, CONFIRMED. Hypothesis named without the prior-art anchor (Adreno 750 f16/bf16-
+batched MUL_MAT defect, ALIVE #38/#39) nor the pending decisive test (run 6 on 8 Elite). Fix:
+one sentence tying it to #38/#39 and run 6.
+F4 — MINOR, CONFIRMED. "board/session dependence" for A TTFT (44.9/41.8/42.1 s vs 334.86 ms)
+is confounded: runs 3+5 and run 4 differ in APK too; APK-dependence fits equally. Fix:
+"board and/or build; not resolved".
+F5 — MINOR, CONFIRMED. Only commit is flagged "indirectly"; the two-context-design exoneration
+is equally indirect (no GPU-prefilled single-context control; B3 is CPU-routed). Fix: extend
+the qualifier.
 
 ## Verdict
 
-BANK-WITH-FIXES for the addendum. 0 blockers, 0 majors, 5 minors (F1-F5). Every number and
-citation reproduced verbatim; TTFT-semantics and stale-timing reasoning sound; 38.0 °C threshold quoted correctly descriptive-vs-endpoint labelling maintained.
+BANK-WITH-FIXES. 0 blockers, 0 majors, 5 minors (F1-F5); every number, citation, and quoted log line reproduced verbatim.
