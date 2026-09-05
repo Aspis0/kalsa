@@ -817,6 +817,25 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > CI APK debug dispatchata su 803b499: run 33941238832 803b499. Delta audit 3 di grok
 > ancora in corso (routing policy-vs-esecuzione, V79, ammissione, test).
 
+> **5/09 (23:30 Mac) — Delta audit 3 (grok): NO-GO per il run 3.** Fatti
+> provati con call-path: (a) la policy NON sceglie il contesto —
+> `llama-governor.cpp:166-167` `target = n_tokens > 1 ? ctx_prefill : ctx_decode`;
+> `prefill_engine()` è solo etichetta → `gpu_prefill_measured` (803b499) è
+> onestà della telemetria, non routing; (b) `n_batch 512` ⇒ 1329 = 512+512+305:
+> i due 512 sono righe esatte della tabella → Admit → `llama_decode(ctx_prefill)`
+> reale (ecco i 45 s, GPU con il modello a 27 layer su OpenCL… da rimisurare);
+> il 305 si partiziona 128+128+49 ma **il runtime non applica la partizione**:
+> `decode_impl` passa comunque l'intero batch (`runtime.cpp:48-49` ritorna 0
+> solo se `tokens >= n_tokens`) → `-2` → `failed to eval` → 0 token, commit 0;
+> (c) `CPUFallback` di `admit_prefill` non è mai consumato dal runtime; (d)
+> prewarm falso `done` (già fixato in 803b499); (e) i test di 6f0a33c0d non
+> coprono 1329/1024 né la coda GPU; (f) **V79 senza ramo GPU in
+> `prefill_engine()`**: gap da chiudere nel fork prima della cella 8 Elite
+> (per ora solo etichetta, ma va reso esplicito). → Luna ee4741e9: chunking nel
+> runtime secondo l'ammissione + test (partizione 305, coda GPU 49, nessun
+> doppio eval, ≥1 token e commit>0 su 1329/512), un commit fork, pin+sync,
+> UNA CI. CI 33941238832 (803b499) cancellata: superata.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
