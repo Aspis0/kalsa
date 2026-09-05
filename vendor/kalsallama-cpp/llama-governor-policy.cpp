@@ -195,7 +195,15 @@ llama_governor_prefill_admission llama_governor_policy::admit_prefill(
         --table;
     }
     if (table == 0) {
-        result.decision = llama_governor_decision::Wait;
+        if (prompt_tokens < k_table_tokens[0] &&
+            now_c + k_cpu_delta_c[0] <= k_limit_c) {
+            result.tokens = prompt_tokens;
+            result.rule = requested == llama_governor_engine::NPU ? 2 : requested == llama_governor_engine::CPU ? 9 : 3;
+            result.decision = requested == llama_governor_engine::CPU
+                ? llama_governor_decision::Admit : llama_governor_decision::CPUFallback;
+        } else {
+            result.decision = llama_governor_decision::Wait;
+        }
         return result;
     }
 
