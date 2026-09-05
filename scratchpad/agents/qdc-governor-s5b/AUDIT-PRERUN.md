@@ -513,3 +513,30 @@ unmettable on 8-Elite — pre-register PASS-1 per board; F6 run-level thermal ab
 dryrun-asserted), 2 clean (F4 device_tag; F5 no other removed behaviour; F7 dryrun.next
 exit 0). Recommended order for runs 7+: QRD7675 (732) → QRD8635 (735) → HDK8550 (740, no
 speed claim) → QRD8650 (750, oracle/descriptive only). Fix F1-F3 before run 7.
+
+
+## Delta verdict #9b
+
+F1 — CONFIRMED-FIXED. PREREG.md:135 quotes only the corrected priors ("#52 … CPU number is
+build-suspect"; "#57 … vecchi numeri CPU RITIRATI, mid-tier CONTESTED (GPU solo 1.59×), 750
+confermato 2.87×"; "#58 … G4 291/98.97 = 2.94×"; "732/735 use ≈1.59×, 740 no speed claim, 750
+≈2.87–2.94×"). Bands recomputed: 1/(1.59×0.597)=1.0535, 1/(1.59×0.620)=1.0144 → "1.01–1.05"
+✓; 750 extremes 1/(2.87×0.597)=0.5836, 1/(2.94×0.620)=0.5486 — printed "0.55–0.57"
+understates the top (≈0.55–0.58), nit. "Near parity … legitimate bankable null" is right.
+F2 — CONFIRMED-FIXED. `grep -c "284.2/16.3|11.0×|17.4×|10.4×" PREREG.md` = 0.
+F3 — CONFIRMED-FIXED. PREREG.md:137: "For runs 7+, `PASS-1` means at most one differing token
+index between the A/B 32-token greedy ids, with re-convergence on every later index; PASS-1
+pairs count toward the endpoint. This does not apply retroactively to 8 Elite runs 4–6, which
+remain strict; … exact index-29 difference `640` vs `1194` in run 4 and run 6" — pre-
+registered, non-retroactive, motivated, unambiguous. The 750's 4-index divergence still
+FAILs — consistent.
+F6 — CONFIRMED-FIXED. dryrun.next.sh:175 asserts the run-level abort (rc≠0 + `status=1
+.*void_reason=thermal` in status + gate stamp). `bash dryrun.next.sh > /tmp/dr9b.log 2>&1` →
+exit=0.
+Extra fact — PREREG.md:130 "always been reached within the cap (75–435 s in runs 4–5b)" is
+FALSIFIED by run 6 B2 (`wait_s=900 skin=37.066`, cooldown_s=900, void_reason=hot after warm
+A2). Does not change GO: first-run targets are exploratory with the per-device amendment
+mechanism; add a B-side gate/warm-A→B target there. Nits: PREREG:130 qualifier + "0.55–0.58".
+
+
+VERDICT: GO — 0 blockers, 0 majors, 2 nits (750-band top 0.58, "always reachable" clause vs run-6 B2); F1-F3+F6 fixed, dryrun.next exit 0, runs 7+ go.

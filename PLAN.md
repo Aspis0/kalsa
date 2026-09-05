@@ -1415,6 +1415,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > QRD7675 → QRD8635 → HDK8550 → QRD8650 (ultimo, solo descrittivo finché il difetto 750 è aperto).
 > Fix a Luna in volo.
 
+> **5/09 15:15 EDT Mac — multi-SoC: fix Luna verificati, deepseek #9b GO (2 nit chiusi da me:
+> banda 750 0,55-0,58; nota post hoc su PREREG:130).** Run 6: B2 VOID hot a 900 s (37,07) dopo A2
+> finita a 47,9 → "B sempre raggiungibile" falsificato quando A parte calda; A3/B3 in corso.
+> Pronti per lo swap `d_run.next.sh`→`d_run.sh` a driver morto e run 7 su QRD7675 (732), attesa
+> pre-registrata: parità (null bancabile).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
