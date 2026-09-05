@@ -1169,6 +1169,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > riprodotta e il fix la elimina. Lo 0.000 di prima era `no_perf=true` di
 > default nel test. Non tocca l'APK (CI 33957267070 di 8a56edc in volo).
 
+> **6/09 08:50 Mac — CI 33957267070 VERDE: APK 8a56edc in
+> `~/kalsa-qdc/apk/apk-gov-8a56edc/`, sha `272f4547…9946`, debuggable ✓.**
+> PREREG emendato pre-dati: run 7 su 8 Elite = run 6 con timer corretto (TTFT
+> equo sui ~15 token nuovi; la soglia ≤ 1/3 nasce per il prompt intero e va
+> letta di conseguenza). Apro `S5-8Elite-r7`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

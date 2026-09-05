@@ -251,3 +251,21 @@ produce the first analyzable endpoint-2 medians (this-turn TTFT is the ~15-new-t
 prewarm promptMs gives the 1024-token GPU-vs-CPU figure, labelled as such). Session name
 `S5-8Elite-r6` (≤ 30 chars). Budget: 8 Elite 623 min before the session.
 
+## Amendment 6/09 — run 7 (pre-data): 8 Elite with corrected prompt timer (fair TTFT)
+
+Run 6 showed the arm-A `promptMs` was polluted by idle time (fork fix `e31b9144c`: `perf_reset`
+synchronizes and clears the async accounting; test `3f71159fd` reproduces the pollution, 317 ms,
+and its removal, 3.8 ms). Run 7 repeats run 6 on QRD8750 (8 Elite, V79) with APK `8a56edc`
+(pin `e31b9144c`, plus the per-generation correctness gate `f98a9fa`, inactive on V79).
+Pre-registered expectations: oracle PASS on GPU-prefilled B turns (as run 6); this-turn TTFT now a
+FAIR comparison of the same ~15 new tokens in both arms (A CPU vs B GPU chunks `2+13`) — expected
+of the order of a few hundred ms each, ratio reported as measured (tiny-batch GPU overhead may make
+B ≥ A: that is a finding, not a failure of the mechanism); decode near parity; prewarm 1024-token
+GPU vs CPU ≈ 1.6× as run 6. Endpoint 2 is evaluated under the locked rule (oracle-PASS pairs,
+turns 2–4 medians, inclusive thresholds) and reported honestly; the TTFT ≤ 1/3 threshold was
+written for a full-prompt prefill and will most likely not be met on a 15-token tail — say so.
+APK: `/Users/marco/kalsa-qdc/apk/apk-gov-8a56edc/kalsa-apk-arm64-v8a-debuggable-8a56edc8926e388f27ceb575afd86024d35d3057/app-release.apk`,
+branch `feat/governor-in-app` @ `8a56edc`, CI run 33957267070 (debuggable=true), 142,754,170 bytes,
+SHA-256 `272f4547b097b0738f278e14fad50da0478b5533504d82e7eaefba99caf59946`, aapt2 badging shows
+`application-debuggable`; vendor = fork `e31b9144c`. Session name `S5-8Elite-r7`.
+
