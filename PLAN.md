@@ -985,6 +985,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > il prewarm (run 3: 5.2 s vs 9.3-9.9 s). Sessione 799321 chiusa (~19 min).
 > Addendum REPORT → Luna 5fcd34c9; poi fix "Wait → CPU fallback" (fork+app).
 
+> **6/09 04:00 Mac — Addendum run 4 nel REPORT (Luna 5fcd34c9, 183 righe
+> totali)**: numeri descrittivi, semantica TTFT (15 token nuovi), gate termico
+> a 38.14 °C / +0.917 °C/min, 44 s vs 335 ms "non determinabile dai log"
+> (stesso riuso KV in entrambi i run; proposta riga nativa start/end prefill
+> per turno). Audit addendum → deepseek. Fix "Wait → prefill CPU" in corso
+> (ee4741e9).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
