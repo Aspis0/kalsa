@@ -68,6 +68,24 @@ describe("runToolGate", () => {
     expect(await readGateAudit()).toEqual([]);
   });
 
+  // The fact is echoed VERBATIM in the search query. lastUserMessage is kept
+  // short (< ECHO_MIN_USER_MSG_LENGTH) so echo-of-context abstains and the
+  // memory-fact rule is the only one that fires — pinning ruleId explicitly.
+  test("web_search blocks a query that echoes a stored memory fact verbatim", async () => {
+    const result = await runToolGate({
+      toolName: "web_search",
+      args: { query: `who knows about ${FACT}` },
+      lastUserMessage: "hi",
+      memoryFacts: [FACT],
+      toolhelpOn: true,
+      locale: "en",
+    });
+
+    expect(result.blocked).toBe(true);
+    expect(result.decision?.ruleId).toBe("echo-of-memory-fact");
+    expect(result.decision?.reason).toBe("echo-of-memory-fact");
+  });
+
   test("flag on: calendar private-data blocked and audit has no user content", async () => {
     const cal = await runToolGate({
       toolName: "calendar_agenda",

@@ -79,6 +79,18 @@ traffic is a web search you explicitly trigger, and the model download from Hugg
 origin (see `workers/telemetry/README.md`). Leaving it empty silently disables
 network send — correct for local/dev, not for production.
 
+**Egress privacy filter (fail-closed).** The only user-triggered outbound traffic that can carry
+private data is `web_search` (its query) and `web_fetch` (its URL **and** query). Before either
+leaves the device it is scanned by the tool-call gate (`src/rules/toolGate.ts`): a stored memory
+fact echoed verbatim, a card/IBAN/SSN pattern, an email address — any match blocks the call and
+returns a localized "blocked" message. Gate evaluation **fails closed**: if evaluation itself
+throws, the call is blocked, never allowed. The bypass flag `kalsa.bench.toolgate=0` is honored
+**only in `__DEV__`** and never in a release/store build.
+
+**Honest limit.** The gate is a regex/structural filter, not an LLM. It catches known patterns and
+a fact echoed verbatim, but it **cannot** catch a secret the model rephrases into its own words
+inside a search query. That is the boundary of this on-device approach — documented, not hidden.
+
 ## License
 
 [Apache License 2.0](LICENSE) — see the file for terms. Model weights are distributed by their
