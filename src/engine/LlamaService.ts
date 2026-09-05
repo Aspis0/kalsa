@@ -42,6 +42,7 @@ import {
   buildGovernorParams,
   readGovernorThermo,
 } from "./governorInputs";
+import { applyBenchSampling, readBenchSampling } from "./benchSampling";
 import {
   initWithGovernorFallback,
   readGovernorEnabled,
@@ -2740,10 +2741,27 @@ export async function streamAssistantTurn(
     const thinkingMode = await getThinkingMode();
     const toolChoiceMode = await getToolChoiceMode();
     const toolGateEnabled = await getToolGateEnabled();
+    const benchSampling = await readBenchSampling();
     // activeModelId === null → null model (defaults); unknown id still falls back
     // via getModelById (acceptable) but null must not invent a model.
     const activeModel = activeModelId ? getModelById(activeModelId) : null;
     const { fields: thinkingFields, nPredict } = resolveThinkingParams(thinkingMode, activeModel);
+
+    const benchTokenIds: number[] = [];
+    let benchTokenCount = 0;
+    const recordBenchCompletion = (result: {
+      tokens_predicted?: number;
+      generated_token_ids?: number[];
+    }) => {
+      if (benchSampling !== "greedy") return;
+      if (typeof result.tokens_predicted === "number" && result.tokens_predicted >= 0) {
+        benchTokenCount += result.tokens_predicted;
+      }
+      for (const tokenId of result.generated_token_ids ?? []) {
+        if (benchTokenIds.length >= 32) break;
+        if (Number.isSafeInteger(tokenId)) benchTokenIds.push(tokenId);
+      }
+    };
 
     const hasTools = Boolean(options?.tools?.length && options?.executeTool);
     // Le immagini vivono SOLO nel messaggio user corrente.
@@ -3106,30 +3124,33 @@ export async function streamAssistantTurn(
         ).thermo_source;
         const result = await trackCompletion(
           engine.completion(
-            {
-              messages: currentMessages as RNLlamaOAICompatibleMessage[],
-              ...(hasTools
-                ? {
-                    tools: options!.tools as EngineTool[],
-                    tool_choice: toolChoice,
-                  }
-                : {}),
-              // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
-              // verbose JSON that blew past 512 mid-payload — the user waited through a long
-              // prefill only to get a truncated, unparseable miniapp (field report,
-              // 2026-08-07). A cap is a ceiling, not a target: normal turns still end at
-              // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
-              // may raise the ceiling (e.g. 2B extended thinking).
-              n_predict: nPredict,
-              stop: STOP_WORDS,
-              temperature: 0.7,
-              top_k: 40,
-              top_p: 0.95,
-              // Bench thinking axis: every mode keeps reasoning enabled;
-              // "default" is production (short budget), budget* tunes it.
-              ...thinkingFields,
-              ...(hasImages ? { speculative: false as const } : {}),
-            },
+            applyBenchSampling(
+              {
+                messages: currentMessages as RNLlamaOAICompatibleMessage[],
+                ...(hasTools
+                  ? {
+                      tools: options!.tools as EngineTool[],
+                      tool_choice: toolChoice,
+                    }
+                  : {}),
+                // nPredict floor is 1024 (see resolveThinkingParams): table/list miniapps emit
+                // verbose JSON that blew past 512 mid-payload — the user waited through a long
+                // prefill only to get a truncated, unparseable miniapp (field report,
+                // 2026-08-07). A cap is a ceiling, not a target: normal turns still end at
+                // EOS/stop words; only the degenerate worst case doubles. Per-model overrides
+                // may raise the ceiling (e.g. 2B extended thinking).
+                n_predict: nPredict,
+                stop: STOP_WORDS,
+                temperature: 0.7,
+                top_k: 40,
+                top_p: 0.95,
+                // Bench thinking axis: every mode keeps reasoning enabled;
+                // "default" is production (short budget), budget* tunes it.
+                ...thinkingFields,
+                ...(hasImages ? { speculative: false as const } : {}),
+              },
+              benchSampling,
+            ),
             (data: TokenData) => {
               // Token callbacks run inside this job — not blocked by the FIFO gate.
               // Always use data.token (incremental sent_count slice). data.content
@@ -3149,6 +3170,7 @@ export async function streamAssistantTurn(
             },
           ),
         );
+        recordBenchCompletion(result);
         // tokens_cached is n_past in llama.rn — used-token disk gate.
         noteChatNPast(result?.tokens_cached);
 
@@ -3224,6 +3246,9 @@ export async function streamAssistantTurn(
           emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
           await emitGovernorTelemetry(engine, governorThermoSource);
+          if (benchSampling === "greedy") {
+            console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
+          }
           return;
         }
 
@@ -3455,16 +3480,19 @@ export async function streamAssistantTurn(
             governorThermoSource = fallbackThermo.thermo_source;
             const fallbackResult = await trackCompletion(
               engine.completion(
-                {
-                  messages: currentMessages as RNLlamaOAICompatibleMessage[],
-                  n_predict: nPredict,
-                  stop: STOP_WORDS,
-                  temperature: 0.7,
-                  top_k: 40,
-                  top_p: 0.95,
-                  ...thinkingFields,
-                  ...(hasImages ? { speculative: false as const } : {}),
-                },
+                applyBenchSampling(
+                  {
+                    messages: currentMessages as RNLlamaOAICompatibleMessage[],
+                    n_predict: nPredict,
+                    stop: STOP_WORDS,
+                    temperature: 0.7,
+                    top_k: 40,
+                    top_p: 0.95,
+                    ...thinkingFields,
+                    ...(hasImages ? { speculative: false as const } : {}),
+                  },
+                  benchSampling,
+                ),
                 (data: TokenData) => {
                   if (finished || aborted) return;
                   const raw = data.token ?? "";
@@ -3477,6 +3505,7 @@ export async function streamAssistantTurn(
                 },
               ),
             );
+            recordBenchCompletion(fallbackResult);
             emitTurnTelemetry(
               turnId,
               MAX_TOOL_ROUNDS,
@@ -3528,6 +3557,9 @@ export async function streamAssistantTurn(
         }
       }
       await emitGovernorTelemetry(engine, governorThermoSource);
+      if (benchSampling === "greedy") {
+        console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
+      }
       finishOnce(() => callbacks.onDone());
     } catch (error) {
       if (aborted || signal?.aborted) {

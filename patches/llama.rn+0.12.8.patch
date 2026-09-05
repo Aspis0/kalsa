@@ -411,7 +411,7 @@ index 11cb8b5..84979e9 100644
  
      bool single_turn       = false; // single turn chat conversation
 diff --git a/node_modules/llama.rn/cpp/jsi/JSICompletion.h b/node_modules/llama.rn/cpp/jsi/JSICompletion.h
-index f9e3e09..8f26c41 100644
+index f9e3e09..f8f8840 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSICompletion.h
 +++ b/node_modules/llama.rn/cpp/jsi/JSICompletion.h
 @@ -49,7 +49,7 @@ namespace rnllama_jsi {
@@ -460,7 +460,22 @@ index f9e3e09..8f26c41 100644
              throw std::runtime_error("RNLLAMA_NULL_LLAMA_CONTEXT");
          }
  
-@@ -182,7 +182,7 @@ namespace rnllama_jsi {
+@@ -161,6 +161,14 @@ namespace rnllama_jsi {
+             "completion_probabilities",
+             createCompletionProbabilities(runtime, ctx, ctx->completion->generated_token_probs)
+         );
++        if (!ctx->completion->generated_token_ids.empty()) {
++            const size_t count = std::min<size_t>(32, ctx->completion->generated_token_ids.size());
++            jsi::Array ids(runtime, count);
++            for (size_t i = 0; i < count; ++i) {
++                ids.setValueAtIndex(runtime, i, (double)ctx->completion->generated_token_ids[i]);
++            }
++            res.setProperty(runtime, "generated_token_ids", ids);
++        }
+         res.setProperty(runtime, "tokens_predicted", (double)ctx->completion->num_tokens_predicted);
+         res.setProperty(runtime, "tokens_evaluated", (double)ctx->completion->num_prompt_tokens);
+         res.setProperty(runtime, "draft_tokens", (double)ctx->completion->num_draft_tokens);
+@@ -182,7 +190,7 @@ namespace rnllama_jsi {
              res.setProperty(runtime, "audio_tokens", audioTokens);
          }
  
@@ -1264,9 +1279,17 @@ index aaab748..a02aead 100644
                      auto resultCallback = [contextId, callInvoker, runtimePtr](int32_t requestId, const std::vector<float>& embedding) {
                          auto callbacks = RequestManager::getInstance().getRequest(contextId, requestId);
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..4a13079 100644
+index a60bd15..498c0c8 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
+@@ -42,6 +42,7 @@ void llama_rn_context_completion::rewind() {
+     parent_ctx->params.sampling.generation_prompt.clear();
+     num_prompt_tokens = 0;
+     num_tokens_predicted = 0;
++    generated_token_ids.clear();
+     num_draft_tokens = 0;
+     num_draft_tokens_accepted = 0;
+     resetGenerationTimings();
 @@ -178,7 +178,7 @@ void llama_rn_context_completion::captureStateCheckpoint() {
  
  void llama_rn_context_completion::captureStateCheckpoint(
@@ -1659,10 +1682,14 @@ index a60bd15..4a13079 100644
  
          common_sampler_accept(ctx_sampling, result.tok, true);
          if (tg) {
-@@ -1143,7 +1241,7 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1143,7 +1241,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
  {
      completion_token_output token_with_probs = nextToken();
  
++    if (parent_ctx->params.sampling.n_probs > 0 && token_with_probs.tok != -1) {
++        generated_token_ids.push_back(token_with_probs.tok);
++    }
++
 -    const std::string token_text = token_with_probs.tok == -1 ? "" : common_token_to_piece(parent_ctx->ctx, token_with_probs.tok);
 +    const std::string token_text = token_with_probs.tok == -1 ? "" : common_token_to_piece(parent_ctx->active_ctx(), token_with_probs.tok);
      generated_text += utf8_gate.feed(token_text);
@@ -1792,6 +1819,18 @@ index a60bd15..4a13079 100644
          prompt,
          media_paths,
          parent_ctx->n_ctx,
+diff --git a/node_modules/llama.rn/cpp/rn-completion.h b/node_modules/llama.rn/cpp/rn-completion.h
+index ea945fc..b27045a 100644
+--- a/node_modules/llama.rn/cpp/rn-completion.h
++++ b/node_modules/llama.rn/cpp/rn-completion.h
+@@ -77,6 +77,7 @@ struct llama_rn_context_completion {
+     std::string prefill_text;
+     std::string generated_text;
+     utf8_stream_gate utf8_gate;
++    std::vector<llama_token> generated_token_ids;
+     std::vector<completion_token_output> generated_token_probs;
+     size_t num_draft_tokens = 0;
+     size_t num_draft_tokens_accepted = 0;
 diff --git a/node_modules/llama.rn/cpp/rn-governor-params.cpp b/node_modules/llama.rn/cpp/rn-governor-params.cpp
 new file mode 100644
 index 0000000..5707e94
@@ -3301,7 +3340,7 @@ index 0ec756a..c517b50 100644
      contextId: number,
      path: string,
 diff --git a/node_modules/llama.rn/src/types.ts b/node_modules/llama.rn/src/types.ts
-index e461f36..cca178c 100644
+index e461f36..578504d 100644
 --- a/node_modules/llama.rn/src/types.ts
 +++ b/node_modules/llama.rn/src/types.ts
 @@ -133,6 +133,21 @@ export type NativeContextParams = {
@@ -3362,6 +3401,10 @@ index e461f36..cca178c 100644
  }
  
  export type NativeCompletionParams = {
+@@ -517,2 +561,3 @@ export type NativeCompletionResult {
+   completion_probabilities?: Array<NativeCompletionTokenProb>
++  generated_token_ids?: Array<number>
+   audio_tokens?: Array<number>
 diff --git a/node_modules/llama.rn/lib/typescript/index.d.ts b/node_modules/llama.rn/lib/typescript/index.d.ts
 index 091ef52..a5189e4 100644
 --- a/node_modules/llama.rn/lib/typescript/index.d.ts
@@ -3424,7 +3467,7 @@ index 576344f..1dba609 100644
 \ No newline at end of file
 +//# sourceMappingURL=jsi.d.ts.map
 diff --git a/node_modules/llama.rn/lib/typescript/types.d.ts b/node_modules/llama.rn/lib/typescript/types.d.ts
-index 6bed6b8..bee7c08 100644
+index 6bed6b8..8d3bf56 100644
 --- a/node_modules/llama.rn/lib/typescript/types.d.ts
 +++ b/node_modules/llama.rn/lib/typescript/types.d.ts
 @@ -110,6 +110,20 @@ export type NativeContextParams = {
@@ -3482,7 +3525,11 @@ index 6bed6b8..bee7c08 100644
  };
  export type NativeCompletionParams = {
      prompt: string;
-@@ -609,4 +650,4 @@ export type ParallelStatus = {
+@@ -470,2 +512,3 @@ export type NativeCompletionResult = {
+     completion_probabilities?: Array<NativeCompletionTokenProb>;
++    generated_token_ids?: Array<number>;
+     audio_tokens?: Array<number>;
+@@ -609,4 +651,4 @@ export type ParallelStatus = {
      queued_requests: number;
      requests: ParallelRequestStatus[];
  };
