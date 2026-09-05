@@ -20,6 +20,7 @@ import {
   getThinkingMode,
   getToolChoiceMode,
   getToolGateEnabled,
+  isDevBuild,
   parseEngineArg,
   registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
@@ -155,6 +156,28 @@ describe("getToolChoiceMode / getToolGateEnabled defaults", () => {
     devGlobal.__DEV__ = false;
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
     await expect(getToolGateEnabled()).resolves.toBe(true);
+  });
+
+  test("toolgate 0 cannot disable gates when __DEV__ is absent (Node harness)", async () => {
+    // __DEV__ intentionally left unset — the whole point of the Node harness
+    // path: the bypass must be denied, gates stay on.
+    if (originalDev === undefined) delete devGlobal.__DEV__;
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
+    await expect(getToolGateEnabled()).resolves.toBe(true);
+  });
+});
+
+describe("isDevBuild", () => {
+  test("undefined flag keeps gates on (bypass denied)", () => {
+    expect(isDevBuild(undefined)).toBe(false);
+  });
+
+  test("true flag allows the dev-only bypass", () => {
+    expect(isDevBuild(true)).toBe(true);
+  });
+
+  test("false flag keeps gates on (release build)", () => {
+    expect(isDevBuild(false)).toBe(false);
   });
 });
 
