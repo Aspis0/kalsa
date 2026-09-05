@@ -1400,6 +1400,21 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `parse.next.sh` (tag device da `ro.product.name`, sensore skin che fallisce forte); d_run.sh
 > NON si tocca finché gira. NPU in-app: non è cella numerata (S6 RAM, S7 termico) → da aprire dopo.
 
+> **5/09 15:00 EDT Mac — run 6: prima coppia adiacente (B1 GPU 3323,5 / A2 CPU 6182,9 → 0,537);
+> A2 partita a 38,4 °C finisce a 47,9 ed è il 5,6 % più lenta di A1 (caveat equità reale, contro
+> la CPU). Oracolo B1 FAIL per UN token su 32 (idx 29, 640 vs 1194, rientro), identico a run 4:
+> divergenza GPU/CPU sistematica su quasi-pareggio → con oracolo stretto l'endpoint 8 Elite non
+> è raggiungibile per costruzione.** Multi-SoC: Luna ha scritto PREREG "Runs 7+" + `d_run.next.sh`/
+> `parse.next.sh` (device_tag da ro.product.name+ro.soc.model, thermal fail-loud, gate 8650 tolto);
+> deepseek #9 **NO-GO**: F1 MAJOR i priori CLI (732 11×, 750 17,4×, 735 10,4×) usano CPU RITIRATE
+> da ALIVE #57/#58 (mid-tier 1,59×, 750 2,87-2,94×) → bande 3-4× troppo ottimiste; F2 cherry-pick
+> 284,2/16,3; F3 pre-registrare PASS-1 (≤1 token divergente con rientro) per runs 7+ PRIMA dei dati,
+> non retroattivo su 8 Elite; F6 dryrun senza il path di abort termico a livello run. Correzione
+> mia in chat: avevo citato il 732 "~11×" da ALIVE #36 senza il ritiro di #57. Attesa realistica
+> sui mid-tier: parità (1,01-1,05) = null legittimo da bancare; 750 0,55-0,57. Ordine consigliato:
+> QRD7675 → QRD8635 → HDK8550 → QRD8650 (ultimo, solo descrittivo finché il difetto 750 è aperto).
+> Fix a Luna in volo.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

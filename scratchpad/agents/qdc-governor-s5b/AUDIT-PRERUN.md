@@ -458,3 +458,58 @@ untouched.
 GO. 0 blockers, 0 majors, 4 minors (F2 38.5 literal; A1 "na" skin-before; P1 ABABAB plateau
 unstated; B-gate asymmetry unstated) — textual/maintenance only; mechanics confirmed, dryrun
 exit 0. Launch run 6.
+
+
+## Delta audit #9 — runs 7+ multi-SoC
+
+F1 — CONFIRMED, MAJOR. PREREG.md:134 "the ALIVE CLI speed priors are 11.0× (732), no speed
+claim (740), 17.4× (750: 284.2/16.3), and 10.4× (735: 154.8/14.9)" — all three rest on ALIVE
+CPU numbers ALIVE itself retracted: ALIVE:433 (#52) carries "CPU number is build-suspect…";
+ALIVE:436 (#56) "Caveat CPU build-suspect invariato"; ALIVE:437 (#57, CPU-tuned) "la build
+zoppa del mattino sottostimava ×6.1-6.9 il prefill (G3 refutata ovunque, caveat saldato,
+vecchi numeri CPU RITIRATI). … G1 prefill: mid-tier CONTESTED (GPU solo 1.59× …), 750
+confermato 2.87×"; ALIVE:438 (#58) "G4 291/98.97 = 2.94× prefill GPU". Corrected priors:
+≈1.59× (732), ≈1.59× (735), ≈2.87-2.94× (750). Recomputing the bands on the corrected
+priors: 1/(1.59×0.597-0.620) ≈ 1.01-1.05 (mid-tiers near-parity, NOT 0.147-0.161) and
+1/(2.94×0.597-0.620) ≈ 0.55-0.57 (750) — the pre-registered bands are 3-4× too optimistic.
+Fix: re-derive the bands or mark them reference-only.
+F2 — CONFIRMED, MINOR. "17.4× (284.2/16.3)" is verbatim ALIVE:435 ("~17× la CPU di questa
+build") but that cell flags the build and #57/#58 withdrew the CPU basis — cherry-picked
+stale pair instead of the #58 2.94×.
+F3 — CONFIRMED, MINOR. The 8-Elite greedy oracle differs by exactly one token (idx 29: A=640
+vs B=1194, reconverge), reproduced in run 4 (raw/sa805734 ids :30) and run 6 (raw/sa806967 —
+diffed: `30c30 < 640 --- > 1194`). Under the strict rule the endpoint can never be MET on the
+8-Elite; PREREG.md:132-137 does not state this; mid-tier/750 oracle status is unknown.
+Recommendation: pre-register per-board "PASS-1: exactly one differing index with
+reconvergence of ≥2 following indices ⇒ PASS-1, counted toward the ≥2-pair rule only if
+pre-registered", before any run-7 data.
+F4 — CONFIRMED. device_tag (parse.next.sh:3-20): with product_name=pineapple the
+`QRD*:*|SM*:*` alternatives can never match, so `*:SM8650`/`*:SM7675`/`*:SM8635` fire first;
+kalama/SM8550 → branch 3; sun/SM8750 → branch 5; unknown → sanitized tag (:17-19). SOC
+populated before use: d_run.next.sh:107 PRODUCT_NAME (`tr -d '\r'` ok) and the pre-existing
+SOC line; :112-113 `BOARD=$(device_tag "$PRODUCT_NAME" "$SOC") || exit 6`.
+F5 — CONFIRMED. Removed behaviour: only the 8650-gate → accept-all + device_tag; additions:
+recon product.name, PRODUCT_NAME, tag log, three `void_reason=thermal` stints, session_pre
+log text. Nothing else changed (diff verified).
+F6 — CONFIRMED, MINOR. Fail-loud thermal (parse.next.sh:88-91 gate stamp + return 1; $gate in
+scope) → callers status=1+void_reason=thermal (d_run.next.sh:263/268/279) → ABORT at the loop
+— pre-registered (PREREG.md:90-91 "unparseable thermal skin after retries"), fires only after
+3 tries/2 s, including the skin_after case (turn completed — abort is the pre-registered
+rule). Coverage gap: dryrun asserts only the function level (:116 missing-mode), not the
+run-level abort path.
+F7 — CONFIRMED. `bash dryrun.next.sh > /tmp/dr9n.log 2>&1` → exit=0 (tail: holder_loop 143 /
+cleanup 0). device_tag asserted for all five boards + unknown-sanitize (dryrun.next.sh:109),
+thermal-missing path (:116) — genuine.
+F8 — OPINION: dividing in-app by CLI ratio is a defensible single-point normalization ONLY on
+valid baselines; the discount arithmetic is internally consistent (1.79/3=0.5967, 1.86/3=0.62;
+1/(11×0.597)=0.1523 … ⇒ 0.147-0.152 / 0.155-0.161 / 0.093-0.096) but inherits the withdrawn
+priors — with F1 it is numerology.
+
+## Delta verdict #9
+
+NO-GO. 1 major (F1: priors/bands rest on ALIVE's retracted CPU numbers; corrected ≈1.59× /
+1.59× / 2.87-2.94× → near-parity mid-tier bands), 3 minor (F2 stale 17.4×; F3 strict oracle
+unmettable on 8-Elite — pre-register PASS-1 per board; F6 run-level thermal abort not
+dryrun-asserted), 2 clean (F4 device_tag; F5 no other removed behaviour; F7 dryrun.next
+exit 0). Recommended order for runs 7+: QRD7675 (732) → QRD8635 (735) → HDK8550 (740, no
+speed claim) → QRD8650 (750, oracle/descriptive only). Fix F1-F3 before run 7.
