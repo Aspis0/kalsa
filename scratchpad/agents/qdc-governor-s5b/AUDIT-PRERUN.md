@@ -89,3 +89,78 @@ GO-WITH-FIXES. 0 blockers, 4 major (M1 composer verification + clear-before-rety
 speed-median/WARM-exclusion rule; M3 threshold vs the 1.647× prior; M4 938-token
 pre-registration + VOID band), 5 minor (m1-m5). The mechanism (large uncached tail, native timers, chunk sums, 8192 ctx) is sound and all S5
 heritage is faithful; lock after M1-M4 are written into the PREREG.
+
+## Delta re-audit (post-fix)
+
+M1 — PARTIAL. Composer gate/90%/composer_len.txt/retype-once/never-retype-in-retries all real
+(parse.sh:52-61,63-67,99-106,113-143; ui_rc 2→row_void at d_run.sh:271), but a short-composer B
+row still ABORTS: the B-gate block runs on na fields — d_run.sh:285 `[ "$decode_engine" = CPU ]
+|| status=1; … [ "$thermal" != na ] || status=1` — status=1 → session abort; VOID-not-abort
+holds only for A rows. Fix: `if [ "$arm" = B ] && [ "$row_void" -eq 0 ]`.
+M2 — CONFIRMED-FIXED. PREREG.md:66-75 oracle-PASS pairs + `engine_prefill=GPU`/`FAST` only,
+WARM excluded/reported separately, "Require ≥2 such pairs … otherwise descriptive only".
+M3 — CONFIRMED-FIXED. PREREG.md:75-78 dual expectations ≥3× and ≈1.6× (band 1.4–1.9×) with the
+explicit "which one the data supports" rule.
+M4 — CONFIRMED-FIXED (with M1 caveat). 938 pre-registered (PREREG.md:31); new_tokens_a from
+send-anchored `reusing X/Y` (parse.sh:6; d_run.sh:277, guarded), new_tokens_b = chunk_sum
+(parse.sh:69-74); band gate d_run.sh:280 `n>=938*0.9&&n<=938*1.1`; 17-column header (:18) and
+row printf (:286) match in count and order.
+m1 — CONFIRMED-FIXED. Reuse pattern in the filter (d_run.sh:274) + new_tokens_a column.
+m2 — CONFIRMED-FIXED. dryrun stub varies UI dumps (short 100-char at count 2, full at 3) and
+asserts INPUT_TEXT_COUNT==2, `attempt=initial actual=100`, `attempt=retype actual=5142`, and
+`attempt=2` — retype and retry paths exercised.
+m3 — CONFIRMED-FIXED. type_prompt.txt logs initial/retype totals (parse.sh:86-106); turn-1
+>150 s aborts, pre-registered (PREREG.md:56-57).
+m4 — CONFIRMED-FIXED. load_prompt before device (d_run.sh:26-27 vs SER at :88).
+m5 — CONFIRMED-FIXED. 3 send attempts kept; retries never retype.
+set -u — clean: no `local a=$1 b=${a}`; all new globals pre-initialized; chunk_sum failure
+→ "na"; new_tokens arithmetic pre-guarded; awk-gate failures void, never crash.
+Destructive-action checks — clean: no check chained with a destructive side effect in one `&&`;
+clear_composer failure → return 2 → VOID (safe direction).
+LF — clean: `file` + `\r`-grep on all four files: 0 CRLF.
+dryrun coverage — covers short composer + retype + send retry, but no B-VOID scenario — exactly
+the path where the M1 bug lives; add a stub short-composer B turn asserting return 0.
+
+## Delta verdict
+
+GO-WITH-FIXES. 0 blockers, 1 major (M1 B-row VOID aborts: guard d_run.sh:285 with
+`[ "$row_void" -eq 0 ]`), 0 minor — then the PREREG is lockable.
+
+
+## Delta re-audit #2 (F1/F2)
+
+F1 — CONFIRMED-FIXED. d_run.sh:285 `if [ "$arm" = B ] && [ "$row_void" -eq 0 ]; then … fi`.
+Status/exit writers between :271 and :288 on a ui_rc=2 B row (row_void=1, status=0):
+:272 poll short-circuits → telemetry_rc=1, no status write; :273 lmkd_all_after — flips only if
+the fallback dump left no file (connectivity = pre-registered abort); :274 skin_after — flips
+only on invalid thermo (pre-registered); :285-286 B-gate — SKIPPED (the fix); :286 lmkd count —
+0 on the VOID row, flips only on a counted kill (pre-registered); :287 force-stop/uninstall —
+flips only on non-clean uninstall (pre-registered); :288 exit 3 — setter guarded
+`if [ "$row_void" -eq 0 ] && [ "$arm" = A ] && …` (d_run.sh:283). Verdict: no statement fires on
+a clean VOID row; only the four pre-registered abort categories (adb death, invalid thermo,
+counted kill, uninstall failure) can flip status — "VOID never aborts" holds.
+Dryrun proof is real, not tautological: dryrun.sh:114-117 runs FULL run_observation B 1 with
+VOID_MODE stubbing every UI dump short (dryrun.sh:50-52) so the REAL ui_send returns 2 from the
+post-clear check (`[ "$cleared_len" -le 3 ] || return 2`, parse.sh:112) → row_void=1, B-gate
+skipped, `status=0` asserted, TSV row asserted `$16=="na"&&$17=="VOID"` (dryrun.sh:115), then
+`run_observation A 2` returns 0 — continuity proven. Nit: `[ "$FINAL_RC" -eq 0 ]` (dryrun.sh:116)
+is vestigial (nothing writes FINAL_RC); B_RC==0 is the operative proof.
+F2 — CONFIRMED-FIXED. parse.sh:63-65 `clear_composer() { adbT … input keycombination
+KEYCODE_CTRL_LEFT KEYCODE_A || return 1; adbT … input keyevent KEYCODE_DEL }`; call site
+:75-112: `clear_composer || return 2; dump_ui "$cleared_file" || return 2; cleared_len=$(…);
+[ -n "$cleared_len" ] || cleared_len=0; printf 'attempt=cleared …'; [ "$cleared_len" -le 3 ] ||
+return 2` — post-clear check strictly before the single retype (:112-121); one retype, send
+loop (:123-151) never types; every failure path returns 2 (clear, cleared-dump, cleared_len>3,
+retype rc, retype check) — none aborts except the pre-registered turn-1 >150 s → return 1.
+set -u: `cleared_len` declared (:86 `local composer_ok cleared_len`), zero-guarded;
+PROMPT_EXPECTED_CHARS init 0 (d_run.sh:12), set by load_prompt before ui_send. PREREG.md:64-65
+matches verbatim (keycombination, redumps, "requires actual ≤3 before retyping once"). Dryrun
+asserts `attempt=cleared actual=0` from the count-3 empty dump (dryrun.sh:56) — fixture-driven.
+No regressions: keycombination is valid on Android 16; stub returns 0 for it; A1 full-text
+(count 4) and send-retry (count 5) fixtures still line up.
+
+## Delta verdict #2
+
+GO. 0 blockers, 0 majors, 0 minors. F1's VOID-never-aborts contract holds and is genuinely
+exercised by the stub; F2's clear-before-retype, single-retype, all-return-2 semantics, set -u
+safety, and PREREG wording all check out. The PREREG is lockable.

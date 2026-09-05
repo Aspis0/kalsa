@@ -9,10 +9,26 @@ JOB="$1"; APK="$2"; ARM_ORDER="$3"
 case "$JOB" in ''|*[!A-Za-z0-9._-]*) echo "invalid job_id" >&2; exit 2;; esac
 case "$APK" in /*) ;; *) echo "apk_path must be absolute" >&2; exit 2;; esac
 [ "$ARM_ORDER" = ABABABAB ] || { echo "arm_order must be ABABABAB" >&2; exit 2; }
+PROMPT_FILE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/PROMPT.txt; PROMPT_SHA=9109f58516104950079a4a4ecbcd46b557b598741227e893c275bece27079ea6; PROMPT_BYTES=5142; PROMPT_INPUT=""; PROMPT_TEXT=""; PROMPT_EXPECTED_CHARS=0
+load_prompt() {
+  local text
+  local local_sha
+  local size
+  [ -f "$PROMPT_FILE" ] || return 1
+  local_sha=$(/usr/bin/shasum -a 256 "$PROMPT_FILE" | awk '{print $1}')
+  size=$(wc -c < "$PROMPT_FILE" | tr -d '[:space:]')
+  [ "$local_sha" = "$PROMPT_SHA" ] && [ "$size" = "$PROMPT_BYTES" ] || return 1
+  text=$(tr '\n' ' ' < "$PROMPT_FILE") || return 1
+  PROMPT_TEXT="$text"
+  PROMPT_EXPECTED_CHARS=$(printf '%s' "$text" | wc -m | tr -d '[:space:]')
+  PROMPT_INPUT=$(printf '%s' "$text" | sed 's/ /%s/g')
+  [ -n "$PROMPT_INPUT" ] && [ "$PROMPT_EXPECTED_CHARS" -eq "$PROMPT_BYTES" ]
+}
+load_prompt || { echo "PROMPT_IDENTITY_FAIL" >&2; exit 6; }
 OUT="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b"
 RAW="$OUT/raw/$JOB"; mkdir -p "$RAW"
 ADB_LOG="$RAW/adb-exit.log"; DRIVER_LOG="$RAW/driver.log"; RESULTS="$RAW/results.tsv"; END_MARKER="$RAW/END.txt"; : > "$ADB_LOG"; : > "$DRIVER_LOG"
-printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$RESULTS"
+printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\n' > "$RESULTS"
 PKG=com.kalsa.app
 MODEL="/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf"; MODEL_SIZE=1593894944
 MODEL_SHA=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
@@ -195,19 +211,8 @@ fresh_install() {
 }
 MODEL_LOAD_PATTERN='llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf'; PREWARM_PATTERN='KALSA_PREWARM.*"op":"done"'
 has_load_proof() { grep -E "$MODEL_LOAD_PATTERN" "$1" >/dev/null 2>&1 && grep -E "$PREWARM_PATTERN" "$1" >/dev/null 2>&1; }
-count_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{n++}END{print n+0}' "$2"; }
-count_lmkd_after() { awk -v a="$ANCHOR_EPOCH" -v p="$APP_PID" '$1+0>=a&&$0~/(lmkd|am_kill|lowmemorykiller)/&&(index($0,"com.kalsa.app")>0||(p!=""&&index($0,p)>0)){n++}END{print n+0}' "$1"; }
-last_json_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{x=$0}END{sub(".*"m,"",x);sub(/^[[:space:]]+/,"",x);print x}' "$2"; }
-json_field() { local json="$1"; local key="$2"; [ -n "$json" ] || return 0; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$k=shift;$t=do{local $/;<STDIN>};eval{$v=decode_json($t)->{$k};print defined($v)?$v:""}' "$key"; }
-parse_tokens() { local json="$1"; local out="$2"; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$o=decode_json(do{local $/;<STDIN>});die unless ref($o->{ids}) eq "ARRAY"&&defined($o->{n})&&$o->{n}>=32&&@{$o->{ids}}>=32;for $i(0..31){$v=$o->{ids}[$i];die unless defined($v)&&"$v"=~/^-?[0-9]+$/;print "$v\n"}' > "$out" 2>/dev/null; }
-telemetry_complete() {
-  local j n
-  j=$(last_json_after KALSA_TELEMETRY "$1"); n=$(json_field "$j" tokensPredicted)
-  awk -v n="$n" 'BEGIN{exit !(n ~ /^[0-9]+([.][0-9]+)?$/&&n>=1)}' >/dev/null 2>&1
-}
 memory_before() { local prefix="$1"; local file="${prefix}_meminfo_before.txt"; adbT 60 -s "$SER" shell "cat /proc/meminfo | head -3" > "$file" 2>&1 || return 1; MEM_BEFORE_KB=$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$file" | head -1 | tr -d '\r'); [ -n "$MEM_BEFORE_KB" ]; }
 memory_after() { local prefix="$1"; local file="${prefix}_meminfo_after.txt"; adbT 60 -s "$SER" shell "cat /proc/meminfo | head -3" > "$file" 2>&1 || return 1; adbT 90 -s "$SER" shell "dumpsys meminfo $PKG | head -25" > "${prefix}_appmem_after.txt" 2>&1 || return 1; MEM_AFTER_KB=$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$file" | head -1 | tr -d '\r'); [ -n "$MEM_BEFORE_KB" ] && [ -n "$MEM_AFTER_KB" ] || return 1; printf 'MEM before=%s after=%s\n' "$MEM_BEFORE_KB" "$MEM_AFTER_KB" | tee -a "$DRIVER_LOG"; }
-lmkd_all_after() { local file="$1"; local out="$2"; awk -v a="$ANCHOR_EPOCH" '($1+0)>=a&&tolower($0)~/lmkd|lowmemorykiller/&&tolower($0)~/kill/{print}' "$file" > "$out"; }
 poll_load() {
   local file="$1" elapsed=0
   : > "$file"
@@ -236,29 +241,6 @@ clear_anchor() {
   ANCHOR_STAMP=$(cat "${prefix}_anchor_stamp.txt" | tr -d '\r')
   awk -v a="$ANCHOR_EPOCH" 'BEGIN{exit !(a ~ /^[0-9]+$/)}' >/dev/null 2>&1
 }
-dump_ui() {
-  local out="$1"
-  adbT 60 -s "$SER" shell "uiautomator dump $DEVICE_TMP/ui.xml >/dev/null 2>&1" || return 1
-  adbT 60 -s "$SER" shell "cat $DEVICE_TMP/ui.xml" > "$out" 2>&1 || return 1
-  tr -d '\r' < "$out" > "$out.tmp" && mv "$out.tmp" "$out"
-  [ -s "$out" ]
-}
-bounds_edit() { tr '>' '\n' < "$1" | grep 'class="android.widget.EditText"' | sed -n 's/.*bounds="\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]".*/\1 \2 \3 \4/p' | head -1; }
-bounds_send() { tr '>' '\n' < "$1" | grep -E 'content-desc="Send"|text="Send"' | sed -n 's/.*bounds="\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]\[\([0-9][0-9]*\),\([0-9][0-9]*\)\]".*/\1 \2 \3 \4/p' | head -1; }
-tap_bounds() {
-  local b="$1" x1 y1 x2 y2
-  read -r x1 y1 x2 y2 <<< "$b"
-  adbT 60 -s "$SER" shell input tap "$(((x1 + x2) / 2))" "$(((y1 + y2) / 2))"
-}
-PROMPT_FILE=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/PROMPT.txt; PROMPT_SHA=9109f58516104950079a4a4ecbcd46b557b598741227e893c275bece27079ea6; PROMPT_BYTES=5142; PROMPT_INPUT=""
-load_prompt() {
-  local text local_sha size
-  [ -f "$PROMPT_FILE" ] || return 1
-  local_sha=$(/usr/bin/shasum -a 256 "$PROMPT_FILE" | awk '{print $1}'); size=$(wc -c < "$PROMPT_FILE" | tr -d '[:space:]')
-  [ "$local_sha" = "$PROMPT_SHA" ] && [ "$size" = "$PROMPT_BYTES" ] || return 1
-  text=$(tr '\n' ' ' < "$PROMPT_FILE" | sed 's/[[:space:]][[:space:]]*/ /g') || return 1
-  PROMPT_INPUT=$(printf '%s' "$text" | sed 's/ /%s/g'); [ -n "$PROMPT_INPUT" ]
-}
 type_prompt() {
   [ -n "$PROMPT_INPUT" ] || return 1
   adbT 300 -s "$SER" shell input text "$PROMPT_INPUT"
@@ -270,8 +252,15 @@ ime_suspend() {
   adbT 60 -s "$SER" shell "ime disable $IME_SAVED" >/dev/null 2>&1 && IME_SUSPENDED=1 || true
 }
 run_observation() {
-  local arm="$1" turn="$2"; local prefix="$RAW/${BOARD}_${arm}_t${turn}"; local logcat="${prefix}_logcat_all.txt"; local flag skin_before=na skin_after=na thermo="" status=0 load_rc=1 telemetry_rc=1 edit_bounds send_bounds
-  local telemetry governor bench ttft=na prefill_ms=na prefill_chunks=na decode=na prefill=na decode_engine=na thermal=na commit_bytes=na commit_ms=na thermo_source=na fallback=0 lmkd=0 governor_count=0 ids_sha=na oracle=na n=na runtime_prereq=0; local ids_file="${prefix}_ids.txt"
+  local arm="$1"
+  local turn="$2"
+  local prefix="$RAW/${BOARD}_${arm}_t${turn}"
+  local logcat="${prefix}_logcat_all.txt"
+  local flag skin_before=na skin_after=na thermo="" status=0 load_rc=1 telemetry_rc=1 ui_rc=0 row_void=0
+  local telemetry governor bench reuse_line ttft=na prefill_ms=na prefill_chunks=na new_tokens_a=na new_tokens_b=na decode=na prefill=na decode_engine=na thermal=na commit_bytes=na commit_ms=na thermo_source=na fallback=0 lmkd=0 governor_count=0 ids_sha=na oracle=na n=na runtime_prereq=0
+  local a_reused a_total
+  local ids_file="${prefix}_ids.txt"
+  SEND_ANCHOR_EPOCH=0
   deadline_check; fresh_install "$prefix" || status=1; [ "$status" -eq 0 ] && copy_model "$prefix" || status=1; [ "$status" -eq 0 ] && bootstrap_db "$prefix" || status=1
   flag=0; [ "$arm" = B ] && flag=1
   if [ "$status" -eq 0 ]; then skin_before=$(thermal_record "$(basename "$prefix")_before") || { skin_before=na; status=1; }; [ "$status" -eq 0 ] && make_thermo "$skin_before"; thermo="$THERMO_JSON"; [ "$status" -eq 0 ] && set_prefs "$flag" || status=1; fi
@@ -279,21 +268,25 @@ run_observation() {
     memory_before "$prefix" || status=1; clear_anchor "$prefix" || status=1; device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_launch.txt" 2>&1 || status=1; APP_PID=$(adbT 60 -s "$SER" shell pidof "$PKG" | awk 'NR==1{print $1;exit}' | tr -d '\r')
     [ "$status" -eq 0 ] && poll_load "${prefix}_load.txt"; load_rc=$?; [ "$load_rc" -eq 0 ] || status=1
     [ "$load_rc" -eq 0 ] && memory_after "$prefix" || status=1
-    if [ "$load_rc" -eq 0 ] && [ "$status" -eq 0 ]; then device_wake; ime_suspend; ui_send "$prefix" || status=1; fi
-    [ "$status" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 60 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 300 "$logcat" || true
+    if [ "$load_rc" -eq 0 ] && [ "$status" -eq 0 ]; then device_wake; ime_suspend; ui_send "$prefix" "$turn"; ui_rc=$?; if [ "$ui_rc" -eq 2 ]; then row_void=1; elif [ "$ui_rc" -ne 0 ]; then status=1; fi; fi
+    [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 60 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 300 "$logcat" || true
   fi
-  lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || status=1; skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; status=1; }; grep -E 'KALSA_|llama_model_loader' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
+  lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || status=1; skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; status=1; }; grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true
   fallback=$(count_after 'KALSA_GOVERNOR_FALLBACK' "$logcat"); lmkd=$(count_lmkd_after "$logcat"); telemetry=$(last_json_after KALSA_TELEMETRY "$logcat"); governor=$(last_json_after 'KALSA_GOVERNOR ' "$logcat"); bench=$(last_json_after 'KALSA_BENCH_TOKENS ' "$logcat")
   ttft=$(json_field "$telemetry" promptMs); prefill_ms=$(json_field "$governor" prefill_ms); prefill_chunks=$(json_field "$governor" prefill_chunks); decode=$(json_field "$telemetry" predictedPerSecond); prefill=$(json_field "$governor" engine_prefill); decode_engine=$(json_field "$governor" engine_decode); thermal=$(json_field "$governor" thermal_state); commit_bytes=$(json_field "$governor" commit_bytes); commit_ms=$(json_field "$governor" commit_ms); thermo_source=$(json_field "$governor" thermo_source); governor_count=$(awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&index($0,"KALSA_GOVERNOR ")>0{n++}END{print n+0}' "$logcat"); n=$(json_field "$bench" n)
   [ -n "$ttft" ] || ttft=na; [ -n "$prefill_ms" ] || prefill_ms=na; [ -n "$prefill_chunks" ] || prefill_chunks=na; [ -n "$decode" ] || decode=na; [ -n "$prefill" ] || prefill=na; [ -n "$decode_engine" ] || decode_engine=na; [ -n "$thermal" ] || thermal=na; [ -n "$commit_bytes" ] || commit_bytes=na; [ -n "$commit_ms" ] || commit_ms=na; [ -n "$thermo_source" ] || thermo_source=na; [ -n "$n" ] || n=na
+  reuse_line=$(last_reuse_after "$logcat"); a_reused=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p'); a_total=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  if [ "$arm" = A ]; then [ -n "${a_reused:-}" ] && [ -n "${a_total:-}" ] && new_tokens_a=$((a_total - a_reused)); else new_tokens_b=$(chunk_sum "$prefill_chunks" 2>/dev/null || printf 'na'); fi
+  if [ "$arm" = A ]; then awk -v n="$new_tokens_a" 'BEGIN{exit !(n ~ /^[0-9]+$/&&n>=938*0.9&&n<=938*1.1)}' >/dev/null 2>&1 || row_void=1; else awk -v n="$new_tokens_b" 'BEGIN{exit !(n ~ /^[0-9]+$/&&n>=938*0.9&&n<=938*1.1)}' >/dev/null 2>&1 || row_void=1; fi
   if [ -n "$bench" ] && parse_tokens "$bench" "$ids_file"; then ids_sha=$(/usr/bin/shasum -a 256 "$ids_file" | awk '{print $1}'); else printf 'VOID n=%s\n' "$n" > "$ids_file"; fi
+  if [ "$row_void" -eq 1 ]; then ids_sha=na; printf 'VOID n=%s\n' "$n" > "$ids_file"; fi
   if [ "$arm" = A ]; then A_IDS_FILE="$ids_file"; [ "$ids_sha" = na ] && A_IDS_VALID=0 || A_IDS_VALID=1; else if [ "$ids_sha" = na ] || [ "$A_IDS_VALID" -ne 1 ]; then oracle=VOID; elif diff -q "$A_IDS_FILE" "$ids_file" >/dev/null 2>&1; then oracle=PASS; else oracle=FAIL; fi; fi
-  if [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ]; then runtime_prereq=1; printf 'PREREQUISITE OPEN: missing KALSA_BENCH_TOKENS after first turn; app sampling contract is absent.\n' > "$RAW/PREREQUISITE.txt"; fi
-  if [ "$arm" = B ]; then [ "${fallback:-0}" -eq 0 ] || status=1; [ "$decode_engine" = CPU ] || status=1; if [ "$thermal" = FAST ] && [ "$prefill" != GPU ]; then status=1; fi; [ "$thermal" != na ] || status=1; [ "${governor_count:-0}" -eq 1 ] || status=1; [ "$thermo_source" = bench-skin ] || status=1; awk -v v="$commit_bytes" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; awk -v v="$commit_ms" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; fi
-  [ "${lmkd:-0}" -eq 0 ] || status=1; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$arm" "$turn" "$ttft" "$prefill_ms" "$prefill_chunks" "$decode" "$prefill" "$decode_engine" "$thermal" "$skin_before" "$skin_after" "$fallback" "$lmkd" "$ids_sha" "$oracle" | tee -a "$RESULTS"; printf 'status=%s thermo=%s governor_count=%s commit_bytes=%s commit_ms=%s thermo_source=%s anchor_epoch=%s anchor_stamp=%s telemetry_rc=%s\n' "$status" "$thermo" "$governor_count" "$commit_bytes" "$commit_ms" "$thermo_source" "$ANCHOR_EPOCH" "$ANCHOR_STAMP" "$telemetry_rc" > "${prefix}_status.txt"
+  if [ "$row_void" -eq 0 ] && [ "$arm" = A ] && [ "$turn" = 1 ] && [ "$telemetry_rc" -eq 0 ] && [ -z "$bench" ]; then runtime_prereq=1; printf 'PREREQUISITE OPEN: missing KALSA_BENCH_TOKENS after first turn; app sampling contract is absent.\n' > "$RAW/PREREQUISITE.txt"; fi
+  if [ "$arm" = B ] && [ "$row_void" -eq 0 ]; then [ "${fallback:-0}" -eq 0 ] || status=1; [ "$decode_engine" = CPU ] || status=1; if [ "$thermal" = FAST ] && [ "$prefill" != GPU ]; then status=1; fi; [ "$thermal" != na ] || status=1; [ "${governor_count:-0}" -eq 1 ] || status=1; [ "$thermo_source" = bench-skin ] || status=1; awk -v v="$commit_bytes" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; awk -v v="$commit_ms" 'BEGIN{exit !(v ~ /^[0-9]+([.][0-9]+)?$/)}' >/dev/null 2>&1 || status=1; fi
+  [ "${lmkd:-0}" -eq 0 ] || status=1; printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$arm" "$turn" "$ttft" "$prefill_ms" "$prefill_chunks" "$new_tokens_a" "$new_tokens_b" "$decode" "$prefill" "$decode_engine" "$thermal" "$skin_before" "$skin_after" "$fallback" "$lmkd" "$ids_sha" "$oracle" | tee -a "$RESULTS"; printf 'status=%s row_void=%s thermo=%s governor_count=%s commit_bytes=%s commit_ms=%s thermo_source=%s anchor_epoch=%s anchor_stamp=%s telemetry_rc=%s new_tokens_a=%s new_tokens_b=%s\n' "$status" "$row_void" "$thermo" "$governor_count" "$commit_bytes" "$commit_ms" "$thermo_source" "$ANCHOR_EPOCH" "$ANCHOR_STAMP" "$telemetry_rc" "$new_tokens_a" "$new_tokens_b" > "${prefix}_status.txt"
   adbT 60 -s "$SER" shell "am force-stop $PKG" > "${prefix}_force_stop.txt" 2>&1 || status=1; adbT 120 -s "$SER" shell "pm uninstall $PKG" > "${prefix}_uninstall.txt" 2>&1; [ "$?" -eq 0 ] || status=1
   [ "$runtime_prereq" -eq 0 ] || exit 3; return "$status"
 }
-load_prompt || { log "PROMPT_IDENTITY_FAIL"; exit 6; }; FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN"; exit 6; }; PREV_SKIN="$FIRST_SKIN_C"; PREV_TIME=$(date +%s); model_setup || exit 5; FINAL_RC=0; A_TURN=0; B_TURN=0
+FIRST_SKIN_C=$(thermal_record session_pre) || { log "NO_VALID_INITIAL_SKIN"; exit 6; }; PREV_SKIN="$FIRST_SKIN_C"; PREV_TIME=$(date +%s); model_setup || exit 5; FINAL_RC=0; A_TURN=0; B_TURN=0
 for ((i=0; i<${#ARM_ORDER}; i++)); do deadline_check; arm="${ARM_ORDER:i:1}"; if [ "$arm" = A ]; then A_TURN=$((A_TURN+1)); turn="$A_TURN"; else B_TURN=$((B_TURN+1)); turn="$B_TURN"; fi; run_observation "$arm" "$turn" || { FINAL_RC=1; log "ABORT arm=$arm turn=$turn"; break; }; done
 log "DONE board=$BOARD final_rc=$FINAL_RC results=$RESULTS"; exit "$FINAL_RC"

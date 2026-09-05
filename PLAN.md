@@ -1223,6 +1223,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > falsificabili ≥3× e ≈1.6×; colonna new_tokens da prefill_chunks/reusing).
 > Memoria consolidata per la compattazione.
 
+> **5/09 07:30 EDT Mac — S5b LOCKED.** Fix Luna applicati e verificati su disco (bash -n 0,
+> dryrun 0, righe citate lette); delta audit #1 deepseek: GO-WITH-FIXES, 1 major nuovo (una
+> riga B VOID per composer corto faceva `status=1` → ABORT di tutta la sessione: gate B ora
+> saltati quando `row_void=1`) + mio rilievo: `clear_composer` mandava CTRL e A come keyevent
+> separati (non è una chord: il retype accodava al testo residuo) → ora `input keycombination`
+> + redump + verifica composer vuoto PRIMA del retype unico. Delta #2: GO, 0 rilievi. PREREG
+> bloccato su APK 8a56edc (sha 272f4547…). Nota orologio: le voci "6/09" qui sopra erano
+> etichettate male, il Mac segna 5/09 EDT. Prossimo: sessione QDC `S5b-8Elite-r1` su
+> QRD8750, ordine ABABABAB, budget 8 Elite ≈583 min.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
