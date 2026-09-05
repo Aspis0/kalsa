@@ -98,4 +98,44 @@ preservation on runs 1-2 acceptable (VOID dirs + driver logs + END.txt reasons a
 BANK-WITH-FIXES. Every number reproduced; three labeling/conformance fixes (F1 endpoint-2
 verdict per the oracle-PASS rule, F2 cached-thermo caveat on the FAST evidence, F3 mechanism →
 leading hypothesis) plus the listed minors must be applied with the report. No finding changes
-the outcomes: oracle FAIL, decode direction, TTFT not measurable, B3 memory pressure.
+
+## Addendum audit (run 4)
+
+Re-derived against raw/sa803390 + PREREG amendment 6/09 (PREREG.md:189-217).
+
+Verified clean (all reproduce): TSV/driver-log rows A1 334.86/24.4266…, B1 454.259/20.7110…,
+A2 323.599/23.4700…, B2 na/VOID (results.tsv:2-5, driver-sa803390.log:1-9, ABORT :8, DONE :9);
+skin 30.35→33.409 / 34.378→35.448 / 35.726→38.078 / 38.14→36.913; thermo JSON 304/344/357/381,
+t_idle 29.521, trends 0.363/1.569/0.539/0.917 — recomputed from Δskin/Δmin between successive
+before-readings, all exact; MemAvailable 8914548→6590964, 8838288→4626560, 8892920→6586488,
+B2 8834808→not captured; B1 :5847/:5850/:5852 verbatim (promptMs/prefill_ms 454.259,
+prefill_chunks "2+13", ngl 99, commit 9206272/6.181, FAST, 20.71, save ok:false governor-mode);
+TTFT semantics sound — 1329-1314 = 15 = 2+13; addendum clearly states this-turn TTFT is the
+~15-token comparison, NOT the 1024-token prewarm one; oracle hashes equal run 3 on a different
+board (determinism claim justified); "44 s vs 335 ms": both runs share tokensCached 1397,
+"reusing 1314/1329" (:5378/:7017), save ok=true (:5736/:7105), no clearCache line —
+not-determinable is honest and consistent with run-3's stale-timer pattern; B2 gate: 38.14 live
+skin (:45), trend +0.917, verbatim :2589 "…waiting for a safe tabled chunk" and :2592 skip
+eval-failed, governor_count=0/telemetry_rc=1; policy constant CONFIRMED —
+llama-governor-policy.cpp:43 `return { 38.0f, 36.0f, 39.5f, 36.5f, 42.0f, 34.0f };`;
+CPUFallback-not-consumed matches AUDIT-S3S4:154-160; APK e8c2b1f/sha e16cf0b6…/session
+799321/serial 72c4dabb exact.
+
+F1 — MINOR, CONFIRMED. "Four turns completed, then B2 aborted": three completed; the fourth
+(B2) aborted. Fix wording.
+F2 — MINOR, CONFIRMED. "session … approximately 19 minutes and … budget was 797 minutes" cited
+to anchors + driver-sa803390.log:8-9 — neither contains duration/budget; 797 min is
+PLAN.md:969, and the diary implies ~15 min not 19. Fix citation and source.
+F3 — MINOR, CONFIRMED. "indicating GPU chunking overhead on tiny batches" — hypothesis, not
+indication (commit/admission timing, CPU timer path not excluded). Fix: "consistent with".
+F4 — MINOR, CONFIRMED. Amendment promises descriptive TTFT/decode/thermal medians
+(PREREG.md:207-209); addendum gives per-turn values only. Fix: add them or state the n=2/n=1
+floor.
+F5 — MINOR, PLAUSIBLE. "first live observation of the policy thermal gate" — no prior live Wait
+in evidence (run-2 B1 was the partition failure), but a negative is unprovable. Keep
+"first in this evidence base".
+
+## Verdict
+
+BANK-WITH-FIXES for the addendum. 0 blockers, 0 majors, 5 minors (F1-F5). Every number and
+citation reproduced verbatim; TTFT-semantics and stale-timing reasoning sound; 38.0 °C threshold quoted correctly descriptive-vs-endpoint labelling maintained.
