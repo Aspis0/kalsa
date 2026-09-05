@@ -1199,6 +1199,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > prewarm (stesso driver, `kalsa.bench.prewarm=off` se esiste o prompt lungo
 > nuovo), per riconciliare 1.6× (prewarm app) con ~10× (fork #38).
 
+> **6/09 09:45 Mac — Audit addendum run 7 (deepseek): BANK-WITH-FIXES, 4
+> minori di forma (rapporto di medie → rapporti per coppia 1.743/0.737;
+> citazioni; "non applicabile" → "molto probabilmente non significativo,
+> interpretazione"), applicati da me. ALIVE 48 aggiornata col run 7.** S5 è
+> chiusa a 7 run: meccanismo, degradazione termica, correttezza su 830, timer
+> e TTFT equo tutti a verbale.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

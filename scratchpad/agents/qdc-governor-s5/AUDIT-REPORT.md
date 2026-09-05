@@ -138,9 +138,6 @@ BANK-WITH-FIXES. 0 blockers, 0 majors, 5 minors (F1-F5); every number, citation,
 
 ## Addendum audit (run 6)
 
-
-## Addendum audit (run 6)
-
 Re-derived vs raw/sa803609 + driver log + PREREG run-6 amendment + ARM-A-PREFIX-REUSE doc.
 
 Verified clean: 8 TSV rows exact (A1 43677.83/28.68714, B1 358.167/28.47050, A2 41147.348/
@@ -174,3 +171,35 @@ to prove that exact mechanism". Fix: "most consistent explanation".
 
 BANK-WITH-FIXES. 0 blockers, 0 majors, 6 minors (F1-F6); every row, median, ratio, prewarm
 value, oracle row, CPU-route line, and gap arithmetic reproduced verbatim.
+
+
+## Addendum audit (run 7)
+
+Re-derived vs raw/sa804270 + driver log + PREREG run-7 amendment (:254-266) + PLAN.md:1181.
+
+Verified clean: TSV exact — A1 205.416/28.36259, B1 358.065/27.61985, A2 487.685/29.26440,
+B2 359.42/28.37229 (:2-5) + A3 na-row skin 37.55→38.22; skin pairs, thermo 329/348/358/368
+(t_idle 32.289), trends 0.278/0.815/0.438/0.454, MemAvailable 12215040→10014688, 12258292→
+7981288, 12259620→9975224, 12241672→8041164; A3 status=1/telemetry_rc=1, ABORT D:11, edit.xml
+present/send.xml absent — confirmed; A telemetry G_A1:6281/G_A2:4573 (205.416/487.685,
+tokensCached 1397); B governor G_B1:6517/6520 (358.065, 9206272/7.044, 2+13), G_B2:5478/5481
+(359.42, 9.426); prewarm exact — A 6604.173(:1742)/6768.39(:1730)/6815.035(:1717), B GPU
+4063.945(:2943)/4323.889(:2977) ≈ 1.61×; oracle 2/2 PASS sha 0f4b385a; APK 272f4547… (K:1)
++ DEBUGGABLE (K:3); recon 2a38935c/SM8750/Android 16; P:119-122 abort rule; anchors
+02:53:38→03:02:52; 600 min at PLAN:1181; ~17 min session labelled "(not raw)" — clean. Wording: "consistent with tiny-batch overhead, not proof of a general result" and "no plateau
+median is possible" (n=2) — exactly the required hedges.
+
+F1 — MINOR. "B/A=1.0352×": = ratio of sums (358.065+359.42)/(205.416+487.685); aggregation
+unspecified; per-pair ratios diverge (1.743 / 0.737). Fix: "ratio of means (n=2); paired
+1.74/0.74".
+F2 — MINOR. "ALIVE.md:418" for #38 repeats the run-6 error (:418 = row 17; #38 ~:438).
+F3 — MINOR. "TTFT ≤1/3 rule … is not applicable to this cached tail" is one notch above the
+prereg's "was written for a full-prompt prefill … will most likely not be met" (P:265-266).
+Fix: "does not apply per the preregistered reading".
+F4 — MINOR. "(C:1,4,8; K:1; P:267-270; D:12)": D:12 is the DONE line (final_rc=1), no
+debuggable evidence; flags are at K:3. Fix: "K:1,3", drop D.
+
+## Verdict
+
+BANK-WITH-FIXES. 0 blockers, 0 majors, 4 minors (F1-F4); every row, prewarm line, governor
+line, and A3-abort evidence reproduce verbatim; required hedges in place.
