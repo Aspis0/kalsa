@@ -897,6 +897,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > la sezione HAL → colonne skin da trattare come non valide. Audit REPORT →
 > deepseek (706f8d2f). In volo: telemetria `prefill_ms` (ee4741e9).
 
+> **6/09 01:20 Mac — Telemetria prefill governor (Luna ee4741e9): causa radice
+> del `promptMs 0`** = `JSICompletion.h:193` legge `llama_perf_context(active_ctx())`
+> e in governor mode `active_ctx()` è il contesto di DECODE (l'ultimo batch è
+> di 1 token), che non ha timer di prompt; il prewarm restava sul contesto
+> prefill e per questo aveva un valore. Fix fork `6ed44f567` (`stats_.prefill_us`
+> accumulato attorno ai decode di prefill; test: `prefill_us=250465` su
+> 512+512+128+128+49) + app `64931c1` (JSI usa le stats governor per
+> prompt_n/prompt_ms; `getGovernorStats` espone `prefill_ms`, `prefill_chunks`,
+> `prefill_ctx_ngl`; riga `KALSA_GOVERNOR` estesa). CI 33946344038 in volo.
+> Delta audit 5 → grok.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
