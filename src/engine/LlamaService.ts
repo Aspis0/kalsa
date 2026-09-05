@@ -40,6 +40,7 @@ import { DEFAULT_N_CTX } from "./contextProfile";
 import { getCachedDeviceProfile } from "./deviceProfile";
 import {
   buildGovernorParams,
+  readBenchGovernorForce,
   readGovernorThermo,
 } from "./governorInputs";
 import { applyBenchSampling, readBenchSampling } from "./benchSampling";
@@ -221,6 +222,7 @@ let activeGovernorKey: string | null = null;
 let activeGovernorFit: "Fit" | "NoFit" | "Unknown" | null = null;
 let activeGovernorAttempted = false;
 let activeGovernorActive = false;
+let activeGovernorForced = false;
 let activeGovernorFallbackReason = "";
 /** JSON of engine override for session meta; undefined when production defaults. */
 let activeEngineKnob: string | undefined;
@@ -985,6 +987,7 @@ async function emitGovernorTelemetry(
         prefill_ms: stats.prefill_ms,
         prefill_chunks: stats.prefill_chunks,
         prefill_ctx_ngl: stats.prefill_ctx_ngl,
+        forced: activeGovernorForced,
         thermal_state: stats.thermal_state,
         thermo_source: thermoSource,
         fit: activeGovernorFit ?? "Unknown",
@@ -1301,6 +1304,9 @@ export function initEngine(
     const modelInfo = getModelById(modelId);
     const deviceProfile = await getCachedDeviceProfile();
     const governorFeatureEnabled = await readGovernorEnabled();
+    const benchGovernorForce = governorFeatureEnabled
+      ? await readBenchGovernorForce()
+      : false;
     const benchNoRepack = await getBenchNoRepack();
     // Same predicate the RAM gate uses. Production writes params.moe_stream
     // below, BEFORE applyEngineOverride, so a bench A/B still wins.
@@ -1358,10 +1364,11 @@ export function initEngine(
             mmap: load.useMmap,
             repack: !load.noExtraBufts,
             offloadedBytes: modelInfo.sizeBytes,
-          })
+          }, benchGovernorForce)
         : null;
     const governorLoad =
       governorBase != null &&
+      governorBase.enabled &&
       governorThermo != null &&
       governorThermo.sensor_valid &&
       governorBase.gpu_fit !== "NoFit" &&
@@ -1369,6 +1376,7 @@ export function initEngine(
       !streamExperts
         ? {
             ...governorBase,
+            enabled: true as const,
             thermo: nativeGovernorThermo(governorThermo),
           }
         : null;
@@ -1391,6 +1399,15 @@ export function initEngine(
       if (lastKnownEngineRssBytes == null) void noteEngineRssAfterInit();
       loadOk = true;
       return { effectiveNCtx };
+    }
+    if (governorBase != null && !governorBase.enabled) {
+      console.log(
+        `KALSA_GOVERNOR_FALLBACK ${JSON.stringify({
+          stage: "correctness",
+          reason: governorBase.reason,
+          forced: governorBase.forced,
+        })}`,
+      );
     }
     await disposeEngineLocked();
     // Re-check after dispose: timeout / release() failure sets contextHung
@@ -1664,8 +1681,10 @@ export function initEngine(
     activeStreamExperts = streamExperts;
     activeGovernorKey = governorUsed ? governorKey : "off";
     activeGovernorFit = governorBase?.gpu_fit ?? null;
-    activeGovernorAttempted = governorFeatureEnabled && governorBase != null;
+    activeGovernorAttempted =
+      governorFeatureEnabled && governorBase != null && governorBase.enabled;
     activeGovernorActive = governorUsed;
+    activeGovernorForced = governorFeatureEnabled && governorBase?.forced === true;
     if (activeGovernorAttempted && !governorLoad && !activeGovernorFallbackReason) {
       activeGovernorFallbackReason = governorThermo?.sensor_valid
         ? "governor not eligible"
@@ -1799,6 +1818,7 @@ async function disposeEngineLocked(opts?: {
     activeGovernorFit = null;
     activeGovernorAttempted = false;
     activeGovernorActive = false;
+    activeGovernorForced = false;
     activeGovernorFallbackReason = "";
     nativeLogTail.length = 0;
     nativeLogEpochTail.length = 0;

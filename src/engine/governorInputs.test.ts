@@ -23,6 +23,7 @@ import type { DeviceProfile } from "./deviceProfile";
 import { MODEL_REGISTRY } from "./ModelRegistry";
 import {
   buildGovernorParams,
+  readBenchGovernorForce,
   readGovernorThermo,
 } from "./governorInputs";
 
@@ -68,15 +69,17 @@ describe("governor inputs", () => {
     });
   });
 
-  test("maps the documented board and registry metadata", () => {
+  test("disables the incorrect V75 GPU-prefill route", () => {
     expect(buildGovernorParams(model, device("QRD8650"), memory)).toEqual({
-      enabled: true,
+      enabled: false,
       generation: "V75",
       model_kind: "Hybrid",
       gpu_fit: "Fit",
       gpu_prefill_measured: true,
       npu_lane_enabled: false,
       reload_budget_available: false,
+      forced: false,
+      reason: "gpu-prefill-incorrect-V75",
     });
     expect(buildGovernorParams(model, device("unlisted"), memory).generation).toBe(
       "Unknown",
@@ -91,10 +94,18 @@ describe("governor inputs", () => {
         device("Pineapple for arm64", 12 * 1024 ** 3, "SM8650"),
         memory,
       ),
-    ).toMatchObject({ generation: "V75", gpu_fit: "Fit", gpu_prefill_measured: true });
+    ).toMatchObject({
+      enabled: false,
+      generation: "V75",
+      gpu_fit: "Fit",
+      gpu_prefill_measured: true,
+      reason: "gpu-prefill-incorrect-V75",
+    });
     expect(buildGovernorParams(model, device("SM8550"), memory)).toMatchObject({
+      enabled: false,
       generation: "V73",
       gpu_prefill_measured: false,
+      reason: "gpu-prefill-incorrect-V73",
     });
     expect(
       buildGovernorParams(
@@ -107,6 +118,25 @@ describe("governor inputs", () => {
       buildGovernorParams({ ...model, hybrid: false, kvUnified: false }, device("SM8750"), memory)
         .model_kind,
     ).toBe("Dense");
+  });
+
+  test("keeps V79 enabled and permits an explicit V75 bench override", async () => {
+    expect(buildGovernorParams(model, device("SM8750"), memory)).toMatchObject({
+      enabled: true,
+      generation: "V79",
+      forced: false,
+    });
+    for (const value of [null, "garbage", "0"]) {
+      (AsyncStorage.getItem as jest.Mock).mockResolvedValue(value);
+      await expect(readBenchGovernorForce()).resolves.toBe(false);
+    }
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("1");
+    await expect(readBenchGovernorForce()).resolves.toBe(true);
+    expect(buildGovernorParams(model, device("QRD8650"), memory, true)).toMatchObject({
+      enabled: true,
+      generation: "V75",
+      forced: true,
+    });
   });
 
   test("refuses unknown KV and 8 GiB devices", () => {
