@@ -1333,6 +1333,10 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 1,4-1,9 del prior prewarm; il ≥3× del fork non è supportato. Prossimo: REPORT (Luna) +
 > audit (deepseek); fix run 5: logcat atomico con retry, target cooldown 37 °C/cap 12 min.
 
+> **5/09 12:10 EDT Mac — moe-stream: 659a644 (`isDevBuild()`) → ci.yml VERDE ed E2E on push
+> VERDE con inferenza reale.** APK build rilanciata da me: run 33976887711, watcher attivo.
+> I quattro (cinque) fix del handoff sono chiusi; resta solo l'esito APK.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

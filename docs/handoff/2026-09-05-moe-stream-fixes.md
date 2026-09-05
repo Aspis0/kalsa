@@ -86,3 +86,8 @@ APK run 33972096001 (aa12471) failed at "Typecheck + logic harnesses" with the i
 `src/bench/benchConfig.ts(465,14): error TS2304: Cannot find name '__DEV__'`. apk.yml runs the
 same harness gate as e2e-emulator.yml, so the `__DEV__` fix unblocks both. Once the app session
 pushes it and ci.yml + E2E-on-push are green, the governor session re-dispatches apk.yml.
+
+## Status 2026-09-05 ~12:10 EDT — E2E GREEN, APK build re-dispatched
+659a644 (`isDevBuild()` instead of bare `__DEV__`): ci.yml GREEN (33972399509) and E2E on push
+GREEN with real inference (33972399507). APK build re-dispatched by the governor session:
+run 33976887711 (arm64-v8a, debuggable=false). Handoff closed once that APK run is green.
