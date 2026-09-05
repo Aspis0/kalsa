@@ -1,12 +1,12 @@
-# S5b report — run 4 (`sa805734`)
+# S5b report — runs 4–6
 
 ## Summary
 
-The 8 Elite run completed with `final_rc=0` [raw/driver-sa805734.log:13].
+Run 4 completed with `final_rc=0` [raw/driver-sa805734.log:13].
 
-It produced one complete A/B pair, one additional valid GPU B row, and five VOID rows [raw/sa805734/results.tsv:2-9].
+Run 4 produced one complete A/B pair, one additional valid GPU B row, and five VOID rows [raw/sa805734/results.tsv:2-9]. Run 6 adds three valid CPU A rows, two valid GPU/FAST B rows, and one `VOID(hot)` B row [raw/sa806967/results.tsv:2-7].
 
-The locked speed endpoint was not met because the complete pair failed the oracle; the observed ratio is descriptive only [raw/sa805734/results.tsv:2-3].
+Across runs 4–6, GPU prefill points are n=7 and CPU A points are n=4; the locked speed endpoint remains NOT MET under the strict oracle. Run 6’s corrected same-turn exploratory PASS-1 median is B/A=0.554 (A/B=1.81×), not an endpoint result [raw/sa806967/results.tsv:3,7; PREREG.md:64-67,137].
 
 ## Identity
 
@@ -88,6 +88,34 @@ Rows: [raw/sa806366b/results.tsv:2-7; raw/sa806366b/8-Elite_A_t1_status.txt:1; r
 
 All three valid B GPU rows were deterministic: `ids_sha=17b3765fa8caf224072703547f747e2f2a58139b7e54e266476798f3ae38c277` [raw/sa806366b/results.tsv:3,5,7]. Atomic logging recorded 30 rejection records across five `.failures` files, versus 147 in 5a; accepted refreshes were `rc=0` on attempt 1 or 2 [raw/sa806366b/8-Elite_A_t1_logcat_all.txt.failures:1-4; raw/sa806366b/8-Elite_B_t1_logcat_all.txt.failures:1-7; raw/sa806366b/8-Elite_B_t2_load.txt.failures:1; raw/sa806366b/8-Elite_B_t2_logcat_all.txt.failures:1-10; raw/sa806366b/8-Elite_B_t3_logcat_all.txt.failures:1-8].
 
-Across runs, GPU points are now n=5: 3200.713 and 3228.259 ms in run 4, then 3325.721, 3324.109, and 3325.665 ms in 5b [raw/sa805734/results.tsv:3,7; raw/sa806366b/results.tsv:3,5,7]. The CPU A point remains n=1 at 5945.225 ms [raw/sa805734/results.tsv:2]. The descriptive B/A range is 0.54–0.56 (A/B 1.79–1.86×): inside the 1.4–1.9× prewarm-prior band, not the fork’s ≥3× [raw/sa805734/results.tsv:2-3,7; raw/sa806366b/results.tsv:2-7].
+Across runs, GPU points are now n=5: 3200.713 and 3228.259 ms in run 4, then 3325.721, 3324.109, and 3325.665 ms in 5b [raw/sa805734/results.tsv:3,7; raw/sa806366b/results.tsv:3,5,7]. The CPU A point remains n=1 at 5945.225 ms [raw/sa805734/results.tsv:2]. The descriptive B/A range is 0.54–0.56 (A/B approximately 1.8×): inside the 1.4–1.9× prewarm-prior band, not the fork’s ≥3× [raw/sa805734/results.tsv:2-3,7; raw/sa806366b/results.tsv:2-7].
 
 The pre-registered endpoint remains **NOT MET**: zero valid A rows produced zero adjacent A/B pairs [raw/sa806366b/results.tsv:2-7]. Thermal asymmetry caused this: GPU rows ended at 46.37–47.007 °C, while the post-GPU A cooldowns capped at 37.078/37.248 °C after 720 s; B cooldowns reached 37.0 °C in 75–435 s [raw/sa806366b/results.tsv:3-7; raw/sa806366b/8-Elite_A_t2_cooldown.txt:49; raw/sa806366b/8-Elite_A_t3_cooldown.txt:49; raw/sa806366b/8-Elite_B_t1_cooldown.txt:30; raw/sa806366b/8-Elite_B_t2_cooldown.txt:6; raw/sa806366b/8-Elite_B_t3_cooldown.txt:9]. Thus every A after B was `VOID(hot)` and no further pair existed [raw/sa806366b/8-Elite_A_t2_status.txt:1; raw/sa806366b/8-Elite_A_t3_status.txt:1].
+
+## Run 6 (sa806967, 2026-09-05) — per-arm cooldown, two adjacent pairs
+
+**Endpoint verdict first: NOT MET.** Both strict adjacent oracle pairs failed; PASS-1 is exploratory here [raw/sa806967/results.tsv:3-7; PREREG.md:137]. The run ended `END reason=exit_0` with `final_rc=0` [raw/sa806967/END.txt:1; raw/driver-sa806967.log:12].
+
+The preserved run-6 driver selected A=38.5 °C and B=37.0 °C with a 900 s cap [d_run.run6.bak.sh:257-266; parse.run6.bak.sh:73-93].
+Device identity was serial `55b03820`, SoC `SM8750`, and model `Sun for arm64` [raw/sa806967/recon.txt:1-8].
+
+| arm/turn | TTFT ms | decode tok/s | route/state | skin before→after °C | cooldown s | oracle |
+|---|---:|---:|---|---:|---:|---|
+| A1 | 5855.472 | 26.779 | CPU | 33.158→42.719 | 0 | — [raw/sa806967/results.tsv:2; raw/sa806967/8-Elite_A_t1_status.txt:1] |
+| B1 | 3323.508 | 26.580 | GPU/FAST | 36.919→45.279 | 195 | FAIL [raw/sa806967/results.tsv:3; raw/sa806967/8-Elite_B_t1_status.txt:1] |
+| A2 | 6182.904 | 26.439 | CPU | 38.411→47.889 | 285 | — [raw/sa806967/results.tsv:4; raw/sa806967/8-Elite_A_t2_status.txt:1] |
+| B2 | na | na | VOID(hot) | na→37.066 (at 900 s cap) | 900 | VOID [raw/sa806967/results.tsv:5; raw/sa806967/8-Elite_B_t2_status.txt:1; raw/sa806967/8-Elite_B_t2_cooldown.txt:61] |
+| A3 | 6155.242 | 26.638 | CPU | 37.375→46.675 | 0 | — [raw/sa806967/results.tsv:6; raw/sa806967/8-Elite_A_t3_status.txt:1] |
+| B3 | 3321.319 | 26.937 | GPU/FAST | 36.986→46.392 | 855 | FAIL [raw/sa806967/results.tsv:7; raw/sa806967/8-Elite_B_t3_status.txt:1] |
+
+B1/B3 carried `commit_bytes=12114944`, `commit_ms=10.455/10.796`, and GPU chunks `2+128+128+128+128+128+128+128+27` [raw/sa806967/8-Elite_B_t1_status.txt:1; raw/sa806967/8-Elite_B_t3_status.txt:1; raw/sa806967/results.tsv:3,7].
+
+Strict oracle: A1/B1 and A3/B3 fail. A1/B1, A2/B1, and A3/B3 all differ only at index 29, A=`640` and B=`1194`, then re-converge at indices 30–32; this repeats run 4 [raw/sa806967/8-Elite_A_t1_ids.txt:30-32; raw/sa806967/8-Elite_A_t2_ids.txt:30-32; raw/sa806967/8-Elite_A_t3_ids.txt:30-32; raw/sa806967/8-Elite_B_t1_ids.txt:30-32; raw/sa806967/8-Elite_B_t3_ids.txt:30-32; raw/sa805734/8-Elite_A_t1_ids.txt:30-32; raw/sa805734/8-Elite_B_t1_ids.txt:30-32]. PREREG requires the “median of each B prefill_ms divided by its same-turn A promptMs … adjacent A/B pairs” [PREREG.md:64-67]. Thus A1/B1=`3323.508/5855.472=0.5676` and A3/B3=`3321.319/6155.242=0.5396`; A2/B2 has no valid B [raw/sa806967/results.tsv:2-7]. Under exploratory PASS-1, the same-turn pairs pass and their median is `median(0.5676,0.5396)=0.5536→0.554` (A/B `1.81×`), descriptive only [raw/sa806967/results.tsv:2-7]. B1/A2=`3323.508/6182.904=0.5375` is not a pre-registered pair; shown only because A2 started warm (38.4 °C) — it is the LOWER ratio, so the post-hoc temptation ran in favour of the governor and was refused [raw/sa806967/results.tsv:3-4]. An earlier draft paired B1/A2 at the orchestrator's instruction; corrected on audit to the pre-registered same-turn rule. PASS-1 is pre-registered for runs 7+ only; for runs 4–6 it is an exploratory reading and the strict verdict stands. This is descriptive, inside the 1.4–1.9× prewarm-prior band and below the fork’s ≥3× expectation [PREREG.md:135,137].
+
+The fairness caveat materialised: A2/A3 were ≈5.6%/5.1% slower than A1, using the recorded A TTFTs; that bias is against CPU [raw/sa806967/results.tsv:2,4,6]. The per-arm scheme rescued 3/3 valid A rows versus 0/3 in run 5b, at the cost of B2 [raw/sa806967/results.tsv:2,4,6; raw/sa806366b/results.tsv:2,4,6; raw/sa806967/results.tsv:5].
+
+The B target falsified PREREG:130’s “always reached in 75–435 s” statement. After A2 ended at 47.889 °C, B2 still read 37.066 °C at 900 s; B3 required 855 s [raw/sa806967/results.tsv:4; raw/sa806967/8-Elite_B_t2_cooldown.txt:61; raw/sa806967/8-Elite_B_t3_status.txt:1]. Decode was near-parity descriptively: A=`26.779/26.439/26.638` versus valid B=`26.580/26.937` tok/s [raw/sa806967/results.tsv:2-7].
+
+Cross-run prefill points are GPU n=7: `3200.713, 3228.259` [raw/sa805734/results.tsv:3,7], `3325.721, 3324.109, 3325.665` [raw/sa806366b/results.tsv:3,5,7], and `3323.508, 3321.319` [raw/sa806967/results.tsv:3,7]; CPU n=4: `5945.225` [raw/sa805734/results.tsv:2] and `5855.472, 6182.904, 6155.242` [raw/sa806967/results.tsv:2,4,6].
+
+**Verdict:** the pre-registered endpoint is NOT MET under the strict oracle; corrected exploratory PASS-1 gives a descriptive 1.81× governor prefill on 8 Elite in-app, not an endpoint win. Recommend BANK as descriptive only and defer the strict-oracle question to the 750 divergence study (`docs/GPU-PREFILL-DIVERGENCE*`).
