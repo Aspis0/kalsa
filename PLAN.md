@@ -1150,6 +1150,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > audit deepseek in corso. Aspetto il fix perf del fork (9392e981) per pin bump
 > + sync + UNA CI, poi delta audit 9 (gate + perf + pin).
 
+> **6/09 07:00 Mac — Fix timer perf nel fork (Luna 9392e981): `e31b9144c`
+> `perf_reset()` chiama `synchronize()` e azzera `t_compute_start_us`/
+> `n_queued_tokens` (+ `tests/test-perf-reset.cpp`); build/router/turns 0;
+> pushato su Aspis0/kalsallama.** Sospetto passato all'audit: il test stampa
+> `prompt_ms=0.000` dopo un batch di 2 token (dovrebbe essere > 0). In volo:
+> pin bump + sync + UNA CI (ee4741e9) e delta audit 9 di grok (gate V75
+> f98a9fa + perf e31b914 + pin). Poi run 7 sull'8 Elite: primo TTFT equo.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
