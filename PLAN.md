@@ -999,6 +999,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Stato S5: bancata con 4 run, 2 bug engine + 3 bug integrazione trovati e
 > fixati, gate termico osservato. In volo: fix "Wait → prefill CPU" (ee4741e9).
 
+> **6/09 04:40 Mac — Fix "Wait → prefill CPU" consegnato (Luna ee4741e9): fork
+> `a6642b73d` (route decisa UNA volta per turno al primo batch multi-token:
+> Wait o CPUFallback-non-FAST ⇒ tutto il prompt su ctx_decode, etichetta CPU,
+> commit 0, `prefill_chunks "cpu:N"`; altrimenti GPU per tutto il turno), app
+> `0517dc2` (pin + sync). Test: hot ⇒ CPU/commit 0/posizioni coerenti; cool ⇒
+> GPU + commit. Build/router/turns 0. CI 33951262697 in volo. Delta audit 7 →
+> grok (attenzione: assert `generated >= 0` nel test hot è debole; condizione
+> `thermal_state != FAST` per il CPUFallback da giustificare).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
