@@ -1,7 +1,7 @@
 #!/bin/bash
 set -u
 CELL=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b
-DRIVER="$CELL/d_run.next.sh"
+DRIVER="$CELL/d_run.sh"
 RAW_LOG=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803287/QRD8650_A_t1_logcat_all.txt
 TMP=$(/usr/bin/mktemp -d /tmp/kalsa-s5-dryrun.XXXXXX)
 THERMAL_INPUT="$TMP/thermal.txt"; THERMAL_READY="$TMP/thermal-ready.txt"; THERMAL_HOT="$TMP/thermal-hot.txt"; THERMAL_VERY_HOT="$TMP/thermal-very-hot.txt"; THERMAL_HOT_AFTER="$TMP/thermal-hot-after.txt"; THERMAL_MISSING="$TMP/thermal-missing.txt"; THERMAL_COUNTER="$TMP/thermal-count"; LOGCAT_MODE=normal; LOGCAT_CALLS=0; COMPOSER_MODE=legacy; SEND_TAPS=0
