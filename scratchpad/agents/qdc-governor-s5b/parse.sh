@@ -7,16 +7,17 @@ last_reuse_after() { awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&/reusing [0-9]+\/[0
 json_field() { local json="$1"; local key="$2"; [ -n "$json" ] || return 0; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$k=shift;$t=do{local $/;<STDIN>};eval{$v=decode_json($t)->{$k};print defined($v)?$v:""}' "$key"; }
 parse_tokens() { local json="$1"; local out="$2"; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$o=decode_json(do{local $/;<STDIN>});die unless ref($o->{ids}) eq "ARRAY"&&defined($o->{n})&&$o->{n}>=32&&@{$o->{ids}}>=32;for $i(0..31){$v=$o->{ids}[$i];die unless defined($v)&&"$v"=~/^-?[0-9]+$/;print "$v\n"}' > "$out" 2>/dev/null; }
 logcat_all() {
-  local requested_timeout="$1"
+  local requested_timeout="$1" timeout_s
   local file="$2"
   local tmp="${file}.tmp"
   local existing_size=0 tmp_size=0 attempt rc
   [ -f "$file" ] && existing_size=$(wc -c < "$file" | tr -d '[:space:]')
   [ -n "$existing_size" ] || existing_size=0
+  timeout_s=$(( requested_timeout > 120 ? requested_timeout : 120 ))
   LOGCAT_RC=1; LOGCAT_RETRIES=0
   for attempt in 1 2 3; do
     : > "$tmp"
-    adbT 120 -s "$SER" logcat -v epoch -d -b all > "$tmp" 2>&1
+    adbT "$timeout_s" -s "$SER" logcat -v epoch -d -b all > "$tmp" 2>&1
     rc=$?; tmp_size=$(wc -c < "$tmp" | tr -d '[:space:]')
     LOGCAT_RC="$rc"; LOGCAT_RETRIES="$attempt"
     if [ "$rc" -eq 0 ] && [ "$tmp_size" -ge "$existing_size" ] && mv "$tmp" "$file"; then return 0; fi

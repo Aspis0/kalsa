@@ -325,3 +325,45 @@ with ≈15-25 min slack; one VOID(hot) row (~13 min cost incl. the 10-min cap) s
 GO. 0 blockers, 0 majors, 2 nits (0.5-vs-0.36 °C/min wording; two hot-VOIDs would consume the
 90-min session — watch the wall clock and the deadline arg 85). V1-V4 CONFIRMED-FIXED by
 inspection and dryrun assertions; V5 amendment accurate against raw/sa805443; launch run 4.
+
+## Delta re-audit #6 (run-4 fixes)
+
+logcat_all (parse.sh:9-28) — CONFIRMED-FIXED, genuine: `: > "$tmp"`; `adbT 120 … > "$tmp"`;
+accept only `if [ "$rc" -eq 0 ] && [ "$tmp_size" -ge "$existing_size" ] && mv "$tmp" "$file"`
+(parse.sh:22); 3 tries with `[ "$attempt" -lt 3 ] && sleep 3` (:25); each rejection logged to
+"${file}.failures" (:23) with tmp cleaned (:24); LOGCAT_RC/LOGCAT_RETRIES recorded per attempt
+(:21) and surfaced in the status printf (d_run.sh:281 `… void_reason=%s logcat_rc=%s
+logcat_retries=%s`, args in order); init "na"/0 twice (d_run.sh:47 init, :254 per-row reset).
+The roll-forward behavior is exactly the run-4 lesson: the last good file survives all failed
+dumps; no mid-line truncation can land on the parsed file.
+Cooldown constants — CONFIRMED-FIXED: d_run.sh:47 `COOL_TARGET_C=37.0; COOL_POLL_S=15;
+COOL_MAX_S=720`; the status printf adds the two logcat fields (d_run.sh:281).
+dryrun fixtures — CONFIRMED-FIXED and distinguishable: dryrun.sh:99 LOGCAT_MODE=fail
+(`printf 'stub logcat failure\n'; return 7`) asserts rc≠0, file content unchanged
+(`existing-log`), LOGCAT_CALLS==3, LOGCAT_RC==7, LOGCAT_RETRIES==3, `.failures` grep rc=7;
+:100 LOGCAT_MODE=shrink (`printf 'x\n'`, rc 0 ⇒ 1 byte < 12-byte existing) asserts rejection,
+file unchanged, 3 calls, RETRIES==3 — the OLD single-shot `>`-dump would overwrite the file
+with the failure/shrunk content and never set RETRIES (set -u would crash the assertion), so
+the old code fails these assertions. Genuine.
+PREREG.md:122-124 — CONFIRMED-FIXED: "Run 4 recorded four VOID(hot) rows under
+COOL_TARGET_C=36.0 °C and a 600 s cap: the post-GPU cooldown samples remained 36.3–37.7 °C,
+while CPU-turn cooldowns reached 36.0 °C in 150–480 s" — matches A2/A3/A4/B4 600-s caps at
+36.44/36.968/37.706/36.262 and B1/B3 150/480-s successes; "ten logcat -d -b all failures"
+✓ (exactly 10); "the B2 overwrite left a truncated file" ✓ (15100 mid-line); the run-5
+countermeasures (atomic tmp, rc==0 && size>=existing, 3×/3 s, parse last good only,
+logcat_rc/logcat_retries, .failures retention, 37.0/720, VOID(hot) unchanged) all match the
+code; lock line and analysis unchanged.
+set -u sweep — clean: LOGCAT_RC/LOGCAT_RETRIES initialized in d_run.sh:47 and reset :254;
+local vars in logcat_all all initialized (`existing_size=0` with the `[ -f ]` guard, `[ -n
+"$existing_size" ] || existing_size=0`); dryrun LOGCAT_MODE/LOGCAT_CALLS init (dryrun.sh:7,35);
+no `local a=$1 b=${a}` pattern anywhere.
+Nits: (a) `requested_timeout="$1"` in logcat_all is dead — the adbT cap is hardcoded 120, so
+callers' 60/300 requests are ignored (a 300-s final dump is now capped at 120; acceptable but
+state it); (b) "CPU-turn cooldowns 150–480 s" is a loose label (B1's 150 s followed the A1 CPU
+turn; B3's 480 s followed an idle/VOID stretch) — direction correct, wording imprecise.
+
+## Delta verdict #6
+
+GO. 0 blockers, 0 majors, 2 nits (dead timeout param; loose "CPU-turn" label). logcat_all is
+atomic and evidence-preserving exactly as pre-registered, the dryrun proves the new behavior
+and falsifies the old one, constants/status/PREREG agree; launch run 5.
