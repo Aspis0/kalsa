@@ -776,6 +776,22 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Raw del falso avvio in `raw/sa803304-VOID-gate-freshboard/`. Rilanciato 22:27.
 > (Il dry-run di Luna non poteva vederlo: stubbava `pm list packages` con rc 0.)
 
+> **5/09 (22:44 Mac) — S5 run 2 (sa803304): A1 OK (TTFT 45.9 s, 24.9 tok/s,
+> `ids_sha` IDENTICO al run 1 → greedy deterministico tra sessioni), B1 =
+> PRIMO TURNO GENERATO DAL GOVERNOR, e dice tre cose sbagliate:**
+> `KALSA_GOVERNOR {engine_prefill:"CPU", engine_decode:"CPU", commit_bytes:0,
+> commit_ms:0, thermal_state:"FAST", thermo_source:"bench-skin", fit:"Fit"}`;
+> `KALSA_TELEMETRY tokensEvaluated 1329, promptMs 45154 (= CPU), tokensPredicted
+> 0`; `KALSA_BENCH_TOKENS n=0`. Cioè: modello GPU caricato (OpenCL Adreno 750,
+> 4612 MiB free, layer 0-26 su GPU, mlock fallito 223 MB = warning), ma il
+> prefill è stato instradato sulla CPU con stato FAST e fit ok, nessun commit
+> KV, e il decode ha prodotto zero token. Prewarm `done` con promptMs 0
+> (sospetto: non ha valutato). RAM: MemAvailable 8.7 → 4.5 GB a due contesti
+> (A: 8.8 → 6.4), nessun kill lmkd. Sessione 799235 chiusa (~24 min) per non
+> bruciare minuti. Raw in `raw/sa803304/`. Diagnosi → Luna ee4741e9 (ha scritto
+> il codice): tracciare la decisione di route del governor, il path del commit
+> e perché la generazione termina a 0 token; poi audit grok.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

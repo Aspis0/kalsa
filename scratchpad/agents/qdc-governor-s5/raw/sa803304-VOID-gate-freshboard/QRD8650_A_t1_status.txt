@@ -1,0 +1,1 @@
+status=1 thermo= governor_count= commit_bytes=na commit_ms=na thermo_source=na anchor_epoch=0 anchor_stamp= telemetry_rc=1

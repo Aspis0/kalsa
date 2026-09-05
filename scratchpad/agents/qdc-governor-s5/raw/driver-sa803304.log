@@ -1,0 +1,6 @@
+MEM before=8765656 after=6445352
+A	1	45951.471	24.9396701933346	na	na	na	28.665	28.665	0	0	0f4b385a2e6a668d9502ba5928c099b029edb5bf766aa44a82c6d15c74c27ebf	na
+MEM before=8736428 after=4546484
+B	1	45154.33	0	CPU	CPU	FAST	28.665	28.665	0	0	na	VOID
+[22:44:15] ABORT arm=B turn=1
+[22:44:15] DONE board=QRD8650 final_rc=1 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5/raw/sa803304/results.tsv
