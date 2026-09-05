@@ -1289,6 +1289,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > skin post-turno registrata non gatata, dumpsys con retry, deadline parametrica (85 min,
 > sessione da 90). Sessione chiusa. Budget 8 Elite ≈525 min.
 
+> **5/09 10:15 EDT Mac — moe-stream: i 5 fix dell'altra sessione sono su origin (F1 migrazione
+> detect-only + banner, F2 ci.yml + E2E on push, F3 doc privacy + test, F4 kvBytesPerToken
+> 6656 nella voce LFM).** Il gate nuovo è scattato al primo push: typecheck ROSSO,
+> `isDocumentUnreadable` importato in AppShell/DocumentDetailView ma definito da nessuna parte
+> (rotto da B5, prima dei fix). Dispatch APK+E2E rimandato a typecheck verde; handoff aggiornato.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.

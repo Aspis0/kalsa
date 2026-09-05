@@ -56,3 +56,17 @@ governor session dispatches APK build + E2E on `feat/moe-stream`.
 F4 added `kvBytesPerToken: 6656` (governor-measured) to the `lfm2.5-2.6b` entry alongside its
 existing `sizeClass` / `recommendForTiers` — both fields must survive the merge with
 `feat/governor-in-app`.
+
+## Status 2026-09-05 ~10:15 EDT — fixes landed, CI gate RED
+Five commits on origin/feat/moe-stream (92632a7 F1 detect-only migration, e5f8335 F2 ci.yml,
+e7aa0c6 F3 doc+test, f44c36f F4 kvBytesPerToken 6656, bd8e4e9 F1 keep-set merge). Verified:
+detect-only at boot + `deleteOrphanDirs` only from the Settings banner; `kalsa.web`… n/a;
+`kvBytesPerToken: 6656` adjacent to `sizeClass` in the LFM entry; e2e on push for the branch;
+ci.yml typecheck+jest on `feat/**`.
+The new gate fired on its first push and is RED: `npx tsc --noEmit` →
+`src/app/AppShell.tsx(18,3)` and `src/screens/documents/DocumentDetailView.tsx(23,3)`:
+`Module '"…/documents/DocumentLibrary"' has no exported member 'isDocumentUnreadable'`.
+`git grep isDocumentUnreadable` on the branch finds only the two import sites and three call
+sites — no definition anywhere. Broken since B5 (070b5f9), before the fixes: the branch has
+never typechecked since then. E2E on push fails at the same step.
+APK build + E2E dispatch by the governor session is DEFERRED until typecheck is green.
