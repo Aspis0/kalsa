@@ -662,6 +662,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > delta audit grok unico (fix S3+S4, contratto, vendor, Kotlin), poi lock
 > PREREG con lo sha dell'artifact.
 
+> **5/09 ~06:00 — Pin bump + Kotlin consegnati (ee4741e9): `04ba9a9` pin →
+> e131345b7 con vendor rigenerato dal sync (diff: pin, VENDOR_SHA, build-info,
+> llama-ext.h, llama-governor.h — runtime.cpp/governor.cpp del vendor già
+> uguali al fork), `c5c55a4` import `com.facebook.react.ReactPackage`.**
+> Verificato da me: pin, righe h nel vendor, import, origin = c5c55a4. Jest
+> 15/15, tsc 0, npm ci 0, prebuild 0 (dichiarati). CI APK debug
+> 33932740946 su c5c55a4 in volo. **Delta audit grok** (2f3f58ef) lanciato su
+> tutto il delta: 16 finding S3+S4, contratto sampling (n_probs:1, ids,
+> path non-greedy intatto), purezza del vendor vs fork e131345b7, Kotlin,
+> CI. Appende in `docs/AUDIT-S3S4-governor-app.md`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
