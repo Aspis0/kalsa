@@ -1128,6 +1128,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > miscompilato da E031/A7X; nessun flag di fix nel fork; contenimento possibile
 > via `GGML_OPENCL_OPFILTER`; esperimento #1 = test-backend-ops sulla board.
 
+> **6/09 06:35 Mac — RISOLTO il mistero del TTFT 41-45 s del braccio A (Luna
+> 9392e981, `docs/ARM-A-PREFIX-REUSE-2026-09-06.md`): A RIUSA il prefisso come B
+> (`reusing 1314/1329`, `n_past=1314` in tutte le run), il `promptMs` è timer
+> inquinato — `llama_perf_context_reset` azzera `t_p_eval_us`/`n_p_eval` ma non
+> `t_compute_start_us`/`n_queued_tokens`, usati da `synchronize()` per
+> accumulare il tempo di prompt → include l'attesa fra prewarm e Send (run 5:
+> gap 44.5 s ≈ 44.9 s riportati; run 4: gap 20 ms ≈ 335 ms).** Conseguenze:
+> (a) il TTFT del turno A/B DIVENTA equo (entrambi 15 token nuovi) appena il
+> timer è corretto; (b) i 42-45 s di A nei run 3/5/6 non sono prefill.
+> Fix nel fork (`llama_perf_context_reset` azzera anche lo stato asincrono +
+> test di regressione con sleep) → Luna 9392e981, un commit, senza push; pin
+> bump dopo il gate V75 di ee4741e9, poi UNA CI.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
