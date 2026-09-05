@@ -354,21 +354,8 @@ index 8ef1659..b26b8f2 100644
              ${GGML_OPENCL_KERNEL_HEADERS}
          )
          target_compile_options(${target_name} PRIVATE
-diff --git a/node_modules/llama.rn/ios/CMakeLists.txt b/node_modules/llama.rn/ios/CMakeLists.txt
-index 1ee4eab..f696721 100644
---- a/node_modules/llama.rn/ios/CMakeLists.txt
-+++ b/node_modules/llama.rn/ios/CMakeLists.txt
-@@ -113,6 +113,8 @@ add_library(rnllama SHARED
- 
-     # React Native llama APIs
-     ${SOURCE_DIR}/rn-llama.cpp
-+    ${SOURCE_DIR}/rn-governor.cpp
-+    ${SOURCE_DIR}/rn-governor-params.cpp
-     ${SOURCE_DIR}/rn-completion.cpp
-     ${SOURCE_DIR}/rn-slot.cpp
-     ${SOURCE_DIR}/rn-slot-manager.cpp
 diff --git a/node_modules/llama.rn/cpp/common/common.cpp b/node_modules/llama.rn/cpp/common/common.cpp
-index 740d622..fdf80ce 100644
+index 93b2032..5e92298 100644
 --- a/node_modules/llama.rn/cpp/common/common.cpp
 +++ b/node_modules/llama.rn/cpp/common/common.cpp
 @@ -432,6 +432,9 @@ std::string common_params_get_system_info(const common_params & params) {
@@ -382,10 +369,10 @@ index 740d622..fdf80ce 100644
  }
  
 diff --git a/node_modules/llama.rn/cpp/common/common.h b/node_modules/llama.rn/cpp/common/common.h
-index 11cb8b5..84979e9 100644
+index 080bc20..8014f35 100644
 --- a/node_modules/llama.rn/cpp/common/common.h
 +++ b/node_modules/llama.rn/cpp/common/common.h
-@@ -581,6 +581,24 @@ struct common_params {
+@@ -583,6 +583,24 @@ struct common_params {
      bool check_tensors     = false; // validate tensor data
      bool no_op_offload     = false; // globally disable offload host tensor operations to device
      bool no_extra_bufts    = false; // disable extra buffer types (used for weight repacking)
@@ -411,7 +398,7 @@ index 11cb8b5..84979e9 100644
  
      bool single_turn       = false; // single turn chat conversation
 diff --git a/node_modules/llama.rn/cpp/jsi/JSICompletion.h b/node_modules/llama.rn/cpp/jsi/JSICompletion.h
-index f9e3e09..f8f8840 100644
+index f9e3e09..c4ce9f9 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSICompletion.h
 +++ b/node_modules/llama.rn/cpp/jsi/JSICompletion.h
 @@ -49,7 +49,7 @@ namespace rnllama_jsi {
@@ -475,15 +462,34 @@ index f9e3e09..f8f8840 100644
          res.setProperty(runtime, "tokens_predicted", (double)ctx->completion->num_tokens_predicted);
          res.setProperty(runtime, "tokens_evaluated", (double)ctx->completion->num_prompt_tokens);
          res.setProperty(runtime, "draft_tokens", (double)ctx->completion->num_draft_tokens);
-@@ -182,7 +190,7 @@ namespace rnllama_jsi {
+@@ -182,14 +190,22 @@ namespace rnllama_jsi {
              res.setProperty(runtime, "audio_tokens", audioTokens);
          }
  
 -        const auto timings = llama_perf_context(ctx->ctx);
 +        const auto timings = llama_perf_context(ctx->active_ctx());
++        const auto governor_stats = ctx->governorStats();
++        const bool governor_prefill = ctx->hasGovernor() && governor_stats.prefill_n > 0;
++        const double prompt_n = governor_prefill
++            ? (double) governor_stats.prefill_n
++            : (double) timings.n_p_eval;
++        const double prompt_ms = governor_prefill
++            ? (double) governor_stats.prefill_us / 1000.0
++            : (double) timings.t_p_eval_ms;
  
          jsi::Object timingsObj(runtime);
          timingsObj.setProperty(runtime, "cache_n", (double)ctx->completion->n_past);
+-        timingsObj.setProperty(runtime, "prompt_n", (double)timings.n_p_eval);
+-        timingsObj.setProperty(runtime, "prompt_ms", (double)timings.t_p_eval_ms);
+-        const double prompt_per_token_ms = timings.n_p_eval > 0 ? timings.t_p_eval_ms / timings.n_p_eval : 0.0;
+-        const double prompt_per_second = timings.t_p_eval_ms > 0 ? 1e3 / timings.t_p_eval_ms * timings.n_p_eval : 0.0;
++        timingsObj.setProperty(runtime, "prompt_n", prompt_n);
++        timingsObj.setProperty(runtime, "prompt_ms", prompt_ms);
++        const double prompt_per_token_ms = prompt_n > 0 ? prompt_ms / prompt_n : 0.0;
++        const double prompt_per_second = prompt_ms > 0 ? 1e3 / prompt_ms * prompt_n : 0.0;
+         timingsObj.setProperty(runtime, "prompt_per_token_ms", prompt_per_token_ms);
+         timingsObj.setProperty(runtime, "prompt_per_second", prompt_per_second);
+ 
 diff --git a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp b/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
 index 650349e..44056ed 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSIParams.cpp
@@ -802,7 +808,7 @@ index fa4cbad..8d31171 100644
          }
  
 diff --git a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
-index aaab748..a02aead 100644
+index aaab748..6b137d6 100644
 --- a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
 +++ b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
 @@ -9,6 +9,8 @@
@@ -1120,7 +1126,7 @@ index aaab748..a02aead 100644
                          throw std::runtime_error("Failed to load model");
                      }
                  }, contextId);
-@@ -711,6 +817,59 @@ namespace rnllama_jsi {
+@@ -711,6 +817,62 @@ namespace rnllama_jsi {
          );
          runtime.global().setProperty(runtime, "llamaGetBackendDevicesInfo", getBackendDevicesInfo);
  
@@ -1168,6 +1174,9 @@ index aaab748..a02aead 100644
 +                            result.setProperty(rt, "engine_decode", governorEngineName(stats.decode_engine));
 +                            result.setProperty(rt, "commit_bytes", (double) stats.commit_bytes);
 +                            result.setProperty(rt, "commit_ms", (double) stats.commit_us / 1000.0);
++                            result.setProperty(rt, "prefill_ms", (double) stats.prefill_us / 1000.0);
++                            result.setProperty(rt, "prefill_chunks", jsi::String::createFromUtf8(rt, stats.prefill_chunks));
++                            result.setProperty(rt, "prefill_ctx_ngl", (double) stats.prefill_ctx_ngl);
 +                            result.setProperty(rt, "thermal_state", governorThermalStateName(stats.thermal_state));
 +                            result.setProperty(rt, "failure_reason", jsi::String::createFromUtf8(rt, failure));
 +                            return result;
@@ -1180,7 +1189,7 @@ index aaab748..a02aead 100644
          auto loadSession = jsi::Function::createFromHostFunction(runtime,
              jsi::PropNameID::forAscii(runtime, "llamaLoadSession"),
              2,
-@@ -792,7 +951,7 @@ namespace rnllama_jsi {
+@@ -792,7 +954,7 @@ namespace rnllama_jsi {
  
                  return createPromiseTask(runtime, callInvoker, [contextId, tokens]() -> PromiseResultGenerator {
                      auto ctx = getContextOrThrow(contextId);
@@ -1189,7 +1198,7 @@ index aaab748..a02aead 100644
                      return [text](jsi::Runtime& rt) {
                          return jsi::String::createFromUtf8(rt, text);
                      };
-@@ -872,8 +1031,8 @@ namespace rnllama_jsi {
+@@ -872,8 +1034,8 @@ namespace rnllama_jsi {
                                if (!chatParams.thinking_start_tag.empty()) {
                                    result.setProperty(rt, "thinking_start_tag", jsi::String::createFromUtf8(rt, chatParams.thinking_start_tag));
                                }
@@ -1200,7 +1209,7 @@ index aaab748..a02aead 100644
                                }
  
                                // Preserve the same shape as legacy native bridge
-@@ -1045,6 +1204,13 @@ namespace rnllama_jsi {
+@@ -1045,6 +1207,13 @@ namespace rnllama_jsi {
  
                  parseCompletionParams(runtime, params, ctx);
  
@@ -1214,7 +1223,7 @@ index aaab748..a02aead 100644
                  std::vector<std::string> mediaPaths;
                  if (params.hasProperty(runtime, "media_paths")) {
                      jsi::Array paths = params.getProperty(runtime, "media_paths").asObject(runtime).asArray(runtime);
-@@ -1074,7 +1240,7 @@ namespace rnllama_jsi {
+@@ -1074,7 +1243,7 @@ namespace rnllama_jsi {
                      }
                  }
  
@@ -1223,7 +1232,7 @@ index aaab748..a02aead 100644
                      auto ctx = getContextOrThrow(contextId);
  
                      if (ctx->completion == nullptr) {
-@@ -1082,6 +1248,10 @@ namespace rnllama_jsi {
+@@ -1082,6 +1251,10 @@ namespace rnllama_jsi {
                      }
                      throwIfContextBusy(ctx);
  
@@ -1234,7 +1243,7 @@ index aaab748..a02aead 100644
                      if (!guide_tokens.empty() && ctx->tts_wrapper != nullptr) {
                          ctx->params.vocoder.use_guide_tokens = true;
                          ctx->tts_wrapper->setGuideTokens(guide_tokens);
-@@ -1121,7 +1291,7 @@ namespace rnllama_jsi {
+@@ -1121,7 +1294,7 @@ namespace rnllama_jsi {
                              continue;
                          }
  
@@ -1243,7 +1252,7 @@ index aaab748..a02aead 100644
                          size_t pos = std::min(sent_count, ctx->completion->generated_text.size());
                          const std::string str_test = ctx->completion->generated_text.substr(pos);
  
-@@ -1176,9 +1346,14 @@ namespace rnllama_jsi {
+@@ -1176,9 +1349,14 @@ namespace rnllama_jsi {
                          }
                      }
  
@@ -1260,7 +1269,7 @@ index aaab748..a02aead 100644
                      return [contextId](jsi::Runtime& rt) -> jsi::Value {
                          // Check if context is still valid (may have been released during async callback)
                          long ctxPtr = g_llamaContexts.get(contextId);
-@@ -1387,7 +1562,7 @@ namespace rnllama_jsi {
+@@ -1387,7 +1565,7 @@ namespace rnllama_jsi {
                              auto timings = slot->get_timings();
                              auto token_probs = slot->generated_token_probs;
                              if (slot->parent_ctx && slot->ctx_sampling) {
@@ -1269,7 +1278,7 @@ index aaab748..a02aead 100644
                              }
  
                              rnllama::completion_chat_output final_output;
-@@ -1518,7 +1693,7 @@ namespace rnllama_jsi {
+@@ -1518,7 +1696,7 @@ namespace rnllama_jsi {
                      const llama_vocab* vocab = llama_model_get_vocab(ctx->model);
                      const bool add_bos = llama_vocab_get_add_bos(vocab);
                      const bool is_enc_dec = llama_model_has_encoder(ctx->model);
@@ -1279,7 +1288,7 @@ index aaab748..a02aead 100644
                      auto resultCallback = [contextId, callInvoker, runtimePtr](int32_t requestId, const std::vector<float>& embedding) {
                          auto callbacks = RequestManager::getInstance().getRequest(contextId, requestId);
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..e7fdc26 100644
+index a60bd15..817eab3 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
 @@ -42,6 +42,7 @@ void llama_rn_context_completion::rewind() {
@@ -1290,7 +1299,7 @@ index a60bd15..e7fdc26 100644
      num_draft_tokens = 0;
      num_draft_tokens_accepted = 0;
      resetGenerationTimings();
-@@ -178,7 +178,7 @@ void llama_rn_context_completion::captureStateCheckpoint() {
+@@ -178,7 +179,7 @@ void llama_rn_context_completion::captureStateCheckpoint() {
  
  void llama_rn_context_completion::captureStateCheckpoint(
          const std::vector<llama_token> &seq, size_t n) {
@@ -1299,7 +1308,7 @@ index a60bd15..e7fdc26 100644
          return;
      }
      if (n == 0 || n > seq.size()) {
-@@ -193,7 +193,7 @@ void llama_rn_context_completion::captureStateCheckpoint(
+@@ -193,7 +194,7 @@ void llama_rn_context_completion::captureStateCheckpoint(
      }
  
      const size_t size = llama_state_seq_get_size_ext(
@@ -1308,7 +1317,7 @@ index a60bd15..e7fdc26 100644
      if (size == 0) {
          return;
      }
-@@ -228,7 +228,7 @@ void llama_rn_context_completion::captureStateCheckpoint(
+@@ -228,7 +229,7 @@ void llama_rn_context_completion::captureStateCheckpoint(
          return;
      }
      const size_t written = llama_state_seq_get_data_ext(
@@ -1317,7 +1326,7 @@ index a60bd15..e7fdc26 100644
          LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
      if (written == 0) {
          // Can fail under memory pressure; the old snapshot at this boundary
-@@ -273,10 +273,10 @@ int llama_rn_context_completion::findStateCheckpoint(
+@@ -273,10 +274,10 @@ int llama_rn_context_completion::findStateCheckpoint(
  bool llama_rn_context_completion::recoverStateCheckpoint(
          const std::vector<llama_token> &target, size_t max_reuse,
          size_t total_tokens, llama_pos &n_past_out) {
@@ -1330,7 +1339,7 @@ index a60bd15..e7fdc26 100644
      // Never select a full-prompt snapshot: one token must remain to evaluate,
      // and freeing it with a post-restore seq_rm(k-1) would roll back onto stale
      // rollback-ring state. A shorter snapshot leaves room by construction.
-@@ -294,12 +294,12 @@ bool llama_rn_context_completion::recoverStateCheckpoint(
+@@ -294,12 +295,12 @@ bool llama_rn_context_completion::recoverStateCheckpoint(
  }
  
  bool llama_rn_context_completion::restoreStateCheckpoint(size_t index) {
@@ -1345,7 +1354,7 @@ index a60bd15..e7fdc26 100644
          LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
      if (read == 0) {
          LOG_WARNING("state checkpoint restore failed (n_tokens=%zu)", c.n_tokens());
-@@ -362,7 +362,7 @@ std::vector<llama_pos> llama_rn_context_completion::computeMessageBoundaries(
+@@ -362,7 +363,7 @@ std::vector<llama_pos> llama_rn_context_completion::computeMessageBoundaries(
              continue;
          }
          // Whitespace between delimiters keeps the run open.
@@ -1354,7 +1363,7 @@ index a60bd15..e7fdc26 100644
          if (!piece.empty() && piece.find_first_not_of(" \t\r\n") == std::string::npos) {
              continue;
          }
-@@ -390,7 +390,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -390,7 +391,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
      if (!has_media) {
          std::vector<llama_token> text_tokens;
          // Text-only path - use modified tokenization for encoder-decoder models
@@ -1363,7 +1372,7 @@ index a60bd15..e7fdc26 100644
          num_prompt_tokens = text_tokens.size();
  
          // LOG tokens
-@@ -427,6 +427,65 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -427,6 +428,65 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
          // n_common = shared prefix with the live cache; it bounds how far a
          // checkpoint may be trusted.
          size_t n_common = is_enc_dec ? 0 : find_common_prefix_length(embd, text_tokens);
@@ -1429,7 +1438,7 @@ index a60bd15..e7fdc26 100644
          // A mem-shared MTP draft leaves stale speculative cells in the target's
          // SHARED KV window that upstream never cleans (TAG_KV_CACHE_SHARE_CELLS,
          // see initMTP). Reusing any prefix — even the plain seq_rm fast path —
-@@ -436,6 +495,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -436,6 +496,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
          if (mtp_draft_mem_shared) {
              n_common = 0;
          }
@@ -1452,7 +1461,7 @@ index a60bd15..e7fdc26 100644
          n_past = (llama_pos) n_common;
  
          embd = text_tokens;
-@@ -446,7 +521,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -446,7 +522,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
  
          // Manage KV cache
          probeStateCache();
@@ -1461,7 +1470,7 @@ index a60bd15..e7fdc26 100644
          if (mtp_draft_mem_shared) {
              llama_memory_clear(kv, false);  // drop the polluted shared window
          }
-@@ -459,6 +534,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -459,6 +535,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
                  LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
                      n_past, num_prompt_tokens);
              } else {
@@ -1483,7 +1492,7 @@ index a60bd15..e7fdc26 100644
                  LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
                  llama_memory_clear(kv, false);
                  clearStateCheckpoints();
-@@ -518,8 +608,8 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -518,8 +609,8 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
  
          LOG_VERBOSE("prompt ingested, n_past: %d, cached: %s, to_eval: %s",
              n_past,
@@ -1494,7 +1503,7 @@ index a60bd15..e7fdc26 100644
          );
      } else {
          // Multimodal path - process all media paths
-@@ -546,7 +636,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -546,7 +637,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
                      n_eval = parent_ctx->params.n_batch;
                  }
  
@@ -1503,16 +1512,17 @@ index a60bd15..e7fdc26 100644
                  if (ret < 0) {
                      LOG_ERROR("Failed to encode token batch, code: %d, n_eval: %d, n_past_batch: %d", ret, n_eval, n_past_batch);
                      has_next_token = false;
-@@ -587,7 +677,7 @@ void llama_rn_context_completion::beginCompletion() {
+@@ -587,7 +678,8 @@ void llama_rn_context_completion::beginCompletion() {
  void llama_rn_context_completion::beginCompletion(int chat_format, common_reasoning_format reasoning_format, const std::string &generation_prompt, const std::string &chat_parser) {
      // number of tokens to keep when resetting context
      n_remain = parent_ctx->params.n_predict;
 -    llama_perf_context_reset(parent_ctx->ctx);
++    parent_ctx->resetGovernorPrefillStats();
 +    llama_perf_context_reset(parent_ctx->active_ctx());
      resetGenerationTimings();
      is_predicting = true;
  
-@@ -626,9 +716,17 @@ void llama_rn_context_completion::updateGenerationTiming() {
+@@ -626,9 +718,17 @@ void llama_rn_context_completion::updateGenerationTiming() {
  }
  
  bool llama_rn_context_completion::shouldUseMTP() const {
@@ -1532,7 +1542,7 @@ index a60bd15..e7fdc26 100644
  }
  
  void llama_rn_context_completion::resetSpeculative() {
-@@ -662,7 +760,7 @@ void llama_rn_context_completion::initMTP() {
+@@ -662,7 +762,7 @@ void llama_rn_context_completion::initMTP() {
  
      const auto n_mtp = parent_ctx->params.speculative.draft.n_max;
      if ((llama_model_is_recurrent(parent_ctx->model) || llama_model_is_hybrid(parent_ctx->model)) &&
@@ -1541,7 +1551,7 @@ index a60bd15..e7fdc26 100644
          throw std::runtime_error(
              "MTP for recurrent or hybrid models must be enabled when loading the model "
              "with speculative.type='draft-mtp' and speculative.n_max/spec_draft_n_max set");
-@@ -675,7 +773,7 @@ void llama_rn_context_completion::initMTP() {
+@@ -675,7 +775,7 @@ void llama_rn_context_completion::initMTP() {
          throw std::runtime_error("failed to create MTP draft context");
      }
  
@@ -1550,7 +1560,7 @@ index a60bd15..e7fdc26 100644
      parent_ctx->params.speculative.draft.ctx_dft = spec_ctx.get();
  
      spec = common_speculative_init(parent_ctx->params.speculative, 1);
-@@ -683,14 +781,14 @@ void llama_rn_context_completion::initMTP() {
+@@ -683,14 +783,14 @@ void llama_rn_context_completion::initMTP() {
          throw std::runtime_error("failed to initialize MTP speculative decoding");
      }
  
@@ -1567,7 +1577,7 @@ index a60bd15..e7fdc26 100644
          if (state_cache_enabled) {
              LOG_INFO("state cache disabled for this turn: mem-shared MTP draft "
                       "(shared-cell state restore is unsupported upstream)");
-@@ -717,7 +815,7 @@ void llama_rn_context_completion::evalMTPPrompt() {
+@@ -717,7 +817,7 @@ void llama_rn_context_completion::evalMTPPrompt() {
          spec_prompt.assign(embd.begin(), embd.end() - 1);
      }
  
@@ -1576,7 +1586,7 @@ index a60bd15..e7fdc26 100644
  
      // Reuse whatever prefix loadPrompt already left in the (shared) target
      // memory: it set n_past to the reused position. Decode only the diverged tail.
-@@ -748,7 +846,7 @@ void llama_rn_context_completion::evalMTPPrompt() {
+@@ -748,7 +848,7 @@ void llama_rn_context_completion::evalMTPPrompt() {
                               (llama_pos) (offset + i), { seq_id }, needs_logits);
          }
  
@@ -1585,7 +1595,7 @@ index a60bd15..e7fdc26 100644
          if (ret != 0) {
              // Memory holds only [0, offset); trim embd so a later prefix match
              // can't claim never-decoded cells (mirrors nextToken).
-@@ -807,7 +905,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -807,7 +907,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
          ? parent_ctx->params.speculative.draft.n_max
          : std::max<int32_t>(0, remaining - 1);
      const int32_t n_draft_ctx = std::max<int32_t>(0, n_ctx - (int32_t) spec_n_past - 1);
@@ -1594,7 +1604,7 @@ index a60bd15..e7fdc26 100644
      const int32_t n_draft_limit = std::min<int32_t>(
          parent_ctx->params.speculative.draft.n_max,
          std::min<int32_t>(n_draft_remaining, std::min<int32_t>(n_draft_ctx, n_draft_batch)));
-@@ -840,7 +938,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -840,7 +940,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
                           spec_n_past + (llama_pos) i + 1, { seq_id }, true);
      }
  
@@ -1603,7 +1613,7 @@ index a60bd15..e7fdc26 100644
      if (ret != 0) {
          throw std::runtime_error("failed to evaluate MTP target batch, ret=" + std::to_string(ret));
      }
-@@ -848,7 +946,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -848,7 +948,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
          throw std::runtime_error("failed to process MTP target batch");
      }
  
@@ -1612,7 +1622,7 @@ index a60bd15..e7fdc26 100644
      if (accepted.empty()) {
          return false;
      }
-@@ -865,7 +963,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -865,7 +965,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
  
          completion_token_output output;
          output.tok = accepted[i];
@@ -1621,7 +1631,7 @@ index a60bd15..e7fdc26 100644
          spec_pending_tokens.push_back(std::move(output));
      }
  
-@@ -886,7 +984,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -886,7 +986,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
      spec_n_past += (llama_pos) accepted_count;
      n_past = spec_n_past;
  
@@ -1630,7 +1640,7 @@ index a60bd15..e7fdc26 100644
      common_context_seq_rm(spec_ctx.get(), seq_id, spec_n_past, -1);
  
      if (saw_eos) {
-@@ -951,7 +1049,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -951,7 +1051,7 @@ completion_token_output llama_rn_context_completion::nextToken()
          const int n_left    = n_past - parent_ctx->params.n_keep - 1;
          const int n_discard = n_left/2;
  
@@ -1639,7 +1649,7 @@ index a60bd15..e7fdc26 100644
          llama_memory_seq_rm (kv, 0, parent_ctx->params.n_keep + 1            , parent_ctx->params.n_keep + n_discard + 1);
          llama_memory_seq_add(kv, 0, parent_ctx->params.n_keep + 1 + n_discard, n_past, -n_discard);
  
-@@ -1003,13 +1101,13 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1003,13 +1103,13 @@ completion_token_output llama_rn_context_completion::nextToken()
          {
              n_eval = parent_ctx->params.n_batch;
          }
@@ -1655,7 +1665,7 @@ index a60bd15..e7fdc26 100644
              );
              // Trim embd to what the memory actually contains so a later prefix
              // match can't claim never-written cells.
-@@ -1063,7 +1161,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1063,7 +1163,7 @@ completion_token_output llama_rn_context_completion::nextToken()
          std::vector<llama_token_data> candidates;
          candidates.reserve(llama_vocab_n_tokens(vocab));
  
@@ -1664,7 +1674,7 @@ index a60bd15..e7fdc26 100644
  
          const int32_t n_probs = parent_ctx->params.sampling.n_probs;
          if (n_probs > 0) {
-@@ -1077,7 +1175,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1077,7 +1177,7 @@ completion_token_output llama_rn_context_completion::nextToken()
          if (llama_vocab_is_eog(vocab, new_token_id)) {
              has_next_token = false;
              stopped_eos = true;
@@ -1673,7 +1683,7 @@ index a60bd15..e7fdc26 100644
              return result;
          }
  
-@@ -1089,7 +1187,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1089,7 +1189,7 @@ completion_token_output llama_rn_context_completion::nextToken()
              parent_ctx->tts_wrapper->next_token_uses_guide_token = (new_token_id == 198);
          }
          result.tok = new_token_id;
@@ -1682,20 +1692,20 @@ index a60bd15..e7fdc26 100644
  
          common_sampler_accept(ctx_sampling, result.tok, true);
          if (tg) {
-@@ -1143,7 +1241,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1143,7 +1243,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
  {
      completion_token_output token_with_probs = nextToken();
  
+-    const std::string token_text = token_with_probs.tok == -1 ? "" : common_token_to_piece(parent_ctx->ctx, token_with_probs.tok);
 +    if (parent_ctx->params.sampling.n_probs > 0 && token_with_probs.tok != -1) {
 +        generated_token_ids.push_back(token_with_probs.tok);
 +    }
 +
--    const std::string token_text = token_with_probs.tok == -1 ? "" : common_token_to_piece(parent_ctx->ctx, token_with_probs.tok);
 +    const std::string token_text = token_with_probs.tok == -1 ? "" : common_token_to_piece(parent_ctx->active_ctx(), token_with_probs.tok);
      generated_text += utf8_gate.feed(token_text);
  
      if (parent_ctx->isVocoderEnabled()) {
-@@ -1175,8 +1273,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1175,8 +1279,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
      }
  
      LOG_VERBOSE("next token, token: %s, token_text: %s, has_next_token: %d, n_remain: %d, num_tokens_predicted: %d, stopped_eos: %d, stopped_word: %d, stopped_limit: %d, stopping_word: %s",
@@ -1706,7 +1716,7 @@ index a60bd15..e7fdc26 100644
          has_next_token,
          n_remain,
          num_tokens_predicted,
-@@ -1214,10 +1312,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
+@@ -1214,10 +1318,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
  
  std::vector<float> llama_rn_context_completion::embedding(common_params &embd_params)
  {
@@ -1719,7 +1729,7 @@ index a60bd15..e7fdc26 100644
      if (!initSampling()) {
          throw std::runtime_error("Failed to initialize sampling");
      }
-@@ -1226,7 +1324,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1226,7 +1330,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
      doCompletion();
      endCompletion();
  
@@ -1728,7 +1738,7 @@ index a60bd15..e7fdc26 100644
      if (!embd_params.embedding)
      {
          LOG_WARNING("embedding disabled, embedding: %s", embd_params.embedding);
-@@ -1234,11 +1332,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1234,11 +1338,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
      }
      float *data;
  
@@ -1743,7 +1753,7 @@ index a60bd15..e7fdc26 100644
      }
  
      if (!data) {
-@@ -1254,7 +1352,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1254,7 +1358,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
      std::vector<float> scores;
  
      // Check if this model supports reranking (requires rank pooling type)
@@ -1752,7 +1762,7 @@ index a60bd15..e7fdc26 100644
      if (pooling_type != LLAMA_POOLING_TYPE_RANK) {
          throw std::runtime_error("reranking not supported, pooling_type: " + std::to_string(pooling_type));
      }
-@@ -1278,18 +1376,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1278,18 +1382,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
  
          std::vector<llama_token> rerank_tokens = format_rerank_tokens(vocab, query_tokens, doc_tokens);
  
@@ -1774,7 +1784,7 @@ index a60bd15..e7fdc26 100644
              if (data) {
                  scores.push_back(data[0]); // For rank pooling, the score is the first (and only) dimension
              } else {
-@@ -1302,7 +1400,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1302,7 +1406,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
          endCompletion();
  
          // Clear KV cache again to prepare for next document or restore original state
@@ -1783,7 +1793,7 @@ index a60bd15..e7fdc26 100644
      }
  
      return scores;
-@@ -1321,7 +1419,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1321,7 +1425,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
  
      is_predicting = true;
  
@@ -1792,7 +1802,7 @@ index a60bd15..e7fdc26 100644
      auto * model = parent_ctx->model;
      auto * mem = llama_get_memory(ctx);
  
-@@ -1357,7 +1455,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1357,7 +1461,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
  
      llama_batch batch = llama_batch_init(n_kv_max, 0, 1);
  
@@ -1801,7 +1811,7 @@ index a60bd15..e7fdc26 100644
          const int32_t total = batch_ref.n_tokens;
          for (int32_t i = 0; i < total; i += n_batch_ref) {
              const int32_t n_tokens_step = std::min(n_batch_ref, total - i);
-@@ -1372,7 +1470,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1372,7 +1476,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
                  batch_ref.logits   + i,
              };
  
@@ -1810,7 +1820,7 @@ index a60bd15..e7fdc26 100644
              if (ret != 0) {
                  LOG_ERROR("llama_decode() failed during benchmark, n_batch=%d ret=%d", n_batch_ref, ret);
                  return false;
-@@ -1547,7 +1645,7 @@ void llama_rn_context_completion::processMedia(
+@@ -1547,7 +1651,7 @@ void llama_rn_context_completion::processMedia(
          eraseStateCheckpointsAfter(n);
      };
      parent_ctx->mtmd_wrapper->processMedia(
@@ -2024,10 +2034,10 @@ index 0000000..8a86f5f
 +} // namespace rnllama
 diff --git a/node_modules/llama.rn/cpp/rn-governor.cpp b/node_modules/llama.rn/cpp/rn-governor.cpp
 new file mode 100644
-index 0000000..da2b34d
+index 0000000..62b3670
 --- /dev/null
 +++ b/node_modules/llama.rn/cpp/rn-governor.cpp
-@@ -0,0 +1,79 @@
+@@ -0,0 +1,83 @@
 +#include "rn-governor.h"
 +#include "llama-governor.h"
 +
@@ -2091,6 +2101,10 @@ index 0000000..da2b34d
 +    return result;
 +}
 +
++void rn_governor::reset_prefill_stats() {
++    llama_governor_reset_prefill_stats(governor_);
++}
++
 +bool rn_governor::set_thermo_profile(const llama_governor_thermo_profile & profile) {
 +    if (governor_ == nullptr || failed_) {
 +        return false;
@@ -2109,10 +2123,10 @@ index 0000000..da2b34d
 +} // namespace rnllama
 diff --git a/node_modules/llama.rn/cpp/rn-governor.h b/node_modules/llama.rn/cpp/rn-governor.h
 new file mode 100644
-index 0000000..a844a4f
+index 0000000..9f4f21f
 --- /dev/null
 +++ b/node_modules/llama.rn/cpp/rn-governor.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,38 @@
 +#pragma once
 +
 +#include "llama-ext.h"
@@ -2133,6 +2147,7 @@ index 0000000..a844a4f
 +    llama_context * active_ctx() const;
 +    llama_context * prefill_ctx() const;
 +    int32_t decode(llama_batch batch);
++    void reset_prefill_stats();
 +    bool set_thermo_profile(const llama_governor_thermo_profile & profile);
 +    llama_governor_stats stats() const;
 +
@@ -2151,7 +2166,7 @@ index 0000000..a844a4f
 +
 +} // namespace rnllama
 diff --git a/node_modules/llama.rn/cpp/rn-llama.cpp b/node_modules/llama.rn/cpp/rn-llama.cpp
-index 1126dec..8d66500 100644
+index 1126dec..822ae32 100644
 --- a/node_modules/llama.rn/cpp/rn-llama.cpp
 +++ b/node_modules/llama.rn/cpp/rn-llama.cpp
 @@ -1,8 +1,11 @@
@@ -2308,7 +2323,7 @@ index 1126dec..8d66500 100644
      cleanupThreadpools();
  
      if (completion != nullptr) {
-@@ -458,63 +569,182 @@ llama_rn_context::~llama_rn_context() {
+@@ -458,63 +569,188 @@ llama_rn_context::~llama_rn_context() {
      releaseVocoder();
  }
  
@@ -2345,6 +2360,12 @@ index 1126dec..8d66500 100644
 +
 +std::string llama_rn_context::governorFailureReason() const {
 +    return governor == nullptr ? "" : governor->failure_reason();
++}
++
++void llama_rn_context::resetGovernorPrefillStats() {
++    if (governor != nullptr) {
++        governor->reset_prefill_stats();
++    }
 +}
 +
 +bool llama_rn_context::setThermoProfile(const llama_governor_thermo_profile & profile) {
@@ -2528,7 +2549,7 @@ index 1126dec..8d66500 100644
  
      // Init-time adapters are already loaded and applied by common_init_from_params().
      // Mirror the resulting adapter metadata so getLoadedLoraAdapters() reflects reality
-@@ -526,7 +756,9 @@ bool llama_rn_context::loadModel(common_params &params_)
+@@ -526,7 +762,9 @@ bool llama_rn_context::loadModel(common_params &params_)
      }
  
      // Log the actual n_seq_max that was set
@@ -2539,7 +2560,7 @@ index 1126dec..8d66500 100644
      LOG_INFO("Context initialized with n_seq_max = %u", n_seq_max);
  
      // Initialize completion context
-@@ -553,13 +785,22 @@ llama_model * llama_rn_context::getMTPDraftModel() const {
+@@ -553,13 +791,22 @@ llama_model * llama_rn_context::getMTPDraftModel() const {
  }
  
  llama_context * llama_rn_context::createMTPDraftContext(const common_params &params_for_context) const {
@@ -2563,7 +2584,7 @@ index 1126dec..8d66500 100644
      cparams.n_rs_seq = 0;
      cparams.type_k = params_for_context.speculative.draft.cache_type_k;
      cparams.type_v = params_for_context.speculative.draft.cache_type_v;
-@@ -666,7 +907,7 @@ llama_rn_tokenize_result llama_rn_context::tokenize(const std::string &text, con
+@@ -666,7 +913,7 @@ llama_rn_tokenize_result llama_rn_context::tokenize(const std::string &text, con
        return tokenize_result;
    }
    std::vector<llama_token> text_tokens;
@@ -2572,7 +2593,7 @@ index 1126dec..8d66500 100644
    llama_rn_tokenize_result tokenize_result;
    tokenize_result.tokens = text_tokens;
    tokenize_result.has_media = false;
-@@ -677,6 +918,10 @@ llama_rn_tokenize_result llama_rn_context::tokenize(const std::string &text, con
+@@ -677,6 +924,10 @@ llama_rn_tokenize_result llama_rn_context::tokenize(const std::string &text, con
  }
  
  void llama_rn_context::applyLoraAdapters(std::vector<common_adapter_lora_info> lora) {
@@ -2583,7 +2604,7 @@ index 1126dec..8d66500 100644
      if (model == nullptr || ctx == nullptr) {
          throw std::runtime_error("Cannot apply LoRA adapters: context is not initialized");
      }
-@@ -705,6 +950,10 @@ void llama_rn_context::applyLoraAdapters(std::vector<common_adapter_lora_info> l
+@@ -705,6 +956,10 @@ void llama_rn_context::applyLoraAdapters(std::vector<common_adapter_lora_info> l
  }
  
  void llama_rn_context::removeLoraAdapters() {
@@ -2594,7 +2615,7 @@ index 1126dec..8d66500 100644
      if (ctx != nullptr) {
          std::vector<common_adapter_lora_info> empty_lora;
          common_set_adapter_lora(ctx, empty_lora); // apply empty list
-@@ -720,6 +969,10 @@ std::vector<common_adapter_lora_info> llama_rn_context::getLoadedLoraAdapters()
+@@ -720,6 +975,10 @@ std::vector<common_adapter_lora_info> llama_rn_context::getLoadedLoraAdapters()
  }
  
  bool llama_rn_context::initMultimodal(const std::string &mmproj_path, bool use_gpu, int image_min_tokens, int image_max_tokens) {
@@ -2605,7 +2626,7 @@ index 1126dec..8d66500 100644
      try {
          mtmd_wrapper = new llama_rn_context_mtmd(mmproj_path, use_gpu, model, ctx, params, has_multimodal, params, image_min_tokens, image_max_tokens);
          return true;
-@@ -787,6 +1040,10 @@ void llama_rn_context::releaseVocoder() {
+@@ -787,6 +1046,10 @@ void llama_rn_context::releaseVocoder() {
  
  // Enable parallel decoding mode
  void llama_rn_context::enableParallelMode(int32_t n_parallel, int32_t n_batch) {
@@ -2616,7 +2637,7 @@ index 1126dec..8d66500 100644
      if (ctx == nullptr) {
          LOG_ERROR("Cannot enable parallel mode: context not initialized");
          throw std::runtime_error("Cannot enable parallel mode: context not initialized");
-@@ -857,6 +1114,12 @@ void llama_rn_context::disableParallelMode() {
+@@ -857,6 +1120,12 @@ void llama_rn_context::disableParallelMode() {
  }
  
  void llama_rn_context::clearCache(bool clear_data) {
@@ -2630,7 +2651,7 @@ index 1126dec..8d66500 100644
          LOG_WARNING("Cannot clear cache: context not initialized");
          return;
 diff --git a/node_modules/llama.rn/cpp/rn-llama.h b/node_modules/llama.rn/cpp/rn-llama.h
-index 0b9865e..55213a6 100644
+index 0b9865e..812fdec 100644
 --- a/node_modules/llama.rn/cpp/rn-llama.h
 +++ b/node_modules/llama.rn/cpp/rn-llama.h
 @@ -11,6 +11,7 @@
@@ -2667,7 +2688,7 @@ index 0b9865e..55213a6 100644
      common_init_result_ptr llama_init;
      llama_context *ctx = nullptr;
      common_chat_templates_ptr templates;
-@@ -131,9 +142,23 @@ struct llama_rn_context {
+@@ -131,9 +142,24 @@ struct llama_rn_context {
      lm_ggml_threadpool *threadpool = nullptr;
      lm_ggml_threadpool *threadpool_batch = nullptr;
  
@@ -2687,6 +2708,7 @@ index 0b9865e..55213a6 100644
 +    bool hasGovernor() const;
 +    bool governorFailed() const;
 +    std::string governorFailureReason() const;
++    void resetGovernorPrefillStats();
 +    bool setThermoProfile(const llama_governor_thermo_profile & profile);
 +    llama_governor_stats governorStats() const;
      bool hasDraftModel() const;
@@ -3266,6 +3288,157 @@ index 9debb77..f894a8e 100644
          if (kv != nullptr) {
              pos_min = llama_memory_seq_pos_min(kv, id);
              pos_max = llama_memory_seq_pos_max(kv, id);
+diff --git a/node_modules/llama.rn/ios/CMakeLists.txt b/node_modules/llama.rn/ios/CMakeLists.txt
+index 1ee4eab..f696721 100644
+--- a/node_modules/llama.rn/ios/CMakeLists.txt
++++ b/node_modules/llama.rn/ios/CMakeLists.txt
+@@ -113,6 +113,8 @@ add_library(rnllama SHARED
+ 
+     # React Native llama APIs
+     ${SOURCE_DIR}/rn-llama.cpp
++    ${SOURCE_DIR}/rn-governor.cpp
++    ${SOURCE_DIR}/rn-governor-params.cpp
+     ${SOURCE_DIR}/rn-completion.cpp
+     ${SOURCE_DIR}/rn-slot.cpp
+     ${SOURCE_DIR}/rn-slot-manager.cpp
+diff --git a/node_modules/llama.rn/lib/typescript/index.d.ts b/node_modules/llama.rn/lib/typescript/index.d.ts
+index 091ef52..a5189e4 100644
+--- a/node_modules/llama.rn/lib/typescript/index.d.ts
++++ b/node_modules/llama.rn/lib/typescript/index.d.ts
+@@ -1,5 +1,5 @@
+ import './jsi';
+-import type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, JinjaFormattedChatResult, FormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus } from './types';
++import type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, GovernorThermoProfile, GovernorStats, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, JinjaFormattedChatResult, FormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus } from './types';
+ export type RNLlamaMessagePart = {
+     type: string;
+     text?: string;
+@@ -17,7 +17,7 @@ export type RNLlamaOAICompatibleMessage = {
+     content?: string | RNLlamaMessagePart[];
+     reasoning_content?: string;
+ };
+-export type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, FormattedChatResult, JinjaFormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, };
++export type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, GovernorThermoProfile, GovernorStats, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, FormattedChatResult, JinjaFormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, };
+ export declare const RNLLAMA_MTMD_DEFAULT_MEDIA_MARKER = "<__media__>";
+ export declare const installJsi: () => Promise<void>;
+ export type ToolCall = {
+@@ -186,6 +186,8 @@ export declare class LlamaContext {
+     saveSession(filepath: string, options?: {
+         tokenSize: number;
+     }): Promise<number>;
++    setGovernorThermo(profile: GovernorThermoProfile): Promise<boolean>;
++    getGovernorStats(): Promise<GovernorStats>;
+     isLlamaChatSupported(): boolean;
+     isJinjaSupported(): boolean;
+     getFormattedChat(messages: RNLlamaOAICompatibleMessage[], template?: string | null, params?: {
+@@ -280,4 +282,4 @@ export declare const BuildInfo: {
+     number: string;
+     commit: string;
+ };
+-//# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=index.d.ts.map
+diff --git a/node_modules/llama.rn/lib/typescript/jsi.d.ts b/node_modules/llama.rn/lib/typescript/jsi.d.ts
+index 576344f..1dba609 100644
+--- a/node_modules/llama.rn/lib/typescript/jsi.d.ts
++++ b/node_modules/llama.rn/lib/typescript/jsi.d.ts
+@@ -1,10 +1,12 @@
+-import type { NativeContextParams, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeRerankResult, JinjaFormattedChatResult, ParallelStatus } from './types';
++import type { NativeContextParams, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeRerankResult, JinjaFormattedChatResult, ParallelStatus, GovernorThermoProfile, GovernorStats } from './types';
+ declare global {
+     var llamaInitContext: (contextId: number, params: NativeContextParams, onProgress?: (progress: number) => void) => Promise<any>;
+     var llamaReleaseContext: (contextId: number) => Promise<void>;
+     var llamaReleaseAllContexts: () => Promise<void>;
+     var llamaModelInfo: (path: string, skip: string[]) => Promise<object>;
+     var llamaGetBackendDevicesInfo: () => Promise<string>;
++    var llamaSetGovernorThermo: (contextId: number, profile: GovernorThermoProfile) => Promise<boolean>;
++    var llamaGetGovernorStats: (contextId: number) => Promise<GovernorStats>;
+     var llamaLoadSession: (contextId: number, path: string) => Promise<NativeSessionLoadResult>;
+     var llamaSaveSession: (contextId: number, path: string, size: number) => Promise<number>;
+     var llamaTokenize: (contextId: number, text: string, mediaPaths?: string[]) => Promise<NativeTokenizeResult>;
+@@ -72,4 +74,4 @@ declare global {
+     }>;
+     var llamaUnsubscribeParallelStatus: (contextId: number, subscriberId: number) => void;
+ }
+-//# sourceMappingURL=jsi.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=jsi.d.ts.map
+diff --git a/node_modules/llama.rn/lib/typescript/types.d.ts b/node_modules/llama.rn/lib/typescript/types.d.ts
+index 6bed6b8..71d51cf 100644
+--- a/node_modules/llama.rn/lib/typescript/types.d.ts
++++ b/node_modules/llama.rn/lib/typescript/types.d.ts
+@@ -110,6 +110,20 @@ export type NativeContextParams = {
+      * Default: false
+      */
+     no_extra_bufts?: boolean;
++    /** Optional Kalsa MoE expert streaming settings; omitted means disabled. */
++    moe_stream?: {
++        enabled?: boolean;
++        cache_mb?: number;
++        cache_auto?: boolean;
++        cache_floor_mb?: number;
++        cache_ceil_mb?: number;
++        io_threads?: number;
++        overlap?: boolean;
++        dense_weights?: string;
++        n_expert_used?: number;
++        drop_cold_frac?: number;
++        drop_no_renorm?: boolean;
++    };
+     /**
+      * Single LoRA adapter path
+      */
+@@ -171,6 +185,36 @@ export type NativeContextParams = {
+     state_cache_max_checkpoints?: number;
+     embedding?: boolean;
+     embd_normalize?: number;
++    governor?: {
++        enabled: true;
++        generation?: 'V73' | 'V75' | 'V79' | 'NoHTP' | 'Unknown';
++        model_kind?: 'Dense' | 'Hybrid' | 'MoE' | 'Unknown';
++        gpu_fit?: 'Fit' | 'NoFit' | 'NotFit' | 'Unknown';
++        npu_lane_enabled?: boolean;
++        reload_budget_available?: boolean;
++        thermo: GovernorThermoProfile;
++    };
++};
++export type GovernorThermoProfile = {
++    batt_temp_tenths_c: number;
++    batt_level_pct: number;
++    plugged: boolean;
++    sensor_valid: boolean;
++    t_idle_valid?: boolean;
++    t_idle_c?: number;
++    trend_c_per_min?: number;
++};
++export type GovernorStats = {
++    active: boolean;
++    engine_prefill: string;
++    engine_decode: string;
++    commit_bytes: number;
++    commit_ms: number;
++    prefill_ms: number;
++    prefill_chunks: string;
++    prefill_ctx_ngl: number;
++    thermal_state: string;
++    failure_reason: string;
+ };
+ export type NativeCompletionParams = {
+     prompt: string;
+@@ -468,6 +512,7 @@ export type NativeCompletionResult = {
+     tokens_cached: number;
+     timings: NativeCompletionResultTimings;
+     completion_probabilities?: Array<NativeCompletionTokenProb>;
++    generated_token_ids?: Array<number>;
+     audio_tokens?: Array<number>;
+ };
+ export type NativeTokenizeResult = {
+@@ -609,4 +654,4 @@ export type ParallelStatus = {
+     queued_requests: number;
+     requests: ParallelRequestStatus[];
+ };
+-//# sourceMappingURL=types.d.ts.map
+\ No newline at end of file
++//# sourceMappingURL=types.d.ts.map
 diff --git a/node_modules/llama.rn/src/index.ts b/node_modules/llama.rn/src/index.ts
 index 220d289..501fda8 100644
 --- a/node_modules/llama.rn/src/index.ts
@@ -3340,7 +3513,7 @@ index 0ec756a..c517b50 100644
      contextId: number,
      path: string,
 diff --git a/node_modules/llama.rn/src/types.ts b/node_modules/llama.rn/src/types.ts
-index e461f36..578504d 100644
+index e461f36..a8b5468 100644
 --- a/node_modules/llama.rn/src/types.ts
 +++ b/node_modules/llama.rn/src/types.ts
 @@ -133,6 +133,21 @@ export type NativeContextParams = {
@@ -3365,7 +3538,7 @@ index e461f36..578504d 100644
    /**
     * Single LoRA adapter path
     */
-@@ -202,6 +217,35 @@ export type NativeContextParams = {
+@@ -202,6 +217,38 @@ export type NativeContextParams = {
    // Embedding params
    embedding?: boolean
    embd_normalize?: number
@@ -3396,143 +3569,19 @@ index e461f36..578504d 100644
 +  engine_decode: string
 +  commit_bytes: number
 +  commit_ms: number
++  prefill_ms: number
++  prefill_chunks: string
++  prefill_ctx_ngl: number
 +  thermal_state: string
 +  failure_reason: string
  }
  
  export type NativeCompletionParams = {
-@@ -517,2 +561,3 @@ export type NativeCompletionResult {
+@@ -515,6 +562,7 @@ export type NativeCompletionResult = {
+   timings: NativeCompletionResultTimings
+ 
    completion_probabilities?: Array<NativeCompletionTokenProb>
 +  generated_token_ids?: Array<number>
    audio_tokens?: Array<number>
-diff --git a/node_modules/llama.rn/lib/typescript/index.d.ts b/node_modules/llama.rn/lib/typescript/index.d.ts
-index 091ef52..a5189e4 100644
---- a/node_modules/llama.rn/lib/typescript/index.d.ts
-+++ b/node_modules/llama.rn/lib/typescript/index.d.ts
-@@ -1,5 +1,5 @@
- import './jsi';
--import type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, JinjaFormattedChatResult, FormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus } from './types';
-+import type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, GovernorThermoProfile, GovernorStats, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, JinjaFormattedChatResult, FormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus } from './types';
- export type RNLlamaMessagePart = {
-     type: string;
-     text?: string;
-@@ -17,7 +17,7 @@ export type RNLlamaOAICompatibleMessage = {
-     content?: string | RNLlamaMessagePart[];
-     reasoning_content?: string;
- };
--export type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, FormattedChatResult, JinjaFormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, };
-+export type { NativeContextParams, NativeLlamaContext, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionTokenProb, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, GovernorThermoProfile, GovernorStats, NativeEmbeddingParams, NativeRerankParams, NativeRerankResult, NativeCompletionTokenProbItem, NativeCompletionResultTimings, FormattedChatResult, JinjaFormattedChatResult, NativeImageProcessingResult, NativeBackendDeviceInfo, NativeSpeculativeConfig, NativeSpeculativeParams, NativeSpeculativeType, ParallelStatus, ParallelRequestStatus, };
- export declare const RNLLAMA_MTMD_DEFAULT_MEDIA_MARKER = "<__media__>";
- export declare const installJsi: () => Promise<void>;
- export type ToolCall = {
-@@ -186,6 +186,8 @@ export declare class LlamaContext {
-     saveSession(filepath: string, options?: {
-         tokenSize: number;
-     }): Promise<number>;
-+    setGovernorThermo(profile: GovernorThermoProfile): Promise<boolean>;
-+    getGovernorStats(): Promise<GovernorStats>;
-     isLlamaChatSupported(): boolean;
-     isJinjaSupported(): boolean;
-     getFormattedChat(messages: RNLlamaOAICompatibleMessage[], template?: string | null, params?: {
-@@ -280,4 +282,4 @@ export declare const BuildInfo: {
-     number: string;
-     commit: string;
- };
--//# sourceMappingURL=index.d.ts.map
-\ No newline at end of file
-+//# sourceMappingURL=index.d.ts.map
-diff --git a/node_modules/llama.rn/lib/typescript/jsi.d.ts b/node_modules/llama.rn/lib/typescript/jsi.d.ts
-index 576344f..1dba609 100644
---- a/node_modules/llama.rn/lib/typescript/jsi.d.ts
-+++ b/node_modules/llama.rn/lib/typescript/jsi.d.ts
-@@ -1,10 +1,12 @@
--import type { NativeContextParams, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeRerankResult, JinjaFormattedChatResult, ParallelStatus } from './types';
-+import type { NativeContextParams, NativeCompletionParams, NativeParallelCompletionParams, NativeCompletionResult, NativeTokenizeResult, NativeEmbeddingResult, NativeSessionLoadResult, NativeRerankResult, JinjaFormattedChatResult, ParallelStatus, GovernorThermoProfile, GovernorStats } from './types';
- declare global {
-     var llamaInitContext: (contextId: number, params: NativeContextParams, onProgress?: (progress: number) => void) => Promise<any>;
-     var llamaReleaseContext: (contextId: number) => Promise<void>;
-     var llamaReleaseAllContexts: () => Promise<void>;
-     var llamaModelInfo: (path: string, skip: string[]) => Promise<object>;
-     var llamaGetBackendDevicesInfo: () => Promise<string>;
-+    var llamaSetGovernorThermo: (contextId: number, profile: GovernorThermoProfile) => Promise<boolean>;
-+    var llamaGetGovernorStats: (contextId: number) => Promise<GovernorStats>;
-     var llamaLoadSession: (contextId: number, path: string) => Promise<NativeSessionLoadResult>;
-     var llamaSaveSession: (contextId: number, path: string, size: number) => Promise<number>;
-     var llamaTokenize: (contextId: number, text: string, mediaPaths?: string[]) => Promise<NativeTokenizeResult>;
-@@ -72,4 +74,4 @@ declare global {
-     }>;
-     var llamaUnsubscribeParallelStatus: (contextId: number, subscriberId: number) => void;
  }
--//# sourceMappingURL=jsi.d.ts.map
-\ No newline at end of file
-+//# sourceMappingURL=jsi.d.ts.map
-diff --git a/node_modules/llama.rn/lib/typescript/types.d.ts b/node_modules/llama.rn/lib/typescript/types.d.ts
-index 6bed6b8..8d3bf56 100644
---- a/node_modules/llama.rn/lib/typescript/types.d.ts
-+++ b/node_modules/llama.rn/lib/typescript/types.d.ts
-@@ -110,6 +110,20 @@ export type NativeContextParams = {
-      * Default: false
-      */
-     no_extra_bufts?: boolean;
-+    /** Optional Kalsa MoE expert streaming settings; omitted means disabled. */
-+    moe_stream?: {
-+        enabled?: boolean;
-+        cache_mb?: number;
-+        cache_auto?: boolean;
-+        cache_floor_mb?: number;
-+        cache_ceil_mb?: number;
-+        io_threads?: number;
-+        overlap?: boolean;
-+        dense_weights?: string;
-+        n_expert_used?: number;
-+        drop_cold_frac?: number;
-+        drop_no_renorm?: boolean;
-+    };
-     /**
-      * Single LoRA adapter path
-      */
-@@ -171,6 +185,33 @@ export type NativeContextParams = {
-     state_cache_max_checkpoints?: number;
-     embedding?: boolean;
-     embd_normalize?: number;
-+    governor?: {
-+        enabled: true;
-+        generation?: 'V73' | 'V75' | 'V79' | 'NoHTP' | 'Unknown';
-+        model_kind?: 'Dense' | 'Hybrid' | 'MoE' | 'Unknown';
-+        gpu_fit?: 'Fit' | 'NoFit' | 'NotFit' | 'Unknown';
-+        npu_lane_enabled?: boolean;
-+        reload_budget_available?: boolean;
-+        thermo: GovernorThermoProfile;
-+    };
-+};
-+export type GovernorThermoProfile = {
-+    batt_temp_tenths_c: number;
-+    batt_level_pct: number;
-+    plugged: boolean;
-+    sensor_valid: boolean;
-+    t_idle_valid?: boolean;
-+    t_idle_c?: number;
-+    trend_c_per_min?: number;
-+};
-+export type GovernorStats = {
-+    active: boolean;
-+    engine_prefill: string;
-+    engine_decode: string;
-+    commit_bytes: number;
-+    commit_ms: number;
-+    thermal_state: string;
-+    failure_reason: string;
- };
- export type NativeCompletionParams = {
-     prompt: string;
-@@ -470,2 +512,3 @@ export type NativeCompletionResult = {
-     completion_probabilities?: Array<NativeCompletionTokenProb>;
-+    generated_token_ids?: Array<number>;
-     audio_tokens?: Array<number>;
-@@ -609,4 +651,4 @@ export type ParallelStatus = {
-     queued_requests: number;
-     requests: ParallelRequestStatus[];
- };
--//# sourceMappingURL=types.d.ts.map
-\ No newline at end of file
-+//# sourceMappingURL=types.d.ts.map
+ 

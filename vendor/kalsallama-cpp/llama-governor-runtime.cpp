@@ -123,6 +123,12 @@ llama_governor_stats llama_governor::stats() const {
     return result;
 }
 
+void llama_governor::reset_prefill_stats() {
+    stats_.prefill_us = 0;
+    stats_.prefill_n = 0;
+    stats_.prefill_chunks[0] = '\0';
+}
+
 bool llama_governor::set_thermo_profile(const llama_governor_thermo_profile & profile, int64_t now_ms) {
     if (!policy_enabled_) {
         return false;
@@ -254,5 +260,11 @@ llama_context * llama_governor_get_decode_context(const llama_governor * governo
 void llama_governor_get_stats(const llama_governor * governor, llama_governor_stats * stats) {
     if (stats) {
         *stats = governor ? governor->stats() : llama_governor_stats{};
+    }
+}
+
+void llama_governor_reset_prefill_stats(llama_governor * governor) {
+    if (governor != nullptr) {
+        governor->reset_prefill_stats();
     }
 }

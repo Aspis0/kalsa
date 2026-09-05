@@ -980,6 +980,11 @@ async function emitGovernorTelemetry(
         engine_decode: stats.engine_decode,
         commit_bytes: stats.commit_bytes,
         commit_ms: stats.commit_ms,
+        // S5 driver contract: governor prefill timing and the actual route facts
+        // are keyed fields; extra fields remain backward-compatible.
+        prefill_ms: stats.prefill_ms,
+        prefill_chunks: stats.prefill_chunks,
+        prefill_ctx_ngl: stats.prefill_ctx_ngl,
         thermal_state: stats.thermal_state,
         thermo_source: thermoSource,
         fit: activeGovernorFit ?? "Unknown",
