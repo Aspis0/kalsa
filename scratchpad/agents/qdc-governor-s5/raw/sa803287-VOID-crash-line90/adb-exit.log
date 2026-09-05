@@ -1,0 +1,14 @@
+rc=0 devices
+rc=0 -s a652109b wait-for-device
+rc=0 -s a652109b shell getprop ro.soc.model
+rc=0 -s a652109b shell getprop ro.product.model
+rc=0 -s a652109b shell getprop ro.build.fingerprint
+rc=0 -s a652109b shell getprop ro.build.type
+rc=0 -s a652109b shell getprop ro.debuggable
+rc=0 -s a652109b shell id
+rc=0 -s a652109b shell getprop ro.soc.model
+rc=0 -s a652109b shell chmod 771 /data
+rc=0 -s a652109b shell svc power stayon false
+rc=0 -s a652109b shell chmod 771 /data
+rc=0 -s a652109b shell locksettings set-disabled false
+rc=0 -s a652109b shell am\ force-stop\ com.kalsa.app

@@ -704,6 +704,26 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `bash -n` non vede gli unbound di `set -u`; una prova a secco con `set -u` su
 > funzioni con `local` multiple andava fatta nel pre-run audit.
 
+> **5/09 (21:26 Mac) — S5 run 1 su sa803287: A1 OK, B1 FALLITO → sessione
+> chiusa a ~17 min per non bruciare minuti.** A1: TTFT 42.7 s (include il
+> prefill del system prompt), decode 24.3 tok/s, `KALSA_BENCH_TOKENS`
+> presente (prerequisito verificato a runtime), 0 fallback, 0 lmkd. B1: il
+> governor SI È ACCESO (due `loaded meta data`, `KALSA_NATIVE_VARIANT
+> nGpuLayers {prefill:99, decode:0}`) ma il prewarm e ogni completion falliscono:
+> `"Governor mode does not support MTP or speculative decoding"`. **Causa
+> radice trovata:** `rn-completion.cpp:719-721 shouldUseMTP()` (e
+> `rn-slot.cpp:335`) LANCIANO appena `hasGovernor()` è vero, a prescindere che
+> MTP/speculative sia richiesto; viene chiamata a ogni completion → il
+> governor non può mai generare. Bug introdotto in S2 (patch riga 1520),
+> sfuggito a tre audit (nessuno ha tracciato il call-path). Fix: in modalità
+> governor `shouldUseMTP()` ritorna false; il rifiuto resta solo all'init
+> se speculative è richiesto esplicitamente. Nota a margine: al caricamento
+> del secondo modello lmkd è andato in "critical pressure" e ha ucciso un
+> servizio di sistema (non kalsa) → la modalità a due contesti su questa board
+> è vicina al limite di RAM: da misurare nel run 2 (MemAvailable pre/post).
+> Run 1 = VOID per la velocità, ma diagnosi bancabile. Raw in
+> `raw/sa803287/`, crash del driver in `raw/sa803287-VOID-crash-line90/`.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
