@@ -48,6 +48,14 @@ export const ZONE0_THERMAL_BANDS: ThermalBandThresholds = {
   exitHysteresisC: 2,
 };
 
+/**
+ * Free-RAM floor for the memory-pressure proxy. Below this many MiB of free
+ * RAM the sysfs path has no temperature, so we still surface an advisory
+ * `"warm"` (never a fabricated °C). Named so the hook imports it instead of
+ * re-declaring the bare `512` literal.
+ */
+export const MEMORY_PROXY_WARM_BELOW_MIB = 512;
+
 /** Relative ordering used for hysteresis: hotter bands "hold" longer. */
 const BAND_RANK: Record<ThermalStatus, number> = {
   ok: 0,
@@ -92,18 +100,44 @@ function exitThresholdFor(
  * down). This prevents banner flapping around a threshold. `prev` of
  * `"unknown"` carries no band and never holds state.
  */
+export interface StatusFromTempOptions {
+  /** Prior advisory status — the basis for exit hysteresis. */
+  prevStatus?: ThermalStatus | null;
+  /** Source that produced `prevStatus` (enables source-aware hysteresis). */
+  prevSource?: string | null;
+  /** Source of the current sample. A source that differs from `prevSource`
+   *  (e.g. memory_proxy → sysfs) has no shared temperature basis, so hysteresis
+   *  is skipped and the sample is classified fresh. */
+  source?: string | null;
+  /** Bands to classify against. */
+  bands?: ThermalBandThresholds;
+}
+
 export function statusFromTempC(
   tempC: number,
-  prev?: ThermalStatus | null,
-  bands: ThermalBandThresholds = ZONE0_THERMAL_BANDS,
+  options: StatusFromTempOptions = {},
 ): ThermalStatus {
+  const {
+    prevStatus,
+    prevSource,
+    source,
+    bands = ZONE0_THERMAL_BANDS,
+  } = options;
+
   const raw = classifyByEnter(tempC, bands);
-  if (prev == null) return raw;
+  if (prevStatus == null) return raw;
+
+  // Source-aware hysteresis: a different sample source (e.g. memory_proxy →
+  // sysfs) has no shared temperature basis, so it must NOT hold the previous
+  // band — treat as a fresh classify.
+  if (source != null && prevSource != null && source !== prevSource) {
+    return raw;
+  }
 
   // Cooling from a hotter band: stay until we cross that band's exit threshold.
-  if (BAND_RANK[prev] > BAND_RANK[raw]) {
-    const exit = exitThresholdFor(prev, bands);
-    if (exit != null && tempC >= exit) return prev;
+  if (BAND_RANK[prevStatus] > BAND_RANK[raw]) {
+    const exit = exitThresholdFor(prevStatus, bands);
+    if (exit != null && tempC >= exit) return prevStatus;
   }
   return raw;
 }
@@ -123,9 +157,8 @@ export type ThermalMonitorState = {
 
 /**
  * Advisory hint a future governor bridge can consume. `preferGpuPath` is true
- * for every entered (non-ok, non-unknown) band — the coolest supported
- * execution path should be preferred once the device is warm, hot, or critical.
- * No native call is made here; this is pure data.
+ * for warm | hot — the coolest supported execution path should be preferred once
+ * the device is warm or hot. No native call is made here; this is pure data.
  */
 export type ThermalGovernorHint = {
   /** Advisory status for this sample. */
@@ -134,7 +167,7 @@ export type ThermalGovernorHint = {
   tempC: number | null;
   /** Where the sample came from (e.g. "sysfs", "memory_proxy", "none"). */
   source: string;
-  /** True for warm | hot | critical — ready for the governor bridge. */
+  /** True for warm | hot only — ready for the governor bridge. */
   preferGpuPath: boolean;
 };
 
@@ -148,6 +181,9 @@ export function toGovernorHint(
     status,
     tempC,
     source,
-    preferGpuPath: status === "warm" || status === "hot" || status === "critical",
+    // True only for warm | hot. `critical` yields to the platform governor:
+    // its CRITICAL policy routes to CPU (wait), not GPU_COOLMODE, so we do not
+    // prefer the GPU path at critical.
+    preferGpuPath: status === "warm" || status === "hot",
   };
 }

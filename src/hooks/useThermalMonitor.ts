@@ -16,6 +16,7 @@ import {
   type ThermalMonitorState,
   toGovernorHint,
   statusFromTempC,
+  MEMORY_PROXY_WARM_BELOW_MIB,
 } from "../engine/thermalThresholds";
 
 const DEFAULT_INTERVAL_MS = 30_000;
@@ -73,9 +74,35 @@ export function useThermalMonitor(opts?: {
   });
   const mountedRef = useRef(true);
 
+  // Previous advisory state, kept in refs (never in the effect deps) so the
+  // polling interval is torn down and rebuilt only when `intervalMs` changes —
+  // not on every status flap. `statusFromTempC` reads these refs for source-
+  // aware hysteresis, and they are refreshed on every committed sample.
+  const prevStatusRef = useRef<ThermalStatus>(state.status);
+  const prevSourceRef = useRef<string>(state.source);
+
   useEffect(() => {
     mountedRef.current = true;
     let timer: ReturnType<typeof setInterval> | null = null;
+
+    // Commit one sample: advance the prev refs and update state functionally
+    // (spreading prior state) so only the changed fields move.
+    const commit = (next: {
+      status: ThermalStatus;
+      currentTempC: number | null;
+      source: "sysfs" | "memory_proxy" | "none";
+    }) => {
+      prevStatusRef.current = next.status;
+      prevSourceRef.current = next.source;
+      setState((s) => ({
+        ...s,
+        status: next.status,
+        currentTempC: next.currentTempC,
+        source: next.source,
+        sampledAt: Date.now(),
+        hint: toGovernorHint(next.status, next.currentTempC, next.source),
+      }));
+    };
 
     const sample = async () => {
       // iOS has no sysfs path; it would map ProcessInfo.thermalState → the
@@ -92,18 +119,13 @@ export function useThermalMonitor(opts?: {
           if (text != null) {
             const tempC = parseThermalZoneTemp(text);
             if (tempC != null) {
-              if (!mountedRef.current) return;
-              setState({
-                status: statusFromTempC(tempC, state.status),
-                currentTempC: tempC,
+              const status = statusFromTempC(tempC, {
+                prevStatus: prevStatusRef.current,
+                prevSource: prevSourceRef.current,
                 source: "sysfs",
-                sampledAt: Date.now(),
-                hint: toGovernorHint(
-                  statusFromTempC(tempC, state.status),
-                  tempC,
-                  "sysfs",
-                ),
               });
+              if (!mountedRef.current) return;
+              commit({ status, currentTempC: tempC, source: "sysfs" });
               return;
             }
           }
@@ -117,34 +139,17 @@ export function useThermalMonitor(opts?: {
         const bytes = await getAvailableMemoryBytesUncached();
         if (!mountedRef.current) return;
         if (bytes == null) {
-          setState({
-            status: "unknown",
-            currentTempC: null,
-            source: "none",
-            sampledAt: Date.now(),
-            hint: toGovernorHint("unknown", null, "none"),
-          });
+          commit({ status: "unknown", currentTempC: null, source: "none" });
           return;
         }
-        const availMiB = bytes / (1024 * 1024);
         // Very low free RAM → advisory "warm" (not a real temperature).
-        const status: ThermalStatus = availMiB < 512 ? "warm" : "ok";
-        setState({
-          status,
-          currentTempC: null,
-          source: "memory_proxy",
-          sampledAt: Date.now(),
-          hint: toGovernorHint(status, null, "memory_proxy"),
-        });
+        const availMiB = bytes / (1024 * 1024);
+        const status: ThermalStatus =
+          availMiB < MEMORY_PROXY_WARM_BELOW_MIB ? "warm" : "ok";
+        commit({ status, currentTempC: null, source: "memory_proxy" });
       } catch {
         if (!mountedRef.current) return;
-        setState({
-          status: "unknown",
-          currentTempC: null,
-          source: "none",
-          sampledAt: Date.now(),
-          hint: toGovernorHint("unknown", null, "none"),
-        });
+        commit({ status: "unknown", currentTempC: null, source: "none" });
       }
     };
 
@@ -157,7 +162,7 @@ export function useThermalMonitor(opts?: {
       mountedRef.current = false;
       if (timer != null) clearInterval(timer);
     };
-  }, [intervalMs, state.status]);
+  }, [intervalMs]);
 
   return state;
 }
