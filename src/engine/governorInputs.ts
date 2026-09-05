@@ -107,11 +107,14 @@ export function buildGovernorParams(
   deviceProfile: DeviceProfile,
   memory: MemorySnapshot,
 ) {
+  const generation = generationFor(deviceProfile);
+  // measured: ALIVE #55 ~17x; #58 2.94x (Adreno 750); #38 >=9.8x (Adreno 830).
   return {
     enabled: true as const,
-    generation: generationFor(deviceProfile),
+    generation,
     model_kind: modelKind(modelEntry),
     gpu_fit: gpuFit(modelEntry, deviceProfile, memory),
+    gpu_prefill_measured: generation === "V75" || generation === "V79",
     npu_lane_enabled: false,
     reload_budget_available: false,
   };

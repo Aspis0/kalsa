@@ -74,11 +74,15 @@ describe("governor inputs", () => {
       generation: "V75",
       model_kind: "Hybrid",
       gpu_fit: "Fit",
+      gpu_prefill_measured: true,
       npu_lane_enabled: false,
       reload_budget_available: false,
     });
     expect(buildGovernorParams(model, device("unlisted"), memory).generation).toBe(
       "Unknown",
+    );
+    expect(buildGovernorParams(model, device("unlisted"), memory).gpu_prefill_measured).toBe(
+      false,
     );
     expect(buildGovernorParams(model, device("unlisted"), memory).gpu_fit).toBe("NoFit");
     expect(
@@ -87,7 +91,11 @@ describe("governor inputs", () => {
         device("Pineapple for arm64", 12 * 1024 ** 3, "SM8650"),
         memory,
       ),
-    ).toMatchObject({ generation: "V75", gpu_fit: "Fit" });
+    ).toMatchObject({ generation: "V75", gpu_fit: "Fit", gpu_prefill_measured: true });
+    expect(buildGovernorParams(model, device("SM8550"), memory)).toMatchObject({
+      generation: "V73",
+      gpu_prefill_measured: false,
+    });
     expect(
       buildGovernorParams(
         { ...model, hybrid: false, canStreamExperts: true },

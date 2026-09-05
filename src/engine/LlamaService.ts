@@ -786,8 +786,28 @@ export function queueStaticPrefixPrewarm(
         logPrewarm({ op: "skip", reason: "generated" });
         return;
       }
+      const nativeResult = result as typeof result & { error?: unknown };
+      const nativeError = nativeResult?.error;
+      const tokensEvaluated =
+        typeof result?.tokens_evaluated === "number" ? result.tokens_evaluated : 0;
       const promptMs =
         typeof result?.timings?.prompt_ms === "number" ? result.timings.prompt_ms : -1;
+      const promptN =
+        typeof result?.timings?.prompt_n === "number" ? result.timings.prompt_n : 0;
+      const evalFailed =
+        (nativeError != null && nativeError !== "") || tokensEvaluated <= 0 || promptMs <= 0;
+      if (evalFailed) {
+        logPrewarm({
+          op: "skip",
+          reason: "eval-failed",
+          hash: prefix.hash,
+          promptMs,
+          promptN,
+          tokensEvaluated,
+          ...(nativeError != null ? { err: String(nativeError).slice(0, 160) } : {}),
+        });
+        return;
+      }
       prewarmPrefixHash = prefix.hash;
       logPrewarm({ op: "done", promptMs, hash: prefix.hash });
     } catch (error) {
