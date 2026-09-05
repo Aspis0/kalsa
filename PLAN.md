@@ -1206,6 +1206,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > chiusa a 7 run: meccanismo, degradazione termica, correttezza su 830, timer
 > e TTFT equo tutti a verbale.
 
+> **6/09 10:15 Mac — S5b in bozza (Luna 5fcd34c9, `scratchpad/agents/qdc-governor-s5b/`:
+> PREREG 103, d_run.sh 299, parse.sh 50, dryrun 91, PROMPT.txt 893 parole).**
+> Meccanismo: nessuna chiave per spegnere il prewarm → prompt utente lungo
+> (5.1 kB) via `input text`, prefisso di sistema resta in cache, la coda lunga
+> è prefill nuovo. Rischi dichiarati: troncamento IME del payload, conteggio
+> token non noto a priori. Audit pre-run → deepseek.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
