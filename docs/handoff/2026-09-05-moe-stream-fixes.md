@@ -98,3 +98,15 @@ apk.yml run 33976887711 on 659a644: success (16:07→16:50 UTC), artifact
 debuggable). With ci.yml and E2E-on-push green at the same sha, all five fixes are closed.
 Open for the app session going forward: any change under `src/engine/` gets a heads-up first
 (F4 rule); the governor branch merge resolves the ModelRegistry LFM entry keeping both fields.
+
+## 2026-09-05 17:15 EDT — second handback closed (C3 hard gate CRITICAL + unload)
+
+Branch tip `5d8b2eb` ("fix(i18n): clarify Italian thermal hard-gate unload copy", on top of `2113bfe` "feat(thermal): C3 — hard gate on OS CRITICAL unloads LLM"). Gates on the tip:
+
+| Workflow | Run | Result |
+|---|---|---|
+| CI (typecheck + jest), on push | 33988146795 | success |
+| E2E emulator (real inference), on push | 33988146799 | success (77 min) |
+| APK (device build), dispatched arm64-v8a non-debuggable | 33989863108 | success |
+
+Artifact `kalsa-apk-arm64-v8a-5d8b2eb998cc1f3d62c1da526fa6741f65c31296` → `~/kalsa-qdc/apk/apk-moe-5d8b2eb/…/app-release.apk`, sha256 `6eba835a3ef63c088f552302cffef14d2686cf47495552022d525c4629b847e9`, 135,663,131 bytes. Concurrency groups are per workflow (`apk-`, `e2e-`, `ci-`), so the dispatch did not cancel the running E2E. Not installed on any device yet: the governor cell keeps using APK 8a56edc (feat/governor-in-app) until the moe-stream ↔ governor merge.
