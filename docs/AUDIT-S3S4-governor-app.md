@@ -180,3 +180,21 @@ Device S5 run 2 (`QRD8650_B_t1_filtered.txt:1799-1809`): `admit_prefill: prompt 
 **6. CI `33941962100`:** `status: in_progress`, `conclusion: ""`.
 
 **Delta-4 verdict: GO** for S5 run 3 on QRD8650 (APK must include `ac4820d`). No code change required for that board. Wait for CI green or sideload an `ac4820d` APK. Do not start 8 Elite until a V79 GPU prefill rule exists.
+
+## Delta re-audit 5 (6/09, 6ed44f567 + 64931c1)
+
+Device: run 3 B `promptMs 0` because `JSICompletion.h:193` `llama_perf_context(ctx->active_ctx())` after the last 1-token decode.
+
+**1. Timing.** `prefill_us` wraps each `llama_decode` with `n_tokens>1` (`llama-governor.cpp:206-216`). Chunked path: inner 512+512+128+128+49 each add; outer `k_prefill_chunked` skips a replay. Reset: `beginCompletion` → `resetGovernorPrefillStats()` (`rn-completion.cpp:681`) zeros `prefill_us`/`prefill_n`/`prefill_chunks` (`runtime.cpp:126-129`). Per **completion**, not process. Commit is `commit_side` on phase change (`llama-governor.cpp:187-190`), **outside** the timed window. `commit_ms` stays `commit_us/1000` (`RNLlamaJSI.cpp:863`). `prefill_n += n_tokens` per successful prefill batch (`:137`). Cached 1024 + new 305 ⇒ `prefill_n=305` this turn (reset after prewarm). CPU: `n_p_eval` = prompt tokens with batch>1 since `llama_perf_context_reset` (`llama-context.cpp:669-673`; `include/llama.h:1539-1542` `t_p_eval_ms` / `n_p_eval`). Governor `prompt_n`/`prompt_ms` (`JSICompletion.h:196-201`) match **this-completion new tokens**. Clocks: CPU `t_p_eval` is compute-start→`synchronize`; governor is full `llama_decode` wall. Same tokens, slightly wider B window. Commit excluded both.
+
+**2. Arm A.** `governor_prefill = hasGovernor() && prefill_n > 0` (`:195`). FLAG-OFF uses `timings.n_p_eval` / `t_p_eval_ms` as before. Extra `governorStats()` empty copy (`rn-llama.cpp:617`). Functionally identical `promptMs`.
+
+**3. Chunks.** `char prefill_chunks[128]` (`llama-ext.h:313`); per-chunk `snprintf` into remainder (`llama-governor.cpp:138-141`); cleared on reset. Not per-token. Long prompts truncate silently. `prefill_ctx_ngl = ctx_prefill->get_model().n_gpu_layers()` at ctor (`:59`) = prefill `params.n_gpu_layers` (`llama-model.cpp:1683-1685`) → 99.
+
+**4. Vendor `64931c1`.** vendor/ = ext + three governor files + SHA + build-info. `diff` after `ggml_`/`GGML_` rename = MATCH. Tests (I ran): `test-governor-v02-router` EXIT 0; `test-governor-v0-turns` EXIT 0 `governor_chunked_prefill=PASS decodes=512+512+128+128+49 prefill_us=251443 generated=1 commit_bytes=9186048`. Assert `prefill_n == 1329 && prefill_us != 0 && chunks=="512+512+128+128+49"` (`turns.cpp:168-169`). Reset-across-turns not tested (app resets at `beginCompletion`).
+
+**5. Hot path.** No new throw on a turn. `lm_ggml_time_us` only if `is_prefill` (`:206`); 1-token decode does not call it.
+
+**6. CI `33946344038`:** `in_progress`, `conclusion: ""`.
+
+**Delta-5 verdict: GO** for S5 run 4 TTFT on QRD8650 (APK `64931c1`). Use `KALSA_TELEMETRY promptMs` / `KALSA_GOVERNOR prefill_ms` as this-turn new-token prefill; do not compare to prewarm.

@@ -922,6 +922,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > driver (skin dalla sezione HAL, dry-run con fixture doppia) → Luna 5fcd34c9.
 > Poi bank: ALIVE 48 + registro.
 
+> **6/09 01:45 Mac — Delta audit 5 (grok): GO per il run 4 (TTFT) con APK
+> 64931c1.** `prefill_us` avvolge ogni `llama_decode` con n_tokens>1
+> (chunk inclusi, replay escluso), reset a `beginCompletion`; arm A
+> funzionalmente identico (`governor_prefill = hasGovernor() && prefill_n>0`);
+> nessun throw né `time_us` per token; vendor = fork; test rieseguiti
+> (`prefill_us=251443`). Nota metodologica per il run 4: l'oracolo fallirà di
+> nuovo (divergenza deterministica nota) → per la regola bloccata l'endpoint 2
+> resterebbe "non analizzabile"; il run 4 va dichiarato pre-dati come run
+> DESCRITTIVO (TTFT B vs A con `promptMs`/`prefill_ms` del turno, decode, skin
+> HAL corretta), non come nuovo test dell'ipotesi. Da decidere dopo il bank.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
