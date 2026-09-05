@@ -1311,6 +1311,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `__DEV__` di benchConfig.ts:465: apk.yml esegue lo stesso gate harness dell'E2E.** Un solo
 > fix sblocca entrambi; ri-dispatch APK dopo il push dell'altra sessione.
 
+> **5/09 11:05 EDT Mac — S5b run 4 (801665, sa805734) IN CORSO, primi reperti.** A1 valida
+> (CPU 5945 ms / 925 token, decode 26,6). **B1 = prima coppia completa: GPU prefill 3201 ms
+> vs CPU 5945 ms → B/A 0,54 (1,86×)**, chunk 2+512+128+128+128+27, commit KV 12,1 MB / 8,4 ms,
+> FAST, decode 26,3; oracolo FAIL ma per UN token su 32 (indice 29) con rientro immediato:
+> quasi-pareggio di logit GPU/CPU, non il difetto sistematico del 750. A2 VOID `hot`: dopo
+> B1 (skin 44,6) 600 s portano solo a 36,44 > 36,0 (la GPU scalda più della CPU; target
+> troppo vicino all'equilibrio). B2 VOID senza motivo: composer 5080/5142 ok, Send ok, il
+> turno è girato (skin +7 °C) ma quattro `logcat -d -b all` hanno dato rc=255 e il re-dump
+> finale (sovrascrivente, timeout 60 s) ha lasciato il file troncato a metà riga → parsing
+> su file monco → tutti `na`. Fix run 5: dump atomico su tmp (sostituire solo con rc 0 e
+> size ≥), retry ×3, rc nello status; target cooldown da rivedere (37 °C o cap 15 min).
+> Regola bloccata: nessun cambio in corsa; la run prosegue (A3 in cooldown).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
