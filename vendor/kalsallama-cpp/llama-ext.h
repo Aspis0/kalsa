@@ -307,6 +307,10 @@ struct llama_governor_stats {
     uint64_t expert_substitution_would_displace = 0;
     float expert_substitution_lambda = 0.0f;
     bool cache_budget_warning = false;
+    uint64_t prefill_us = 0;
+    uint64_t prefill_n = 0;
+    uint32_t prefill_ctx_ngl = 0;
+    char prefill_chunks[128] = {};
 };
 
 /** Cumulative optional telemetry supplied by a streaming/backend integration. */
@@ -387,6 +391,8 @@ LLAMA_API struct llama_context * llama_governor_get_decode_context(
 LLAMA_API void llama_governor_get_stats(
         const struct llama_governor * governor,
         struct llama_governor_stats * stats);
+
+LLAMA_API void llama_governor_reset_prefill_stats(struct llama_governor * governor);
 
 //
 // model/context data extraction

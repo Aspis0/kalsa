@@ -3,7 +3,10 @@
 #include "llama-context.h"
 #include "llama-kv-commit.h"
 #include "llama-impl.h"
+#include "llama-model.h"
 
+#include <cstdio>
+#include <cstring>
 #include <limits>
 #include <stdexcept>
 
@@ -53,6 +56,7 @@ llama_governor::llama_governor(llama_model * model_prefill, llama_model * model_
     stats_.prefill_token_cap = policy_.prefill_token_cap();
     stats_.expert_substitution_lambda = governor_params.expert_substitution_lambda;
     stats_.cache_budget_warning = policy_.cache_budget_warning();
+    stats_.prefill_ctx_ngl = ctx_prefill->get_model().n_gpu_layers();
     if (stats_.cache_budget_warning) {
         LLAMA_LOG_WARN("%s: cache budget is smaller than one expert cycle; streaming will thrash\n", __func__);
     }
@@ -130,6 +134,12 @@ void llama_governor::record_side(llama_context * ctx, side_state & side, bool pr
         stats_.prefill_n_reused = side.n_reused;
         stats_.prefill_n_splits = side.n_splits;
         stats_.prefill_graph_builds = side.graph_builds;
+        stats_.prefill_n += n_tokens;
+        const size_t used = std::strlen(stats_.prefill_chunks);
+        if (used < sizeof(stats_.prefill_chunks)) {
+            std::snprintf(stats_.prefill_chunks + used, sizeof(stats_.prefill_chunks) - used,
+                          "%s%u", used == 0 ? "" : "+", n_tokens);
+        }
     } else {
         stats_.decode_n_reused = side.n_reused;
         stats_.decode_n_splits = side.n_splits;
@@ -193,11 +203,16 @@ int32_t llama_governor::decode_impl(llama_batch batch, bool allow_chunking) {
         }
     }
 
+    const int64_t t0 = is_prefill ? lm_ggml_time_us() : 0;
     const int32_t rc = llama_decode(target, batch);
     if (rc != 0) {
         LLAMA_LOG_ERROR("%s: llama_decode failed with rc=%d\n", __func__, rc);
         failed = true;
         return rc;
+    }
+
+    if (is_prefill) {
+        stats_.prefill_us += static_cast<uint64_t>(lm_ggml_time_us() - t0);
     }
 
     record_side(target, *state, is_prefill, batch.n_tokens);

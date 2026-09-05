@@ -20,6 +20,7 @@ struct llama_governor {
     llama_context * prefill_context() const;
     llama_context * decode_context() const;
     llama_governor_stats stats() const;
+    void reset_prefill_stats();
     bool set_thermo_profile(const llama_governor_thermo_profile & profile, int64_t now_ms);
     void record_telemetry(const llama_governor_telemetry_sample & sample);
     void stall_enter();
