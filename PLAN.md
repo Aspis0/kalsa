@@ -1077,6 +1077,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 8 Elite prima: 623 min. Watcher attivo. Test pre-registrato: oracolo PASS su
 > B con prefill GPU ⇒ il difetto è del 750; FAIL ⇒ divergenza generica OpenCL.
 
+> **6/09 05:50 Mac — Addendum run 5 nel REPORT (Luna, 212 righe totali):** B3
+> degradato a CPU, completato, oracolo PASS; B1/B2 GPU FAIL. Correzione mia a
+> verbale: il trend a B3 era +0.422 °C/min (il +0.917 era il B2 del run 4).
+> Audit addendum → deepseek. Run 6 (8 Elite) in corso.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
