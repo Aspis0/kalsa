@@ -1252,6 +1252,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > "Run 1 VOID". Delta audit #3 deepseek: 5/5 CONFIRMED-FIXED, GO. Lock invariato su APK
 > 8a56edc. Prossimo: sessione `S5b-8Elite-r2`.
 
+> **5/09 09:15 EDT Mac — Review dei 10 commit app su `feat/moe-stream` (A1, B1-B6, C1+C2),
+> su richiesta owner.** Direzione giusta (catalogo data-driven, privacy all'egress, registry
+> tipizzato); QUATTRO fix chiesti all'altra sessione via `docs/handoff/2026-09-05-moe-stream-
+> fixes.md`: sweep orphan dirs al boot → migrazione con avviso; nessuna CI mai girata sui 10
+> commit (tutti i workflow sono dispatch, E2E solo su main) → E2E on push + ci.yml leggero;
+> documentare il modello privacy col suo limite (parafrasi); `src/engine` è condiviso: un
+> conflitto in ModelRegistry (LFM: `kvBytesPerToken` governor vs `sizeClass` C1+C2), regola
+> heads-up. Dopo i fix: dispatch APK + E2E su moe-stream da me. S5b run 2 in corso.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
