@@ -70,3 +70,13 @@ The new gate fired on its first push and is RED: `npx tsc --noEmit` →
 sites — no definition anywhere. Broken since B5 (070b5f9), before the fixes: the branch has
 never typechecked since then. E2E on push fails at the same step.
 APK build + E2E dispatch by the governor session is DEFERRED until typecheck is green.
+
+## Status 2026-09-05 ~10:40 EDT — typecheck GREEN, E2E still RED, APK dispatched
+aa12471 exports `isDocumentUnreadable`; ci.yml (typecheck + jest) is GREEN (run 33971861312).
+APK build dispatched by the governor session: run 33972096001 (abi arm64-v8a, debuggable=false).
+E2E on push at aa12471 (run 33971861291) FAILS in "Typecheck + logic harnesses": the harness
+compiles `src/bench/benchConfig.ts` standalone (scripts/.build) without React Native globals →
+`src/bench/benchConfig.ts(465,14): error TS2304: Cannot find name '__DEV__'` (introduced by
+B3 17c6afc, "bench bypass only in __DEV__"). App-wide tsc passes because RN types declare
+`__DEV__`; the harness tsconfig does not. Fix belongs to the app session; E2E re-dispatch by
+the governor session waits for it.

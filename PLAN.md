@@ -1301,6 +1301,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > gatata, dumpsys con 3 retry, deadline = 4° argomento (85). Budget stimato 57-69 min su 90.
 > Prossimo: sessione `S5b-8Elite-r4` da 90 min, driver con deadline 85.
 
+> **5/09 10:40 EDT Mac — moe-stream: typecheck VERDE (aa12471 esporta isDocumentUnreadable),
+> APK build lanciata da me (run 33972096001).** E2E ancora ROSSO: il passo "logic harnesses"
+> compila `src/bench/benchConfig.ts` da solo senza i globali RN → `__DEV__` non definito
+> (riga 465, introdotto da B3). Fix all'altra sessione; E2E lo rilancio dopo. S5b r4 (801665,
+> sa805734) partita alle 10:24 con deadline 85.
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
