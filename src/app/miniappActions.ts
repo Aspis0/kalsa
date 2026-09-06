@@ -140,9 +140,9 @@ export async function handleAskAssistantMiniappAction(
   // those actions here, so there is intentionally no handler for them in this file.
   // Adding one back would reintroduce a double file-write / double share-sheet bug.
 
-  // export_plate_map is intercepted earlier, in the renderer's LEGACY_LAB_ACTION_IDS
-  // dispatcher (AskAssistantMiniappRenderer.tsx), so it can never reach this function —
-  // no handler needed here.
+  // export_plate_map has no dedicated handler: like any other unhandled id it falls
+  // through to the generic handler below (surface "not available" feedback). The general
+  // mini-app format has no plate maps, so this is the correct outcome.
 
   // Fallthrough: any other action id (model-defined "requiresAi"/custom actions) has no
   // local handler — this is the only kind of action id that can actually reach here, since

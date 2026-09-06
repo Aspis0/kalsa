@@ -493,6 +493,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     visionUnsupportedNotice:
       "Il modello attivo non vede le immagini — passa a Qwen 3.5 4B nelle Impostazioni per analizzare le foto.",
     a11yAttach: "Aggiungi allegato",
+    a11yTemplates: "Crea mini-app",
     a11yRemoveAttachment: "Rimuovi allegato",
     a11yStop: "Interrompi generazione",
     a11ySend: "Invia",
@@ -582,6 +583,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     flagged: "segnalato",
     notSignificant: "non significativo",
     mass: "Massa",
+    massFromDensity: "Massa da densità",
+    volumeMl: "Volume",
+    densityGml: "Densità",
     unsupportedUnit: "Unità non supportata",
     chart: "Grafico",
     table: "Tabella",
@@ -833,8 +837,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     quickCalculatorSub: "Calcola una formula",
     readingQuiz: "Reading quiz",
     readingQuizSub: "Un quiz di 4 domande",
-    compareDataPrompt: "Trforma questi dati in una tabella di confronto.",
-    quickCalculatorPrompt: "Rsolvi questo calcolo e mostra il risultato.",
+    compareDataPrompt: "Trasforma questi dati in una tabella di confronto.",
+    quickCalculatorPrompt: "Risolvi questo calcolo e mostra il risultato.",
     readingQuizPrompt: "Ponimi un quiz di 4 domande su quanto letto.",
   },
 
@@ -1005,7 +1009,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Miniapp: puoi emettere miniapp_v1 JSON interattive (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "per i quiz non rivelare mai answerIndex nel testo — l'app valuta in privato; " +
       "formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
-      "Inoltre, i tipi di blocco includono data_table (colonne [{key,label]} con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista de fonti con titoli e url).",
+      "Inoltre, i tipi di blocco includono data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url).",
     digest: "Note precedenti: {digest}",
     summary: "Contesto conversazione: {summary}",
   },
@@ -1023,7 +1027,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
-    "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista de fonti con titoli e url). " +
+    "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
     "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
     "Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Scrivi nella lingua richiesta sopra. " +
@@ -1059,7 +1063,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
-    "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista de fonti con titoli e url). " +
+    "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
     "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
     "Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Scrivi nella lingua richiesta sopra. " +

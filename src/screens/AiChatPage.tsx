@@ -61,6 +61,7 @@ import { MarkdownText } from "../chat/MarkdownText";
 import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand, getBenchNoRepack } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
+import { type MiniappTemplate } from "../domain/miniappTemplates";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import {
   getActiveModelId,
@@ -103,6 +104,7 @@ import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
+import { QuickActionSheet } from "../theme/components/QuickActionSheet";
 import { CHAT_MENU_HIT, CHAT_NAV_ROW } from "../theme/components/chatNavLayout";
 import { StreamCaret } from "../chat/StreamCaret";
 import { BrandIcon, SendGlyphPair } from "../theme/icons/BrandIcon";
@@ -870,6 +872,7 @@ export function AiChatPage({
   const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
   const [emptyArtFailed, setEmptyArtFailed] = useState(false);
   const [draft, setDraft] = useState("");
+  const [quickSheetVisible, setQuickSheetVisible] = useState(false);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const [sending, setSending] = useState(false);
@@ -3479,6 +3482,16 @@ export function AiChatPage({
     setAttachSheetOpen(true);
   }, []);
 
+  // Prefill the composer with the chosen miniapp template's prompt, then focus.
+  const handleChooseTemplate = useCallback(
+    (template: MiniappTemplate) => {
+      setQuickSheetVisible(false);
+      setDraft(t(template.promptKey));
+      inputRef.current?.focus();
+    },
+    [t],
+  );
+
   const onComposerSendOrStop = useCallback(() => {
     if (sendingRef.current) {
       handleStop();
@@ -4177,8 +4190,15 @@ export function AiChatPage({
             onAttach={onComposerAttach}
             onMic={handleMicPress}
             onSendOrStop={onComposerSendOrStop}
+            onTemplates={() => setQuickSheetVisible(true)}
           />
         </View>
+        <QuickActionSheet
+          onlyTemplates
+          visible={quickSheetVisible}
+          onClose={() => setQuickSheetVisible(false)}
+          onChooseTemplate={handleChooseTemplate}
+        />
       </View>
 
       {/* Message long-press: Copy + Translate (replaces direct Share.share). */}
@@ -4625,6 +4645,7 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
   onAttach,
   onMic,
   onSendOrStop,
+  onTemplates,
 }: {
   canSend: boolean;
   sending: boolean;
@@ -4637,6 +4658,7 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
   onAttach: () => void;
   onMic: () => void;
   onSendOrStop: () => void;
+  onTemplates?: () => void;
 }) {
   const attachDisabled = sending || voiceBlocksComposer || pdfBlocked;
   return (
@@ -4649,6 +4671,24 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        {onTemplates ? (
+          <Pressable
+            onPress={onTemplates}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t("chat.a11yTemplates")}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Sparkles color={colors.accent} size={18} />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={onAttach}
           disabled={attachDisabled}

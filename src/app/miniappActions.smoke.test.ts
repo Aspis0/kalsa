@@ -13,7 +13,7 @@ jest.mock("expo-sharing", () => ({
   shareAsync: jest.fn(async () => undefined),
 }));
 
-import { getStrings } from "../i18n";
+import { getStrings, translate } from "../i18n";
 import { normalizeMiniapp, parseMiniappFromText, type AskAssistantMiniapp } from "../domain/askAssistant";
 import { evaluateCalculatorFormula } from "../domain/miniappCalculator";
 import { handleAskAssistantMiniappAction, type MiniappActionCallbacks } from "./miniappActions";
@@ -87,6 +87,11 @@ describe("evaluateCalculatorFormula", () => {
     expect(evaluateCalculatorFormula("a+b", { a: 2, b: 3 })).toEqual({ ok: true, value: 5 });
   });
 
+  test("handles negative variables and subtraction", () => {
+    expect(evaluateCalculatorFormula("a-2", { a: -3 })).toEqual({ ok: true, value: -5 });
+    expect(evaluateCalculatorFormula("a+b", { a: -3, b: 1 })).toEqual({ ok: true, value: -2 });
+  });
+
   test("division by zero is rejected", () => {
     expect(evaluateCalculatorFormula("1/0", {})).toEqual({ ok: false, reason: "divzero" });
   });
@@ -150,5 +155,14 @@ describe("i18n parity for new keys", () => {
     }
     expect(en.miniapp.actionRequiresAi).toBeTruthy();
     expect(it.miniapp.actionRequiresAi).toBeTruthy();
+  });
+
+  // F-04 regression guard: unit_converter renders density/mass/volume via t() keys.
+  // If those keys were deleted while still referenced, t() would leak the raw key.
+  test("restored renderer density keys resolve to real translations (not raw keys)", () => {
+    for (const key of ["renderer.massFromDensity", "renderer.volumeMl", "renderer.densityGml"]) {
+      expect(translate("en", key as any)).not.toBe(key);
+      expect(translate("it", key as any)).not.toBe(key);
+    }
   });
 });

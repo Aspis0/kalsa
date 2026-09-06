@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Calculator, Beaker, Camera, Compare, FileText, History, HelpCircle } from "lucide-react-native";
+import { Calculator, Beaker, Camera, Columns2, FileText, History, HelpCircle } from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
@@ -14,13 +14,16 @@ export type QuickAction = "chat" | "search" | "miniapp" | "openLast";
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onAction: (action: QuickAction) => void;
+  /** When `onlyTemplates` is false, called with the chosen non-miniapp action id. */
+  onAction?: (action: QuickAction) => void;
   /** Fired when a miniapp template is chosen (prefills the chat with its prompt). */
   onChooseTemplate?: (template: MiniappTemplate) => void;
+  /** Show only the "miniapp" action (which expands to the 3 templates). */
+  onlyTemplates?: boolean;
 };
 
 // Bottom sheet for quick actions (no longer tied to the FAB, which was removed).
-export function QuickActionSheet({ visible, onClose, onAction }: Props) {
+export function QuickActionSheet({ visible, onClose, onAction, onChooseTemplate, onlyTemplates }: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
@@ -33,7 +36,7 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
       case "reading_quiz":
         return HelpCircle;
       default:
-        return Compare;
+        return Columns2;
     }
   };
 
@@ -57,7 +60,6 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
           label: t("quickActions.newMiniapp"),
           sub: t("quickActions.newMiniappSub"),
           Icon: Beaker,
-          isMiniapp: true,
         },
         {
           id: "openLast" as const,
@@ -65,9 +67,13 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
           sub: t("quickActions.openLastSub"),
           Icon: History,
         },
-      ] satisfies Array<{ id: QuickAction; label: string; sub: string; Icon: any; isMiniapp?: boolean }>,
+      ] satisfies Array<{ id: QuickAction; label: string; sub: string; Icon: any }>,
     [t],
   );
+
+  const visibleActions = onlyTemplates
+    ? actions.filter((action) => action.id === "miniapp")
+    : actions;
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -78,7 +84,7 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
               <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
                 {t("quickActions.title")}
               </Text>
-              {actions.map(({ id, label, sub, Icon }) => {
+              {visibleActions.map(({ id, label, sub, Icon }) => {
                 const isMiniappAction = id === "miniapp";
                 const expanded = isMiniappAction && miniappOpen;
                 return (
@@ -89,7 +95,7 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
                           setMiniappOpen((open) => !open);
                           return;
                         }
-                        onAction(id);
+                        onAction?.(id);
                         onClose();
                       }}
                       style={({ pressed }) => ({

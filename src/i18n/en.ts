@@ -495,6 +495,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     visionUnsupportedNotice:
       "The active model can't see images — switch to Qwen 3.5 4B in Settings to analyze photos.",
     a11yAttach: "Add attachment",
+    a11yTemplates: "Create mini-app",
     a11yRemoveAttachment: "Remove attachment",
     a11yStop: "Stop generation",
     a11ySend: "Send",
@@ -583,6 +584,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     flagged: "flagged",
     notSignificant: "not significant",
     mass: "Mass",
+    massFromDensity: "Mass from density",
+    volumeMl: "Volume",
+    densityGml: "Density",
     unsupportedUnit: "Unsupported unit",
     chart: "Chart",
     table: "Table",

@@ -19,9 +19,6 @@ const MAX_BLOCK_DEPTH = 3;
 const MAX_CHILD_BLOCKS = 24;
 const MAX_TABLE_ROWS = 50;
 const MAX_TABLE_COLUMNS = 12;
-const MAX_WELLS = 384;
-const MAX_PATHWAY_NODES = 40;
-const MAX_PATHWAY_EDGES = 80;
 
 type MiniappAction = {
   id?: string;
@@ -89,6 +86,8 @@ type RendererContext = {
   index: number;
   locale: Locale;
   t: TranslateFn;
+  setInput: (key: string, value: string) => void;
+  runAction: (action: MiniappAction) => void;
 
   styles: Record<string, any>;
 };
@@ -175,48 +174,16 @@ const miniappSurfaceAccentStyles: Record<MiniappBlockVisualPreset["accent"], str
   zinc: "miniappSurfaceAccentZinc",
 };
 
-const LETTER_ROWS = "ABCDEFGHIJKLMNOP";
 const LOCAL_ACTIONS = {
   EXPORT_PNG: "export_png",
   EXPORT_JPEG: "export_jpeg",
   EXPORT_SVG: "export_svg",
   EXPORT_JSON: "export_json",
   EXPORT_CSV: "export_csv",
-  EXPORT_PLATE_MAP: "export_plate_map",
   GENERATE_REPORT: "generate_report",
 };
 
 const TABLE_ACTION_BLOCK_TYPES = new Set(["table", "data_table", "result_table", "input_table", "editable_table"]);
-// Action legacy bio (plate/pathway editor) non più raggiungibili dal registro:
-// bloccate esplicitamente nel dispatcher runAction.
-//
-// Pathway editor status strings (add/rename/move/delete node|edge) stay English on purpose:
-// that editor is legacy lab-only chrome, not a general user-facing surface. Plate/sample
-// statuses below ARE localized because they can still surface as statusText.
-//
-// export_plate_map is rejected here too: the general mini-app format has no plate maps,
-// so this action never reaches handleAskAssistantMiniappAction (miniappActions.ts).
-]);
-const WELL_CELL_CANDIDATE_KEYS = ["well", "well_id", "well-id", "wellid"];
-const SAMPLE_FIELD_CANDIDATES = ["sample", "sample_name", "sampleid", "sample_id", "sampleid", "sample name", "sample-name", "sample-id"];
-const REPLICATE_COLUMN_CANDIDATES = ["biological_replicate", "technical_replicate", "replicate", "replicate_number", "replicate-number"];
-const STATUS_HIDE_TIMEOUT_MS = 3000;
-
-type PlateMapState = {
-  columns: string[];
-  rows: string[];
-};
-
-type PlateWell = {
-  col: string;
-  id: string;
-  label: string;
-  row: string;
-  rowLabel: string;
-  sample: string;
-  well: string;
-  wellLabel: string;
-};
 
 type MatrixRow = Record<string, unknown> & {
   __index: number;
@@ -419,15 +386,6 @@ function plotPointsFromBlock(block: MiniappBlock): Array<[number, number]> {
     .filter((point): point is [number, number] => Boolean(point));
 }
 
-function axisLabelsFromValue(value: unknown, axis: "columns" | "rows", fallbackCount: number): string[] {
-  const explicit = asStringList(value).filter(Boolean);
-  if (explicit.length) return explicit;
-  const numeric = toNumber(value, fallbackCount);
-  const count = Math.max(1, Math.min(axis === "rows" ? 16 : 24, Math.round(numeric)));
-  if (axis === "rows") return LETTER_ROWS.slice(0, count).split("");
-  return Array.from({ length: count }, (_, index) => String(index + 1));
-}
-
 function getChildren(block: MiniappBlock): MiniappBlock[] {
   return asArray(block?.blocks as unknown, MAX_CHILD_BLOCKS);
 }
@@ -440,7 +398,6 @@ function isMiniappExportAction(action: MiniappAction): boolean {
   const actionId = getActionId(action);
   return (
     actionId === LOCAL_ACTIONS.EXPORT_CSV ||
-    actionId === LOCAL_ACTIONS.EXPORT_PLATE_MAP ||
     actionId === LOCAL_ACTIONS.EXPORT_PNG ||
     actionId === LOCAL_ACTIONS.EXPORT_JPEG ||
     actionId === LOCAL_ACTIONS.EXPORT_SVG ||
