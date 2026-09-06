@@ -2744,3 +2744,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > tool nel template e il parser di fallback non guarda toolChoice) → niente KALSA_BENCH_TOKENS → PREREQUISITE exit 3.
 > Sessione 807948 CHIUSA (~48 min usati), tunnel giù. Fix app bench-only dispatchato a Luna 467e65e3 (feat/governor-in-app
 > + cherry-pick su bench/fault-inject-apk), poi audit deepseek, 2 APK da CI, nuova sessione 8 Elite. PREREG Amendment 5.
+> 13:55 — fix app bench-only da Luna 467e65e3: **1ec63a0** (feat/governor-in-app) e cherry-pick **14be59b**
+> (bench/fault-inject-apk, parent ca3b1b3), patch byte-identico (verificato: `git diff` sha uguale), jest/tsc rc=0.
+> `shouldUseToolCalling(mode)`: con bench "none" niente `tools` nella completion, pre-pass document_chat e parser di
+> fallback saltati; produzione invariata. CI apk.yml lanciata su entrambi (run 34048611688 normale, 34048612833 fault);
+> audit deepseek e6df762c sul diff in corso. Test di Luna coprono solo l'helper → la prova è on-device (A1 con
+> KALSA_BENCH_TOKENS e `fallbackCalls:0`).
