@@ -186,40 +186,43 @@ the report.
 
 VERDICT: BANK (descriptive) — 0 blockers, 0 majors, 0 minors, 1 nit (F1 resolved: 24/32 ids verified pairwise); every number and framing reproduced verbatim, GPU evidence honestly bounded.
 
-## Delta audit #22 — REPORT run 9
+## Delta audit #24 — REPORT run 10
 
-Line-by-line — CONFIRMED, everything reproduced vs raw/sa811420: results.tsv:2-6 verbatim
-(A1 11769.454/16.9754551180914/28.18→40.718/647f906d…; B1 7423.184/14.95339102565/GPU CPU
-FAST/36.834→44.961/d4556574e…/FAIL; A2 12475.128/16.4701727827384/38.448→46.928; B2
-7421.679/14.8570697606086/36.956→46.631/FAIL; A3 12543.09/16.3464519762333/38.405→47.571);
-statuses all `status=0 row_void=0 void_reason=na` (5/5 valid) ✓; B1:19210 and B2:18017 governor
-JSONs — `"forced":true`, prefill_ms 7423.184/7421.679, commit_ms 15.847/13.439, ngl 99, FAST,
-`fallback_reason":""`, fallback_count=0, FALLBACK-in-logcat count 0 ✓; ids verified pairwise —
-first diff zero-based index 7 (A 14991 vs B 2352), 24/32 differ, B1==B2 and B732==B750
-byte-identical (sha d4556574 ✓), A sha 647f906d across 732/750 ✓; type_prompt.txt all
-`attempt=1 chunk_size=200 seconds=361/369/377/378/381 rc=0` ✓; cooldowns B1:6 wait_s=75/
-36.858, B2:55 wait_s=810/36.962, B3:5 wait_s=60/43.777 (the deadline-stopped B3) ✓; END.txt
-`deadline_85_min` + driver log:11 `DEADLINE_85_MIN` ✓; adb rc=255 count exactly 5 at
-:350/:763/:1471/:2253/:2912, with the five power captures `attempt=1 rc=0 has_wakefulness=1`
-✓ (trap-8 exercised). Arithmetic: 7423.184/11769.454=0.630716→0.631; 7421.679/12475.128=
-0.594918→0.595; median 0.612817→0.613; 1/0.612817=1.63181→1.632 ✓. Decode deltas:
-(14.9534−16.9755)/16.9755=−11.9%, (14.8571−16.4702)/16.4702=−9.8%, paired-means −10.9%
-(all recomputed ✓; the report's "just outside ±10%" is exact).
-Altitude — CONFIRMED: the median is stated OUTSIDE the 0.95–1.05 parity band AND BELOW the
-0.85 threshold (PREREG:281 cited), as a "miss of the prior, not adjusted" (PREREG:298);
-"forced" explicit on every GPU number (the table's forced column + the JSON quotes), A rows
-"not in raw" ✓; oracle FAIL×2 with the identical-ids consequence stated exactly per the post
-hoc — PREREG:300-304 verbatim (the A7X-property sentence, decoupled from the 750 20-FAIL
-family, with the 8-Elite one-index-29 contrast included in the cited range) ✓ no new claims;
-the "Policy implication (per PREREG rule, not a decision)" §(4) quotes the rule (PREREG:290-
-292) and lists only which conditions are met (median ≤0.85 with n=2: yes; oracle PASS: no)
-without recommending ✓.
-Omissions — CONFIRMED none material: A3 unpaired (valid, stated); B3 lost to the deadline
-(stated with the cooldown evidence); decode −11.9%/−9.8%/mean −10.9% outside the band —
-reported; harness facts 5/5 valid, 200-rung-first, trap-8 (5 rc=255 vs 5 rc=0-power-capture
-pairs) all present; the "not in raw" admissions (A-arm forced flag; B3) honest.
-Cross-file — CONFIRMED: no contradiction with the run-8 section (the d4556574e/647f906d
-cross-references, the identical-ids consequence) or the summary :15 pointer; the PREREG post
-hoc at :294-304 matches the report's quotes.
+Line-by-line — CONFIRMED: results.tsv:2-6 verbatim (A1 11619.113/17.1588647030898/28.612→
+41.332; B1 6879.411/15.2509317193723/GPU CPU FAST/36.829→45.307/FAIL; A2 12158.214/
+16.0592378976414; B2 6933.403/15.0910087401133/36.974→46.501/FAIL; A3 12237.042/
+15.827347924405); statuses all `status=0 row_void=0 void_reason=na` (5/5 valid); B1:19597/
+B2:18191 governor JSONs (prefill 6879.411/6933.403, commit_ms 13.456/12.188, forced:true,
+ngl 99, FAST), `fallback_reason":""`, fallback_count=0, FALLBACK-in-logcat 0; ids pair-
+verified — first diff idx 7 (14991 vs 2352), 24/32, B1==B2 and B735==B732 byte-identical
+(d4556574, verified with cmp), A 647f906d; type_prompt all
+`attempt=1 chunk_size=200 seconds=348/357/352/364/355 rc=0`; B2 cooldown :41
+`wait_s=600 skin=36.98 target_c=37.0`; adb rc=255 count exactly 8 at
+:1258/:1884/:1949/:2570/:2662/:2666/:2697/:2849, with the five `attempt=1 rc=0
+has_wakefulness=1` power captures; driver-sa811930.log:11 `DEADLINE_85_MIN`. Arithmetic:
+6879.411/11619.113=0.592077→0.592; 6933.403/12158.214=0.570265→0.570; median 0.581171→
+0.581; 1/0.581171=1.72066→1.721 ✓. Decode deltas recomputed: (15.25093−17.15886)/
+17.15886=−11.1%; (15.09101−16.05924)/16.05924=−6.0%; paired means −8.7% ✓.
+F1 — MAJOR, CONFIRMED: "B3 is not in raw" is FALSE. raw/sa811930 contains
+`8s-Gen-3_B_t3_cooldown.txt` with 33 samples — the cooldown was running when the deadline
+hit: `wait_s=0 skin=44.92` → `wait_s=480 skin=38.245` (still above the 37.0 target), plus
+11 further B_t3 files (apk_sha, bootstrap, …). The correct statement: "B3 began its
+cooldown (480 s of samples, 44.92→38.25 °C) and was cut by the deadline; no B3 row". The
+false "not in raw" admission sits in the report's own deviations section — fix one line.
+F2 — MINOR, CONFIRMED: the decode ±10% band verdict is omitted (run 9 stated it): pair 1
+−11.1% sits OUTSIDE ±10%, the paired mean −8.7% inside. State it.
+Altitude — CONFIRMED: median outside the 0.95–1.05 band and below 0.85, stated as the
+prior miss (PREREG:279-282, 297-299 cited); forced explicit on both B rows with A rows
+"not in raw" ✓; oracle FAIL×2 with the identical-ids fact (three A7X boards now; the
+PREREG:300-304 quote supports the 732/750 pair, the 735 enters via the raw cross-refs) ✓
+no new claims; §(4) quotes the rule (:290-292) and lists met/unmet only, "No
+recommendation" ✓; the run-9-vs-run-10 median line (0.613 vs 0.581) is arithmetic only ✓.
+Omissions — otherwise none: A3 unpaired (valid, stated); harness 5/5, 200-rung-first, 
+trap-8 (8 rc=255 vs 5 has_wakefulness captures — the report notes the asymmetry correctly
+as "absorbed"); telemetry present for all five rows; B ends 45.307–46.501 °C.
+Cross-file — CONFIRMED: consistent with the run-9 section (shared d4556574e/647f906d
+cross-refs) and the :17 pointer; no contradiction.
 
-VERDICT: BANK (descriptive) — 0 blockers, 0 majors, 0 minors, 0 nits; every number, log line, ids diff, ladder time, cooldown, deadline, rc-255 count, power capture, PREREG quote verbatim; parity-miss/0.85-below/not-adjusted, forced-explicit, A7X-property, rule-quoting §(4) all exact.
+## Delta audit #24 — verdict
+
+NO-BANK until F1's one line is corrected ("B3 began cooldown, 480 s of samples, cut by the deadline") and F2's ±10% verdict stated. All other numbers, logs, ids, times, rc counts, and arithmetic verified verbatim.

@@ -14,6 +14,8 @@ Run 8’s QRD8650/SM8650/Adreno 750 result exists below [PREREG.md:134 — “QR
 
 Run 9’s QRD7675/SM7675/Adreno 732 result exists below [PREREG.md:294 — “## Run 9 (QRD7675, forced B) — post hoc on the first pair”].
 
+Run 10’s QRD8635/SM8635/Adreno 735 result exists below [PREREG.md:274 — “run 10 QRD8635 (Adreno 735)”]; [raw/sa811930/recon.txt:4 — “SM8635”].
+
 ## Identity
 
 The device was serial `2a38935c`, SoC `SM8750`, Android 16, userdebug, and debuggable [raw/sa805734/recon.txt:1-12]. The installed APK SHA-256 is `272f4547…59946`, and its package flags include `DEBUGGABLE` [raw/sa805734/8-Elite_A_t1_apk_sha.txt:1-6]. The fixed model copy reports `1593894944` bytes [raw/sa805734/8-Elite_A_t1_model_copy.txt:1]; its locked SHA is in PREREG [PREREG.md:13-15].
@@ -233,3 +235,43 @@ Strict oracle FAIL×2 means endpoint NOT MET; the result is descriptive [results
 ## Policy implication (per PREREG rule, not a decision)
 
 Rule: “a generation gets `GPU_PREFILL_CORRECT=true` only with oracle PASS on all valid pairs of its run; the fork’s `prefill_engine()` gets a GPU rule for a generation only if its median B/A ≤ 0.85 with n ≥ 2 pairs. Otherwise the policy stays CPU and the runs bank the null” [PREREG.md:290-292]. Run 9 meets the median condition (`0.613 ≤ 0.85`, `n=2`): yes; it does not meet oracle PASS: no [results.tsv:3,5 — “FAIL”; “FAIL”].
+
+## Run 10 — QRD8635 / SM8635 / Adreno 735 (6/09, governor forced on arm B)
+
+Identity: recon says `SM8635` and `memtotal_kb=11530632` [raw/sa811930/recon.txt:4 — “SM8635”; raw/sa811930/recon.txt:22 — “memtotal_kb=11530632”].
+
+| arm | turn | TTFT ms | prefill_ms | chunks | decode t/s | new tokens | engines | thermal_state | skin before→after °C | forced | oracle | void_reason | evidence |
+|---|---:|---:|---:|---|---:|---:|---|---|---:|---|---|---|---|
+| A | 1 | 11619.113 | na | na | 17.159 | 925 | na/na | na | 28.612→41.332 | not in raw | na | na | [raw/sa811930/results.tsv:2 — “A 1 11619.113 na na 925 na 17.1588647030898 ... 28.612 41.332 ... na”]; [raw/sa811930/8s-Gen-3_A_t1_status.txt:1 — “status=0 row_void=0 ... governor_count=0 ... void_reason=na”] |
+| B | 1 | 6879.411 | 6879.411 | 2+128+128+128+128+128+128+128+27 | 15.251 | 925 | GPU/CPU | FAST | 36.829→45.307 | true | FAIL | na | [raw/sa811930/results.tsv:3 — “B 1 6879.411 6879.411 ... 15.2509317193723 GPU CPU FAST 36.829 45.307 ... FAIL”]; [raw/sa811930/8s-Gen-3_B_t1_logcat_all.txt:19597 — “KALSA_GOVERNOR ... forced":true ...”] |
+| A | 2 | 12158.214 | na | na | 16.059 | 925 | na/na | na | 38.466→46.784 | not in raw | na | na | [raw/sa811930/results.tsv:4 — “A 2 12158.214 na na 925 na 16.0592378976414 ... 38.466 46.784 ... na”]; [raw/sa811930/8s-Gen-3_A_t2_status.txt:1 — “status=0 row_void=0 ... governor_count=0 ... void_reason=na”] |
+| B | 2 | 6933.403 | 6933.403 | 2+128+128+128+128+128+128+128+27 | 15.091 | 925 | GPU/CPU | FAST | 36.974→46.501 | true | FAIL | na | [raw/sa811930/results.tsv:5 — “B 2 6933.403 6933.403 ... 15.0910087401133 GPU CPU FAST 36.974 46.501 ... FAIL”]; [raw/sa811930/8s-Gen-3_B_t2_logcat_all.txt:18191 — “KALSA_GOVERNOR ... forced":true ...”] |
+| A | 3 | 12237.042 | na | na | 15.827 | 925 | na/na | na | 38.393→47.287 | not in raw | na | na | [raw/sa811930/results.tsv:6 — “A 3 12237.042 na na 925 na 15.827347924405 ... 38.393 47.287 ... na”]; [raw/sa811930/8s-Gen-3_A_t3_status.txt:1 — “status=0 row_void=0 ... governor_count=0 ... void_reason=na”] |
+
+Both B governor records report GPU prefill, CPU decode, `prefill_ctx_ngl=99`, `forced=true`, and `thermal_state=FAST`; B1/B2 prefill is `6879.411/6933.403` ms [raw/sa811930/8s-Gen-3_B_t1_logcat_all.txt:19597 — “engine_prefill":"GPU" ... "engine_decode":"CPU" ... "prefill_ms":6879.411 ... "prefill_ctx_ngl":99 ... "forced":true ... "thermal_state":"FAST"”; raw/sa811930/8s-Gen-3_B_t2_logcat_all.txt:18191 — “engine_prefill":"GPU" ... "engine_decode":"CPU" ... "prefill_ms":6933.403 ... "prefill_ctx_ngl":99 ... "forced":true ... "thermal_state":"FAST"”].
+
+B-ID shasum/diff check: B1=B2, and Run-10 B1 equals Run-9 B1 and Run-8 B1; the three A7X boards therefore have identical B IDs [raw/sa811930/results.tsv:3,5 — “d4556574e02f80bccb5b5d0edb5cf67b134216bdaf05a119882e6a24787fdded”; raw/sa811420/results.tsv:3,5 — “d4556574e02f80bccb5b5d0edb5cf67b134216bdaf05a119882e6a24787fdded”; raw/sa808770/results.tsv:3 — “d4556574e02f80bccb5b5d0edb5cf67b134216bdaf05a119882e6a24787fdded”]; [PREREG.md:300-304 — “the GPU ids are byte-identical to the QRD8650 GPU ids ... the 732 and the 750”].
+
+## What run 10 establishes
+
+Pairing was “same-turn adjacent pairs, median” [PREREG.md:274-276 — “Pairing: same-turn adjacent pairs, median”]. B1/A1 = `6879.411/11619.113 = 0.592`; B2/A2 = `6933.403/12158.214 = 0.570`; median = `0.581`, `1/median = 1.721` [raw/sa811930/results.tsv:2-5 — “A 1 11619.113 ...”; “B 1 6879.411 ...”; “A 2 12158.214 ...”; “B 2 6933.403 ...”].
+
+The median is OUTSIDE the pre-registered `0.95–1.05` parity band and BELOW `0.85`; this is the prior miss, reported as for Run 9 [PREREG.md:279-282 — “B/A 0.95–1.05 = parity ... B/A ≤ 0.85 would be a real gain”; PREREG.md:297-299 — “Reported as a miss of the prior, not adjusted”]. Run 9 vs Run 10 medians are `0.613` vs `0.581`: the mid-tier V73 picture remains descriptive [REPORT.md:215 — “median = `0.613`”; raw/sa811930/results.tsv:2-5 — “A 1 11619.113 ...”; “B 1 6879.411 ...”; “A 2 12158.214 ...”; “B 2 6933.403 ...”; PREREG.md:266-268 — “SM7675/SM8635 → V73”].
+
+Decode B vs A is `−11.1%` for pair 1 and `−6.0%` for pair 2; paired-mean B vs A is `−8.7%` [raw/sa811930/results.tsv:2-5 — “17.1588647030898”; “15.2509317193723”; “16.0592378976414”; “15.0910087401133”]. KV commit is `12114944` bytes at `13.456` ms (B1) and `12.188` ms (B2) [raw/sa811930/8s-Gen-3_B_t1_logcat_all.txt:19597 — “commit_bytes":12114944,"commit_ms":13.456”; raw/sa811930/8s-Gen-3_B_t2_logcat_all.txt:18191 — “commit_bytes":12114944,"commit_ms":12.188”]. Against the pre-registered ±10% expectation: pair 1 is outside (−11.1%), pair 2 inside (−6.0%), the paired mean inside (−8.7%) (audit #24 F2).
+
+KALSA_TELEMETRY is present for all five valid rows [raw/sa811930/8s-Gen-3_A_t1_logcat_all.txt:19315 — “KALSA_TELEMETRY ... promptMs":11619.113”; raw/sa811930/8s-Gen-3_B_t1_logcat_all.txt:19594 — “KALSA_TELEMETRY ... promptMs":6879.411”; raw/sa811930/8s-Gen-3_A_t2_logcat_all.txt:18594 — “KALSA_TELEMETRY ... promptMs":12158.214”; raw/sa811930/8s-Gen-3_B_t2_logcat_all.txt:18188 — “KALSA_TELEMETRY ... promptMs":6933.403”; raw/sa811930/8s-Gen-3_A_t3_logcat_all.txt:12876 — “KALSA_TELEMETRY ... promptMs":12237.042”]. B status has `fallback_count=0`, both governor records have `fallback_reason":""`, and `KALSA_GOVERNOR_FALLBACK`: not in raw [raw/sa811930/8s-Gen-3_B_t1_status.txt:1 — “fallback_count=0”; raw/sa811930/8s-Gen-3_B_t2_status.txt:1 — “fallback_count=0”; raw/sa811930/8s-Gen-3_B_t1_logcat_all.txt:19597 — “fallback_reason":""”; raw/sa811930/8s-Gen-3_B_t2_logcat_all.txt:18191 — “fallback_reason":""”].
+
+B ends at `45.307–46.501 °C`; B2 cooldown reached `600 s` [raw/sa811930/results.tsv:3,5 — “45.307”; “46.501”; raw/sa811930/8s-Gen-3_B_t2_cooldown.txt:41 — “wait_s=600 skin=36.98 target_c=37.0”].
+
+Oracle is FAIL×2 [raw/sa811930/results.tsv:3,5 — “FAIL”; “FAIL”]. A1/B1 first differs at zero-based index `7` (file line 8: A `14991`, B `2352`), with `24/32` IDs differing [raw/sa811930/8s-Gen-3_A_t1_ids.txt:8 — “14991”; raw/sa811930/8s-Gen-3_B_t1_ids.txt:8 — “2352”; raw/sa811930/8s-Gen-3_A_t1_ids.txt:1,32 — “597”; “1094”; raw/sa811930/8s-Gen-3_B_t1_ids.txt:1,32 — “597”; “11319”].
+
+Harness: 5/5 rows are valid [raw/sa811930/8s-Gen-3_A_t1_status.txt:1; raw/sa811930/8s-Gen-3_B_t1_status.txt:1; raw/sa811930/8s-Gen-3_A_t2_status.txt:1; raw/sa811930/8s-Gen-3_B_t2_status.txt:1; raw/sa811930/8s-Gen-3_A_t3_status.txt:1 — “status=0 row_void=0”]; typing was one first attempt at 200 every time: `348/357/352/364/355 s` [raw/sa811930/8s-Gen-3_A_t1_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=348 rc=0”; raw/sa811930/8s-Gen-3_B_t1_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=357 rc=0”; raw/sa811930/8s-Gen-3_A_t2_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=352 rc=0”; raw/sa811930/8s-Gen-3_B_t2_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=364 rc=0”; raw/sa811930/8s-Gen-3_A_t3_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=355 rc=0”]. Trap-8 was exercised: eight `rc=255` lines were absorbed [raw/sa811930/adb-exit.log:1258,1884,1949,2570,2662,2666,2697,2849 — “rc=255”] versus five `has_wakefulness=1` power captures [raw/sa811930/8s-Gen-3_A_t1_load_wakes.txt.power.log:1; raw/sa811930/8s-Gen-3_A_t2_load_wakes.txt.power.log:1; raw/sa811930/8s-Gen-3_A_t3_load_wakes.txt.power.log:1; raw/sa811930/8s-Gen-3_B_t1_load_wakes.txt.power.log:1; raw/sa811930/8s-Gen-3_B_t2_load_wakes.txt.power.log:1 — “attempt=1 rc=0 has_wakefulness=1”].
+
+## Not bankable / deviations
+
+Strict oracle FAIL×2 means endpoint NOT MET; the result is descriptive [raw/sa811930/results.tsv:3,5 — “B 1 ... FAIL”; “B 2 ... FAIL”]; PREREG says an oracle FAIL “turns the row descriptive” [PREREG.md:286-287 — “A FAIL on the 732/735/740 ... turns the row descriptive”]. There are `n=2` pairs; A3 is unpaired and B3 began its cooldown (33 samples, wait_s=0 skin=44.92 → wait_s=480 skin=38.245, still above the 37.0 target [raw/sa811930/8s-Gen-3_B_t3_cooldown.txt:1,33]) and was cut by the deadline; no B3 row; the run ended at `DEADLINE_85_MIN` [raw/sa811930/results.tsv:2-5 — “A 1 ...”; “B 1 ...”; “A 2 ...”; “B 2 ...”; raw/sa811930/results.tsv:6 — “A 3 12237.042 ...”; raw/driver-sa811930.log:11 — “DEADLINE_85_MIN”].
+
+## Policy implication (per PREREG rule)
+
+Rule: “a generation gets `GPU_PREFILL_CORRECT=true` only with oracle PASS on all valid pairs of its run; the fork’s `prefill_engine()` gets a GPU rule for a generation only if its median B/A ≤ 0.85 with n ≥ 2 pairs. Otherwise the policy stays CPU and the runs bank the null” [PREREG.md:290-292]. Run 10 meets the median condition (`0.581 ≤ 0.85`, `n=2`): yes; it does not meet oracle PASS: no [raw/sa811930/results.tsv:3,5 — “FAIL”; “FAIL”]. No recommendation.
