@@ -2767,3 +2767,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Host sa812021, tunnel pid ~/kalsa-qdc/tunnel-sa812021.pid (aperto PRIMA del probe adb). Driver positivo pid
 > /tmp/s5b-driver.pid = 16667: `ORACLE_MODE=logit d_run.sh sa812021 <apk 19b67b6> ABABAB 45`, raw/sa812021/.
 > Attesi su A1: `fallbackCalls:0`, KALSA_BENCH_TOKENS presente, tokensCached < 2410.
+> 15:05 — terzo tentativo: A1 pulita lato tool (fallback 0, TOKENS presente, prefisso prewarm = turno: 1474/546) ma VOID
+> per `new_tokens_a=na`: il driver lo leggeva SOLO dalla riga di rollback `reusing N/M`, che ora non compare perché il
+> KV non diverge più. Fallback da KALSA_KVPREFIX (text_tokens−n_common=928) in parse.sh/d_run.sh, testato sul logcat
+> reale + dryrun rc=0. Quarto tentativo in volo (pid /tmp/s5b-driver.pid=64866, raw/sa812021/). Amendment 6.
+> Prompt ora ~620 token più corto delle run 8-10 (non ~60 come stimato).

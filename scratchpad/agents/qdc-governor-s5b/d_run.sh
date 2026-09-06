@@ -389,7 +389,7 @@ run_observation() {
     row_void=1
     void_reason=governor_fallback
   fi
-  reuse_line=$(last_reuse_after "$logcat"); a_reused=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p'); a_total=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p')
+  reuse_line=$(last_reuse_after "$logcat"); a_reused=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\1/p'); a_total=$(printf '%s' "$reuse_line" | sed -n 's/.*reusing \([0-9][0-9]*\)\/\([0-9][0-9]*\).*/\2/p'); if [ -z "${a_reused:-}" ] || [ -z "${a_total:-}" ]; then kv_line=$(last_kvprefix_after "$logcat"); a_total=$(printf '%s' "$kv_line" | sed -n 's/.*text_tokens=\([0-9][0-9]*\) n_common=\([0-9][0-9]*\).*/\1/p'); a_reused=$(printf '%s' "$kv_line" | sed -n 's/.*text_tokens=\([0-9][0-9]*\) n_common=\([0-9][0-9]*\).*/\2/p'); fi
   if [ "$arm" = A ]; then [ -n "${a_reused:-}" ] && [ -n "${a_total:-}" ] && new_tokens_a=$((a_total - a_reused)); else new_tokens_b=$(chunk_sum "$prefill_chunks" 2>/dev/null || printf 'na'); fi
   if [ "$arm" = A ]; then awk -v n="$new_tokens_a" 'BEGIN{exit !(n ~ /^[0-9]+$/&&n>=938*0.9&&n<=938*1.1)}' >/dev/null 2>&1 || row_void=1; else awk -v n="$new_tokens_b" 'BEGIN{exit !(n ~ /^[0-9]+$/&&n>=938*0.9&&n<=938*1.1)}' >/dev/null 2>&1 || row_void=1; fi
   if [ -n "$bench" ] && parse_tokens "$bench" "$ids_file"; then ids_sha=$(/usr/bin/shasum -a 256 "$ids_file" | awk '{print $1}'); else printf 'VOID n=%s\n' "$n" > "$ids_file"; fi

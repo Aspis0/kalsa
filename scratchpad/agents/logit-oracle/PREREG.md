@@ -121,3 +121,17 @@ mode "none" pass no tools and skip the fallback parser); both APKs (normal and f
 fixed commits; R5 restarts from scratch in a new session. Declared consequence: the prompt prefix of every R5/TF run
 no longer contains tool schemas (≈60 fewer cached tokens than runs 8–10; irrelevant within a run, noted for TTFT
 comparisons across runs). Readings unchanged. Both attempts so far are archived, not data.
+
+### Amendment 6 (6/09 15:05 EDT, before any oracle verdict was read)
+Third attempt (APK 19b67b6, session 807952, raw `qdc-governor-s5b/raw/sa812021-newtokens-void/`): A1 clean on the tool
+side (`KALSA_TOOLCALL … "toolChoice":"none","structuredCalls":0,"fallbackCalls":0,"executed":0`, one KALSA_BENCH_TOKENS,
+`KALSA_KVPREFIX embd=546 text_tokens=1474 n_common=546`, i.e. the prewarmed prefix now matches the turn exactly) but the
+row was VOID by d_run.sh:394 (`new_tokens_a` outside 938±10%) because `new_tokens_a` was `na`: the driver derived it
+only from the native rollback line `restored state checkpoint: reusing N/M prompt tokens` (parse.sh `last_reuse_after`),
+which is printed only when the KV diverges from the prompt. Every earlier run diverged by a few tokens (tool-bearing
+prefix ≠ prewarm), so the line was always there; with the fixed app the prefix matches and the line is absent. Driver
+fix (parse.sh `last_kvprefix_after`, d_run.sh:392): when the reuse line is missing, `new_tokens_a = text_tokens −
+n_common` from the last KALSA_KVPREFIX after the send anchor (same anchor). Checked on the real A1 logcat: 1474−546=928
+(in range); on run 8's logcat the reuse line still wins (841/1766 → 925 vs 1766−843=923, 2-token checkpoint granularity).
+dryrun rc=0. Relaunched `ABABAB 45` in the same session. Readings unchanged. Note for the record: the prompt is now
+~620 tokens shorter than in runs 8–10 (tool schemas + web-search system prompt gone), not ~60 as guessed in Amendment 5.
