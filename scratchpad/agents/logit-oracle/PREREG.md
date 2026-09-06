@@ -172,3 +172,17 @@ injected fault is in the Q4_0 GPU GEMM (`gemm_noshuffle_q4_0_f32.cl`), which is 
 Adreno; run 8 already forced GPU prefill on this exact board (1,98×), so the B arm is known to work there. What is
 explicitly NOT covered by this move, and stays open: the 8 Elite's own 1-token flip at idx 29 (the case that motivated
 the oracle) — it needs its own session when the 8 Elite budget refills. Readings unchanged.
+
+### Amendment 10 (6/09 20:05 EDT, before any oracle verdict was read)
+Two harness parameters declared for the next R5 session, both from measurements, neither touching what is measured:
+1. **`TYPE_LADDER=100`** on QRD8650 with the APKs from 19b67b6 on. The 200-char rung of the typing ladder lost
+   characters on 3/3 turns of session 807954 and burned ~300 s per turn before the 100-char rung typed the same text
+   (`8-Gen-3_*_type_prompt.txt`: `attempt=1 chunk_size=200 seconds≈300 rc=1`, then `chunk_size=100 seconds≈510 rc=0`).
+   The composer content check is unchanged (exact 5142 characters before any send tap), so the prompt actually sent is
+   identical; TTFT is timed from the send tap. Implemented as a launch parameter (`TYPE_LADDER`, default "200 100"),
+   deliberately NOT as adaptive state — an adaptive version leaked across the dry-run's independent cases, which is a
+   warning about hidden state in the harness. dryrun.sh output is byte-identical to the pre-change baseline.
+2. **Deadline ≥ 110 min for a 2-pair positive control** on QRD8650 (measured: A turn ≈ 19 min, cooldown to 37,0 °C
+   ≈ 9,5 min, B turn ≈ 19 min → ≈ 48 min per pair with the 200-rung waste, ≈ 38 min without it).
+APK for the next attempt: **8b6d548** (positive) and **aa4ddf2** (negative), i.e. the builds with the SIGSEGV guards
+restored `llama_synchronize`. Readings unchanged.

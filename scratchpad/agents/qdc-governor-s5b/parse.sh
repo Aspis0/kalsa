@@ -434,10 +434,15 @@ type_prompt() {
   local text_len offset chunk chunks chunk_size chunk_no expected_len
   local attempt attempt_start now elapsed cap rc result first_loss_expected first_rung
   TYPE_ATTEMPT_NO=${TYPE_ATTEMPT_NO:-0}
+  TYPE_LADDER=${TYPE_LADDER:-"200 100"}
   [ -n "$PROMPT_TEXT" ] || return 1
   text_len=${#PROMPT_TEXT}
   first_rung=1
-  for chunk_size in 200 100; do
+  # TYPE_LADDER is a launch parameter, not adaptive state: on a board where the
+  # 200-char rung is known to lose characters (QRD8650 with the APKs from
+  # 19b67b6 on: 3/3 turns, ~300 s burned each) the run is started with
+  # TYPE_LADDER=100. The typed text is verified identical either way.
+  for chunk_size in $TYPE_LADDER; do
     TYPE_ATTEMPT_NO=$((TYPE_ATTEMPT_NO + 1))
     attempt="$TYPE_ATTEMPT_NO"
     cap=$(type_cap_for_chunk "$chunk_size") || return 1
