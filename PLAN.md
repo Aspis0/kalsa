@@ -1588,6 +1588,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **(3) Difetto Adreno 750**: prima websearch upstream (regola "cercare prima online"), poi riproduttore
 > minimo su QDC dal caso run 8 (divergenza idx 7). Dopo (2).
 
+> **6/09 — Websearch punto 3 (Luna a574b968, finestra 2026-03→09-06): NESSUN fix upstream per il nostro
+> sintomo** (Adreno 750 + E031.45 + f16/bf16 batched MUL_MAT sbagliato). Vicini ma altri kernel: #23800
+> (750, FLASH_ATTN ViT, 28/05), #17351 (750, E031.45.02.16, VLM, 11/2025), #25477 (740, Q6_K, f16 270/270 ok),
+> #25910 (batched MUL_MAT quantizzato: view_offs/broadcast persi, merged 20/07 `178a6c4` — verificare che
+> sia nel nostro pick 12f6d9b6d), #26476 (q6_K gated a E031<45, merged 20/08), #27640 (F32 batched GEMM
+> bypass ne11>8, perf, 29/08), FA fixes #26428/#26434. Backend mappa 730/740/750 → `A7X`. ⇒ Punto 3 si caccia
+> da noi partendo dal riproduttore già in mano: **ALIVE 41 = 20 FAIL di test-backend-ops sul 750** (shape
+> f16 batched): elencare i 20 casi, mappare al kernel dispatchato (`ggml-opencl.cpp` mul_mm/mul_mat f16
+> tiled vs generic), bisect kernel/flag su QDC, fix nel fork, oracolo in-app. Riferimenti URL nel report
+> dell'agente (Paseo a574b968).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
