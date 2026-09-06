@@ -149,3 +149,14 @@ the 8,5-min cooldown + reinstall sequence in this ordering. Fix (d_run.sh `app_f
 QDC trap 8), and if it is not `com.kalsa.app`, re-issue `am start -n com.kalsa.app/.MainActivity` and re-check, twice;
 failure ⇒ `void_reason=foreground` (a VOID row, never a silent pass). dryrun.sh stubs the new dumpsys and registers the
 function; rc=0. Relaunched `ABABAB 40` in the same session (expires ~17:03 EDT). Readings unchanged.
+
+### Amendment 8 (6/09 16:20 EDT, before any oracle verdict was read)
+Fifth attempt (raw `qdc-governor-s5b/raw/sa812021/`): the `app_foreground` guard WORKS — B1 logged
+`attempt=1 top=com.android.launcher3/.uioverrides.QuickstepLauncher` → `am start` → `attempt=2 top=com.kalsa.app/.MainActivity`
+— but the 40-min deadline cut B1 mid-turn (A1 valid, TTFT 5,485 s; END deadline_40_min, no B row). Measured cost per
+pair on this board: A ≈ 11 min (reinstall + model copy + load + typing + generation) + cooldown to 38,5 °C ≈ 8,5 min +
+B ≈ 12 min ≈ 32 min. Two pairs (needed for a PASS under R4) therefore need ≈ 65 min in ONE run.
+Session 807952 had 44 min left, so the order of the two controls is swapped: the **negative control runs now**
+(APK e54f529, `ABABAB 33`, job tag `sa812021-fault` for a separate raw dir on the same host), and the positive control
+gets its own ≈ 70-min session next. One pair suffices for the negative (FAIL dominates; declared in Amendment 3); the
+positive still requires ≥ 2 pairs. Order is irrelevant to the pre-declared readings, which are unchanged.

@@ -2783,3 +2783,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > + `am start` di rimessa in primo piano, 2 tentativi, altrimenti VOID `foreground`); dryrun rc=0 dopo aver registrato la
 > funzione e lo stub `dumpsys activity activities`. Quarto tentativo archiviato in raw/sa812021-foreground-void/
 > (A1/A2 valide, B1/B2 VOID composer). PREREG Amendment 7.
+> 16:21 — quinta run: la guardia `app_foreground` FUNZIONA (B1: launcher → am start → app), ma la deadline 40 ha
+> tagliato B1 a metà (solo A1 in results). Costo misurato per coppia ≈ 32 min → due coppie ≈ 65 min in una sola run.
+> Con 44 min di sessione residui inverto l'ordine: **controllo NEGATIVO ora** (APK e54f529, `ABABAB 33`, tag
+> sa812021-fault), positivo in una sessione dedicata da ~70 min. PREREG Amendment 8.
