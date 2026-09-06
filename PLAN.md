@@ -2753,3 +2753,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 14:05 — audit #27 deepseek su 1ec63a0: GO-WITH-FIXES (prompt di sistema "hai web_search" ancora attivo; prewarm KV con
 > tool → re-prefill a ogni turno; execute strutturato senza guard). Round 2 su Luna 467e65e3; gli APK 1ec63a0/14be59b
 > in build NON verranno usati. Poi re-audit, rebuild, sessione.
+> 14:20 — round 2 Luna: **19b67b6** (governor) / **e54f529** (fault; il ramo ha un commit doppio d911f70+e54f529 per un
+> conflitto nel cherry-pick, src identici alle due punte, patch sha uguale — usa-e-getta, accettato). Chiude: prompt di
+> sistema tool-free sotto "none", prewarm KV con lo stesso prefisso del turno (resolvePrewarmPrefix prende il mode;
+> notifyStaticPrefixInputs legge la pref in `.then`), env-hash/turnPrefixHash coerenti, execute strutturato guardato.
+> Mio dubbio passato al re-audit: il prewarm in produzione ora parte un tick dopo (lettura AsyncStorage), non più sincrono.
+> CI 34049642898 (normale) / 34049644191 (fault); le build 1ec63a0 cancellate dalla concurrency. Re-audit deepseek in corso.
