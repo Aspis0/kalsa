@@ -155,6 +155,9 @@ llama_governor_engine llama_governor_policy::prefill_engine() const {
         state_ == llama_governor_thermal_state::LOWBAT || profile_.batt_level_pct < 45) {
         return llama_governor_engine::CPU;
     }
+    if (params_.bench_force_gpu_prefill && params_.gpu_fit == llama_governor_fit::Fit) {
+        return llama_governor_engine::GPU;
+    }
     // measured: ALIVE #38: 8 Elite GPU prefill, G ttft 1434/1470 ms vs
     // C 16476/14412 ms (>=9.8x); decode 25.3/24.2 t/s >= C's.
     if ((params_.generation == llama_governor_generation::V75 ||
