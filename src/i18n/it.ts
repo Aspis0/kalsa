@@ -511,6 +511,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     thermalHardGateTitle: "Telefono criticamente caldo",
     thermalHardGateBody:
       "Il modello è stato rimosso dalla memoria per far raffreddare il dispositivo. Attendi che si raffreddi prima di avviare un'altra risposta.",
+    batteryEstimate: "{time} rimanente a questo ritmo",
+    batteryMeasuring: "Measurazione dell'uso della batteria — l'estimazione appare dopo ~10 min di generazione",
+    batteryCharging: "Batteria in carica — estimazione sospesa",
+    batteryUnknown: "Estimazione della batteria sconosciuta — continua a generare per ~10 min per misurare",
+    batteryLessThanHour: "meno di 1 ora",
+    batteryLowWarning: "Batteria bassa — la generazione potrebbe interrompersi presto",
     regenFailed: "Rigenera fallita",
     editEmpty: "Aggiungi una didascalia o mantieni un allegato.",
     sendAborted: "Generazione interrotta prima della risposta.",

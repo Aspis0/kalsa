@@ -152,6 +152,7 @@ import {
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import { useThermalHardGate } from "../hooks/useThermalHardGate";
+import { useBatteryEta, type BatteryEtaUiState } from "../hooks/useBatteryEta";
 import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
 import {
   computeHistoryHashFromMessages,
@@ -2529,6 +2530,70 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Keep modelStateRef in lockstep for the embed-job residency gate (reads
   // without waiting for a re-render). Assigned on every render below.
   modelStateRef.current = modelState;
+
+  // C7 — slope ETA from expo-battery level samples. Advisory only: never
+  // blocks send/load. Enabled only while a model is loaded and the engine is
+  const currentModel = MODEL_REGISTRY[modelIndex];
+
+  // ready (the drain slope is meaningless otherwise). Fail-open — unknown /
+  // measuring / charging states simply render no hard stop.
+  const batteryEta = useBatteryEta({
+    enabled:
+      modelState === "ready" &&
+      isEngineReady() &&
+      getActiveModelId() === currentModel.id,
+    modelId: currentModel.id,
+  });
+
+  // C7 — format an ETA band [low, high] hours into broad human bands. Whole
+  // hours, half-hour fractions; sub-hour reads “less than 1 hour”.
+  const formatEtaHours = (h: number | undefined): string => {
+    if (h == null) return "";
+    if (h < 1) return t("chat.batteryLessThanHour");
+    const whole = Math.floor(h);
+    const frac = Math.round((h - whole) * 2) / 2;
+    return frac >= 0.5 ? `${whole} h 30 min` : `${whole} h`;
+  };
+
+  // C7 — the advisory battery line. Rendered only when a model is loaded,
+  // the native API was reachable, and the charge is <= 50%. Fail-open: the
+  // hook's unknown / measuring / charging kinds simply render advisory text
+  // and never block send/load.
+  const batteryLine: React.ReactNode = (() => {
+    const pct = batteryEta.batteryPercent;
+    if (
+      !batteryEta.apiAvailable ||
+      pct == null ||
+      pct > 50 ||
+      modelState !== "ready"
+    ) {
+      return null;
+    }
+    const kind = batteryEta.kind;
+    const isLow = pct <= 20;
+    const color = kind === "eta" && isLow ? colors.bad : colors.muted;
+    return (
+      <>
+        <Text style={[typography.bodyXs, { color, marginBottom: spacing.xs }]}>
+          {kind === "eta"
+            ? t("chat.batteryEstimate", {
+                time: `~${formatEtaHours(batteryEta.lowHours)}–${formatEtaHours(batteryEta.highHours)}`,
+              })
+            : kind === "measuring"
+              ? t("chat.batteryMeasuring")
+              : kind === "charging"
+                ? t("chat.batteryCharging")
+                : t("chat.batteryUnknown")}
+        </Text>
+        {isLow && kind === "eta" ? (
+          <Text style={[typography.bodyXs, { color: colors.bad, marginBottom: spacing.xs }]}>
+            {t("chat.batteryLowWarning")}
+          </Text>
+        ) : null}
+      </>
+    );
+  })();
+
   const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   // Raw download error (untranslated) for on-device diagnostics when friendly text is generic.
@@ -2567,7 +2632,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     },
     [],
   );
-  const currentModel = MODEL_REGISTRY[modelIndex];
   // Pre-init estimate: catalog n_ctx (+ optional high-RAM hybrid upgrade).
   // After initEngine succeeds we overwrite both state and ref with the
   // reported effectiveNCtx (memory clamp may shrink). Document tool
@@ -5391,6 +5455,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>
+            {/* C7 — advisory battery ETA, separate bodyXs line below the model bar.
+                Hidden unless a model is loaded and charge <= 50%. Never blocks send. */}
+            {batteryLine}
           </View>
 
           {/* HIGH-5: real Web toggle (persisted). Default ON. */}

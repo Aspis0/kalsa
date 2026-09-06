@@ -512,6 +512,12 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thermalHardGateTitle: "Device is critically hot",
     thermalHardGateBody:
       "The model has been unloaded to let the device cool. Wait until it cools before starting another response.",
+    batteryEstimate: "{time} left at this pace",
+    batteryMeasuring: "Measuring battery use — the estimate appears after ~10 min of generating",
+    batteryCharging: "Battery charging — ETA paused",
+    batteryUnknown: "Battery ETA unknown — keep generating for ~10 min to measure",
+    batteryLessThanHour: "less than 1 hour",
+    batteryLowWarning: "Battery low — generation may stop soon",
     regenFailed: "Regenerate failed",
     editEmpty: "Add a caption or keep an attachment.",
     sendAborted: "Generation stopped before a reply started.",
