@@ -1655,7 +1655,10 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > BASELINE_GATE = esattamente 20 FAIL altrimenti exit 6): **audit #21 deepseek NO-GO** — blocker: il conteggio FAIL
 > dava 40 sul file reale (righe `: FAIL` + riga nuda duplicata per shape) → il gate baseline non poteva mai passare;
 > major: i sub-conteggi filtravano n>1/o>1, che la famiglia (n=1,o=1) non ha. Fix in corso con validazione sul file
-> di cella 58 (905/20). Run 9: A1 11,77 / B1 GPU 7,42 / A2 12,48 valide, B2 in typing dopo 810 s di cooldown. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> di cella 58 (905/20). Run 9: A1 11,77 / B1 GPU 7,42 / A2 12,48 valide, B2 in typing dopo 810 s di cooldown.
+> **04:50 — audit #21b GO**, d_run 750 committato. **Run 9 seconda coppia: B2 GPU 7,42 s (identica a B1) vs A2 CPU
+> 12,48 s → 0,595; mediana delle 2 coppie stesso-turno 0,613 (1,63×)**, stessi ids GPU d4556574 (oracolo FAIL ×2).
+> A3 in cooldown, deadline 05:05. Poi: End Session 807351, REPORT run 9, ALIVE 52; sessione QRD8650 per il test kit. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
