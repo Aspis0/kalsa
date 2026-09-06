@@ -1697,7 +1697,19 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > connessione resettata dal remoto → il server adb dell'host non parte). Tutte chiuse (~35 min di budget bruciati
 > in totale). Pausa 45 min, poi ritentare con UN board (run 11 HDK8550). Nel frattempo nessun lavoro device.
 > Stato punti owner: (1) FATTO; (2) run 9 e 10 bancate (ALIVE 52/54), run 11 in attesa QDC; (3) gate bancato
-> kernel-level (ALIVE 53), Guard A e run 8b in attesa QDC. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> kernel-level (ALIVE 53), Guard A e run 8b in attesa QDC.
+
+> **6/09 07:55 — OWNER: oracolo a logit OK "purché non facciamo passare una cosa sbagliata".** Pre-registrato in
+> `scratchpad/agents/logit-oracle/PREREG.md` (R1 disaccordo con CPU sicura ≥0,03 = FAIL; R2 top-5 entro 0,10 nats,
+> p1 entro 0,02; R3 divergenze solo near-tie e scelta = #2, max 1; R4 teacher forcing 32 passi su ≥2 coppie; R5
+> sanità 8 Elite PASS + build rotta FAIL; R6 nessuna promozione automatica; soglie solo restringibili).
+> Fattibilità (Luna 5e7af1d9, read-only, con quote): `n_probs` di llama.rn è POST-sampler (con top_k=1 resta un solo
+> candidato), nessun `post_sampling_probs`, `logit_bias` statico, grammar letterale non garantisce gli id → serve
+> un hook nativo bench-only nella patch: `bench_raw_probs` (top-N da softmax sui logit grezzi PRIMA di
+> `common_sampler_sample`) + `bench_force_ids` (id forzato per passo attraverso lo stesso accept path).
+> **In corso**: Luna 5e7af1d9 implementa hook + chiavi `kalsa.bench.probs` / `kalsa.bench.force_ids` + log
+> `KALSA_BENCH_PROBS`; Luna 2d5dfbe0 il driver (`ORACLE_MODE=logit`, `oracle_logit.py` R1-R4, colonne
+> `oracle_logit`/`oracle_rule`, dryrun). Poi audit, APK, sanità R5 sull'8 Elite, TF su 750/732/735. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
