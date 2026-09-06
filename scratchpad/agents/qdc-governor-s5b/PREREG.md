@@ -258,3 +258,35 @@ Driver change (parse.sh `type_prompt`, dryrun fixtures):
    KALSA_TELEMETRY/KALSA_GOVERNOR after the anchor. Only VOID(composer) frequency should drop.
 Expected effect on a hot turn: worst case 200-fail (≈314 s) + 100-pass (≈500 s) ≈ 14 min of typing, within the
 85-min run for 4 turns but not 6; the run deadline stays 85 min and rows lost to it stay reported as such.
+
+## Runs 9–11 — in-app GPU-vs-CPU prefill on the SoCs the policy routes to CPU (pre-registered 6/09, before APK build)
+
+Owner 6/09: extend the governor to 7+ Gen 3, 8s Gen 3 and 8 Gen 2 and measure. Prerequisite build:
+fork field `llama_governor_params.bench_force_gpu_prefill` (GPU prefill when `gpu_fit==Fit`, after the
+thermal/LOWBAT guards, default false) + app: SM7675/SM8635 → V73, `bench_force_gpu_prefill: force` passed
+through the llama.rn patch; `GPU_PREFILL_CORRECT.V73` stays false. The production policy does not change in
+this step; these runs produce the data that will decide it.
+
+Driver: `set_prefs` writes `kalsa.bench.governor_force='1'` for arm B on EVERY device_tag (today 8-Gen-3 only);
+arm A unchanged (governor disabled → CPU). B rows must show `KALSA_GOVERNOR {` with `engine_prefill":"GPU"`
+and `"forced":true`, else VOID governor_fallback (rule already in place). Typing ladder per §"Run 8 → run 9".
+
+Devices and order: run 9 QRD7675 (Adreno 732), run 10 QRD8635 (Adreno 735), run 11 HDK8550 (Adreno 740).
+Each: fresh 120-min session, `ABABAB 85`, cooldown A 38.5 / B 37.0 °C cap 900 s, first run per board thermally
+exploratory. Pairing: same-turn adjacent pairs, median.
+
+Expectations (descriptive bands, written before the data):
+- QRD7675 / QRD8635 (mid-tier, kernels verified correct in CLI: ALIVE row 36 925/925 + 407/407 on the 732;
+  ALIVE row 56 "735 twin of 732"): CLI prefill gain ~1.6× (ALIVE row 40) × in-app discount 0.597–0.620 →
+  **B/A 0.95–1.05 = parity**. Parity is the bankable null: it confirms the policy's CPU choice. B/A ≤ 0.85
+  would be a real gain and would reopen the policy for V73 mid-tier.
+- HDK8550 (Adreno 740, 8 Gen 2, 12 GB): moe-experiments verdict on the 740 "CPU pura più veloce, GPU = cool-mode
+  solo KEXP" (memory adreno-moe-two-defects, cell #16 context) → **B/A ≥ 1.0 expected** (GPU prefill not faster
+  in-app on a dense model). B/A ≤ 0.85 would contradict it and would be reported as such, not banked.
+- Oracle: strict greedy oracle over the 32 ids on every same-turn pair; PASS-1 allowed (§Runs 7+). A FAIL on
+  the 732/735/740 is NEW information (kernels pass test-backend-ops in CLI) and turns the row descriptive.
+- Decode: B decode (CPU, after KV commit) within ±10% of A decode, as on the 8 Elite and the 750; larger gaps
+  reported.
+Policy update rule (after the three runs, not before): a generation gets `GPU_PREFILL_CORRECT=true` only with
+oracle PASS on all valid pairs of its run; the fork's `prefill_engine()` gets a GPU rule for a generation only
+if its median B/A ≤ 0.85 with n ≥ 2 pairs. Otherwise the policy stays CPU and the runs bank the null.
