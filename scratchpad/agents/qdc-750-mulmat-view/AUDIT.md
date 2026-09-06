@@ -103,3 +103,24 @@ format; my initial stray-arg suspicion REFUTED); bench `-t 4 -ngl 99 -fa 0 -p 51
 NO-GO for the device run until F1 is fixed (count `: FAIL` only; re-validate → 905/20 on the
 58 file) and F2's sub-counts are re-filtered to the pre-registered b/nr signature. 1 blocker
 (F1), 1 major (F2); F3-F6 confirmed clean.
+
+## Delta audit #21b
+
+F1 — CONFIRMED-FIXED. count_tbo (d_run.sh:50-70) now greps the colon forms:
+`pass=$(grep -E '^  MUL_MAT\(.*: OK[[:space:]]*$' "$clean" | wc -l)` and
+`fail=$(grep -E '^  MUL_MAT\(.*: FAIL[[:space:]]*$' "$clean" | wc -l)` — the bare-`)`
+alternative is gone. Ran the logic on ../qdc-8g3-rerun-58/raw/tbo_mm_sa802498.out:
+**pass=905, fail=20** (previous 40); fail_cases extraction = exactly **20 distinct `: FAIL`
+signatures**, 905 `: OK` lines, zero OK lines in the fail file; the summarized LAST_FAIL=20 →
+d_run.sh:137 `[ "$LAST_FAIL" -ne 20 ]` → BASELINE_GATE now passes.
+F2 — CONFIRMED-FIXED. The awk sub-counts parse m/k/k_v/n and bucket `kv>k`:
+`family(kv==2112 && m==128 && n==1) pass=28 fail=20` and `other kv>k pass=145 fail=0` — the
+20 failures are all captured by the pre-registered family and none leak into "other".
+Unchanged since #21: the EXIT trap (:16), deadline_check (:23), thermal_gate 3×/60 s with
+GATE_ABORT return 7 (:40), and the BASELINE_GATE exit 6 (:137) are byte-identical to the
+previous read; only count_tbo/summarize were rewritten.
+
+## Verdict
+
+GO for the device run — F1/F2 fixed and validated on the real baseline file
+(905/20, family 28/20, other 145/0, 20 distinct fail signatures), gate and trap untouched.
