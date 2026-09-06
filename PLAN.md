@@ -1676,7 +1676,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **05:40 — test kit 750 COMPLETO** (END complete 05:25): bench candidato pp512 289,59±0,05 / tg128 22,17±0,02 →
 > +0,2% / −2,2% (guardia ±10% ok). Sessione 807841 Completed (~14 min usati), raw committato, **fork branch
 > `kalsa/opencl-picks-2026-09+25910` pushato** (c7ad97025 + 2f3b24dee). REPORT cella 750 Luna 0f36d889 → audit →
-> ALIVE 53. **Sessione 807861 (QRD8635) aperta 05:38 per run 10** (stesso APK 7e3d6d6, driver S5b, `ABABAB 85`). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> ALIVE 53. **Sessione 807861 (QRD8635) aperta 05:38 per run 10** (stesso APK 7e3d6d6, driver S5b, `ABABAB 85`).
+> **06:00 — ALIVE 53 bancata** (449cdab8). Fork: branch **`kalsa/governor-v0.3-on-2f3b24dee`** = governor 9c28322ac
+> + merge del pick branch (3bec271fd, solo ggml-opencl.cpp +28/−6, test policy ok), pushato. App: **pin bump c8d137e**
+> (3bec271fd), pushato; **APK CI run 34025628896** in corso (~40 min) → serve per run 8b (750 in-app col gate) e,
+> via kit CLI già pronto, per il bench 8 Elite. Run 10 QRD8635 in volo (sessione 807861, driver 05:34). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
