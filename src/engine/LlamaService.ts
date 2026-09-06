@@ -21,6 +21,7 @@ import {
   resolveCompletionToolChoice,
   shouldUseToolCalling,
   type BlockFormat,
+  type ToolChoiceMode,
 } from "../bench/benchConfig";
 import {
   buildOperativeBlock,
@@ -691,8 +692,12 @@ function resetPrewarmState(): void {
   prewarmQueuedKey = null;
 }
 
-function resolvePrewarmPrefix(locale: Locale, tools: EngineTool[] | undefined) {
-  const list = Array.isArray(tools) ? tools : [];
+function resolvePrewarmPrefix(
+  locale: Locale,
+  tools: EngineTool[] | undefined,
+  toolChoiceMode: ToolChoiceMode,
+) {
+  const list = shouldUseToolCalling(toolChoiceMode) && Array.isArray(tools) ? tools : [];
   const systemText = buildSystemPrompt(locale, list.length > 0, []);
   return {
     ...assembleStaticPrefix({ locale, systemText, tools: list }),
@@ -706,10 +711,11 @@ function resolvePrewarmPrefix(locale: Locale, tools: EngineTool[] | undefined) {
  * lands during prewarm waits, then llama.rn prefix-match reuses the hot
  * system+tools KV. Never completion() in parallel.
  */
-export function queueStaticPrefixPrewarm(
+export async function queueStaticPrefixPrewarm(
   locale: Locale,
   tools?: EngineTool[],
-): void {
+  toolChoiceMode?: ToolChoiceMode,
+): Promise<void> {
   if (!EAGER_PREFIX_PREWARM) return;
   // OEM process-restore can relaunch us in background; do not burn a 40s
   // prefill until the user is actually looking at the app. Foreground
@@ -722,7 +728,8 @@ export function queueStaticPrefixPrewarm(
     logPrewarm({ op: "skip", reason: "not_ready" });
     return;
   }
-  const prefix = resolvePrewarmPrefix(locale, tools);
+  const resolvedToolChoiceMode = toolChoiceMode ?? (await getToolChoiceMode());
+  const prefix = resolvePrewarmPrefix(locale, tools, resolvedToolChoiceMode);
   // Chat KV must not be prewarmed over — restore and live-chat KV included.
   // §7.29 measured n_past=1473 after a hybrid restore on KEXP, so the old
   // "hybrid restores are not real" carve-out was wrong.
@@ -854,33 +861,34 @@ export function notifyStaticPrefixInputs(
   locale: Locale,
   tools?: EngineTool[],
 ): void {
-  if (!EAGER_PREFIX_PREWARM) return;
-  if (!isEngineReady()) return;
-  const prefix = resolvePrewarmPrefix(locale, tools);
-  if (
-    shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
-    prewarmQueuedKey === prefix.hash
-  ) {
-    return;
-  }
-  const busy = engineJobPendingCount > 0;
-  resetPrewarmState();
-  if (busy) {
-    logPrewarm({ op: "skip", reason: "in_flight" });
-    return;
-  }
-  void withEngineJob(async () => {
-    if (!context || disposing) return;
-    try {
-      await context.clearCache();
-    } catch {
-      // best-effort; the following prewarm still evals the new prefix
+  if (!EAGER_PREFIX_PREWARM || !isEngineReady()) return;
+  void getToolChoiceMode().then((toolChoiceMode) => {
+    const prefix = resolvePrewarmPrefix(locale, tools, toolChoiceMode);
+    if (
+      shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
+      prewarmQueuedKey === prefix.hash
+    ) {
+      return;
     }
-    kvHoldsChatSession = false;
-    lastChatNPast = undefined;
-    chatKvDiskCurrent = false;
+    const busy = engineJobPendingCount > 0;
+    resetPrewarmState();
+    if (busy) {
+      logPrewarm({ op: "skip", reason: "in_flight" });
+      return;
+    }
+    void withEngineJob(async () => {
+      if (!context || disposing) return;
+      try {
+        await context.clearCache();
+      } catch {
+        // best-effort; the following prewarm still evals the new prefix
+      }
+      kvHoldsChatSession = false;
+      lastChatNPast = undefined;
+      chatKvDiskCurrent = false;
+    });
+    void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
   });
-  queueStaticPrefixPrewarm(locale, tools);
 }
 
 function trackCompletion<T>(promise: Promise<T>): Promise<T> {
@@ -2885,8 +2893,8 @@ export async function streamAssistantTurn(
       MEMORY_FACTS_ON_USER_TAIL
         ? []
         : memoryFactTextsForEnvHash(options.memoryFacts),
-      hasTools,
-      toolNames,
+      hasTools && toolCallingEnabled,
+      toolCallingEnabled ? toolNames : [],
       blockFormat,
     );
 
@@ -2897,13 +2905,17 @@ export async function streamAssistantTurn(
       bakedMatched = baked.matched;
     }
 
-    const systemText = buildSystemPrompt(locale, hasTools, options.memoryFacts);
+    const systemText = buildSystemPrompt(
+      locale,
+      hasTools && toolCallingEnabled,
+      options.memoryFacts,
+    );
     let turnPrefixHash: string | null = null;
     if (EAGER_PREFIX_PREWARM) {
       turnPrefixHash = computePrewarmPrefixHash(
         locale,
         systemText,
-        hasTools ? options.tools : [],
+        hasTools && toolCallingEnabled ? options.tools : [],
       );
       if (turnPrefixHash !== prewarmPrefixHash) {
         logPrewarm({
@@ -3282,7 +3294,7 @@ export async function streamAssistantTurn(
         }
 
         const structuredCalls = result.tool_calls?.length ?? 0;
-        let toolCalls = result.tool_calls ?? [];
+        let toolCalls = toolCallingEnabled ? result.tool_calls ?? [] : [];
         let fallbackCalls = 0;
         let fallbackDialect: ToolRoundTelemetry["fallbackDialect"] = "none";
         // Fallback dialect: the binding found no structured tool_calls, but the
@@ -3324,7 +3336,7 @@ export async function streamAssistantTurn(
           argsParsed: shape.argsParsed,
           toolNames: [],
         };
-        if (!toolCalls.length || !options?.executeTool) {
+        if (!toolCallingEnabled || !toolCalls.length || !options?.executeTool) {
           emitToolCallTelemetry(turnId, toolTel);
           emitFinalText(result);
           await emitGovernorTelemetry(engine, governorThermoSource);
