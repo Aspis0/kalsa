@@ -27,7 +27,7 @@ function names(flags: { web: boolean; device: boolean; calendar: boolean }): str
 }
 
 describe("tool registry", () => {
-  test("lists all seven live tool names", () => {
+  test("lists all eight live tool names", () => {
     expect(ALL_TOOL_NAMES).toEqual([
       "web_search",
       "web_fetch",
@@ -36,6 +36,7 @@ describe("tool registry", () => {
       "device_info",
       "device_calc",
       "calendar_agenda",
+      "create_miniapp",
     ]);
     expect(TOOL_ENTRIES.map((entry) => entry.name)).toEqual(ALL_TOOL_NAMES);
   });
@@ -61,6 +62,7 @@ describe("tool registry", () => {
       "write_note",
       "device_info",
       "device_calc",
+      "create_miniapp",
     ]);
   });
 
@@ -70,6 +72,7 @@ describe("tool registry", () => {
       "write_note",
       "device_info",
       "device_calc",
+      "create_miniapp",
     ]);
   });
 
@@ -80,11 +83,13 @@ describe("tool registry", () => {
       "document_chat",
       "write_note",
       "calendar_agenda",
+      "create_miniapp",
     ]);
     expect(names({ web: false, device: false, calendar: true })).toEqual([
       "document_chat",
       "write_note",
       "calendar_agenda",
+      "create_miniapp",
     ]);
     expect(names({ web: true, device: true, calendar: true })).toEqual([
       "web_search",
@@ -94,16 +99,19 @@ describe("tool registry", () => {
       "device_info",
       "device_calc",
       "calendar_agenda",
+      "create_miniapp",
     ]);
     expect(names({ web: false, device: false, calendar: false })).toEqual([
       "document_chat",
       "write_note",
+      "create_miniapp",
     ]);
     expect(names({ web: true, device: false, calendar: false })).toEqual([
       "web_search",
       "web_fetch",
       "document_chat",
       "write_note",
+      "create_miniapp",
     ]);
     expect(names({ web: false, device: true, calendar: true })).toEqual([
       "document_chat",
@@ -111,6 +119,7 @@ describe("tool registry", () => {
       "device_info",
       "device_calc",
       "calendar_agenda",
+      "create_miniapp",
     ]);
   });
 });

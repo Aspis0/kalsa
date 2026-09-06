@@ -31,6 +31,7 @@ import { ALL_TOOL_NAMES, type ToolName } from "./toolNames";
 import { WEB_FETCH_TOOL } from "./webFetchTool";
 import { WEB_SEARCH_TOOL } from "./webSearchTool";
 import { WRITE_NOTE_TOOL } from "./writeNoteTool";
+import { CREATE_MINIAPP_TOOL } from "./createMiniappTool";
 
 export { ALL_TOOL_NAMES, type ToolName } from "./toolNames";
 
@@ -130,6 +131,13 @@ export const TOOL_ENTRIES = [
     toggleKey: CALENDAR_TOOLS_KEY,
     defaultOn: false,
     gateTable: CALENDAR_GATE_TABLE,
+  },
+  {
+    name: "create_miniapp",
+    def: CREATE_MINIAPP_TOOL,
+    toggleKey: null,
+    defaultOn: true,
+    gateTable: null,
   },
 ] as const satisfies readonly ToolEntry[];
 

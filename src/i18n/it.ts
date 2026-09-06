@@ -772,6 +772,11 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     writeNoteEmptyBody: "write_note richiede un corpo non vuoto.",
     writeNoteAborted: "write_note interrotto.",
     writeNoteFailed: "Impossibile salvare la nota.",
+    createMiniappInvalidTemplate:
+      "create_miniapp: modello \"{template}\" sconosciuto. Usa compare_data, quick_calculator o reading_quiz.",
+    createMiniappInvalidSlots:
+      "create_miniapp non è riuscito a costruire il miniapp dalle slot fornite.",
+    createMiniappCreated: "Miniapp creato: {title}",
     documentChatNoDoc:
       "Nessun documento locale disponibile. Aggiungi un PDF o un TXT in Documenti, oppure passa docId.",
     documentChatDocNotFound: "Documento non trovato in libreria (id={id}).",

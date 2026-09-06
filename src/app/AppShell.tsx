@@ -224,6 +224,7 @@ import {
 } from "../bench/benchConfig";
 import { makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
 import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
+import { makeCreateMiniappExecutor } from "../agent/createMiniappTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
 import {
   makeFetchAllowlist,
@@ -839,6 +840,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * user disables memory mid-turn (live enabled/facts refs would go empty).
    */
   const injectedFactsRef = useRef<string[]>([]);
+  /**
+   * Current turn's onMiniapp hook (set at send in handleSendStream). The
+   * create_miniapp executor reads it so a built miniapp opens inline in the
+   * chat. Threaded through a ref because executeTool lives in a separate memo.
+   */
+  const onMiniappRef = useRef<(miniapp: unknown) => void>(() => {});
   /** Opt-in CisWire tool-help flag (kalsa.ciswire.toolhelp) — default OFF. */
   const toolhelpRef = useRef(false);
 
@@ -1931,6 +1938,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale);
     const writeNoteExec = makeWriteNoteExecutor(locale);
+    // create_miniapp is ungated and always on; opens the built miniapp inline
+    // via the current turn's onMiniapp hook (threaded through a ref).
+    const createMiniappExec = makeCreateMiniappExecutor(locale, {
+      onMiniapp: (miniapp) => onMiniappRef.current?.(miniapp),
+    });
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
     const pdfCacheFs = makePdfCacheFs({
@@ -2139,6 +2151,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
         } else if (name === "write_note") {
           outcome = await writeNoteExec(name, args, signal);
+        } else if (name === "create_miniapp") {
+          outcome = await createMiniappExec(name, args, signal);
         } else {
           outcome = {
             text: getStrings(locale).errors.unknownTool.replace("{name}", name),
@@ -4490,6 +4504,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         let settled = false;
         /** Deferred extract hook — set once scheduleMemoryExtract is defined. */
         let afterSessionSave: (() => void) | undefined;
+        /** Live onMiniapp hook for the create_miniapp executor (set once per send). */
+        const liveMiniapp = (callbacks as {
+          onMiniapp?: (miniapp: unknown) => void;
+        }).onMiniapp;
+        if (liveMiniapp) onMiniappRef.current = liveMiniapp;
         const finish = () => {
           if (settled) return;
           settled = true;

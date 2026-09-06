@@ -7,7 +7,8 @@ export type ToolName =
   | "write_note"
   | "device_info"
   | "device_calc"
-  | "calendar_agenda";
+  | "calendar_agenda"
+  | "create_miniapp";
 
 export const ALL_TOOL_NAMES = Object.freeze([
   "web_search",
@@ -17,4 +18,5 @@ export const ALL_TOOL_NAMES = Object.freeze([
   "device_info",
   "device_calc",
   "calendar_agenda",
+  "create_miniapp",
 ] as const satisfies readonly ToolName[]);

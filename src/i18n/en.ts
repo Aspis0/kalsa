@@ -796,6 +796,11 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     writeNoteEmptyBody: "write_note requires a non-empty body.",
     writeNoteAborted: "write_note was aborted.",
     writeNoteFailed: "Could not save the note.",
+    createMiniappInvalidTemplate:
+      "create_miniapp: unknown template \"{template}\". Use compare_data, quick_calculator, or reading_quiz.",
+    createMiniappInvalidSlots:
+      "create_miniapp could not build the miniapp from the slots you provided.",
+    createMiniappCreated: "Miniapp created: {title}",
     documentChatNoDoc:
       "No local document is available. Add a PDF or TXT in Documents, or pass docId.",
     documentChatDocNotFound: "Document not found in the library (id={id}).",
