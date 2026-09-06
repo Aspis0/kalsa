@@ -1,0 +1,9 @@
+typing_chunk=1 wake_before=Awake wake_after=Awake
+typing_chunk=2 wake_before=Awake wake_after=Awake
+typing_chunk=3 wake_before=Awake wake_after=Awake
+typing_chunk=4 wake_before=Awake wake_after=Awake
+typing_chunk=5 wake_before=Awake wake_after=Awake
+typing_chunk=6 wake_before=Awake wake_after=Awake
+typing_chunk=7 wake_before=Awake wake_after=Awake
+typing_chunk=8 wake_before=Awake wake_after=Awake
+typing_chunk=9 wake_before=Awake wake_after=Awake

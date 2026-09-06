@@ -1,0 +1,3 @@
+attempt=1 top=com.android.launcher3/.uioverrides.QuickstepLauncher
+Starting: Intent { cmp=com.kalsa.app/.MainActivity }
+attempt=2 top=com.kalsa.app/.MainActivity

@@ -1,0 +1,25 @@
+Applications Memory Usage (in Kilobytes):
+Uptime: 5657731 Realtime: 5657731
+
+** MEMINFO in pid 20948 [com.kalsa.app] **
+                   Pss  Private  Private     Swap      Rss     Heap     Heap     Heap
+                 Total    Dirty    Clean    Dirty    Total     Size    Alloc     Free
+                ------   ------   ------   ------   ------   ------   ------   ------
+  Native Heap  1805849  1805804        0        0  1810488  1946876  1936171     6174
+  Dalvik Heap    10837    10744        0        0    18508    36659     9165    27494
+ Dalvik Other    12776     7276        0        0    18944                           
+        Stack     2268     2268        0        0     2272                           
+       Ashmem        8        0        0        0      616                           
+      Gfx dev     5504     5504        0        0     5508                           
+    Other dev       17        0       16        0      884                           
+     .so mmap    18240     1884    11612        0    78868                           
+    .jar mmap     1960        0       56        0    46484                           
+    .apk mmap    64838      908    63532        0    68204                           
+    .ttf mmap     1362        0     1132        0     1752                           
+    .dex mmap       96       12        4        0     1144                           
+    .oat mmap       80        0        0        0     2152                           
+    .art mmap     9179     8904        0        0    32148                           
+   Other mmap  1542279        4  1539308        0  1546824                           
+   EGL mtrack    37000    37000        0        0    37000                           
+    GL mtrack      576      576        0        0      576                           
+      Unknown    28544    28440       96        0    30096                           
