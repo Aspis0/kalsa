@@ -2736,3 +2736,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > poi tunnel. Driver positivo: `ORACLE_MODE=logit d_run.sh sa812017 <APK 28424c3> ABABAB 50` (pid /tmp/s5b-driver.pid,
 > raw/sa812017/) — `ABAB` del piano rifiutato dal validatore del driver → Amendment 3 nel PREREG logit-oracle. Poi
 > negativo con APK ca3b1b3 sui minuti restanti.
+> 13:22 — primo tentativo R5 positivo: A1 VOID `toolcall` (`document_chat`, tool sempre esposto, mai chiamato nelle run
+> 8-10). Driver ucciso, `set_prefs` scrive anche `kalsa.bench.toolchoice=none` (chiave bench esistente, letta a ogni turno),
+> dryrun rc=0, rilancio `ABABAB 45` (pid /tmp/s5b-driver.pid, raw/sa812017/; il tentativo vuoto in raw/sa812017-toolcall-void/).
+> PREREG logit-oracle Amendment 4.

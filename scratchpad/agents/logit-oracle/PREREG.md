@@ -97,3 +97,14 @@ without checking the validator). Executed instead: positive control `ABABAB 50` 
 minutes left in the 150-min session (≥20; one complete pair suffices for FAIL, since FAIL dominates DESCRIPTIVE). Session
 807948, host sa812017, serial b4bd0901, board `sun`, **Android 16** (previous QRD sessions were Android 14: harness
 probes live; any trap is reported, not silently patched). Readings unchanged.
+
+### Amendment 4 (6/09 13:22 EDT, before any oracle verdict was read)
+First positive-control attempt (raw `qdc-governor-s5b/raw/sa812017-toolcall-void/`): A1 VOID `void_reason=toolcall`
+(`KALSA_TOOLCALL … "toolNames":["document_chat"]`, no KALSA_BENCH_TOKENS; 406 KALSA_BENCH_PROBS lines were logged, so the
+hook itself works). `document_chat` is always in the tool list (AppShell "document_chat always stays available") and is
+not covered by the three prefs the driver turns off; it was in the runs 8–10 APKs too and was never called there, so this
+is a greedy-path difference on this board/build, not a new tool. Driver killed mid-B1 (pair 1 void anyway), and
+`set_prefs` now also writes `('kalsa.bench.toolchoice','none')` (app key `kalsa.bench.toolchoice`, benchConfig.ts:28,
+read fresh per turn) for BOTH arms — consistent with the standing "tools OFF in bench cells" rule. Relaunched
+`ABABAB 45` under the same session. Consequence declared: any turn with `tool_calls>0` after this is a harness defect,
+not a data point. Readings unchanged.

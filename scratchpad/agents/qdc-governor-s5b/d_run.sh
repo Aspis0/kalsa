@@ -239,7 +239,7 @@ set_prefs() {
   local step_file="${RAW}/set_prefs_${flag}.txt"
   [ "$#" -ge 2 ] && step_file="$2_set_prefs.txt"
   [ "$flag" -eq 1 ] && governor_force=1
-  prefs_sql="INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','$flag'),('kalsa.bench.governor_force','$governor_force'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','false'),('kalsa.tools.device','false'),('kalsa.tools.calendar','false')"
+  prefs_sql="INSERT OR REPLACE INTO catalystLocalStorage (key,value) VALUES ('kalsa.model.id','$MODEL_DIR'),('kalsa.governor.enabled','$flag'),('kalsa.bench.governor_force','$governor_force'),('kalsa.bench.thermo','$THERMO_JSON'),('kalsa.bench.sampling','greedy'),('kalsa.web.enabled','false'),('kalsa.bench.toolchoice','none'),('kalsa.tools.device','false'),('kalsa.tools.calendar','false')"
   if [ "$oracle_mode" = logit ]; then
     prefs_sql="$prefs_sql,('kalsa.bench.probs','1')"
     if [ "$flag" -eq 1 ] && [ "${A_IDS_VALID:-0}" -eq 1 ] && [ -r "${A_IDS_FILE:-}" ]; then
