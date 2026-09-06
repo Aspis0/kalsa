@@ -41,3 +41,13 @@ Feasibility questions (Luna): does llama.rn 0.12.8 expose per-step `n_probs`/`co
 pre-sampling (pre-grammar) probabilities, or `post_sampling_probs` toggles; is a grammar per completion supported
 through the patched API; cost per step. Driver: parse the probs from logcat, compute R1–R3 per pair, oracle column
 becomes PASS/FAIL/DESCRIPTIVE with the failing rule named.
+
+## Implementation status (6/09 09:15)
+- App: commit 28424c3 on feat/governor-in-app (native hook in the llama.rn patch: `benchRawTopProbs` = softmax over
+  `llama_get_logits_ith(ctx,-1)` before `common_sampler_sample`; `bench_force_ids` consumed one id per step through
+  the normal accept path; exhaustion = clean stop; bench keys only under `kalsa.bench.sampling=greedy`). Audit #26 GO;
+  minor F6 accepted as mitigated: the governor-fallback completion path would re-emit a prob stream under the same
+  turnId, but a fallback B row is VOID (`governor_fallback`) and the helper never runs on it; to be gated in a
+  later cleanup.
+- Driver: `ORACLE_MODE=logit` + `oracle_logit.py` (R1–R4); audit #25 NO-GO (DESCRIPTIVE masked FAIL in TF) → fix in
+  progress: all steps evaluated, FAIL dominates, DESCRIPTIVE only with zero violations and defective coverage.
