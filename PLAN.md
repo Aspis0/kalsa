@@ -1709,7 +1709,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `common_sampler_sample`) + `bench_force_ids` (id forzato per passo attraverso lo stesso accept path).
 > **In corso**: Luna 5e7af1d9 implementa hook + chiavi `kalsa.bench.probs` / `kalsa.bench.force_ids` + log
 > `KALSA_BENCH_PROBS`; Luna 2d5dfbe0 il driver (`ORACLE_MODE=logit`, `oracle_logit.py` R1-R4, colonne
-> `oracle_logit`/`oracle_rule`, dryrun). Poi audit, APK, sanità R5 sull'8 Elite, TF su 750/732/735. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> `oracle_logit`/`oracle_rule`, dryrun). Poi audit, APK, sanità R5 sull'8 Elite, TF su 750/732/735.
+> **08:40 — QDC: SLOGGATI.** Alla ripresa il portale reindirizza alla home; il login Okta (Qualcomm ID) chiede la
+> password (Keychain ok) e poi la 2FA email. Ho provato a passare la password al browser da un server locale
+> usa-e-getta per non farla transitare nei log, ma il browser Paseo non gira su questo Mac (fetch a 127.0.0.1
+> fallisce) e non digito segreti in chiaro nei comandi. **Serve il login manuale dell'owner nel tab Paseo**
+> (518a42c3, account.qualcomm.com). Fino ad allora niente device: run 11, run 8b, Guard A e le run TF dell'oracolo
+> restano in coda. Il lavoro sull'oracolo (app + driver) continua. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
