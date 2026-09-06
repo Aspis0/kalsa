@@ -2816,3 +2816,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > ids forzati con bounds e `>= n_vocab`, logits assenti → `"top":[]` (passo visibile, non silenzioso); tsc rc=0,
 > jest 9 test rc=0; nessuna build nativa possibile in locale. Audit mimo 1d36c152 in corso, con enfasi sulla
 > **validità del patch hand-edited** (conteggi `@@` degli hunk) oltre che sulle guardie.
+> 19:05 — audit #29 (mimo) su 1cf865a: GO-WITH-FIXES. Hunk del patch corretti. **Regressione confermata da me sul
+> disco**: il fix ha rimosso `llama_synchronize` da `benchRawTopProbs`. **Ma la tesi dell'auditor sulla causa del crash
+> è sbagliata**: la build morta (19b67b6) la sync ce l'aveva; la causa coerente resta il dereferenziamento dei candidati
+> del sampler in modalità forzata, che 1cf865a ha chiuso. Round 2 su Luna: ripristino sync + lettura unica dei logit,
+> niente troncamento del turno quando i probs mancano.

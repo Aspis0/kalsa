@@ -75,3 +75,21 @@ direction benign = skips more); two rapid mode-less `queueStaticPrefixPrewarm` c
 two prewarms (wasted prefill); 3041/3359 floating promises (add `void`); 3-round loop still on ungated hasTools (dead
 weight). → TODO cleanup commit later on feat/governor-in-app, not blocking.
 Decision: APKs from 19b67b6 (normal) and e54f529 (fault) are the R5 instruments.
+
+## Audit #29 — mimo (Reviewer Doc, pi/opencode-go/mimo-v2.5 high), agent 1d36c152, 6/09 19:05 EDT
+Target: app commit 1cf865a (guardie anti-SIGSEGV nell'hook) vs 19b67b6. Verdetto **GO-WITH-FIXES**.
+Verificato dall'orchestratore sul disco, non solo riportato:
+- **Hunk del patch scritti a mano: corretti.** Conteggi `@@` verificati a mano sui cinque hunk maggiori; i tre hunk
+  `.d.ts.map` con "actual 5 vs expected 4" sono il marcatore `\ No newline at end of file`, non un errore.
+- **REGRESSIONE CONFERMATA (mia verifica):** `1cf865a` ha rimosso `llama_synchronize(ctx)` da `benchRawTopProbs`
+  (`git show 19b67b6:patches/llama.rn+0.12.8.patch` la contiene; occorrenze nel patch: 19b67b6 = 3, 1cf865a = 2).
+- **CAUSA DEL CRASH: l'auditor sbaglia.** Sostiene che il crash sia dovuto alla sync mancante, ma la build che è morta
+  sul QRD8650 è 19b67b6, che la sync **ce l'aveva**. La causa più coerente con i dati resta quella che 1cf865a ha
+  chiuso: in modalità forzata `common_sampler_sample` non viene chiamato, quindi i candidati del sampler non esistono e
+  il vecchio codice li dereferenziava comunque (`n_probs > 0` senza `&& !forced`) → puntatore nullo, e infatti il crash
+  è solo sul braccio B (ids forzati), mai sull'A.
+- **Cambio semantico da annullare:** su fallimento dei probs il nuovo codice fa `has_next_token = false` sul braccio non
+  forzato → tronca il turno invece di rendere visibile il passo senza logit.
+- Ids forzati (esaurimento, lista malformata, bounds `>= n_vocab`): corretti. Nessun leak. TOCTOU sui due accessi ai
+  logits: reale, da chiudere con una sola lettura dopo la sync.
+Round 2 dispatchato a Luna ba2ac459 (ripristino sync + lettura unica, niente troncamento, coerenza col lato JS).
