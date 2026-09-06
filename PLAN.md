@@ -2740,3 +2740,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > 8-10). Driver ucciso, `set_prefs` scrive anche `kalsa.bench.toolchoice=none` (chiave bench esistente, letta a ogni turno),
 > dryrun rc=0, rilancio `ABABAB 45` (pid /tmp/s5b-driver.pid, raw/sa812017/; il tentativo vuoto in raw/sa812017-toolcall-void/).
 > PREREG logit-oracle Amendment 4.
+> 13:40 — secondo tentativo: A1 senza tool call strutturata ma con **fallback LFM eseguito** (`toolChoice:none` lascia i
+> tool nel template e il parser di fallback non guarda toolChoice) → niente KALSA_BENCH_TOKENS → PREREQUISITE exit 3.
+> Sessione 807948 CHIUSA (~48 min usati), tunnel giù. Fix app bench-only dispatchato a Luna 467e65e3 (feat/governor-in-app
+> + cherry-pick su bench/fault-inject-apk), poi audit deepseek, 2 APK da CI, nuova sessione 8 Elite. PREREG Amendment 5.

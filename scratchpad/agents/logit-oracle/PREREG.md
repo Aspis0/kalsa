@@ -108,3 +108,16 @@ is a greedy-path difference on this board/build, not a new tool. Driver killed m
 read fresh per turn) for BOTH arms — consistent with the standing "tools OFF in bench cells" rule. Relaunched
 `ABABAB 45` under the same session. Consequence declared: any turn with `tool_calls>0` after this is a harness defect,
 not a data point. Readings unchanged.
+
+### Amendment 5 (6/09 13:40 EDT, before any oracle verdict was read)
+Second positive-control attempt (raw `qdc-governor-s5b/raw/sa812017/`): A1 valid thermally and `structuredCalls:0`, but
+`KALSA_TOOLCALL {"toolChoice":"none","structuredCalls":0,"fallbackCalls":1,"fallbackDialect":"lfm","executed":1}` and no
+`KALSA_BENCH_TOKENS` → driver PREREQUISITE exit 3 (correct behaviour). Root cause read in the app (LlamaService.ts
+~3205: `...(hasTools ? { tools, tool_choice: toolChoice } : {})` — tools are still rendered into the template with
+tool_choice "none"; ~3290: `if (!toolCalls.length && options?.executeTool) parseFallbackToolCalls(rawText)` — the
+text-dialect call is executed regardless of tool choice). So `kalsa.bench.toolchoice=none` was never tool-free.
+Session 807948 ended at ~13:38 (≈48 min used) to save 8 Elite budget. Fix dispatched (Luna, bench-only: with bench
+mode "none" pass no tools and skip the fallback parser); both APKs (normal and fault-injected) are rebuilt from the
+fixed commits; R5 restarts from scratch in a new session. Declared consequence: the prompt prefix of every R5/TF run
+no longer contains tool schemas (≈60 fewer cached tokens than runs 8–10; irrelevant within a run, noted for TTFT
+comparisons across runs). Readings unchanged. Both attempts so far are archived, not data.
