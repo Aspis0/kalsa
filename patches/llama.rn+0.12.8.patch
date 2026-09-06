@@ -438,6 +438,23 @@ index f9e3e09..c4ce9f9 100644
              : "";
          if (tokStr.empty()) tokStr = "<UNKNOWN>";
          res.setProperty(runtime, "tok_str", jsi::String::createFromUtf8(runtime, tokStr));
+@@ -94,4 +94,16 @@ namespace rnllama_jsi {
+     inline jsi::Object createTokenResult(jsi::Runtime& runtime, rnllama::llama_rn_context* ctx, const rnllama::completion_token_output& token) {
+         jsi::Object res(runtime);
+         res.setProperty(runtime, "token", jsi::String::createFromUtf8(runtime, token.text));
+ 
++        if (!token.raw_probs.empty()) {
++            res.setProperty(runtime, "tok", (int)token.tok);
++            res.setProperty(runtime, "forced", token.forced);
++            jsi::Array rawProbs(runtime, token.raw_probs.size());
++            for (size_t i = 0; i < token.raw_probs.size(); i++) {
++                jsi::Array pair(runtime, 2);
++                pair.setValueAtIndex(runtime, 0, (int)token.raw_probs[i].tok);
++                pair.setValueAtIndex(runtime, 1, (double)token.raw_probs[i].logprob);
++                rawProbs.setValueAtIndex(runtime, i, pair);
++            }
++            res.setProperty(runtime, "raw_probs", rawProbs);
++        }
 @@ -137,7 +137,7 @@ namespace rnllama_jsi {
          if (ctx->completion == nullptr) {
              throw std::runtime_error("RNLLAMA_NULL_COMPLETION");
@@ -607,7 +624,37 @@ index 650349e..44056ed 100644
          if (params.hasProperty(runtime, "flash_attn")) {
              bool fa = getPropertyAsBool(runtime, params, "flash_attn", false);
              cparams.flash_attn_type = fa ? LLAMA_FLASH_ATTN_TYPE_ENABLED : LLAMA_FLASH_ATTN_TYPE_DISABLED;
-@@ -508,7 +534,9 @@ namespace rnllama_jsi {
+@@ -508,7 +534,39 @@ namespace rnllama_jsi {
++        ctx->completion->bench_raw_probs =
++            std::max(0, getPropertyAsInt(runtime, params, "bench_raw_probs", 0));
++        ctx->completion->bench_force_ids.clear();
++        ctx->completion->bench_force_index = 0;
++        ctx->completion->bench_force_ids_enabled = false;
++        if (params.hasProperty(runtime, "bench_force_ids")) {
++            const auto forceValue = params.getProperty(runtime, "bench_force_ids");
++            if (forceValue.isObject() && forceValue.asObject(runtime).isArray(runtime)) {
++                const auto forceIds = forceValue.asObject(runtime).asArray(runtime);
++                bool valid = true;
++                for (size_t i = 0; i < forceIds.size(runtime); ++i) {
++                    const auto value = forceIds.getValueAtIndex(runtime, i);
++                    if (!value.isNumber()) {
++                        valid = false;
++                        break;
++                    }
++                    const double id = value.asNumber();
++                    if (!std::isfinite(id) || std::floor(id) != id || id < 0) {
++                        valid = false;
++                        break;
++                    }
++                    ctx->completion->bench_force_ids.push_back((llama_token)id);
++                }
++                if (valid) {
++                    ctx->completion->bench_force_ids_enabled = true;
++                } else {
++                    ctx->completion->bench_force_ids.clear();
++                }
++            }
++        }
          sparams.grammar_triggers.clear();
          sparams.preserved_tokens.clear();
          sparams.reasoning_budget_tokens = -1;
@@ -1291,6 +1338,50 @@ diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn
 index a60bd15..817eab3 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
+@@ -8,4 +8,5 @@
+ #include <algorithm>
+ #include <cstring>
+ #include <cstdlib>
++#include <cmath>
+ #include <limits>
+@@ -18,2 +18,37 @@ namespace rnllama {
+ namespace rnllama {
+ 
++static std::vector<completion_token_output::raw_token_prob> benchRawTopProbs(
++    llama_context* ctx, const llama_vocab* vocab, int32_t count) {
++    if (count <= 0 || ctx == nullptr || vocab == nullptr) return {};
++    llama_synchronize(ctx);
++    const float* logits = llama_get_logits_ith(ctx, -1);
++    const int32_t n_vocab = llama_vocab_n_tokens(vocab);
++    if (logits == nullptr || n_vocab <= 0) return {};
++
++    float max_logit = -std::numeric_limits<float>::infinity();
++    for (int32_t i = 0; i < n_vocab; ++i) {
++        max_logit = std::max(max_logit, logits[i]);
++    }
++    if (!std::isfinite(max_logit)) return {};
++
++    double exp_sum = 0.0;
++    std::vector<llama_token_data> candidates;
++    candidates.reserve(n_vocab);
++    for (int32_t i = 0; i < n_vocab; ++i) {
++        const float logit = logits[i];
++        exp_sum += std::exp((double)logit - max_logit);
++        candidates.push_back({(llama_token)i, logit, 0.0f});
++    }
++    if (!(exp_sum > 0.0)) return {};
++    const size_t top_count = std::min<size_t>(count, candidates.size());
++    std::partial_sort(candidates.begin(), candidates.begin() + top_count, candidates.end(),
++        [](const llama_token_data& a, const llama_token_data& b) { return a.logit > b.logit; });
++    const double log_norm = (double)max_logit + std::log(exp_sum);
++    std::vector<completion_token_output::raw_token_prob> result;
++    result.reserve(top_count);
++    for (size_t i = 0; i < top_count; ++i) {
++        result.push_back({candidates[i].id, (float)((double)candidates[i].logit - log_norm)});
++    }
++    return result;
++}
++
 @@ -42,6 +42,7 @@ void llama_rn_context_completion::rewind() {
      parent_ctx->params.sampling.generation_prompt.clear();
      num_prompt_tokens = 0;
@@ -1665,12 +1756,25 @@ index a60bd15..817eab3 100644
              );
              // Trim embd to what the memory actually contains so a later prefix
              // match can't claim never-written cells.
-@@ -1063,7 +1163,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1063,7 +1163,20 @@ completion_token_output llama_rn_context_completion::nextToken()
          std::vector<llama_token_data> candidates;
          candidates.reserve(llama_vocab_n_tokens(vocab));
  
++        if (bench_force_ids_enabled && bench_force_index >= bench_force_ids.size()) {
++            has_next_token = false;
++            return result;
++        }
++
++        if (bench_raw_probs > 0) {
++            result.raw_probs = benchRawTopProbs(parent_ctx->active_ctx(), vocab, bench_raw_probs);
++        }
++
++        const bool forced = bench_force_ids_enabled;
++        llama_token new_token_id = forced
++            ? bench_force_ids[bench_force_index++]
++            : common_sampler_sample(ctx_sampling, parent_ctx->active_ctx(), -1);
++        result.forced = forced;
 -        llama_token new_token_id = common_sampler_sample(ctx_sampling, parent_ctx->ctx, -1);
-+        llama_token new_token_id = common_sampler_sample(ctx_sampling, parent_ctx->active_ctx(), -1);
  
          const int32_t n_probs = parent_ctx->params.sampling.n_probs;
          if (n_probs > 0) {
@@ -1833,11 +1937,33 @@ diff --git a/node_modules/llama.rn/cpp/rn-completion.h b/node_modules/llama.rn/c
 index ea945fc..b27045a 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.h
 +++ b/node_modules/llama.rn/cpp/rn-completion.h
-@@ -77,6 +77,7 @@ struct llama_rn_context_completion {
+@@ -46,9 +46,17 @@ struct completion_token_output
+ struct completion_token_output
+ {
+     struct token_prob
+     {
+         llama_token tok;
+         float prob;
+     };
+ 
++    struct raw_token_prob
++    {
++        llama_token tok;
++        float logprob;
++    };
++
+     std::vector<token_prob> probs;
++    std::vector<raw_token_prob> raw_probs;
++    bool forced = false;
+@@ -77,6 +77,11 @@ struct llama_rn_context_completion {
      std::string prefill_text;
      std::string generated_text;
      utf8_stream_gate utf8_gate;
 +    std::vector<llama_token> generated_token_ids;
++    int32_t bench_raw_probs = 0;
++    std::vector<llama_token> bench_force_ids;
++    size_t bench_force_index = 0;
++    bool bench_force_ids_enabled = false;
      std::vector<completion_token_output> generated_token_probs;
      size_t num_draft_tokens = 0;
      size_t num_draft_tokens_accepted = 0;
@@ -3332,6 +3458,13 @@ index 091ef52..a5189e4 100644
  export declare const RNLLAMA_MTMD_DEFAULT_MEDIA_MARKER = "<__media__>";
  export declare const installJsi: () => Promise<void>;
  export type ToolCall = {
+@@ -31,3 +31,6 @@ export type TokenData = {
+ export type TokenData = {
+     token: string;
++    tok?: number;
++    forced?: boolean;
++    raw_probs?: Array<[number, number]>;
+     completion_probabilities?: Array<NativeCompletionTokenProb>;
 @@ -186,6 +186,8 @@ export declare class LlamaContext {
      saveSession(filepath: string, options?: {
          tokenSize: number;
@@ -3436,6 +3569,12 @@ index 6bed6b8..71d51cf 100644
  };
  export type NativeCompletionParams = {
      prompt: string;
+@@ -255,1 +300,5 @@ export type NativeCompletionParams = {
+     n_probs?: number;
++    /** Bench-only raw pre-sampler top-N log probabilities. */
++    bench_raw_probs?: number;
++    /** Bench-only forced token IDs; generation stops when exhausted. */
++    bench_force_ids?: Array<number>;
 @@ -468,6 +512,7 @@ export type NativeCompletionResult = {
      tokens_cached: number;
      timings: NativeCompletionResultTimings;
@@ -3482,6 +3621,13 @@ index 220d289..501fda8 100644
    'llamaLoadSession',
    'llamaSaveSession',
    'llamaTokenize',
+@@ -183,3 +189,6 @@ export type TokenData = {
+ export type TokenData = {
+   token: string
++  tok?: number
++  forced?: boolean
++  raw_probs?: Array<[number, number]>
+   completion_probabilities?: Array<NativeCompletionTokenProb>
 @@ -654,6 +660,16 @@ export class LlamaContext {
      return llamaSaveSession(this.id, filepath, options?.tokenSize || -1)
    }
@@ -3590,6 +3736,12 @@ index e461f36..a8b5468 100644
  }
  
  export type NativeCompletionParams = {
+@@ -287,1 +335,5 @@ export type NativeCompletionParams = {
+   n_probs?: number
++  /** Bench-only raw pre-sampler top-N log probabilities. */
++  bench_raw_probs?: number
++  /** Bench-only forced token IDs; generation stops when exhausted. */
++  bench_force_ids?: Array<number>
 @@ -515,6 +562,7 @@ export type NativeCompletionResult = {
    timings: NativeCompletionResultTimings
  

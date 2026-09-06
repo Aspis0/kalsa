@@ -43,7 +43,11 @@ import {
   readBenchGovernorForce,
   readGovernorThermo,
 } from "./governorInputs";
-import { applyBenchSampling, readBenchSampling } from "./benchSampling";
+import {
+  applyBenchSampling,
+  readBenchOracleParams,
+  readBenchSampling,
+} from "./benchSampling";
 import {
   initWithGovernorFallback,
   readGovernorEnabled,
@@ -2790,6 +2794,8 @@ export async function streamAssistantTurn(
     const toolChoiceMode = await getToolChoiceMode();
     const toolGateEnabled = await getToolGateEnabled();
     const benchSampling = await readBenchSampling();
+    const benchOracle =
+      benchSampling === "greedy" ? await readBenchOracleParams() : {};
     // activeModelId === null → null model (defaults); unknown id still falls back
     // via getModelById (acceptable) but null must not invent a model.
     const activeModel = activeModelId ? getModelById(activeModelId) : null;
@@ -2797,6 +2803,29 @@ export async function streamAssistantTurn(
 
     const benchTokenIds: number[] = [];
     let benchTokenCount = 0;
+    let benchProbStep = 0;
+    const emitBenchProbs = (data: TokenData) => {
+      const oracleData = data as TokenData & {
+        raw_probs?: Array<[number, number]>;
+        tok?: number;
+        forced?: boolean;
+      };
+      if (!oracleData.raw_probs) return;
+      const top = oracleData.raw_probs.map(([id, logp]) => [
+        id,
+        Number(logp.toFixed(4)),
+      ]);
+      console.log(
+        `KALSA_BENCH_PROBS ${JSON.stringify({
+          turnId,
+          step: benchProbStep,
+          forced: oracleData.forced === true,
+          tok: oracleData.tok,
+          top,
+        })}`,
+      );
+      benchProbStep += 1;
+    };
     const recordBenchCompletion = (result: {
       tokens_predicted?: number;
       generated_token_ids?: number[];
@@ -3198,6 +3227,7 @@ export async function streamAssistantTurn(
                 ...(hasImages ? { speculative: false as const } : {}),
               },
               benchSampling,
+              benchOracle,
             ),
             (data: TokenData) => {
               // Token callbacks run inside this job — not blocked by the FIFO gate.
@@ -3208,6 +3238,7 @@ export async function streamAssistantTurn(
               // official incremental field; cleanStreamDelta strips any
               // <think>/<tool_call> markup that appears in the raw token stream.
               if (finished || aborted) return;
+              emitBenchProbs(data);
               const raw = data.token ?? "";
               if (raw) rawEmittedAccum += raw;
               const delta = cleanStreamDelta(raw);
@@ -3540,9 +3571,11 @@ export async function streamAssistantTurn(
                     ...(hasImages ? { speculative: false as const } : {}),
                   },
                   benchSampling,
+                  benchOracle,
                 ),
                 (data: TokenData) => {
                   if (finished || aborted) return;
+                  emitBenchProbs(data);
                   const raw = data.token ?? "";
                   if (raw) rawEmittedAccum += raw;
                   const delta = cleanStreamDelta(raw);
