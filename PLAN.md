@@ -1604,6 +1604,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > punto 3: cherry-pick di 178a6c449 sul pick branch → test-backend-ops sul 750 (i 20 FAIL di ALIVE 41) →
 > se restano, mappare i 20 casi al kernel f16 batched dispatchato.
 
+> **6/09 — Stato dei tre pezzi.** (1) Ladder typing + force su tutti i tag + gate RAM su tutti: su disco
+> (Luna 2d5dfbe0), dryrun rc=0 verificato da me, **audit #19 deepseek in corso**. (2) Fork: `bench_force_gpu_prefill`
+> commit **9c28322ac** (test policy 5 casi passano prima dello skip GPU; rc 77 = skip device senza GPU sul Mac),
+> **audit #17 GO** (1 nit), **PUSHATO** su Aspis0/kalsallama governor-v0.3. App (worktree kalsa-wt-governor):
+> **79c04a9** generationFor SM7675/SM8635→V73 + `bench_force_gpu_prefill: force` + patch hand-edit (3 hunk
+> header +1) + 28 righe test, jest/tsc rc 0; **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> KALSALLAMA_SRC, 5 file vendor); **audit #18 mimo in corso**; non ancora pushato. (3) Websearch chiusa, candidato
+> 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
