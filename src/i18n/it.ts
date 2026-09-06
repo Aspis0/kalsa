@@ -563,12 +563,12 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     pro: "Pro",
     con: "Contro",
     timelineTitle: "Cronologia",
-    timelineEmpty: "Ancora nenhuma voce.",
+    timelineEmpty: "Nessuna voce ancora.",
     stepN: "Passo {n}",
     qualityTitle: "Pannello qualità",
-    qualityEmpty: "Ancora nenhuma voce di qualità.",
+    qualityEmpty: "Nessuna voce di qualidade ancora.",
     citationsTitle: "Citazioni",
-    citationsEmpty: "Ancora nessuna citazione.",
+    citationsEmpty: "Nessuna citazione ancora.",
   },
 
   renderer: {
