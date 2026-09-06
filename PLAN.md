@@ -2759,3 +2759,5 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > notifyStaticPrefixInputs legge la pref in `.then`), env-hash/turnPrefixHash coerenti, execute strutturato guardato.
 > Mio dubbio passato al re-audit: il prewarm in produzione ora parte un tick dopo (lettura AsyncStorage), non più sincrono.
 > CI 34049642898 (normale) / 34049644191 (fault); le build 1ec63a0 cancellate dalla concurrency. Re-audit deepseek in corso.
+> 14:35 — re-audit #28 deepseek su 19b67b6: GO-WITH-FIXES, residui = micro-race di produzione (busy stantio di un tick,
+> doppio prewarm raro, promise fluttuanti) → TODO fuori dal percorso critico. Strumenti R5 = APK 19b67b6 / e54f529.

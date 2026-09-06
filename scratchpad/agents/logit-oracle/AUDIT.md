@@ -62,3 +62,16 @@ pref absent → "auto" → parent behaviour byte-identical (benchConfig.ts:383).
 3. structured execution path (:3423) unguarded (defense in depth).
 Test hygiene: new tests cover only the pure helper; the gate is untestable without a heavy llama.rn mock.
 Action: round 2 on Luna 467e65e3 closing 1-3 → re-audit → rebuild both APKs. APKs from 1ec63a0/14be59b NOT used.
+
+## Audit #28 — deepseek e6df762c (same agent), 6/09 14:35 EDT — app commit 19b67b6 vs 1ec63a0
+Verdict **GO-WITH-FIXES** (residuals are production micro-races, not correctness; instrument accepted as is).
+CONFIRMED closed: system prompt tool-free under "none" (LlamaService.ts:2910), prewarm prefix == turn prefix in BOTH
+modes (prewarm :698-699 vs turn :2910/:2916, same hash fn prefixPrewarm.ts:138; MEMORY_FACTS_ON_USER_TAIL=true makes
+facts irrelevant), env hash self-consistent (save :2565 / restore :2362), structured guard honest (:3297, :3339;
+markup stripped :2993; KALSA_BENCH_TOKENS still on the path). REFUTED: unhandled rejection (getToolChoiceMode has
+try/catch → "auto"), sync-return reliance (callers AppShell.tsx:2069/3041/3359 ignore the promise).
+Open (production, perf only, not on the R5 path): `busy` decided inside the `.then` (stale by one AsyncStorage read;
+direction benign = skips more); two rapid mode-less `queueStaticPrefixPrewarm` calls with different hashes can enqueue
+two prewarms (wasted prefill); 3041/3359 floating promises (add `void`); 3-round loop still on ungated hasTools (dead
+weight). → TODO cleanup commit later on feat/governor-in-app, not blocking.
+Decision: APKs from 19b67b6 (normal) and e54f529 (fault) are the R5 instruments.
