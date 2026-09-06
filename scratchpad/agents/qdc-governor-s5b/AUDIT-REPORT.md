@@ -185,3 +185,41 @@ the report.
 
 
 VERDICT: BANK (descriptive) — 0 blockers, 0 majors, 0 minors, 1 nit (F1 resolved: 24/32 ids verified pairwise); every number and framing reproduced verbatim, GPU evidence honestly bounded.
+
+## Delta audit #22 — REPORT run 9
+
+Line-by-line — CONFIRMED, everything reproduced vs raw/sa811420: results.tsv:2-6 verbatim
+(A1 11769.454/16.9754551180914/28.18→40.718/647f906d…; B1 7423.184/14.95339102565/GPU CPU
+FAST/36.834→44.961/d4556574e…/FAIL; A2 12475.128/16.4701727827384/38.448→46.928; B2
+7421.679/14.8570697606086/36.956→46.631/FAIL; A3 12543.09/16.3464519762333/38.405→47.571);
+statuses all `status=0 row_void=0 void_reason=na` (5/5 valid) ✓; B1:19210 and B2:18017 governor
+JSONs — `"forced":true`, prefill_ms 7423.184/7421.679, commit_ms 15.847/13.439, ngl 99, FAST,
+`fallback_reason":""`, fallback_count=0, FALLBACK-in-logcat count 0 ✓; ids verified pairwise —
+first diff zero-based index 7 (A 14991 vs B 2352), 24/32 differ, B1==B2 and B732==B750
+byte-identical (sha d4556574 ✓), A sha 647f906d across 732/750 ✓; type_prompt.txt all
+`attempt=1 chunk_size=200 seconds=361/369/377/378/381 rc=0` ✓; cooldowns B1:6 wait_s=75/
+36.858, B2:55 wait_s=810/36.962, B3:5 wait_s=60/43.777 (the deadline-stopped B3) ✓; END.txt
+`deadline_85_min` + driver log:11 `DEADLINE_85_MIN` ✓; adb rc=255 count exactly 5 at
+:350/:763/:1471/:2253/:2912, with the five power captures `attempt=1 rc=0 has_wakefulness=1`
+✓ (trap-8 exercised). Arithmetic: 7423.184/11769.454=0.630716→0.631; 7421.679/12475.128=
+0.594918→0.595; median 0.612817→0.613; 1/0.612817=1.63181→1.632 ✓. Decode deltas:
+(14.9534−16.9755)/16.9755=−11.9%, (14.8571−16.4702)/16.4702=−9.8%, paired-means −10.9%
+(all recomputed ✓; the report's "just outside ±10%" is exact).
+Altitude — CONFIRMED: the median is stated OUTSIDE the 0.95–1.05 parity band AND BELOW the
+0.85 threshold (PREREG:281 cited), as a "miss of the prior, not adjusted" (PREREG:298);
+"forced" explicit on every GPU number (the table's forced column + the JSON quotes), A rows
+"not in raw" ✓; oracle FAIL×2 with the identical-ids consequence stated exactly per the post
+hoc — PREREG:300-304 verbatim (the A7X-property sentence, decoupled from the 750 20-FAIL
+family, with the 8-Elite one-index-29 contrast included in the cited range) ✓ no new claims;
+the "Policy implication (per PREREG rule, not a decision)" §(4) quotes the rule (PREREG:290-
+292) and lists only which conditions are met (median ≤0.85 with n=2: yes; oracle PASS: no)
+without recommending ✓.
+Omissions — CONFIRMED none material: A3 unpaired (valid, stated); B3 lost to the deadline
+(stated with the cooldown evidence); decode −11.9%/−9.8%/mean −10.9% outside the band —
+reported; harness facts 5/5 valid, 200-rung-first, trap-8 (5 rc=255 vs 5 rc=0-power-capture
+pairs) all present; the "not in raw" admissions (A-arm forced flag; B3) honest.
+Cross-file — CONFIRMED: no contradiction with the run-8 section (the d4556574e/647f906d
+cross-references, the identical-ids consequence) or the summary :15 pointer; the PREREG post
+hoc at :294-304 matches the report's quotes.
+
+VERDICT: BANK (descriptive) — 0 blockers, 0 majors, 0 minors, 0 nits; every number, log line, ids diff, ladder time, cooldown, deadline, rc-255 count, power capture, PREREG quote verbatim; parity-miss/0.85-below/not-adjusted, forced-explicit, A7X-property, rule-quoting §(4) all exact.

@@ -12,6 +12,8 @@ Run 7e’s QRD7675/SM7675/Adreno 732 result exists below [PREREG.md:165 — “T
 
 Run 8’s QRD8650/SM8650/Adreno 750 result exists below [PREREG.md:134 — “QRD8650/SM8650/Adreno 750”]; [raw/sa808770/results.tsv:2-5 — “A 1 8504.842 ...”; “B 1 4294.885 ...”; “A 2 na ...”; “B 2 na ...”].
 
+Run 9’s QRD7675/SM7675/Adreno 732 result exists below [PREREG.md:294 — “## Run 9 (QRD7675, forced B) — post hoc on the first pair”].
+
 ## Identity
 
 The device was serial `2a38935c`, SoC `SM8750`, Android 16, userdebug, and debuggable [raw/sa805734/recon.txt:1-12]. The installed APK SHA-256 is `272f4547…59946`, and its package flags include `DEBUGGABLE` [raw/sa805734/8-Elite_A_t1_apk_sha.txt:1-6]. The fixed model copy reports `1593894944` bytes [raw/sa805734/8-Elite_A_t1_model_copy.txt:1]; its locked SHA is in PREREG [PREREG.md:13-15].
@@ -191,3 +193,43 @@ Trap-8’s content-over-rc fix was exercised: `adb-exit.log` has 1 `rc=255` line
 ## Next
 
 None beyond the owner’s call on QRD8635/HDK8550 and on whether the 750 stays allowlisted off [PREREG.md:197-200 — “QRD8650 (V75): GPU path exists but is allowlisted off ... `kalsa.bench.governor_force=1` re-enables it”; PREREG.md:215-217 — “QRD8635 and HDK8550 ... parked for the owner’s call”].
+
+## Run 9 — QRD7675 / SM7675 / Adreno 732 (6/09, governor forced on arm B)
+
+Identity: recon says `SM7675` and `memtotal_kb=11595000` [raw/sa811420/recon.txt:4 — “SM7675”; raw/sa811420/recon.txt:22 — “memtotal_kb=11595000”].
+
+| arm | turn | TTFT ms | prefill_ms | chunks | decode t/s | new tokens | engines | thermal_state | skin before→after °C | forced | oracle | void_reason | evidence |
+|---|---:|---:|---:|---|---:|---:|---|---|---:|---|---|---|---|
+| A | 1 | 11769.454 | na | na | 16.975 | 925 | na/na | na | 28.18→40.718 | not in raw | na | na | [raw/sa811420/results.tsv:2 — “A 1 11769.454 na na 925 na 16.9754551180914 ... 28.18 40.718 ... na”]; [raw/sa811420/7p-Gen-3_A_t1_status.txt:1 — “status=0 row_void=0 ... governor_count=0 ... void_reason=na”] |
+| B | 1 | 7423.184 | 7423.184 | 2+128+128+128+128+128+128+128+27 | 14.953 | 925 | GPU/CPU | FAST | 36.834→44.961 | true | FAIL | na | [raw/sa811420/results.tsv:3 — “B 1 7423.184 7423.184 ... 14.95339102565 GPU CPU FAST 36.834 44.961 ... FAIL”]; [raw/sa811420/7p-Gen-3_B_t1_logcat_all.txt:19210 — “KALSA_GOVERNOR ... forced":true ...”] |
+| A | 2 | 12475.128 | na | na | 16.470 | 925 | na/na | na | 38.448→46.928 | not in raw | na | na | [raw/sa811420/results.tsv:4 — “A 2 12475.128 na na 925 na 16.4701727827384 ... 38.448 46.928 ... na”]; [raw/sa811420/7p-Gen-3_A_t2_status.txt:1 — “status=0 row_void=0 ... governor_count=0 ... void_reason=na”] |
+| B | 2 | 7421.679 | 7421.679 | 2+128+128+128+128+128+128+128+27 | 14.857 | 925 | GPU/CPU | FAST | 36.956→46.631 | true | FAIL | na | [raw/sa811420/results.tsv:5 — “B 2 7421.679 7421.679 ... 14.8570697606086 GPU CPU FAST 36.956 46.631 ... FAIL”]; [raw/sa811420/7p-Gen-3_B_t2_logcat_all.txt:18017 — “KALSA_GOVERNOR ... forced":true ...”] |
+| A | 3 | 12543.090 | na | na | 16.346 | 925 | na/na | na | 38.405→47.571 | not in raw | na | na | [raw/sa811420/results.tsv:6 — “A 3 12543.09 na na 925 na 16.3464519762333 ... 38.405 47.571 ... na”]; [raw/sa811420/7p-Gen-3_A_t3_status.txt:1 — “status=0 row_void=0 ... governor_count=0 ... void_reason=na”] |
+
+Both B governor records also report `prefill_ctx_ngl=99` [raw/sa811420/7p-Gen-3_B_t1_logcat_all.txt:19210 — “prefill_ctx_ngl":99”; raw/sa811420/7p-Gen-3_B_t2_logcat_all.txt:18017 — “prefill_ctx_ngl":99”].
+
+B-ID shasum/diff check: B1=B2 and run-9 B1=run-8 B1; the prereg record quotes “the GPU ids are byte-identical to the QRD8650 GPU ids” and names both ID files [raw/sa811420/results.tsv:3,5 — “d4556574e02f80...”]; [PREREG.md:300-302 — “GPU ids are byte-identical ... raw/sa811420/7p-Gen-3_B_t1_ids.txt and raw/sa808770/8-Gen-3_B_t1_ids.txt”].
+
+## What run 9 establishes
+
+Pairing was “same-turn adjacent pairs, median” [PREREG.md:274-276 — “Pairing: same-turn adjacent pairs, median”]. B1/A1 = `7423.184/11769.454 = 0.631`; B2/A2 = `7421.679/12475.128 = 0.595`; median = `0.613`, `1/median = 1.632` [results.tsv:2-5 — “A 1 11769.454 ...”; “B 1 7423.184 ...”; “A 2 12475.128 ...”; “B 2 7421.679 ...”].
+
+The median is OUTSIDE the pre-registered `0.95–1.05` parity band and BELOW the `0.85` threshold that “would reopen the policy for V73 mid-tier” [PREREG.md:279-282 — “B/A 0.95–1.05 = parity ... B/A ≤ 0.85 would be a real gain and would reopen the policy for V73 mid-tier”]. This is a miss of the prior, which assumed an in-app discount; it is reported, not adjusted [PREREG.md:297-299 — “The prior assumed an in-app discount ... Reported as a miss of the prior, not adjusted”].
+
+Decode B vs A is `−11.9%` for pair 1 and `−9.8%` for pair 2; paired-mean B vs A is `−10.9%`, just outside the `±10%` expectation [results.tsv:2-5 — “16.9754551180914”; “14.95339102565”; “16.4701727827384”; “14.8570697606086”]; [PREREG.md:288-289 — “B decode ... within ±10% of A decode”]. KV commit is `12114944` bytes at `15.847` ms (B1) and `13.439` ms (B2) [B_t1_logcat_all.txt:19210 — “commit_bytes":12114944,"commit_ms":15.847”; B_t2_logcat_all.txt:18017 — “commit_bytes":12114944,"commit_ms":13.439”].
+
+Telemetry has `tokensPredicted=1023` plus `promptMs`/`predictedPerSecond` for every valid row [A_t1_filtered.txt:773 — “tokensPredicted":1023 ... promptMs":11769.454 ... predictedPerSecond":16.97545511809142”; B_t1_filtered.txt:773 — “tokensPredicted":1023 ... promptMs":7423.184 ... predictedPerSecond":14.95339102565002”; A_t2_filtered.txt:773 — “tokensPredicted":1023 ... promptMs":12475.128 ... predictedPerSecond":16.47017278273841”; B_t2_filtered.txt:773 — “tokensPredicted":1023 ... promptMs":7421.679 ... predictedPerSecond":14.857069760608603”; A_t3_filtered.txt:773 — “tokensPredicted":1023 ... promptMs":12543.09 ... predictedPerSecond":16.346451976233315”]. B status has `fallback_count=0` and governor JSON has `fallback_reason":""` [B_t1_status.txt:1 — “fallback_count=0”; B_t2_status.txt:1 — “fallback_count=0”; B_t1_logcat_all.txt:19210 — “fallback_reason":""”; B_t2_logcat_all.txt:18017 — “fallback_reason":""”].
+
+B ends at `44.961–46.631 °C` (45–47 °C rounded); cooldown waits are `75 s` and `810 s` [results.tsv:3,5 — “44.961”; “46.631”]; [B_t1_cooldown.txt:6 — “wait_s=75 skin=36.858 target_c=37.0”; B_t2_cooldown.txt:55 — “wait_s=810 skin=36.962 target_c=37.0”]. B3 cooldown stopped at `wait_s=60`, `skin=43.777 °C` [B_t3_cooldown.txt:5 — “wait_s=60 skin=43.777 target_c=37.0”].
+
+Oracle is FAIL×2 [results.tsv:3,5 — “... FAIL”; “... FAIL”]. A1/B1 first differs at zero-based index `7` (file line 8: A `14991`, B `2352`), with `24/32` IDs differing [A_t1_ids.txt:8 — “14991”; B_t1_ids.txt:8 — “2352”; A_t1_ids.txt:1-32; B_t1_ids.txt:1-32]. B1 and B2, and 732 B and 750 B, have the same `d4556574...` ID hash; CPU IDs share `647f906d...` across 732 and 750 [results.tsv:3,5 — “d4556574e02f80...”; raw/sa808770/results.tsv:3 — “d4556574e02f80...”; results.tsv:2,4,6 — “647f906da19958...”; raw/sa808770/results.tsv:2 — “647f906da19958...”]. Per the prereg post hoc: “the in-app divergence at index 7 is a deterministic property of the Adreno 7xx (A7X) GPU prefill path shared by the 732 and the 750 — it is NOT caused by the 750-only 20-FAIL MUL_MAT family” [PREREG.md:300-304].
+
+Harness: 5/5 rows are valid [raw/sa811420/7p-Gen-3_A_t1_status.txt:1; raw/sa811420/7p-Gen-3_B_t1_status.txt:1; raw/sa811420/7p-Gen-3_A_t2_status.txt:1; raw/sa811420/7p-Gen-3_B_t2_status.txt:1; raw/sa811420/7p-Gen-3_A_t3_status.txt:1 — “status=0 row_void=0”]; typing was one first attempt at 200 every time: `361/369/377/378/381 s` [raw/sa811420/7p-Gen-3_A_t1_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=361 rc=0”; raw/sa811420/7p-Gen-3_B_t1_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=369 rc=0”; raw/sa811420/7p-Gen-3_A_t2_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=377 rc=0”; raw/sa811420/7p-Gen-3_B_t2_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=378 rc=0”; raw/sa811420/7p-Gen-3_A_t3_type_prompt.txt:1 — “attempt=1 chunk_size=200 seconds=381 rc=0”]. Trap-8 was exercised: five `rc=255` power calls [raw/sa811420/adb-exit.log:350,763,1471,2253,2912 — “rc=255 ... shell dumpsys power”] versus five captures with `has_wakefulness=1` [raw/sa811420/7p-Gen-3_A_t1_load_wakes.txt.power.log:1; raw/sa811420/7p-Gen-3_A_t2_load_wakes.txt.power.log:1; raw/sa811420/7p-Gen-3_A_t3_load_wakes.txt.power.log:1; raw/sa811420/7p-Gen-3_B_t1_load_wakes.txt.power.log:1; raw/sa811420/7p-Gen-3_B_t2_load_wakes.txt.power.log:1 — “attempt=1 rc=0 has_wakefulness=1”].
+
+## Not bankable / deviations
+
+Strict oracle FAIL×2 means endpoint NOT MET; the result is descriptive [results.tsv:3,5 — “B 1 ... FAIL”; “B 2 ... FAIL”]; PREREG says an oracle FAIL “turns the row descriptive” [PREREG.md:286-287 — “A FAIL on the 732/735/740 ... turns the row descriptive”]. There are `n=2` pairs; B3 is not in raw after A3’s valid row, and the run ended at the deadline [results.tsv:6 — “A 3 12543.09 ... row”; END.txt:1 — “END reason=deadline_85_min”; driver-sa811420.log:11 — “DEADLINE_85_MIN”]. The prior miss is owned as reported above [PREREG.md:297-299 — “Reported as a miss of the prior, not adjusted”].
+
+## Policy implication (per PREREG rule, not a decision)
+
+Rule: “a generation gets `GPU_PREFILL_CORRECT=true` only with oracle PASS on all valid pairs of its run; the fork’s `prefill_engine()` gets a GPU rule for a generation only if its median B/A ≤ 0.85 with n ≥ 2 pairs. Otherwise the policy stays CPU and the runs bank the null” [PREREG.md:290-292]. Run 9 meets the median condition (`0.613 ≤ 0.85`, `n=2`): yes; it does not meet oracle PASS: no [results.tsv:3,5 — “FAIL”; “FAIL”].
