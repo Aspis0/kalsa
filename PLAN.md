@@ -1684,7 +1684,10 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **06:05 — RUN 10 prima coppia (QRD8635 / Adreno 735, B forzata): GPU 6,88 s vs CPU 11,62 s → 0,592 (1,69×)**,
 > forced/FAST, commit 12,1 MB / 13,5 ms, decode 15,3 vs 17,2. **Oracolo FAIL con ids GPU d4556574 = 732 = 750**: tre
 > board A7X con la stessa sequenza GPU, CPU 647f906d identica su quattro board. La proprietà A7X è confermata su
-> tre GPU (732/735/750). Driver 750 con `KIT_BASELINE_GATE` committato; APK c8d137e in build (~06:27). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> tre GPU (732/735/750). Driver 750 con `KIT_BASELINE_GATE` committato; APK c8d137e in build (~06:27).
+> **06:32 — APK c8d137e pronto** (CI 34025628896, sha 14f48561…): governor + pick + gate 750. Piano sessioni (una alla
+> volta): fine run 10 (~07:00) → **Guard A** su QRD8750 (kit CLI baseline vs candidato, `KIT_BASELINE_GATE=0`,
+> letture ±10%/25% pre-dichiarate) → **run 8b** su QRD8650 (in-app, ids GPU ≠ d4556574?) → **run 11** HDK8550. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
