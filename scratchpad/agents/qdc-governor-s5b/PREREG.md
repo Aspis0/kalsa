@@ -305,3 +305,11 @@ the 750 — it is NOT caused by the 750-only 20-FAIL MUL_MAT family (the 732 pas
 pre-declared for the 750 cell's run 8b: H2 numerical (f16 accumulation / near-tie flip common to A7X kernels; the
 830 uses different kernels and passes) vs H3 a real A7X kernel bug on a path exercised by prefill (n>1). The strict
 token oracle cannot separate them; a logit-margin oracle would (not available in the app today).
+
+## Run 11 (HDK8550) — build note, written 6/09 07:36 before the run
+Run 11 uses APK **c8d137e** (governor 9c28322ac + OpenCL pick 178a6c449 + the Adreno non-contiguous-src0 gate
+2f3b24dee) instead of 7e3d6d6 used by runs 9–10. The gate reroutes batched V-cache-view f16 matmuls to the generic
+kernel on EVERY Adreno, so on the 740 the B arm's GPU prefill path differs from runs 9–10 in that respect. This is
+declared, not hidden: the 740 pre-registered expectation (B/A ≥ 1.0 from the CPU-faster verdict) stays; the B/A here
+is a "gate build" number and will be labelled so; the gate's own speed effect is bounded by the 750 bench (+0.2%
+pp512) and is expected to be small. Same prompt, oracle, pairing and cooldown as runs 9–10.
