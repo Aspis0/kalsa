@@ -26,6 +26,11 @@ Mechanism in the app: with flash attention off, the K·Q attention matmul in pre
 MUL_MAT with GQA broadcast (nr=4) reading a VIEW of the K cache — the failing shape family.
 
 ## Procedure
+0. One variable. Two kits built by the SAME script (`build-kit.sh` in this cell: Docker `arm64-android:v0.7`,
+   preset `arm64-android-snapdragon-release`, **GGML_HEXAGON=OFF** in both, targets test-backend-ops + llama-bench):
+   **baseline = 12f6d9b6d** (pick branch head) and **candidate = 12f6d9b6d + cherry-pick 178a6c449**. The baseline
+   must reproduce the 20 FAIL with this build configuration before the candidate counts; if the baseline does not
+   reproduce them, the cell stops and reports (the defect would then depend on the build, not the kernel).
 1. Fork: new branch `kalsa/opencl-picks-2026-09+25910` from 12f6d9b6d; `git cherry-pick 178a6c449`; resolve
    conflicts minimally; build must compile for Android (the gov-kit Docker build, same recipe as ALIVE 43/#58).
    Record the kit sha. No other change in the same kit (one variable).
