@@ -1609,7 +1609,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > commit **9c28322ac** (test policy 5 casi passano prima dello skip GPU; rc 77 = skip device senza GPU sul Mac),
 > **audit #17 GO** (1 nit), **PUSHATO** su Aspis0/kalsallama governor-v0.3. App (worktree kalsa-wt-governor):
 > **79c04a9** generationFor SM7675/SM8635→V73 + `bench_force_gpu_prefill: force` + patch hand-edit (3 hunk
-> header +1) + 28 righe test, jest/tsc rc 0; **audit #18 mimo GO** (0 finding); **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> header +1) + 28 righe test, jest/tsc rc 0; **audit #18 mimo GO** (0 finding);
+> **Punto 3 — PREREG scritta** in `scratchpad/agents/qdc-750-mulmat-view/PREREG.md`: i 20 FAIL del 750 sono TUTTI
+> `MUL_MAT f16/bf16×f32 m=128 n=1, batched b≠[1,1], vista k_v=2112/k=1056 o=1`, 14/20 con broadcast nr=4 →
+> ipotesi H1 = stessa classe del fix upstream 178a6c449 (view_offs/broadcast Adreno MUL_MAT) mancante nel pick;
+> meccanismo in-app: K·Q dell'attenzione in prefill (FA off) = batched+GQA broadcast su vista del K cache.
+> Procedura: cherry-pick su `kalsa/opencl-picks-2026-09+25910` → kit → test-backend-ops MUL_MAT/MUL_MAT_ID/FA
+> sul QRD8650 dopo run 9 → esiti pre-dichiarati (0 FAIL → run 8b in-app con oracolo; 20 → porting al path f16). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
