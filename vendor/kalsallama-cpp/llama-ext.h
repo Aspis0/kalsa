@@ -207,6 +207,7 @@ struct llama_governor_params {
     bool htp_experts_readable = false;
     bool npu_lane_enabled = false;
     bool gpu_prefill_measured = false;
+    bool bench_force_gpu_prefill = false; // bench-only: force GPU prefill when gpu_fit==Fit; production leaves it false
     bool cool_prefill_eligible = false;
     bool cool_delta_measured = false;
     bool kexp_cool_scope = false;
