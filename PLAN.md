@@ -2727,3 +2727,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
   Artefatti: `results/litert_product/` (bench JSON, dump a11y, battery
   notes), report `moe-litert-product-classes.md`. Disciplina rispettata:
   sempre staccato, mai <30% batt, mai ≥45°C.
+
+> **6/09 12:56 EDT — QDC RIENTRATO (login fatto dall'owner dal browser Paseo, nessun codice email). R5 IN VOLO.**
+> Sessione **807948** `kalsa-oracle-R5-8elite` QRD8750 (host sa812017, serial b4bd0901, board `sun`, **Android 16**,
+> 150 min, SSH only, chiave kalsa-mac; il campo minuti via `browser_fill` è stato preso: 149m48s). Tunnel 6037 pid
+> `~/kalsa-qdc/tunnel-sa812017.pid`. Trappola nuova: una `adb devices` con `ANDROID_ADB_SERVER_PORT=6037` PRIMA del
+> tunnel avvia un server adb locale sulla 6037 e il tunnel poi non binda IPv4 (`Address already in use`): kill-server,
+> poi tunnel. Driver positivo: `ORACLE_MODE=logit d_run.sh sa812017 <APK 28424c3> ABABAB 50` (pid /tmp/s5b-driver.pid,
+> raw/sa812017/) — `ABAB` del piano rifiutato dal validatore del driver → Amendment 3 nel PREREG logit-oracle. Poi
+> negativo con APK ca3b1b3 sui minuti restanti.

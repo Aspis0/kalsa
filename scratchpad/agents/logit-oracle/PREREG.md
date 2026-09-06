@@ -89,3 +89,11 @@ Readings: (PASS, FAIL) → oracle validated (R5 met) → proceed to TF on 750/73
 (FAIL, FAIL) → hook or driver defect (or the 8 Elite flip violates R2) → investigate before any A7X judgement.
 (FAIL, PASS) → nonsensical → harness error.
 Budget: 8 Elite ≈ 263 min left; two runs ≈ 2 × 40 min + setup.
+
+### Amendment 3 (6/09 12:56 EDT, before any R5 result was read)
+The session plan said `ABAB 40`; `d_run.sh` line 20 only accepts `ABABAB` or `ABABABAB` (my error: the plan was written
+without checking the validator). Executed instead: positive control `ABABAB 50` (deadline checked at every turn start, so
+2–3 pairs; the oracle is judged per pair, R4 needs ≥2 comparable pairs), then the negative control `ABABAB` with the
+minutes left in the 150-min session (≥20; one complete pair suffices for FAIL, since FAIL dominates DESCRIPTIVE). Session
+807948, host sa812017, serial b4bd0901, board `sun`, **Android 16** (previous QRD sessions were Android 14: harness
+probes live; any trap is reported, not silently patched). Readings unchanged.
