@@ -562,6 +562,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     exportDialogTitle: "Export mini-app {format}",
     pro: "Pro",
     con: "Con",
+    timelineTitle: "Timeline",
+    timelineEmpty: "No timeline entries yet.",
+    stepN: "Step {n}",
+    qualityTitle: "Quality panel",
+    qualityEmpty: "No quality entries yet.",
+    citationsTitle: "Citations",
+    citationsEmpty: "No citations yet.",
   },
 
   /** UI chrome / fallback labels inside the miniapp renderer (not model content). */

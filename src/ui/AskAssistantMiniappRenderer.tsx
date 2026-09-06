@@ -1261,20 +1261,26 @@ function TimelineBlockView({ block, context }: { block: MiniappBlock; context: R
     .concat(asArray(block.events, MAX_TABLE_ROWS))
     .slice(0, MAX_TABLE_ROWS);
   return (
-    <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Timeline")}</Text>
+    <View style={context.styles.miniappPlannerTimeline}>
+      <Text style={context.styles.miniappBlockTitle}>{context.t("miniapp.timelineTitle")}</Text>
       {entries.length ? (
         entries.map((entry, index) => {
           const record = asRecord(entry);
           return (
-            <Text key={index} style={context.styles.miniappFallbackText}>
-              {toStringValue(record.title, toStringValue(record.label, `Step ${index + 1}`))}
-              {record.time ? ` • ${toStringValue(record.time)}` : ""}
-            </Text>
+            <View key={`${record.id || index}`} style={context.styles.miniappPlannerTimelineItem}>
+              <Text style={context.styles.miniappFallbackText}>
+                <Text style={context.styles.miniappBlockTitle}>{context.t("miniapp.stepN", { n: index + 1 })}</Text>
+                {toStringValue(record.time, toStringValue(record.when)) ? ` • ${toStringValue(record.time, toStringValue(record.when))}` : ""}
+              </Text>
+              <Text numberOfLines={2} style={context.styles.miniappFallbackText}>
+                {toStringValue(record.title, toStringValue(record.label, ""))}
+              </Text>
+              {toStringValue(record.output) ? <Text style={context.styles.miniappFallbackText}>{toStringValue(record.output)}</Text> : null}
+            </View>
           );
         })
       ) : (
-        <Text style={context.styles.miniappFallbackText}>No timeline entries yet.</Text>
+        <Text style={context.styles.miniappFallbackText}>{context.t("miniapp.timelineEmpty")}</Text>
       )}
     </View>
   );
@@ -1283,19 +1289,21 @@ function TimelineBlockView({ block, context }: { block: MiniappBlock; context: R
 function QualityPanelBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   const metrics = asArray(block.checks, MAX_TABLE_ROWS).concat(asArray(block.metrics, MAX_TABLE_ROWS)).slice(0, MAX_TABLE_ROWS);
   return (
-    <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Quality panel")}</Text>
+    <View style={context.styles.miniappPlannerTimeline}>
+      <Text style={context.styles.miniappBlockTitle}>{context.t("miniapp.qualityTitle")}</Text>
       {metrics.length ? (
         metrics.map((entry, index) => {
           const entryRecord = asRecord(entry);
           return (
-            <Text key={index} style={context.styles.miniappFallbackText}>
-              {toStringValue(entryRecord.label, `metric-${index}`)}: {toStringValue(entryRecord.value, "--")}
-            </Text>
+            <View key={`${entryRecord.id || index}`} style={context.styles.miniappPlannerTimelineItem}>
+              <Text numberOfLines={2} style={context.styles.miniappFallbackText}>
+                {toStringValue(entryRecord.label, `metric-${index}`)}: {toStringValue(entryRecord.value, "--")}
+              </Text>
+            </View>
           );
         })
       ) : (
-        <Text style={context.styles.miniappFallbackText}>No quality entries yet.</Text>
+        <Text style={context.styles.miniappFallbackText}>{context.t("miniapp.qualityEmpty")}</Text>
       )}
     </View>
   );
@@ -1304,19 +1312,30 @@ function QualityPanelBlockView({ block, context }: { block: MiniappBlock; contex
 function CitationsBlockView({ block, context }: { block: MiniappBlock; context: RendererContext }) {
   const citations = asArray(block.items, MAX_TABLE_ROWS).concat(asArray(block.citations, MAX_TABLE_ROWS)).slice(0, MAX_TABLE_ROWS);
   return (
-    <View style={context.styles.miniappFallbackBlock}>
-      <Text style={context.styles.miniappBlockTitle}>{toStringValue(block.title, "Citations")}</Text>
+    <View style={context.styles.miniappPlannerTimeline}>
+      <Text style={context.styles.miniappBlockTitle}>{context.t("miniapp.citationsTitle")}</Text>
       {citations.length ? (
         citations.map((citation, citationIndex) => {
           const citationRecord = asRecord(citation);
+          const statement = toStringValue(citationRecord.title, toStringValue(citationRecord.id, ""));
+          const source = toStringValue(citationRecord.source, toStringValue(citationRecord.url, toStringValue(citationRecord.text)));
+          const note = toStringValue(citationRecord.note, toStringValue(citationRecord.summary));
           return (
-            <Text key={citationIndex} style={context.styles.miniappFallbackText}>
-              {(citationIndex + 1).toString()}. {toStringValue(citationRecord.title, toStringValue(citationRecord.id, ""))}
-            </Text>
+            <View key={`${citationRecord.id || citationIndex}`} style={context.styles.miniappEvidenceItem}>
+              <Text style={context.styles.miniappFallbackText}>
+                <Text style={context.styles.miniappBlockTitle}>{statement}</Text>
+              </Text>
+              {source ? (
+                <Text style={context.styles.miniappFallbackText}>
+                  {context.t("renderer.source")}: {source}
+                </Text>
+              ) : null}
+              {note ? <Text style={context.styles.miniappFallbackText}>{note}</Text> : null}
+            </View>
           );
         })
       ) : (
-        <Text style={context.styles.miniappFallbackText}>No citations yet.</Text>
+        <Text style={context.styles.miniappFallbackText}>{context.t("miniapp.citationsEmpty")}</Text>
       )}
     </View>
   );

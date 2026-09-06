@@ -562,6 +562,13 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     exportDialogTitle: "Esporta mini-app {format}",
     pro: "Pro",
     con: "Contro",
+    timelineTitle: "Scheda cronologia",
+    timelineEmpty: "Nessuna voce da scheda ancora.",
+    stepN: "Passo {n}",
+    qualityTitle: "Pannello qualità",
+    qualityEmpty: "Nessuna voce di qualità ancora.",
+    citationsTitle: "Citazioni",
+    citationsEmpty: "Nessuna citazione ancora.",
   },
 
   renderer: {
