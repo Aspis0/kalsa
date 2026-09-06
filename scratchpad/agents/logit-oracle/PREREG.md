@@ -72,3 +72,20 @@ captured before forcing on the same prefix: that step IS evaluated under R1/R2, 
 diverged) and coverage is defective (R4). Same for an unforced step (force list ended early). Precedence: any R1/R2/R3
 violation → FAIL (earliest step's rule); DESCRIPTIVE R4 only with zero violations and defective coverage; PASS only
 with zero violations and 32 comparable steps. This closes the "DESCRIPTIVE hides a high-margin disagreement" hole.
+
+## Session plan for R5 (pre-registered 6/09 10:00)
+One QRD8750 (8 Elite) session, two runs back to back with the S5b driver and `ORACLE_MODE=logit`:
+1. **Positive control** — APK 28424c3 (governor + gate + oracle hook), `ABAB 40` (2 same-turn pairs; B forced with A's
+   ids; both arms log KALSA_BENCH_PROBS). Expected: `oracle_logit=PASS` on both pairs (rule=none, steps=32). The
+   strict token oracle is reported alongside (the 8 Elite showed a 1-token flip at idx 29 in run 6: with TF that step
+   is judged by R1/R2 — a near-tie flip must be within thresholds; if R2 fails there, the thresholds are NOT loosened:
+   the case is reported and the oracle judged on the fault control too).
+2. **Negative control** — APK ca3b1b3 (fault-injected Q4_0 GEMM, ×0.5 on the accumulators), same `ABAB 40`.
+   Expected: `oracle_logit=FAIL` with rule R1 or R2 on both pairs (a 0.5 scaling of every Q4_0 GEMM output during
+   GPU prefill corrupts the KV state and the logits massively). Also expected: strict oracle FAIL and a visibly wrong
+   B/A TTFT (reported, not judged).
+Readings: (PASS, FAIL) → oracle validated (R5 met) → proceed to TF on 750/732/735 with APK 28424c3.
+(PASS, PASS) → oracle rejected (blind to a corrupted prefill) → token oracle stays; investigate thresholds/hook.
+(FAIL, FAIL) → hook or driver defect (or the 8 Elite flip violates R2) → investigate before any A7X judgement.
+(FAIL, PASS) → nonsensical → harness error.
+Budget: 8 Elite ≈ 263 min left; two runs ≈ 2 × 40 min + setup.
