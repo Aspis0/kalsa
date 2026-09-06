@@ -705,9 +705,31 @@ function resolvePrewarmPrefix(
   };
 }
 
-function queueStaticPrefixPrewarmForPrefix(
-  prefix: ReturnType<typeof resolvePrewarmPrefix>,
-): void {
+/**
+ * Join: do NOT start a second completion. This enqueues via withEngineJob;
+ * streamAssistantTurn is also withEngineJob. FIFO is the join — a send that
+ * lands during prewarm waits, then llama.rn prefix-match reuses the hot
+ * system+tools KV. Never completion() in parallel.
+ */
+export async function queueStaticPrefixPrewarm(
+  locale: Locale,
+  tools?: EngineTool[],
+  toolChoiceMode?: ToolChoiceMode,
+): Promise<void> {
+  if (!EAGER_PREFIX_PREWARM) return;
+  // OEM process-restore can relaunch us in background; do not burn a 40s
+  // prefill until the user is actually looking at the app. Foreground
+  // AppState → active re-kicks from AppShell.
+  if (AppState.currentState !== "active") {
+    logPrewarm({ op: "skip", reason: "background" });
+    return;
+  }
+  if (!isEngineReady()) {
+    logPrewarm({ op: "skip", reason: "not_ready" });
+    return;
+  }
+  const resolvedToolChoiceMode = toolChoiceMode ?? (await getToolChoiceMode());
+  const prefix = resolvePrewarmPrefix(locale, tools, resolvedToolChoiceMode);
   // Chat KV must not be prewarmed over — restore and live-chat KV included.
   // §7.29 measured n_past=1473 after a hybrid restore on KEXP, so the old
   // "hybrid restores are not real" carve-out was wrong.
@@ -830,34 +852,6 @@ function queueStaticPrefixPrewarmForPrefix(
 }
 
 /**
- * Join: do NOT start a second completion. This enqueues via withEngineJob;
- * streamAssistantTurn is also withEngineJob. FIFO is the join — a send that
- * lands during prewarm waits, then llama.rn prefix-match reuses the hot
- * system+tools KV. Never completion() in parallel.
- */
-export function queueStaticPrefixPrewarm(
-  locale: Locale,
-  tools?: EngineTool[],
-): void {
-  if (!EAGER_PREFIX_PREWARM) return;
-  // OEM process-restore can relaunch us in background; do not burn a 40s
-  // prefill until the user is actually looking at the app. Foreground
-  // AppState → active re-kicks from AppShell.
-  if (AppState.currentState !== "active") {
-    logPrewarm({ op: "skip", reason: "background" });
-    return;
-  }
-  if (!isEngineReady()) {
-    logPrewarm({ op: "skip", reason: "not_ready" });
-    return;
-  }
-  void getToolChoiceMode().then((toolChoiceMode) => {
-    const prefix = resolvePrewarmPrefix(locale, tools, toolChoiceMode);
-    queueStaticPrefixPrewarmForPrefix(prefix);
-  });
-}
-
-/**
  * Settings that change the static prefix (locale / web / device / calendar).
  * Same identity → no-op. Else mark stale. If a chat (or any engine job) is
  * in flight, do not clearCache (do not fight an in-flight turn / cc8ed55).
@@ -893,7 +887,7 @@ export function notifyStaticPrefixInputs(
       lastChatNPast = undefined;
       chatKvDiskCurrent = false;
     });
-    queueStaticPrefixPrewarmForPrefix(prefix);
+    void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
   });
 }
 
