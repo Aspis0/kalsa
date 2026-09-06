@@ -1680,7 +1680,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **06:00 — ALIVE 53 bancata** (449cdab8). Fork: branch **`kalsa/governor-v0.3-on-2f3b24dee`** = governor 9c28322ac
 > + merge del pick branch (3bec271fd, solo ggml-opencl.cpp +28/−6, test policy ok), pushato. App: **pin bump c8d137e**
 > (3bec271fd), pushato; **APK CI run 34025628896** in corso (~40 min) → serve per run 8b (750 in-app col gate) e,
-> via kit CLI già pronto, per il bench 8 Elite. Run 10 QRD8635 in volo (sessione 807861, driver 05:34). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> via kit CLI già pronto, per il bench 8 Elite. Run 10 QRD8635 in volo (sessione 807861, driver 05:34).
+> **06:05 — RUN 10 prima coppia (QRD8635 / Adreno 735, B forzata): GPU 6,88 s vs CPU 11,62 s → 0,592 (1,69×)**,
+> forced/FAST, commit 12,1 MB / 13,5 ms, decode 15,3 vs 17,2. **Oracolo FAIL con ids GPU d4556574 = 732 = 750**: tre
+> board A7X con la stessa sequenza GPU, CPU 647f906d identica su quattro board. La proprietà A7X è confermata su
+> tre GPU (732/735/750). Driver 750 con `KIT_BASELINE_GATE` committato; APK c8d137e in build (~06:27). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
