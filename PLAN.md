@@ -2761,3 +2761,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > CI 34049642898 (normale) / 34049644191 (fault); le build 1ec63a0 cancellate dalla concurrency. Re-audit deepseek in corso.
 > 14:35 — re-audit #28 deepseek su 19b67b6: GO-WITH-FIXES, residui = micro-race di produzione (busy stantio di un tick,
 > doppio prewarm raro, promise fluttuanti) → TODO fuori dal percorso critico. Strumenti R5 = APK 19b67b6 / e54f529.
+> 14:40 — APK pronti: normale **19b67b6** sha c6d24bbd8b72…, fault **e54f529** sha 17850b2121b4… (run CI 34049642898 /
+> 34049644191, ~25 min). Sessione **807952** `kalsa-oracle-R5b-8elite` QRD8750 (stessa board b4bd0901, Android 16), 150 min
+> (149m46s: i minuti via JS stavolta presi), SSH only, kalsa-mac; Screen Always On rimasto OFF (l'harness forza stayon).
+> Host sa812021, tunnel pid ~/kalsa-qdc/tunnel-sa812021.pid (aperto PRIMA del probe adb). Driver positivo pid
+> /tmp/s5b-driver.pid = 16667: `ORACLE_MODE=logit d_run.sh sa812021 <apk 19b67b6> ABABAB 45`, raw/sa812021/.
+> Attesi su A1: `fallbackCalls:0`, KALSA_BENCH_TOKENS presente, tokensCached < 2410.
