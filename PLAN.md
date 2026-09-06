@@ -2811,3 +2811,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > run 8 senza hook sullo stesso board funzionava. Sessione 807954 chiusa, tunnel giù. Fix dispatchato a Luna ba2ac459
 > (null-check nell'hook, ids esauriti = stop pulito, niente patch-package). Poi audit, rebuild APK, sessione nuova.
 > Typing su 8650 con APK nuovo: 803-818 s/turno (gradino 200 sempre fallito) contro 386-397 s della run 8 → coppia ~48 min.
+> 18:55 — fix crash da Luna ba2ac459: **1cf865a** (governor) / **db2e0a0** (fault, pin 5f0701dac intatto), patch
+> byte-identico sui due rami (`patches/llama.rn+0.12.8.patch`, +156/-65): guardie su logits/ctx/model/vocab/n_vocab,
+> ids forzati con bounds e `>= n_vocab`, logits assenti → `"top":[]` (passo visibile, non silenzioso); tsc rc=0,
+> jest 9 test rc=0; nessuna build nativa possibile in locale. Audit mimo 1d36c152 in corso, con enfasi sulla
+> **validità del patch hand-edited** (conteggi `@@` degli hunk) oltre che sulle guardie.
