@@ -2821,3 +2821,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > è sbagliata**: la build morta (19b67b6) la sync ce l'aveva; la causa coerente resta il dereferenziamento dei candidati
 > del sampler in modalità forzata, che 1cf865a ha chiuso. Round 2 su Luna: ripristino sync + lettura unica dei logit,
 > niente troncamento del turno quando i probs mancano.
+> 19:20 — round 2 crash-fix: **8b6d548** / **aa4ddf2** (patch identico, pin fault 5f0701dac intatto). Verificato da me:
+> `llama_synchronize` di nuovo presente (3 occorrenze come in 19b67b6), lettura unica di `llama_get_logits_ith` dopo la
+> sync, `has_next_token = false` rimosso (niente troncamento del turno), passo senza logit → `"top":[]` visibile nel log
+> (`[]` è truthy nel lato JS). tsc/jest rc=0. CI 34066610611 / 34066611883 in corso → APK per la sessione R5.
