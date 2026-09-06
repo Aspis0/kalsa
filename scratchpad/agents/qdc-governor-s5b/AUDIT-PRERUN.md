@@ -801,3 +801,84 @@ RESULTS=/tmp/kalsa-s5-dryrun.bFkhri/results.tsv).
 
 GO. 0 blockers, 0 majors, 0 minors — F1 correctly fixed (guard order verified, no masking,
 reason preservation proven by the new dryrun fixture), dryrun rc=0. Launch run 8 on QRD8650.
+
+## Delta audit #17 — fork bench_force_gpu_prefill
+
+(1) Production safety — CONFIRMED. llama-governor-policy.cpp:153-158: the new `if
+(params_.bench_force_gpu_prefill && params_.gpu_fit == llama_governor_fit::Fit) { return
+llama_governor_engine::GPU; }` sits AFTER the full CPU guard (`!valid_schema(params_) ||
+!profile_valid_ || !have_profile_ || state_ == CRITICAL || state_ == Invalid || state_ ==
+LOWBAT || profile_.batt_level_pct < 45 → CPU`) and BEFORE the generation rules (V75/V79
+measured, V73 MoE COOLMODE) — exactly the required placement. With the default false the new
+branch can never fire, so every other path is byte-equivalent to HEAD~1 (the diff is 58+/0-,
+touching only the struct field, the 3 policy lines, and the test). Generation readers: only
+the three pre-existing policy branches (:163-168, :240); the runtime route is
+n_tokens-based, not generation-based, and no route/assert on generation exists in
+llama-governor*.cpp — forcing GPU on V73/Unknown changes only the prefill_engine label,
+which is then TRUE (the prefill executes on the GPU handle) — no mis-label. decode_engine
+and the expert rules are untouched.
+(2) Schema — CONFIRMED: valid_schema (llama-governor-policy.cpp:17-20) checks only
+schema_version==3 && capability_schema_version==2 && the admission-margin constant — a
+default-false params bool needs no bump and no capability flag; the field is not serialized
+or logged anywhere (grep: only the header, the policy, and the test) — its absence on the
+app side is harmless until the pin maps kalsa.bench.governor_force → bench_force_gpu_prefill.
+(3) Test — CONFIRMED, exercise through the real policy: (a) V73 Dense Fit force=true →
+GPU; (b) Unknown Fit force=true → GPU; (c) force=true NoFit → CPU; (d) force=true
+CRITICAL → CPU — reached via bench_thermo(420)=42.0 °C through the REAL update_thermal /
+thresholds tuple {38.0,36.0,39.5,36.5,42.0,34.0}, not a fake state — a genuine thermal-guard
+test; (e) force=false V73 Dense → CPU. Runs before the GPU skip in main (pure-policy — no
+device needed), consistent with rc 77. NIT: only the temperature side of the guard is
+exercised; the batt<45 branch is the same guard block and untested in isolation —
+acceptable.
+(4) Hot path — CONFIRMED: one bool compare in the policy; no allocation/throw.
+(5) Clean code — CONFIRMED: comment "// bench-only: force GPU prefill when gpu_fit==Fit;
+production leaves it false" accurate; no duplicated literal.
+
+## Delta verdict #17
+
+GO for pushing the fork and bumping the app pin. 0 blockers, 0 majors, 1 nit (batt-guard
+untested in isolation). The lever is inert by default, correctly positioned after the thermal
+guard, and the test proves the five required outcomes through the real policy path; the app
+pin must map kalsa.bench.governor_force → bench_force_gpu_prefill for run 8's B rows to use it.
+
+## Delta audit #19 — runs 9-11 driver
+
+(1) type_prompt ladder — CONFIRMED. parse.sh:420 `for chunk_size in 200 100`, with
+`first_rung=1` set BEFORE the loop and `first_rung=0` at parse.sh:488 after the attempt's
+failure path (the success rc=0/rc=2 exits happen before it) — the first-char retype branch
+(parse.sh:456 `[ "$chunk_no" -eq 1 ] && [ "$first_rung" -eq 1 ] &&
+[ "$TYPE_VERIFY_TEXT" = "$first_loss_expected" ]`) fires ONLY on the 200 rung, never on the
+100 rung; `first_loss_expected="${PROMPT_TEXT:1:TYPE_VERIFY_LEN}"` with a 200-chunk is
+correct (a first-char loss at 200 yields actual_len=199 = PROMPT_TEXT[1:199]). set -u safe
+(first_rung init 1). Both cap checks use the rung cap — parse.sh:433 (in-loop) and :479
+(post-success) both `[ "$elapsed" -ge "$cap" ]` with `cap=$(type_cap_for_chunk
+"$chunk_size")` (parse.sh:424; 200→400, 100→700, `*) return 1`) — the delta-11-era
+-ge/-gt inconsistency is gone (both -ge). No 500 remains in parse.sh/dryrun (grep clean);
+PREREG:150's "500 → 200 → 100" is the historical 7c text, not the current ladder.
+(2) Gates — CONFIRMED. d_run.sh:54 `if [ "$memtotal_kb" -le 8388608 ]; then` — the RAM gate
+now covers every device_tag (the 8-Gen-3 condition dropped), still called before any install
+with MEMTOTAL_KB CRLF-stripped; dryrun:251 asserts rc=2 for 7p-Gen-3 at 7864320. d_run.sh:234
+`[ "$flag" -eq 1 ] && governor_force=1` — arm A (flag 0) still writes '0'; every board's B
+writes '1'; the sqlite INSERT pairing
+`('kalsa.governor.enabled','$flag'),('kalsa.bench.governor_force','$governor_force')`
+unchanged; dryrun's assert_governor_force (:150-157) covers all five boards × both flags
+through the real set_prefs push.
+(3) Measurement path — CONFIRMED: the diff touches only the typing ladder and the two gates;
+anchor, telemetry parsing, oracle, cooldown, commit parsing untouched.
+(4) dryrun — CONFIRMED: `bash dryrun.sh > /tmp/dr19.log 2>&1` → rc=0 (tail: holder_loop 143
+/ cleanup 0). Fixtures drive real code: the 26-chunk counts (INPUT_TEXT_COUNT 52/130,
+TYPE_COUNTS 26,26,…), the ladder fixtures now 200→100 (`attempt=1 chunk_size=200 .*rc=1` +
+`attempt=2 chunk_size=100 .*rc=0`; the three-fail variant with no rc=2 escape), the force
+matrix, and the RAM-gate rc=2 — all genuine.
+(5) Time budget — CONFIRMED consistent: PREREG:260 "85-min run for 4 turns but not 6";
+arithmetic: mid-case turn ≈ 340 s typing (26×200-chunks) + 2-8 min cooldown + ~90 s +
+overhead ≈ 12-18 min → 4 turns ≈ 60-72 min < 85, 6 ≈ 96 min > 85 ✓; worst case at both
+caps (400+700+900+90 ≈ 35 min) yields only ~2 turns — the PREREG states the expectation and
+the deadline rule. Caps match PREREG:255 ("400 s at 200, 700 s at 100").
+
+## Delta verdict #19
+
+GO. 0 blockers, 0 majors, 0 minors, 1 nit (the worst-case-cap regime (~35 min/turn) can
+underdeliver to 2 turns; the pre-registered "4 turns but not 6" holds at the mid-case only —
+rows lost to the deadline stay reported as such per PREREG:260). Ladder, caps, first_rung,
+gates, force matrix, dryrun (rc=0) all CONFIRMED. Commit and use for run 9 on QRD7675.

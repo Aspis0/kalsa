@@ -402,16 +402,26 @@ chunk_sum() {
   printf '%s\n' "$chunks" | awk -F+ '{total=0; for (i=1; i<=NF; i++) {part=$i; sub(/^[^0-9]*/, "", part); if (part !~ /^[0-9]+$/) exit 1; total+=part} print total}'
 }
 
+type_cap_for_chunk() {
+  case "$1" in
+    200) printf '400\n' ;;
+    100) printf '700\n' ;;
+    *) return 1 ;;
+  esac
+}
+
 type_prompt() {
   local prefix="$1"
   local text_len offset chunk chunks chunk_size chunk_no expected_len
-  local attempt attempt_start now elapsed rc result first_loss_expected
+  local attempt attempt_start now elapsed cap rc result first_loss_expected first_rung
   TYPE_ATTEMPT_NO=${TYPE_ATTEMPT_NO:-0}
   [ -n "$PROMPT_TEXT" ] || return 1
   text_len=${#PROMPT_TEXT}
-  for chunk_size in 500 200 100; do
+  first_rung=1
+  for chunk_size in 200 100; do
     TYPE_ATTEMPT_NO=$((TYPE_ATTEMPT_NO + 1))
     attempt="$TYPE_ATTEMPT_NO"
+    cap=$(type_cap_for_chunk "$chunk_size") || return 1
     attempt_start=$(date +%s)
     deadline_check
     sleep 2
@@ -420,7 +430,7 @@ type_prompt() {
     while [ "$offset" -lt "$text_len" ]; do
       now=$(date +%s)
       elapsed=$((now - attempt_start))
-      if [ "$elapsed" -ge 400 ]; then
+      if [ "$elapsed" -ge "$cap" ]; then
         printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$elapsed" >> "${prefix}_type_prompt.txt"
         return 2
       fi
@@ -443,7 +453,7 @@ type_prompt() {
         chunks=$((chunks + 1))
         continue
       fi
-      if [ "$chunk_no" -eq 1 ] && [ "$chunk_size" -eq 500 ] && [ "$TYPE_VERIFY_TEXT" = "$first_loss_expected" ]; then
+      if [ "$chunk_no" -eq 1 ] && [ "$first_rung" -eq 1 ] && [ "$TYPE_VERIFY_TEXT" = "$first_loss_expected" ]; then
         clear_for_retry || { printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$(( $(date +%s) - attempt_start ))" >> "${prefix}_type_prompt.txt"; return 2; }
         send_prompt_chunk "$prefix" "$chunk_no" 0 "$chunk_size"
         rc=$?
@@ -466,7 +476,7 @@ type_prompt() {
     done
     if [ "$offset" -eq "$text_len" ]; then
       now=$(date +%s); elapsed=$((now - attempt_start))
-      if [ "$elapsed" -ge 400 ]; then
+      if [ "$elapsed" -ge "$cap" ]; then
         printf 'attempt=%s chunk_size=%s seconds=%s rc=2\n' "$attempt" "$chunk_size" "$elapsed" >> "${prefix}_type_prompt.txt"
         return 2
       fi
@@ -475,6 +485,7 @@ type_prompt() {
       TYPE_COUNTS="${TYPE_COUNTS}${chunks},"
       return 0
     fi
+    first_rung=0
   done
   return 2
 }

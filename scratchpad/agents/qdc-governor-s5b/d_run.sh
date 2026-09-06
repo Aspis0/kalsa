@@ -51,7 +51,7 @@ gpu_fit_ram_gate() {
   local device_tag="$1"
   local memtotal_kb="$2"
   case "$memtotal_kb" in ''|*[!0-9]*) return 0;; esac
-  if [ "$device_tag" = 8-Gen-3 ] && [ "$memtotal_kb" -le 8388608 ]; then
+  if [ "$memtotal_kb" -le 8388608 ]; then
     log "GPU_FIT_RAM memtotal_kb=$memtotal_kb"
     return 2
   fi
@@ -231,7 +231,7 @@ set_prefs() {
   local dir remote run_rc
   local step_file="${RAW}/set_prefs_${flag}.txt"
   [ "$#" -ge 2 ] && step_file="$2_set_prefs.txt"
-  [ "$flag" -eq 1 ] && [ "$BOARD" = 8-Gen-3 ] && governor_force=1
+  [ "$flag" -eq 1 ] && governor_force=1
   dir=$(mktemp -d /tmp/kalsa-s5-rkstorage.XXXXXX) || return 1
   : > "$step_file"
   pull_rkstorage "$dir" || { rm -rf "$dir"; return 1; }
