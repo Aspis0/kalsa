@@ -566,7 +566,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     timelineEmpty: "Nessuna voce ancora.",
     stepN: "Passo {n}",
     qualityTitle: "Pannello qualità",
-    qualityEmpty: "Nessuna voce di qualidade ancora.",
+    qualityEmpty: "Nessuna voce di qualità ancora.",
     citationsTitle: "Citazioni",
     citationsEmpty: "Nessuna citazione ancora.",
   },
