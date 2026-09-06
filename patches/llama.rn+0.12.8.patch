@@ -1375,7 +1375,7 @@ index a60bd15..817eab3 100644
 +    std::vector<completion_token_output::raw_token_prob>& result) {
 +    result.clear();
 +    if (count <= 0 || ctx == nullptr || vocab == nullptr) return false;
-+    if (llama_get_logits(ctx) == nullptr) return false;
++    llama_synchronize(ctx);
 +    const float* logits = llama_get_logits_ith(ctx, -1);
 +    const int32_t n_vocab = llama_vocab_n_tokens(vocab);
 +    if (logits == nullptr || n_vocab <= 0) return false;
@@ -1817,7 +1817,7 @@ index a60bd15..817eab3 100644
 +
      {
          // out of user input, sample next token
-@@ -1063,7 +1182,32 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1063,7 +1182,28 @@ completion_token_output llama_rn_context_completion::nextToken()
          std::vector<llama_token_data> candidates;
 -        candidates.reserve(llama_vocab_n_tokens(vocab));
 +        candidates.reserve(n_vocab);
@@ -1828,12 +1828,8 @@ index a60bd15..817eab3 100644
 +            return result;
 +        }
 +
-+        if (raw_probs_requested &&
-+            !benchRawTopProbs(active_ctx, vocab, bench_raw_probs, result.raw_probs)) {
-+            if (!forced) {
-+                has_next_token = false;
-+                return result;
-+            }
++        if (raw_probs_requested) {
++            benchRawTopProbs(active_ctx, vocab, bench_raw_probs, result.raw_probs);
 +        }
 +
 +        llama_token new_token_id;
@@ -1853,7 +1849,7 @@ index a60bd15..817eab3 100644
          const int32_t n_probs = parent_ctx->params.sampling.n_probs;
 -        if (n_probs > 0) {
 +        if (n_probs > 0 && !forced) {
-@@ -1070,6 +1214,8 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1070,6 +1210,8 @@ completion_token_output llama_rn_context_completion::nextToken()
 -          llama_token_data_array cur_p = *common_sampler_get_candidates(ctx_sampling, true);
 -          for (size_t i = 0; i < std::min(cur_p.size, (size_t)n_probs); ++i)
 -          {
@@ -1868,7 +1864,7 @@ index a60bd15..817eab3 100644
 +              }
 +          }
 +        }
-@@ -1077,7 +1223,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1077,7 +1219,7 @@ completion_token_output llama_rn_context_completion::nextToken()
          if (llama_vocab_is_eog(vocab, new_token_id)) {
              has_next_token = false;
              stopped_eos = true;
@@ -1877,7 +1873,7 @@ index a60bd15..817eab3 100644
              return result;
          }
  
-@@ -1089,7 +1235,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1089,7 +1231,7 @@ completion_token_output llama_rn_context_completion::nextToken()
              parent_ctx->tts_wrapper->next_token_uses_guide_token = (new_token_id == 198);
          }
          result.tok = new_token_id;
@@ -1886,7 +1882,7 @@ index a60bd15..817eab3 100644
  
          common_sampler_accept(ctx_sampling, result.tok, true);
          if (tg) {
-@@ -1143,7 +1289,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1143,7 +1285,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
  {
      completion_token_output token_with_probs = nextToken();
  
@@ -1899,7 +1895,7 @@ index a60bd15..817eab3 100644
      generated_text += utf8_gate.feed(token_text);
  
      if (parent_ctx->isVocoderEnabled()) {
-@@ -1175,8 +1325,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1175,8 +1321,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
      }
  
      LOG_VERBOSE("next token, token: %s, token_text: %s, has_next_token: %d, n_remain: %d, num_tokens_predicted: %d, stopped_eos: %d, stopped_word: %d, stopped_limit: %d, stopping_word: %s",
@@ -1910,7 +1906,7 @@ index a60bd15..817eab3 100644
          has_next_token,
          n_remain,
          num_tokens_predicted,
-@@ -1214,10 +1364,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
+@@ -1214,10 +1360,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
  
  std::vector<float> llama_rn_context_completion::embedding(common_params &embd_params)
  {
@@ -1923,7 +1919,7 @@ index a60bd15..817eab3 100644
      if (!initSampling()) {
          throw std::runtime_error("Failed to initialize sampling");
      }
-@@ -1226,7 +1376,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1226,7 +1372,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
      doCompletion();
      endCompletion();
  
@@ -1932,7 +1928,7 @@ index a60bd15..817eab3 100644
      if (!embd_params.embedding)
      {
          LOG_WARNING("embedding disabled, embedding: %s", embd_params.embedding);
-@@ -1234,11 +1384,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1234,11 +1380,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
      }
      float *data;
  
@@ -1947,7 +1943,7 @@ index a60bd15..817eab3 100644
      }
  
      if (!data) {
-@@ -1254,7 +1404,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1254,7 +1400,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
      std::vector<float> scores;
  
      // Check if this model supports reranking (requires rank pooling type)
@@ -1956,7 +1952,7 @@ index a60bd15..817eab3 100644
      if (pooling_type != LLAMA_POOLING_TYPE_RANK) {
          throw std::runtime_error("reranking not supported, pooling_type: " + std::to_string(pooling_type));
      }
-@@ -1278,18 +1428,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1278,18 +1424,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
  
          std::vector<llama_token> rerank_tokens = format_rerank_tokens(vocab, query_tokens, doc_tokens);
  
@@ -1978,7 +1974,7 @@ index a60bd15..817eab3 100644
              if (data) {
                  scores.push_back(data[0]); // For rank pooling, the score is the first (and only) dimension
              } else {
-@@ -1302,7 +1452,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1302,7 +1448,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
          endCompletion();
  
          // Clear KV cache again to prepare for next document or restore original state
@@ -1987,7 +1983,7 @@ index a60bd15..817eab3 100644
      }
  
      return scores;
-@@ -1321,7 +1471,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1321,7 +1467,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
  
      is_predicting = true;
  
@@ -1996,7 +1992,7 @@ index a60bd15..817eab3 100644
      auto * model = parent_ctx->model;
      auto * mem = llama_get_memory(ctx);
  
-@@ -1357,7 +1507,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1357,7 +1503,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
  
      llama_batch batch = llama_batch_init(n_kv_max, 0, 1);
  
@@ -2005,7 +2001,7 @@ index a60bd15..817eab3 100644
          const int32_t total = batch_ref.n_tokens;
          for (int32_t i = 0; i < total; i += n_batch_ref) {
              const int32_t n_tokens_step = std::min(n_batch_ref, total - i);
-@@ -1372,7 +1522,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1372,7 +1518,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
                  batch_ref.logits   + i,
              };
  
@@ -2014,7 +2010,7 @@ index a60bd15..817eab3 100644
              if (ret != 0) {
                  LOG_ERROR("llama_decode() failed during benchmark, n_batch=%d ret=%d", n_batch_ref, ret);
                  return false;
-@@ -1547,7 +1697,7 @@ void llama_rn_context_completion::processMedia(
+@@ -1547,7 +1693,7 @@ void llama_rn_context_completion::processMedia(
          eraseStateCheckpointsAfter(n);
      };
      parent_ctx->mtmd_wrapper->processMedia(
