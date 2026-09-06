@@ -57,3 +57,49 @@ perf-regression bench to the same session; F6: add an o>1 / non-zero-view_offs M
 1 nit (F2's unproven hypothesis should be labelled). Gate scope recommendation: keep
 `gpu_family == ADRENO && !ggml_is_contiguous(src0)` as-is — the all-Adreno board-based scope
 is correct; do NOT narrow by compiler version (F3 refuted).
+## Delta audit #21 — d_run.sh
+
+F1 — BLOCKER, CONFIRMED: the fail count is 40, not 20. Running the driver's clean+count
+against the real 58 file (raw/tbo_mm_sa802498.out): pass=905 ✓ but fail=40 (expected 20).
+Cause: the output format is `  MUL_MAT(...): FAIL` (with a COLON before FAIL) and the file
+additionally carries a bare `  MUL_MAT(...)` duplicate line per failing shape. The driver's
+formula `fail=$( { grep -E "^  ${op}\\(.*FAIL[[:space:]]*$"; grep -E "^  ${op}\\(.*\\)[[:space:]]*$"; } | sort -u | wc -l )` counts the 20 `: FAIL` lines AND the 20 bare-")" duplicate
+lines → 40. The BASELINE_GATE at line 118 (`if [ "$label" = baseline ] && [ "$LAST_FAIL" -ne
+20 ]` → `exit 6` with END_REASON=baseline_gate) can then never pass → the whole cell always
+stops before the candidate. Same defect in the fail-case extraction (line 73 regex — 40
+lines, including the 20 duplicates — I checked: 0 of them end OK, so no PASS lines are
+matched, but the duplicates inflate it). Fix: count/quote `: FAIL` only
+(`grep -E "^  ${op}\\(.*: FAIL[[:space:]]*$"`), and drop the bare-`)` alternative (or make
+it `: FAIL|FAILED`); re-validate on the 58 file → 20.
+F2 — MAJOR, CONFIRMED: view_counts measures the wrong dimension. The failing family is
+`m=128, n=1, k=1056, k_v=2112, o=1` with bs>1 and nr0=4 (per PREREG). The driver's
+sub-filters `k_v>k && n>1` and `k_v>k && o>1` produce (on the real file) `n>1 pass=1
+fail=0` and `o>1 pass=1 fail=0` — i.e. they capture nothing of the defect (its n=1, o=1).
+The promised sub-counts must filter on the pre-registered signature (b≠[1,1] / the
+(bs0,bs1,nr0) family), not on n/o.
+F3 — CONFIRMED (hot path): set -u, every adbT has a timeout (30-2400); no `local a=$1
+b=${a}` anywhere; the nohup+.exit polling is bounded by the step cap plus ≤75 s (sleep 15 +
+cat cap 60); pkill with the bracket trick; deadline_check per step inside run_device_step;
+the EXIT trap `trap 'rc=$?; log "END reason=$END_REASON rc=$rc"; exit "$rc"'` captures rc
+BEFORE the log call — log's echo cannot clobber it; `exit 124` in deadline_check reaches the
+trap with rc=124 and END_REASON=deadline, and `exit 6/7/5` variants carry their END_REASON
+(thermal/baseline_gate/…) correctly.
+F4 — CONFIRMED (kits): both tarballs list top-level `bin/`, `lib/`, `GIT_SHA`, `SHA256SUMS`
+with RELATIVE paths (`bin/llama-bench`, `bin/test-backend-ops` …) — `sha256sum -c` with
+cwd=$dir works; the kit content is sha-listed (GIT_SHA itself included in SHA256SUMS);
+kit_sha via `tar -xOf` on macOS with the 40-hex validation; LD_LIBRARY_PATH=$dir/lib + cd
+$dir/bin; the model pushed once with device-sha verification and shared across kit dirs
+($REMOTE/$sha naming per kit).
+F5 — CONFIRMED: the gate script path and semantics match cell 58 (58's d_run.sh:15
+GATE=../kexp-speed-cell/thermal_gate.sh; :30-33 pre-retry 3×/60 s → return 7; :105 post
+`|| true`) — same thresholds by shared script; skin/gate evidence written per step.
+F6 — CONFIRMED: the tbo invocation `./test-backend-ops test -b GPUOpenCL -o MUL_MAT` matches
+cell 58's proven line (58 d_run.sh:118 — the "test" positional is the 58-proven binary
+format; my initial stray-arg suspicion REFUTED); bench `-t 4 -ngl 99 -fa 0 -p 512 -n 128 -r
+3 -o md` matches the 58-era bench flags.
+
+## Verdict
+
+NO-GO for the device run until F1 is fixed (count `: FAIL` only; re-validate → 905/20 on the
+58 file) and F2's sub-counts are re-filtered to the pre-registered b/nr signature. 1 blocker
+(F1), 1 major (F2); F3-F6 confirmed clean.

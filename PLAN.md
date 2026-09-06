@@ -1649,7 +1649,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > path; ids invariati → precisione/altro). Kit baseline pronto (99d7245e…), candidato in build.
 > Trappola build: `embed_kernel.py` fallisce senza messaggio in 2 build su 3 nel container (race del file sharing
 > Docker/macOS con -j8 sul passo Generate); il rilancio incrementale passa sempre. Da mettere nel build-kit.sh un
-> retry automatico del passo 02 (una volta) prima di dichiarare fallito. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> retry automatico del passo 02 (una volta) prima di dichiarare fallito.
+> **04:45 — kit candidato pronto** (`gpu-kit-2f3b24d.tgz`, ea665c37…). `d_run.sh` della cella 750 (Luna 2d5dfbe0,
+> 148 righe: baseline→candidato, tbo MUL_MAT/MUL_MAT_ID/FLASH_ATTN_EXT + llama-bench, gate termico di cella 58,
+> BASELINE_GATE = esattamente 20 FAIL altrimenti exit 6): **audit #21 deepseek NO-GO** — blocker: il conteggio FAIL
+> dava 40 sul file reale (righe `: FAIL` + riga nuda duplicata per shape) → il gate baseline non poteva mai passare;
+> major: i sub-conteggi filtravano n>1/o>1, che la famiglia (n=1,o=1) non ha. Fix in corso con validazione sul file
+> di cella 58 (905/20). Run 9: A1 11,77 / B1 GPU 7,42 / A2 12,48 valide, B2 in typing dopo 810 s di cooldown. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
