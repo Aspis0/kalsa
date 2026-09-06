@@ -51,3 +51,16 @@ becomes PASS/FAIL/DESCRIPTIVE with the failing rule named.
   later cleanup.
 - Driver: `ORACLE_MODE=logit` + `oracle_logit.py` (R1–R4); audit #25 NO-GO (DESCRIPTIVE masked FAIL in TF) → fix in
   progress: all steps evaluated, FAIL dominates, DESCRIPTIVE only with zero violations and defective coverage.
+
+## Amendment 1 — the R5 negative control, pre-registered 6/09 09:20 (before any build)
+"A deliberately broken kernel build must FAIL" cannot be served by the pre-gate baseline APK on the 750: the 20-FAIL
+family is n=1 batched GEMV (decode-shaped) and in-app decode runs on CPU, so that defect is not on the in-app prefill
+path (runs 8–10: identical GPU ids on 732/735/750 regardless). The negative control is therefore a **fault-injected
+build**: fork branch `kalsa/bench-fault-inject` (throwaway, from `kalsa/governor-v0.3-on-2f3b24dee` @3bec271fd) with
+ONE deliberate defect in the Adreno f16×f32 prefill GEMM path that is exercised by ubatch-128 prefill: the kernel
+result for the LAST K-block of each tile is dropped (or scaled by 0.5) — a real, systematic numerical corruption of
+the GPU prefill, guarded by a compile-time define `KALSA_BENCH_FAULT_INJECT=1` so it cannot exist in any normal build.
+App: throwaway branch `bench/fault-inject-apk` = feat/governor-in-app @28424c3 + pin bump to the faulty fork commit,
+APK debuggable, never merged. Expected reading on the 8 Elite (known-good GPU otherwise): arm B in TF mode must FAIL
+R1 or R2 on ≥ 2 pairs; if the oracle PASSes a corrupted prefill, the oracle is rejected (R5). Positive control on the
+same board with the normal APK (28424c3): must PASS. Both controls run before any A7X board is judged.
