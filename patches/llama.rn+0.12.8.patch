@@ -443,7 +443,7 @@ index f9e3e09..c4ce9f9 100644
          jsi::Object res(runtime);
          res.setProperty(runtime, "token", jsi::String::createFromUtf8(runtime, token.text));
  
-+        if (!token.raw_probs.empty()) {
++        if (token.raw_probs_requested) {
 +            res.setProperty(runtime, "tok", (int)token.tok);
 +            res.setProperty(runtime, "forced", token.forced);
 +            jsi::Array rawProbs(runtime, token.raw_probs.size());
@@ -624,7 +624,7 @@ index 650349e..44056ed 100644
          if (params.hasProperty(runtime, "flash_attn")) {
              bool fa = getPropertyAsBool(runtime, params, "flash_attn", false);
              cparams.flash_attn_type = fa ? LLAMA_FLASH_ATTN_TYPE_ENABLED : LLAMA_FLASH_ATTN_TYPE_DISABLED;
-@@ -508,7 +534,39 @@ namespace rnllama_jsi {
+@@ -508,7 +534,51 @@ namespace rnllama_jsi {
 +        ctx->completion->bench_raw_probs =
 +            std::max(0, getPropertyAsInt(runtime, params, "bench_raw_probs", 0));
 +        ctx->completion->bench_force_ids.clear();
@@ -632,27 +632,39 @@ index 650349e..44056ed 100644
 +        ctx->completion->bench_force_ids_enabled = false;
 +        if (params.hasProperty(runtime, "bench_force_ids")) {
 +            const auto forceValue = params.getProperty(runtime, "bench_force_ids");
-+            if (forceValue.isObject() && forceValue.asObject(runtime).isArray(runtime)) {
-+                const auto forceIds = forceValue.asObject(runtime).asArray(runtime);
-+                bool valid = true;
-+                for (size_t i = 0; i < forceIds.size(runtime); ++i) {
-+                    const auto value = forceIds.getValueAtIndex(runtime, i);
-+                    if (!value.isNumber()) {
-+                        valid = false;
-+                        break;
-+                    }
-+                    const double id = value.asNumber();
-+                    if (!std::isfinite(id) || std::floor(id) != id || id < 0) {
-+                        valid = false;
-+                        break;
-+                    }
-+                    ctx->completion->bench_force_ids.push_back((llama_token)id);
-+                }
++            bool valid = forceValue.isObject();
++            if (valid) {
++                const auto forceObject = forceValue.asObject(runtime);
++                valid = forceObject.isArray(runtime);
 +                if (valid) {
-+                    ctx->completion->bench_force_ids_enabled = true;
-+                } else {
-+                    ctx->completion->bench_force_ids.clear();
++                    const auto forceIds = forceObject.asArray(runtime);
++                    const llama_model * model = ctx->model;
++                    const llama_vocab * vocab = model != nullptr
++                        ? llama_model_get_vocab(model) : nullptr;
++                    const int32_t n_vocab = vocab != nullptr
++                        ? llama_vocab_n_tokens(vocab) : 0;
++                    valid = n_vocab > 0;
++                    for (size_t i = 0; valid && i < forceIds.size(runtime); ++i) {
++                        const auto value = forceIds.getValueAtIndex(runtime, i);
++                        if (!value.isNumber()) {
++                            valid = false;
++                            break;
++                        }
++                        const double id = value.asNumber();
++                        if (!std::isfinite(id) || std::floor(id) != id || id < 0 ||
++                            id >= (double)n_vocab) {
++                            valid = false;
++                            break;
++                        }
++                        ctx->completion->bench_force_ids.push_back((llama_token)id);
++                    }
 +                }
++            }
++            // Keep a malformed or empty list in the forced state so the
++            // pre-registered exhaustion behavior stops this completion cleanly.
++            ctx->completion->bench_force_ids_enabled = true;
++            if (!valid) {
++                ctx->completion->bench_force_ids.clear();
 +            }
 +        }
          sparams.grammar_triggers.clear();
@@ -1290,16 +1302,27 @@ index aaab748..6b137d6 100644
                      if (!guide_tokens.empty() && ctx->tts_wrapper != nullptr) {
                          ctx->params.vocoder.use_guide_tokens = true;
                          ctx->tts_wrapper->setGuideTokens(guide_tokens);
-@@ -1121,7 +1294,7 @@ namespace rnllama_jsi {
+@@ -1117,4 +1290,5 @@ namespace rnllama_jsi {
+-                        if (token_with_probs.tok == -1 || ctx->completion->incomplete) {
+-                            continue;
+-                        }
++                        if ((token_with_probs.tok == -1 && !token_with_probs.raw_probs_requested) ||
++                            (ctx->completion->incomplete && token_with_probs.tok != -1)) {
++                            continue;
++                        }
+-
++
+@@ -1121,7 +1295,8 @@ namespace rnllama_jsi {
                              continue;
                          }
  
 -                        const std::string token_text = common_token_to_piece(ctx->ctx, token_with_probs.tok);
-+                        const std::string token_text = common_token_to_piece(ctx->active_ctx(), token_with_probs.tok);
++                        const std::string token_text = token_with_probs.tok == -1 ? "" :
++                            common_token_to_piece(ctx->active_ctx(), token_with_probs.tok);
                          size_t pos = std::min(sent_count, ctx->completion->generated_text.size());
                          const std::string str_test = ctx->completion->generated_text.substr(pos);
  
-@@ -1176,9 +1349,14 @@ namespace rnllama_jsi {
+@@ -1176,9 +1351,14 @@ namespace rnllama_jsi {
                          }
                      }
  
@@ -1316,7 +1339,7 @@ index aaab748..6b137d6 100644
                      return [contextId](jsi::Runtime& rt) -> jsi::Value {
                          // Check if context is still valid (may have been released during async callback)
                          long ctxPtr = g_llamaContexts.get(contextId);
-@@ -1387,7 +1565,7 @@ namespace rnllama_jsi {
+@@ -1387,7 +1567,7 @@ namespace rnllama_jsi {
                              auto timings = slot->get_timings();
                              auto token_probs = slot->generated_token_probs;
                              if (slot->parent_ctx && slot->ctx_sampling) {
@@ -1325,7 +1348,7 @@ index aaab748..6b137d6 100644
                              }
  
                              rnllama::completion_chat_output final_output;
-@@ -1518,7 +1696,7 @@ namespace rnllama_jsi {
+@@ -1518,7 +1698,7 @@ namespace rnllama_jsi {
                      const llama_vocab* vocab = llama_model_get_vocab(ctx->model);
                      const bool add_bos = llama_vocab_get_add_bos(vocab);
                      const bool is_enc_dec = llama_model_has_encoder(ctx->model);
@@ -1344,22 +1367,24 @@ index a60bd15..817eab3 100644
  #include <cstdlib>
 +#include <cmath>
  #include <limits>
-@@ -18,2 +18,37 @@ namespace rnllama {
+@@ -18,2 +18,38 @@ namespace rnllama {
  namespace rnllama {
  
-+static std::vector<completion_token_output::raw_token_prob> benchRawTopProbs(
-+    llama_context* ctx, const llama_vocab* vocab, int32_t count) {
-+    if (count <= 0 || ctx == nullptr || vocab == nullptr) return {};
-+    llama_synchronize(ctx);
++static bool benchRawTopProbs(
++    llama_context* ctx, const llama_vocab* vocab, int32_t count,
++    std::vector<completion_token_output::raw_token_prob>& result) {
++    result.clear();
++    if (count <= 0 || ctx == nullptr || vocab == nullptr) return false;
++    if (llama_get_logits(ctx) == nullptr) return false;
 +    const float* logits = llama_get_logits_ith(ctx, -1);
 +    const int32_t n_vocab = llama_vocab_n_tokens(vocab);
-+    if (logits == nullptr || n_vocab <= 0) return {};
++    if (logits == nullptr || n_vocab <= 0) return false;
 +
 +    float max_logit = -std::numeric_limits<float>::infinity();
 +    for (int32_t i = 0; i < n_vocab; ++i) {
 +        max_logit = std::max(max_logit, logits[i]);
 +    }
-+    if (!std::isfinite(max_logit)) return {};
++    if (!std::isfinite(max_logit)) return false;
 +
 +    double exp_sum = 0.0;
 +    std::vector<llama_token_data> candidates;
@@ -1369,17 +1394,16 @@ index a60bd15..817eab3 100644
 +        exp_sum += std::exp((double)logit - max_logit);
 +        candidates.push_back({(llama_token)i, logit, 0.0f});
 +    }
-+    if (!(exp_sum > 0.0)) return {};
++    if (!(exp_sum > 0.0)) return false;
 +    const size_t top_count = std::min<size_t>(count, candidates.size());
 +    std::partial_sort(candidates.begin(), candidates.begin() + top_count, candidates.end(),
 +        [](const llama_token_data& a, const llama_token_data& b) { return a.logit > b.logit; });
 +    const double log_norm = (double)max_logit + std::log(exp_sum);
-+    std::vector<completion_token_output::raw_token_prob> result;
 +    result.reserve(top_count);
 +    for (size_t i = 0; i < top_count; ++i) {
 +        result.push_back({candidates[i].id, (float)((double)candidates[i].logit - log_norm)});
 +    }
-+    return result;
++    return true;
 +}
 +
 @@ -42,6 +42,7 @@ void llama_rn_context_completion::rewind() {
@@ -1756,29 +1780,95 @@ index a60bd15..817eab3 100644
              );
              // Trim embd to what the memory actually contains so a later prefix
              // match can't claim never-written cells.
-@@ -1063,7 +1163,20 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1050,13 +1150,32 @@ completion_token_output llama_rn_context_completion::nextToken()
+-    const llama_vocab* vocab = llama_model_get_vocab(parent_ctx->model);
++    const bool forced = bench_force_ids_enabled;
++    const bool raw_probs_requested = bench_raw_probs > 0;
++    result.raw_probs_requested = raw_probs_requested;
++    result.forced = forced;
++
++    llama_context* active_ctx = parent_ctx != nullptr ? parent_ctx->active_ctx() : nullptr;
++    const llama_model* active_model =
++        active_ctx != nullptr ? llama_get_model(active_ctx) : nullptr;
++    const llama_vocab* vocab =
++        active_model != nullptr ? llama_model_get_vocab(active_model) : nullptr;
++    const int32_t n_vocab = vocab != nullptr ? llama_vocab_n_tokens(vocab) : 0;
++    if (active_ctx == nullptr || active_model == nullptr || vocab == nullptr || n_vocab <= 0) {
++        has_next_token = false;
++        return result;
++    }
+-
++
+     if (parent_ctx->params.n_predict == 0)
+     {
+         has_next_token = false;
+         result.tok = llama_vocab_eos(vocab);
+         return result;
+     }
+-
++
++    if (ctx_sampling == nullptr) {
++        has_next_token = false;
++        return result;
++    }
++
+     startGenerationTiming();
+-
++
+     {
+         // out of user input, sample next token
+@@ -1063,7 +1182,32 @@ completion_token_output llama_rn_context_completion::nextToken()
          std::vector<llama_token_data> candidates;
-         candidates.reserve(llama_vocab_n_tokens(vocab));
+-        candidates.reserve(llama_vocab_n_tokens(vocab));
++        candidates.reserve(n_vocab);
  
-+        if (bench_force_ids_enabled && bench_force_index >= bench_force_ids.size()) {
+-        llama_token new_token_id = common_sampler_sample(ctx_sampling, parent_ctx->ctx, -1);
++        if (forced && bench_force_index >= bench_force_ids.size()) {
 +            has_next_token = false;
 +            return result;
 +        }
 +
-+        if (bench_raw_probs > 0) {
-+            result.raw_probs = benchRawTopProbs(parent_ctx->active_ctx(), vocab, bench_raw_probs);
++        if (raw_probs_requested &&
++            !benchRawTopProbs(active_ctx, vocab, bench_raw_probs, result.raw_probs)) {
++            if (!forced) {
++                has_next_token = false;
++                return result;
++            }
 +        }
 +
-+        const bool forced = bench_force_ids_enabled;
-+        llama_token new_token_id = forced
-+            ? bench_force_ids[bench_force_index++]
-+            : common_sampler_sample(ctx_sampling, parent_ctx->active_ctx(), -1);
-+        result.forced = forced;
--        llama_token new_token_id = common_sampler_sample(ctx_sampling, parent_ctx->ctx, -1);
++        llama_token new_token_id;
++        if (forced) {
++            const llama_token forced_token = bench_force_ids[bench_force_index];
++            if (forced_token < 0 || (int64_t) forced_token >= (int64_t) n_vocab) {
++                result.raw_probs.clear();
++                has_next_token = false;
++                return result;
++            }
++            ++bench_force_index;
++            new_token_id = forced_token;
++        } else {
++            new_token_id = common_sampler_sample(ctx_sampling, active_ctx, -1);
++        }
  
          const int32_t n_probs = parent_ctx->params.sampling.n_probs;
-         if (n_probs > 0) {
-@@ -1077,7 +1177,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+-        if (n_probs > 0) {
++        if (n_probs > 0 && !forced) {
+@@ -1070,6 +1214,8 @@ completion_token_output llama_rn_context_completion::nextToken()
+-          llama_token_data_array cur_p = *common_sampler_get_candidates(ctx_sampling, true);
+-          for (size_t i = 0; i < std::min(cur_p.size, (size_t)n_probs); ++i)
+-          {
+-              result.probs.push_back({cur_p.data[i].id, cur_p.data[i].p});
+-          }
+-        }
++          llama_token_data_array * cur_p = common_sampler_get_candidates(ctx_sampling, true);
++          if (cur_p != nullptr && cur_p->data != nullptr && cur_p->selected < cur_p->size) {
++              for (size_t i = 0; i < std::min(cur_p->size, (size_t)n_probs); ++i)
++              {
++                  result.probs.push_back({cur_p->data[i].id, cur_p->data[i].p});
++              }
++          }
++        }
+@@ -1077,7 +1223,7 @@ completion_token_output llama_rn_context_completion::nextToken()
          if (llama_vocab_is_eog(vocab, new_token_id)) {
              has_next_token = false;
              stopped_eos = true;
@@ -1787,7 +1877,7 @@ index a60bd15..817eab3 100644
              return result;
          }
  
-@@ -1089,7 +1189,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1089,7 +1235,7 @@ completion_token_output llama_rn_context_completion::nextToken()
              parent_ctx->tts_wrapper->next_token_uses_guide_token = (new_token_id == 198);
          }
          result.tok = new_token_id;
@@ -1796,7 +1886,7 @@ index a60bd15..817eab3 100644
  
          common_sampler_accept(ctx_sampling, result.tok, true);
          if (tg) {
-@@ -1143,7 +1243,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1143,7 +1289,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
  {
      completion_token_output token_with_probs = nextToken();
  
@@ -1809,18 +1899,18 @@ index a60bd15..817eab3 100644
      generated_text += utf8_gate.feed(token_text);
  
      if (parent_ctx->isVocoderEnabled()) {
-@@ -1175,8 +1279,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1175,8 +1325,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
      }
  
      LOG_VERBOSE("next token, token: %s, token_text: %s, has_next_token: %d, n_remain: %d, num_tokens_predicted: %d, stopped_eos: %d, stopped_word: %d, stopped_limit: %d, stopping_word: %s",
 -        common_token_to_piece(parent_ctx->ctx, token_with_probs.tok),
 -        tokens_to_output_formatted_string(parent_ctx->ctx, token_with_probs.tok).c_str(),
-+        common_token_to_piece(parent_ctx->active_ctx(), token_with_probs.tok),
-+        tokens_to_output_formatted_string(parent_ctx->active_ctx(), token_with_probs.tok).c_str(),
++        token_with_probs.tok == -1 ? "" : common_token_to_piece(parent_ctx->active_ctx(), token_with_probs.tok).c_str(),
++        token_with_probs.tok == -1 ? "" : tokens_to_output_formatted_string(parent_ctx->active_ctx(), token_with_probs.tok).c_str(),
          has_next_token,
          n_remain,
          num_tokens_predicted,
-@@ -1214,10 +1318,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
+@@ -1214,10 +1364,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
  
  std::vector<float> llama_rn_context_completion::embedding(common_params &embd_params)
  {
@@ -1833,7 +1923,7 @@ index a60bd15..817eab3 100644
      if (!initSampling()) {
          throw std::runtime_error("Failed to initialize sampling");
      }
-@@ -1226,7 +1330,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1226,7 +1376,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
      doCompletion();
      endCompletion();
  
@@ -1842,7 +1932,7 @@ index a60bd15..817eab3 100644
      if (!embd_params.embedding)
      {
          LOG_WARNING("embedding disabled, embedding: %s", embd_params.embedding);
-@@ -1234,11 +1338,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1234,11 +1384,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
      }
      float *data;
  
@@ -1857,7 +1947,7 @@ index a60bd15..817eab3 100644
      }
  
      if (!data) {
-@@ -1254,7 +1358,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1254,7 +1404,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
      std::vector<float> scores;
  
      // Check if this model supports reranking (requires rank pooling type)
@@ -1866,7 +1956,7 @@ index a60bd15..817eab3 100644
      if (pooling_type != LLAMA_POOLING_TYPE_RANK) {
          throw std::runtime_error("reranking not supported, pooling_type: " + std::to_string(pooling_type));
      }
-@@ -1278,18 +1382,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1278,18 +1428,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
  
          std::vector<llama_token> rerank_tokens = format_rerank_tokens(vocab, query_tokens, doc_tokens);
  
@@ -1888,7 +1978,7 @@ index a60bd15..817eab3 100644
              if (data) {
                  scores.push_back(data[0]); // For rank pooling, the score is the first (and only) dimension
              } else {
-@@ -1302,7 +1406,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1302,7 +1452,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
          endCompletion();
  
          // Clear KV cache again to prepare for next document or restore original state
@@ -1897,7 +1987,7 @@ index a60bd15..817eab3 100644
      }
  
      return scores;
-@@ -1321,7 +1425,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1321,7 +1471,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
  
      is_predicting = true;
  
@@ -1906,7 +1996,7 @@ index a60bd15..817eab3 100644
      auto * model = parent_ctx->model;
      auto * mem = llama_get_memory(ctx);
  
-@@ -1357,7 +1461,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1357,7 +1507,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
  
      llama_batch batch = llama_batch_init(n_kv_max, 0, 1);
  
@@ -1915,7 +2005,7 @@ index a60bd15..817eab3 100644
          const int32_t total = batch_ref.n_tokens;
          for (int32_t i = 0; i < total; i += n_batch_ref) {
              const int32_t n_tokens_step = std::min(n_batch_ref, total - i);
-@@ -1372,7 +1476,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1372,7 +1522,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
                  batch_ref.logits   + i,
              };
  
@@ -1924,7 +2014,7 @@ index a60bd15..817eab3 100644
              if (ret != 0) {
                  LOG_ERROR("llama_decode() failed during benchmark, n_batch=%d ret=%d", n_batch_ref, ret);
                  return false;
-@@ -1547,7 +1651,7 @@ void llama_rn_context_completion::processMedia(
+@@ -1547,7 +1697,7 @@ void llama_rn_context_completion::processMedia(
          eraseStateCheckpointsAfter(n);
      };
      parent_ctx->mtmd_wrapper->processMedia(
@@ -1937,7 +2027,7 @@ diff --git a/node_modules/llama.rn/cpp/rn-completion.h b/node_modules/llama.rn/c
 index ea945fc..b27045a 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.h
 +++ b/node_modules/llama.rn/cpp/rn-completion.h
-@@ -46,9 +46,17 @@ struct completion_token_output
+@@ -46,9 +46,18 @@ struct completion_token_output
  struct completion_token_output
  {
      struct token_prob
@@ -1954,6 +2044,7 @@ index ea945fc..b27045a 100644
 +
      std::vector<token_prob> probs;
 +    std::vector<raw_token_prob> raw_probs;
++    bool raw_probs_requested = false;
 +    bool forced = false;
 @@ -77,6 +77,11 @@ struct llama_rn_context_completion {
      std::string prefill_text;
