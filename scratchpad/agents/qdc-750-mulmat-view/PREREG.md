@@ -70,3 +70,17 @@ contiguous src0 so views fall back to the generic f16 kernel. The analysis with 
 per-case prediction go to ANALYSIS-f16-l4.md in this cell; the candidate kit becomes pick + fix. Baseline stays 12f6d9b6d.
 Kernel-level success criterion unchanged: 0 FAIL on MUL_MAT, MUL_MAT_ID 407/407, FLASH_ATTN_EXT unchanged, then the
 in-app oracle (S5b run 8b) before any production change.
+
+## Amendment 2 (6/09, after delta audit #20 GO — before any device run)
+- **Compiler-version hypothesis withdrawn**: the 732 raws (qdc-7pg3-govbench-52) contain BOTH `E031.45.02.06` and
+  `E031.45.02.16` and pass 925/925 either way, so the discriminator is the GPU (750), not the compiler build. The gate
+  stays scoped `gpu_family == ADRENO && !ggml_is_contiguous(src0)`; no version narrowing. The mechanism on the 750
+  remains **unexplained** (the l4_y8 kernel is stride-aware); a sub-group/cl_qcom miscompile with strided rows is a
+  hypothesis, not a finding. The gate is a workaround with a falsifiable prediction, not a root-cause fix.
+- **Regression guards added** (audit #20 F5/F6): (i) on the 750, besides `-o MUL_MAT`, run test-backend-ops with
+  the n>1 / o>1 view family visible (`-o MUL_MAT` already includes them; the report must list PASS counts for
+  k_v>k cases with n>1 and o>1 separately, not only the 20); (ii) **8 Elite pp512/tg128 with the candidate kit**
+  (separate QRD8750 session) before the gate may enter the app pin: the gate reroutes batched V-cache views on every
+  Adreno, so a prefill regression on the 830 must be measured, threshold ±10% vs the last 8 Elite CLI numbers on the
+  same kit lineage (or reported as a trade-off). Candidate kit = 12f6d9b6d + c7ad97025 (cherry-pick, inert for f16)
+  + 2f3b24dee (gate).
