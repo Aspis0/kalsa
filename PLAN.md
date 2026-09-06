@@ -1615,7 +1615,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > ipotesi H1 = stessa classe del fix upstream 178a6c449 (view_offs/broadcast Adreno MUL_MAT) mancante nel pick;
 > meccanismo in-app: K·Q dell'attenzione in prefill (FA off) = batched+GQA broadcast su vista del K cache.
 > Procedura: cherry-pick su `kalsa/opencl-picks-2026-09+25910` → kit → test-backend-ops MUL_MAT/MUL_MAT_ID/FA
-> sul QRD8650 dopo run 9 → esiti pre-dichiarati (0 FAIL → run 8b in-app con oracolo; 20 → porting al path f16). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> sul QRD8650 dopo run 9 → esiti pre-dichiarati (0 FAIL → run 8b in-app con oracolo; 20 → porting al path f16).
+> **Punto 3, avanzamento (Luna a1643e91, worktree `kalsallama-wt-oclpicks-25910`):** cherry-pick 178a6c449 pulito
+> (c7ad97025) ma **quantized-only** (f16/bf16 esclusi: `src0t != F16 && != F32`) → H1 as-is prevista REFUTED
+> (PREREG Amendment 1). Per la shape fallita il dispatch sceglie `kernel_mul_mat_f16_f32_l4_y8`
+> (`mul_mv_f16_f32_l4.cl:519-520`), che è già stride-aware (nb01/nb02/nb03 + offset0): il bug vero NON è
+> spiegato dalla lettura. Fix candidato = **gate** (2f3b24dee): `gpu_family==ADRENO && !ggml_is_contiguous(src0)`
+> → kernel generico `kernel_mul_mat_f16_f32`. Dubbi miei all'audit #20: il 732 passa con compilatore
+> E031.45.02.16, il 750 QDC fallisce con **.02.06** → possibile miscompile per versione (gate per versione
+> come upstream #26476 sarebbe più chirurgico); il gate globale tocca la K·QV con vista del V-cache anche su
+> 8 Elite → guardia pp512 anche lì prima di adottarlo. ANALYSIS-f16-l4.md (69 righe) nella cella.
+> Meccanismo in-app corretto: è la **KQV** (src0 = V-cache vista, m=head_dim 128, k=n_kv, broadcast GQA r2=4), non la K·Q. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
