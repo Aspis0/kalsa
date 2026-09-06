@@ -1,0 +1,10 @@
+GIT_SHA: OK
+bin/llama-bench: OK
+bin/test-backend-ops: OK
+lib/libggml-base.so: OK
+lib/libggml-cpu.so: OK
+lib/libggml-opencl.so: OK
+lib/libggml.so: OK
+lib/libllama-bench-impl.so: OK
+lib/libllama-common.so: OK
+lib/libllama.so: OK

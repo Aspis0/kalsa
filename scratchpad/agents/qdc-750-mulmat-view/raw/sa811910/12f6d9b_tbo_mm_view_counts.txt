@@ -1,0 +1,6 @@
+pass=905
+fail=20
+family_pass=28
+family_fail=20
+other_pass=145
+other_fail=0

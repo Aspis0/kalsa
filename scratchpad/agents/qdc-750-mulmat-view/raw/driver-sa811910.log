@@ -1,0 +1,31 @@
+[05:14:49] device=df8ea83f job=sa811910
+[05:14:56] pushing model
+/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf: 1 file pushed, 0 skipped. 23.9 MB/s (1593894944 bytes in 63.490s)
+/Users/marco/kalsa-qdc/qdc-750-mulmat-view/gpu-kit-12f6d9b.tgz: 1 file pushed, 0 skipped. 23.9 MB/s (26808307 bytes in 1.070s)
+[05:16:11] start 12f6d9b/tbo_mm cap=1200s
+/data/local/tmp/k750/12f6d9b/tbo_mm.out: 1 file pulled, 0 skipped. 4.6 MB/s (3348666 bytes in 0.688s)
+[05:18:07] done 12f6d9b/tbo_mm exit=1
+[05:18:10] start 12f6d9b/tbo_mmid cap=1200s
+/data/local/tmp/k750/12f6d9b/tbo_mmid.out: 1 file pulled, 0 skipped. 0.3 MB/s (79580 bytes in 0.280s)
+[05:19:16] done 12f6d9b/tbo_mmid exit=0
+[05:19:19] start 12f6d9b/tbo_fa cap=1500s
+/data/local/tmp/k750/12f6d9b/tbo_fa.out: 1 file pulled, 0 skipped. 1.5 MB/s (981695 bytes in 0.608s)
+[05:19:54] done 12f6d9b/tbo_fa exit=0
+[05:19:57] start 12f6d9b/bench_gpu cap=1500s
+/data/local/tmp/k750/12f6d9b/bench_gpu.out: 1 file pulled, 0 skipped. 0.0 MB/s (787 bytes in 0.124s)
+[05:20:47] done 12f6d9b/bench_gpu exit=0
+/Users/marco/kalsa-qdc/qdc-750-mulmat-view/gpu-kit-2f3b24d.tgz: 1 file pushed, 0 skipped. 23.7 MB/s (26809073 bytes in 1.078s)
+[05:20:56] start 2f3b24d/tbo_mm cap=1200s
+/data/local/tmp/k750/2f3b24d/tbo_mm.out: 1 file pulled, 0 skipped. 0.5 MB/s (164548 bytes in 0.327s)
+[05:22:50] done 2f3b24d/tbo_mm exit=0
+[05:22:53] start 2f3b24d/tbo_mmid cap=1200s
+/data/local/tmp/k750/2f3b24d/tbo_mmid.out: 1 file pulled, 0 skipped. 0.3 MB/s (79580 bytes in 0.294s)
+[05:24:00] done 2f3b24d/tbo_mmid exit=0
+[05:24:02] start 2f3b24d/tbo_fa cap=1500s
+/data/local/tmp/k750/2f3b24d/tbo_fa.out: 1 file pulled, 0 skipped. 1.5 MB/s (981695 bytes in 0.623s)
+[05:24:37] done 2f3b24d/tbo_fa exit=0
+[05:24:40] start 2f3b24d/bench_gpu cap=1500s
+/data/local/tmp/k750/2f3b24d/bench_gpu.out: 1 file pulled, 0 skipped. 0.0 MB/s (787 bytes in 0.125s)
+[05:25:31] done 2f3b24d/bench_gpu exit=0
+[05:25:31] DONE
+[05:25:31] END reason=complete rc=0

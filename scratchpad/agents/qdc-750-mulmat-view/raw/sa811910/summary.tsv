@@ -1,0 +1,8 @@
+baseline 12f6d9b tbo_mm 905 20 1 114
+baseline 12f6d9b tbo_mmid 407 0 0 65
+baseline 12f6d9b tbo_fa 226 0 0 33
+baseline 12f6d9b bench_gpu NA NA 0 49
+candidate 2f3b24d tbo_mm 925 0 0 113
+candidate 2f3b24d tbo_mmid 407 0 0 65
+candidate 2f3b24d tbo_fa 226 0 0 33
+candidate 2f3b24d bench_gpu NA NA 0 49
