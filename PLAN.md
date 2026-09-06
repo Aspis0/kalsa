@@ -2805,3 +2805,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Android 14), 150 min (scade ~19:29 EDT), SSH only, kalsa-mac; tunnel pid ~/kalsa-qdc/tunnel-sa812023.pid.
 > Positivo in volo: `ORACLE_MODE=logit d_run.sh sa812023 <apk 19b67b6> ABABAB 85` (pid /tmp/s5b-driver.pid=64715,
 > raw/sa812023/). A seguire il negativo con l'APK e54f529, `ABABAB 50`.
+> 18:40 — **QRD8650: crash nativo sul turno B.** A1/A2 valide (7,49 / 7,72 s), B1 VOID: `Fatal signal 11 (SIGSEGV) …
+> fault addr 0x0 … librnllama…so` 4 s dopo l'inizio del prefill, zero righe BENCH_PROBS. Il turno A con gli stessi
+> `probs=1` funziona (125 KB di probs) → il difetto è sul percorso B (prefill GPU forzato + `bench_force_ids`), e la
+> run 8 senza hook sullo stesso board funzionava. Sessione 807954 chiusa, tunnel giù. Fix dispatchato a Luna ba2ac459
+> (null-check nell'hook, ids esauriti = stop pulito, niente patch-package). Poi audit, rebuild APK, sessione nuova.
+> Typing su 8650 con APK nuovo: 803-818 s/turno (gradino 200 sempre fallito) contro 386-397 s della run 8 → coppia ~48 min.

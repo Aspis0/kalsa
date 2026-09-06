@@ -299,3 +299,26 @@ il turno B della stessa coppia non esiste confronto e l'oracolo non ha prodotto 
 Prosecuzione (PREREG Amendment 9): budget 8 Elite esaurito (89 min contro i ~120 necessari) → entrambi i controlli su
 **QRD8650** (623 min), sessione 807954/sa812023: positivo `ABABAB 85` con APK 19b67b6, poi negativo `ABABAB 50` con
 e54f529. Resta esplicitamente scoperto il caso che ha motivato l'oracolo: il flip di 1 token a idx 29 dell'8 Elite.
+
+### R5 su QRD8650 (sessione 807954, host sa812023, board pineapple, Android 14) — CRASH NATIVO, causa trovata
+`ABABAB 85`, APK 19b67b6. Righe: A1 valida (TTFT 7,494 s), **B1 VOID `governor_fallback`**, A2 valida (7,719 s),
+`END deadline_85_min`. Il turno B non ha prodotto né `KALSA_GOVERNOR` né `KALSA_TELEMETRY` perché **l'app è morta**:
+
+```
+F libc : Fatal signal 11 (SIGSEGV), code 1 (SEGV_MAPERR), fault addr 0x0 in tid (mqt_v_native), pid (com.kalsa.app)
+Cause: null pointer dereference    x0 0  x1 0  x2 0x18
+#00 pc 000000000086950c  librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so
+#01 pc 000000000086a70c  librnllama_v8_2_dotprod_i8mm_hexagon_opencl.so
+```
+Sequenza: `KALSA_KVPREFIX embd=369 text_tokens=1289 n_common=366` → `KALSA_KVDIVERGE` → `loadPrompt:707 Input processed`
+→ righe Adreno → SIGSEGV 4,1 s dopo. **Zero** righe `KALSA_BENCH_PROBS` nel turno: muore al primo passo di sampling o
+prima. Il turno A dello stesso run (prefill CPU, stesso APK, `probs=1`, senza ids forzati) emette 300+ righe di probs e
+125 KB di `_probs.jsonl` → il difetto è sul percorso B (prefill GPU forzato e/o `bench_force_ids`), non nel softmax in sé.
+La run 8 (5/09) forzava il prefill GPU sullo stesso board con lo stesso pin nativo ma **senza** l'hook dell'oracolo e
+funzionava (`KALSA_GOVERNOR … prefill_ms 4294,885`): la variabile nuova è l'hook di 28424c3.
+Conseguenza: **nessun controllo R5 è stato eseguito**; il verdetto dell'oracolo resta non prodotto e nessun risultato
+di oggi è bancabile. Fix dispatchato (guardia sui puntatori nulli e sugli ids esauriti); poi audit, rebuild dei due APK,
+sessione nuova.
+
+Costo di typing misurato su questo board con l'APK nuovo: 803-818 s per turno (il gradino da 200 caratteri fallisce
+sempre e ne brucia 300, poi 100 caratteri passano in ~510 s), contro 386-397 s della run 8 → una coppia costa ~48 min.
