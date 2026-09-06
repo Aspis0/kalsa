@@ -1598,6 +1598,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > f16 batched): elencare i 20 casi, mappare al kernel dispatchato (`ggml-opencl.cpp` mul_mm/mul_mat f16
 > tiled vs generic), bisect kernel/flag su QDC, fix nel fork, oracolo in-app. Riferimenti URL nel report
 > dell'agente (Paseo a574b968).
+> Verificato su disco: `git merge-base --is-ancestor 178a6c4 12f6d9b6d` → **NO**: il pick `kalsa/opencl-picks-2026-09`
+> (12f6d9b6d = #26434 FA WAR race, 18/08) è cherry-pick su base a0cabca6b e NON contiene #25910 (`178a6c449
+> opencl: Support broadcast for Adreno MUL_MAT and honor view_offs for Adreno Q8`, 20/07). Candidato n. 1 del
+> punto 3: cherry-pick di 178a6c449 sul pick branch → test-backend-ops sul 750 (i 20 FAIL di ALIVE 41) →
+> se restano, mappare i 20 casi al kernel f16 batched dispatchato.
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
