@@ -1722,7 +1722,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > R1/R2 nei passi successivi (caso avversario dell'auditor: R1 con margine 0,40 al passo 1 → invisibile). Fix in
 > corso: tutti i passi vengono valutati, FAIL domina, DESCRIPTIVE solo senza violazioni e con copertura difettosa;
 > divergenza con margine alto etichettata R1. I casi avversari del REPORT (drift p1 0,60→0,50 → FAIL R2; token pA
-> 0,05 assente dal top-5 B → FAIL R2) passano già. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> 0,05 assente dal top-5 B → FAIL R2) passano già.
+> **09:05 — app: hook oracolo committato 28424c3** (Luna 5e7af1d9; patch +160/−4: `benchRawTopProbs` = softmax su
+> `llama_get_logits_ith(ctx,-1)` PRIMA di `common_sampler_sample`, `raw_probs` nell'item di streaming,
+> `bench_force_ids` consumato un id per passo; TS: chiavi `kalsa.bench.probs`/`kalsa.bench.force_ids` solo sotto
+> greedy, log `KALSA_BENCH_PROBS`; jest/tsc rc 0; 197 hunk verificati). Audit #26 deepseek in corso (focus:
+> pre-sampler garantito, accept path identico, nessun effetto fuori bench). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
