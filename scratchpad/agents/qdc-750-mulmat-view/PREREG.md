@@ -53,3 +53,20 @@ MUL_MAT with GQA broadcast (nr=4) reading a VIEW of the K cache — the failing 
 ## What this cell will NOT claim
 - Nothing about the 750 in production until the in-app oracle passes (step 3, first bullet).
 - Nothing about other SoCs from this kit.
+
+## Amendment 1 (6/09, after reading the cherry-pick, before any device run)
+The cherry-pick of 178a6c449 applies cleanly (fork branch `kalsa/opencl-picks-2026-09+25910`, HEAD c7ad97025,
+ggml-opencl.cpp +22/−5) but its broadcast/view change is **quantized-only**: the Adreno path normalises BF16 to F16
+(`src0t = (src0->type == GGML_TYPE_BF16) ? GGML_TYPE_F16 : src0->type;`) and then excludes F16/F32
+(`src0t != GGML_TYPE_F16 && src0t != GGML_TYPE_F32`). For the failing shape (m=128, n=1, k=1056, r2=4) the C++
+dispatch selects `kernel_mul_mat_f16_f32_l4_y8` (`mul_mv_f16_f32_l4.cl`), with broadcast via `i12 / r2`, `i13 / r3`
+and base offset via `src0 += offset0` (quotes from the fork agent, to be re-verified in ANALYSIS-f16-l4.md).
+**Prediction, stated before the run: H1 as-is is REFUTED — the 20 FAIL will persist with the bare cherry-pick.**
+**H1′ (refined):** the defect is in how `kernel_mul_mat_f16_f32_l4_y8` (or its dispatch arguments) treats a
+batched src0 VIEW (k_v=2112 ≠ k=1056: row stride nb01 and batch stride nb02 are those of the parent tensor, and
+view_offs ≠ 0), i.e. an assumption of contiguous rows/batches in the "l4" kernel. Minimal fix candidates, in order
+of preference: (a) honour nb01/nb02/nb03 + view offset in the kernel/arguments; (b) gate the l4_y8 selection to
+contiguous src0 so views fall back to the generic f16 kernel. The analysis with quoted lines, the chosen fix and the
+per-case prediction go to ANALYSIS-f16-l4.md in this cell; the candidate kit becomes pick + fix. Baseline stays 12f6d9b6d.
+Kernel-level success criterion unchanged: 0 FAIL on MUL_MAT, MUL_MAT_ID 407/407, FLASH_ATTN_EXT unchanged, then the
+in-app oracle (S5b run 8b) before any production change.
