@@ -275,3 +275,27 @@ Strict oracle FAIL×2 means endpoint NOT MET; the result is descriptive [raw/sa8
 ## Policy implication (per PREREG rule)
 
 Rule: “a generation gets `GPU_PREFILL_CORRECT=true` only with oracle PASS on all valid pairs of its run; the fork’s `prefill_engine()` gets a GPU rule for a generation only if its median B/A ≤ 0.85 with n ≥ 2 pairs. Otherwise the policy stays CPU and the runs bank the null” [PREREG.md:290-292]. Run 10 meets the median condition (`0.581 ≤ 0.85`, `n=2`): yes; it does not meet oracle PASS: no [raw/sa811930/results.tsv:3,5 — “FAIL”; “FAIL”]. No recommendation.
+
+## R5 — controlli di sanità dell'oracolo a logit (6/09, QRD8750 poi QRD8650) — NESSUN VERDETTO ANCORA
+Sei tentativi sull'8 Elite (sessioni 807948 e 807952, host sa812017/sa812021, board b4bd0901, Android 16), tutti
+archiviati sotto `raw/sa8120{17,21}*`. Nessuna coppia A/B è arrivata in fondo: sotto ogni tentativo c'è un difetto vero,
+non rumore. In ordine, con la prova letta sul dispositivo:
+
+| # | raw | esito | causa | fix |
+|---|-----|-------|-------|-----|
+| 1 | `sa812017-toolcall-void/` | A1 VOID `toolcall` | l'app ha chiamato `document_chat` (tool sempre esposto) | driver scrive `kalsa.bench.toolchoice=none` (fcaa8e90) |
+| 2 | `sa812017/` | A1 PREREQUISITE exit 3 | con `toolchoice=none` i tool restano nel template: il modello scrive la call in testo (dialetto LFM) e l'app la **esegue** (`fallbackCalls:1,executed:1`) → niente `KALSA_BENCH_TOKENS` | app 1ec63a0 (tool fuori da completion + parser di fallback) |
+| 3 | `sa812021-newtokens-void/` | A1 VOID `new_tokens_a=na` | il driver leggeva i token nuovi solo da `restored state checkpoint: reusing N/M`, riga che sparisce quando il prefisso prewarm combacia (effetto del fix app) | fallback su `KALSA_KVPREFIX` `text_tokens−n_common` (17b93d1e) |
+| 4 | `sa812021-foreground-void/` | A1/A2 valide, **B1/B2 VOID `composer`** | dopo `poll_load` il `device_wake` (`wm dismiss-keyguard` + tap) porta in cima `QuickstepLauncher`: il dump UI fotografa la home (`dump_fail stage=edit`), 26 s dopo `Displayed com.kalsa.app` | guardia `app_foreground` (c946e79a) |
+| 5 | `sa812021/` | A1 valida, B1 tagliata | `END deadline_40_min`: la guardia funziona (`top=launcher` → `am start` → `top=com.kalsa.app`) ma una coppia costa 35-40 min | deadline più lunghe |
+| 6 | `sa812021-fault/` | A1 valida, B1 tagliata | `END deadline_33_min` (negativo anticipato con i 44 min di sessione residui) | — |
+
+Numeri validi raccolti (A = CPU, APK 19b67b6 salvo il n. 6 = e54f529), tutti sull'8 Elite: TTFT A 5,43 / 5,54 / 5,49 /
+5,48 s, `new_tokens_a` 928, `ids_sha` 558522c0…, `tool_calls=0`, `tokensCached` 2441 contro 2410 della run 8 con un
+prompt più corto di ~620 token (schemi tool e prompt di sistema "web_search" spariti). **Non sono un risultato**: senza
+il turno B della stessa coppia non esiste confronto e l'oracolo non ha prodotto nessun `oracle_logit` diverso da
+`DESCRIPTIVE R4` (copertura insufficiente) sulle righe VOID.
+
+Prosecuzione (PREREG Amendment 9): budget 8 Elite esaurito (89 min contro i ~120 necessari) → entrambi i controlli su
+**QRD8650** (623 min), sessione 807954/sa812023: positivo `ABABAB 85` con APK 19b67b6, poi negativo `ABABAB 50` con
+e54f529. Resta esplicitamente scoperto il caso che ha motivato l'oracolo: il flip di 1 token a idx 29 dell'8 Elite.

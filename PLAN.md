@@ -42,6 +42,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
   vive, pieno muore (mapping su OGNI commit incl. pin); la TLBMISS v73 è
   bisezionata: culprit `0a50d9909` = upstream #26049 (#64, ALIVE 47) — si
   fixa nel fork o si lascia, MAI issue upstream.
+- **Oracolo a logit / R5 (6/09, IN CORSO, NIENTE ANCORA BANCATO):** l'oracolo a logit è implementato (app 19b67b6 hook
+  `raw_probs` + `bench_force_ids`, driver `oracle_logit.py` R1-R4, audit #25-#26) e i suoi controlli di sanità R5 sono in
+  volo su QRD8650 (sessione 807954, sa812023). Sei tentativi bruciati sull'8 Elite hanno però prodotto TRE difetti reali,
+  tutti chiusi: (a) **app** — `kalsa.bench.toolchoice=none` non toglieva i tool dal template, dal prompt di sistema né
+  dal prewarm, e il parser di fallback eseguiva la tool call scritta in testo (commit 19b67b6/e54f529, audit #27-#28);
+  (b) **driver** — `new_tokens_a` veniva letto solo dalla riga di rollback `reusing N/M`, che sparisce quando il prefisso
+  prewarm combacia (fallback su KALSA_KVPREFIX, commit 17b93d1e); (c) **driver/board** — su Android 16 il risveglio
+  schermo porta in cima il launcher e il dump UI fotografava la home (guardia `app_foreground`, commit c946e79a).
+  Budget 8 Elite esaurito (89 min) → R5 spostata su QRD8650 (PREREG Amendment 9); il caso 8 Elite (flip a idx 29) resta
+  aperto. Costo misurato di una coppia A/B: **35-40 min**.
 - **S5b run 10 (6/09, ALIVE 54, BANCATA descrittiva):** QRD8635 forzato: prefill GPU 1,72× (mediana 0,581, 2 coppie, 5/5 valide), oracolo FAIL ×2 con ids GPU = 732 = 750. Mid-tier V73 in-app: 732 1,63×, 735 1,72×. Guard A (8 Elite kit CLI) in lancio su sessione 807910 (board offline al primo giro); poi run 8b QRD8650 con APK c8d137e, poi run 11 HDK8550.
 - **750 mul_mat view (6/09, ALIVE 53, BANCATA kernel-level):** gate `ADRENO && !contiguous(src0)` → 925/0 sul 750 (baseline 905/20 riprodotto), MUL_MAT_ID/FA invariati, bench ±2%; causa radice inspiegata; fork branch `opencl-picks-2026-09+25910` pushato. Da fare: 8 Elite pp512 col candidato, run 8b in-app (predizione: ids GPU invariati). Run 10 QRD8635 IN VOLO (sessione 807861).
 - **S5b run 9 (6/09, ALIVE 52, BANCATA descrittiva):** QRD7675 con governor FORZATO: prefill GPU 1,63× CPU (mediana 0,613, 2 coppie, 5/5 righe valide) — prior di parità SBAGLIATO; oracolo FAIL ×2 con ids GPU = 750 → divergenza = proprietà A7X, non il difetto 20-FAIL. Policy: velocità sì, oracolo no → V73 resta false. Test kit 750 (baseline→candidato gate) IN VOLO su sessione 807841. Poi run 10 QRD8635, run 11 HDK8550, 8 Elite pp512 col candidato, run 8b.
