@@ -124,3 +124,41 @@ previous read; only count_tbo/summarize were rewritten.
 
 GO for the device run — F1/F2 fixed and validated on the real baseline file
 (905/20, family 28/20, other 145/0, 20 distinct fail signatures), gate and trap untouched.
+
+## Delta audit #23 — REPORT
+
+Line-by-line — CONFIRMED: summary.tsv 8 rows exactly as quoted (baseline MUL_MAT 905/20,
+MMID 407/0, FA 226/0, bench NA; candidate 925/0, 407/0, 226/0); footers verified at the cited
+lines — 12f6d9b_tbo_mm.out:73221 `905/925 tests passed`, 2f3b24d_tbo_mm.out:1501
+`925/925 tests passed`, mmid :843 407/407 both, fa :5138 `229/229 tests passed`; bench .out
+L7/L8 pp512 289.04±1.01/289.59±0.05 and tg128 22.67±0.10/22.17±0.02 as quoted; fail_cases
+baseline = exactly 20 `: FAIL` lines (L1 f16 [2,1][4,1] → L20 bf16 [8,3][4,1]),
+candidate = 0 lines; the 10 reported tuples × 2 types match the PREREG:8-9 family EXACTLY
+(cross-checked tuple-by-tuple); view_counts lines 28/20 and 145/0 (baseline), 48/0 and 145/0
+(candidate) as quoted; kit_verify all OK; BUILDS.txt shas 99d7245e…/ea665c37… match the
+tarball hashes in the report (and the home-path BUILDS.txt absence is admitted); the driver
+ended `END reason=complete rc=0`; the compiler line E031.45.02.06 is captured (tbo_mm.out
+L6) ✓; all skin pre→post values quoted at the cited thermal.txt L6/L39 ✓.
+Deltas: (289.59−289.04)/289.04 = +0.190% ✓; (22.17−22.67)/22.67 = −2.21% ✓.
+F1 — MINOR: the 226-vs-229 FLASH_ATTN_EXT gap is stated but not explained. The raw file's OK
+statuses are ANSI-wrapped (`: \x1b[1;32mOK\x1b[0m` — 0 matches for plain `: OK` on the raw
+file; 4868 `not supported` lines; 5097 `  FLASH_ATTN_EXT(` lines; 230 non-not-supported
+including one `compiling fa f32` line). The driver's ANSI-stripped `: OK`-ending count yields
+226 while the binary's own footer counts 229 supported cases — the 3-op gap is a counting-
+format nuance the report should name (3 cases whose stripped status line differs, e.g.
+mid-status tokens), with the underlying semantics (0 real failures, both kits identical)
+unchanged.
+F2 — MINOR: the bench guard's reference is not stated. The ±10% guard was pre-registered
+"versus #58 (291.11/23.02)"; the report gives only baseline-vs-candidate deltas. Stating the
+baseline-vs-#58 distances (289.04/291.11 = −0.71%; 22.67/23.02 = −1.5%; both inside ±10%)
+and the Hexagon-ON/OFF difference between the #58 kit and this one would complete the
+comparability picture (the correctness index itself is unaffected: 905/20 reproduced exactly
+with GGML_HEXAGON=OFF, which the report does state).
+F3 — CONFIRMED (altitude): workaround gate, root cause unexplained (Amendment-2 quote), cherry-pick effect not isolated ("not in raw"), no production claim, GPU_PREFILL_CORRECT stays false, no in-app-oracle-will-pass statement ✓; the 8-Elite guard and run 8b are correctly listed as "not in raw".
+F4 — CONFIRMED: every number carries a source line (table + quoted lines); the non-MUL_MAT
+pass/fail semantics ("pass/total" for MMID/FA) are explained in the header sentence; the
+baseline gate/family/mirror statements are accurate.
+
+## Verdict
+
+BANK. 0 blockers, 0 majors, 2 minor (F1: name the 229−226 mechanism — ANSI-wrapped OK statuses; F2: state the #58 reference values and the Hexagon-ON caveat for the bench guard). All counts, tuples, deltas, footers, shas, thermal and compiler lines verified; altitude exactly per PREREG.
