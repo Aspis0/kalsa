@@ -1638,7 +1638,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (server adb remoto non pronto ~40 s dopo il tunnel, come per 804701): rilancio 03:40. Build kit baseline
 > 12f6d9b6d: primo tentativo morto sul parser dei target (fix: basename prima dei `:`), secondo morto per un
 > `embed_kernel.py relu.cl` fallito nel container senza messaggio (in locale rc 0 → race transitoria del file
-> sharing Docker con -j8), terzo lancio incrementale in corso. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> sharing Docker con -j8), terzo lancio incrementale in corso.
+
+> **6/09 04:15 — RUN 9 prima coppia (QRD7675, B forzata): GPU prefill 7,42 s vs CPU 11,77 s → B/A 0,631 (1,59×)**,
+> FUORI dalla banda di parità pre-registrata e sotto la soglia 0,85 che riapre la policy per i mid-tier (il prior
+> presumeva uno sconto in-app 0,6 sul 1,6× CLI: qui lo sconto non c'è). Decode B −12%. **Oracolo FAIL con ids GPU
+> byte-identici a quelli del 750** (d4556574…), CPU identica su 732/750/8 Elite, 8 Elite GPU differisce per 1 token.
+> ⇒ la divergenza in-app è una proprietà dei kernel A7X, non del difetto 750 dei 20 FAIL (che il 732 passa). Post hoc
+> in PREREG S5b + Amendment 3 nella cella 750 con predizioni per run 8b (gate cambia gli ids? → l4_y8 sul critical
+> path; ids invariati → precisione/altro). Kit baseline pronto (99d7245e…), candidato in build. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 

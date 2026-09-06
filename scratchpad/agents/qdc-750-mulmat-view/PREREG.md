@@ -84,3 +84,14 @@ in-app oracle (S5b run 8b) before any production change.
   Adreno, so a prefill regression on the 830 must be measured, threshold ±10% vs the last 8 Elite CLI numbers on the
   same kit lineage (or reported as a trade-off). Candidate kit = 12f6d9b6d + c7ad97025 (cherry-pick, inert for f16)
   + 2f3b24dee (gate).
+
+## Amendment 3 (6/09 04:15, from S5b run 9 first pair — before the device test)
+The in-app strict-oracle FAIL on the 750 is reproduced byte-identically on the 732 (GPU ids sha d4556574… on both;
+CPU ids 647f906d… on 732/750/8 Elite), while the 732 passes test-backend-ops MUL_MAT 925/925. So the in-app
+divergence is **decoupled from the 20-FAIL family**. Pre-declared readings of the two tests:
+- Kernel test on the 750 (unchanged): 0 FAIL with the gate → the gate fixes the batched-view GEMV family; 20 → refuted.
+- In-app run 8b (750, forced B, candidate kit in the app pin) AND a mirror on the 732: if the GPU ids change from
+  d4556574… (ideally to the CPU 647f906d…) → the l4_y8 non-contiguous path was on the prefill critical path and
+  the gate matters in-app; if the ids stay d4556574… → the in-app divergence lives elsewhere (H2 precision, or an A7X
+  kernel outside this family) and the gate is a kernel-level correctness fix only. Either way the result is reported
+  as such; `GPU_PREFILL_CORRECT` for V73/V75 stays false unless the strict (or PASS-1) oracle passes.

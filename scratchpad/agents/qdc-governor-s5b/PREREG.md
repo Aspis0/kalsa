@@ -290,3 +290,18 @@ Expectations (descriptive bands, written before the data):
 Policy update rule (after the three runs, not before): a generation gets `GPU_PREFILL_CORRECT=true` only with
 oracle PASS on all valid pairs of its run; the fork's `prefill_engine()` gets a GPU rule for a generation only
 if its median B/A ≤ 0.85 with n ≥ 2 pairs. Otherwise the policy stays CPU and the runs bank the null.
+
+## Run 9 (QRD7675, forced B) — post hoc on the first pair, written 6/09 04:15 EDT while the run continues
+Facts on disk (raw/sa811420/): A1 CPU TTFT 11769.454 ms, B1 GPU (forced, FAST, ngl 99, commit 12114944 B / 15.8 ms)
+7423.184 ms → **B/A 0.631 (1.59×)** — OUTSIDE the pre-registered mid-tier parity band (0.95–1.05) and below the
+0.85 threshold that §"Runs 9–11" says "would reopen the policy for V73 mid-tier". The prior assumed an in-app
+discount of ~0.6 on the CLI 1.6×; the in-app number equals the CLI number instead. Reported as a miss of the prior,
+not adjusted. Decode B 14.95 vs A 16.98 tok/s (−12%, outside the ±10% expectation; reported).
+**Oracle: FAIL, and the GPU ids are byte-identical to the QRD8650 GPU ids** (sha256 d4556574e02f80bc… on both
+raw/sa811420/7p-Gen-3_B_t1_ids.txt and raw/sa808770/8-Gen-3_B_t1_ids.txt); CPU ids are identical on 732, 750 and
+8 Elite (647f906da19958f2…); the 8 Elite GPU ids differ from CPU at one index only (29). Consequence: the in-app
+divergence at index 7 is a deterministic property of the Adreno 7xx (A7X) GPU prefill path shared by the 732 and
+the 750 — it is NOT caused by the 750-only 20-FAIL MUL_MAT family (the 732 passes those 925/925). Two hypotheses,
+pre-declared for the 750 cell's run 8b: H2 numerical (f16 accumulation / near-tie flip common to A7X kernels; the
+830 uses different kernels and passes) vs H3 a real A7X kernel bug on a path exercised by prefill (n>1). The strict
+token oracle cannot separate them; a logit-margin oracle would (not available in the app today).
