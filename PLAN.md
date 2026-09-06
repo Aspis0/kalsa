@@ -1743,7 +1743,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **10:05 — driver oracolo committato dce92481 (audit #25c GO, incluso il caso cardine: tutti forzati, tok corretti,
 > disaccordo grezzo a margine 0,30 → FAIL R1).** Piano R5 pre-registrato (§Session plan): una sessione 8 Elite, APK
 > normale → PASS atteso, APK fault → FAIL atteso, letture delle quattro combinazioni dichiarate. Tutto pronto tranne
-> il login QDC (owner). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> il login QDC (owner).
+> **10:35 — login QDC: password dal Keychain (autorizzata in chat) ACCETTATA da Okta (`/idp/idx/challenge/answer`,
+> `/users/me` ok), ma il redirect OAuth verso qdc.qualcomm.com non si completa: "Signing in…" indefinito, poi un
+> nuovo `authorize` con state diverso (QDC riceve il codice e rimbalza); in un tab nuovo il widget Okta non si
+> inizializza affatto. Con l'adb muto delle 07:00-08:00 su tre board, il quadro è un incidente lato QDC. Il 30/08 lo
+> stesso login via script era passato. Pausa 45 min, poi login pulito (mai URL diretti dopo il login: nav a click). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
