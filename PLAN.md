@@ -1625,7 +1625,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > E031.45.02.16, il 750 QDC fallisce con **.02.06** → possibile miscompile per versione (gate per versione
 > come upstream #26476 sarebbe più chirurgico); il gate globale tocca la K·QV con vista del V-cache anche su
 > 8 Elite → guardia pp512 anche lì prima di adottarlo. ANALYSIS-f16-l4.md (69 righe) nella cella.
-> Meccanismo in-app corretto: è la **KQV** (src0 = V-cache vista, m=head_dim 128, k=n_kv, broadcast GQA r2=4), non la K·Q. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> Meccanismo in-app corretto: è la **KQV** (src0 = V-cache vista, m=head_dim 128, k=n_kv, broadcast GQA r2=4), non la K·Q.
+> **Audit #20 deepseek GO** (2 minori, 1 nit): la mia ipotesi compilatore è **REFUTATA** — nei raw del 732 (cella 52)
+> compaiono sia .02.06 sia .02.16 e passa comunque → il discriminante è la GPU 750, gate per famiglia Adreno come
+> scritto. Minori recepiti (PREREG Amendment 2): guardia pp512 su 8 Elite prima di adottare il gate (rerouta le viste
+> del V-cache su tutti gli Adreno); report separato dei casi vista con n>1/o>1. Build kit baseline 12f6d9b6d in corso
+> (`build-kit.sh`, Docker), poi candidato 2f3b24dee; device test sul 750 dopo run 9. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
