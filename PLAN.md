@@ -1715,7 +1715,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > usa-e-getta per non farla transitare nei log, ma il browser Paseo non gira su questo Mac (fetch a 127.0.0.1
 > fallisce) e non digito segreti in chiaro nei comandi. **Serve il login manuale dell'owner nel tab Paseo**
 > (518a42c3, account.qualcomm.com). Fino ad allora niente device: run 11, run 8b, Guard A e le run TF dell'oracolo
-> restano in coda. Il lavoro sull'oracolo (app + driver) continua. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> restano in coda. Il lavoro sull'oracolo (app + driver) continua.
+> **08:55 — driver oracolo (Luna 2d5dfbe0: `ORACLE_MODE=logit`, `oracle_logit.py` 117 righe, colonne
+> `oracle_logit`/`oracle_rule`, dryrun rc=0): audit #25 deepseek NO-GO per un MAJOR che è esattamente il rischio del
+> mandato** — in TF un passo forzato con token diverso faceva uscire DESCRIPTIVE R4 subito, nascondendo violazioni
+> R1/R2 nei passi successivi (caso avversario dell'auditor: R1 con margine 0,40 al passo 1 → invisibile). Fix in
+> corso: tutti i passi vengono valutati, FAIL domina, DESCRIPTIVE solo senza violazioni e con copertura difettosa;
+> divergenza con margine alto etichettata R1. I casi avversari del REPORT (drift p1 0,60→0,50 → FAIL R2; token pA
+> 0,05 assente dal top-5 B → FAIL R2) passano già. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 

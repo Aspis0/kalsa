@@ -882,3 +882,51 @@ GO. 0 blockers, 0 majors, 0 minors, 1 nit (the worst-case-cap regime (~35 min/tu
 underdeliver to 2 turns; the pre-registered "4 turns but not 6" holds at the mid-case only —
 rows lost to the deadline stay reported as such per PREREG:260). Ladder, caps, first_rung,
 gates, force matrix, dryrun (rc=0) all CONFIRMED. Commit and use for run 9 on QRD7675.
+
+## Delta audit #25 — logit-oracle driver
+
+F1 — CONFIRMED, MAJOR: DESCRIPTIVE masks FAIL in TF mode (and the helper's early returns
+violate "any violation = FAIL; DESCRIPTIVE only when the data cannot be judged").
+oracle_logit.py:70-77: the TF loop `if brow.get("forced") is not True: continue; arow =
+a_rows.get(step); if arow is None or brow["tok"] != arow["tok"]: result("DESCRIPTIVE",
+"R4", …); return 0` — it RETURNS at the FIRST forced step whose tok differs, so every later
+comparable step is never R1/R2-checked. My adversarial case c (step 0 forced with a
+different token, step 1 with margin(A)=0.40 ≥ 0.03 and a different top-1): the helper
+prints `oracle=DESCRIPTIVE rule=R4 steps=0` — the step-1 R1-class violation is HIDDEN. Fix:
+continue collecting (record the divergent steps separately), run R1/R2 on all comparable
+steps, FAIL on any violation, DESCRIPTIVE only when zero comparable steps exist and at least
+one divergence was seen; a later FAIL must win over an earlier DESCRIPTIVE.
+F2 — CONFIRMED, MINOR: the G-mode divergence step is labelled R3 even when R1 applies.
+oracle_logit.py:100-103: `valid = all(margin(arow) < margin_limit and brow["tok"] ==
+arow["top"][1][0] for …)` → FAIL R3 — a divergence with margin(A) ≥ 0.03 FAILs (the owner's
+principle holds — nothing passes) but the rule attribution should be R1 per the spec
+("a divergence with margin ≥ 0.03 is R1 FAIL") — label R1 when margin ≥ the limit, R3 for
+the margin<limit case. Note: R2 never applies to the divergence step in G (by design — the
+post-divergence matching steps are also outside the comparable set per spec).
+F3 — CONFIRMED: R1 is computed on A's own top-2 margin (`margin(arow) =
+exp(top[0][1]) − exp(top[1][1])`, oracle_logit.py:27) ✓; R2 checks both parts (token-in-
+B-top-5 with exp(pA) ≥ 0.02, |logpB−logpA| ≤ 0.10, and |pB(top1)−pA(top1)| ≤ 0.02 — the
+third at :56-58 with the `prob_limit` bound ✓); "not in B top-5" is a FAIL, not a skip ✓;
+R4's 32-comparable-step and forced=true+tok==A conditions ✓ (:62-77).
+F4 — CONFIRMED: the limits (0.03/0.02/0.10) live only in the driver's invocation args; no
+env override; loosening requires a source edit ✓. single place ✓ (the driver's
+oracle_logit_eval call passes them as literals).
+F5 — CONFIRMED (my adversarial runs through the real helper): (a) identical tokens, B
+top-1 p drifted 0.60→0.50 → `FAIL R2 steps=32 max_dp1=0.1000` ✓; (b) A top-5 token 99
+pA=0.05 missing from B top-5 → `FAIL R2` ✓. (Note: feeding interleaved A/B rows in ONE file
+silently overwrites per step — the driver writes separate files, fine.)
+F6 — CONFIRMED (driver): A_PROBS_FILE/A_IDS_FILE are per-turn (A rows reassign; the B side
+guards on A_IDS_VALID — a VOID A turn yields no force_ids, oracle_mode=G ✓; ids_to_json
+validates 32 numeric ids ✓; the `oracle_logit`/`oracle_rule` columns added to the 19-field
+header and printf ✓; the strict `oracle` column untouched ✓; set -u init'd (ORACLE_MODE="",
+A_PROBS_FILE="", oracle_mode local na) ✓; hot-path safety: a missing helper/py failure →
+empty oracle_result → the `oracle_logit=DESCRIPTIVE/oracle_rule=R4` fallbacks — the turn
+never aborts ✓; the parse.sh extraction strips ANSI/CR after the anchor ✓ (spot-checked in
+the diff).
+F7 — CONFIRMED: `bash dryrun.sh > /tmp/dr25.log 2>&1` → rc=0; the fixtures drive the real
+helper + sqlite assertions (probs '1' for both arms; force_ids injected for B from the A ids
+file, deleted when A invalid).
+
+## Delta verdict #25
+
+NO-GO for committing ORACLE_MODE=logit until F1's precedence is fixed (collect comparable steps; FAIL dominates DESCRIPTIVE; DESCRIPTIVE only with zero judgeable steps) and F2's label corrected (margin ≥ 0.03 → R1). The helper otherwise matches R1-R4, thresholds single-sourced, adversarial (a)/(b) FAIL correctly, dryrun rc=0, wiring sound.
