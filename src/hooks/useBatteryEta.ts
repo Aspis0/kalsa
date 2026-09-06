@@ -28,7 +28,6 @@ const RING_MAX = 12;
 interface NativePowerState {
   batteryLevel: number;
   batteryState: number;
-  lowPowerMode?: boolean;
 }
 
 /** Shape of the `expo-battery` module we actually call. */
@@ -135,7 +134,7 @@ export type BatteryEtaUiState = BatteryEtaResult & {
   apiAvailable: boolean;
 };
 
-export const DEFAULT_BATTERY_eta_ui_state: BatteryEtaUiState = {
+export const DEFAULT_BATTERY_UI_STATE: BatteryEtaUiState = {
   kind: "unknown",
   batteryPercent: null,
   charging: null,
@@ -159,8 +158,12 @@ export function useBatteryEta(opts: {
 }): BatteryEtaUiState {
   const { enabled, modelId, intervalMs = DEFAULT_INTERVAL_MS } = opts;
 
-  const [state, setState] = useState<BatteryEtaUiState>(DEFAULT_BATTERY_eta_ui_state);
+  const [state, setState] = useState<BatteryEtaUiState>(DEFAULT_BATTERY_UI_STATE);
   const mountedRef = useRef(false);
+  // Per-arm epoch, bumped on every (re)arm. A tick completing after the arm
+  // was superseded (model switch / enabled flip) or on unmount is ignored,
+  // so a stale read can never poison the current arm's window or UI.
+  const epochRef = useRef(0);
 
   // Rolling window of foreground samples. Kept in a ref so the polling
   // interval is not rebuilt on every state update.
@@ -177,7 +180,7 @@ export function useBatteryEta(opts: {
     if (!enabled) {
       if (mountedRef.current) {
         setState({
-          ...DEFAULT_BATTERY_eta_ui_state,
+          ...DEFAULT_BATTERY_UI_STATE,
           apiAvailable: false,
         });
       }
@@ -188,13 +191,37 @@ export function useBatteryEta(opts: {
 
     let timer: ReturnType<typeof setInterval> | null = null;
 
+    // Bump the arm epoch so any in-flight tick from a prior arm is discarded.
+    const epoch = ++epochRef.current;
+
     const tick = async () => {
       const { batteryPercent, charging, apiAvailable } = await readBattery();
 
+      // Ignore stale ticks: this arm was re-armed (model switch / enabled flip)
+      // or the effect unmounted while readBattery() was in flight.
+      if (epoch !== epochRef.current || !mountedRef.current) {
+        return;
+      }
+
       if (charging === true) {
-        // On power → drain slope is invalid; drop the window.
+        // On power → drain slope is invalid; drop the window and report
+        // charging explicitly. Never estimate on the empty window, which would
+        // read `unknown` and hide the true power state (F1).
         samplesRef.current = [];
-      } else if (batteryPercent != null && charging === false) {
+        if (mountedRef.current) {
+          setState({
+            ...DEFAULT_BATTERY_UI_STATE,
+            kind: "charging",
+            batteryPercent,
+            charging: true,
+            sampledAt: Date.now(),
+            apiAvailable,
+          });
+        }
+        return;
+      }
+
+      if (batteryPercent != null && charging === false) {
         // Discharging with a level → extend the window.
         samplesRef.current = ringPush(samplesRef.current, {
           tMs: Date.now(),
@@ -228,19 +255,27 @@ export function useBatteryEta(opts: {
       if (appState === "active") {
         // Return to foreground: re-arm sampling if stopped.
         if (timer == null) start();
+      } else if (appState === "background") {
+        // True background / screen off: stop sampling and clear the window so a
+        // stale cross-session slope can never produce an ETA. Guard on the arm
+        // epoch so a tick from a prior arm can't clear the new one.
+        if (epoch === epochRef.current) {
+          if (timer != null) {
+            clearInterval(timer);
+            timer = null;
+          }
+          samplesRef.current = [];
+          if (mountedRef.current) {
+            setState((prev) => ({ ...prev, kind: "unknown" }));
+          }
+        }
       } else {
-        // Backgrounded / screen off: stop sampling and clear the window so a
-        // stale cross-session slope can never produce an ETA.
+        // "inactive" (notification shade / Control Center / app switcher) is a
+        // transient overlay: pause polling but keep the sample window, so the
+        // user is not forced back to a cold 10-min re-measure on every pull-down.
         if (timer != null) {
           clearInterval(timer);
           timer = null;
-        }
-        samplesRef.current = [];
-        if (mountedRef.current) {
-          setState((prev) => ({
-            ...prev,
-            kind: samplesRef.current.length > 0 ? "measuring" : "unknown",
-          }));
         }
       }
     });

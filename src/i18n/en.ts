@@ -513,9 +513,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     thermalHardGateBody:
       "The model has been unloaded to let the device cool. Wait until it cools before starting another response.",
     batteryEstimate: "{time} left at this pace",
-    batteryMeasuring: "Measuring battery use — the estimate appears after ~10 min of generating",
+    batteryMeasuring: "Measuring battery use — the estimate appears after ~10 min of continuous generating",
     batteryCharging: "Battery charging — ETA paused",
-    batteryUnknown: "Battery ETA unknown — keep generating for ~10 min to measure",
+    batteryUnknown: "Battery ETA unknown — keep generating ~10 min of continuous drain to measure",
     batteryLessThanHour: "less than 1 hour",
     batteryLowWarning: "Battery low — generation may stop soon",
     regenFailed: "Regenerate failed",

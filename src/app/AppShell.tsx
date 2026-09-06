@@ -2555,6 +2555,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     return frac >= 0.5 ? `${whole} h 30 min` : `${whole} h`;
   };
 
+  // C7 — format an ETA band [low, high] hours into a single human phrase.
+  // Collapses duplicated / sub-hour copy: when both ends format the same, show
+  // once ("~less than 1 hour"); when the low end is sub-hour but the high is a
+  // whole band, surface the upper bound ("~1 h", "~2 h 30 min") rather than the
+  // awkward "less than 1 h–1 h".
+  const formatEtaBand = (low: number | undefined, high: number | undefined): string => {
+    const lo = formatEtaHours(low);
+    const hi = formatEtaHours(high);
+    if (lo === hi) return `~${lo}`;
+    if (low != null && low < 1) return `~${hi}`;
+    return `~${lo}–${hi}`;
+  };
+
   // C7 — the advisory battery line. Rendered only when a model is loaded,
   // the native API was reachable, and the charge is <= 50%. Fail-open: the
   // hook's unknown / measuring / charging kinds simply render advisory text
@@ -2570,19 +2583,22 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       return null;
     }
     const kind = batteryEta.kind;
+    // F1: prefer the explicit charging flag from the hook so a plugged-in
+    // device never renders the "keep generating" unknown copy.
+    const charging = batteryEta.charging === true;
     const isLow = pct <= 20;
-    const color = kind === "eta" && isLow ? colors.bad : colors.muted;
+    const color = charging ? colors.muted : kind === "eta" && isLow ? colors.bad : colors.muted;
     return (
       <>
         <Text style={[typography.bodyXs, { color, marginBottom: spacing.xs }]}>
-          {kind === "eta"
-            ? t("chat.batteryEstimate", {
-                time: `~${formatEtaHours(batteryEta.lowHours)}–${formatEtaHours(batteryEta.highHours)}`,
-              })
-            : kind === "measuring"
-              ? t("chat.batteryMeasuring")
-              : kind === "charging"
-                ? t("chat.batteryCharging")
+          {charging
+            ? t("chat.batteryCharging")
+            : kind === "eta"
+              ? t("chat.batteryEstimate", {
+                  time: formatEtaBand(batteryEta.lowHours, batteryEta.highHours),
+                })
+              : kind === "measuring"
+                ? t("chat.batteryMeasuring")
                 : t("chat.batteryUnknown")}
         </Text>
         {isLow && kind === "eta" ? (

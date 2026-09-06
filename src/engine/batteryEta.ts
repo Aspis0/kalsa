@@ -41,6 +41,8 @@ export interface BatteryEtaGates {
   reservePct: number;
   /** Upper bound on a projected ETA before giving up. */
   maxHours: number;
+  /** Reject drains steeper than this %/hour as implausible bursts. */
+  maxRatePctPerHour: number;
 }
 
 export const BATTERY_ETA_DEFAULTS: BatteryEtaGates = {
@@ -49,6 +51,7 @@ export const BATTERY_ETA_DEFAULTS: BatteryEtaGates = {
   minDropPct: 1,
   reservePct: 5,
   maxHours: 24,
+  maxRatePctPerHour: 60,
 };
 
 const MS_PER_HOUR = 3_600_000;
@@ -94,9 +97,11 @@ export function estimateBatteryEtaHours(
   }
 
   // Positive netDrop means discharge (battery fell); negative means it rose
-  // across the window, i.e. charging.
+  // across the window, i.e. charging. Percent is integer-quantized and bounces
+  // ±1 pp between polls, so apply a deadband: require a >= 2 pp rise for the
+  // charging verdict and let a 1 pp bounce fall through to `unknown`.
   const netDrop = first.percent - last.percent;
-  if (netDrop < 0) {
+  if (netDrop < -1) {
     return { kind: "charging" };
   }
 
@@ -109,15 +114,22 @@ export function estimateBatteryEtaHours(
     return { kind: "unknown" };
   }
 
+  // Reject implausible burst rates (a thermal / encode spike) — a drain
+  // faster than maxRatePctPerHour cannot be sustained and would yield a panic
+  // ETA, so report unknown rather than a number.
+  if (actualRate > G.maxRatePctPerHour) {
+    return { kind: "unknown" };
+  }
+
   const headroom = last.percent - G.reservePct;
   if (headroom <= 0) {
     return { kind: "unknown" };
   }
 
-  // Project the drain normalized to the minimum window so a short, measured
-  // window still yields a stable hourly rate.
-  const etaRate = (netDrop * MS_PER_HOUR) / G.minSpanMs;
-  const etaHours = etaRate <= 0 ? Infinity : headroom / etaRate;
+  // Project using the OBSERVED drain rate over the actual span (not the
+  // minimum window) so the estimate stays honest as the window fills: a longer
+  // window no longer shrinks the ETA.
+  const etaHours = actualRate <= 0 ? Infinity : headroom / actualRate;
 
   if (!Number.isFinite(etaHours) || etaHours > G.maxHours) {
     return { kind: "unknown" };
@@ -128,6 +140,6 @@ export function estimateBatteryEtaHours(
     kind: "eta",
     lowHours,
     highHours: lowHours + 0.5,
-    ratePctPerHour: etaRate,
+    ratePctPerHour: actualRate,
   };
 }
