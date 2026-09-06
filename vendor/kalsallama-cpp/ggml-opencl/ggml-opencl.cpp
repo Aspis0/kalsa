@@ -17967,9 +17967,6 @@ static void lm_ggml_cl_mul_mat_q8_0_f32_adreno(lm_ggml_backend_t backend, const 
     cl_ulong offset1 = extra1->offset + src1->view_offs;
     cl_ulong offsetd = extrad->offset + dst->view_offs;
 
-    LM_GGML_ASSERT(src1->view_offs == 0);
-    LM_GGML_ASSERT(dst->view_offs == 0);
-
     const int  ne00 = src0->ne[0];
     const int  ne01 = src0->ne[1];
     const int  ne02 = src0->ne[2];
@@ -18030,9 +18027,9 @@ static void lm_ggml_cl_mul_mat_q8_0_f32_adreno(lm_ggml_backend_t backend, const 
         CL_CHECK(clSetKernelArg(kernel,  0, sizeof(cl_mem),   &q_img));
         CL_CHECK(clSetKernelArg(kernel,  1, sizeof(cl_mem),   &extra0_q8_0->d));
         CL_CHECK(clSetKernelArg(kernel,  2, sizeof(cl_mem),   &b_img));
-        CL_CHECK(clSetKernelArg(kernel,  3, sizeof(cl_ulong), &extra1->offset));
+        CL_CHECK(clSetKernelArg(kernel,  3, sizeof(cl_ulong), &offset1));
         CL_CHECK(clSetKernelArg(kernel,  4, sizeof(cl_mem),   &extrad->data_device));
-        CL_CHECK(clSetKernelArg(kernel,  5, sizeof(cl_ulong), &extrad->offset));
+        CL_CHECK(clSetKernelArg(kernel,  5, sizeof(cl_ulong), &offsetd));
         CL_CHECK(clSetKernelArg(kernel,  6, sizeof(int),      &ne00));
         CL_CHECK(clSetKernelArg(kernel,  7, sizeof(int),      &ne01));
         CL_CHECK(clSetKernelArg(kernel,  8, sizeof(int),      &ne02));
@@ -19146,6 +19143,26 @@ static void lm_ggml_cl_mul_mat(lm_ggml_backend_t backend, const lm_ggml_tensor *
 
     LM_GGML_ASSERT(ne00 == ne10);
 
+#ifdef LM_GGML_OPENCL_USE_ADRENO_KERNELS
+    // adreno GEMM/GEMV kernels do not support broadcast, assuming ne2 and ne3 are 1 for src1
+    // so we handle broadcast here
+    if ((ne12 > 1 || ne13 > 1) && ne02 == 1 && ne03 == 1 &&
+        src0t != LM_GGML_TYPE_F16 && src0t != LM_GGML_TYPE_F32) {
+        for (int i13 = 0; i13 < ne13; ++i13) {
+            for (int i12 = 0; i12 < ne12; ++i12) {
+                lm_ggml_tensor s1 = *src1;
+                s1.ne[2] = 1; s1.ne[3] = 1;
+                s1.view_offs = src1->view_offs + (size_t)i12*nb12 + (size_t)i13*nb13;
+                lm_ggml_tensor d = *dst;
+                d.ne[2] = 1; d.ne[3] = 1;
+                d.view_offs = dst->view_offs + (size_t)i12*nb2 + (size_t)i13*nb3;
+                lm_ggml_cl_mul_mat(backend, src0, &s1, &d);
+            }
+        }
+        return;
+    }
+#endif
+
     int nth0 = 32;
     int nth1 = 1;
     int nrows = 1;
@@ -20240,6 +20257,8 @@ static void lm_ggml_cl_mul_mat(lm_ggml_backend_t backend, const lm_ggml_tensor *
             }
 
             if (src1t == LM_GGML_TYPE_F32) {
+                const bool adreno_noncontiguous_src0 =
+                    backend_ctx->gpu_family == ADRENO && !lm_ggml_is_contiguous(src0);
                 // heuristic for packing more work for Adreno
                 const bool adreno_use_lane_split =
                     backend_ctx->gpu_family == ADRENO &&
@@ -20249,7 +20268,10 @@ static void lm_ggml_cl_mul_mat(lm_ggml_backend_t backend, const lm_ggml_tensor *
                     r3 == 1 && r2 >= 1 && r2 <= 8 &&
                     (ne12 % r2) == 0;
 
-                if (ne11 * ne12 < 4) {
+                if (adreno_noncontiguous_src0) {
+                    kernel = backend_ctx->kernel_mul_mat_f16_f32;
+                    nrows = 4;
+                } else if (ne11 * ne12 < 4) {
                     kernel = backend_ctx->kernel_mul_mat_f16_f32_1row;
                 } else if (adreno_use_lane_split && ne00 >= 64 && ne00 <= 128) {
                     kernel = backend_ctx->kernel_mul_mat_f16_f32_l4_dr_lq;
