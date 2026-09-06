@@ -1750,7 +1750,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > inizializza affatto. Con l'adb muto delle 07:00-08:00 su tre board, il quadro è un incidente lato QDC. Il 30/08 lo
 > stesso login via script era passato. Pausa 45 min, poi login pulito (mai URL diretti dopo il login: nav a click).
 > **09:52 — APK pronti**: oracolo 28424c3 (sha b2cc9675…) e fault ca3b1b3 (sha b6c24011…), in ~/kalsa-qdc/apk/. Tutto
-> il materiale per R5 è sul Mac; manca solo il login QDC (ritento ~10:20). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> il materiale per R5 è sul Mac; manca solo il login QDC (ritento ~10:20).
+> **10:45 — login QDC: STOP dopo 6 tentativi.** Diagnosi: Okta accetta la password (`/idp/idx/challenge/answer`,
+> `/users/me` 200) ma la navigazione post-successo verso QDC non parte ("Signing in…" per sempre); in un tab nuovo
+> con sessione Okta ricordata il widget non monta nemmeno e, montato a mano (`renderEl` con lo stateToken della
+> pagina), non emette alcuna richiesta `/idp/idx/*`: nessun errore JS, nessuna rete → le navigazioni avviate dallo
+> script Okta sembrano soppresse in silenzio nel browser Paseo di oggi. Il 30/08 lo stesso flusso via script era
+> passato. Bloccante per tutto il lavoro device (R5, TF A7X, run 11, Guard A). Serve: login in un browser dove il
+> redirect funziona (owner nell'app Paseo, se mostra il browser) o attendere. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
