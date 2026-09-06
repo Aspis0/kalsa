@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 set -u
-
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     [ "$#" -ge 3 ] && [ "$#" -le 4 ] || { echo "usage: $0 <job_id> <baseline_tgz> <candidate_tgz> [deadline_min=60]" >&2; exit 2; }
     JOB="$1"; BASELINE="$2"; CANDIDATE="$3"; DEADLINE_MIN="${4:-60}"
@@ -10,7 +9,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     MODEL="$HOME/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf"
     MODEL_SHA=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
     MODEL_DEV="$REMOTE/lfm26.gguf"; GATE="$HOME/kalsa-qdc/kexp-speed-cell/thermal_gate.sh"
-    export ANDROID_ADB_SERVER_PORT="${ANDROID_ADB_SERVER_PORT:-6037}"
+    export ANDROID_ADB_SERVER_PORT="${ANDROID_ADB_SERVER_PORT:-6037}"; KIT_BASELINE_GATE="${KIT_BASELINE_GATE:-1}"; [ "$KIT_BASELINE_GATE" = 0 ] || KIT_BASELINE_GATE=1
     mkdir -p "$RAW"
     START=$(date +%s); DEADLINE_AT=$((START + DEADLINE_MIN * 60)); END_REASON=complete
     trap 'rc=$?; log "END reason=$END_REASON rc=$rc"; exit "$rc"' EXIT
@@ -134,7 +133,9 @@ run_kit() {
     [ "$rc" -eq 0 ] || return 1
     : > "$RAW/${sha}_tbo_mm_fail_cases.txt"
     run_device_step "$sha" tbo_mm 1200 './test-backend-ops test -b GPUOpenCL -o MUL_MAT' MUL_MAT
-    if [ "$label" = baseline ] && [ "$LAST_FAIL" -ne 20 ]; then log "BASELINE_GATE fail_count=$LAST_FAIL expected=20"; END_REASON=baseline_gate; exit 6; fi
+    if [ "$label" = baseline ] && [ "$LAST_FAIL" -ne 20 ]; then
+        if [ "$KIT_BASELINE_GATE" -eq 0 ]; then log "BASELINE_GATE skipped (KIT_BASELINE_GATE=0) fail_count=$LAST_FAIL"; else log "BASELINE_GATE fail_count=$LAST_FAIL expected=20"; END_REASON=baseline_gate; exit 6; fi
+    fi
     run_device_step "$sha" tbo_mmid 1200 './test-backend-ops test -b GPUOpenCL -o MUL_MAT_ID' MUL_MAT_ID
     run_device_step "$sha" tbo_fa 1500 './test-backend-ops test -b GPUOpenCL -o FLASH_ATTN_EXT' FLASH_ATTN_EXT
     run_device_step "$sha" bench_gpu 1500 "./llama-bench -m $MODEL_DEV -t 4 -ngl 99 -fa 0 -p 512 -n 128 -r 3 -o md" bench
@@ -145,7 +146,7 @@ SER=$(adbT 60 devices | awk 'NR>1 && $2=="device"{print $1; exit}')
 [ -n "$SER" ] || { log "NO_DEVICE on 6037"; END_REASON=no_device; exit 2; }
 log "device=$SER job=$JOB"
 {
-    echo '== getprop =='; adbT 120 -s "$SER" shell 'getprop ro.soc.model; getprop ro.board.platform; getprop ro.build.fingerprint; getprop ro.product.model'
+    echo "baseline_gate=$KIT_BASELINE_GATE"; echo '== getprop =='; adbT 120 -s "$SER" shell 'getprop ro.soc.model; getprop ro.board.platform; getprop ro.build.fingerprint; getprop ro.product.model'
     echo '== cores =='; adbT 120 -s "$SER" shell 'for c in /sys/devices/system/cpu/cpu[0-9]*; do echo "$c $(cat $c/cpufreq/cpuinfo_max_freq 2>/dev/null)"; done'
     echo '== mem =='; adbT 60 -s "$SER" shell 'grep MemTotal /proc/meminfo'
     echo '== opencl =='; adbT 60 -s "$SER" shell 'ls /vendor/lib64/libOpenCL.so 2>&1 && echo OPENCL_LIB_PRESENT'
