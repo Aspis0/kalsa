@@ -552,20 +552,13 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     exportNativeOnly: "L'esportazione è disponibile solo sulle piattaforme native.",
     exportedAs: "Mini-app esportata come {format}.",
     couldNotExport: "Impossibile esportare la mini-app.",
-    legacyLabActions: "Le azioni lab legacy non fanno parte del formato mini-app generale.",
+    actionRequiresAi: "Questa azione richiede l'AI: chiedi alla chat di eseguirla.",
     actionNotSupported: "Questa azione non è disponibile in questa app.",
     preparingAction: "Preparazione azione…",
     runAction: "Esegui azione",
     confirmAction:
       "Questa azione può usare l'AI per generare un risultato dai valori attuali del calcolatore.",
     exportDialogTitle: "Esporta mini-app {format}",
-    renameNode: "Rinomina nodo",
-    edgeLabel: "Etichetta arco",
-    addedSample: "Aggiunto Sample {n}.",
-    noEditablePlate: "Nessuna piastra o tabella modificabile disponibile.",
-    autoFilledReplicates: "Compilati automaticamente {n} assegnamento/i di replica.",
-    replicatesComplete: "Le repliche sembrano già complete.",
-    plateCleared: "Assegnazioni piastra cancellate.",
   },
 
   renderer: {
@@ -588,9 +581,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     needThreeValues: "Servono almeno 3 valori",
     flagged: "segnalato",
     notSignificant: "non significativo",
-    massFromDensity: "Massa da densità",
-    volumeMl: "Volume (mL)",
-    densityGml: "Densità (g/mL)",
     mass: "Massa",
     unsupportedUnit: "Unità non supportata",
     chart: "Grafico",
@@ -606,18 +596,6 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     emptyHtmlBlock: "Blocco html vuoto",
     unsupportedBlock: "Blocco mini-app non supportato: {type}",
     evidencePanel: "Pannello evidenze",
-    pathwayEditor: "Editor pathway",
-    noNodeSelected: "Nessun nodo selezionato",
-    noEdgeSelected: "Nessun arco selezionato",
-    nodeKind: "Tipo nodo",
-    location: "Posizione",
-    target: "Destinazione",
-    edgeKind: "Tipo arco",
-    addNode: "Aggiungi nodo",
-    addEdge: "Aggiungi arco",
-    deleteSelected: "Elimina selezione",
-    noNodesAvailable: "Nessun nodo disponibile.",
-    pathwayHint: "Tocca un nodo o un arco per selezionarlo. Le modifiche ai nodi influenzano le azioni locali.",
     nodePrefix: "Nodo: {label}",
     edgePrefix: "Arco: {label}",
     tabs: "Schede",
@@ -849,6 +827,15 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     newMiniappSub: "Genera un blocco interattivo",
     openLast: "Apri ultimo elemento",
     openLastSub: "Torna all'elemento più recente",
+    compareData: "Compare data",
+    compareDataSub: "Costruisce una tabella di confronto",
+    quickCalculator: "Quick calculator",
+    quickCalculatorSub: "Calcola una formula",
+    readingQuiz: "Reading quiz",
+    readingQuizSub: "Un quiz di 4 domande",
+    compareDataPrompt: "Trforma questi dati in una tabella di confronto.",
+    quickCalculatorPrompt: "Rsolvi questo calcolo e mostra il risultato.",
+    readingQuizPrompt: "Ponimi un quiz di 4 domande su quanto letto.",
   },
 
   wizard: {
@@ -1017,7 +1004,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     miniapp:
       "Miniapp: puoi emettere miniapp_v1 JSON interattive (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "per i quiz non rivelare mai answerIndex nel testo — l'app valuta in privato; " +
-      "formule calculator: solo numeri, identificatori di campi, + - * / e parentesi.",
+      "formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
+      "Inoltre, i tipi di blocco includono data_table (colonne [{key,label]} con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista de fonti con titoli e url).",
     digest: "Note precedenti: {digest}",
     summary: "Contesto conversazione: {summary}",
   },
@@ -1035,6 +1023,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
+    "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista de fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
     "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
     "Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Scrivi nella lingua richiesta sopra. " +
@@ -1070,6 +1059,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
     "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
+    "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista de fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
     "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
     "Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Scrivi nella lingua richiesta sopra. " +

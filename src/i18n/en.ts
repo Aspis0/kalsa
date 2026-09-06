@@ -552,20 +552,13 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     exportNativeOnly: "Export is currently available on native platforms only.",
     exportedAs: "Mini-app exported as {format}.",
     couldNotExport: "Could not export mini-app.",
-    legacyLabActions: "Legacy lab actions are not part of the general mini-app format.",
+    actionRequiresAi: "This action needs the AI to run — ask the chat to execute it.",
     actionNotSupported: "This action is not available in this app.",
     preparingAction: "Preparing action…",
     runAction: "Run action",
     confirmAction:
       "This action may use AI to generate a result from your current calculator values.",
     exportDialogTitle: "Export mini-app {format}",
-    renameNode: "Rename node",
-    edgeLabel: "Edge label",
-    addedSample: "Added Sample {n}.",
-    noEditablePlate: "No editable plate or table was available.",
-    autoFilledReplicates: "Auto-filled {n} replicate assignment(s).",
-    replicatesComplete: "Replicates already look complete.",
-    plateCleared: "Plate assignments cleared.",
   },
 
   /** UI chrome / fallback labels inside the miniapp renderer (not model content). */
@@ -589,9 +582,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     needThreeValues: "Need at least 3 values",
     flagged: "flagged",
     notSignificant: "not significant",
-    massFromDensity: "Mass from density",
-    volumeMl: "Volume (mL)",
-    densityGml: "Density (g/mL)",
     mass: "Mass",
     unsupportedUnit: "Unsupported unit",
     chart: "Chart",
@@ -607,18 +597,6 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     emptyHtmlBlock: "Empty html block",
     unsupportedBlock: "Unsupported miniapp block: {type}",
     evidencePanel: "Evidence panel",
-    pathwayEditor: "Pathway editor",
-    noNodeSelected: "No node selected",
-    noEdgeSelected: "No edge selected",
-    nodeKind: "Node kind",
-    location: "Location",
-    target: "Target",
-    edgeKind: "Edge kind",
-    addNode: "Add node",
-    addEdge: "Add edge",
-    deleteSelected: "Delete selected",
-    noNodesAvailable: "No nodes available.",
-    pathwayHint: "Tap a node or edge to select it. Node changes then affect local actions.",
     nodePrefix: "Node: {label}",
     edgePrefix: "Edge: {label}",
     tabs: "Tabs",
@@ -875,6 +853,15 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     newMiniappSub: "Generate an interactive block",
     openLast: "Open last item",
     openLastSub: "Jump back to your most recent",
+    compareData: "Compare data",
+    compareDataSub: "Build a comparison table",
+    quickCalculator: "Quick calculator",
+    quickCalculatorSub: "Compute a formula",
+    readingQuiz: "Reading quiz",
+    readingQuizSub: "A 4-question quiz",
+    compareDataPrompt: "Turn this data into a comparison table.",
+    quickCalculatorPrompt: "Work out this calculation and show the result.",
+    readingQuizPrompt: "Ask me a 4-question quiz on what I just read.",
   },
 
   wizard: {
@@ -1048,7 +1035,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     miniapp:
       "Miniapp: you may emit interactive miniapp_v1 JSON (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "for quiz never reveal answerIndex in prose — the app grades privately; " +
-      "calculator formulas: numbers, field identifiers, + - * / and parentheses only.",
+      "calculator formulas: numbers, field identifiers, + - * / and parentheses only; " +
+      "block types also include data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls).",
     /** Optional frozen retriever digest. Placeholder: {digest} */
     digest: "Earlier notes: {digest}",
     /** Optional conversation summary. Placeholder: {summary} */
@@ -1074,6 +1062,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "Distinguish clearly between what you know and what you infer. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
     "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
+    "Other block types: data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls). " +
     "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
     "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
     "Emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence). " +
@@ -1110,6 +1099,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "Prefer document_chat over web_search for questions about the user's own files. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
     "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
+    "Other block types: data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls). " +
     "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
     "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
     "Emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence). " +
