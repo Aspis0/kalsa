@@ -144,3 +144,44 @@ F2 — NIT: PREREG:192-193 compound citation for the band quote.
 BANK (descriptive, as a null + CPU numbers). All citations/arithmetic reproduce; CPU-vs-CPU
 labelling, parity NOT-tested, oracle not-evaluable, bankability scope right; 1 minor (F1),
 1 nit (F2).
+
+## Delta audit #16 — REPORT run 8
+
+Line-by-line — CONFIRMED, everything reproduced: results.tsv:2-5 verbatim (A1 8504.842/
+21.2117596087664/30.519→43.227/647f906d; B1 4294.885/18.943680382669/GPU/CPU/FAST/36.98→
+47.444/d4556574e…/FAIL; A2 na/38.46→42.633; B2 na/38.491/VOID); statuses A1/B1 row_void=0,
+A2 composer, B2 hot; B1 logcat:19371 KALSA_GOVERNOR JSON EXACT — engine_prefill GPU,
+engine_decode CPU, commit_bytes 12114944, commit_ms 13.387, prefill_ms 4294.885, chunks
+2+128+128+128+128+128+128+128+27, prefill_ctx_ngl 99, `"forced":true`,
+`"thermal_state":"FAST"` (verified in the line tail); KALSA_GOVERNOR_FALLBACK count in B1 =
+0 ✓; A1:19272 / B1:19368 TELEMETRY (tokensEvaluated 1766, tokensPredicted 1023, promptMs
+8504.842/4294.885, predictedPerSecond …76641/…66901) ✓; bench n=1023 at A1:19275/B1:19372 ✓;
+ids verified PAIRWISE: first differing zero-based index = 7 (A 14991 vs B 2352), **24/32**
+differ (my paste-compare: 24 — the report's number correct), first=597 both, last A 1094 vs
+B 11319 ✓; A2 type_prompt.txt:1-4 exact (21/314/406/741 rc=2) and typing_chunks:26
+(`len=4991 expected=5000 result=short t=310`) + :70 (`chunk=44 len=4400 expected=4400
+result=exact t=406` — the exact-chunk-then-400-s-cap rc=2 story) ✓; B2 cooldown :1
+`wait_s=0 skin=42.6` + :61 `wait_s=900 skin=38.491` ✓; driver-sa808770.log:9
+`DEADLINE_85_MIN` ✓; adb-exit rc=255 count = exactly 1 at :3117 (`shell dumpsys power`) with
+the `attempt=1 rc=255 has_wakefulness=1` power log ✓ (Trap-8 content-over-rc exercised);
+recon memtotal_kb=11544332 (the RAM precondition passes the 8 GiB gate) ✓. Arithmetic:
+4294.885/8504.842 = 0.50499 → "0.505"; inverse 1.9802 → "1.980×"; 0.55−0.505 = 0.045 ✓.
+Altitude — CONFIRMED: descriptive-only per the pre-registration (PREREG:136/239 cited);
+n=1 pair stated; the 0.505-vs-0.55–0.58 band comparison stated without any new claim;
+"forced" explicit in the table and the evidence; the oracle FAIL correctly NOT called
+"token-14" — "the observed index differs from the fork's token-14 expectation" with the
+index-7 fact ✓.
+Omissions — CONFIRMED none material: A2 (composer, 21/314/406/741 s ladder, 200-char-loss
+observation), B2 (hot, 42.6→38.491 at 900 s), A3 (deadline) all present with causes; the
+`governor_force`-value and `offloaded …/31` admissions are honest ("not in raw"), and the
+GPU claim is correctly rested on the KALSA_GOVERNOR JSON alone (forced:true + ngl 99 + commit
+12114944 + no-FALLBACK — sufficient, honestly bounded).
+Cross-file — CONFIRMED: consistent with PREREG:235-238 (FAIL expected by the 750 defect),
+:64-67 (≥2-pair rule → NOT MET with n=1), :197-200/:215-217 (next steps), and the summary
+pointer at :13.
+F1 — NIT: my initial pairwise doubt about "24/32" (a 30-line diff count would suggest 15)
+is resolved — the direct A/B paste comparison gives exactly 24 differing indices, matching
+the report.
+
+
+VERDICT: BANK (descriptive) — 0 blockers, 0 majors, 0 minors, 1 nit (F1 resolved: 24/32 ids verified pairwise); every number and framing reproduced verbatim, GPU evidence honestly bounded.

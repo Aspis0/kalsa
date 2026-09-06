@@ -42,6 +42,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
   vive, pieno muore (mapping su OGNI commit incl. pin); la TLBMISS v73 è
   bisezionata: culprit `0a50d9909` = upstream #26049 (#64, ALIVE 47) — si
   fixa nel fork o si lascia, MAI issue upstream.
+- **S5b run 8 (5/09, ALIVE 51, BANCATA descrittiva):** QRD8650 con governor FORZATO sulla B: prefill GPU 4,29 s vs CPU 8,50 s (1,98×, una coppia), commit KV 12,1 MB/13 ms, FAST; oracolo strict FAIL da idx 7 (difetto 750) → NOT MET come pre-registrato. Trappola 9 (typing degrada a caldo) ha bruciato A2. **Decisioni owner**: 8635/8550 (nessuna B in-app), 750 allowlist OFF vs 2× prefill. Nessuna sessione QDC aperta, nessun driver vivo.
 - **S5b run 7 (5/09, ALIVE 50, BANCATA null descrittivo):** sul QRD7675 il governor v0.3 è INERTE per allowlist (`Unknown`→CPU): B≡A per design, parità NON testata; CPU TTFT 12,1-12,6 s su 938 token; su 7675/8635/8550 non esiste una B in-app, solo QRD8650 (V75) con `kalsa.bench.governor_force=1` → run 8 pre-registrata (PREREG §"Run 7e → run 8"), driver in audit #15. 8635/8550 parcheggiati per l'owner.
 - **S5b (5/09, ALIVE 49, BANCATA descrittiva):** governor prefill 1,81× la CPU sull'8 Elite in-app (3,32 vs 5,86-6,18 s su 925 token, 2 coppie stesso-turno, PASS-1 esplorativo); oracolo stretto FAIL per 1 token ⇒ endpoint NOT MET per costruzione; PASS-1 pre-registrato per runs 7+ (QRD7675 in volo dalle 15:30, poi 8635, 8550, 8650).
 - **Governor nell'app (fase 1, `docs/PLAN-governor-in-app.md`) — stato 6/09 mattina:** S1-S4 fatti, cella S5 BANCATA (ALIVE 48, 6 run QDC): il governor gira end-to-end nell'app (prefill GPU + commit KV + decode CPU), la degradazione termica funziona (Wait a ≥38 °C → turno su CPU, completato), l'oracolo greedy PASSA su 8 Elite (Adreno 830) e FALLISCE solo su Adreno 750 (difetto f16/bf16-batched noto, ALIVE #38/#39) → gate di correttezza per generazione (V75 OFF). Decode: parità con la CPU (28.3 vs 28.5 tok/s su 8 Elite). TTFT: il timer di A era inquinato (fix fork e31b9144c); col run 7 il confronto equo sui ~15 token nuovi (sistema in cache dal prewarm) dà parità CPU/GPU (A 205-488 ms, B 358 ms); il vantaggio GPU sta nel prefill grande: prewarm 1024 token 4.1-4.3 s vs 6.6-6.8 s (1.6×) — ma il fork #38 misurava ~10× su 512 token senza cache: prossima cella = prefill grande SENZA prewarm nell'app. Branch app `feat/governor-in-app` @8a56edc (pin fork e31b9144c), 9 delta audit grok GO; nove bug trovati e fixati dalla cella (elenco nel diario). Aperti: 1.65× prewarm GPU vs ~10× del fork #38 da spiegare; headroom RAM a due contesti; workaround del difetto 750 nel fork; S6 (gate RAM con GPU) e S7 (loop termico in produzione via BatteryManager).
@@ -1547,6 +1548,22 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > **804701** QRD8650 = sa808770 aperta 19:41 (120 min), tunnel 6037, board SM8650/pineapple 11,5 GB,
 > Dozing/mIsPowered=false. Nota portale: allo step 3 esiste `deviceConfiguration.ScreenAlwaysOn`
 > (non usato per tenere l'harness identico; sonda futura). `setsid` non esiste su macOS.
+
+> **5/09 21:15 EDT Mac — RUN 8 (QRD8650, governor forzato sulla B) CHIUSA alla deadline 21:11:05
+> (raw 4e7733c9 pushato, sessione 804701 Completed, tunnel chiuso).** Una coppia stesso-turno:
+> **A1 CPU TTFT 8504,8 ms vs B1 GPU 4294,9 ms → B/A 0,505 (1,98×)**, `KALSA_GOVERNOR
+> {"engine_prefill":"GPU","engine_decode":"CPU","commit_bytes":12114944,"commit_ms":13.387,
+> "prefill_chunks":"2+128×7+27","prefill_ctx_ngl":99,"forced":true,"thermal_state":"FAST"}`, nessun
+> FALLBACK; decode 18,9 (B) vs 21,2 (A) tok/s; skin B1 37,0→47,4 °C. Banda pre-registrata 0,55-0,58:
+> osservato 0,505 (sotto = GPU un po' meglio del prior). **Oracolo strict FAIL** dall'indice 7 (B salta
+> il token 14991, 24/32 diversi) → endpoint NOT MET per il difetto f16/bf16 del 750, descrittivo come
+> pre-registrato; l'indice differisce dal token 14 del fork. A2 VOID composer: su board calda il typing
+> perde caratteri anche a 200 (tentativo 2 rc=1 a 314 s), a 100 è esatto ma il cap 400 s scatta a
+> 4400/5142 → **trappola 9** (il cap 400 s per tentativo non basta a 100 char/chunk). B2 VOID hot
+> (900 s, 38,49 > 37,0 dopo i 42,6 di A2). A3 digitata (382 s) e persa alla deadline. rc=255: 1 su
+> tutta la run; `power_capture` non ha dovuto salvare nulla. REPORT run 8 con Luna 2f6bc505, poi
+> audit deepseek #16, ALIVE 51. **Decisioni per l'owner**: 8635/8550 (nessuna B in-app senza
+> estendere la policy); se tenere il 750 in allowlist OFF (2× di prefill vs oracolo FAIL).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
