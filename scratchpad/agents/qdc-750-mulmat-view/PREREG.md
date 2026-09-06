@@ -95,3 +95,25 @@ divergence is **decoupled from the 20-FAIL family**. Pre-declared readings of th
   the gate matters in-app; if the ids stay d4556574… → the in-app divergence lives elsewhere (H2 precision, or an A7X
   kernel outside this family) and the gate is a kernel-level correctness fix only. Either way the result is reported
   as such; `GPU_PREFILL_CORRECT` for V73/V75 stays false unless the strict (or PASS-1) oracle passes.
+
+## Amendment 4 — the two remaining guards, pre-registered 6/09 06:00 (before either device run)
+Build under test: fork `kalsa/governor-v0.3-on-2f3b24dee` @3bec271fd (governor 9c28322ac + pick c7ad97025 + gate
+2f3b24dee); app pin c8d137e; APK from CI run 34025628896 (debuggable, arm64-v8a).
+
+**Guard A — 8 Elite CLI bench with the candidate kit** (QRD8750 session, driver = this cell's d_run.sh with
+baseline gpu-kit-12f6d9b.tgz and candidate gpu-kit-2f3b24d.tgz, deadline 40): the BASELINE_GATE of exactly 20
+MUL_MAT FAIL does not apply to the 830 (it passes 925/925 on both kits — expected); the driver's baseline gate
+must therefore be bypassed for this board (`--no-baseline-gate` or an env flag added before launch, audited),
+and the reading is: MUL_MAT/MUL_MAT_ID/FA identical on both kits (925/407/226-229), and **pp512/tg128 candidate
+vs baseline within ±10%**. Prior: the gate reroutes the batched V-cache-view matmuls to the generic kernel on every
+Adreno; on the 830 a prefill regression is plausible. Pre-declared readings: |Δpp512| ≤ 10% → the gate is
+acceptable as-is for the pin; 10–25% → the gate must be narrowed to the 750 (A7X only, or a 750-specific check) before
+the pin; > 25% → the gate is rejected for the pin and stays a bench-only experiment.
+
+**Guard B — run 8b in-app on the 750** (QRD8650 session, S5b driver, APK c8d137e, `ABABAB 85`, force on B, same
+prompt/oracle as run 8): pre-declared readings (Amendment 3): B ids ≠ d4556574… and == CPU 647f906d… → the gate
+was on the prefill critical path AND fixes the in-app divergence (then, and only then, `GPU_PREFILL_CORRECT.V75`
+may be reconsidered with ≥2 oracle-PASS pairs); B ids == d4556574… → the in-app divergence is not this defect
+(A7X property, H2/H3 open), the gate stays a kernel-level fix, V75 stays false; anything else → reported as new.
+B/A TTFT ratio reported against run 8's 0.505 (the gate should not change prefill speed materially: ±10%).
+Order: Guard B first if the APK is ready when the next 8650 session opens; Guard A on the 8750 either way.
