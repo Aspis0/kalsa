@@ -1609,8 +1609,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > commit **9c28322ac** (test policy 5 casi passano prima dello skip GPU; rc 77 = skip device senza GPU sul Mac),
 > **audit #17 GO** (1 nit), **PUSHATO** su Aspis0/kalsallama governor-v0.3. App (worktree kalsa-wt-governor):
 > **79c04a9** generationFor SM7675/SM8635→V73 + `bench_force_gpu_prefill: force` + patch hand-edit (3 hunk
-> header +1) + 28 righe test, jest/tsc rc 0; **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
-> KALSALLAMA_SRC, 5 file vendor); **audit #18 mimo in corso**; non ancora pushato. (3) Websearch chiusa, candidato
+> header +1) + 28 righe test, jest/tsc rc 0; **audit #18 mimo GO** (0 finding); **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
