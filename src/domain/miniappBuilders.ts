@@ -15,20 +15,21 @@ import {
   type MiniappTemplateId,
 } from "./miniappTemplates";
 import { evaluateCalculatorFormula } from "./miniappCalculator";
+import { buildC6c } from "./miniappBuildersNew";
 
 type Slots = Record<string, unknown>;
 
-function isPlainObject(value: unknown): value is Record<string, unknown> {
+export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 /** Non-empty trimmed string, or null. */
-function asString(value: unknown): string | null {
+export function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value.trim() : null;
 }
 
 /** Array of non-empty strings, or null when any entry is not a string. */
-function asStringArray(value: unknown): string[] | null {
+export function asStringArray(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
   const out: string[] = [];
   for (const entry of value) {
@@ -40,7 +41,7 @@ function asStringArray(value: unknown): string[] | null {
 }
 
 /** Integer answer index that addresses a real option (0..length-1), else undefined. */
-function safeAnswerIndex(
+export function safeAnswerIndex(
   raw: unknown,
   optionCount: number,
 ): number | undefined {
@@ -53,7 +54,7 @@ function safeAnswerIndex(
   return undefined;
 }
 
-function envelope(
+export function envelope(
   templateId: MiniappTemplateId,
   title: string,
   blocks: Array<Record<string, unknown>>,
@@ -155,30 +156,6 @@ function buildQuickCalculator(slots: Slots): AskAssistantMiniapp | null {
   ]);
 }
 
-function buildReadingQuiz(slots: Slots): AskAssistantMiniapp | null {
-  const question = asString(slots.question);
-  if (!question) return null;
-
-  // F2: cap to 2..4 options. More than 4 is rejected as invalid slots so that
-  // any safe answerIndex (0..length-1) always addresses a kept option — the
-  // renderer truncates to 4, so an out-of-range index would silently disable
-  // grading. No truncation happens here, so answerIndex can never be invalidated.
-  const options = asStringArray(slots.options);
-  if (!options || options.length < 2 || options.length > 4) return null;
-
-  const block: Record<string, unknown> = {
-    type: "quiz",
-    question,
-    options,
-  };
-  const answerIndex = safeAnswerIndex(slots.answerIndex, options.length);
-  if (answerIndex !== undefined) block.answerIndex = answerIndex;
-  const explanation = asString(slots.explanation);
-  if (explanation) block.explanation = explanation;
-
-  return envelope("reading_quiz", asString(slots.title) ?? "Quiz", [block]);
-}
-
 /**
  * Build a `miniapp_v1` from a template id + slots, or null when the template
  * is unknown or its slots fail validation. The result is normalized so the
@@ -202,7 +179,10 @@ export function buildMiniappV1(
       built = buildQuickCalculator(safeSlots);
       break;
     case "reading_quiz":
-      built = buildReadingQuiz(safeSlots);
+    case "kpi_strip":
+    case "checklist":
+    case "pros_cons":
+      built = buildC6c(templateId, safeSlots);
       break;
     default:
       return null;

@@ -407,8 +407,11 @@ function miniappIcon(kind: string): React.ComponentType<{ size: number; color: s
   switch (kind) {
     case "calculator":
     case "comparison":
+    case "kpi_strip":
+    case "pros_cons":
       return BarChart2;
     case "planner":
+    case "checklist":
       return ClipboardList;
     case "quiz":
       return BookOpen;

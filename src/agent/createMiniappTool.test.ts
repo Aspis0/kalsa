@@ -100,45 +100,155 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     ).toBeNull();
   });
 
-  test("reading_quiz → quiz with >= 2 options", () => {
+  test("reading_quiz → one quiz block per question (N questions)", () => {
     const miniapp = buildMiniappV1("reading_quiz", {
-      question: "Capital of France?",
-      options: ["Berlin", "Paris", "Rome"],
-      answerIndex: 1,
+      title: "Geo quiz",
+      questions: [
+        { question: "Capital of France?", options: ["Berlin", "Paris", "Rome"], answerIndex: 1 },
+        { question: "2+2?", options: ["3", "4"], answerIndex: 1 },
+      ],
     });
     expect(miniapp).not.toBeNull();
+    expect(miniapp?.blocks).toHaveLength(2);
     expect(miniapp?.blocks[0]).toMatchObject({
       type: "quiz",
       question: "Capital of France?",
       options: ["Berlin", "Paris", "Rome"],
       answerIndex: 1,
     });
+    expect(miniapp?.blocks[1]).toMatchObject({ type: "quiz", question: "2+2?" });
   });
 
-  test("reading_quiz disables grading when answerIndex is out of range", () => {
-    const miniapp = buildMiniappV1("reading_quiz", {
-      question: "Q?",
+  test("reading_quiz emits 8 quiz blocks at the cap", () => {
+    const questions = Array.from({ length: 8 }, (_, i) => ({
+      question: `Q${i}`,
       options: ["A", "B"],
-      answerIndex: 5,
-    });
-    // normalizeQuizBlock always sets answerIndex; null disables grading.
-    expect(miniapp?.blocks[0].answerIndex).toBeNull();
+    }));
+    const miniapp = buildMiniappV1("reading_quiz", { questions });
+    expect(miniapp?.blocks).toHaveLength(8);
+    expect(miniapp?.blocks[7]).toMatchObject({ type: "quiz", question: "Q7" });
   });
 
-  test("reading_quiz rejects fewer than 2 options", () => {
-    expect(buildMiniappV1("reading_quiz", { question: "Q?", options: ["A"] })).toBeNull();
+  test("reading_quiz rejects 0 questions", () => {
+    expect(buildMiniappV1("reading_quiz", { questions: [] })).toBeNull();
   });
 
-  test("reading_quiz rejects more than 4 options (F2)", () => {
+  test("reading_quiz rejects 9 questions (over the 1..8 cap)", () => {
+    const questions = Array.from({ length: 9 }, (_, i) => ({
+      question: `Q${i}`,
+      options: ["A", "B"],
+    }));
+    expect(buildMiniappV1("reading_quiz", { questions })).toBeNull();
+  });
+
+  test("reading_quiz rejects a question with fewer than 2 options", () => {
+    expect(
+      buildMiniappV1("reading_quiz", { questions: [{ question: "Q?", options: ["A"] }] }),
+    ).toBeNull();
+  });
+
+  test("reading_quiz rejects a question with more than 4 options (F2)", () => {
     // >4 options would truncate to 4 and invalidate a safe answerIndex, so the
     // builder rejects the slots outright instead of producing a broken quiz.
     expect(
       buildMiniappV1("reading_quiz", {
-        question: "Q?",
-        options: ["A", "B", "C", "D", "E"],
-        answerIndex: 4,
+        questions: [{ question: "Q?", options: ["A", "B", "C", "D", "E"], answerIndex: 4 }],
       }),
     ).toBeNull();
+  });
+
+  test("reading_quiz disables grading per-question when answerIndex is out of range", () => {
+    const miniapp = buildMiniappV1("reading_quiz", {
+      questions: [
+        { question: "Q1?", options: ["A", "B"], answerIndex: 5 },
+        { question: "Q2?", options: ["A", "B"], answerIndex: 0 },
+      ],
+    });
+    // First question's index 5 addresses no option → grading disabled (null);
+    // second question's index 0 is valid.
+    expect(miniapp?.blocks[0].answerIndex).toBeNull();
+    expect(miniapp?.blocks[1].answerIndex).toBe(0);
+  });
+
+  test("reading_quiz rejects a question missing its text", () => {
+    expect(
+      buildMiniappV1("reading_quiz", { questions: [{ options: ["A", "B"] }] }),
+    ).toBeNull();
+  });
+
+  test("reading_quiz rejects a non-array questions value", () => {
+    expect(buildMiniappV1("reading_quiz", { questions: "nope" })).toBeNull();
+  });
+
+  test("kpi_strip → metric_strip with metrics", () => {
+    const miniapp = buildMiniappV1("kpi_strip", {
+      title: "Q3 metrics",
+      metrics: [
+        { label: "Revenue", value: 12000, unit: "€" },
+        { label: "Growth", value: "12%", tone: "positive" },
+      ],
+    });
+    expect(miniapp).not.toBeNull();
+    expect(miniapp?.kind).toBe("kpi_strip");
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "metric_strip" });
+    expect((miniapp?.blocks[0] as any).metrics[0]).toMatchObject({ label: "Revenue", value: 12000, unit: "€" });
+    expect((miniapp?.blocks[0] as any).metrics[1]).toMatchObject({ label: "Growth", value: "12%", tone: "positive" });
+  });
+
+  test("kpi_strip rejects 0/>8 metrics and missing label or value", () => {
+    expect(buildMiniappV1("kpi_strip", { metrics: [] })).toBeNull();
+    expect(buildMiniappV1("kpi_strip", { metrics: [{ value: "x" }] })).toBeNull(); // no label
+    expect(buildMiniappV1("kpi_strip", { metrics: [{ label: "L" }] })).toBeNull(); // no value
+    const nine = Array.from({ length: 9 }, (_, i) => ({ label: `L${i}`, value: i }));
+    expect(buildMiniappV1("kpi_strip", { metrics: nine })).toBeNull();
+  });
+
+  test("checklist → timeline steps from string[]", () => {
+    const miniapp = buildMiniappV1("checklist", {
+      title: "Setup",
+      steps: ["Install", "Configure", "Launch"],
+    });
+    expect(miniapp).not.toBeNull();
+    expect(miniapp?.kind).toBe("checklist");
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "timeline" });
+    expect(miniapp?.blocks[0].steps).toHaveLength(3);
+    expect((miniapp?.blocks[0] as any).steps[0]).toMatchObject({ title: "Install" });
+  });
+
+  test("checklist accepts items (title/body + plain) and rejects empty input", () => {
+    const miniapp = buildMiniappV1("checklist", {
+      items: [{ title: "Step 1", body: "do it" }, "plain step"],
+    });
+    expect(miniapp?.blocks[0].steps).toHaveLength(2);
+    expect((miniapp?.blocks[0] as any).steps[1]).toMatchObject({ title: "plain step" });
+    expect(buildMiniappV1("checklist", { steps: [] })).toBeNull();
+    expect(buildMiniappV1("checklist", { steps: [{}] })).toBeNull(); // no title/body
+    expect(buildMiniappV1("checklist", {})).toBeNull();
+  });
+
+  test("checklist rejects more than 12 steps", () => {
+    const steps = Array.from({ length: 13 }, (_, i) => `S${i}`);
+    expect(buildMiniappV1("checklist", { steps })).toBeNull();
+  });
+
+  test("pros_cons → data_table with pro/con columns", () => {
+    const miniapp = buildMiniappV1("pros_cons", {
+      title: "Choice",
+      rows: [{ pro: "Fast", con: "Expensive" }, { pro: "Simple" }],
+    });
+    expect(miniapp).not.toBeNull();
+    expect(miniapp?.kind).toBe("pros_cons");
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "data_table", columns: ["pro", "con"] });
+    expect(miniapp?.blocks[0].rows).toHaveLength(2);
+    expect((miniapp?.blocks[0] as any).rows[0]).toMatchObject({ pro: "Fast", con: "Expensive" });
+    // a row with only a pro keeps an empty con cell
+    expect((miniapp?.blocks[0] as any).rows[1]).toMatchObject({ pro: "Simple", con: "" });
+  });
+
+  test("pros_cons rejects empty rows and non-array input", () => {
+    expect(buildMiniappV1("pros_cons", { rows: [] })).toBeNull();
+    expect(buildMiniappV1("pros_cons", { rows: [{ pro: "" }, { con: "" }, {}] })).toBeNull();
+    expect(buildMiniappV1("pros_cons", { rows: "nope" })).toBeNull();
   });
 
   test("unknown template → null", () => {
@@ -153,7 +263,7 @@ describe("create_miniapp executor", () => {
 
     const result = await execute("create_miniapp", {
       template: "reading_quiz",
-      slots: { question: "Q?", options: ["A", "B"], answerIndex: 0 },
+      slots: { questions: [{ question: "Q?", options: ["A", "B"], answerIndex: 0 }] },
     });
 
     expectMiniapp(result);
@@ -169,9 +279,7 @@ describe("create_miniapp executor", () => {
       template: "reading_quiz",
       slots: {
         title: "My Quiz",
-        question: "Q?",
-        options: ["A", "B"],
-        answerIndex: 0,
+        questions: [{ question: "Q?", options: ["A", "B"], answerIndex: 0 }],
       },
     });
     expect(result.text).toBe(
@@ -225,7 +333,7 @@ describe("create_miniapp executor", () => {
 });
 
 describe("create_miniapp tool definition + registry", () => {
-  test("definition advertises the three templates and requires template", () => {
+  test("definition advertises the six templates and requires template", () => {
     const fn = CREATE_MINIAPP_TOOL.function;
     expect(fn.name).toBe("create_miniapp");
     const enumValues = (fn.parameters as { properties: { template: { enum: string[] } } })
@@ -234,6 +342,9 @@ describe("create_miniapp tool definition + registry", () => {
       "compare_data",
       "quick_calculator",
       "reading_quiz",
+      "kpi_strip",
+      "checklist",
+      "pros_cons",
     ]);
     expect((fn.parameters as { required: string[] }).required).toEqual(["template"]);
   });
@@ -266,12 +377,15 @@ describe("system prompts mention create_miniapp (F1)", () => {
     ].join("\n");
   }
 
-  test("en prompts steer the tool and name all three templates", () => {
+  test("en prompts steer the tool and name all six templates", () => {
     const hay = promptText("en");
     expect(hay).toContain("create_miniapp");
     expect(hay).toContain("compare_data");
     expect(hay).toContain("quick_calculator");
     expect(hay).toContain("reading_quiz");
+    expect(hay).toContain("kpi_strip");
+    expect(hay).toContain("checklist");
+    expect(hay).toContain("pros_cons");
     // Prose JSON is framed as a fallback, not the primary instruction.
     expect(hay.toLowerCase()).toContain("fallback");
   });
@@ -282,5 +396,8 @@ describe("system prompts mention create_miniapp (F1)", () => {
     expect(hay).toContain("compare_data");
     expect(hay).toContain("quick_calculator");
     expect(hay).toContain("reading_quiz");
+    expect(hay).toContain("kpi_strip");
+    expect(hay).toContain("checklist");
+    expect(hay).toContain("pros_cons");
   });
 });

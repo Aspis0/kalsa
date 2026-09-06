@@ -22,9 +22,10 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
     description:
       "Build an interactive on-device miniapp in a single call. Pick one " +
       "template — compare_data (a comparison table), quick_calculator (a " +
-      "formula calculator), or reading_quiz (a multiple-choice quiz) — and " +
-      "pass its slots. The app opens inline in the chat. Use this instead of " +
-      "writing miniapp JSON by hand.",
+      "formula calculator), reading_quiz (a quiz with several questions), " +
+      "kpi_strip (key metrics), checklist (ordered steps), or pros_cons (pros " +
+      "vs cons) — and pass its slots. The app opens inline in the chat. Use " +
+      "this instead of writing miniapp JSON by hand.",
     parameters: {
       type: "object",
       properties: {
@@ -37,7 +38,7 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
           type: "object",
           description:
             "Template-specific key-value slots (title, columns, rows, " +
-            "formula, question, options, answerIndex, explanation).",
+            "formula, fields, questions, metrics, steps, items, pro, con).",
           additionalProperties: true,
         },
       },

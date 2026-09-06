@@ -4,7 +4,13 @@
 
 import { type TranslationKey } from "../i18n";
 
-export type MiniappTemplateId = "compare_data" | "quick_calculator" | "reading_quiz";
+export type MiniappTemplateId =
+  | "compare_data"
+  | "quick_calculator"
+  | "reading_quiz"
+  | "kpi_strip"
+  | "checklist"
+  | "pros_cons";
 
 export type MiniappTemplate = {
   id: MiniappTemplateId;
@@ -35,10 +41,31 @@ export const MINIAPP_TEMPLATES: MiniappTemplate[] = [
     subKey: "quickActions.readingQuizSub",
     promptKey: "quickActions.readingQuizPrompt",
   },
+  {
+    id: "kpi_strip",
+    labelKey: "quickActions.kpiStrip",
+    subKey: "quickActions.kpiStripSub",
+    promptKey: "quickActions.kpiStripPrompt",
+  },
+  {
+    id: "checklist",
+    labelKey: "quickActions.checklist",
+    subKey: "quickActions.checklistSub",
+    promptKey: "quickActions.checklistPrompt",
+  },
+  {
+    id: "pros_cons",
+    labelKey: "quickActions.prosCons",
+    subKey: "quickActions.prosConsSub",
+    promptKey: "quickActions.prosConsPrompt",
+  },
 ];
 
 export const MINIAPP_TEMPLATE_IDS: ReadonlyArray<MiniappTemplateId> = Object.freeze([
   "compare_data",
   "quick_calculator",
   "reading_quiz",
+  "kpi_strip",
+  "checklist",
+  "pros_cons",
 ]);
