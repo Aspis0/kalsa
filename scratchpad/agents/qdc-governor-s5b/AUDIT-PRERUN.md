@@ -930,3 +930,49 @@ file, deleted when A invalid).
 ## Delta verdict #25
 
 NO-GO for committing ORACLE_MODE=logit until F1's precedence is fixed (collect comparable steps; FAIL dominates DESCRIPTIVE; DESCRIPTIVE only with zero judgeable steps) and F2's label corrected (margin ≥ 0.03 → R1). The helper otherwise matches R1-R4, thresholds single-sourced, adversarial (a)/(b) FAIL correctly, dryrun rc=0, wiring sound.
+
+## Delta audit #25b
+
+Fix verified — lines as read: oracle_logit.py:64-71 (TF loop: divergent forced steps →
+`coverage_bad = True; continue` — no early return; comparable steps appended and
+step_rule'd), :74-84 (G loop: divergence with `margin >= margin_limit` → record R1; tok≠#2
+→ R3; `len(divergences) > 1` → R3; comparable = pre-first-divergence), :92-96 (`if
+violations: FAIL rule=min(violations)[2]` before `coverage_bad` — FAIL dominates), and
+:36-53 (step_rule with in-step R1>R2 precedence; record tuples `(step, severity, rule)` so
+min() picks the EARLIEST step's rule ✓).
+Printed lines (my adversarial runs):
+- tf_masked → `oracle=DESCRIPTIVE rule=R4 steps=0 …`
+- g_div → `oracle=FAIL rule=R1 steps=10 divergences=1 first_div=10`
+- g_2div → `oracle=FAIL rule=R1 steps=10 divergences=2 first_div=10`
+- ident → `oracle=PASS rule=none steps=32 …`
+- drift → `oracle=FAIL rule=R2 steps=32 … max_dp1=0.1000`
+- missing → `oracle=FAIL rule=R2 steps=32 … max_dlogp=0.1823`
+- tf31 → `oracle=DESCRIPTIVE rule=R4 steps=31 …`
+- tf31r2 → `oracle=FAIL rule=R2 steps=31 …` (FAIL dominates DESCRIPTIVE ✓ — the core of the
+  fix)
+- `bash dryrun.sh > /tmp/dr25b.log 2>&1` → rc=0.
+
+F1 — CONFIRMED, MAJOR (residual): the R1-class masking in TF is NOT cured. My case (1) —
+TF with step 0 forced+wrong token and step 1 margin-0.40 disagreement — prints
+`DESCRIPTIVE R4 steps=0`, not FAIL R1. Root cause: in TF the comparable condition requires
+`brow["tok"] == arow["tok"]` while R1's trigger is `a1 != b1` — the two predicates are
+mutually exclusive, so R1 is STRUCTURALLY UNREACHABLE in TF mode; any divergent step is
+coverage_bad → R4-descriptive, and a run whose only deviations are high-margin disagreements
+reports DESCRIPTIVE — a wrong thing passing per the owner's principle. Fix (choose one):
+apply the G-style divergence check in TF too (divergence with margin ≥ 0.03 → R1 FAIL), or
+pre-register the spec decision ("TF divergent steps are R4-descriptive by definition") —
+the latter still leaves the wrong-thing hole and requires the PREREG to say so explicitly.
+F2 — CONFIRMED: the R2-class masking is fixed (tf31r2 → FAIL R2 with 31 compared steps);
+compared excludes only the tok≠A steps and never skips a comparable one; min(violations)
+tuple order (step-first) verified; max_dlogp/max_dp1 recomputed over compared ✓.
+F3 — CONFIRMED: g_div → FAIL R1 (margin-0.40 divergence correctly labelled R1); the
+second-divergence path records R3 (in my fixture the first divergence is itself high-margin
+so R1 wins the earlier-step min — a low-margin-first fixture would surface R3); identical →
+PASS 32; drift/missing → FAIL R2 ✓; tf31 → DESCRIPTIVE R4 ✓.
+
+## Delta verdict #25b
+
+NO-GO until the TF-R1 decision is made (F1): either the TF divergent steps get the R1
+margin check (making case (1) FAIL R1) or the spec explicitly pre-registers them as
+R4-descriptive. Everything else (FAIL-dominates-DESCRIPTIVE, R2, R3, min-step rule,
+dryrun rc=0) is confirmed.

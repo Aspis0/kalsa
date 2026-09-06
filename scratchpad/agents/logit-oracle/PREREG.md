@@ -64,3 +64,11 @@ App: throwaway branch `bench/fault-inject-apk` = feat/governor-in-app @28424c3 +
 APK debuggable, never merged. Expected reading on the 8 Elite (known-good GPU otherwise): arm B in TF mode must FAIL
 R1 or R2 on ≥ 2 pairs; if the oracle PASSes a corrupted prefill, the oracle is rejected (R5). Positive control on the
 same board with the normal APK (28424c3): must PASS. Both controls run before any A7X board is judged.
+
+## Amendment 2 — TF comparability, pre-registered 6/09 09:40 (from audits #25/#25b, before any data)
+In TF mode the emitted token is forced, so R1 compares the RAW top-1 of B against the raw top-1 of A (never the
+emitted token). A forced step whose emitted token ≠ A's token is a harness failure, but its raw distribution was
+captured before forcing on the same prefix: that step IS evaluated under R1/R2, then comparison stops (the prefix has
+diverged) and coverage is defective (R4). Same for an unforced step (force list ended early). Precedence: any R1/R2/R3
+violation → FAIL (earliest step's rule); DESCRIPTIVE R4 only with zero violations and defective coverage; PASS only
+with zero violations and 32 comparable steps. This closes the "DESCRIPTIVE hides a high-margin disagreement" hole.
