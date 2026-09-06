@@ -341,6 +341,17 @@ clear_anchor() {
   ANCHOR_STAMP=$(cat "${prefix}_anchor_stamp.txt" | tr -d '\r')
   awk -v a="$ANCHOR_EPOCH" 'BEGIN{exit !(a ~ /^[0-9]+$/)}' >/dev/null 2>&1
 }
+app_foreground() {
+  local prefix="$1" top attempt
+  for attempt in 1 2; do
+    top=$(adbT 60 -s "$SER" shell dumpsys activity activities 2>/dev/null | sed -n 's/.*topResumedActivity.*ActivityRecord{[^ ]* [^ ]* \([^ }]*\).*/\1/p' | head -1 | tr -d '\r')
+    printf 'attempt=%s top=%s\n' "$attempt" "$top" >> "${prefix}_foreground.txt"
+    case "$top" in *"$PKG"*) return 0 ;; esac
+    adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" >> "${prefix}_foreground.txt" 2>&1 || true
+    sleep 3
+  done
+  return 1
+}
 ime_suspend() {
   [ "$IME_SUSPEND" = 1 ] && [ "$IME_SUSPENDED" -eq 0 ] || return 0
   IME_SAVED=$(adbT 60 -s "$SER" shell settings get secure default_input_method | tr -d '\r')
@@ -377,7 +388,7 @@ run_observation() {
     memory_before "$prefix" || status=1; clear_anchor "$prefix" || status=1; device_wake; adbT 60 -s "$SER" shell "am start -n $PKG/.MainActivity" > "${prefix}_launch.txt" 2>&1 || status=1; APP_PID=$(adbT 60 -s "$SER" shell pidof "$PKG" | awk 'NR==1{print $1;exit}' | tr -d '\r')
     [ "$status" -eq 0 ] && poll_load "${prefix}_load.txt"; load_rc=$?; [ "$load_rc" -eq 0 ] || status=1
     [ "$load_rc" -eq 0 ] && memory_after "$prefix" || status=1
-    if [ "$load_rc" -eq 0 ] && [ "$status" -eq 0 ]; then device_wake; ime_suspend; ui_send "$prefix" "$turn"; ui_rc=$?; if [ "$ui_rc" -eq 2 ]; then row_void=1; elif [ "$ui_rc" -ne 0 ]; then status=1; fi; fi
+    if [ "$load_rc" -eq 0 ] && [ "$status" -eq 0 ]; then device_wake; ime_suspend; if app_foreground "$prefix"; then ui_send "$prefix" "$turn"; ui_rc=$?; else ui_rc=2; void_reason=foreground; fi; if [ "$ui_rc" -eq 2 ]; then row_void=1; elif [ "$ui_rc" -ne 0 ]; then status=1; fi; fi
     [ "$status" -eq 0 ] && [ "$row_void" -eq 0 ] && poll_telemetry "$logcat"; telemetry_rc=$?; if [ "$telemetry_rc" -eq 0 ]; then sleep 2; logcat_all 120 "$logcat" || true; fi; [ -f "$logcat" ] || logcat_all 120 "$logcat" || true
   fi
   [ -f "$logcat" ] || : > "$logcat"; lmkd_all_after "$logcat" "${prefix}_lmkd_all.txt" || status=1; skin_after=$(thermal_record "$(basename "$prefix")_after") || { skin_after=na; void_reason=thermal; status=1; }; grep -E 'KALSA_|llama_model_loader|reusing [0-9]+/[0-9]+' "$logcat" > "${prefix}_filtered.txt" 2>/dev/null || true

@@ -24,7 +24,7 @@ extract() {
   local wanted="$1"
   /usr/bin/awk -v wanted="$wanted" '$0 ~ ("^" wanted "\\(\\) \\{"){on=1;print;if($0~/;[[:space:]]*}$/)on=0;next} on{print;if($0~/^}$/)on=0}' "$DRIVER"
 }
-for fn in log gpu_fit_ram_gate write_end deadline_check validate_deadline_minutes adbT power_capture logcat_all wake_tap wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db ids_to_json set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend run_observation; do extract "$fn" >> "$LIB"; done
+for fn in log gpu_fit_ram_gate write_end deadline_check validate_deadline_minutes adbT power_capture logcat_all wake_tap wake_sequence device_wake wake_state ensure_awake restore_device restore_ime holder_loop stop_holder cleanup thermal_record make_thermo model_setup copy_model pull_rkstorage bootstrap_db ids_to_json set_prefs fresh_install has_load_proof count_after count_lmkd_after last_json_after json_field parse_tokens telemetry_complete memory_before memory_after lmkd_all_after poll_load poll_telemetry clear_anchor dump_ui bounds_edit bounds_send tap_bounds load_prompt type_prompt ime_suspend app_foreground run_observation; do extract "$fn" >> "$LIB"; done
 source "$LIB"
 source "$CELL/parse.sh"
 
@@ -59,6 +59,7 @@ adbT() {
     if [ "$POWER_MODE" = rc255_good ]; then printf 'mWakefulness=Awake\n'; return 255; fi
     if [ "$POWER_MODE" = no_wake ]; then printf 'power dump without wakefulness\n'; return 1; fi
     if [ "$WAKE_MODE" = doze_load ] && [ "$POWER_CHECK_CONTEXT" = load ] && [ "$LOAD_DOZE_REMAINING" -gt 0 ]; then LOAD_DOZE_REMAINING=$((LOAD_DOZE_REMAINING - 1)); printf 'mWakefulness=Dozing\n'; elif [ "$WAKE_MODE" = doze_once ] && [ "$WAKE_AWAKE" -eq 0 ]; then printf 'mWakefulness=Dozing\n'; else printf 'mWakefulness=Awake\n'; fi
+  elif [[ "$joined" == *"dumpsys activity activities"* ]]; then printf '    topResumedActivity=ActivityRecord{abc123 u0 com.kalsa.app/.MainActivity t13}\n'
   elif [[ "$joined" == *"dumpsys package"* || "$joined" == *"pm dump"* ]]; then printf 'Package [com.kalsa.app] flags=[ DEBUGGABLE ]\n'
   elif [[ "$joined" == *"pidof"* ]]; then printf '4242\n'
   elif [[ "$joined" == *"sha256sum"* ]]; then printf '%s  %s\n' "$MODEL_SHA" "$MODEL_REMOTE"

@@ -135,3 +135,17 @@ n_common` from the last KALSA_KVPREFIX after the send anchor (same anchor). Chec
 (in range); on run 8's logcat the reuse line still wins (841/1766 → 925 vs 1766−843=923, 2-token checkpoint granularity).
 dryrun rc=0. Relaunched `ABABAB 45` in the same session. Readings unchanged. Note for the record: the prompt is now
 ~620 tokens shorter than in runs 8–10 (tool schemas + web-search system prompt gone), not ~60 as guessed in Amendment 5.
+
+### Amendment 7 (6/09 15:40 EDT, before any oracle verdict was read)
+Fourth attempt (raw `qdc-governor-s5b/raw/sa812021-foreground-void/`, END deadline_45_min): **both A turns valid**
+(A1 928 new tokens / TTFT 5,43 s, A2 5,54 s, `tool_calls=0`, ids_sha 558522c0…) and **both B turns VOID `composer`**.
+Cause read in the B logcats: after `poll_load` the driver calls `device_wake` → `wake_sequence` (`wm dismiss-keyguard`
++ tap), and on this Android 16 board that brings `com.android.launcher3…QuickstepLauncher` to the top
+(`wm_on_top_resumed_gained_called` 26 s after `Displayed com.kalsa.app/.MainActivity`); the UI dump then captures the
+launcher, `bounds_edit` is empty, `dump_fail stage=edit` → VOID. No native crash, no LMKD kill, the model had loaded.
+This is a harness/board interaction, not an app or oracle property, and it hits only B because only B is reached after
+the 8,5-min cooldown + reinstall sequence in this ordering. Fix (d_run.sh `app_foreground`, called between
+`ime_suspend` and `ui_send`): read `topResumedActivity` from `dumpsys activity activities` (content-based, rc ignored —
+QDC trap 8), and if it is not `com.kalsa.app`, re-issue `am start -n com.kalsa.app/.MainActivity` and re-check, twice;
+failure ⇒ `void_reason=foreground` (a VOID row, never a silent pass). dryrun.sh stubs the new dumpsys and registers the
+function; rc=0. Relaunched `ABABAB 40` in the same session (expires ~17:03 EDT). Readings unchanged.

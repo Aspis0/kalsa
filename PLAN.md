@@ -2779,3 +2779,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > Nessun crash nativo, nessun LMKD: l'app è finita in background dopo il `device_wake` che gira DOPO poll_load
 > (d_run.sh:380 → wake_sequence: `wm dismiss-keyguard` + tap). Su Android 16 il dismiss-keyguard riporta in cima il
 > launcher. Fix minimo: prima di `ui_send`, verificare la top activity e rifare `am start` se non è com.kalsa.app.
+> 15:40 — quinto tentativo in volo (pid 35313, `ABABAB 40`, raw/sa812021/). Aggiunto `app_foreground` (topResumedActivity
+> + `am start` di rimessa in primo piano, 2 tentativi, altrimenti VOID `foreground`); dryrun rc=0 dopo aver registrato la
+> funzione e lo stub `dumpsys activity activities`. Quarto tentativo archiviato in raw/sa812021-foreground-void/
+> (A1/A2 valide, B1/B2 VOID composer). PREREG Amendment 7.
