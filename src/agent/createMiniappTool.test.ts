@@ -64,6 +64,42 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(buildMiniappV1("quick_calculator", {})).toBeNull();
   });
 
+  test("quick_calculator accepts a bare arithmetic formula (no fields)", () => {
+    const miniapp = buildMiniappV1("quick_calculator", { formula: "2 + 3 * 4" });
+    expect(miniapp).not.toBeNull();
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "calculator", formula: "2 + 3 * 4" });
+  });
+
+  test("quick_calculator rejects an invalid formula (F3)", () => {
+    // Unbalanced parens / bad charset / referencing an unknown field id.
+    expect(buildMiniappV1("quick_calculator", { formula: "a + " })).toBeNull();
+    expect(buildMiniappV1("quick_calculator", { formula: "a @ b" })).toBeNull();
+    expect(
+      buildMiniappV1("quick_calculator", {
+        formula: "x + 1",
+        fields: [{ id: "a", label: "A", value: 1 }],
+      }),
+    ).toBeNull();
+  });
+
+  test("quick_calculator rejects empty or duplicate field ids (F4)", () => {
+    expect(
+      buildMiniappV1("quick_calculator", {
+        formula: "a + b",
+        fields: [{ label: "A", value: 1 }], // no id
+      }),
+    ).toBeNull();
+    expect(
+      buildMiniappV1("quick_calculator", {
+        formula: "a + b",
+        fields: [
+          { id: "a", label: "A", value: 1 },
+          { id: "a", label: "A2", value: 2 },
+        ],
+      }),
+    ).toBeNull();
+  });
+
   test("reading_quiz → quiz with >= 2 options", () => {
     const miniapp = buildMiniappV1("reading_quiz", {
       question: "Capital of France?",
@@ -93,6 +129,18 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(buildMiniappV1("reading_quiz", { question: "Q?", options: ["A"] })).toBeNull();
   });
 
+  test("reading_quiz rejects more than 4 options (F2)", () => {
+    // >4 options would truncate to 4 and invalidate a safe answerIndex, so the
+    // builder rejects the slots outright instead of producing a broken quiz.
+    expect(
+      buildMiniappV1("reading_quiz", {
+        question: "Q?",
+        options: ["A", "B", "C", "D", "E"],
+        answerIndex: 4,
+      }),
+    ).toBeNull();
+  });
+
   test("unknown template → null", () => {
     expect(buildMiniappV1("not_a_template", {})).toBeNull();
   });
@@ -113,6 +161,22 @@ describe("create_miniapp executor", () => {
     const opened = onMiniapp.mock.calls[0][0] as { kind: string; blocks: unknown[] };
     expect(opened.kind).toBe("reading_quiz");
     expect(opened.blocks[0]).toMatchObject({ type: "quiz" });
+  });
+
+  test("success text is 'Miniapp created: {title}'", async () => {
+    const execute = makeCreateMiniappExecutor("en");
+    const result = await execute("create_miniapp", {
+      template: "reading_quiz",
+      slots: {
+        title: "My Quiz",
+        question: "Q?",
+        options: ["A", "B"],
+        answerIndex: 0,
+      },
+    });
+    expect(result.text).toBe(
+      getStrings("en").errors.createMiniappCreated.replace("{title}", "My Quiz"),
+    );
   });
 
   test("invalid slots: no onMiniapp call, error tagged", async () => {
@@ -189,5 +253,34 @@ describe("create_miniapp tool definition + registry", () => {
       (t) => t.function.name,
     );
     expect(names).toContain("create_miniapp");
+  });
+});
+
+describe("system prompts mention create_miniapp (F1)", () => {
+  function promptText(locale: "en" | "it"): string {
+    const s = getStrings(locale);
+    return [
+      s.systemPrompt ?? "",
+      s.systemPromptWithSearch ?? "",
+      s.operativeBlock.miniapp ?? "",
+    ].join("\n");
+  }
+
+  test("en prompts steer the tool and name all three templates", () => {
+    const hay = promptText("en");
+    expect(hay).toContain("create_miniapp");
+    expect(hay).toContain("compare_data");
+    expect(hay).toContain("quick_calculator");
+    expect(hay).toContain("reading_quiz");
+    // Prose JSON is framed as a fallback, not the primary instruction.
+    expect(hay.toLowerCase()).toContain("fallback");
+  });
+
+  test("it prompts steer the tool", () => {
+    const hay = promptText("it");
+    expect(hay).toContain("create_miniapp");
+    expect(hay).toContain("compare_data");
+    expect(hay).toContain("quick_calculator");
+    expect(hay).toContain("reading_quiz");
   });
 });

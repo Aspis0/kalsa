@@ -1042,7 +1042,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
       "if you don't know or are unsure, say so explicitly — never guess; " +
       "distinguish clearly between what you know and what you infer.",
     miniapp:
-      "Miniapp: you may emit interactive miniapp_v1 JSON (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
+      "Prefer the create_miniapp tool - call it with template compare_data (comparison table), quick_calculator (formula calculator) or reading_quiz (multiple-choice quiz), filling its slots. It builds the miniapp for you; use only those three templates. For any other layout (table, chart, metric, tabs, expandable, html, action_bar, citations) fall back to emitting miniapp_v1 JSON by hand. Miniapp: you may emit interactive miniapp_v1 JSON (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "for quiz never reveal answerIndex in prose — the app grades privately; " +
       "calculator formulas: numbers, field identifiers, + - * / and parentheses only; " +
       "block types also include data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls).",
@@ -1070,11 +1070,11 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "If you don't know or are not sure, say so plainly and never guess. " +
     "Distinguish clearly between what you know and what you infer. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
+    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). You can also build a miniapp with the create_miniapp tool instead of writing JSON by hand: choose template compare_data, quick_calculator or reading_quiz and pass its slots. Prefer the tool; write miniapp_v1 JSON only when you need a layout the tool does not offer. " +
     "Other block types: data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls). " +
     "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
     "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
-    "Emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence). " +
+    "As a fallback (when the tool is unavailable or you need a layout it does not offer), emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence). " +
     "Answer concisely. Use short paragraphs and bullet lists when helpful. Write in the language required above. " +
     "You are a small on-device model: keep answers short (under 200 words unless asked for more). " +
     "If a task is too long or complex, break it down or suggest how to proceed. " +
@@ -1107,11 +1107,11 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     "document_chat returns relevant passages with page citations, or the full text for small documents. " +
     "Prefer document_chat over web_search for questions about the user's own files. " +
     "You can also generate interactive mini-apps: JSON blocks with types like table, chart, calculator, " +
-    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). " +
+    "metric, tabs, expandable, html and quiz (multiple-choice questions with 4 options, answerIndex required as a zero-based integer 0-3, and optional explanation). You can also build a miniapp with the create_miniapp tool instead of writing JSON by hand: choose template compare_data, quick_calculator or reading_quiz and pass its slots. Prefer the tool; write miniapp_v1 JSON only when you need a layout the tool does not offer. " +
     "Other block types: data_table (columns [{key,label}] with rows), input_panel (editable numeric fields), result_card (a single value with its formula), action_bar (action buttons), and citations (a list of sources with titles and urls). " +
     "For quiz blocks never reveal answerIndex in the prose — the app grades the answer privately. " +
     "Calculator formulas: numbers, field identifiers, + - * / and parentheses only. " +
-    "Emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence). " +
+    "As a fallback (when the tool is unavailable or you need a layout it does not offer), emit a miniapp as a JSON object with schema miniapp_v1, kind, title, and blocks (optionally inside a ```json fence). " +
     "Answer concisely. Use short paragraphs and bullet lists when helpful. Write in the language required above. " +
     "You are a small on-device model: keep answers short (under 200 words unless asked for more). " +
     "If a task is too long or complex, break it down or suggest how to proceed. " +

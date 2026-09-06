@@ -14,6 +14,7 @@ import {
   MINIAPP_TEMPLATE_IDS,
   type MiniappTemplateId,
 } from "./miniappTemplates";
+import { evaluateCalculatorFormula } from "./miniappCalculator";
 
 type Slots = Record<string, unknown>;
 
@@ -91,16 +92,48 @@ function buildCalculatorFields(
   if (value === undefined) return undefined;
   if (!Array.isArray(value)) return null;
   const out: Record<string, unknown>[] = [];
+  const seenIds = new Set<string>();
   for (const field of value) {
     if (!isPlainObject(field)) {
       return null;
     }
-    const id = asString(field.id) ?? "";
+    // F4: reject empty or duplicate field ids (duplicate ids collide on the
+    // renderer's per-field state key — one input overwrites the other).
+    const id = asString(field.id);
+    if (!id) return null;
+    if (seenIds.has(id)) return null;
+    seenIds.add(id);
     const entry: Record<string, unknown> = { id, label: asString(field.label) ?? id };
     if (field.value !== undefined) entry.value = field.value;
     out.push(entry);
   }
   return out;
+}
+
+/** Coerce a field value to a finite number, else undefined. */
+function toNumber(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined;
+  if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+/** Build the { id: number } map the calculator evaluator needs. Non-numeric
+ *  field values are skipped; a formula referencing them is then rejected. */
+function fieldsToVars(
+  fields: Record<string, unknown>[] | undefined,
+): Record<string, number> {
+  const vars: Record<string, number> = {};
+  if (!fields) return vars;
+  for (const field of fields) {
+    const id = asString(field.id);
+    if (!id) continue;
+    const n = toNumber(field.value);
+    if (typeof n === "number") vars[id] = n;
+  }
+  return vars;
 }
 
 function buildQuickCalculator(slots: Slots): AskAssistantMiniapp | null {
@@ -109,6 +142,11 @@ function buildQuickCalculator(slots: Slots): AskAssistantMiniapp | null {
 
   const fields = buildCalculatorFields(slots.fields);
   if (fields === null) return null; // provided but invalid
+
+  // F3: validate the formula exactly as the renderer's evaluator does (length /
+  // charset gate + field-id substitution). A formula that references an unknown
+  // id or is arithmetically invalid is rejected here, not as a dead calculator.
+  if (!evaluateCalculatorFormula(formula, fieldsToVars(fields)).ok) return null;
 
   const block: Record<string, unknown> = { type: "calculator", formula };
   if (fields) block.fields = fields; // omitted fields are optional
@@ -121,8 +159,12 @@ function buildReadingQuiz(slots: Slots): AskAssistantMiniapp | null {
   const question = asString(slots.question);
   if (!question) return null;
 
+  // F2: cap to 2..4 options. More than 4 is rejected as invalid slots so that
+  // any safe answerIndex (0..length-1) always addresses a kept option — the
+  // renderer truncates to 4, so an out-of-range index would silently disable
+  // grading. No truncation happens here, so answerIndex can never be invalidated.
   const options = asStringArray(slots.options);
-  if (!options || options.length < 2) return null;
+  if (!options || options.length < 2 || options.length > 4) return null;
 
   const block: Record<string, unknown> = {
     type: "quiz",

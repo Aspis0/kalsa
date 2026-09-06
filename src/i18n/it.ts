@@ -1011,7 +1011,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "se non sai o non sei sicuro, dillo esplicitamente — non indovinare; " +
       "distingui chiaramente tra ciò che sai e ciò che inferisci.",
     miniapp:
-      "Miniapp: puoi emettere miniapp_v1 JSON interattive (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
+      "Preferisci lo strumento create_miniapp - chiamalo con template compare_data (tabella di confronto), quick_calculator (calcolatrice di formule) o reading_quiz (domanda a scelta multipla), compilando le slot. Costruisce la miniapp per te; usa solo questi tre templates. Per qualsiasi altro layout (table, chart, metric, tabs, expandable, html, action_bar, citations) usa come alternativa miniapp_v1 JSON scritto a mano. Miniapp: puoi emettere miniapp_v1 JSON interattive (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "per i quiz non rivelare mai answerIndex nel testo — l'app valuta in privato; " +
       "formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
       "Inoltre, i tipi di blocco includono data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url).",
@@ -1030,11 +1030,11 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Se non sai o non sei sicuro, dillo chiaramente e non indovinare. " +
     "Distingui chiaramente tra ciò che sai e ciò che inferisci. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
-    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
+    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). Puoi anche costruire una miniapp usando lo strumento create_miniapp, senza scrivere JSON a mano: scegli il template compare_data, quick_calculator o reading_quiz e compila le slot. Preferito lo strumento: scrivi JSON miniapp_v1 solo quando ti serve un layout che lo strumento non offre. " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
     "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
-    "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
+    "Come alternativa (quando lo strumento non è disponibile o ti serve un layout che non offre), emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
     "Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Scrivi nella lingua richiesta sopra. " +
     "Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). " +
     "Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. " +
@@ -1066,11 +1066,11 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "document_chat restituisce passaggi rilevanti con citazioni di pagina, o il testo intero per documenti piccoli. " +
     "Preferisci document_chat a web_search per domande sui file dell'utente. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
-    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). " +
+    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). Puoi anche costruire una miniapp usando lo strumento create_miniapp, senza scrivere JSON a mano: scegli il template compare_data, quick_calculator o reading_quiz e compila le slot. Preferito lo strumento: scrivi JSON miniapp_v1 solo quando ti serve un layout che lo strumento non offre. " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
     "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
-    "Emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
+    "Come alternativa (quando lo strumento non è disponibile o ti serve un layout che non offre), emetti una miniapp come oggetto JSON con schema miniapp_v1, kind, title e blocks (opzionalmente in un fence ```json). " +
     "Rispondi in modo conciso. Usa paragrafi brevi e elenchi puntati quando servono. Scrivi nella lingua richiesta sopra. " +
     "Sei un modello piccolo sul dispositivo: tieni le risposte brevi (sotto le 200 parole, salvo richiesta esplicita di più). " +
     "Se un compito è troppo lungo o complesso, suddividilo o suggerisci come procedere. " +

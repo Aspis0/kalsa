@@ -4514,6 +4514,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           settled = true;
           streamInFlightRef.current = false;
           setStreaming(false);
+          // Clear the create_miniapp hook so a stale turn can never route into
+          // a newer turn's onMiniapp (defence for F7; sends are serial anyway).
+          onMiniappRef.current = () => {};
           resolve(afterSessionSave ? { afterSessionSave } : {});
         };
         const fail = (message: string, reasonKey?: string) => {
