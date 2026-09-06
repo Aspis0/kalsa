@@ -2791,3 +2791,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > insufficiente. Sessione 807952 chiusa (Completed), tunnel giù, raw committati (43092dd5). **R5 si sposta su QRD8650**
 > (623 min): positivo `ABABAB 85` + negativo `ABABAB 50` nella stessa sessione. Resta aperto il caso specifico
 > dell'8 Elite (flip a idx 29). PREREG Amendment 9.
+> 17:00 — sessione **807954** `kalsa-oracle-R5-8gen3` QRD8650 (host sa812023, serial 45207755, board pineapple,
+> Android 14), 150 min (scade ~19:29 EDT), SSH only, kalsa-mac; tunnel pid ~/kalsa-qdc/tunnel-sa812023.pid.
+> Positivo in volo: `ORACLE_MODE=logit d_run.sh sa812023 <apk 19b67b6> ABABAB 85` (pid /tmp/s5b-driver.pid=64715,
+> raw/sa812023/). A seguire il negativo con l'APK e54f529, `ABABAB 50`.
