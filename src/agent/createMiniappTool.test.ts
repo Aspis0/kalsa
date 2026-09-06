@@ -293,6 +293,41 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
   test("unknown template → null", () => {
     expect(buildMiniappV1("not_a_template", {})).toBeNull();
   });
+
+  // ── F-5: per-field string cap + per-block 64 KiB serialized guard ──
+
+  test("F-5: a single oversized required field rejects the whole build", () => {
+    const overCap = "x".repeat(5000); // > MAX_SLOT_CHARS (4000)
+    // required scalar field (quiz question) rejected per-field
+    expect(
+      buildMiniappV1("reading_quiz", {
+        questions: [{ question: overCap, options: ["A", "B"] }],
+      }),
+    ).toBeNull();
+    // oversized plain-string checklist step rejected per-field
+    expect(buildMiniappV1("checklist", { steps: [overCap] })).toBeNull();
+    // a normal step (under the cap) still builds
+    expect(
+      buildMiniappV1("checklist", { steps: ["Install", "Configure"] }),
+    ).not.toBeNull();
+  });
+
+  test("F-5: a single block exceeding 64 KiB is rejected, not silently degraded", () => {
+    // pros_cons emits one data_table block; ~12 rows with 4000-char pro/con
+    // fields each total > 64 KiB in that single block. The per-field cap allows
+    // each field, but the serialized guard rejects the whole miniapp.
+    const big = "x".repeat(4000);
+    const rows = Array.from({ length: 12 }, () => ({ pro: big, con: big }));
+    expect(buildMiniappV1("pros_cons", { rows })).toBeNull();
+  });
+
+  test("F-5: a normal-sized checklist still builds", () => {
+    const miniapp = buildMiniappV1("checklist", {
+      steps: ["One", "Two", "Three"],
+    });
+    expect(miniapp).not.toBeNull();
+    expect(miniapp?.blocks[0]).toMatchObject({ type: "timeline" });
+  });
 });
 
 describe("create_miniapp executor", () => {

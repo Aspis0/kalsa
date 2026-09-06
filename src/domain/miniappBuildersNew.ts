@@ -14,7 +14,8 @@
 
 import {
   asString,
-  asStringArray,
+  asStringCapped,
+  asStringArrayCapped,
   envelope,
   isPlainObject,
   safeAnswerIndex,
@@ -55,10 +56,10 @@ export function buildNQuestionQuiz(slots: Slots): AskAssistantMiniapp | null {
   for (const item of rawQuestions) {
     if (!isPlainObject(item)) return null;
 
-    const question = asString(item.question);
+    const question = asStringCapped(item.question);
     if (!question) return null;
 
-    const options = asStringArray(item.options);
+    const options = asStringArrayCapped(item.options);
     // Cap to 2..4 options. More than 4 is rejected so any safe answerIndex
     // (0..length-1) always addresses a kept option.
     if (!options || options.length < 2 || options.length > 4) return null;
@@ -92,7 +93,7 @@ export function buildKpiStrip(slots: Slots): AskAssistantMiniapp | null {
   const metrics: Record<string, unknown>[] = [];
   for (const metric of rawMetrics) {
     if (!isPlainObject(metric)) return null;
-    const label = asString(metric.label);
+    const label = asStringCapped(metric.label);
     if (!label) return null;
     const value = metric.value;
     if (
@@ -140,7 +141,9 @@ export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
 
   const steps: Record<string, unknown>[] = [];
   for (const entry of raw) {
-    const title = asString(entry);
+    // Plain-string steps are capped too (F-5): an oversized step rejects the
+    // whole build rather than emitting a title the 64 KiB guard might keep.
+    const title = asStringCapped(entry);
     if (title) {
       steps.push({ title });
       continue;
@@ -149,7 +152,7 @@ export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
     // TimelineBlockView only renders title/label/time, so never store a `body`
     // field the UI ignores: promote `body` to the visible title only when no
     // title is given, then drop it.
-    const stepTitle = asString(entry.title) ?? asString(entry.body);
+    const stepTitle = asStringCapped(entry.title) ?? asStringCapped(entry.body);
     if (!stepTitle) return null;
     steps.push({ title: stepTitle });
   }
@@ -176,8 +179,8 @@ export function buildProsCons(
   const rows: Record<string, string>[] = [];
   for (const raw of rawRows) {
     if (!isPlainObject(raw)) return null;
-    const pro = asString(raw.pro);
-    const con = asString(raw.con);
+    const pro = asStringCapped(raw.pro);
+    const con = asStringCapped(raw.con);
     if (!pro && !con) continue; // skip empty rows
     rows.push({ pro: pro ?? "", con: con ?? "" });
   }

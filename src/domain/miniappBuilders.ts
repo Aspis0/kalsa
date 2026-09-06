@@ -19,6 +19,11 @@ import { buildC6c, type ColumnLabels } from "./miniappBuildersNew";
 
 type Slots = Record<string, unknown>;
 
+/** Per-block JSON byte cap (F-5). Duplicated from askAssistant.js
+ *  (MAX_BLOCK_JSON_BYTES = 64 * 1024); keep in sync — normalizeMiniappBlock
+ *  degrades any block past this to {type:"unknown"}. */
+const MAX_BLOCK_JSON_BYTES = 64 * 1024;
+
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -34,6 +39,30 @@ export function asStringArray(value: unknown): string[] | null {
   const out: string[] = [];
   for (const entry of value) {
     const cleaned = asString(entry);
+    if (cleaned === null) return null;
+    out.push(cleaned);
+  }
+  return out;
+}
+
+/** Max chars for a single required slot string before the whole build is
+ *  rejected (F-5). Backstopped by the per-block 64 KiB guard in buildMiniappV1. */
+const MAX_SLOT_CHARS = 4000;
+
+/** Non-empty trimmed string capped at MAX_SLOT_CHARS; null when empty or over
+ *  the cap. Rejects oversized required fields loudly instead of emitting them. */
+export function asStringCapped(value: unknown): string | null {
+  const raw = asString(value);
+  return raw === null || raw.length > MAX_SLOT_CHARS ? null : raw;
+}
+
+/** Array of non-empty strings capped at MAX_SLOT_CHARS, or null when any entry
+ *  is not a string or is over the cap. */
+export function asStringArrayCapped(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const out: string[] = [];
+  for (const entry of value) {
+    const cleaned = asStringCapped(entry);
     if (cleaned === null) return null;
     out.push(cleaned);
   }
@@ -67,8 +96,18 @@ export function envelope(
   };
 }
 
+/** True when any block (or the full envelope) serializes past MAX_BLOCK_JSON_BYTES,
+ *  which normalizeMiniappBlock would otherwise silently degrade to {type:"unknown"}. */
+function oversizedBuilt(miniapp: AskAssistantMiniapp): boolean {
+  const cap = MAX_BLOCK_JSON_BYTES;
+  for (const block of miniapp.blocks) {
+    if (JSON.stringify(block).length > cap) return true;
+  }
+  return JSON.stringify(miniapp).length > cap;
+}
+
 function buildCompareData(slots: Slots): AskAssistantMiniapp | null {
-  const columns = asStringArray(slots.columns);
+  const columns = asStringArrayCapped(slots.columns);
   if (!columns || columns.length === 0) return null;
 
   const rows: Record<string, unknown>[] = [];
@@ -138,7 +177,7 @@ function fieldsToVars(
 }
 
 function buildQuickCalculator(slots: Slots): AskAssistantMiniapp | null {
-  const formula = asString(slots.formula);
+  const formula = asStringCapped(slots.formula);
   if (!formula) return null;
 
   const fields = buildCalculatorFields(slots.fields);
@@ -189,6 +228,9 @@ export function buildMiniappV1(
       return null;
   }
   if (!built) return null;
+  // F-5: reject the whole miniapp if any block (or the envelope) exceeds the
+  // 64 KiB cap normalizeMiniappBlock applies (MAX_BLOCK_JSON_BYTES).
+  if (oversizedBuilt(built)) return null;
   // Second guard: a builder produced something normalizeMiniapp rejects.
   return normalizeMiniapp(built);
 }
