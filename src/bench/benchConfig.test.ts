@@ -23,6 +23,7 @@ import {
   parseEngineArg,
   registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
+  shouldUseToolCalling,
   tryHandleBenchCommand,
 } from "./benchConfig";
 
@@ -104,7 +105,7 @@ describe("resolveCompletionToolChoice", () => {
     ).toBe("auto");
   });
 
-  test("bench none offers tools but never chooses", () => {
+  test("bench none always chooses none", () => {
     expect(sequence("none")).toEqual(["none", "none", "none"]);
   });
 
@@ -118,6 +119,16 @@ describe("resolveCompletionToolChoice", () => {
         benchMode: "required",
       }),
     ).toBe("none");
+  });
+});
+
+describe("bench toolchoice tool-calling gate", () => {
+  test('none omits completion tools and fallback parsing', () => {
+    expect(shouldUseToolCalling("none")).toBe(false);
+  });
+
+  test('auto keeps completion tools and fallback parsing enabled', () => {
+    expect(shouldUseToolCalling("auto")).toBe(true);
   });
 });
 
