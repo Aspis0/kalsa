@@ -93,7 +93,7 @@ resolve_host_targets() {
     [ "$rc" -eq 0 ] || return "$rc"
     HOST_TARGETS=()
     for target in "${REQUESTED_TARGETS[@]}"; do
-        if awk -v wanted="$target" '$NF == wanted { found = 1 } END { exit !found }' "$help_log"; then
+        if awk -v wanted="$target" '{ split($0, a, ":"); n = a[1]; sub(/.*\//, "", n); if (n == wanted) { found = 1; exit } } END { exit !found }' "$help_log"; then
             HOST_TARGETS+=("$target")
         else
             dropped=1; printf 'dropped_target=%s reason=target_missing\n' "$target" >> "$help_log"
