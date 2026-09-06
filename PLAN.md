@@ -1658,7 +1658,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > di cella 58 (905/20). Run 9: A1 11,77 / B1 GPU 7,42 / A2 12,48 valide, B2 in typing dopo 810 s di cooldown.
 > **04:50 — audit #21b GO**, d_run 750 committato. **Run 9 seconda coppia: B2 GPU 7,42 s (identica a B1) vs A2 CPU
 > 12,48 s → 0,595; mediana delle 2 coppie stesso-turno 0,613 (1,63×)**, stessi ids GPU d4556574 (oracolo FAIL ×2).
-> A3 in cooldown, deadline 05:05. Poi: End Session 807351, REPORT run 9, ALIVE 52; sessione QRD8650 per il test kit. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> A3 in cooldown, deadline 05:05. Poi: End Session 807351, REPORT run 9, ALIVE 52; sessione QRD8650 per il test kit.
+> **05:15 — RUN 9 CHIUSA** (deadline 05:04:50): **5/5 righe valide**, A3 12,54 s spaiata, B3 persa; raw d78a39fb;
+> sessione 807351 Completed; REPORT run 9 Luna 81005e53 in scrittura. **Sessione QDC 807841 = sa811910 (QRD8650,
+> df8ea83f) aperta 05:11; d_run 750 lanciato 05:14** (baseline gpu-kit-12f6d9b → gate 20 FAIL → candidato
+> gpu-kit-2f3b24d; tbo MUL_MAT/MUL_MAT_ID/FA + llama-bench; deadline 60 min). Trappola: `raw/` mancante nella
+> cella nuova → nohup silenziosamente fallito al primo lancio (mkdir prima). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
