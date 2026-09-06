@@ -215,12 +215,22 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect((miniapp?.blocks[0] as any).steps[0]).toMatchObject({ title: "Install" });
   });
 
-  test("checklist accepts items (title/body + plain) and rejects empty input", () => {
+  test("checklist promotes body to the visible title and drops it (F-3)", () => {
     const miniapp = buildMiniappV1("checklist", {
-      items: [{ title: "Step 1", body: "do it" }, "plain step"],
+      items: [
+        { title: "Step 1", body: "do it" },
+        { body: "Only body" },
+        "plain step",
+      ],
     });
-    expect(miniapp?.blocks[0].steps).toHaveLength(2);
-    expect((miniapp?.blocks[0] as any).steps[1]).toMatchObject({ title: "plain step" });
+    expect(miniapp?.blocks[0].steps).toHaveLength(3);
+    // titled item: title kept, body ignored and never stored
+    expect((miniapp?.blocks[0] as any).steps[0]).toMatchObject({ title: "Step 1" });
+    expect((miniapp?.blocks[0] as any).steps[0].body).toBeUndefined();
+    // body-only item: body promoted to the visible title, then dropped
+    expect((miniapp?.blocks[0] as any).steps[1]).toMatchObject({ title: "Only body" });
+    expect((miniapp?.blocks[0] as any).steps[1].body).toBeUndefined();
+    expect((miniapp?.blocks[0] as any).steps[2]).toMatchObject({ title: "plain step" });
     expect(buildMiniappV1("checklist", { steps: [] })).toBeNull();
     expect(buildMiniappV1("checklist", { steps: [{}] })).toBeNull(); // no title/body
     expect(buildMiniappV1("checklist", {})).toBeNull();
@@ -238,7 +248,13 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     });
     expect(miniapp).not.toBeNull();
     expect(miniapp?.kind).toBe("pros_cons");
-    expect(miniapp?.blocks[0]).toMatchObject({ type: "data_table", columns: ["pro", "con"] });
+    expect(miniapp?.blocks[0]).toMatchObject({
+      type: "data_table",
+      columns: [
+        { key: "pro", label: "Pro" },
+        { key: "con", label: "Con" },
+      ],
+    });
     expect(miniapp?.blocks[0].rows).toHaveLength(2);
     expect((miniapp?.blocks[0] as any).rows[0]).toMatchObject({ pro: "Fast", con: "Expensive" });
     // a row with only a pro keeps an empty con cell
@@ -249,6 +265,29 @@ describe("create_miniapp builder (buildMiniappV1)", () => {
     expect(buildMiniappV1("pros_cons", { rows: [] })).toBeNull();
     expect(buildMiniappV1("pros_cons", { rows: [{ pro: "" }, { con: "" }, {}] })).toBeNull();
     expect(buildMiniappV1("pros_cons", { rows: "nope" })).toBeNull();
+  });
+
+  test("pros_cons localizes column headers via labels (F-4)", () => {
+    const miniapp = buildMiniappV1(
+      "pros_cons",
+      { rows: [{ pro: "fast", con: "costoso" }] },
+      { pro: "Pro / No", con: "Contro" },
+    );
+    expect(miniapp?.blocks[0]).toMatchObject({
+      type: "data_table",
+      columns: [
+        { key: "pro", label: "Pro / No" },
+        { key: "con", label: "Contro" },
+      ],
+    });
+    // key stays stable so row lookup still works
+    expect((miniapp?.blocks[0] as any).rows[0]).toMatchObject({ pro: "fast", con: "costoso" });
+  });
+
+  test("F-1: pros_cons reads rows[], not top-level pro/con", () => {
+    // The tool description no longer advertises top-level pro/con; sending
+    // them without rows[] is rejected (invalid_slots), not silently ignored.
+    expect(buildMiniappV1("pros_cons", { pro: "a", con: "b" })).toBeNull();
   });
 
   test("unknown template → null", () => {
@@ -271,6 +310,24 @@ describe("create_miniapp executor", () => {
     const opened = onMiniapp.mock.calls[0][0] as { kind: string; blocks: unknown[] };
     expect(opened.kind).toBe("reading_quiz");
     expect(opened.blocks[0]).toMatchObject({ type: "quiz" });
+  });
+
+  test("executor localizes headers by locale (F-4)", async () => {
+    const onMiniapp = jest.fn();
+    const execute = makeCreateMiniappExecutor("it", { onMiniapp });
+    await execute("create_miniapp", {
+      template: "pros_cons",
+      slots: { rows: [{ pro: "fast", con: "costoso" }] },
+    });
+    const opened = onMiniapp.mock.calls[0][0] as {
+      kind: string;
+      blocks: Array<{ columns: Array<{ key: string; label: string }> }>;
+    };
+    expect(opened.kind).toBe("pros_cons");
+    expect(opened.blocks[0].columns).toEqual([
+      { key: "pro", label: getStrings("it").miniapp.pro },
+      { key: "con", label: getStrings("it").miniapp.con },
+    ]);
   });
 
   test("success text is 'Miniapp created: {title}'", async () => {

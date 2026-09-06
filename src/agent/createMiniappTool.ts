@@ -37,8 +37,12 @@ export const CREATE_MINIAPP_TOOL: EngineTool = {
         slots: {
           type: "object",
           description:
-            "Template-specific key-value slots (title, columns, rows, " +
-            "formula, fields, questions, metrics, steps, items, pro, con).",
+            "Per-template slots: compare_data (title?, columns[], rows[]), " +
+            "quick_calculator (title?, formula, fields[]), reading_quiz " +
+            "(title?, questions[] of {question, options[2..4], answerIndex?, " +
+            "explanation?}), kpi_strip (title?, metrics[] of {label, value, " +
+            "unit?, tone?}), checklist (title?, steps[] or items[]), or " +
+            "pros_cons (title?, rows[] of {pro?, con?}).",
           additionalProperties: true,
         },
       },
@@ -89,7 +93,10 @@ export function makeCreateMiniappExecutor(
       };
     }
 
-    const built = buildMiniappV1(template, raw.slots);
+    const built = buildMiniappV1(template, raw.slots, {
+      pro: strings.miniapp.pro,
+      con: strings.miniapp.con,
+    });
     const normalized = built ? normalizeMiniapp(built) : null;
     if (!normalized) {
       return {

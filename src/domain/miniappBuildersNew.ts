@@ -29,6 +29,13 @@ const MAX_METRICS = 8;
 const MAX_STEPS = 12;
 const MAX_ROWS = 50;
 
+/** Column labels for the pros_cons data_table. `key` is the stable field used
+ *  to look up row values; `label` is the localized header shown in the UI. */
+export type ColumnLabels = { pro: string; con: string };
+
+/** English defaults; the executor overrides with locale labels (F-4). */
+const DEFAULT_COLUMN_LABELS: ColumnLabels = { pro: "Pro", con: "Con" };
+
 /**
  * reading_quiz → one `quiz` block per question.
  *
@@ -52,7 +59,7 @@ export function buildNQuestionQuiz(slots: Slots): AskAssistantMiniapp | null {
     if (!question) return null;
 
     const options = asStringArray(item.options);
-    // F2: cap to 2..4 options. More than 4 is rejected so any safe answerIndex
+    // Cap to 2..4 options. More than 4 is rejected so any safe answerIndex
     // (0..length-1) always addresses a kept option.
     if (!options || options.length < 2 || options.length > 4) return null;
 
@@ -114,7 +121,9 @@ export function buildKpiStrip(slots: Slots): AskAssistantMiniapp | null {
  *
  * Accepts `steps: string[]` OR `items: Array<string | {title, body?}>` and
  * normalizes them to the timeline renderer shape (1..12 entries). String
- * entries become {title}; object entries keep an optional body.
+ * entries become {title}; object entries use `title` when present, otherwise
+ * `body` is promoted to the visible title — the renderer only shows title,
+ * so no unused `body` field is ever emitted.
  */
 export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
   const rawSteps = slots.steps;
@@ -137,12 +146,12 @@ export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
       continue;
     }
     if (!isPlainObject(entry)) return null;
+    // TimelineBlockView only renders title/label/time, so never store a `body`
+    // field the UI ignores: promote `body` to the visible title only when no
+    // title is given, then drop it.
     const stepTitle = asString(entry.title) ?? asString(entry.body);
     if (!stepTitle) return null;
-    const normalized: Record<string, unknown> = { title: stepTitle };
-    const body = asString(entry.body);
-    if (body) normalized.body = body;
-    steps.push(normalized);
+    steps.push({ title: stepTitle });
   }
 
   return envelope(
@@ -153,10 +162,14 @@ export function buildChecklist(slots: Slots): AskAssistantMiniapp | null {
 }
 
 /**
- * pros_cons → a `data_table` with fixed columns ["pro","con"] and one row per
- * pair. Requires ≥1 row with at least one non-empty pro/con.
+ * pros_cons → a `data_table` with one row per pro/con pair. Requires >=1 row
+ * with at least one non-empty pro/con. Column `key` stays the stable "pro"/"con"
+ * used to look up row values; `label` is localized (F-4).
  */
-export function buildProsCons(slots: Slots): AskAssistantMiniapp | null {
+export function buildProsCons(
+  slots: Slots,
+  labels: ColumnLabels = DEFAULT_COLUMN_LABELS,
+): AskAssistantMiniapp | null {
   const rawRows = slots.rows;
   if (!Array.isArray(rawRows)) return null;
 
@@ -176,7 +189,10 @@ export function buildProsCons(slots: Slots): AskAssistantMiniapp | null {
     [
       {
         type: "data_table",
-        columns: ["pro", "con"],
+        columns: [
+          { key: "pro", label: labels.pro },
+          { key: "con", label: labels.con },
+        ],
         rows: rows.slice(0, MAX_ROWS),
       },
     ],
@@ -185,11 +201,13 @@ export function buildProsCons(slots: Slots): AskAssistantMiniapp | null {
 
 /**
  * Dispatch a C6c template id + slots to the matching builder, or null when the
- * template is unknown or its slots fail validation.
+ * template is unknown or its slots fail validation. `labels` localizes the
+ * pros_cons column headers (ignored by the other builders).
  */
 export function buildC6c(
   templateId: string,
   slots: unknown,
+  labels?: ColumnLabels,
 ): AskAssistantMiniapp | null {
   const safeSlots: Slots = isPlainObject(slots) ? (slots as Slots) : {};
 
@@ -205,7 +223,7 @@ export function buildC6c(
       built = buildChecklist(safeSlots);
       break;
     case "pros_cons":
-      built = buildProsCons(safeSlots);
+      built = buildProsCons(safeSlots, labels);
       break;
     default:
       return null;

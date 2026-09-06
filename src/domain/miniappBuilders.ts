@@ -15,7 +15,7 @@ import {
   type MiniappTemplateId,
 } from "./miniappTemplates";
 import { evaluateCalculatorFormula } from "./miniappCalculator";
-import { buildC6c } from "./miniappBuildersNew";
+import { buildC6c, type ColumnLabels } from "./miniappBuildersNew";
 
 type Slots = Record<string, unknown>;
 
@@ -164,6 +164,7 @@ function buildQuickCalculator(slots: Slots): AskAssistantMiniapp | null {
 export function buildMiniappV1(
   templateId: string,
   slots: unknown,
+  labels?: ColumnLabels,
 ): AskAssistantMiniapp | null {
   if (!MINIAPP_TEMPLATE_IDS.includes(templateId as MiniappTemplateId)) {
     return null;
@@ -182,7 +183,7 @@ export function buildMiniappV1(
     case "kpi_strip":
     case "checklist":
     case "pros_cons":
-      built = buildC6c(templateId, safeSlots);
+      built = buildC6c(templateId, safeSlots, labels);
       break;
     default:
       return null;

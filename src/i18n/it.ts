@@ -560,6 +560,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     confirmAction:
       "Questa azione può usare l'AI per generare un risultato dai valori attuali del calcolatore.",
     exportDialogTitle: "Esporta mini-app {format}",
+    pro: "Pro",
+    con: "Contro",
   },
 
   renderer: {
@@ -1020,7 +1022,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "se non sai o non sei sicuro, dillo esplicitamente — non indovinare; " +
       "distingui chiaramente tra ciò che sai e ciò che inferisci.",
     miniapp:
-      "Preferisci lo strumento create_miniapp - chiamalo con template compare_data (tabella di confronto), quick_calculator (calcolatrice di formule), reading_quiz (quiz con diverse domande), kpi_strip (fila di metriche chiave), checklist (checklist ordinata) o pros_cons (pro e contro), compilando le slot. Costruisce la miniapp per te; usa solo sei templates. Per qualsiasi altro layout (table, chart, metric, tabs, expandable, html, action_bar, citations) usa come alternativa miniapp_v1 JSON scritto a mano. Miniapp: puoi emettere miniapp_v1 JSON interattive (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
+      "Preferisci lo strumento create_miniapp - chiamalo con template compare_data (tabella di confronto), quick_calculator (calcolatrice di formule), reading_quiz (quiz con diverse domande), kpi_strip (fila di metriche chiave), checklist (checklist ordinata) o pros_cons (pro e contro), compilando le slot. Costruisce la miniapp per te; usa solo questi sei modelli. Per qualsiasi altro layout (table, chart, metric, tabs, expandable, html, action_bar, citations) usa come alternativa miniapp_v1 JSON scritto a mano. Miniapp: puoi emettere miniapp_v1 JSON interattive (table, chart, calculator, metric, tabs, expandable, html, quiz); " +
       "per i quiz non rivelare mai answerIndex nel testo — l'app valuta in privato; " +
       "formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
       "Inoltre, i tipi di blocco includono data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url).",
@@ -1039,7 +1041,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "Se non sai o non sei sicuro, dillo chiaramente e non indovinare. " +
     "Distingui chiaramente tra ciò che sai e ciò che inferisci. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
-    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). Puoi anche costruire una miniapp usando lo strumento create_miniapp, senza scrivere JSON a mano: scegli il template compare_data, quick_calculator, reading_quiz, kpi_strip, checklist o pros_cons e compila le slot. Preferito lo strumento: scrivi JSON miniapp_v1 solo quando ti serve un layout che lo strumento non offre. " +
+    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). Puoi anche costruire una miniapp usando lo strumento create_miniapp, senza scrivere JSON a mano: scegli il template compare_data, quick_calculator, reading_quiz, kpi_strip, checklist o pros_cons e compila le slot. Preferisci lo strumento: scrivi JSON miniapp_v1 solo quando ti serve un layout che lo strumento non offre. " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
     "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +
@@ -1075,7 +1077,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     "document_chat restituisce passaggi rilevanti con citazioni di pagina, o il testo intero per documenti piccoli. " +
     "Preferisci document_chat a web_search per domande sui file dell'utente. " +
     "Puoi anche generare mini-app interattive: blocchi JSON con tipi come table, chart, calculator, " +
-    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). Puoi anche costruire una miniapp usando lo strumento create_miniapp, senza scrivere JSON a mano: scegli il template compare_data, quick_calculator, reading_quiz, kpi_strip, checklist o pros_cons e compila le slot. Preferito lo strumento: scrivi JSON miniapp_v1 solo quando ti serve un layout che lo strumento non offre. " +
+    "metric, tabs, expandable, html e quiz (domande a scelta multipla con 4 opzioni, answerIndex obbligatorio come intero zero-based 0-3, e explanation opzionale). Puoi anche costruire una miniapp usando lo strumento create_miniapp, senza scrivere JSON a mano: scegli il template compare_data, quick_calculator, reading_quiz, kpi_strip, checklist o pros_cons e compila le slot. Preferisci lo strumento: scrivi JSON miniapp_v1 solo quando ti serve un layout che lo strumento non offre. " +
     "Per i blocchi quiz non rivelare mai answerIndex nel testo — l'app valuta la risposta in privato. " +
     "Altri tipi di blocco: data_table (colonne [{key,label}] con righe), input_panel (campi numerici modificabili), result_card (un singolo valore con la sua formula), action_bar (pulsanti di azione) e citations (una lista di fonti con titoli e url). " +
     "Formule calculator: solo numeri, identificatori di campi, + - * / e parentesi. " +

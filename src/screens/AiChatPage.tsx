@@ -28,6 +28,8 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BarChart2,
+  Calculator,
+  Columns2,
   BookOpen,
   Camera,
   Check,
@@ -37,10 +39,13 @@ import {
   Download,
   FileText,
   Globe,
+  HelpCircle,
   Image as ImageIcon,
+  ListChecks,
   Languages,
   Menu,
   MoreHorizontal,
+  Scale,
   Search,
   Sparkles,
   SquarePen,
@@ -403,15 +408,25 @@ function buildSuggestions(t: TranslateFn): SuggestionItem[] {
 
 // ── Feature 2: miniapp icon map ─────────────────────────────────────────────
 function miniappIcon(kind: string): React.ComponentType<{ size: number; color: string }> {
-  // Mapping generico: il modello sceglie il kind; icone bio rimosse.
+  // Tool-built miniapps carry kind = template id (first group); legacy
+  // hand-written miniapps may still use the older model-chosen kind values.
   switch (kind) {
+    case "compare_data":
+      return Columns2;
+    case "quick_calculator":
+      return Calculator;
+    case "reading_quiz":
+      return HelpCircle;
+    case "kpi_strip":
+      return BarChart2;
+    case "checklist":
+      return ClipboardList;
+    case "pros_cons":
+      return Scale;
     case "calculator":
     case "comparison":
-    case "kpi_strip":
-    case "pros_cons":
       return BarChart2;
     case "planner":
-    case "checklist":
       return ClipboardList;
     case "quiz":
       return BookOpen;

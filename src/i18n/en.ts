@@ -560,6 +560,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     confirmAction:
       "This action may use AI to generate a result from your current calculator values.",
     exportDialogTitle: "Export mini-app {format}",
+    pro: "Pro",
+    con: "Con",
   },
 
   /** UI chrome / fallback labels inside the miniapp renderer (not model content). */
