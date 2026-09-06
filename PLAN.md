@@ -1671,7 +1671,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > famiglia 48/0; MUL_MAT_ID 407/407 e FLASH_ATTN_EXT 226/226 identici su entrambi; SHA256SUMS OK su device per
 > entrambi i kit; gate termico PASS. Bench baseline pp512 289,04±1,01 / tg128 22,67±0,10 (≈ #58); bench candidato
 > in corso (guardia ±10%). Restano: 8 Elite pp512 col candidato (Amendment 2) e run 8b in-app (Amendment 3: gli ids
-> GPU cambiano da d4556574?) prima di qualunque decisione su allowlist/pin. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> GPU cambiano da d4556574?) prima di qualunque decisione su allowlist/pin.
+> **05:40 — test kit 750 COMPLETO** (END complete 05:25): bench candidato pp512 289,59±0,05 / tg128 22,17±0,02 →
+> +0,2% / −2,2% (guardia ±10% ok). Sessione 807841 Completed (~14 min usati), raw committato, **fork branch
+> `kalsa/opencl-picks-2026-09+25910` pushato** (c7ad97025 + 2f3b24dee). REPORT cella 750 Luna 0f36d889 → audit →
+> ALIVE 53. **Sessione 807861 (QRD8635) aperta 05:38 per run 10** (stesso APK 7e3d6d6, driver S5b, `ABABAB 85`). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
