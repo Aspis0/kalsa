@@ -19,6 +19,7 @@ import {
   getToolGateEnabled,
   registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
+  shouldUseToolCalling,
   type BlockFormat,
 } from "../bench/benchConfig";
 import {
@@ -2792,6 +2793,7 @@ export async function streamAssistantTurn(
     const blockFormat = await getBlockFormat();
     const thinkingMode = await getThinkingMode();
     const toolChoiceMode = await getToolChoiceMode();
+    const toolCallingEnabled = shouldUseToolCalling(toolChoiceMode);
     const toolGateEnabled = await getToolGateEnabled();
     const benchSampling = await readBenchSampling();
     const benchOracle =
@@ -3076,6 +3078,7 @@ export async function streamAssistantTurn(
         options?.tools?.some((t) => t?.function?.name === "document_chat"),
       );
       if (
+        toolCallingEnabled &&
         hasTools &&
         hasDocumentChatTool &&
         options?.executeTool &&
@@ -3204,7 +3207,7 @@ export async function streamAssistantTurn(
             applyBenchSampling(
               {
                 messages: currentMessages as RNLlamaOAICompatibleMessage[],
-                ...(hasTools
+                ...(hasTools && toolCallingEnabled
                   ? {
                       tools: options!.tools as EngineTool[],
                       tool_choice: toolChoice,
@@ -3287,7 +3290,7 @@ export async function streamAssistantTurn(
         // (see toolCallParser.ts). Parse it and feed it through the SAME
         // execution path below (round cap, skipped-call bookkeeping, tool-result
         // rule all still apply) instead of showing the markup / an empty reply.
-        if (!toolCalls.length && options?.executeTool) {
+        if (toolCallingEnabled && !toolCalls.length && options?.executeTool) {
           const rawText = extractRawResultText(result);
           const fallbacks = parseFallbackToolCalls(rawText);
           fallbackCalls = fallbacks.length;

@@ -527,6 +527,11 @@ export function resolveCompletionToolChoice(args: {
   return "auto";
 }
 
+/** Whether this bench mode may expose or execute tools for the turn. */
+export function shouldUseToolCalling(benchMode: ToolChoiceMode): boolean {
+  return benchMode !== "none";
+}
+
 /**
  * Bench-only DFlash/MTP speculative override for CI A/B.
  * AsyncStorage key `kalsa.bench.speculative` = JSON
