@@ -100,6 +100,24 @@ count_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{n++}E
 count_lmkd_after() { awk -v a="$ANCHOR_EPOCH" -v p="$APP_PID" '$1+0>=a&&$0~/(lmkd|am_kill|lowmemorykiller)/&&(index($0,"com.kalsa.app")>0||(p!=""&&index($0,p)>0)){n++}END{print n+0}' "$1"; }
 last_json_after() { awk -v a="$ANCHOR_EPOCH" -v m="$1" '$1+0>=a&&index($0,m)>0{x=$0}END{sub(".*"m,"",x);sub(/^[[:space:]]+/,"",x);print x}' "$2"; }
 last_reuse_after() { awk -v a="$SEND_ANCHOR_EPOCH" '$1+0>=a&&/reusing [0-9]+\/[0-9]+/{x=$0}END{print x}' "$1"; }
+extract_probs_after() {
+  local file="$1"
+  local out="$2"
+  local anchor="${SEND_ANCHOR_EPOCH:-0}"
+  : > "$out"
+  case "$anchor" in ''|*[!0-9]*) return 0;; esac
+  [ "$anchor" -gt 0 ] || return 0
+  awk -v a="$anchor" '($1+0)>=a&&index($0,"KALSA_BENCH_PROBS ")>0{line=$0;sub(/^.*KALSA_BENCH_PROBS[[:space:]]+/,"",line);print line}' "$file" |
+    sed $'s/\033\\[[0-9;]*[[:alpha:]]//g;s/\r$//' > "$out"
+}
+oracle_logit_eval() {
+  local a_file="$1"
+  local b_file="$2"
+  local mode="$3"
+  local result
+  result=$(python3 "${ORACLE_HELPER:-}" "$a_file" "$b_file" "$mode" 0.03 0.02 0.10 2>/dev/null) || result='oracle=DESCRIPTIVE rule=R4 steps=0 max_dlogp=0.0000 max_dp1=0.0000 divergences=0 first_div=-1'
+  printf '%s\n' "$result"
+}
 json_field() { local json="$1"; local key="$2"; [ -n "$json" ] || return 0; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$k=shift;$t=do{local $/;<STDIN>};eval{$v=decode_json($t)->{$k};print defined($v)?$v:""}' "$key"; }
 parse_tokens() { local json="$1"; local out="$2"; printf '%s' "$json" | /usr/bin/perl -MJSON::PP -e '$o=decode_json(do{local $/;<STDIN>});die unless ref($o->{ids}) eq "ARRAY"&&defined($o->{n})&&$o->{n}>=32&&@{$o->{ids}}>=32;for $i(0..31){$v=$o->{ids}[$i];die unless defined($v)&&"$v"=~/^-?[0-9]+$/;print "$v\n"}' > "$out" 2>/dev/null; }
 last_epoch() {

@@ -976,3 +976,46 @@ NO-GO until the TF-R1 decision is made (F1): either the TF divergent steps get t
 margin check (making case (1) FAIL R1) or the spec explicitly pre-registers them as
 R4-descriptive. Everything else (FAIL-dominates-DESCRIPTIVE, R2, R3, min-step rule,
 dryrun rc=0) is confirmed.
+
+## Delta audit #25c
+
+Quoted code — oracle_logit.py:66-79: `for step in sorted(set(a_rows) | set(b_rows)): arow
+= a_rows.get(step); brow = b_rows.get(step); if arow is None or brow is None:
+coverage_bad = True; break; compared.append(…); rule, _, _ = step_rule(…); record(…);
+if brow.get("forced") is not True or brow["tok"] != arow["tok"]: coverage_bad = True;
+break`; :36-39 step_rule's R1 on the RAW top-1 (`a1, alogp1 = arow["top"][0]; b1, …
+= brow["top"][0]; rule = "R1" if margin(arow) >= margin_limit and a1 != b1 else ""`);
+:104-108 `if violations: FAIL, min(violations)[2] else coverage_bad → DESCRIPTIVE …
+else PASS`. Evaluate-then-stop confirmed: every step present in both files is R1/R2-judged
+BEFORE the forced/tok coverage check; after the break no later step is judged (prefix
+diverged — correct) but every earlier violation stays recorded; a step present in only one
+file → coverage failure + break (no crash, no silent skip). FAIL dominates DESCRIPTIVE ✓.
+Printed lines (all through the real helper):
+- `tf_masked -> oracle=DESCRIPTIVE rule=R4 steps=1 …`
+- `g_div -> oracle=FAIL rule=R1 steps=10 … divergences=1 first_div=10`
+- `g_2div -> oracle=FAIL rule=R1 steps=10 … divergences=2 first_div=10`
+- `ident -> oracle=PASS rule=none steps=32 …`
+- `drift -> oracle=FAIL rule=R2 steps=32 … max_dp1=0.1000`
+- `missing -> oracle=FAIL rule=R2 steps=32 … max_dlogp=0.1823`
+- `tf31 -> oracle=DESCRIPTIVE rule=R4 steps=31 …`
+- `tf31r2 -> oracle=FAIL rule=R2 steps=31 …`
+- `c1_fixed -> oracle=FAIL rule=R1 steps=1 max_dlogp=1.2528 max_dp1=0.2500`
+- `c2 -> oracle=DESCRIPTIVE rule=R4 steps=6 …`
+- `c3 -> oracle=FAIL rule=R2 steps=4 … max_dp1=0.1000`
+- `c4 -> oracle=FAIL rule=R1 steps=32 max_dlogp=1.2528 max_dp1=0.2000`
+- `bash dryrun.sh > /tmp/dr25c.log 2>&1` → rc=0.
+Notes: my first c1 run (DESCRIPTIVE) and c5 (steps=1) were fixture errors (identical raw
+tops / all-zero steps); with the correct fixtures, the exact amendment-2 expectations hold:
+wrong-tok step with raw top-1 disagreement and margin 0.40 → FAIL R1 steps=1 (the R1 fires
+BEFORE the coverage stop, on the raw top-1 — the case the mode exists for); wrong-tok step
+with identical distributions → DESCRIPTIVE R4 steps=6 (all pre-break steps judged, none
+violating); forced=false at step 3 with drift → FAIL R2; all-forced tok==A with raw
+top-1 differing at margin 0.30 → FAIL R1 steps=32; identical → PASS 32; one-side-missing
+step → coverage failure, no crash.
+
+## Delta verdict #25c
+
+GO. 0 blockers, 0 majors, 0 minors — Amendment-2 semantics fully match the code and every
+test case; FAIL dominates DESCRIPTIVE, R1 fires on the raw top-1 before the coverage stop,
+prefix-only evaluation with no lost violations, coverage on missing-side steps, dryrun
+rc=0. Commit.
