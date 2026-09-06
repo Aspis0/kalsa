@@ -1,0 +1,9 @@
+wait_s=0 skin=39.297 target_c=37.0
+wait_s=15 skin=38.851 target_c=37.0
+wait_s=30 skin=38.485 target_c=37.0
+wait_s=45 skin=38.134 target_c=37.0
+wait_s=60 skin=37.819 target_c=37.0
+wait_s=75 skin=37.538 target_c=37.0
+wait_s=90 skin=37.297 target_c=37.0
+wait_s=105 skin=37.06 target_c=37.0
+wait_s=120 skin=36.846 target_c=37.0
