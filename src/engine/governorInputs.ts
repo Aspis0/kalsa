@@ -14,7 +14,7 @@ type Generation = "V73" | "V75" | "V79" | "Unknown";
 const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
   V79: true, // S5 run 6 oracle PASS 4/4 (kalsa-moe-experiments ALIVE 48)
   V75: false, // Adreno 750 f16/bf16-batched MUL_MAT defect: S5 runs 3-5 deterministic divergence @token 14 (ALIVE 38/39/48)
-  V73: false, // never measured
+  V73: false, // never measured in-app; bench runs use kalsa.bench.governor_force
   Unknown: false,
 };
 
@@ -53,7 +53,7 @@ type GovernorModel = Pick<ModelInfo, "sizeBytes"> &
 
 function generationFor(profile: DeviceProfile): Generation {
   const soc = (profile.socModel ?? "").toUpperCase();
-  if (/(SM8550|KALAMA)/.test(soc)) return "V73";
+  if (/(SM8550|KALAMA|SM7675|SM8635)/.test(soc)) return "V73";
   if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75";
   if (/(SM8750|SUN)/.test(soc)) return "V79";
   const text = [profile.modelName, profile.modelId, profile.manufacturer]
@@ -62,7 +62,7 @@ function generationFor(profile: DeviceProfile): Generation {
     .toUpperCase();
   if (/(^|[^A-Z0-9])(QRD8650|SM8650)([^A-Z0-9]|$)/.test(text)) return "V75";
   if (/(^|[^A-Z0-9])(QRD8750|SM8750)([^A-Z0-9]|$)/.test(text)) return "V79";
-  if (/(^|[^A-Z0-9])(HDK8550|SM8550)([^A-Z0-9]|$)/.test(text)) return "V73";
+  if (/(^|[^A-Z0-9])(HDK8550|SM8550|QRD7675|SM7675|QRD8635|SM8635)([^A-Z0-9]|$)/.test(text)) return "V73";
   return "Unknown";
 }
 
@@ -127,6 +127,7 @@ export function buildGovernorParams(
     model_kind: modelKind(modelEntry),
     gpu_fit: gpuFit(modelEntry, deviceProfile, memory),
     gpu_prefill_measured: generation === "V75" || generation === "V79",
+    bench_force_gpu_prefill: force,
     npu_lane_enabled: false,
     reload_budget_available: false,
     forced: force,

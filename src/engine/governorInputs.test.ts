@@ -76,6 +76,7 @@ describe("governor inputs", () => {
       model_kind: "Hybrid",
       gpu_fit: "Fit",
       gpu_prefill_measured: true,
+      bench_force_gpu_prefill: false,
       npu_lane_enabled: false,
       reload_budget_available: false,
       forced: false,
@@ -118,6 +119,33 @@ describe("governor inputs", () => {
       buildGovernorParams({ ...model, hybrid: false, kvUnified: false }, device("SM8750"), memory)
         .model_kind,
     ).toBe("Dense");
+  });
+
+  test("maps V73 variants and wires the bench GPU-prefill force", () => {
+    expect(buildGovernorParams(model, device("SM7675"), memory)).toMatchObject({
+      generation: "V73",
+      bench_force_gpu_prefill: false,
+      enabled: false,
+      reason: "gpu-prefill-incorrect-V73",
+    });
+    expect(buildGovernorParams(model, device("SM8635"), memory).generation).toBe("V73");
+    expect(buildGovernorParams(model, device("QRD7675"), memory).generation).toBe("V73");
+    expect(
+      buildGovernorParams(model, device("unlisted", 12 * 1024 ** 3, "SM9999"), memory).generation,
+    ).toBe(
+      "Unknown",
+    );
+    expect(buildGovernorParams(model, device("SM7675"), memory, true)).toMatchObject({
+      generation: "V73",
+      bench_force_gpu_prefill: true,
+      enabled: true,
+    });
+    expect(buildGovernorParams(model, device("SM7675"), memory, false)).toMatchObject({
+      generation: "V73",
+      bench_force_gpu_prefill: false,
+      enabled: false,
+      reason: "gpu-prefill-incorrect-V73",
+    });
   });
 
   test("keeps V79 enabled and permits an explicit V75 bench override", async () => {

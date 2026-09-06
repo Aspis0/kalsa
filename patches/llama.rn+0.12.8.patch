@@ -1846,7 +1846,7 @@ new file mode 100644
 index 0000000..5707e94
 --- /dev/null
 +++ b/node_modules/llama.rn/cpp/rn-governor-params.cpp
-@@ -0,0 +1,160 @@
+@@ -0,0 +1,161 @@
 +#include "rn-governor-params.h"
 +
 +#include <cmath>
@@ -1983,6 +1983,7 @@ index 0000000..5707e94
 +    params.htp_experts_readable = bool_or(governor, "htp_experts_readable", false);
 +    params.npu_lane_enabled = bool_or(governor, "npu_lane_enabled", false);
 +    params.gpu_prefill_measured = bool_or(governor, "gpu_prefill_measured", false);
++    params.bench_force_gpu_prefill = bool_or(governor, "bench_force_gpu_prefill", false);
 +    params.cool_prefill_eligible = bool_or(governor, "cool_prefill_eligible", false);
 +    params.cool_delta_measured = bool_or(governor, "cool_delta_measured", false);
 +    params.kexp_cool_scope = bool_or(governor, "kexp_cool_scope", false);
@@ -3397,7 +3398,7 @@ index 6bed6b8..71d51cf 100644
      /**
       * Single LoRA adapter path
       */
-@@ -171,6 +185,36 @@ export type NativeContextParams = {
+@@ -171,6 +185,37 @@ export type NativeContextParams = {
      state_cache_max_checkpoints?: number;
      embedding?: boolean;
      embd_normalize?: number;
@@ -3406,6 +3407,7 @@ index 6bed6b8..71d51cf 100644
 +        generation?: 'V73' | 'V75' | 'V79' | 'NoHTP' | 'Unknown';
 +        model_kind?: 'Dense' | 'Hybrid' | 'MoE' | 'Unknown';
 +        gpu_fit?: 'Fit' | 'NoFit' | 'NotFit' | 'Unknown';
++        bench_force_gpu_prefill?: boolean;
 +        npu_lane_enabled?: boolean;
 +        reload_budget_available?: boolean;
 +        thermo: GovernorThermoProfile;
@@ -3548,7 +3550,7 @@ index e461f36..a8b5468 100644
    /**
     * Single LoRA adapter path
     */
-@@ -202,6 +217,38 @@ export type NativeContextParams = {
+@@ -202,6 +217,39 @@ export type NativeContextParams = {
    // Embedding params
    embedding?: boolean
    embd_normalize?: number
@@ -3557,6 +3559,7 @@ index e461f36..a8b5468 100644
 +    generation?: 'V73' | 'V75' | 'V79' | 'NoHTP' | 'Unknown'
 +    model_kind?: 'Dense' | 'Hybrid' | 'MoE' | 'Unknown'
 +    gpu_fit?: 'Fit' | 'NoFit' | 'NotFit' | 'Unknown'
++    bench_force_gpu_prefill?: boolean
 +    npu_lane_enabled?: boolean
 +    reload_budget_available?: boolean
 +    thermo: GovernorThermoProfile
