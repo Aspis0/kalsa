@@ -238,3 +238,23 @@ Adreno 750 f16/bf16-batched MUL_MAT defect (deterministic divergence at token 14
 PASS-1 is not expected to rescue it; the pair (ratio, oracle) is what gets banked, never the ratio alone.
 Pairing: same-turn adjacent pairs, median. Cooldown A 38.5 / B 37.0 °C, cap 900 s, first run on this
 board thermally exploratory. Order ABABAB, deadline 85 min on a fresh 120-min session.
+
+## Run 8 → run 9 — typing ladder (pre-registered 6/09, before any driver change; owner 6/09: "devi fare tutti e tre", order 1→2→3)
+
+Evidence (trap n. 9): the 500-char first attempt never succeeded on any board — QRD7675 run 7e A1
+`attempt=1 chunk_size=500 seconds=63 rc=1` [raw/sa807902/7p-Gen-3_A_t1_type_prompt.txt:1], A2
+`seconds=59 rc=1` [raw/sa807902/7p-Gen-3_A_t2_type_prompt.txt:1]; QRD8650 run 8 A1 `seconds=112 rc=1`
+[raw/sa808770/8-Gen-3_A_t1_type_prompt.txt:1], B1 `seconds=127 rc=1` [raw/sa808770/8-Gen-3_B_t1_type_prompt.txt:1].
+On a hot board 200 also loses characters (run 8 A2 `attempt=2 chunk_size=200 seconds=314 rc=1`) and 100 is exact
+but slow: 44 chunks = 4400 chars in 406 s [raw/sa808770/8-Gen-3_A_t2_typing_chunks.txt:70], i.e. ~9.2 s per
+100-char chunk → 52 chunks ≈ 480 s + verification, over the 400 s per-attempt cap
+[raw/sa808770/8-Gen-3_A_t2_type_prompt.txt:3 — `attempt=3 chunk_size=100 seconds=406 rc=2`].
+
+Driver change (parse.sh `type_prompt`, dryrun fixtures):
+1. Ladder becomes `200 100` (the 500 rung is removed; it cost 59–127 s per turn and never passed).
+2. Per-attempt cap depends on the rung: 400 s at 200, **700 s at 100**. Nothing else changes (exact-prefix
+   verification per chunk, first-char retype, clear_for_retry, `typing_awake`, the run deadline).
+3. The measurement is unaffected: typing happens before the send anchor; TTFT/prefill are read from
+   KALSA_TELEMETRY/KALSA_GOVERNOR after the anchor. Only VOID(composer) frequency should drop.
+Expected effect on a hot turn: worst case 200-fail (≈314 s) + 100-pass (≈500 s) ≈ 14 min of typing, within the
+85-min run for 4 turns but not 6; the run deadline stays 85 min and rows lost to it stay reported as such.

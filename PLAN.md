@@ -1565,6 +1565,29 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > audit deepseek #16, ALIVE 51. **Decisioni per l'owner**: 8635/8550 (nessuna B in-app senza
 > estendere la policy); se tenere il 750 in allowlist OFF (2× di prefill vs oracolo FAIL).
 
+> **6/09 EDT Mac — OWNER: "Devi fare tutti e tre :) In ordine se pensi sia difficile".** Ordine 1→2→3.
+> **(1) Trappola 9 — typing ladder** (PREREG §"Run 8 → run 9"): scala `200 100` (il gradino 500 non è mai
+> passato su 3 board, costava 59-127 s/turno), cap per tentativo 400 s a 200 / 700 s a 100. Luna 2d5dfbe0
+> su parse.sh+dryrun, poi audit deepseek.
+> **(2) Governor multi-SoC — piano.** Fatti letti: `generation` V73/V75/V79 sono generazioni Hexagon (8 Gen 2 /
+> 8 Gen 3 / 8 Elite); SM7675 e SM8635 hanno Hexagon V73 → la mappa giusta è **7675/8635 → V73**, non una
+> classe nuova. Il parser stringa→enum sta nella patch llama.rn dell'app (`patches/llama.rn+0.12.8.patch`
+> ~:1896, `bool_or(governor, ...)` ~:1974-1985), non nel fork; `forced` dell'app NON arriva al nativo.
+> Design: **fork** `llama_governor_params.bench_force_gpu_prefill=false` + in `prefill_engine()` dopo le
+> guardie termiche/LOWBAT `if (bench_force_gpu_prefill && gpu_fit==Fit) return GPU;` + test in
+> test-governor-v0-devices.cpp (V73 dense+force+Fit→GPU; force+NoFit→CPU; force+CRITICAL→CPU). **App**:
+> patch passa `bench_force_gpu_prefill` (hand-edit dell'hunk, MAI patch-package regenerate), TS type;
+> `generationFor` soc `(SM8550|KALAMA|SM7675|SM8635)`→V73 e testo `QRD7675|QRD8635`→V73;
+> `buildGovernorParams` passa `bench_force_gpu_prefill: force`; `GPU_PREFILL_CORRECT[V73]` resta **false**
+> finché non c'è un oracolo in-app (la leva bench `kalsa.bench.governor_force=1` accende `enabled` e forza la
+> GPU: così si misura senza mentire in produzione); test aggiornati. Poi pin bump (`scripts/sync-kalsallama.sh
+> pin <sha>`), APK debuggable da CI, driver: `governor_force` per B su tutti i tag (non solo 8-Gen-3), PREREG
+> "run 9+" con bande: mid-tier parità (B/A 0,95-1,05), 8 Gen 2 atteso B/A ≥ 1 (740: CPU pura più veloce,
+> memoria adreno-moe-two-defects). Run 9 QRD7675, 10 QRD8635, 11 HDK8550. La policy di produzione si
+> aggiorna DOPO, dai dati. Fork e app in parallelo su due Luna (repo diversi), audit deepseek ciascuno.
+> **(3) Difetto Adreno 750**: prima websearch upstream (regola "cercare prima online"), poi riproduttore
+> minimo su QDC dal caso run 8 (divergenza idx 7). Dopo (2).
+
 > La cronaca integrale è in **PLAN-archive.md** (spostata verbatim il 20/08,
 > niente è andato perso). Regola invariata: ogni verdetto nuovo si appende QUI;
 > quando questa vista supera ~300 righe, si archivia di nuovo.
