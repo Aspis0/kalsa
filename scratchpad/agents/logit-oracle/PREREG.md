@@ -160,3 +160,15 @@ Session 807952 had 44 min left, so the order of the two controls is swapped: the
 (APK e54f529, `ABABAB 33`, job tag `sa812021-fault` for a separate raw dir on the same host), and the positive control
 gets its own ≈ 70-min session next. One pair suffices for the negative (FAIL dominates; declared in Amendment 3); the
 positive still requires ≥ 2 pairs. Order is irrelevant to the pre-declared readings, which are unchanged.
+
+### Amendment 9 (6/09 17:00 EDT, before any oracle verdict was read — no oracle_logit value other than the VOID
+### DESCRIPTIVE rows has ever been produced)
+The negative control also lost its B turn to the deadline (`END deadline_33_min`; A1 valid 5,48 s, `app_foreground`
+fired again and re-raised the app). Real cost per pair on QRD8750 is ≈ 35-40 min, and the 8 Elite budget is down to
+**89 min** — not enough for the ≥ 2 pairs a PASS requires, let alone both controls. R5 therefore moves to **QRD8650**
+(Snapdragon 8 Gen 3, 623 min left), with both controls in one session: positive `ABABAB 85` (APK 19b67b6), negative
+`ABABAB 50` (APK e54f529). Justification: what R5 tests is whether the oracle catches a corrupted GPU prefill, and the
+injected fault is in the Q4_0 GPU GEMM (`gemm_noshuffle_q4_0_f32.cl`), which is on the forced-GPU prefill path of every
+Adreno; run 8 already forced GPU prefill on this exact board (1,98×), so the B arm is known to work there. What is
+explicitly NOT covered by this move, and stays open: the 8 Elite's own 1-token flip at idx 29 (the case that motivated
+the oracle) — it needs its own session when the 8 Elite budget refills. Readings unchanged.

@@ -2787,3 +2787,7 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > tagliato B1 a metà (solo A1 in results). Costo misurato per coppia ≈ 32 min → due coppie ≈ 65 min in una sola run.
 > Con 44 min di sessione residui inverto l'ordine: **controllo NEGATIVO ora** (APK e54f529, `ABABAB 33`, tag
 > sa812021-fault), positivo in una sessione dedicata da ~70 min. PREREG Amendment 8.
+> 17:00 — anche il negativo ha perso B per deadline (`deadline_33_min`, A1 valida). Budget 8 Elite sceso a **89 min**:
+> insufficiente. Sessione 807952 chiusa (Completed), tunnel giù, raw committati (43092dd5). **R5 si sposta su QRD8650**
+> (623 min): positivo `ABABAB 85` + negativo `ABABAB 50` nella stessa sessione. Resta aperto il caso specifico
+> dell'8 Elite (flip a idx 29). PREREG Amendment 9.
