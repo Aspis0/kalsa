@@ -1727,7 +1727,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `llama_get_logits_ith(ctx,-1)` PRIMA di `common_sampler_sample`, `raw_probs` nell'item di streaming,
 > `bench_force_ids` consumato un id per passo; TS: chiavi `kalsa.bench.probs`/`kalsa.bench.force_ids` solo sotto
 > greedy, log `KALSA_BENCH_PROBS`; jest/tsc rc 0; 197 hunk verificati). Audit #26 deepseek in corso (focus:
-> pre-sampler garantito, accept path identico, nessun effetto fuori bench). **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> pre-sampler garantito, accept path identico, nessun effetto fuori bench).
+> **09:40 — audit #26 GO** (pre-sampler confermato: il sampler lavora su `cur_p`, copia; forced id via accept path;
+> bench-only; 1 minore F6 mitigato) → app pushata, **APK CI 34034615470** in corso. Driver oracolo: audit #25b ancora
+> NO-GO per un buco residuo in TF (R1 strutturalmente irraggiungibile: in TF il tok è forzato, il disaccordo sta nel
+> top-1 grezzo; un passo con forcing fallito era escluso senza valutarlo) → PREREG Amendment 2 (raw top-1 per R1;
+> il passo con forcing fallito si valuta e poi si smette; FAIL domina) e fix in corso (Luna 2d5dfbe0).
+> **Controllo negativo R5** (PREREG Amendment 1): branch fork usa-e-getta `kalsa/bench-fault-inject` (33ebbd210):
+> guasto `c0..c3 *= 0.5h` nel GEMM Q4_0 Adreno `gemm_noshuffle_q4_0_f32` (path certo del prefill Q4_0 con n=128,
+> dispatch quotato); il primo tentativo sul kernel f16 l4_lm era su un path forse inattivo → spostato. Il define va
+> reso incondizionato sul branch (llama.rn non riceve flag CMake dal fork) → poi app branch `bench/fault-inject-apk`
+> + pin + APK. Attesa sull'8 Elite: APK normale PASS, APK fault FAIL R1/R2. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
