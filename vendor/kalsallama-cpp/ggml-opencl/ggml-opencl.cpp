@@ -51,6 +51,9 @@ typedef const void * (*get_adreno_bin_kernel_func_t)(
 #include <set>
 #include <unordered_set>
 
+// THROWAWAY BRANCH — oracle negative control; never merge
+#define KALSA_BENCH_FAULT_INJECT 1
+
 #undef MIN
 #undef MAX
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
@@ -1579,6 +1582,10 @@ static void load_cl_kernels(lm_ggml_backend_opencl_context *backend_ctx) {
     if (backend_ctx->adreno_use_large_buffer) {
         compile_opts += " -qcom-enable-large-buffer ";
     }
+
+#ifdef KALSA_BENCH_FAULT_INJECT
+    compile_opts += " -DKALSA_BENCH_FAULT_INJECT=1";
+#endif
 
     backend_ctx->kernel_compile_opts = compile_opts;
 

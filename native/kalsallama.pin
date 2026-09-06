@@ -1,5 +1,5 @@
 {
   "repo": "https://github.com/Aspis0/kalsallama.git",
-  "branch": "kalsa/governor-v0.3-on-2f3b24dee",
-  "commit": "3bec271fd5f262ce840d8acb8eaaa698cf191181"
+  "branch": "kalsa/bench-fault-inject",
+  "commit": "5f0701dacfd867c029f83bd04fe668d30d0017fb"
 }

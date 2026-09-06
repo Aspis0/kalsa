@@ -102,6 +102,13 @@ kernel void kernel_gemm_noshuffle_q4_0_f32(
 
     int idx = (gy<<3)*m + (gx<<2); // vectorized store 16 elements
 
+#ifdef KALSA_BENCH_FAULT_INJECT
+    c0 *= 0.5h;
+    c1 *= 0.5h;
+    c2 *= 0.5h;
+    c3 *= 0.5h;
+#endif
+
     // conditional check if store is to a valid location. Required when N is not a multiple of 8
     // if statements allow registers to be reused for each store
     // provides a performance boost due to reduced register footprint, which increases number of concurrent waves
