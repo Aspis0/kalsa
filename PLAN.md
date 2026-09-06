@@ -1630,7 +1630,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > compaiono sia .02.06 sia .02.16 e passa comunque → il discriminante è la GPU 750, gate per famiglia Adreno come
 > scritto. Minori recepiti (PREREG Amendment 2): guardia pp512 su 8 Elite prima di adottare il gate (rerouta le viste
 > del V-cache su tutti gli Adreno); report separato dei casi vista con n>1/o>1. Build kit baseline 12f6d9b6d in corso
-> (`build-kit.sh`, Docker), poi candidato 2f3b24dee; device test sul 750 dopo run 9. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> (`build-kit.sh`, Docker), poi candidato 2f3b24dee; device test sul 750 dopo run 9.
+
+> **6/09 03:40 EDT Mac — RUN 9 LANCIATA su QRD7675** (sessione QDC **807351** = sa811420, aperta 03:33, 120 min;
+> APK debuggable **7e3d6d6** sha 4ae5bf63…, 142,7 MB, da CI run 34017852150; driver 93623d28 con ladder 200/100,
+> force per B su tutti i tag, gate RAM passato con 11,6 GB; `ABABAB 85`, fine ≤05:05). Al primo lancio NO_DEVICE
+> (server adb remoto non pronto ~40 s dopo il tunnel, come per 804701): rilancio 03:40. Build kit baseline
+> 12f6d9b6d: primo tentativo morto sul parser dei target (fix: basename prima dei `:`), secondo morto per un
+> `embed_kernel.py relu.cl` fallito nel container senza messaggio (in locale rc 0 → race transitoria del file
+> sharing Docker con -j8), terzo lancio incrementale in corso. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
