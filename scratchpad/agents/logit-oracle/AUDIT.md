@@ -51,3 +51,14 @@ GO for pushing and building the APK. 0 blockers, 0 majors, 1 minor (F6: restrict
 emitBenchProbs to the primary completion path). The pre-sampler guarantee, forced-id
 semantics (clean exhaust, per-init reset, production-unreachable), streaming format,
 numerics, patch integrity, default-path neutrality, and TS validation are all confirmed.
+## Audit #27 — deepseek (Reviewer bench, pi/opencode-go/deepseek-v4-flash max), agent e6df762c, 6/09 14:00 EDT
+Target: app commit 1ec63a0 (bench toolchoice=none gate) vs 28424c3. Verdict **GO-WITH-FIXES**.
+CONFIRMED gated: document_chat pre-pass (LlamaService.ts:3081-3084), tools spread (:3210), fallback parser (:3293);
+pref absent → "auto" → parent behaviour byte-identical (benchConfig.ts:383). Residuals (bench fidelity only):
+1. system prompt still `systemPromptWithSearch` under `hasTools` (LlamaService.ts:2900 → :456; en.ts:1072 "You have a
+   web_search tool…") → the model is still told it can search;
+2. KV prefix prewarm still passes `tools` (LlamaService.ts:770-771, EAGER_PREFIX_PREWARM=true ttftFlags.ts:57) → the
+   prewarmed prefix never matches the tool-free turn → re-prefill every turn (would distort TTFT in the TF runs);
+3. structured execution path (:3423) unguarded (defense in depth).
+Test hygiene: new tests cover only the pure helper; the gate is untestable without a heavy llama.rn mock.
+Action: round 2 on Luna 467e65e3 closing 1-3 → re-audit → rebuild both APKs. APKs from 1ec63a0/14be59b NOT used.

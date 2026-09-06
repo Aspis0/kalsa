@@ -2750,3 +2750,6 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > fallback saltati; produzione invariata. CI apk.yml lanciata su entrambi (run 34048611688 normale, 34048612833 fault);
 > audit deepseek e6df762c sul diff in corso. Test di Luna coprono solo l'helper → la prova è on-device (A1 con
 > KALSA_BENCH_TOKENS e `fallbackCalls:0`).
+> 14:05 — audit #27 deepseek su 1ec63a0: GO-WITH-FIXES (prompt di sistema "hai web_search" ancora attivo; prewarm KV con
+> tool → re-prefill a ogni turno; execute strutturato senza guard). Round 2 su Luna 467e65e3; gli APK 1ec63a0/14be59b
+> in build NON verranno usati. Poi re-audit, rebuild, sessione.
