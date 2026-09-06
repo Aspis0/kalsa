@@ -2772,3 +2772,10 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > KV non diverge più. Fallback da KALSA_KVPREFIX (text_tokens−n_common=928) in parse.sh/d_run.sh, testato sul logcat
 > reale + dryrun rc=0. Quarto tentativo in volo (pid /tmp/s5b-driver.pid=64866, raw/sa812021/). Amendment 6.
 > Prompt ora ~620 token più corto delle run 8-10 (non ~60 come stimato).
+> 15:25 — quarto tentativo: **A1 VALIDA** (new_tokens_a=928 dal fallback KVPREFIX, tool_calls=0, ids_sha 558522c0…,
+> TTFT 5,43 s, prefisso prewarm = turno) ma **B1 VOID `composer`**: il dump UI ha catturato il LAUNCHER, non l'app.
+> Cronologia dal logcat B1: `am start` 744,69 → `Displayed com.kalsa.app` 744,92 → prewarm/prefill 756-770 →
+> **`wm_on_top_resumed_gained_called [QuickstepLauncher]` 770,87** → dump edit.xml a 855 → `dump_fail stage=edit`.
+> Nessun crash nativo, nessun LMKD: l'app è finita in background dopo il `device_wake` che gira DOPO poll_load
+> (d_run.sh:380 → wake_sequence: `wm dismiss-keyguard` + tap). Su Android 16 il dismiss-keyguard riporta in cima il
+> launcher. Fix minimo: prima di `ui_send`, verificare la top activity e rifare `am start` se non è com.kalsa.app.
