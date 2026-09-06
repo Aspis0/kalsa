@@ -1691,7 +1691,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > letture ±10%/25% pre-dichiarate) → **run 8b** su QRD8650 (in-app, ids GPU ≠ d4556574?) → **run 11** HDK8550.
 > **07:15 — run 10 BANCATA (ALIVE 54, f415caf2)**: 735 forzato 1,72×, ids GPU = 732 = 750. **Guard A rinviata**: la
 > sessione 807910 sull'8 Elite è rimasta "Device is offline, attempting to reconnect" per 10 min (chiusa, ~13 min
-> bruciati). Ordine invertito: **run 8b su QRD8650 ora**, poi Guard A (ritentare), poi run 11 HDK8550. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> bruciati). Ordine invertito: **run 8b su QRD8650 ora**, poi Guard A (ritentare), poi run 11 HDK8550.
+> **07:50 — QDC MUTO dalle ~07:00**: tre sessioni consecutive senza adb (807910 8 Elite "offline"; 807913 QRD8650
+> Running ma `protocol fault` per 18 min; 807914 HDK8550 idem 8 min; tunnel verificato con lsof e sonda grezza:
+> connessione resettata dal remoto → il server adb dell'host non parte). Tutte chiuse (~35 min di budget bruciati
+> in totale). Pausa 45 min, poi ritentare con UN board (run 11 HDK8550). Nel frattempo nessun lavoro device.
+> Stato punti owner: (1) FATTO; (2) run 9 e 10 bancate (ALIVE 52/54), run 11 in attesa QDC; (3) gate bancato
+> kernel-level (ALIVE 53), Guard A e run 8b in attesa QDC. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
