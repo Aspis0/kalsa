@@ -1737,7 +1737,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > guasto `c0..c3 *= 0.5h` nel GEMM Q4_0 Adreno `gemm_noshuffle_q4_0_f32` (path certo del prefill Q4_0 con n=128,
 > dispatch quotato); il primo tentativo sul kernel f16 l4_lm era su un path forse inattivo → spostato. Il define va
 > reso incondizionato sul branch (llama.rn non riceve flag CMake dal fork) → poi app branch `bench/fault-inject-apk`
-> + pin + APK. Attesa sull'8 Elite: APK normale PASS, APK fault FAIL R1/R2. **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
+> + pin + APK. Attesa sull'8 Elite: APK normale PASS, APK fault FAIL R1/R2.
+> **09:55 — fault branch 5f0701dac (define incondizionato) → app branch usa-e-getta `bench/fault-inject-apk` @ca3b1b3
+> (pin bump, vendor con kernel Q4_0 guasto), APK CI 34035120099 in corso; APK normale 28424c3 (34034615470) in corso.** **pin bump 7e3d6d6** (`sync-kalsallama.sh pin` con
 > KALSALLAMA_SRC, 5 file vendor); **PUSHATO** 8a56edc..7e3d6d6; **APK debuggable CI run 34017852150** in corso (~40 min). Driver runs 9-11 committato 93623d28 (audit #19 GO). (3) Websearch chiusa, candidato
 > 178a6c449 annotato. Trappola ops: Paseo `create_agent` con provider pi NON accetta modeId (solo codex).
 
