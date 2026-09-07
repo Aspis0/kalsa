@@ -84,3 +84,26 @@ Websearch (Luna 28c3a483, sources verified as URLs + dates in the agent report) 
   exists. **We will not open or comment on any upstream issue** (standing owner rule); the finding stays in this repo.
 Revised order for this cell: (1) KLD CPU-vs-GPU on device to quantify the gap with a standard metric, (2) eval-callback
 diff to localize, (3) only then the ACC_TYPE experiment, in its own cell with its own PREREG and its own speed budget.
+
+## Amendment 1 (7/09 02:05 EDT — written after the first KLD and the dump, before the next run)
+First measurement, QRD8650 (Adreno 750, pineapple), kit 2f3b24dee, model LFM2.5-2.6B-QAD-Q4_0 (sha a247afd6…),
+corpus 3079 words, `-s 42`, CPU arm `-ngl 0`, GPU arm `-ngl 99`, 51 s + 31 s of device time:
+`Mean PPL(Q)-PPL(base) 8.498116 ± 1.143139` | `Mean KLD 0.636690 ± 0.016669` | `Median KLD 0.454348` |
+`Same top p 62.373 ± 1.149 %`.
+**The comparison is NOT clean, and the reason is now known.** The eval-callback dumps do not align (CPU 1014 tensors,
+GPU 1054; `compare_dump.py` refused to pair, per reading #4) because the two arms compute attention with DIFFERENT
+ALGORITHMS: the GPU arm logs `resolve_fused_ops: Flash Attention not supported, set to disabled` and contains 0
+`FLASH_ATTN_EXT` and 8 `SOFT_MAX` ops, while the CPU arm contains 8 `FLASH_ATTN_EXT` and 0 `SOFT_MAX`.
+Therefore the measured divergence mixes (a) f16 accumulation in the quantized GEMM kernels — the hypothesis this cell
+was opened on — with (b) a different attention formulation. **Neither can be attributed the gap from this run.**
+**Next run, declared before measuring:** repeat the KLD with flash attention disabled on BOTH arms (`-fa 0` / the
+equivalent flag verified in the pinned `common/arg.cpp` before use), so both graphs use the unfused attention path.
+Readings, fixed now:
+- KLD collapses to the same order as the CUDA reference (median ~5e-3, same-top ~95 %) → the gap was the attention-path
+  mismatch, and the accumulator hypothesis is NOT supported by this evidence; the cell says so and the ACC_TYPE cell is
+  postponed until it has its own evidence.
+- KLD stays within a factor ~2 of today's (median ~0.45, same-top ~62 %) → the attention path is not the cause and the
+  arithmetic of the quantized GEMM path becomes the prime suspect; only then does the ACC_TYPE experiment start.
+- Anything in between → both contribute; report the split and do not pick a single culprit.
+Also recorded, for the speed claims: with FA unsupported on OpenCL the GPU arm is a MIXED execution (attention on CPU
+per the same warning), so "GPU prefill" numbers in ALIVE 55 and earlier rows are for a mixed graph, not a fully-GPU one.
