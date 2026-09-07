@@ -2916,3 +2916,41 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 > **Decisione owner**: si passa alla fase governor-nell'app col kernel corretto. Il residuo 5× (geometria del tile,
 > ordine di somma) e le altre board restano in coda, non sul percorso critico del prodotto.
 
+
+### 7/09 pomeriggio (EDT) — cella `gemm-f32-ship`: il fix esce dal laboratorio, e il piano cambia forma
+> 12:20-12:40 — Promosso il fix da variante d'ambiente a codice normale: `float8` per gli accumulatori e le 16 righe
+> `c0 += convert_float8(B) * (float)dequantized_weights.sN`, **niente macro, niente variabili d'ambiente**. Le variabili
+> restano sul ramo sonda `kalsa/gemm-acc-probe`, che resta lo strumento di misura (finalmente pushato a `eefa27e30`:
+> il commit del narrowing era rimasto solo locale, cioè l'artefatto non era riproducibile — corretto).
+> Gate decisivo, verificato da me e non solo dall'agente: il kernel da spedire è **identico dopo preprocessore** al
+> variante `KALSA_GEMM_PREC=2` che è stato misurato (167 righe, diff vuoto), e il controllo negativo `PREC=0` differisce.
+> Quindi ciò che spediamo *è* ciò che è stato misurato. Rami: `kalsa/gemm-f32-mul` @`33c3817c4` (base a0cabca6b) e
+> **`kalsa/gemm-f32-mul-on-governor` @`513bf4cea`** (base `3bec271fd`), pushati. Il file era byte-identico su entrambe
+> le basi, quindi il cherry-pick è esatto (blob identici, verificato).
+>
+> **Due scoperte che riscrivono il piano di fase.**
+> 1. Il governor **esiste già** e non va costruito: è nativo nel fork (`src/llama-governor-*.cpp`, runtime v0.3, route
+>    del prefill per turno, degradazione termica a CPU vista dal vivo nel run 5) ed è cablato nell'app su
+>    `feat/governor-in-app`, che pinna `3bec271fd`. C'è da **sbloccarlo**, non da scriverlo.
+> 2. Il gate che lo tiene spento sul 750 (`src/engine/governorInputs.ts:16`, `V75: false`) cita un difetto **diverso**
+>    dal nostro: i 20 FAIL `f16|bf16 × f32 … batched` che sono solo del 750 e non si riproducono sul 735 (ALIVE 38/39),
+>    cioè lo stack driver/compiler. Quindi **flippare V75 non è una conseguenza del fix**: è un'ipotesi che solo
+>    l'oracolo può decidere. Le due cause possono coesistere.
+>
+> **Buco di copertura trovato spedendo** (verificato: nove kernel gemelli hanno ancora `half8 c0`): fra questi
+> `gemm_noshuffle_q4_k_f32.cl:54`, che serve `qwen3.5-4b` **Q4_K_M**, modello nel catalogo dell'app
+> (`ModelRegistry.ts:179`). Accendere il prefill GPU col solo q4_0 sistemato lascerebbe vivo un percorso infedele per un
+> modello di catalogo → il fix va esteso a q4_k (meccanismo identico; misura NON trasferibile, né la fedeltà né lo
+> 0,659×). Gli altri otto restano fuori: nessun modello di catalogo li raggiunge.
+>
+> **Il colpo di fortuna**: l'APK di controllo esiste già ed è `8269aa2` — la stessa che ha prodotto i numeri di ALIVE 55.
+> L'A/B è quindi a una variabile sola (stesso commit dell'app, solo il pin del fork), e risparmia una build da 40 minuti.
+>
+> **Punto pre-registrato prima di qualunque dato** (PREREG della cella): con same-top 94,8 % l'oracolo a 32 passi
+> forzati darà **FAIL anche col fix giusto** (~1,7 flip attesi; R2 chiede |Δp₁| ≤ 0,02 a OGNI passo). Il verdetto
+> binario è il cancello di promozione, non la misura dell'effetto: la domanda si risponde sulle metriche continue
+> (mediana |Δp₁| 0,0861, mediana max|Δlogp| 3,444, 21/32 oltre soglia, 8/32 flip) che devono collassare.
+>
+> 12:37 — Su richiesta owner le due linee dell'app sono state **unite**: `feat/governor-ux` @`07a279b` (governor + UX
+> miniapp/battery/i18n), unico conflitto in `ModelRegistry.ts` risolto tenendo entrambi i lati. Il pin del kernel resta
+> un commit separato, così la coppia di misura non perde la variabile unica.
