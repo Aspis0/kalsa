@@ -2830,3 +2830,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (scade ~22:55 EDT), tunnel ~/kalsa-qdc/tunnel-sa812034.pid. Positivo in volo:
 > `TYPE_LADDER=100 ORACLE_MODE=logit d_run.sh sa812034 <apk 8b6d548> ABABAB 110` (pid 62577, raw/sa812034/).
 > Prova che il fix del crash regge: B1 arriva in fondo con `KALSA_GOVERNOR` e righe BENCH_PROBS forzate.
+> 20:30 — **APK 8b6d548: regressione JS.** A1 gira bene (272 righe BENCH_PROBS, telemetria, nessun crash) ma il ramo JS
+> che emette `KALSA_TOOLCALL`, `KALSA_BENCH_TOKENS` e la telemetria governor non viene mai raggiunto, e nel log compare
+> due volte `[TypeError: Cannot read property 'catch' of undefined]` → driver `END exit_3` (prerequisito). Correlazione
+> netta: TypeError=2/TOOLCALL=0/TOKENS=0 solo con 9200f23 (=8b6d548); con c6d24bb (=19b67b6) TypeError=0 e i due log ci
+> sono. Unico delta = il patch nativo. Sessione 807965 chiusa, tunnel giù. Round 3 su Luna ba2ac459 con la tabella di
+> correlazione e l'ordine di NON tirare a indovinare (una build sbagliata costa 25 min + un'ora di device).
