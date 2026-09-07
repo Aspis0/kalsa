@@ -18,33 +18,59 @@ readonly DEVICE_MODEL="$DEVICE_ROOT/$MODEL_FILE"
 readonly DEVICE_CORPUS="$DEVICE_ROOT/corpus.txt"
 readonly DEVICE_CPU_KLD="$DEVICE_ROOT/cpu.kld"
 
-usage() { echo "usage: $0 [--bench] <job_id> <deadline_minutes> <variant_list> | $0 --self-test" >&2; }
+usage() { echo "usage: $0 [--bench] [--cool <seconds>] [--bench-seed <n>] <job_id> <deadline_minutes> <variant_list> | $0 --self-test" >&2; }
 die() { echo "d_run.sh: $*" >&2; exit 1; }
 
 SELF_TEST=0
 BENCH=0
-if [ "$#" -ge 1 ]; then
+COOL_SECONDS=0
+BENCH_SEED=""
+BENCH_SEED_SET=0
+BENCH_ORDER=()
+BENCH_TSV=""
+BENCH_ORDER_FILE=""
+PREV_BENCH_END_EPOCH=0
+while [ "$#" -gt 0 ]; do
     case "$1" in
-        --self-test) SELF_TEST=1; shift ;;
+        --self-test) SELF_TEST=1; shift; break ;;
         --bench) BENCH=1; shift ;;
+        --cool)
+            [ "$#" -ge 2 ] || { echo "--cool requires seconds" >&2; exit 2; }
+            COOL_SECONDS="$2"; shift 2 ;;
+        --bench-seed)
+            [ "$#" -ge 2 ] || { echo "--bench-seed requires n" >&2; exit 2; }
+            BENCH_SEED="$2"; BENCH_SEED_SET=1; shift 2 ;;
+        *) break ;;
     esac
-fi
+done
 if [ "$SELF_TEST" -eq 1 ]; then
     [ "$#" -eq 0 ] || { echo "--self-test takes no arguments" >&2; exit 2; }
 else
-    if [ "$#" -eq 4 ]; then
-        case "$4" in
-            --bench) BENCH=1; set -- "$1" "$2" "$3" ;;
-            *) usage; exit 2 ;;
-        esac
-    fi
-    [ "$#" -eq 3 ] || { usage; exit 2; }
+    [ "$#" -ge 3 ] || { usage; exit 2; }
     JOB="$1"
     DEADLINE_MINUTES="$2"
     VARIANT_LIST="$3"
+    shift 3
+    while [ "$#" -gt 0 ]; do
+        case "$1" in
+            --bench) BENCH=1; shift ;;
+            --cool)
+                [ "$#" -ge 2 ] || { echo "--cool requires seconds" >&2; exit 2; }
+                COOL_SECONDS="$2"; shift 2 ;;
+            --bench-seed)
+                [ "$#" -ge 2 ] || { echo "--bench-seed requires n" >&2; exit 2; }
+                BENCH_SEED="$2"; BENCH_SEED_SET=1; shift 2 ;;
+            *) usage; exit 2 ;;
+        esac
+    done
     case "$JOB" in ''|*[!A-Za-z0-9._-]*) echo "invalid job_id" >&2; exit 2;; esac
     case "$DEADLINE_MINUTES" in ''|*[!0-9]*) echo "deadline_minutes must be an integer from 20 to 110" >&2; exit 2;; esac
     [ "$DEADLINE_MINUTES" -ge 20 ] && [ "$DEADLINE_MINUTES" -le 110 ] || { echo "deadline_minutes must be an integer from 20 to 110" >&2; exit 2; }
+    case "$COOL_SECONDS" in ''|*[!0-9]*) echo "cool seconds must be a non-negative integer" >&2; exit 2;; esac
+    [ "$BENCH" -eq 0 ] || [ "$BENCH_SEED_SET" -eq 1 ] || { echo "--bench requires --bench-seed <n>" >&2; exit 2; }
+    if [ "$BENCH_SEED_SET" -eq 1 ]; then
+        case "$BENCH_SEED" in ''|*[!0-9]*) echo "bench seed must be a non-negative integer" >&2; exit 2;; esac
+    fi
 fi
 
 REQUESTED_VARIANTS=()
@@ -295,6 +321,25 @@ extract_metric() {
     ' "$log"
 }
 
+extract_bench_pp512() {
+    local log="$1"
+    awk -F'|' '
+        /\|[[:space:]]*pp512[[:space:]]*\|/ {
+            value=$(NF - 1)
+            if (match(value, /[-+]?[0-9]+([.][0-9]*)?([eE][-+]?[0-9]+)?/)) {
+                mean=substr(value, RSTART, RLENGTH)
+                rest=substr(value, RSTART + RLENGTH)
+                if (match(rest, /[-+]?[0-9]+([.][0-9]*)?([eE][-+]?[0-9]+)?/)) {
+                    print mean "\t" substr(rest, RSTART, RLENGTH)
+                    found=1
+                    exit
+                }
+            }
+        }
+        END { if (!found) exit 1 }
+    ' "$log"
+}
+
 split_variant() {
     local variant math prec key
     variant="$1"
@@ -324,6 +369,58 @@ self_test_variant_split() {
         return 0
     fi
     printf 'FAIL variant split strict:acc math=%s prec=%s key=%s\n' "$math" "$prec" "$key"
+    return 1
+}
+
+self_test_bench_metric() {
+    local log="$CELL_DIR/raw/sa812265/bench-stock-half.log" actual mean std rc
+    actual=$(extract_bench_pp512 "$log"); rc=$?
+    mean=""
+    std=""
+    [ "$rc" -eq 0 ] && IFS='	' read -r mean std <<< "$actual"
+    if [ "$rc" -eq 0 ] && [ "$mean" = 286.30 ] && [ "$std" = 0.61 ]; then
+        printf 'PASS bench pp512=%s stddev=%s\n' "$mean" "$std"
+        return 0
+    fi
+    printf 'FAIL bench expected=286.30/0.61 actual=%s rc=%s\n' "$actual" "$rc"
+    return 1
+}
+
+self_test_provenance() {
+    local provenance_log="$CELL_DIR/raw/provenance/provenance-lines.txt" candidates="$CELL_DIR/.d-run-self-test-provenance-candidates.$$"
+    local line reported_prec reported_math find_rc prec_rc math_rc cleanup_rc compile_opts_present
+    line=$(find_provenance "$provenance_log" "$candidates"); find_rc=$?
+    reported_prec=$(extract_tag "$line" prec); prec_rc=$?
+    reported_math=$(extract_tag "$line" math); math_rc=$?
+    rm -f "$candidates"
+    cleanup_rc=$?
+    case "$line" in
+        *compile_opts=*) compile_opts_present=1 ;;
+        *) compile_opts_present=0 ;;
+    esac
+    if [ "$find_rc" -eq 0 ] && [ "$prec_rc" -eq 0 ] && [ "$math_rc" -eq 0 ] && [ "$reported_prec" = half ] && [ "$reported_math" = stock ] && [ "$compile_opts_present" -eq 1 ] && [ "$cleanup_rc" -eq 0 ]; then
+        printf 'PASS provenance prec=%s math=%s\n' "$reported_prec" "$reported_math"
+        return 0
+    fi
+    printf 'FAIL provenance prec=%s math=%s find_rc=%s tag_rc=%s/%s cleanup_rc=%s\n' "$reported_prec" "$reported_math" "$find_rc" "$prec_rc" "$math_rc" "$cleanup_rc"
+    return 1
+}
+
+self_test_negative_provenance() {
+    local probe_log="$CELL_DIR/.d-run-self-test-probe.$$" candidates="$CELL_DIR/.d-run-self-test-probe-candidates.$$"
+    local line reported_prec find_rc tag_rc cleanup_rc
+    printf "gemm_noshuffle_q4_0_f32 prec=half math=stock compile_opts='-cl-std=CL3.0'\n" > "$probe_log"
+    find_rc=0
+    tag_rc=0
+    line=$(find_provenance "$probe_log" "$candidates"); find_rc=$?
+    reported_prec=$(extract_tag "$line" prec); tag_rc=$?
+    rm -f "$probe_log" "$candidates"
+    cleanup_rc=$?
+    if [ "$find_rc" -eq 0 ] && [ "$tag_rc" -eq 0 ] && [ "$reported_prec" != acc ] && [ "$cleanup_rc" -eq 0 ]; then
+        printf 'PASS negative provenance requested_prec=acc reported_prec=%s\n' "$reported_prec"
+        return 0
+    fi
+    printf 'FAIL negative provenance reported_prec=%s find_rc=%s tag_rc=%s cleanup_rc=%s\n' "$reported_prec" "$find_rc" "$tag_rc" "$cleanup_rc"
     return 1
 }
 
@@ -358,6 +455,9 @@ self_test() {
     self_test_metric "sa812121-b1 Same top p" "$b1_log" "Same top p" "98.031" || failed=1
     self_test_metric "sa812121-b1 Mean PPL(Q)-PPL(base)" "$b1_log" "Mean PPL(Q)-PPL(base)" "0.274311" || failed=1
     self_test_variant_split || failed=1
+    self_test_bench_metric || failed=1
+    self_test_provenance || failed=1
+    self_test_negative_provenance || failed=1
     self_test_negative_metric || failed=1
     return "$failed"
 }
@@ -375,34 +475,41 @@ find_provenance() {
 
 variant_row() {
     local variant math prec key parts
-    local step log candidates provenance="-"
+    local probe_step probe_log probe_remote probe_cmd probe_candidates platform_file probe_rc platform_rc
+    local step log provenance="-"
     local provenance_rc reported_prec="-" reported_math="-" prec_rc math_rc error_file error_rc
     local mean="-" median="-" same_top="-" ppl_delta="-" mean_rc median_rc same_rc ppl_rc
     local started rc elapsed status reason
     variant="$1"
     parts=$(split_variant "$variant")
     IFS='	' read -r math prec key <<< "$parts"
-    step="variant-$key"
-    log="$RAW/$step.log"
-    candidates="$RAW/$step.provenance-candidates"
-    error_file="$RAW/$step.errors"
-    started=$(date +%s)
-    GPU_CMD="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 99 -fa off -s 42 --temp 0 --kl-divergence --kl-divergence-base '$DEVICE_CPU_KLD'"
-    run_step "$step" "$log" adbT 1800 -s "$SERIAL" shell "$GPU_CMD"; rc=$?
-    elapsed=$(( $(date +%s) - started ))
-    provenance=$(find_provenance "$log" "$candidates"); provenance_rc=$?
-    [ "$provenance_rc" -eq 0 ] || provenance="-"
-    if [ "$provenance" != "-" ]; then
-        printf '%s\n' "$provenance" > "$RAW/$step.provenance"
+    probe_step="probe-$key"
+    probe_log="$RAW/$probe_step.log"
+    probe_remote="$DEVICE_ROOT/$probe_step.log"
+    probe_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && rm -f '$probe_remote' && ./bin/llama-bench -v -m '$DEVICE_MODEL' -p 8 -n 0 -ngl 99 -fa 0 -r 1 > '$probe_remote' 2>&1; probe_rc=\$?; cat '$probe_remote'; exit \$probe_rc"
+    run_step "$probe_step" "$probe_log" adbT 300 -s "$SERIAL" shell "$probe_cmd"; probe_rc=$?
+    platform_file="$RAW/$probe_step.platform"
+    grep -F "selected platform: 'QUALCOMM" "$probe_log" > "$platform_file"; platform_rc=$?
+    probe_candidates="$RAW/$probe_step.provenance-candidates"
+    provenance=$(find_provenance "$probe_log" "$probe_candidates"); provenance_rc=$?
+    if [ "$provenance_rc" -eq 0 ]; then
+        printf '%s\n' "$provenance" > "$RAW/$probe_step.provenance"
         reported_prec=$(extract_tag "$provenance" prec); prec_rc=$?
         reported_math=$(extract_tag "$provenance" math); math_rc=$?
         [ "$prec_rc" -eq 0 ] || reported_prec="-"
         [ "$math_rc" -eq 0 ] || reported_math="-"
     else
-        : > "$RAW/$step.provenance"
+        : > "$RAW/$probe_step.provenance"
         prec_rc=1
         math_rc=1
     fi
+    step="variant-$key"
+    log="$RAW/$step.log"
+    error_file="$RAW/$step.errors"
+    started=$(date +%s)
+    GPU_CMD="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 99 -fa off -s 42 --temp 0 --kl-divergence --kl-divergence-base '$DEVICE_CPU_KLD'"
+    run_step "$step" "$log" adbT 1800 -s "$SERIAL" shell "$GPU_CMD"; rc=$?
+    elapsed=$(( $(date +%s) - started ))
     grep -E 'error:|CL_BUILD_PROGRAM_FAILURE|clBuildProgram[^[:alnum:]]+failed|build program[^[:alnum:]]+failed' "$log" > "$error_file"; error_rc=$?
     [ "$error_rc" -le 1 ] || error_rc=2
     mean=$(extract_metric "$log" "Mean KLD"); mean_rc=$?
@@ -411,7 +518,13 @@ variant_row() {
     ppl_delta=$(extract_metric "$log" "Mean PPL(Q)-PPL(base)"); ppl_rc=$?
     status=OK
     reason=-
-    if [ "$rc" -ne 0 ]; then
+    if [ "$platform_rc" -ne 0 ]; then
+        status=VOID
+        reason=not_gpu
+    elif [ "$probe_rc" -ne 0 ]; then
+        status=VOID
+        reason="probe_rc_$probe_rc"
+    elif [ "$rc" -ne 0 ]; then
         status=VOID
         reason="gpu_rc_$rc"
     elif [ "$provenance_rc" -gt 1 ]; then
@@ -447,22 +560,109 @@ run_variants() {
     return "$overall_rc"
 }
 
+read_temperature() {
+    local name output rc skin
+    name="$1"
+    output="$RAW/$name.log"
+    adbT 90 -s "$SERIAL" shell dumpsys thermalservice > "$output" 2>&1
+    rc=$?
+    printf 'thermal_read_rc=%s\n' "$rc" >> "$output"
+    if [ "$rc" -ne 0 ]; then
+        printf '%s' '-'
+        return 0
+    fi
+    skin=$(awk '
+        /Current temperatures from HAL/ { live=1; next }
+        /Current cooling devices from HAL/ { live=0 }
+        live && /mName=skin/ {
+            value=$0
+            sub(/^.*mValue=/, "", value)
+            sub(/,.*/, "", value)
+            if (value ~ /^[0-9]+([.][0-9]+)?$/) {
+                print value
+                found=1
+                exit
+            }
+        }
+        END { if (!found) exit 1 }
+    ' "$output")
+    rc=$?
+    if [ "$rc" -eq 0 ]; then
+        printf '%s' "$skin"
+    else
+        printf '%s' '-'
+    fi
+    return 0
+}
+
+build_bench_order() {
+    local i j tmp
+    BENCH_ORDER=("${REQUESTED_VARIANTS[@]}")
+    RANDOM="$BENCH_SEED"
+    for ((i=${#BENCH_ORDER[@]} - 1; i > 0; i--)); do
+        j=$((RANDOM % (i + 1)))
+        tmp="${BENCH_ORDER[$i]}"
+        BENCH_ORDER[$i]="${BENCH_ORDER[$j]}"
+        BENCH_ORDER[$j]="$tmp"
+    done
+    printf 'bench_seed=%s\n' "$BENCH_SEED" > "$BENCH_ORDER_FILE"
+    for ((i=0; i<${#BENCH_ORDER[@]}; i++)); do
+        printf '%s\t%s\n' "$((i + 1))" "${BENCH_ORDER[$i]}" >> "$BENCH_ORDER_FILE"
+    done
+}
+
 bench_variant() {
-    local variant math prec key parts
-    local step log bench_cmd
+    local variant math prec key parts order_index
+    local step log bench_cmd temp_before temp_after host_gap bench_start bench_end bench_rc cool_rc
+    local pp_values pp512 pp_std pp_rc
     variant="$1"
+    order_index="$2"
     parts=$(split_variant "$variant")
     IFS='	' read -r math prec key <<< "$parts"
     step="bench-$key"
     log="$RAW/$step.log"
+    if [ "$PREV_BENCH_END_EPOCH" -gt 0 ]; then
+        sleep "$COOL_SECONDS"
+        cool_rc=$?
+    else
+        cool_rc=0
+    fi
+    temp_before=$(read_temperature "$step-before")
+    bench_start=$(date +%s)
+    if [ "$PREV_BENCH_END_EPOCH" -gt 0 ]; then
+        host_gap=$((bench_start - PREV_BENCH_END_EPOCH))
+    else
+        host_gap=0
+    fi
     bench_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && ./bin/llama-bench -m '$DEVICE_MODEL' -p 512 -n 0 -ngl 99 -fa 0 -r 3"
     run_step "$step" "$log" adbT 1800 -s "$SERIAL" shell "$bench_cmd"
+    bench_rc=$?
+    bench_end=$(date +%s)
+    temp_after=$(read_temperature "$step-after")
+    PREV_BENCH_END_EPOCH="$bench_end"
+    pp_values=$(extract_bench_pp512 "$log")
+    pp_rc=$?
+    pp512="-"
+    pp_std="-"
+    if [ "$pp_rc" -eq 0 ]; then
+        IFS='	' read -r pp512 pp_std <<< "$pp_values"
+    fi
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$variant" "$order_index" "$temp_before" "$temp_after" "$host_gap" "$pp512" "$pp_std" "$bench_rc" >> "$BENCH_TSV"
+    [ "$cool_rc" -eq 0 ] || return "$cool_rc"
+    return "$bench_rc"
 }
 
 run_bench() {
-    local variant bench_rc overall_rc=0
-    for variant in "${REQUESTED_VARIANTS[@]}"; do
-        bench_variant "$variant"; bench_rc=$?
+    local order_index variant bench_rc overall_rc=0
+    BENCH_TSV="$RAW/bench.tsv"
+    BENCH_ORDER_FILE="$RAW/bench-order.tsv"
+    PREV_BENCH_END_EPOCH=0
+    printf 'variant\trealised_order_index\ttemperature_before\ttemperature_after\thost_gap_seconds\tpp512\tpp512_stddev\trc\n' > "$BENCH_TSV"
+    build_bench_order
+    for ((order_index=1; order_index<=${#BENCH_ORDER[@]}; order_index++)); do
+        variant="${BENCH_ORDER[$((order_index - 1))]}"
+        bench_variant "$variant" "$order_index"; bench_rc=$?
         [ "$bench_rc" -eq 0 ] || overall_rc="$bench_rc"
     done
     return "$overall_rc"

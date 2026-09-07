@@ -57,9 +57,19 @@ prima (0,004736) e **non** la seconda (94,826 %, cioè 0,174 punti sotto): **la 
 questo va scritto così, non arrotondato a "dentro la soglia". Per contesto, i riferimenti pubblicati per pesi identici:
 CUDA contro FP32 mediana 0,004962 / same-top 95,0 % (issue #25593), Q8_0 0,002344 / 97,5 % (discussion #22498). Resta anche un fattore ~5 fra `mul` (0,004736) e il percorso GEMV fp32 misurato
 in batch 1 (0,000962): un residuo esiste, e il candidato che questa cella **non** ha potuto toccare è l'ultimo asse —
-gli operandi come sono **memorizzati**, cioè l'immagine B in `CL_HALF_FLOAT` scritta dal kernel di trasposizione
-(`ggml-opencl.cpp:17150`, `:17170`, righe dell'albero `kalsallama-wt-accprobe` @7ef9389bc) che nel percorso batch-1 non esiste affatto. Serve una modifica host: è la
-prossima cella.
+gli operandi come sono **memorizzati**. Il recon successivo l'ha localizzato con precisione, e vale la pena scriverlo
+qui perché smette di essere un sospetto e diventa una riga (numeri di riga dell'albero `kalsallama-wt-accprobe`
+@7ef9389bc; nell'albero pinnato 2f3b24dee sono 35 righe più in basso):
+le attivazioni **arrivano in f32** — `ggml-opencl.cpp:17164` `img_fmt = {CL_RGBA, CL_FLOAT};` sull'immagine sorgente —
+e vengono **deliberatamente ristrette a f16 dal kernel di trasposizione**: `transpose.cl:113` porta il commento
+`// converts to FP16`, `:127` legge l'immagine f32 con `temp0 = read_imageh(input, (j_2+0)*cols+i);` e `:139` scrive
+con `write_imageh`; la destinazione è `ggml-opencl.cpp:17185` `img_fmt = {CL_RGBA, CL_HALF_FLOAT};` su uno scratch
+dimensionato `:17180` `region.size = K * (N + padding) * sizeof(float)/2;`. Il percorso batch-1, che misura pulito,
+**non fa alcuna trasposizione** e tiene l'immagine in `CL_FLOAT` (`:17087` `if (ne1 == 1) {`, `:17106`).
+Costo del cambio, dal codice: la gamba trasposta raddoppia da 2K a 4K byte per token; la larghezza dell'immagine non
+cambia (è in texel RGBA, non in byte). Complicazione da non ignorare: `kernel_transpose_32_16` è **condiviso da dieci
+percorsi quantizzati** (q1_0, q4_0, q4_1, q5_0, q5_1, iq4_nl, q8_0, q4_K, q6_K, q5_K), quindi cambiarlo in blocco li
+tocca tutti. È la prossima cella, e richiede una modifica host.
 
 ## Il costo in velocità: INDICATIVO, non stabilito
 `mul` gira a 189,73 t/s. Contro i 286,30 dello **stesso batch** fa 0,663×; contro i **289,98 ± 1,28 pre-registrati**
@@ -113,6 +123,6 @@ della riga a livello WARN.
 - Non dimostra che `mul` sia "abbastanza buono" da spedire: 94,83 % di same-top è una misura, la soglia di prodotto è
   una decisione dell'owner.
 - Non isola l'ultimo asse (operando B in memoria a f16), che resta il candidato per il residuo di 5× contro il GEMV.
-- La KLD di ogni braccio GPU contiene anche operazioni che nessuna variante tocca (`ne1 == 1` va al GEMV, `ggml-opencl.cpp:17087` nello stesso albero,
+- La KLD di ogni braccio GPU contiene anche operazioni che nessuna variante tocca (`ne1 == 1` va al GEMV, `ggml-opencl.cpp:17087` nell'albero della patch,
   `use_adreno_kernels` esclude forme piccole e tensori non 2D): i confronti fra varianti restano validi, il valore
   assoluto GPU-contro-CPU non è attribuibile per intero al GEMM.

@@ -2874,3 +2874,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `llama-bench -v`), e le velocità non sono una misura — rieseguendo la stessa config stock dopo 20 min di carico il
 > board ha dato `pp512 165,74 ± 53,58` contro 286,30 ± 0,61. Prossimo: cella sull'ultimo asse (immagine B
 > `CL_HALF_FLOAT` scritta dal kernel di trasposizione), misura di velocità a freddo, e le altre board.
+
+#### Conseguenza per il governor, da verificare (non ancora un dato)
+Il vantaggio del prefill GPU misurato **in-app** su questi tier è: 750 → 1,78× la CPU (ALIVE 55, 4,105 s contro
+7,294 s), 735 → 1,72× (ALIVE 54), 732 → 1,63× (riga 52). Tutti e tre sono però misurati con il kernel **infedele**.
+Se la correzione costa il fattore che questa cella indica (0,654× di `pp512`, e `pp512` è proprio la metrica del
+prefill), il vantaggio di un prefill GPU **corretto** diventa circa **1,16× su 750, 1,13× su 735, 1,07× su 732**.
+Cioè: pagando la fedeltà, il margine della GPU sul prefill in questa fascia **quasi sparisce**, e la decisione del
+governor su V73/V75 cambia di natura — da "la GPU vince il prefill" a "la GPU pareggia il prefill e serve solo per il
+vantaggio termico e per liberare la CPU". Da trattare come una composizione di due misure fatte in condizioni diverse
+(una in-app, una kernel-level e per giunta a caldo), quindi **una previsione da falsificare**, non un numero bancato.
+Le due misure che la chiudono: (1) il costo di `mul` misurato a freddo e a ordine randomizzato, (2) una coppia
+A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si applica: là il prefill GPU è ~10× la CPU
+(#38) e anche un 0,65× lascerebbe un margine enorme — ma la fedeltà su V79 non è mai stata misurata.
