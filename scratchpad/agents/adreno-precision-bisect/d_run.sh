@@ -11,7 +11,10 @@ readonly EXPECTED_MODEL_SHA="a247afd6414918eac8e520a9e6137dc271235461ecbe1180462
 readonly MODEL_FILE="LFM2.5-2.6B-QAD-Q4_0.gguf"
 readonly CORPUS="$CELL_DIR/corpus.txt"
 readonly CONTEXT_SIZE=256
-readonly BATCH_SIZE=256
+# BATCH_SIZE is overridable so the same runner can route the GPU arm through the
+# fp32 GEMV kernel (batch 1) instead of the f16 GEMM one (batch > 1); both arms
+# always get the same value.
+BATCH_SIZE="${BATCH_SIZE_OVERRIDE:-256}"; readonly BATCH_SIZE
 readonly DEVICE_ROOT=/data/local/tmp/kalsa-bisect
 readonly DEVICE_KIT_TGZ="$DEVICE_ROOT/kit-2f3b24dee.tgz"
 readonly DEVICE_KIT_DIR="$DEVICE_ROOT/kit-2f3b24dee"
@@ -190,9 +193,11 @@ push_corpus() {
 }
 run_kld() {
     local cpu_cmd gpu_cmd rc
+    # EXTRA_ARGS is appended IDENTICALLY to both arms so the graphs stay comparable.
+    printf 'extra_args=%s\n' "${EXTRA_ARGS:-}"
     printf 'host_cpu_kld=%s\n' "$RAW/cpu.kld"
-    cpu_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 0 -s 42 --temp 0 --kl-divergence-base '$DEVICE_ROOT/cpu.kld'"
-    gpu_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 99 -s 42 --temp 0 --kl-divergence --kl-divergence-base '$DEVICE_ROOT/cpu.kld'"
+    cpu_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 0 -s 42 ${EXTRA_ARGS:-} --temp 0 --kl-divergence-base '$DEVICE_ROOT/cpu.kld'"
+    gpu_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 99 -s 42 ${EXTRA_ARGS:-} --temp 0 --kl-divergence --kl-divergence-base '$DEVICE_ROOT/cpu.kld'"
     run_step cpu-kld "$RAW/cpu-kld.log" adbT 1800 -s "$SERIAL" shell "$cpu_cmd"; rc=$?; [ "$rc" -eq 0 ] || return "$rc"
     run_step pull-cpu-kld "$RAW/pull-cpu-kld.txt" adbT 300 -s "$SERIAL" pull "$DEVICE_ROOT/cpu.kld" "$RAW/cpu.kld"; rc=$?; [ "$rc" -eq 0 ] || return "$rc"
     run_step gpu-kld "$RAW/gpu-kld.log" adbT 1800 -s "$SERIAL" shell "$gpu_cmd"; rc=$?; [ "$rc" -eq 0 ] || return "$rc"

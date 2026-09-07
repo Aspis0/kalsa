@@ -17,7 +17,10 @@ readonly -a REQUESTED_TARGETS=(
     llama-bench-impl llama-bench test-backend-ops llama-perplexity llama-eval-callback
 )
 readonly -a KIT_BINARIES=(llama-bench test-backend-ops llama-perplexity llama-eval-callback)
-readonly -a KIT_LIBS=(libggml-base.so libggml-cpu.so libggml-opencl.so libggml.so libllama.so libllama-common.so libllama-bench-impl.so)
+# Every .so the build produces is shipped: a hand-kept list already cost one
+# device session (libllama-perplexity-impl.so was missing and llama-perplexity
+# could not link on the phone).
+readonly -a KIT_LIBS=(ALL)
 
 START_EPOCH=$(date +%s)
 CONTAINER="kalsa-adreno-precision-$EXPECTED_HEAD"
@@ -171,10 +174,22 @@ assemble_kit() {
         digest=$(sha256_file "$source_bin/$binary") || return 1
         printf 'binary_sha256 %s %s\n' "$binary" "$digest"
     done
-    for lib in "${KIT_LIBS[@]}"; do
-        from=$(find "$SOURCE_TREE/build-snapdragon" -type f -name "$lib" -print -quit)
-        if [ -n "$from" ]; then cp "$from" "$staged/lib/$lib" || return 1
-        else printf 'skipped_lib=%s reason=missing\n' "$lib"; fi
+    local lib_count=0
+    while IFS= read -r from; do
+        [ -n "$from" ] || continue
+        cp "$from" "$staged/lib/$(basename "$from")" || return 1
+        printf 'shipped_lib=%s\n' "$(basename "$from")"
+        lib_count=$((lib_count + 1))
+    done <<EOF
+$(find "$SOURCE_TREE/build-snapdragon" -type f -name '*.so' | sort)
+EOF
+    [ "$lib_count" -gt 0 ] || { echo "no shared libraries found in the build tree"; return 1; }
+    for binary in "${KIT_BINARIES[@]}"; do
+        while IFS= read -r needed; do
+            [ -f "$staged/lib/$needed" ] || { echo "missing dependency $needed for $binary"; return 1; }
+        done <<EOF
+$(strings -a "$source_bin/$binary" | grep -E '^lib(ggml|llama)[a-z0-9._-]*\.so$' | sort -u)
+EOF
     done
     printf '%s\n' "2f3b24dee5833faeeb0ef6f097c4db3d11a96fb0" > "$staged/GIT_SHA" || return 1
     (
