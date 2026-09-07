@@ -322,3 +322,36 @@ sessione nuova.
 
 Costo di typing misurato su questo board con l'APK nuovo: 803-818 s per turno (il gradino da 200 caratteri fallisce
 sempre e ne brucia 300, poi 100 caratteri passano in ~510 s), contro 386-397 s della run 8 → una coppia costa ~48 min.
+
+### Sessione 807970 (QRD8650, host sa812039, APK 8269aa2 / fault 5243755) — PRIMA COPPIA VALIDA E PRIMO VERDETTO
+Positivo `TYPE_LADDER=100 ORACLE_MODE=logit … ABABAB 110`, negativo `… ABABAB 50` sull'APK con guasto.
+
+| riga | esito | dato |
+|---|---|---|
+| A1 pos | valida | TTFT 7,294 s, 925 token nuovi, 936 passi di probs, `ids_sha 1a006db3…` |
+| B1 pos | **valida** | TTFT 4,105 s (**prefill GPU 1,78× la CPU**), 32 passi forzati (`forced:true`, tok = ids di A), `governor_count=1`, `thermo_source=bench-skin` |
+| A2 pos | valida | TTFT 7,605 s, `ids_sha` identico ad A1 → braccio CPU deterministico fra turni |
+| B2 pos | VOID `hot` | cooldown 900 s (tetto) senza scendere a 37,0 °C |
+| A1 neg | valida | TTFT 7,679 s, 936 passi |
+| B1 neg | VOID `hot` | idem |
+
+**Verdetto della coppia 1 (ricalcolato offline con lo script corretto):**
+`oracle=FAIL rule=R2 steps=32 max_dlogp=8.7216 max_dp1=0.7166 divergences=0`.
+Dettaglio verificato passo per passo: token emessi identici su tutti i 32 passi (B è forzato); **21 passi su 32** con
+|Δp₁| > 0,02; mediana |Δp₁| = 0,0861; mediana max|Δlogp| = 3,444; e **tre passi in cui il top-1 grezzo differisce mentre
+la CPU è sicura** — passo 23: CPU 0,9826 su token 11671 contro GPU 0,2660 su token 7457; passo 20: 0,7317 su 8818
+contro 0,2655 su 3918; passo 3: 0,9846 su 622 contro 0,5915 su 267.
+
+**Controllo CPU-vs-CPU (gratuito, dai dati archiviati):** il braccio A del positivo (APK 8269aa2) e quello del negativo
+(APK 5243755) — sessioni, installazioni e build diverse — sono identici bit a bit su tutti i 936 passi:
+`oracle=PASS steps=936 max_dlogp=0.0000 max_dp1=0.0000`. Lo stesso strumento legge 0,0000 fra CPU e CPU e 3,444 di
+mediana fra CPU e GPU: la divergenza misurata non è rumore di misura.
+
+**Cosa NON è dimostrato:** R5 (la sanità dell'oracolo) NON è soddisfatta. Il controllo positivo doveva girare dove il
+prefill GPU è ritenuto corretto (8 Elite, V79); su QRD8650 (V75) le run 9/10 avevano già mostrato ids divergenti, quindi
+il FAIL era atteso e il controllo era mal posto — errore mio (Amendment 12). Il controllo negativo non ha prodotto
+nessuna coppia (termica). Nessuna promozione di `GPU_PREFILL_CORRECT` è possibile da questa run (R6).
+
+**Vincolo termico misurato:** con questo carico (prompt da 5,1 kB, ~19 min per turno) solo la PRIMA coppia di una
+sessione rientra nel tetto di raffreddamento di 900 s; le due coppie successive sono state annullate come `hot`.
+Per due coppie valide serve un tetto più alto o una sessione con più attesa fra le coppie.
