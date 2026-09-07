@@ -12,7 +12,7 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-09-07 12:00, PIVOT PRODOTTO)
+# ⭐ STATO CORRENTE — vista compatta (2026-09-07 16:10, PIVOT PRODOTTO)
 
 ## Il goal (owner, ripetuto 4/09)
 Kernel che usa NPU, GPU e CPU **per fase** a seconda di temperatura, batteria e
@@ -22,6 +22,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **7/09 sera — la campagna kernel è CHIUSA sulla causa; la fase nuova è il governor nell'app (ALIVE 56-59).**
+  Cinque assi refutati **per misura** (attenzione, flag del compilatore, accumulatore f16, dequantizzazione,
+  precisione dell'operando in memoria): **l'unica cosa che muove la divergenza è la moltiplicazione in f16**, di 95,8×.
+  Fix = accumulatori `float8` + 16 righe `c0 += convert_float8(B) * (float)dequantized_weights.s0;`, costo **0,659×**
+  di prefill. **Decode NPU refutato** (ALIVE 58): la KV sul DSP si mappa e peggiora → decode resta CPU, ora misurato
+  sul modello spedito. **Prossima fase**: promuovere il fix da variante d'ambiente a default del fork, APK dalla CI,
+  e la coppia A/B in-app che falsifica la previsione qui sotto.
 - **7/09 — perché il prefill GPU sbagliava, e quanto costa non sbagliare più (ALIVE 56+57).**
   La divergenza del prefill GPU su Adreno **non** è l'attenzione, **non** sono i flag del compilatore e **non** è
   l'accumulatore f16: è la **moltiplicazione eseguita in half** dentro `gemm_noshuffle_q4_0_f32.cl`. Misurato con
@@ -2898,3 +2905,14 @@ vantaggio termico e per liberare la CPU". Da trattare come una composizione di d
 Le due misure che la chiudono: (1) il costo di `mul` misurato a freddo e a ordine randomizzato, (2) una coppia
 A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si applica: là il prefill GPU è ~10× la CPU
 (#38) e anche un 0,65× lascerebbe un margine enorme — ma la fedeltà su V79 non è mai stata misurata.
+
+### 7/09 sera — operando refutato, e la fase nuova
+> 16:10 — `adreno-operand-b`: tenere le attivazioni in f32 fino dentro il GEMM non cambia nulla (0,004641 contro
+> 0,004736, same-top leggermente peggiore). Quinto asse refutato. I due controlli riproducono i valori bancati alla
+> sesta cifra col terzo kit, e tutte le righe sono OK: la sonda di provenienza per variante ha eliminato i VOID.
+> Velocità a freddo: `mul` 0,659× — ma la lettura di validità che avevo pre-registrato FALLISCE (5,71 °C di escursione
+> contro 2 ammessi), causa un difetto del nostro harness (cooldown assente prima del primo passo). Non ho allargato la
+> banda: il debito resta aperto. `b=float` costa 0,509× e non rende → scartata.
+> **Decisione owner**: si passa alla fase governor-nell'app col kernel corretto. Il residuo 5× (geometria del tile,
+> ordine di somma) e le altre board restano in coda, non sul percorso critico del prodotto.
+
