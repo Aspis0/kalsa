@@ -113,9 +113,13 @@ Instrument: identical to cell `adreno-acc-type` — `llama-perplexity --kl-diver
 Adreno 750, with the per-variant provenance probe (`llama-bench -v`, header must contain
 `selected platform: 'QUALCOMM`).
 
-Model: a Q4_K_M GGUF, not the Q4_0 shipping model — the point is to exercise the q4_K
-kernel. The catalogue's `qwen3.5-4b` Q4_K_M file is the right one; its sha goes in the
-REPORT before any reading is taken.
+Model: **`LFM2.5-2.6B-Q4_K_M.gguf`**, already on the Mac
+(`~/kalsa-qdc/models/`, 1 674 455 040 bytes), not the catalogue's Qwen 4B. Same weights as
+the Q4_0 arm, different quantisation — so the q4_K fidelity number is directly comparable
+to the q4_0 one measured on this board, with the kernel as the only structural difference.
+It also needs no download. Its sha goes in the REPORT before any reading is taken.
+(The Qwen 4B stays the model the *app* defaults to; nothing here depends on measuring that
+particular file, only on measuring the kernel it uses.)
 
 Registered readings, in this order:
 1. **Fidelity, unfixed q4_K**: CPU vs GPU at the pre-fix kernel. No prediction is
