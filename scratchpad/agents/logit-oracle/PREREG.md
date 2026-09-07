@@ -206,7 +206,7 @@ turns out to interrupt generation rather than being the documented late no-op, a
 The positive control on QRD8650 returned **FAIL**. That is my design error, not an instrument failure, and I am recording
 it rather than re-fitting: the positive control's premise ("a normal build must PASS") only holds on a board where GPU
 prefill is believed output-preserving — the 8 Elite (V79). On QRD8650 (V75) the strict token oracle had ALREADY failed
-in runs 9/10 (ALIVE 52/54, "oracolo FAIL ×2 con ids GPU"), so a FAIL here was expected before the run started.
+on this very board in run 8 (ALIVE 51) and on 732/735 in runs 9/10 (ALIVE 52/54, "oracolo FAIL ×2 con ids GPU"), so a FAIL here was expected before the run started.
 Amendment 9 moved the controls to this board for budget reasons and did not carry that expectation over. Consequence:
 **R5 is NOT met**, and the sanity control still requires the 8 Elite. No threshold is touched.
 What the run does establish, and what is banked as descriptive:
@@ -217,5 +217,5 @@ What the run does establish, and what is banked as descriptive:
   median 3.44 on CPU-vs-GPU, so the divergence is not measurement noise.
 Open item found while reading the verdict (NOT changed after the fact): `record()` builds `(step, priority, rule)` and
 the script reports `min(violations)[2]`, which orders by STEP, not by severity — pair 1 is labelled R2 (earliest
-violation, step 3) although it also violates R1 (steps 3, 20, 23 have a different raw top-1 while A is confident). The
+violation, step 3) although it also violates R1 at EIGHT steps (3, 15, 18, 20, 22, 23, 25, 28: different raw top-1 while A's margin is ≥ 0.03). The earliest violation is in fact step 0 (R2, |Δp1| = 0.077), not step 3. The
 FAIL verdict is unaffected. Any change to that ordering must be made and audited BEFORE the next verdict is read.

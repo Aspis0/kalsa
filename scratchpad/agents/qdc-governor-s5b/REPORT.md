@@ -338,9 +338,16 @@ Positivo `TYPE_LADDER=100 ORACLE_MODE=logit … ABABAB 110`, negativo `… ABABA
 **Verdetto della coppia 1 (ricalcolato offline con lo script corretto):**
 `oracle=FAIL rule=R2 steps=32 max_dlogp=8.7216 max_dp1=0.7166 divergences=0`.
 Dettaglio verificato passo per passo: token emessi identici su tutti i 32 passi (B è forzato); **21 passi su 32** con
-|Δp₁| > 0,02; mediana |Δp₁| = 0,0861; mediana max|Δlogp| = 3,444; e **tre passi in cui il top-1 grezzo differisce mentre
-la CPU è sicura** — passo 23: CPU 0,9826 su token 11671 contro GPU 0,2660 su token 7457; passo 20: 0,7317 su 8818
-contro 0,2655 su 3918; passo 3: 0,9846 su 622 contro 0,5915 su 267.
+|Δp₁| > 0,02; mediana |Δp₁| = 0,0861; mediana max|Δlogp| = 3,444; e **otto passi su 32 in cui il top-1 grezzo differisce
+mentre la CPU è sicura** (margine A ≥ 0,03): passi 3, 15, 18, 20, 22, 23, 25, 28 — passo 23: CPU 0,9826 su token 11671
+contro GPU 0,2660 su 7457; passo 20: 0,7317 su 8818 contro 0,2655 su 3918; passo 3: 0,9846 su 622 contro 0,5915 su 267.
+In 5 di questi 8 la scelta della GPU è comunque nei top-5 della CPU (rango 2-5); in 3 (passi 20, 23, 28) è FUORI, cioè
+la CPU le assegnava meno dello 0,55%, 0,05% e 4,24%. Decodificati col tokenizer del modello (gguf QAD-Q4_0, gguf-py),
+i token sono parole inglesi plausibili, non spazzatura: la CPU scrive "The user wants me to write a field note about a
+long mountain journey. They've provided a detailed description of the journey and want me to craft a careful field",
+la GPU avrebbe scritto " a" invece di " me", " I" invece di " They", " very" invece di " a", " structure" invece di
+" description", " what" invece di " the", " format" invece di " journey", " specific" invece di " want", " follow"
+invece di " craft". Il rischio non è output rotto e riconoscibile: è una risposta **diversa e silenziosa**.
 
 **Controllo CPU-vs-CPU (gratuito, dai dati archiviati):** il braccio A del positivo (APK 8269aa2) e quello del negativo
 (APK 5243755) — sessioni, installazioni e build diverse — sono identici bit a bit su tutti i 936 passi:
@@ -353,5 +360,7 @@ il FAIL era atteso e il controllo era mal posto — errore mio (Amendment 12). I
 nessuna coppia (termica). Nessuna promozione di `GPU_PREFILL_CORRECT` è possibile da questa run (R6).
 
 **Vincolo termico misurato:** con questo carico (prompt da 5,1 kB, ~19 min per turno) solo la PRIMA coppia di una
-sessione rientra nel tetto di raffreddamento di 900 s; le due coppie successive sono state annullate come `hot`.
+sessione rientra nel tetto di raffreddamento di 900 s. Precisazione sulle righe successive: A2 era **valida**, B2 è
+l'unica annullata come `hot` (cooldown 900 s al tetto), A3 è andata VOID `composer` e B3 non ha nemmeno una riga
+(deadline). Anche il negativo ha perso la sua B per `hot`.
 Per due coppie valide serve un tetto più alto o una sessione con più attesa fra le coppie.
