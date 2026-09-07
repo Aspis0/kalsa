@@ -183,3 +183,31 @@ KEXP line, out since the 2.6B decision) nor the remaining noshuffle quants.
 
 Both dispatched to `apk.yml` (arm64-v8a, debuggable) on 2026-09-07, runs 34148006630 and
 34148008166.
+
+## Harness cost of one A/B pair on the QRD8650, measured 2026-09-07 (session 808521)
+
+The first attempt was lost to a deadline I chose without measuring what a turn costs.
+`qdc-governor-s5b/d_run.sh` was launched with `DEADLINE_MINUTES=40`; it killed arm B1
+mid-typing at 39:42 with `END reason=deadline_40_min`, leaving only A1.
+
+What a single observation actually costs on this board, from the run's own artefacts:
+
+- fresh APK install + **1.6 GB model copy** + DB bootstrap — done **per turn**, not once;
+- prompt entry in chunks: ~9 min (chunks `a1_c1`..`a2_c47`);
+- cooldown to target before every turn: **390 s** measured (37.09 -> 36.93 °C, target 37.0);
+- one turn raises skin from 29.6 to **42.6 °C**.
+
+So a full A/B pair needs **~50 minutes**, and a 40-minute deadline cannot produce one.
+Relaunched as `sa812590b` with `DEADLINE_MINUTES=60`.
+
+Two things worth keeping:
+
+- `deadline_check` fires **inside** a turn (`d_run.sh:306`, `:329`), not only between turns,
+  so an undersized deadline destroys the turn in progress rather than stopping cleanly
+  after the last complete one.
+- The "no cooldown before the first bench step" defect (cell `adreno-operand-b`) does
+  **not** apply here: `run_observation` calls `cool_target_for_arm` + `cooldown_to_target`
+  for every turn including the first A (`d_run.sh:375-377`).
+
+Salvaged from the lost run: A1 = TTFT 7348.9 ms, decode 21.91 tok/s, skin 29.601 -> 42.573,
+ids_sha `1a006db3…`.

@@ -140,3 +140,36 @@ argument-by-analogy from q4_0.
 
 This arm is NOT a blocker for the in-app A/B above: that one runs the Q4_0 shipping model
 and does not touch the q4_K kernel.
+
+## Amendment 2 — the cooldown WAIT ceiling, pre-registered 2026-09-07 before the run that uses it
+
+Three consecutive attempts on QRD8650 (session 808521, jobs `sa812590`, `sa812590b`,
+`sa812590c`) failed to produce a single arm-B turn. All three died at the same gate, and
+the measured numbers say why:
+
+| job | A1 skin start -> end | B1 cooldown | outcome |
+|---|---|---|---|
+| sa812590 | 29.601 -> 42.573 | reached 36.93 in 390 s | killed by my 40-min deadline mid-typing |
+| sa812590b | 38.473 -> 47.123 | 900 s ceiling at 37.934 | B1 VOID hot, turn skipped, no data |
+| sa812590c | 34.071 -> 45.549 | 900 s ceiling at **37.224** | B1 VOID hot, missed by **0.22 °C** |
+
+One A turn raises the skin by 9-13 °C. Idle cooling is fast at high delta and decays to
+~0.2 °C/min near 37; from ~45.5 °C the device needs roughly **1000-1100 s** to cross 37.0,
+and `d_run.sh` allows `COOL_MAX_S=900`.
+
+**What is NOT changed, and why.** The obvious "fix" — raising `COOL_TARGET_C` above 37.0 —
+would invalidate the experiment. The governor's own policy degrades a turn to CPU prefill
+at WARM (skin ≈ 38 °C, measured live in S5 run 5, ALIVE 48). A B turn started above that
+would run on the CPU and could return a meaningless PASS. The target therefore stays
+**37.0**, exactly as in ALIVE 55.
+
+**What is changed:** `COOL_MAX_S` 900 -> **1500**. This changes only how long the harness
+is willing to wait, never the thermal state in which arm B runs. The B turn still begins
+at <= 37.0 °C, so every reading stays comparable to ALIVE 55.
+
+Registered consequence: the extra wait costs ~5 min per pair, so one pair per session
+remains the budget.
+
+No other parameter, threshold or code path is touched. `DEADLINE_MINUTES` stays at the
+value passed on the command line (60), which Amendment-2 runs must respect: a pair now
+needs ~20 min (A) + ~18 min (cooldown) + ~15 min (B).
