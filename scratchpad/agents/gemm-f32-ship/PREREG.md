@@ -99,3 +99,38 @@ does not transfer in-app and that is itself a finding. n=1 pair is descriptive o
 - Nothing about Q4_K_M models: `gemm_noshuffle_q4_k_f32.cl` is a separate kernel and a
   separate arm (see PLAN.md, coverage gap).
 - Nothing about energy per token, which no one has measured on any backend.
+
+## Amendment 1 — the q4_K arm, pre-registered 2026-09-07 before any device run
+
+Added because the audit established a fact I had wrong: the app's DEFAULT model is
+`qwen3.5-4b`, quant `Q4_K_M` (`ModelRegistry.ts`, `default: true`), so the default prefill
+path is `gemm_noshuffle_q4_k_f32.cl`, not the q4_0 kernel. That kernel is now fixed the
+same way — and **nothing about it is measured**. Shipping an unmeasured cost on the
+default path is acceptable only if it is measured next, not indefinitely.
+
+Instrument: identical to cell `adreno-acc-type` — `llama-perplexity --kl-divergence-base`
+(CPU) + `--kl-divergence` (GPU), one shared CPU base, ~35 s per arm, on QRD8650 /
+Adreno 750, with the per-variant provenance probe (`llama-bench -v`, header must contain
+`selected platform: 'QUALCOMM`).
+
+Model: a Q4_K_M GGUF, not the Q4_0 shipping model — the point is to exercise the q4_K
+kernel. The catalogue's `qwen3.5-4b` Q4_K_M file is the right one; its sha goes in the
+REPORT before any reading is taken.
+
+Registered readings, in this order:
+1. **Fidelity, unfixed q4_K**: CPU vs GPU at the pre-fix kernel. No prediction is
+   registered for the magnitude — q4_0's 0.4538 is NOT a prediction for q4_K, whose
+   dequantisation carries a min/offset term and super-block scales.
+2. **Fidelity, fixed q4_K**: same, at 67c73d26c.
+3. **Cost**: `pp512` in both arms, cooled and in randomised order, with the cooldown
+   applied **before the first bench step too** — the defect that failed the validity
+   reading of cell `adreno-operand-b` (5.71 °C spread against 2 allowed).
+
+Decision rule, fixed now: the q4_K fix is kept if reading 2's median KLD is below reading
+1's by at least the factor the same instrument showed for q4_0 divided by ten (i.e. a
+≥9.6x reduction), AND the cost in reading 3 is ≥0.55x. Below either, the q4_K fix goes
+back on the bench and the default model's GPU prefill stays off — it does not ship on
+argument-by-analogy from q4_0.
+
+This arm is NOT a blocker for the in-app A/B above: that one runs the Q4_0 shipping model
+and does not touch the q4_K kernel.
