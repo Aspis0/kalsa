@@ -14,12 +14,8 @@
 // know it. Rather than emit a plausible wrong number the script refuses and says
 // so — a refusal is recoverable, a wrong constant in the registry is not.
 //
-// CONSEQUENCE, so a later reader does not misread the refusal: the one MoE entry
-// in the registry (`lfm2.5-8b-a1b-kexp`, 848 MB/token) IS tensor-map derived —
-// by hand, accounting for routing, in `b312602` — but it is the only value here
-// that this script cannot reproduce or check. It is rounded to MB where the
-// dense entries are exact bytes. If the recipe or n_expert_used ever changes,
-// nothing automated will notice.
+// CONSEQUENCE: any MoE-specific per-token value must be independently derived
+// from its routing recipe; this script deliberately refuses to guess one.
 //
 //   node scripts/ggufWeightBytes.mjs <hfRepo> <revision> <file>
 

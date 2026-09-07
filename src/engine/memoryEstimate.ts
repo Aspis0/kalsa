@@ -22,7 +22,7 @@
  * 3. Compute buffer — linear in n_ubatch, independent of model size and of
  *    context (vocab × ubatch dominated): 497@512, 249@256, 125@128, 62@64 MiB.
  *    Same for 2B and 4B.
- * 4. KV cache — linear in context. Measured 4.88 KiB/token for Qwen3.5-2B at
+ * 4. KV cache — linear in context. Measured 4.88 KiB/token for a 2B-class model at
  *    q8_0/q4_0. Hybrid models filter some layers out of KV; a naive
  *    n_layer×n_ctx×n_embd formula overestimates — prefer measured per-token.
  *

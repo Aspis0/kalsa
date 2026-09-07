@@ -1,6 +1,6 @@
 /**
  * Single tool-gate path. Callers: AppShell executeTool only.
- * Flag OFF: web_search table only, no audit, warn ignored.
+ * Flag OFF: web_search/web_fetch tables only, no audit, warn ignored.
  * Flag ON: full registry, audit, warn prepend enabled.
  */
 
@@ -33,8 +33,14 @@ function snapshotInput(
   memoryFacts: readonly string[],
 ): Record<string, unknown> {
   const facts = asFacts(memoryFacts);
-  if (toolName === "web_search") {
+  if (toolName === "web_search" || toolName === "web_fetch") {
     return {
+      ...(toolName === "web_fetch"
+        ? {
+            // Model tool args are JSON-serializable; String() matches webFetchTool.
+            url: typeof args.url === "string" ? args.url : String(args.url ?? ""),
+          }
+        : {}),
       query: typeof args.query === "string" ? args.query : String(args.query ?? ""),
       lastUserMessage,
       memoryFacts: facts,
@@ -97,18 +103,27 @@ export async function runToolGate(opts: {
   const table = resolveToolGateTable(opts.toolName, opts.toolhelpOn);
   if (!table) return { blocked: false };
 
-  const decision = evaluateTurn(
-    {
-      toolName: opts.toolName,
-      input: snapshotInput(
-        opts.toolName,
-        opts.args,
-        opts.lastUserMessage,
-        opts.memoryFacts,
-      ),
-    },
-    table,
-  );
+  let decision: TurnDecision;
+  try {
+    decision = evaluateTurn(
+      {
+        toolName: opts.toolName,
+        input: snapshotInput(
+          opts.toolName,
+          opts.args,
+          opts.lastUserMessage,
+          opts.memoryFacts,
+        ),
+      },
+      table,
+    );
+  } catch {
+    // Privacy gates fail closed if evaluation itself cannot complete.
+    return {
+      blocked: true,
+      text: blockText(opts.toolName, "gate-error", opts.locale),
+    };
+  }
 
   if (opts.toolhelpOn) {
     await appendGateAudit({

@@ -51,6 +51,17 @@ export type ThemeColors = {
   plotUp: string;
   plotDown: string;
   plotNs: string;
+  leafBody: string;
+  leafBodyDeep: string;
+  leafBack: string;
+  leafStroke: string;
+  leafTile: string;
+  leafTileActive: string;
+  leafBackdrop: string;
+  leafShade: string;
+  leafInk: string;
+  leafMuted: string;
+  leafLine: string;
 };
 
 export type ThemePalette = {

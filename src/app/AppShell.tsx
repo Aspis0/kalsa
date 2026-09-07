@@ -10,10 +10,12 @@ import { SettingsScreen } from "../screens/SettingsScreen";
 import { AccountScreen } from "../screens/AccountScreen";
 import { ProScreen } from "../screens/ProScreen";
 import { DocumentsScreen } from "../screens/DocumentsScreen";
+import type { RebuildSemanticIndexResult } from "../screens/documents/DocumentDetailView";
 import { NotesScreen } from "../screens/NotesScreen";
 import { PersonasScreen, builtinCopyFromT } from "../screens/PersonasScreen";
 import {
   emptyLibraryState,
+  isDocumentUnreadable,
   loadLibraryState,
   saveLibraryState,
   getDefaultLibraryStorage,
@@ -28,10 +30,7 @@ import {
   writeVectorIndexFile,
 } from "../documents/documentStorage";
 import { DocumentCoverHost } from "../documents/documentCover";
-import {
-  DOCUMENT_CHAT_TOOL,
-  createDocumentChatExecutor,
-} from "../documents/documentChatTool";
+import { createDocumentChatExecutor } from "../documents/documentChatTool";
 import {
   tryAcquireDelete,
   releaseDelete,
@@ -49,11 +48,16 @@ import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 import type { AskAssistantMiniapp } from "../domain/askAssistant";
 import { handleAskAssistantMiniappAction } from "./miniappActions";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Notifications from "expo-notifications";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { MODEL_REGISTRY, WHISPER_MODEL, EMBEDDING_MODEL, getDefaultModel, formatBytes, type ModelInfo } from "../engine/ModelRegistry";
-import { downloadModelBundle, friendlyNetworkError, isModelBundleDownloaded, modelLocalPath } from "../engine/ModelDownloader";
+import {
+  downloadModelBundle,
+  friendlyNetworkError,
+  isModelBundleDownloaded,
+  modelLocalPath,
+} from "../engine/ModelDownloader";
+import { detectOrphansAtBoot } from "../engine/ModelDownloader.orphanMigration";
 import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
@@ -147,6 +151,9 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
+import { useThermalHardGate } from "../hooks/useThermalHardGate";
+import { useBatteryEta, type BatteryEtaUiState } from "../hooks/useBatteryEta";
+import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
@@ -192,16 +199,15 @@ import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shar
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { saveNote } from "../notes/NotesStore";
 import {
-  DEVICE_CALC_TOOL,
-  DEVICE_INFO_TOOL,
   formatDeviceInfoResult,
   readDeviceInfo,
   runDeviceCalc,
 } from "../agent/deviceTools";
-import { CALENDAR_AGENDA_TOOL, runCalendarAgenda } from "../agent/calendarTool";
+import { runCalendarAgenda } from "../agent/calendarTool";
 import {
   CALENDAR_TOOLS_KEY,
   DEVICE_TOOLS_KEY,
+  WEB_TOOLS_ENABLED_KEY,
   parseToolToggle,
 } from "../agent/toolToggles";
 import {
@@ -216,14 +222,16 @@ import {
   getSpeculativeOverride,
   getToolGateEnabled,
 } from "../bench/benchConfig";
-import { WEB_SEARCH_TOOL, makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { makeWebSearchExecutor, mapSearchSourcesToChat } from "../agent/webSearchTool";
+import { makeWriteNoteExecutor } from "../agent/writeNoteTool";
+import { makeCreateMiniappExecutor } from "../agent/createMiniappTool";
 import { applyWarnToResult, runToolGate } from "../rules/runToolGate";
 import {
-  WEB_FETCH_TOOL,
   makeFetchAllowlist,
   makeWebFetchExecutor,
   type FetchAllowlist,
 } from "../agent/webFetchTool";
+import { assembleTools } from "../agent/toolRegistry";
 import { PdfTextExtractorHost } from "../pdf/PdfTextExtractorHost";
 import { makePdfCacheFs } from "../pdf/pdfCacheFs";
 import { isPdfTextExtractionBusy, requestPdfText } from "../pdf/pdfTextService";
@@ -309,8 +317,6 @@ type ActiveOverlay =
   | null;
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
-/** Per-user web tool gate (search + fetch). Default ON; AsyncStorage-backed. */
-const WEB_TOOLS_ENABLED_KEY = "kalsa.web.enabled";
 
 // ── Model download: keep-awake + progress notification (MIUI/Xiaomi fix) ──
 // Aggressive Android power managers (MIUI in particular) freeze the app the
@@ -323,6 +329,7 @@ const DOWNLOADS_CHANNEL_ID = "downloads";
 const DOWNLOAD_PROGRESS_NOTIFICATION_ID = "kalsa-model-download-progress";
 /** Never post a notification update more than once per this window. */
 const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
+const SEARCH_DEBOUNCE_MS = 180;
 
 /**
  * Untranslated on-device diagnostic string from a thrown value.
@@ -682,6 +689,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const typography = useTypography();
   const insets = useSafeAreaInsets();
   const { locale, t } = useLocale();
+  const thermalHardGateRef = useRef(false);
+  const onThermalHardGateChange = useCallback((gated: boolean) => {
+    // Native events update the imperative guard before React paints the gate.
+    thermalHardGateRef.current = gated;
+  }, []);
+  const { gated: thermalHardGated } = useThermalHardGate({
+    onGateChange: onThermalHardGateChange,
+  });
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -695,11 +710,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     void AsyncStorage.getItem(WEB_TOOLS_ENABLED_KEY)
       .then((raw) => {
         if (cancelled) return;
-        // Missing key → default ON (current historical behavior).
-        if (raw === "0" || raw === "false") {
-          setWebToolsEnabled(false);
-          webToolsEnabledRef.current = false;
-        }
+        const webOn = parseToolToggle(raw, true);
+        setWebToolsEnabled(webOn);
+        webToolsEnabledRef.current = webOn;
       })
       .catch(() => undefined);
     return () => {
@@ -827,6 +840,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * user disables memory mid-turn (live enabled/facts refs would go empty).
    */
   const injectedFactsRef = useRef<string[]>([]);
+  /**
+   * Current turn's onMiniapp hook (set at send in handleSendStream). The
+   * create_miniapp executor reads it so a built miniapp opens inline in the
+   * chat. Threaded through a ref because executeTool lives in a separate memo.
+   */
+  const onMiniappRef = useRef<(miniapp: unknown) => void>(() => {});
   /** Opt-in CisWire tool-help flag (kalsa.ciswire.toolhelp) — default OFF. */
   const toolhelpRef = useRef(false);
 
@@ -839,7 +858,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const documentLibraryRef = useRef<LibraryState>(documentLibrary);
   documentLibraryRef.current = documentLibrary;
 
-  // ── Conversations index (swipe drawer) ────────────────────────────────
+  // ── Conversations index (leaf-fold drawer) ────────────────────────────────
   const [conversations, setConversations] = useState<ConversationsState>({
     activeId: "",
     items: [],
@@ -848,6 +867,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   conversationsRef.current = conversations;
   const [conversationsReady, setConversationsReady] = useState(false);
   const [chatSearch, setChatSearch] = useState("");
+  const [chatSearchQuery, setChatSearchQuery] = useState("");
+  const chatSearchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleChatSearchChange = useCallback((query: string) => {
+    setChatSearch(query);
+    if (chatSearchTimerRef.current !== null) clearTimeout(chatSearchTimerRef.current);
+    if (!query) {
+      setChatSearchQuery("");
+      chatSearchTimerRef.current = null;
+      return;
+    }
+    chatSearchTimerRef.current = setTimeout(() => {
+      chatSearchTimerRef.current = null;
+      setChatSearchQuery(query);
+    }, SEARCH_DEBOUNCE_MS);
+  }, []);
+  useEffect(
+    () => () => {
+      if (chatSearchTimerRef.current !== null) clearTimeout(chatSearchTimerRef.current);
+    },
+    [],
+  );
+  const clearChatSearch = useCallback(() => handleChatSearchChange(""), [handleChatSearchChange]);
   const persistFlushRef = useRef<(() => void) | null>(null);
   const isActiveChatEmptyRef = useRef<(() => boolean) | null>(null);
   const bumpPersistEpochRef = useRef<(() => void) | null>(null);
@@ -950,6 +991,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    * Set SYNCHRONOUSLY before the first await so a second import cannot race in.
    */
   const embedJobInFlightRef = useRef(false);
+  /** Reactive busy flag for a user-triggered rebuild, not ordinary imports. */
+  const [semanticRebuildInFlight, setSemanticRebuildInFlight] = useState(false);
   /**
    * Generation token for the background embed job. Bumped on unmount, on
    * library delete of the doc being embedded, and when the chat model starts
@@ -1344,7 +1387,50 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    *
    * Never throws; never holds the chat path.
    */
+  const isChatResidentForEmbed = useCallback((): boolean => {
+    const state = modelStateRef.current;
+    if (state === "loading") return true;
+    try {
+      return isEngineReady();
+    } catch {
+      return false;
+    }
+  }, []);
+
+  /** Shared RAM preflight for imports and user-triggered rebuilds. */
+  const mustSkipEmbedForRam = useCallback(async (): Promise<boolean> => {
+    if (!isChatResidentForEmbed()) return false;
+    try {
+      const profile = await getCachedDeviceProfile();
+      const total = profile.totalMemoryBytes ?? 0;
+      setCoResidencyContext({
+        totalMemoryBytes: total,
+        chatModelIs2B: isChatModel2BClass(getActiveModelId()),
+      });
+      if (total <= 0 || total <= CO_RESIDENCY_MIN_MEMORY_BYTES) return true;
+      return isChatModel4BClass(getActiveModelId());
+    } catch {
+      return true;
+    }
+  }, [isChatResidentForEmbed]);
+
+  /** Shared embedder availability check; preserves the cached status contract. */
+  const ensureEmbedderDownloaded = useCallback(
+    async (signal?: AbortSignal): Promise<boolean> => {
+      if (thermalHardGateRef.current) return false;
+      if (embedderDownloadedRef.current) return true;
+      const status = await getEmbeddingModelStatus(
+        signal ? { signal } : undefined,
+      );
+      if (signal?.aborted) return false;
+      embedderDownloadedRef.current = status === "downloaded";
+      return embedderDownloadedRef.current;
+    },
+    [],
+  );
+
   const scheduleBackgroundEmbed = useCallback(async (entry: LibraryDoc) => {
+    if (thermalHardGateRef.current) return;
     if (!entry?.id || !entry.fileUri) return;
     // Single-flight: set SYNCHRONOUSLY before the first await so a concurrent
     // import cannot sneak a second job past the flag.
@@ -1369,49 +1455,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       `[embed] start {"docId":${JSON.stringify(entry.id)},"kind":${JSON.stringify(entry.kind)}}`,
     );
 
-    /**
-     * Chat residency gate for the soft RAM pre-check.
-     * "Resident" means the ENGINE is loaded (or loading), NOT that the GGUF is
-     * merely on disk. modelState "ready" after the download probe means
-     * downloaded-on-disk only — treating it as resident blocked embeds on cold
-     * start (header "Ready · local") even when isEngineReady() was false.
-     * Use loading UI state + isEngineReady only.
-     */
-    const isChatResident = () => {
-      const st = modelStateRef.current;
-      // "loading" covers the window between setModelState("loading") and
-      // isEngineReady() flipping true (engine init in flight).
-      if (st === "loading") return true;
-      try {
-        if (isEngineReady()) return true;
-      } catch {
-        /* ignore */
-      }
-      return false;
-    };
-
-    /** Soft pre-gate: skip job early when chat resident on ≤6 GB (log). */
-    const mustSkipForRam = async (): Promise<boolean> => {
-      if (!isChatResident()) return false;
-      try {
-        const profile = await getCachedDeviceProfile();
-        const total = profile.totalMemoryBytes ?? 0;
-        // Keep gate co-residency inputs fresh for tryAcquireEmbed (§5).
-        setCoResidencyContext({
-          totalMemoryBytes: total,
-          chatModelIs2B: isChatModel2BClass(getActiveModelId()),
-        });
-        // <= 6 GB: refuse co-residence. Unknown RAM (0/null) → conservative skip.
-        // Hard gate is still llamaContextGate.tryAcquireEmbed.
-        if (total <= 0 || total <= CO_RESIDENCY_MIN_MEMORY_BYTES) return true;
-        // 4B chat: no co-residency even on 8GB+.
-        if (isChatModel4BClass(getActiveModelId())) return true;
-        return false;
-      } catch {
-        return true;
-      }
-    };
-
     // Shared READ latch for the whole run so delete cannot remove the file /
     // index mid-embed, and so we cannot resurrect a deleted index.
     if (!tryAcquireRead()) {
@@ -1425,7 +1468,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
 
     try {
-      if (!stillCurrent() || signal.aborted) {
+      if (thermalHardGateRef.current || !stillCurrent() || signal.aborted) {
         // eslint-disable-next-line no-console
         console.log(
           `[embed] skip: aborted before work {"docId":${JSON.stringify(entry.id)}}`,
@@ -1433,7 +1476,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
 
-      if (await mustSkipForRam()) {
+      if (await mustSkipEmbedForRam()) {
         // eslint-disable-next-line no-console
         console.log(
           "[embed] skip: chat resident on ≤6GB RAM — BM25-only until chat released",
@@ -1448,31 +1491,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return;
       }
 
-      if (!embedderDownloadedRef.current) {
-        try {
-          const status = await getEmbeddingModelStatus({ signal });
-          if (!stillCurrent() || signal.aborted) {
-            // eslint-disable-next-line no-console
-            console.log(
-              `[embed] skip: aborted during embedder status {"docId":${JSON.stringify(entry.id)}}`,
-            );
-            return;
-          }
-          embedderDownloadedRef.current = status === "downloaded";
-        } catch {
+      if (!(await ensureEmbedderDownloaded(signal))) {
+        if (thermalHardGateRef.current || !stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
           console.log(
-            `[embed] skip: embedder status failed {"docId":${JSON.stringify(entry.id)}}`,
+            `[embed] skip: aborted during embedder status {"docId":${JSON.stringify(entry.id)}}`,
           );
           return;
         }
-        if (!embedderDownloadedRef.current) {
-          // eslint-disable-next-line no-console
-          console.log(
-            `[embed] skip: embedder missing {"docId":${JSON.stringify(entry.id)}}`,
-          );
-          return;
-        }
+        // eslint-disable-next-line no-console
+        console.log(
+          `[embed] skip: embedder missing {"docId":${JSON.stringify(entry.id)}}`,
+        );
+        return;
       }
 
       // Load text the same way document_chat does (txt / pdf pages).
@@ -1626,7 +1657,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           logEmbedDone("aborted");
           return;
         }
-        if (await mustSkipForRam()) {
+        if (await mustSkipEmbedForRam()) {
           // eslint-disable-next-line no-console
           console.log(
             "[embed] abort mid-job: chat became resident on ≤6GB — no embedder init",
@@ -1645,6 +1676,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
 
         // FIX B: pass job signal so EmbeddingService aborts at every await.
+        if (thermalHardGateRef.current) {
+          logEmbedDone(embeddedCount > 0 ? "partial" : "aborted");
+          return;
+        }
         const vec = await embedDocumentChunk(chunk.text, { signal });
         if (!stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
@@ -1828,7 +1863,70 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       embedJobInFlightRef.current = false;
       if (embedJobAbortRef.current === ac) embedJobAbortRef.current = null;
     }
-  }, []); // refs only — bumpEmbedJobGeneration is stable via useCallback([])
+  }, [ensureEmbedderDownloaded, mustSkipEmbedForRam]);
+
+  /**
+   * Clear one document's dense state and start a fresh incremental embed.
+   * The shared DELETE gate keeps chat, delete, and background embed from
+   * touching the sidecar or in-memory index during the reset.
+   */
+  const rebuildSemanticIndex = useCallback(
+    async (id: string): Promise<RebuildSemanticIndexResult> => {
+      if (thermalHardGateRef.current) {
+        return { ok: false, reason: "unavailable" };
+      }
+      if (!id || typeof id !== "string") {
+        return { ok: false, reason: "unavailable" };
+      }
+      if (embedJobInFlightRef.current) {
+        return { ok: false, reason: "in_progress" };
+      }
+      if (!tryAcquireDelete()) {
+        return { ok: false, reason: "busy" };
+      }
+
+      let entry: LibraryDoc | undefined;
+      try {
+        entry = (documentLibraryRef.current.docs ?? []).find((doc) => doc.id === id);
+        if (!entry || !entry.fileUri || isDocumentUnreadable(entry)) {
+          return { ok: false, reason: "unavailable" };
+        }
+
+        // Preflight all known no-op conditions before destroying the old index.
+        if (await mustSkipEmbedForRam()) {
+          return { ok: false, reason: "unavailable" };
+        }
+        try {
+          if (!(await ensureEmbedderDownloaded())) {
+            return { ok: false, reason: "no_embedder" };
+          }
+        } catch {
+          return { ok: false, reason: "no_embedder" };
+        }
+
+        bumpEmbedJobGeneration();
+        await deleteVectorIndexFile(id);
+        docSemanticByIdRef.current.delete(id);
+        docEmbedHashesByIdRef.current.delete(id);
+        docDenseReasonByIdRef.current.delete(id);
+      } finally {
+        releaseDelete();
+      }
+
+      if (!entry) return { ok: false, reason: "unavailable" };
+      setSemanticRebuildInFlight(true);
+      void scheduleBackgroundEmbed(entry).finally(() => {
+        setSemanticRebuildInFlight(false);
+      });
+      return true;
+    },
+    [
+      bumpEmbedJobGeneration,
+      ensureEmbedderDownloaded,
+      mustSkipEmbedForRam,
+      scheduleBackgroundEmbed,
+    ],
+  );
 
   // ── Web tools (search + fetch): default ON, per-user toggleable (HIGH-5).
   // Queries / fetches only run when the tool is called (privacy by design).
@@ -1839,6 +1937,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // agentOptions is rebuilt when webToolsEnabled flips so the tool list matches.
   const agentOptions = useMemo<EngineTurnOptions>(() => {
     const searchExec = makeWebSearchExecutor(locale);
+    const writeNoteExec = makeWriteNoteExecutor(locale);
+    // create_miniapp is ungated and always on; opens the built miniapp inline
+    // via the current turn's onMiniapp hook (threaded through a ref).
+    const createMiniappExec = makeCreateMiniappExecutor(locale, {
+      onMiniapp: (miniapp) => onMiniappRef.current?.(miniapp),
+    });
     // Recreated when fetchAllowlistTurnSeq advances (each send); held across
     // tool rounds within the same turn so search results stay allowlisted.
     const pdfCacheFs = makePdfCacheFs({
@@ -1915,20 +2019,20 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         isEmbedderDownloaded: () => embedderDownloadedRef.current,
         // FIX 6: thread AbortSignal into embedQuery (native abort gate).
         embedQuery: (text: string, signal?: AbortSignal) =>
-          embedQueryVec(text, signal ? { signal } : undefined),
+          thermalHardGateRef.current
+            ? Promise.resolve(null)
+            : embedQueryVec(text, signal ? { signal } : undefined),
       },
       { locale },
     );
     // ensureSemanticIndexLoaded is stable (useCallback []); captured above.
 
-    // HIGH-5: omit web tools when the user toggled Web off. document_chat always
-    // stays available so library attachments keep working offline.
-    const tools = [
-      ...(webToolsEnabled ? [WEB_SEARCH_TOOL, WEB_FETCH_TOOL] : []),
-      DOCUMENT_CHAT_TOOL,
-      ...(deviceToolsEnabled ? [DEVICE_INFO_TOOL, DEVICE_CALC_TOOL] : []),
-      ...(calendarToolsEnabled ? [CALENDAR_AGENDA_TOOL] : []),
-    ];
+    // New tool checklist and ordering live in src/agent/toolRegistry.ts.
+    const tools = assembleTools({
+      web: webToolsEnabled,
+      device: deviceToolsEnabled,
+      calendar: calendarToolsEnabled,
+    });
 
     return {
       tools,
@@ -2045,6 +2149,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               kind: "document_chat" as const,
             };
           }
+        } else if (name === "write_note") {
+          outcome = await writeNoteExec(name, args, signal);
+        } else if (name === "create_miniapp") {
+          outcome = await createMiniappExec(name, args, signal);
         } else {
           outcome = {
             text: getStrings(locale).errors.unknownTool.replace("{name}", name),
@@ -2071,11 +2179,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // ── Drawer + exclusive overlay (settings | account | pro | help | documents | notes | personas | miniapp | null) ──
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [modelBarHeight, setModelBarHeight] = useState(0);
   const [activeOverlay, setActiveOverlay] = useState<ActiveOverlay>(null);
 
   const handleSwitchConversation = useCallback(
     (id: string) => {
       if (!id) return;
+      clearChatSearch();
       if (id === conversationsRef.current.activeId) {
         setDrawerOpen(false);
         return;
@@ -2109,10 +2219,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
       })();
     },
-    [applyConversations, bindActiveConversation],
+    [applyConversations, bindActiveConversation, clearChatSearch],
   );
 
   const handleNewConversation = useCallback(() => {
+    clearChatSearch();
     if (isActiveChatEmptyRef.current?.()) {
       setDrawerOpen(false);
       return;
@@ -2167,13 +2278,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         newChatInFlightRef.current = false;
       }
     })();
-  }, [applyConversations, bindActiveConversation, handleSwitchConversation]);
+  }, [applyConversations, bindActiveConversation, clearChatSearch, handleSwitchConversation]);
 
   const handleDeleteConversation = useCallback(
     (id: string) => {
       if (!id) return;
       const prev = conversationsRef.current;
       if (!prev.items.some((item) => item.id === id)) return;
+      clearChatSearch();
       const deletingActive = prev.activeId === id;
       void resetCompactorChat(id);
       let next = removeConversation(prev, id);
@@ -2196,7 +2308,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       setDrawerOpen(false);
     },
-    [applyConversations, bindActiveConversation],
+    [applyConversations, bindActiveConversation, clearChatSearch],
   );
 
   const confirmDeleteConversation = useCallback(
@@ -2234,7 +2346,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const drawerConversationItems: DrawerConversationItem[] = useMemo(
     () =>
-      filterConversations(conversations.items, chatSearch).map((item) => ({
+      filterConversations(conversations.items, chatSearchQuery).map((item) => ({
         id: item.id,
         title: item.title.trim() ? item.title : t("drawer.untitled"),
         preview: item.preview,
@@ -2243,7 +2355,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         onLongPress: () => confirmDeleteConversation(item.id),
       })),
     [
-      chatSearch,
+      chatSearchQuery,
       confirmDeleteConversation,
       conversations.activeId,
       conversations.items,
@@ -2252,12 +2364,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     ],
   );
 
-  const edgeSwipe = Gesture.Pan()
-    .activeOffsetX(24)
-    .failOffsetY([-15, 15]) // scroll verticale NON deve aprire il drawer
-    .hitSlop({ left: 0, width: 48 }) // solo dal bordo sinistro: niente conflitti con sources/scroll
-    .runOnJS(true)
-    .onStart(() => setDrawerOpen(true));
   const drawerItems: DrawerItem[] = useMemo(
     () => [
       {
@@ -2266,6 +2372,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideSettings,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           // Opening settings replaces any open miniapp (exclusive overlay).
           setActiveOverlay({ kind: "settings" });
@@ -2277,6 +2384,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideUserCircle,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "account" });
         },
@@ -2287,6 +2395,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideFileText,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "documents" });
         },
@@ -2297,12 +2406,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         Icon: LucideStickyNote,
         onPress: () => {
           Keyboard.dismiss();
+          clearChatSearch();
           setDrawerOpen(false);
           setActiveOverlay({ kind: "notes" });
         },
       },
     ],
-    [t],
+    [clearChatSearch, t],
   );
 
   // Android hardware back while Settings/Help is open: each screen owns its
@@ -2434,6 +2544,86 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Keep modelStateRef in lockstep for the embed-job residency gate (reads
   // without waiting for a re-render). Assigned on every render below.
   modelStateRef.current = modelState;
+
+  // C7 — slope ETA from expo-battery level samples. Advisory only: never
+  // blocks send/load. Enabled only while a model is loaded and the engine is
+  const currentModel = MODEL_REGISTRY[modelIndex];
+
+  // ready (the drain slope is meaningless otherwise). Fail-open — unknown /
+  // measuring / charging states simply render no hard stop.
+  const batteryEta = useBatteryEta({
+    enabled:
+      modelState === "ready" &&
+      isEngineReady() &&
+      getActiveModelId() === currentModel.id,
+    modelId: currentModel.id,
+  });
+
+  // C7 — format an ETA band [low, high] hours into broad human bands. Whole
+  // hours, half-hour fractions; sub-hour reads “less than 1 hour”.
+  const formatEtaHours = (h: number | undefined): string => {
+    if (h == null) return "";
+    if (h < 1) return t("chat.batteryLessThanHour");
+    const whole = Math.floor(h);
+    const frac = Math.round((h - whole) * 2) / 2;
+    return frac >= 0.5 ? `${whole} h 30 min` : `${whole} h`;
+  };
+
+  // C7 — format an ETA band [low, high] hours into a single human phrase.
+  // Collapses duplicated / sub-hour copy: when both ends format the same, show
+  // once ("~less than 1 hour"); when the low end is sub-hour but the high is a
+  // whole band, surface the upper bound ("~1 h", "~2 h 30 min") rather than the
+  // awkward "less than 1 h–1 h".
+  const formatEtaBand = (low: number | undefined, high: number | undefined): string => {
+    const lo = formatEtaHours(low);
+    const hi = formatEtaHours(high);
+    if (lo === hi) return `~${lo}`;
+    if (low != null && low < 1) return `~${hi}`;
+    return `~${lo}–${hi}`;
+  };
+
+  // C7 — the advisory battery line. Rendered only when a model is loaded,
+  // the native API was reachable, and the charge is <= 50%. Fail-open: the
+  // hook's unknown / measuring / charging kinds simply render advisory text
+  // and never block send/load.
+  const batteryLine: React.ReactNode = (() => {
+    const pct = batteryEta.batteryPercent;
+    if (
+      !batteryEta.apiAvailable ||
+      pct == null ||
+      pct > 50 ||
+      modelState !== "ready"
+    ) {
+      return null;
+    }
+    const kind = batteryEta.kind;
+    // F1: prefer the explicit charging flag from the hook so a plugged-in
+    // device never renders the "keep generating" unknown copy.
+    const charging = batteryEta.charging === true;
+    const isLow = pct <= 20;
+    const color = charging ? colors.muted : kind === "eta" && isLow ? colors.bad : colors.muted;
+    return (
+      <>
+        <Text style={[typography.bodyXs, { color, marginBottom: spacing.xs }]}>
+          {charging
+            ? t("chat.batteryCharging")
+            : kind === "eta"
+              ? t("chat.batteryEstimate", {
+                  time: formatEtaBand(batteryEta.lowHours, batteryEta.highHours),
+                })
+              : kind === "measuring"
+                ? t("chat.batteryMeasuring")
+                : t("chat.batteryUnknown")}
+        </Text>
+        {isLow && kind === "eta" ? (
+          <Text style={[typography.bodyXs, { color: colors.bad, marginBottom: spacing.xs }]}>
+            {t("chat.batteryLowWarning")}
+          </Text>
+        ) : null}
+      </>
+    );
+  })();
+
   const [download, setDownload] = useState<{ bytesReceived: number; bytesTotal: number; progress: number } | null>(null);
   const [modelError, setModelError] = useState<string | null>(null);
   // Raw download error (untranslated) for on-device diagnostics when friendly text is generic.
@@ -2472,7 +2662,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     },
     [],
   );
-  const currentModel = MODEL_REGISTRY[modelIndex];
   // Pre-init estimate: catalog n_ctx (+ optional high-RAM hybrid upgrade).
   // After initEngine succeeds we overwrite both state and ref with the
   // reported effectiveNCtx (memory clamp may shrink). Document tool
@@ -2524,6 +2713,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (savedIndex >= 0) setModelIndex(savedIndex);
       })
       .catch(() => undefined);
+    // M1: detect orphaned model folders left by a catalog prune (no UI delete
+    // path). Detect-ONLY: never deletes at boot. A one-time "Delete / Keep"
+    // notice surfaces in Settings. Fire-and-forget — never blocks UI.
+    void detectOrphansAtBoot(getActiveModelId()).catch(() => undefined);
     return () => {
       mounted = false;
     };
@@ -2713,12 +2906,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (state === "active") {
           void (async () => {
             try {
+              if (thermalHardGateRef.current) return;
               const model = MODEL_REGISTRY[modelIndexRef.current];
               if (!model) return;
               // Foreground does not mark lost (RSS collapse is mmap eviction,
               // not death). Chip kind recomputes from existing jsReady.
               if (isEngineReady() && getActiveModelId() === model.id) return;
               const available = await getAvailableMemoryBytesUncached();
+              if (thermalHardGateRef.current) return;
               // Gate on the load mode initEngine will really use: the model's
               // policy with the bench lever folded in.
               const load = resolveLoadPolicy({
@@ -2893,6 +3088,85 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     };
   }, [applySharePayload]);
 
+  // Platform CRITICAL is a hard resource boundary. The native event callback
+  // flips thermalHardGateRef synchronously; this edge effect performs the safe
+  // async lifecycle (abort, dispose, and release) exactly once per entry.
+  const thermalGateEdgeRef = useRef(false);
+  useEffect(() => {
+    const gated = thermalHardGated;
+    thermalHardGateRef.current = gated;
+    const wasGated = thermalGateEdgeRef.current;
+    thermalGateEdgeRef.current = gated;
+    if (!gated || wasGated) return;
+
+    // Invalidate pending load/download continuations before the first await.
+    // A falling edge only clears the UI; it never starts a reload.
+    engineGenerationRef.current += 1;
+    regenAbortRef.current?.abort();
+    downloadAbortRef.current?.abort();
+    embeddingDownloadAbortRef.current?.abort();
+    bumpEmbedJobGeneration();
+
+    // Do not leave a load/download spinner behind while the gate is visible.
+    if (modelStateRef.current === "loading") {
+      modelStateRef.current = "ready";
+      setModelState("ready");
+    } else if (modelStateRef.current === "downloading") {
+      modelStateRef.current = "missing";
+      setModelState("missing");
+    }
+
+    const releasedGen = chatGateGenRef.current;
+    chatGateGenRef.current = null;
+    const lifecycle = backgroundDiscardLifecycleRef.current;
+    void (async () => {
+      try {
+        // AiChatPage owns the active stream controller and turn-end save.
+        try {
+          await lifecycle?.();
+        } catch {
+          // Disposal must still happen if the UI lifecycle callback fails.
+        }
+
+        const startedAt = Date.now();
+        while (
+          (streamInFlightRef.current ||
+            sendingInFlightRef.current ||
+            regenInFlightRef.current ||
+            sendClaimRef.current) &&
+          Date.now() - startedAt < 5000
+        ) {
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        }
+
+        // Use the shared barrier so dispose never overlaps a llama operation.
+        await runNativeOp(() => disposeEngine());
+        resetBootHistoryHash();
+        console.info(
+          "model.unload",
+          JSON.stringify({ reason: "platform_thermal_critical" }),
+        );
+      } catch {
+        // Thermal protection must not surface a second error over the gate.
+      } finally {
+        if (releasedGen !== null) {
+          markChatReleased(releasedGen);
+        } else {
+          const gate = getLlamaContextGateState();
+          if (gate === "chat_loading" || gate === "chat_ready") {
+            markChatReleased(getChatGeneration());
+          }
+        }
+        try {
+          // Embedding is another resident llama resource.
+          await releaseEmbedder();
+        } catch {
+          // Best effort; the active gate still blocks new loads.
+        }
+      }
+    })();
+  }, [bumpEmbedJobGeneration, thermalHardGated]);
+
   const handleSaveToNotes = useCallback(
     async (text: string) => {
       if (!text.trim()) return;
@@ -3030,6 +3304,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [modelIndex]);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+    // C3 — refuse every model load while the OS is at platform CRITICAL.
+    // The ref closes the event-to-render race; the query covers a transition
+    // that arrived before the listener was attached.
+    if (thermalHardGateRef.current) return false;
+    try {
+      if (await getPlatformThermalHardGate()) {
+        thermalHardGateRef.current = true;
+        return false;
+      }
+    } catch {
+      // The platform reader is fail-open; an unavailable API never blocks.
+    }
+    if (thermalHardGateRef.current) return false;
     // Capture generation + expected model BEFORE any await (race with selectModel).
     const generation = engineGenerationRef.current;
     const expectedModelId = model.id;
@@ -3061,6 +3348,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     try {
       if (!(await isModelBundleDownloaded(model))) return false;
       if (!stillCurrent()) return false;
+      if (thermalHardGateRef.current) return false;
 
       // Hard RAM gate before initEngine. Never force-evict the currently active
       // model (if this model is already active and ready we returned above).
@@ -3294,6 +3582,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
         return false;
       }
+      if (thermalHardGateRef.current) {
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        return false;
+      }
       const boundedInit = await runNativeOpBounded(
         () =>
           initEngine(modelLocalPath(model, model.file), model.id, {
@@ -3377,6 +3670,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const selectModel = useCallback(
     (nextIndex: number) => {
+      if (thermalHardGateRef.current) return;
       if (
         downloadInFlight.current ||
         modelSwitchInFlightRef.current ||
@@ -3512,6 +3806,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   );
 
   const startDownload = useCallback(async (modelId: string) => {
+    if (thermalHardGateRef.current) return;
+    try {
+      if (await getPlatformThermalHardGate()) {
+        thermalHardGateRef.current = true;
+        return;
+      }
+    } catch {
+      // The platform reader is fail-open; an unavailable API never blocks.
+    }
     const model = MODEL_REGISTRY.find((m) => m.id === modelId);
     if (!model) return;
 
@@ -3562,6 +3865,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       downloadInFlight.current = false;
       return;
     }
+    if (thermalHardGateRef.current) {
+      downloadInFlight.current = false;
+      return;
+    }
 
     const controller = new AbortController();
     downloadAbortRef.current = controller;
@@ -3602,7 +3909,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         locale,
         gate: downloadGate,
       });
-      if (!stillCurrent()) return;
+      if (!stillCurrent() || thermalHardGateRef.current) return;
       if (outcome.model.status === "aborted" || outcome.mmproj?.status === "aborted") {
         setModelState("missing");
         return;
@@ -3614,7 +3921,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelError(t("download.incomplete"));
         return;
       }
-      if (!stillCurrent()) return;
+      if (!stillCurrent() || thermalHardGateRef.current) return;
       errorPhase = "engine";
       // Round 8 FIX 2: hung guard at TOP of download→init path — same as
       // ensureEngineForModel. Never acquire/submit when embedder is hung
@@ -4044,6 +4351,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [startVoiceDownload, t]);
 
   const startEmbeddingDownload = useCallback(async () => {
+    if (thermalHardGateRef.current) return;
     if (embeddingDownloadInFlight.current || embeddingState === "downloading") {
       return;
     }
@@ -4057,6 +4365,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Free-disk check via existing download flow (not subject to chat RAM gate).
       try {
         const free = await getFreeDiskBytes();
+        if (thermalHardGateRef.current) return;
         const need = diskRequirementBytes(EMBEDDING_MODEL.sizeBytes);
         if (typeof free === "number" && free >= 0 && free < need) {
           setEmbeddingState("error");
@@ -4067,6 +4376,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       } catch {
         // Probe failure → proceed with download.
       }
+      if (thermalHardGateRef.current) return;
       const outcome = await downloadModelBundle(EMBEDDING_MODEL, {
         onBundleProgress: (progress) => {
           setEmbeddingDownloadPercent(Math.round(progress.overall * 100));
@@ -4194,11 +4504,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         let settled = false;
         /** Deferred extract hook — set once scheduleMemoryExtract is defined. */
         let afterSessionSave: (() => void) | undefined;
+        /** Live onMiniapp hook for the create_miniapp executor (set once per send). */
+        const liveMiniapp = (callbacks as {
+          onMiniapp?: (miniapp: unknown) => void;
+        }).onMiniapp;
+        if (liveMiniapp) onMiniappRef.current = liveMiniapp;
         const finish = () => {
           if (settled) return;
           settled = true;
           streamInFlightRef.current = false;
           setStreaming(false);
+          // Clear the create_miniapp hook so a stale turn can never route into
+          // a newer turn's onMiniapp (defence for F7; sends are serial anyway).
+          onMiniappRef.current = () => {};
           resolve(afterSessionSave ? { afterSessionSave } : {});
         };
         const fail = (message: string, reasonKey?: string) => {
@@ -4211,6 +4529,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           finish();
         };
 
+        // Synchronous backstop for a CRITICAL event that lands after
+        // AiChatPage's pre-send guard but before this callback runs.
+        if (thermalHardGateRef.current || thermalHardGated) {
+          fail(t("chat.thermalHardGateBody"), "chat.thermalHardGateBody");
+          return;
+        }
         streamInFlightRef.current = true;
         setStreaming(true);
         lastUserRawRef.current = typeof text === "string" ? text : "";
@@ -4283,7 +4607,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 ...MemoryStore.snapshotMemoryTelemetry(),
                 factsExtracted: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 factsStored: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
-                factsRejectedSensitive: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
@@ -4902,7 +5225,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     ...turnTelemetry,
                     factsExtracted: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                     factsStored: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
-                    factsRejectedSensitive: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                     factsRejectedFull: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                     totalFactsInStore: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                     extractParseOutcome: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
@@ -4966,6 +5288,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       locale,
       recordDecodeSample,
       refreshMemoryFacts,
+      thermalHardGated,
       t,
     ],
   );
@@ -5045,6 +5368,51 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // remounts (otherwise an in-flight extract is rejected as "unmounted" /
     // cancelled while the user only changed text size).
     <View style={{ flex: 1, backgroundColor: colors.shell }}>
+      {/* C3 — HARD gate overlay: blocks ALL UI while the OS reports CRITICAL
+          thermal severity. Unloads the model (see effect above) and refuses send
+          + load. Honest copy: device is critically hot, model unloaded, wait.
+          Rendered only while gated; falls away on the falling edge. */}
+      {thermalHardGated && (
+        <View
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 60,
+            backgroundColor: "rgba(0,0,0,0.88)",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 28,
+          }}
+        >
+          <View
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              backgroundColor: colors.panelSolid,
+              borderRadius: 16,
+              padding: 24,
+              alignItems: "center",
+            }}
+          >
+            <Text
+              style={[
+                typography.bodyLg,
+                { color: colors.bad, fontWeight: "700", marginBottom: 12 },
+              ]}
+            >
+              {t("chat.thermalHardGateTitle")}
+            </Text>
+            <Text
+              style={[
+                typography.bodyMd,
+                { color: colors.ink, textAlign: "center" },
+              ]}
+            >
+              {t("chat.thermalHardGateBody")}
+            </Text>
+          </View>
+        </View>
+      )}
     {/*
       PainterlyBg + header + AiChatPage stay unkeyed: they already call
       useTypography() and re-render via theme context. key=fontScaleId lives
@@ -5056,13 +5424,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     */}
     <View style={{ flex: 1 }}>
       <PainterlyBg />
-      <GestureDetector gesture={edgeSwipe}>
       <View style={{ flex: 1 }}>
       {/* Top safe-area belongs to the header below (paddingTop: insets.top + 4).
           AiChatPage owns only the bottom inset, for the composer — it used to add
           the top inset too, which reserved the status-bar height twice. */}
       <SafeAreaView style={{ flex: 1 }} edges={[]}>
         {/* Header compatto: titolo + modello/stato in una riga */}
+        <View onLayout={(e) => setModelBarHeight(e.nativeEvent.layout.height)}>
         <View
           style={{
             flexDirection: "row",
@@ -5125,6 +5493,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>
+            {/* C7 — advisory battery ETA, separate bodyXs line below the model bar.
+                Hidden unless a model is loaded and charge <= 50%. Never blocks send. */}
+            {batteryLine}
           </View>
 
           {/* HIGH-5: real Web toggle (persisted). Default ON. */}
@@ -5213,6 +5584,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             {modelErrorHint}
           </Text>
         ) : null}
+        </View>
 
         <View style={{ flex: 1 }}>
           <AiChatPage
@@ -5225,6 +5597,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               void handleSaveToNotes(text);
             }}
             onSendStream={handleSendStream}
+            inferenceBlocked={thermalHardGated}
             voiceReady={voiceState === "ready"}
             ttsEnabled={ttsEnabled}
             engineCtx={chatEngineCtx}
@@ -5282,29 +5655,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         ) : null}
       </SafeAreaView>
       </View>
-      </GestureDetector>
 
       <Drawer
         key={fontScaleId}
         open={drawerOpen}
         onClose={() => {
           setDrawerOpen(false);
-          setChatSearch("");
+          clearChatSearch();
         }}
         brand="Kalsa"
         subtitle={t("drawer.subtitle")}
         items={drawerItems}
         conversationItems={drawerConversationItems}
         searchValue={chatSearch}
-        onSearchChange={setChatSearch}
+        searchQuery={chatSearchQuery}
+        onSearchChange={handleChatSearchChange}
         onNewChat={handleNewConversation}
         personaLabel={
           findPersona(personasState, activePersonaId, builtinCopyFromT(t))?.name ??
           t("drawer.personaNone")
         }
+        modelBarHeight={modelBarHeight}
         onPersonaPress={() => {
           Keyboard.dismiss();
           setDrawerOpen(false);
+          clearChatSearch();
           setActiveOverlay({ kind: "personas" });
         }}
       />
@@ -5373,6 +5748,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           library={documentLibrary}
           onAddDocument={addDocument}
           onDeleteDocument={deleteDocument}
+          onRebuildSemanticIndex={rebuildSemanticIndex}
+          isSemanticRebuildBusy={semanticRebuildInFlight}
           onReorderDocuments={reorderDocuments}
           onUpdateDocumentPreview={updateDocumentPreview}
           isDocumentDeleteInFlight={isDocumentDeleteInFlight}

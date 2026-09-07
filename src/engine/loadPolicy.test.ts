@@ -29,7 +29,7 @@ describe("resolveLoadPolicy — default", () => {
 });
 
 describe("resolveLoadPolicy — per-model entries", () => {
-  it("lfm2.5-8b-a1b-kexp shape: mmap off, repack on", () => {
+  it("mmap off, repack on policy shape", () => {
     const load = resolveLoadPolicy({
       policy: { mmap: false, repack: true },
       streamExperts: false,
@@ -39,7 +39,7 @@ describe("resolveLoadPolicy — per-model entries", () => {
     expect(load.noExtraBufts).toBe(false);
   });
 
-  it("gemma-4-e2b / lfm2.5-8b-a1b shape: repack off, mmap untouched", () => {
+  it("repack off policy shape keeps mmap untouched", () => {
     const load = resolveLoadPolicy({
       policy: { mmap: true, repack: false },
       streamExperts: false,
@@ -62,7 +62,7 @@ describe("resolveLoadPolicy — precedence: streaming > bench > policy > default
 
   it('kalsa.bench.norepack="0" forces repack ON over a policy that disables it', () => {
     // The A/B arm that validates the curated entries: without it no bench
-    // could ever measure repack-on on gemma/lfm2.5-8b-a1b.
+    // could ever measure repack-on on a model whose catalog policy disables it.
     const load = resolveLoadPolicy({
       policy: { mmap: true, repack: false },
       streamExperts: false,
@@ -131,23 +131,8 @@ describe("resolveGateLoadPolicy — gate-side pricing input", () => {
 });
 
 describe("MODEL_REGISTRY — loadPolicy entries", () => {
-  it("the two models that did not load ask for repack off", () => {
-    for (const id of ["gemma-4-e2b", "lfm2.5-8b-a1b"]) {
-      const model = MODEL_REGISTRY.find((m) => m.id === id);
-      expect(model?.loadPolicy).toEqual({ mmap: true, repack: false });
-    }
-  });
-
-  it("lfm2.5-8b-a1b-kexp is the only explicit deviation: mmap off", () => {
-    const kexp = MODEL_REGISTRY.find((m) => m.id === "lfm2.5-8b-a1b-kexp");
-    expect(kexp?.loadPolicy).toEqual({ mmap: false, repack: true });
-    const others = MODEL_REGISTRY.filter(
-      (m) =>
-        m.id !== "lfm2.5-8b-a1b-kexp" &&
-        m.id !== "gemma-4-e2b" &&
-        m.id !== "lfm2.5-8b-a1b",
-    );
-    for (const model of others) {
+  it("all listed catalog models use the default policy", () => {
+    for (const model of MODEL_REGISTRY.filter((entry) => entry.listed !== false)) {
       expect(model.loadPolicy).toBeUndefined();
     }
   });

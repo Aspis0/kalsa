@@ -28,6 +28,8 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   BarChart2,
+  Calculator,
+  Columns2,
   BookOpen,
   Camera,
   Check,
@@ -37,10 +39,13 @@ import {
   Download,
   FileText,
   Globe,
+  HelpCircle,
   Image as ImageIcon,
+  ListChecks,
   Languages,
   Menu,
   MoreHorizontal,
+  Scale,
   Search,
   Sparkles,
   SquarePen,
@@ -61,6 +66,7 @@ import { MarkdownText } from "../chat/MarkdownText";
 import { isSafeHttpUrl } from "../util/url";
 import { isBenchCommand, tryHandleBenchCommand, getBenchNoRepack } from "../bench/benchConfig";
 import { normalizeMiniapp, parseMiniappFromText } from "../domain/askAssistant";
+import { type MiniappTemplate } from "../domain/miniappTemplates";
 import { classifyChatContent, type ContentFilterReason } from "../domain/contentFilter";
 import {
   getActiveModelId,
@@ -103,6 +109,8 @@ import { createStreamCoalescer } from "../engine/streamCoalescer";
 import { getStrings, useLocale, type Locale, type TranslateFn } from "../i18n";
 import { useLabTheme } from "../ui/labTheme";
 import { spacing, radius } from "../theme/tokens";
+import { QuickActionSheet } from "../theme/components/QuickActionSheet";
+import { CHAT_MENU_HIT, CHAT_NAV_ROW } from "../theme/components/chatNavLayout";
 import { StreamCaret } from "../chat/StreamCaret";
 import { BrandIcon, SendGlyphPair } from "../theme/icons/BrandIcon";
 import { typography, useTypography, fontFamilies } from "../theme/typography";
@@ -357,6 +365,8 @@ type Props = {
    * Missing / unknown → treat as text-only so the notice is conservative.
    */
   supportsVision?: boolean;
+  /** OS thermal CRITICAL gate; blocks every new inference entry point. */
+  inferenceBlocked?: boolean;
 };
 
 type SuggestionItem = {
@@ -398,8 +408,21 @@ function buildSuggestions(t: TranslateFn): SuggestionItem[] {
 
 // ── Feature 2: miniapp icon map ─────────────────────────────────────────────
 function miniappIcon(kind: string): React.ComponentType<{ size: number; color: string }> {
-  // Mapping generico: il modello sceglie il kind; icone bio rimosse.
+  // Tool-built miniapps carry kind = template id (first group); legacy
+  // hand-written miniapps may still use the older model-chosen kind values.
   switch (kind) {
+    case "compare_data":
+      return Columns2;
+    case "quick_calculator":
+      return Calculator;
+    case "reading_quiz":
+      return HelpCircle;
+    case "kpi_strip":
+      return BarChart2;
+    case "checklist":
+      return ClipboardList;
+    case "pros_cons":
+      return Scale;
     case "calculator":
     case "comparison":
       return BarChart2;
@@ -788,6 +811,7 @@ export function AiChatPage({
   isActiveChatEmptyRef,
   bumpPersistEpochRef,
   supportsVision = false,
+  inferenceBlocked = false,
 }: Props) {
   const { colors, mode, fontScaleId } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
@@ -866,6 +890,7 @@ export function AiChatPage({
   const [longChatNudgeShown, setLongChatNudgeShown] = useState(false);
   const [emptyArtFailed, setEmptyArtFailed] = useState(false);
   const [draft, setDraft] = useState("");
+  const [quickSheetVisible, setQuickSheetVisible] = useState(false);
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const [sending, setSending] = useState(false);
@@ -2005,6 +2030,10 @@ export function AiChatPage({
       currentAttachments?: LocalAttachment[],
       opts?: HandleSendOpts,
     ): Promise<HandleSendResult> => {
+      if (inferenceBlocked) {
+        showVoiceNote(t("chat.thermalHardGateBody"));
+        return { ok: false, reasonKey: "chat.thermalHardGateBody" };
+      }
       const trimmed = text.trim();
       const hasAttachments = (currentAttachments?.length ?? 0) > 0;
       let jsReady = false;
@@ -2825,7 +2854,7 @@ export function AiChatPage({
         }
       }
     },
-    [awaitPreSendFitGate, historyLoaded, invalidateVoice, onSendStream, showVoiceNote, supportsVision, t, updateMessage],
+    [awaitPreSendFitGate, historyLoaded, inferenceBlocked, invalidateVoice, onSendStream, showVoiceNote, supportsVision, t, updateMessage],
   );
 
   // Publish the active handleSend promise so background discard can await it.
@@ -3447,6 +3476,7 @@ export function AiChatPage({
       !translatingId &&
       historyLoaded &&
       !voiceBlocksComposer &&
+      !inferenceBlocked &&
       // Audit follow-up: block submission while a PDF conversion is in
       // flight — otherwise the late handlePdfDone queues the PDF chip into
       // the NEXT message instead of the one being sent now.
@@ -3455,6 +3485,7 @@ export function AiChatPage({
       attachedItems.length,
       draft,
       historyLoaded,
+      inferenceBlocked,
       pdfToRender,
       sending,
       translatingId,
@@ -3469,9 +3500,23 @@ export function AiChatPage({
     setAttachSheetOpen(true);
   }, []);
 
+  // Prefill the composer with the chosen miniapp template's prompt, then focus.
+  const handleChooseTemplate = useCallback(
+    (template: MiniappTemplate) => {
+      setQuickSheetVisible(false);
+      setDraft(t(template.promptKey));
+      inputRef.current?.focus();
+    },
+    [t],
+  );
+
   const onComposerSendOrStop = useCallback(() => {
     if (sendingRef.current) {
       handleStop();
+      return;
+    }
+    if (inferenceBlocked) {
+      showVoiceNote(t("chat.thermalHardGateBody"));
       return;
     }
     if (pdfToRenderRef.current) return;
@@ -3479,7 +3524,7 @@ export function AiChatPage({
     const attachments = attachedItemsRef.current;
     if (!text.trim() && attachments.length === 0) return;
     handleSendTracked(text, attachments);
-  }, [handleSendTracked, handleStop]);
+  }, [handleSendTracked, handleStop, inferenceBlocked, showVoiceNote, t]);
 
   // ── Attach chip color helper ────────────────────────────────────────────
   function chipColorForKind(kind: LocalAttachment["kind"]) {
@@ -4163,8 +4208,15 @@ export function AiChatPage({
             onAttach={onComposerAttach}
             onMic={handleMicPress}
             onSendOrStop={onComposerSendOrStop}
+            onTemplates={() => setQuickSheetVisible(true)}
           />
         </View>
+        <QuickActionSheet
+          onlyTemplates
+          visible={quickSheetVisible}
+          onClose={() => setQuickSheetVisible(false)}
+          onChooseTemplate={handleChooseTemplate}
+        />
       </View>
 
       {/* Message long-press: Copy + Translate (replaces direct Share.share). */}
@@ -4543,7 +4595,7 @@ const ChatNavBar = React.memo(function ChatNavBar({
     >
       <View
         style={{
-          height: 48,
+          height: CHAT_NAV_ROW,
           flexDirection: "row",
           alignItems: "center",
           paddingHorizontal: spacing.md,
@@ -4553,8 +4605,8 @@ const ChatNavBar = React.memo(function ChatNavBar({
           onPress={onMenuPress}
           accessibilityLabel={t("chat.a11yMenu")}
           style={({ pressed }) => ({
-            width: 36,
-            height: 36,
+            width: CHAT_MENU_HIT,
+            height: CHAT_MENU_HIT,
             alignItems: "center",
             justifyContent: "center",
             opacity: pressed ? 0.6 : 1,
@@ -4611,6 +4663,7 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
   onAttach,
   onMic,
   onSendOrStop,
+  onTemplates,
 }: {
   canSend: boolean;
   sending: boolean;
@@ -4623,6 +4676,7 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
   onAttach: () => void;
   onMic: () => void;
   onSendOrStop: () => void;
+  onTemplates?: () => void;
 }) {
   const attachDisabled = sending || voiceBlocksComposer || pdfBlocked;
   return (
@@ -4635,6 +4689,24 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
       }}
     >
       <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+        {onTemplates ? (
+          <Pressable
+            onPress={onTemplates}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={t("chat.a11yTemplates")}
+            style={({ pressed }) => ({
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              alignItems: "center",
+              justifyContent: "center",
+              opacity: pressed ? 0.7 : 1,
+            })}
+          >
+            <Sparkles color={colors.accent} size={18} />
+          </Pressable>
+        ) : null}
         <Pressable
           onPress={onAttach}
           disabled={attachDisabled}
@@ -5820,4 +5892,3 @@ function MiniappCard({
     </View>
   );
 }
-

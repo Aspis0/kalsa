@@ -19,9 +19,9 @@ on:
       model:
         description: "Model to test"
         required: true
-        default: "qwen3.5-2b"
+        default: "qwen3.5-4b"
         type: choice
-        options: [qwen3.5-2b, qwen3.5-4b, lfm2.5-2.6b, lfm2.5-8b-a1b]
+        options: [qwen3.5-4b, lfm2.5-2.6b]
       seeds:
         description: "Number of seeds to run (1-10). Default 6 preserves today's power. Raise when a campaign needs more statistical power (e.g., stronger models decline more and lose more arms to exclusion)."
         required: true
@@ -979,7 +979,7 @@ jobs:
         # between the registry and the download step is structurally impossible.
         run: |
           set -e
-          MODEL="${{ inputs.model || 'qwen3.5-2b' }}"
+          MODEL="${{ inputs.model || 'qwen3.5-4b' }}"
           MANIFEST=$(node scripts/benchPreflight.mjs --env "$MODEL")
           echo "$MANIFEST" >> "$GITHUB_ENV"
           MODEL_URL=$(echo "$MANIFEST" | grep '^MODEL_URL=' | cut -d= -f2-)
@@ -1018,7 +1018,7 @@ jobs:
           # Public repo => 4-vCPU runners; a turn costs ~185s at 4 cores vs 516s at 2.
           cores: 4
           ram-size: 8192M
-          # 12 GB userdata: model 5.2 GB (LFM2.5-8B single-copy after mv fix) +
+          # 12 GB userdata: model 5.2 GB (large-model single-copy after mv fix) +
           # system image ~1.5 GB + APK/data 0.5 GB + logs 0.3 GB + FS overhead
           # 0.5 GB + runtime/mmap headroom 2.0 GB = ~10.0 GB peak.  The old
           # 8 GB forced a 10.4 GB peak (cp doubled the 8B) and silently failed.

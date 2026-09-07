@@ -1,7 +1,7 @@
 /**
  * Built-in tool-call gate. Literal table — Kalsa has no rules.json.
- * Three block rules only: echo of last user message, echo of a memory fact,
- * empty query.
+ * Four block rules: sensitive query patterns, echo of last user message, echo
+ * of a memory fact, and empty query.
  *
  * echo-of-context: INVERTED comparison — blocks when the search query is
  * UNRELATED to the user's last message (low similarity). A legitimate search
@@ -23,6 +23,7 @@
 import type { RuleTable } from "./evaluate";
 import { cosine, ngramVec } from "./ngramSim";
 import { containsPrivateData } from "./entityContainment.js";
+import { containsSensitivePattern } from "./sensitivePatternGate";
 
 /** High threshold: non-question user messages. */
 export const ECHO_SIMILARITY_THRESHOLD = 0.40;
@@ -54,6 +55,14 @@ function echoSim(a: string, b: string): number {
 
 export const TOOL_GATE_TABLE: RuleTable = {
   rules: [
+    {
+      id: "sensitive-pattern-in-query",
+      // evaluateTurn sorts descending; keep this above both echo rules so the
+      // dedicated sensitive-pattern reason wins when multiple rules fire.
+      priority: 25,
+      condition: (input) => containsSensitivePattern(asString(input.query)),
+      action: { kind: "block", reason: "sensitive-pattern-in-query" },
+    },
     {
       id: "echo-of-context",
       priority: 20,

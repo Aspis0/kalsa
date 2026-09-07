@@ -90,8 +90,8 @@ function makeProfile(overrides = {}) {
 /** Minimal ModelInfo for harness. */
 function makeModel(overrides = {}) {
   return {
-    id: "qwen3.5-2b",
-    name: "Qwen 3.5 2B",
+    id: "qwen3.5-4b",
+    name: "Qwen 3.5 4B",
     vendor: "Alibaba",
     quant: "Q4_K_M",
     hfRepo: "test",
@@ -102,8 +102,9 @@ function makeModel(overrides = {}) {
     engineCtx: 8192,
     kvCache: { k: "q8_0", v: "q4_0" },
     hybrid: true,
-    kvBytesPerToken: 5000, // ~4.88 KiB measured for 2B
-    descriptionKey: "models.qwen2b.description",
+    sizeClass: "4B",
+    kvBytesPerToken: 5000,
+    descriptionKey: "models.qwen4b.description",
     ...overrides,
   };
 }
@@ -326,6 +327,7 @@ async function main() {
     // Large model + high kv cost + small available → force shrink.
     const model = makeModel({
       id: "qwen3.5-4b",
+      sizeClass: "4B",
       sizeBytes: 2_834_975_040,
       engineCtx: 16384,
       contextLength: 262144,
@@ -511,12 +513,12 @@ async function main() {
     );
   });
 
-  await test("resolveBackendPolicy android → cpu-only + hexagon reason", () => {
+  await test("resolveBackendPolicy android → cpu-only + GPU-fit gate reason", () => {
     const profile = makeProfile({ brand: "xiaomi", osName: "Android" });
     const b = resolveBackendPolicy(profile, "android");
     assert(b.kind === "cpu-only", `kind ${b.kind}`);
     assert(
-      typeof b.reason === "string" && b.reason.includes("hexagon"),
+      b.reason === "gpu-fit-gate-blind",
       `reason ${b.reason}`,
     );
   });

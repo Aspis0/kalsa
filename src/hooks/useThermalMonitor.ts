@@ -2,19 +2,22 @@
  * Advisory thermal monitor. Tries sysfs thermal_zone0; falls back to a
  * memory-pressure heuristic. Never unloads the model — UI banner only.
  * No run-as / sudo. Dynamic requires keep node harnesses import-clean.
+ *
+ * Advisory ONLY: never hard-blocks send / load / download. `thermal_zone0` is
+ * an unknown / internal-like sensor (NOT battery, NOT proven skin), so its
+ * bands live in `src/engine/thermalThresholds.ts` and are deliberately warm.
  */
 import { useEffect, useRef, useState } from "react";
 
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
-
-export type ThermalStatus = "ok" | "warm" | "hot" | "unknown";
-
-export type ThermalMonitorState = {
-  status: ThermalStatus;
-  currentTempC: number | null;
-  source: "sysfs" | "memory_proxy" | "none";
-  sampledAt: number | null;
-};
+import {
+  type ThermalGovernorHint,
+  type ThermalStatus,
+  type ThermalMonitorState,
+  toGovernorHint,
+  statusFromTempC,
+  MEMORY_PROXY_WARM_BELOW_MIB,
+} from "../engine/thermalThresholds";
 
 const DEFAULT_INTERVAL_MS = 30_000;
 
@@ -48,15 +51,9 @@ async function readSysfsText(absPath: string): Promise<string | null> {
   }
 }
 
-function statusFromTempC(tempC: number): ThermalStatus {
-  if (tempC >= 50) return "hot";
-  if (tempC >= 42) return "warm";
-  return "ok";
-}
-
 /**
  * Poll thermal_zone0 every intervalMs. On failure, proxy via MemAvailable:
- * very low free RAM is treated as "warm" (advisory only).
+ * very low free RAM is treated as "warm" (advisory only, no invented °C).
  */
 export function useThermalMonitor(opts?: {
   intervalMs?: number;
@@ -73,14 +70,43 @@ export function useThermalMonitor(opts?: {
     currentTempC: null,
     source: "none",
     sampledAt: null,
+    hint: toGovernorHint("unknown", null, "none"),
   });
   const mountedRef = useRef(true);
+
+  // Previous advisory state, kept in refs (never in the effect deps) so the
+  // polling interval is torn down and rebuilt only when `intervalMs` changes —
+  // not on every status flap. `statusFromTempC` reads these refs for source-
+  // aware hysteresis, and they are refreshed on every committed sample.
+  const prevStatusRef = useRef<ThermalStatus>(state.status);
+  const prevSourceRef = useRef<string>(state.source);
 
   useEffect(() => {
     mountedRef.current = true;
     let timer: ReturnType<typeof setInterval> | null = null;
 
+    // Commit one sample: advance the prev refs and update state functionally
+    // (spreading prior state) so only the changed fields move.
+    const commit = (next: {
+      status: ThermalStatus;
+      currentTempC: number | null;
+      source: "sysfs" | "memory_proxy" | "none";
+    }) => {
+      prevStatusRef.current = next.status;
+      prevSourceRef.current = next.source;
+      setState((s) => ({
+        ...s,
+        status: next.status,
+        currentTempC: next.currentTempC,
+        source: next.source,
+        sampledAt: Date.now(),
+        hint: toGovernorHint(next.status, next.currentTempC, next.source),
+      }));
+    };
+
     const sample = async () => {
+      // iOS has no sysfs path; it would map ProcessInfo.thermalState → the
+      // same ThermalStatus enum. Wired here only when cheap (TODO).
       try {
         // eslint-disable-next-line @typescript-eslint/no-require-imports
         const { Platform } = require("react-native") as {
@@ -93,13 +119,13 @@ export function useThermalMonitor(opts?: {
           if (text != null) {
             const tempC = parseThermalZoneTemp(text);
             if (tempC != null) {
-              if (!mountedRef.current) return;
-              setState({
-                status: statusFromTempC(tempC),
-                currentTempC: tempC,
+              const status = statusFromTempC(tempC, {
+                prevStatus: prevStatusRef.current,
+                prevSource: prevSourceRef.current,
                 source: "sysfs",
-                sampledAt: Date.now(),
               });
+              if (!mountedRef.current) return;
+              commit({ status, currentTempC: tempC, source: "sysfs" });
               return;
             }
           }
@@ -113,31 +139,17 @@ export function useThermalMonitor(opts?: {
         const bytes = await getAvailableMemoryBytesUncached();
         if (!mountedRef.current) return;
         if (bytes == null) {
-          setState({
-            status: "unknown",
-            currentTempC: null,
-            source: "none",
-            sampledAt: Date.now(),
-          });
+          commit({ status: "unknown", currentTempC: null, source: "none" });
           return;
         }
-        const availMiB = bytes / (1024 * 1024);
         // Very low free RAM → advisory "warm" (not a real temperature).
-        const status: ThermalStatus = availMiB < 512 ? "warm" : "ok";
-        setState({
-          status,
-          currentTempC: null,
-          source: "memory_proxy",
-          sampledAt: Date.now(),
-        });
+        const availMiB = bytes / (1024 * 1024);
+        const status: ThermalStatus =
+          availMiB < MEMORY_PROXY_WARM_BELOW_MIB ? "warm" : "ok";
+        commit({ status, currentTempC: null, source: "memory_proxy" });
       } catch {
         if (!mountedRef.current) return;
-        setState({
-          status: "unknown",
-          currentTempC: null,
-          source: "none",
-          sampledAt: Date.now(),
-        });
+        commit({ status: "unknown", currentTempC: null, source: "none" });
       }
     };
 

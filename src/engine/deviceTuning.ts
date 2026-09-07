@@ -47,6 +47,8 @@ export type TuningDeviceProfile = {
 /** Subset of ModelInfo read by the tuning layer. */
 export type TuningModelInfo = {
   id: string;
+  /** Declarative size class from ModelInfo; never inferred from the id. */
+  sizeClass?: "2B" | "4B" | "8B" | "other";
   sizeBytes: number;
   engineCtx: number;
   contextLength: number;
@@ -630,9 +632,7 @@ function resolveThermal(
   model: TuningModelInfo,
   availableMiB: number | null,
 ): TuningResult["thermal"] {
-  const is4bTier =
-    typeof model.id === "string" &&
-    (model.id.includes("4b") || model.id.includes("4B"));
+  const is4bTier = model.sizeClass === "4B";
   const lowMem =
     typeof availableMiB === "number" &&
     Number.isFinite(availableMiB) &&

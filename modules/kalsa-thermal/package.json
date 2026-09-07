@@ -1,0 +1,10 @@
+{
+  "name": "kalsa-thermal",
+  "version": "0.1.0",
+  "description": "Kalsa platform thermal HARD-gate reader (Android PowerManager / iOS ProcessInfo).",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}

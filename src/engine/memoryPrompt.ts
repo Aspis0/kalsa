@@ -6,9 +6,9 @@
 import { getStrings, type Locale } from "../i18n";
 
 /** Max user-memory facts injected into the system prompt. */
-const MAX_PROMPT_FACTS = 10;
+export const MAX_PROMPT_FACTS = 10;
 /** Hard cap per fact line injected into the system prompt. */
-const MAX_PROMPT_FACT_CHARS = 120;
+export const MAX_PROMPT_FACT_CHARS = 120;
 
 /**
  * Normalize a fact for prompt injection: strip control chars / newlines,
