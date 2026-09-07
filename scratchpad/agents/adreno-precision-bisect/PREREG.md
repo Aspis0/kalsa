@@ -61,3 +61,26 @@ by layer index.
   the cell says so.
 - No precision switch exists in the backend (no env var, no define): the f32-accumulate experiment will need a real
   kernel change, in its own cell.
+
+## Addendum 2 (7/09 01:15, before any build) — instrument chosen from prior art, not invented
+Websearch (Luna 28c3a483, sources verified as URLs + dates in the agent report) changes the tooling decision:
+- **llama.cpp already ships the fidelity instrument we need for kernel work**: `llama-perplexity` with
+  `--kl-divergence-base <file>.kld` (baseline arm) and `--kl-divergence` (comparison arm), reporting KLD, PPL delta,
+  probability deltas, RMS, percentiles and "same top p" (tools/perplexity/README.md). Running the baseline with the CPU
+  backend and the comparison with the OpenCL backend answers "does the GPU produce the same distribution as the CPU" on
+  THOUSANDS of tokens, from the CLI, with no app, no typing and no thermal-heavy A/B pairs. **This cell adopts it as the
+  primary metric.** The app-level logit oracle (ALIVE 55) keeps its own, different job: whether the SHIPPED app with the
+  governor produces the same output — it is not replaced, it is no longer the tool for kernel iteration.
+- **The localization method is the upstream-recommended one**: `llama-eval-callback` dumped on CPU and on GPU, diffed to
+  find the first materially divergent operation (upstream discussion #10253 + examples/eval-callback/README).
+- **The fix has an in-project precedent**: the Vulkan backend generates both `_f32acc` and `_f16acc` variants of its
+  quantized matmul shaders with `ACC_TYPE` = `float` or `float16_t` and selects at runtime; Metal (`simdgroup_float8x8`)
+  and CUDA (`float *sum`, mixed-precision Tensor Core mode) accumulate in float. OpenCL/Adreno is the outlier. Qualcomm's
+  own OpenCL guide documents loading/storing FP16 while computing in FP32 "when precision requires it", and states FP16
+  ALU throughput is 2× FP32 — so the worst-case cost of the fix is bounded and known before we measure it.
+- **Independent corroboration, no diagnosis upstream**: two open reports of the same symptom class on Adreno (830
+  "garbled output" after #15270; 740 "GPU garbage while CPU correct" with Q6_K 10/11 test failures), both unresolved.
+  No upstream issue discusses f16-vs-f32 accumulation in `gemm_noshuffle_*`, and no Adreno f32-accumulate measurement
+  exists. **We will not open or comment on any upstream issue** (standing owner rule); the finding stays in this repo.
+Revised order for this cell: (1) KLD CPU-vs-GPU on device to quantify the gap with a standard metric, (2) eval-callback
+diff to localize, (3) only then the ACC_TYPE experiment, in its own cell with its own PREREG and its own speed budget.
