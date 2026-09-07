@@ -1,0 +1,6 @@
+=== START transfer-model 2026-09-07T08:59:36Z ===
+command: transfer_model
+model_local_sha256=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03  /data/local/tmp/kalsa-acc-type/LFM2.5-2.6B-QAD-Q4_0.gguf
+model_push=skipped reason=on_device_sha256_matches
+=== END transfer-model rc=0 elapsed_seconds=8 2026-09-07T08:59:44Z ===

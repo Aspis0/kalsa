@@ -1,0 +1,65 @@
+=== START variant-strict-deq 2026-09-07T09:02:10Z ===
+command: adbT 1800 -s 80003b9c shell cd\ \'/data/local/tmp/kalsa-acc-type/kit-gemm-acc-probe\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-acc-type/kit-gemm-acc-probe/lib\'\ \&\&\ export\ KALSA_GEMM_MATH=\'strict\'\ KALSA_GEMM_PREC=\'deq\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-acc-type/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-acc-type/corpus.txt\'\ -c\ \'256\'\ -b\ \'256\'\ -ngl\ 99\ -fa\ off\ -s\ 42\ --temp\ 0\ --kl-divergence\ --kl-divergence-base\ \'/data/local/tmp/kalsa-acc-type/cpu.kld\'
+0.13.156.971 W llama_kv_cache: the V embeddings have different sizes across layers and FA is not enabled - padding V cache to 512
+0.13.439.685 I 
+0.13.440.290 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.13.448.096 I kl_divergence: computing over 14 chunks, n_ctx=256, batch_size=256, n_seq=1
+0.35 minutes
+
+chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+0.14.992.736 I kl_divergence: 1.54 seconds per pass - ETA    1      15.3114 ±    3.9939       0.00055 ±    0.00873       0.00416 ±    0.00036     1.677 ±  0.205 %    95.276 ±  1.890 %
+   2      21.7921 ±    4.3013       0.05469 ±    0.01276       0.00998 ±    0.00087     2.183 ±  0.248 %    94.488 ±  1.435 %
+   3      23.5563 ±    3.7283       0.05063 ±    0.00945       0.00881 ±    0.00061     2.236 ±  0.183 %    95.276 ±  1.088 %
+   4      29.2478 ±    4.3014       0.03930 ±    0.00750       0.00775 ±    0.00047     2.123 ±  0.150 %    95.669 ±  0.904 %
+   5      24.7182 ±    3.1032       0.03104 ±    0.00635       0.00725 ±    0.00039     2.143 ±  0.132 %    94.646 ±  0.894 %
+   6      26.8382 ±    3.1217       0.01266 ±    0.00611       0.00739 ±    0.00035     2.125 ±  0.116 %    94.094 ±  0.855 %
+   7      25.6341 ±    2.6896       0.01327 ±    0.00537       0.00706 ±    0.00031     2.052 ±  0.105 %    94.151 ±  0.788 %
+   8      24.4696 ±    2.3937       0.01688 ±    0.00494       0.00699 ±    0.00028     2.079 ±  0.100 %    94.291 ±  0.728 %
+   9      23.3367 ±    2.1527       0.02074 ±    0.00463       0.00723 ±    0.00027     2.063 ±  0.092 %    94.226 ±  0.690 %
+  10      22.3775 ±    1.9341       0.02017 ±    0.00428       0.00700 ±    0.00025     2.048 ±  0.086 %    94.252 ±  0.653 %
+  11      22.0364 ±    1.8052       0.02003 ±    0.00409       0.00703 ±    0.00023     2.058 ±  0.084 %    94.560 ±  0.607 %
+  12      22.6987 ±    1.7837       0.01909 ±    0.00385       0.00692 ±    0.00022     2.048 ±  0.079 %    94.488 ±  0.585 %
+  13      22.4459 ±    1.6914       0.01842 ±    0.00363       0.00674 ±    0.00020     2.043 ±  0.075 %    94.670 ±  0.553 %
+  14      23.2971 ±    1.7175       0.01559 ±    0.00347       0.00671 ±    0.00019     2.044 ±  0.072 %    94.488 ±  0.541 %
+
+====== Perplexity statistics ======
+Mean PPL(Q)                   :  23.297122 ±   1.717474
+Mean PPL(base)                :  22.936637 ±   1.683756
+Cor(ln(PPL(Q)), ln(PPL(base))):  99.89%
+Mean ln(PPL(Q)/PPL(base))     :   0.015594 ±   0.003466
+Mean PPL(Q)/PPL(base)         :   1.015717 ±   0.003520
+Mean PPL(Q)-PPL(base)         :   0.360485 ±   0.086627
+
+====== KL divergence statistics ======
+Mean    KLD:   0.006708 ±   0.000193
+Maximum KLD:   0.095230
+99.9%   KLD:   0.080961
+99.0%   KLD:   0.040295
+95.0%   KLD:   0.020134
+90.0%   KLD:   0.013954
+Median  KLD:   0.004793
+10.0%   KLD:   0.000595
+ 5.0%   KLD:   0.000176
+ 1.0%   KLD:   0.000007
+ 0.1%   KLD:  -0.000003
+Minimum KLD:  -0.000010
+
+====== Token probability statistics ======
+Mean    Δp: -0.091 ± 0.048 %
+Maximum Δp: 13.261%
+99.9%   Δp: 10.047%
+99.0%   Δp:  6.085%
+95.0%   Δp:  3.083%
+90.0%   Δp:  1.697%
+75.0%   Δp:  0.233%
+Median  Δp: -0.002%
+25.0%   Δp: -0.386%
+10.0%   Δp: -2.172%
+ 5.0%   Δp: -3.586%
+ 1.0%   Δp: -6.355%
+ 0.1%   Δp: -11.194%
+Minimum Δp: -12.567%
+RMS Δp    :  2.044 ± 0.072 %
+Same top p: 94.488 ± 0.541 %
+
+=== END variant-strict-deq rc=0 elapsed_seconds=36 2026-09-07T09:02:46Z ===

@@ -1,0 +1,5 @@
+variant	reported_prec	reported_math	mean_kld	median_kld	same_top_p	ppl_delta	elapsed_seconds	rc	status	reason
+stock:mul	-	-	0.006651	0.004736	94.826	0.349474	37	0	VOID	provenance_missing
+strict:mul	-	-	0.006651	0.004736	94.826	0.349474	36	0	VOID	provenance_missing
+stock:deq	-	-	0.006708	0.004793	94.488	0.360485	37	0	VOID	provenance_missing
+strict:deq	-	-	0.006708	0.004793	94.488	0.360485	36	0	VOID	provenance_missing

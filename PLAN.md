@@ -2852,3 +2852,25 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > il gate ha funzionato), A3 tagliata dalla deadline. Serve una seconda coppia per un verdetto (R4).
 > Negativo lanciato subito con APK fault 5243755 (`TYPE_LADDER=100 ORACLE_MODE=logit … ABABAB 50`, pid 17524,
 > raw/sa812039-fault/) per usare la sessione fino a scadenza (~00:05).
+
+### 7/09 mattina — cella `adreno-acc-type`: la causa NON è l'accumulatore, è la moltiplicazione
+> 07:50 — aperta la cella ACC_TYPE con esploratori in parallelo (recon codice + prior art online). Il recon ha
+> trovato un **quinto asse** che la cella precedente non conosceva: il GEMM è compilato con
+> `-cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math` (`ggml-opencl.cpp:1575-1577`) e il GEMV
+> no (`:3678-3681`), quindi l'esperimento batch-1 di stanotte cambiava CINQUE cose insieme, non quattro. PREREG
+> riscritto prima di misurare (Amendment 1). Il prior art dice che nessuno ha mai fatto fp32-accumulate sui kernel
+> Adreno, ma che la stessa leva ha riparato lo stesso sintomo su WebGPU (#25748) e Vulkan (#18969) → V1 per prima.
+> 08:10 — gate di sintassi OpenCL trovato e auto-testato col clang dell'NDK: rifiuta la modifica ingenua di una riga
+> (`float8 c0` con prodotto half non compila), quindi serve `convert_float8`. Costo zero, evita di scoprirlo sul device.
+> 08:40 — due difetti chiusi prima di spendere minuti: il parser delle metriche cercava `Mean KLD:` mentre l'output vero
+> è `Mean    KLD:` con spazi multipli (avrebbe VOIDato tutte le righe), e `local a="$1" b="${a}"` sotto `set -u` in
+> entrambi gli script (in `d_run.sh` non crashava: espandeva in silenzio la variabile del chiamante).
+> 09:15 — sessione 808196 su QRD8650, otto misure. **`strict` identico a `stock` alla sesta cifra in tutte le coppie**
+> (i flag matematici non c'entrano); **`acc` non ripara** (0,4610 contro 0,4538) e costa il 40 % del prefill;
+> **`mul` porta la mediana a 0,004736 e il same-top a 94,8 %** (96× di riduzione); `deq` non aggiunge nulla.
+> La causa è il **prodotto in f16**, non l'accumulatore: refuta l'analogia con WebGPU/Vulkan.
+> 09:40 — chiusa la sessione con ~40 min residui. Due limiti dichiarati nel REPORT e nel PREREG (Amendment 7 e 8):
+> le righe sono VOID per provenienza (llama-perplexity filtra i log INFO del backend; la riga è archiviata a parte da
+> `llama-bench -v`), e le velocità non sono una misura — rieseguendo la stessa config stock dopo 20 min di carico il
+> board ha dato `pp512 165,74 ± 53,58` contro 286,30 ± 0,61. Prossimo: cella sull'ultimo asse (immagine B
+> `CL_HALF_FLOAT` scritta dal kernel di trasposizione), misura di velocità a freddo, e le altre board.

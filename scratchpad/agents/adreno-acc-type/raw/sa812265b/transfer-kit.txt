@@ -1,0 +1,7 @@
+=== START transfer-kit 2026-09-07T08:59:33Z ===
+command: transfer_kit
+kit_local_sha256=6c0414bacd36c26ffad5a44cc44a6238a2cf6463f7593c97d16e56336669428c
+6c0414bacd36c26ffad5a44cc44a6238a2cf6463f7593c97d16e56336669428c  /data/local/tmp/kalsa-acc-type/kit-gemm-acc-probe.tgz
+kit_push=skipped reason=on_device_sha256_matches
+kit_extract=ok
+=== END transfer-kit rc=0 elapsed_seconds=3 2026-09-07T08:59:36Z ===

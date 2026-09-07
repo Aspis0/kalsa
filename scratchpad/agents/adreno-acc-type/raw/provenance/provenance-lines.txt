@@ -1,0 +1,16 @@
+# provenance probes, session 808196, serial 80003b9c, QRD8650 Adreno 750, 2026-09-07
+# captured with: llama-bench -v -p 8 -n 0 -ngl 99 -fa 0 -r 1 (verbose keeps the ggml backend log that llama-perplexity filters)
+gemm_noshuffle_q4_0_f32 prec=half math=stock compile_opts='-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math'
+selected platform: 'QUALCOMM Snapdragon(TM)'
+gemm_noshuffle_q4_0_f32 prec=mul math=stock compile_opts='-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math -DKALSA_GEMM_PREC=2'
+selected platform: 'QUALCOMM Snapdragon(TM)'
+gemm_noshuffle_q4_0_f32 prec=deq math=stock compile_opts='-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math -DKALSA_GEMM_PREC=3'
+selected platform: 'QUALCOMM Snapdragon(TM)'
+gemm_noshuffle_q4_0_f32 prec=acc math=strict compile_opts='-cl-std=CL3.0 -cl-mad-enable -DKALSA_GEMM_PREC=1'
+
+# THERMAL EVIDENCE — repeat of the stock configuration after ~20 min of sustained load,
+# same session 808196, same serial, same command as bench-stock-half (which gave 286.30 +/- 0.61):
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL     |  99 |   0 |           pp512 |       165.74 ± 53.58 |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL     |  99 |   0 |           tg128 |         15.69 ± 6.63 |
+
+build: unknown (0)

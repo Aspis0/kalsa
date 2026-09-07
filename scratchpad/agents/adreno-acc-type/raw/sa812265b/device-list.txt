@@ -1,0 +1,3 @@
+List of devices attached
+80003b9c	device
+

@@ -1,0 +1,12 @@
+=== START bench-stock-half 2026-09-07T08:54:33Z ===
+command: adbT 1800 -s 80003b9c shell cd\ \'/data/local/tmp/kalsa-acc-type/kit-gemm-acc-probe\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-acc-type/kit-gemm-acc-probe/lib\'\ \&\&\ export\ KALSA_GEMM_MATH=\'stock\'\ KALSA_GEMM_PREC=\'half\'\ \&\&\ ./bin/llama-bench\ -m\ \'/data/local/tmp/kalsa-acc-type/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -p\ 512\ -n\ 0\ -ngl\ 99\ -fa\ 0\ -r\ 3
+ggml_opencl: selected platform: 'QUALCOMM Snapdragon(TM)'
+
+ggml_opencl: device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+ggml_opencl: default device: 'QUALCOMM Adreno(TM) 750 (OpenCL 3.0 Adreno(TM) 750)'
+| model                          |       size |     params | backend    | ngl |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --: | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL     |  99 |   0 |           pp512 |        286.30 ± 0.61 |
+
+build: unknown (0)
+=== END bench-stock-half rc=0 elapsed_seconds=21 2026-09-07T08:54:54Z ===
