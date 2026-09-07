@@ -25,6 +25,10 @@ Source exceptions: `/Users/marco/Projects/kalsa/src/services/LlamaService.ts` do
   compiler math flags, the attention path and the dequantisation are all refuted by measurement, and so is the
   WebGPU/Vulkan analogy that makes f32 accumulation the obvious fix. — `docs/ALIVE.md` rows 56-57,
   `scratchpad/agents/adreno-acc-type/REPORT.md`
+- [MEASURED 7/09 — cooled, randomised] The corrected kernel runs prefill at 0.659x (190.25 vs 288.62 t/s), agreeing
+  within 1% with two earlier estimates. Its own pre-registered validity reading fails on a 5.71 C spread in start
+  temperature, so the figure is not formally banked; the cause is our harness, which cools between bench steps but not
+  before the first. Keeping the activations in f32 as well costs 0.509x and buys no fidelity. — `docs/ALIVE.md` row 59
 - [INDICATIVE, NOT MEASURED CLEAN] Correctness costs about 0.65x of prefill (pp512 189.73 vs the 289.98 reference),
   taken on a heating board; the cooled randomised measurement is owed. If it holds, the in-app GPU prefill advantage on
   750/735/732 (1.78x/1.72x/1.63x) drops to roughly 1.16x/1.13x/1.07x — near parity, which turns the GPU on those tiers
@@ -43,6 +47,12 @@ Source exceptions: `/Users/marco/Projects/kalsa/src/services/LlamaService.ts` do
 - [MEASURED] Mali G57: f32 OpenCL `MUL_MAT` is 202/202 and q8_0 MoE `MUL_MAT_ID` is 75/75, but generic GPU is slower than CPU in all 20 green cases (maximum 0.962×); Q4 product kernels remain untuned. — `kalsa-moe-experiments/docs/ALIVE.md:405` “GPU < CPU on all 20 green cases”
 
 ### NPU / Hexagon
+- [MEASURED 7/09 — decode] On the SHIPPED 2.6B, Hexagon v75, `tg128 @ d1920`: CPU 17.68, NPU with `-nkvo` 15.08, NPU
+  with the KV on the DSP 13.37. Moving the KV onto the DSP makes decode WORSE, because the flash attention moves with
+  it (`FLASH_ATTN` 3168 times in that arm's log, zero in the other). The mapping ceiling the device reports is
+  3489660928 B = 3328 MiB, so on the shipped model the KV fits - it simply does not help. Decode stays on the CPU, and
+  this is now measured on what we ship rather than inferred from OLMoE. Energy per token remains unmeasured by anyone.
+  — `docs/ALIVE.md` row 58, `scratchpad/agents/npu-decode-kv/REPORT.md`
 
 - [MEASURED] v73 dense/hybrid prefill is about 3.5× CPU, but the full experts lane dies under DSP queue pressure; no certified v73 correctness lane exists. — `kalsa-moe-experiments/docs/ALIVE.md:406-408` “3.5×” / “v73 ... UNCERTIFIED”
 - [MEASURED] v73 partial experts offload survives both prefill and decode: `ngl8`/`ngl12` complete, including 128 decode tokens; full `ngl99` dies at `main.c:729` after VA allocation failure. — `scratchpad/agents/qdc-8g2-npu-mmapbudget-60/REPORT.md:16-27` “ngl 8 ... VIVE” / “mmap failed : va”

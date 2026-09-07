@@ -31,6 +31,16 @@
 > deliberatamente** a f16 (`transpose.cl:113` `// converts to FP16`, `:127` `read_imageh`, `:139` `write_imageh`);
 > il percorso batch-1, che misura pulito, non traspone affatto. Cella `adreno-operand-b`, PREREG scritto.
 >
+> **Aggiornamento 7/09 sera (ALIVE 59): refutato anche l'ultimo asse.** Tenere le attivazioni in f32 fino dentro il
+> GEMM — kernel di trasposizione f32 affiancato a quello condiviso, immagine `CL_FLOAT`, `read_imagef` — dà mediana
+> 0,004641 contro 0,004736, e same-top leggermente **peggiore** (94,319 % contro 94,826 %). La precisione dei dati in
+> memoria non spiega il residuo. Cinque assi refutati per misura; solo il prodotto ha mai mosso qualcosa. Il fattore
+> ~5 che resta contro il percorso batch-1 **non è una questione di bit**: restano la **geometria del tile**
+> (`{1,128,1}` contro `{2,64,1}`, `qcom_reqd_sub_group_size("full")`) e l'**ordine di somma**, entrambi non misurati.
+> Costo del fix a freddo: **0,659×** (`190,25` contro `288,62 t/s`), concorde entro l'1 % con due stime precedenti, ma
+> la lettura di validità pre-registrata fallisce per 5,71 °C di escursione → debito aperto. `b=float` costa 0,509× e
+> non compra fedeltà: variante scartata.
+>
 > **Cosa NON è superato di questo documento**: il difetto upstream del MUL_MAT denso f16/bf16 batched (20 fail in
 > `test-backend-ops`) resta un problema noto e separato — non l'abbiamo testato qui, e le nostre misure sono sul
 > percorso Q4_0, non su quello f16 denso. Le due cose non vanno confuse.
