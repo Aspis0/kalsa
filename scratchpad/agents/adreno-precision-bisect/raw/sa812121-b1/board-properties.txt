@@ -1,0 +1,2 @@
+ro.product.board=pineapple
+ro.board.platform=pineapple

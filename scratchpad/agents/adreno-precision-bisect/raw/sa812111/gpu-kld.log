@@ -1,0 +1,66 @@
+=== START gpu-kld 2026-09-07T05:51:33Z ===
+command: adbT 1800 -s df8ea83f shell cd\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-bisect/kit-2f3b24dee/lib\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-bisect/corpus.txt\'\ -c\ \'256\'\ -b\ \'256\'\ -ngl\ 99\ -s\ 42\ --temp\ 0\ --kl-divergence\ --kl-divergence-base\ \'/data/local/tmp/kalsa-bisect/cpu.kld\'
+0.14.127.829 W resolve_fused_ops: layer 2 is assigned to device GPUOpenCL but Flash Attention is assigned to device CPU (usually due to missing support)
+0.14.127.902 W resolve_fused_ops: Flash Attention not supported, set to disabled
+0.14.353.600 I 
+0.14.354.597 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.14.364.964 I kl_divergence: computing over 14 chunks, n_ctx=256, batch_size=256, n_seq=1
+0.23 minutes
+
+chunk             PPL               ln(PPL(Q)/PPL(base))          KL Divergence              Δp RMS            Same top p
+0.15.418.582 I kl_divergence: 1.05 seconds per pass - ETA    1      28.8755 ±    8.2846       0.63710 ±    0.11458       0.65801 ±    0.06675    20.512 ±  2.081 %    61.417 ±  4.337 %
+   2      27.0166 ±    5.1739       0.27026 ±    0.09357       0.58640 ±    0.04831    17.045 ±  1.355 %    64.173 ±  3.015 %
+   3      26.3532 ±    4.0595       0.16929 ±    0.08283       0.63269 ±    0.04066    16.801 ±  1.134 %    62.730 ±  2.480 %
+   4      31.5178 ±    4.4227       0.12127 ±    0.06903       0.60838 ±    0.03382    16.164 ±  0.951 %    62.992 ±  2.144 %
+   5      30.9760 ±    3.8402       0.26195 ±    0.06378       0.65818 ±    0.03025    16.578 ±  0.855 %    62.205 ±  1.926 %
+   6      33.4899 ±    3.8214       0.24561 ±    0.05640       0.64140 ±    0.02690    15.876 ±  0.766 %    63.255 ±  1.748 %
+   7      32.7766 ±    3.3946       0.26910 ±    0.05076       0.63347 ±    0.02411    15.765 ±  0.699 %    62.542 ±  1.624 %
+   8      33.3487 ±    3.2569       0.33556 ±    0.04760       0.64024 ±    0.02230    16.010 ±  0.651 %    62.500 ±  1.520 %
+   9      32.6108 ±    3.0046       0.36302 ±    0.04478       0.64117 ±    0.02100    16.024 ±  0.604 %    62.117 ±  1.435 %
+  10      30.8054 ±    2.6631       0.34583 ±    0.04167       0.61996 ±    0.01938    15.611 ±  0.566 %    62.441 ±  1.359 %
+  11      31.7178 ±    2.6390       0.38955 ±    0.04016       0.64096 ±    0.01867    15.704 ±  0.540 %    62.348 ±  1.297 %
+  12      31.2176 ±    2.4762       0.34236 ±    0.03871       0.64963 ±    0.01790    15.489 ±  0.509 %    62.073 ±  1.243 %
+  13      31.0640 ±    2.3710       0.34834 ±    0.03664       0.64169 ±    0.01678    15.652 ±  0.495 %    62.629 ±  1.191 %
+  14      31.3374 ±    2.3261       0.31633 ±    0.03511       0.63669 ±    0.01667    15.510 ±  0.473 %    62.373 ±  1.149 %
+
+====== Perplexity statistics ======
+Mean PPL(Q)                   :  31.337444 ±   2.326081
+Mean PPL(base)                :  22.839327 ±   1.674259
+Cor(ln(PPL(Q)), ln(PPL(base))):  88.68%
+Mean ln(PPL(Q)/PPL(base))     :   0.316330 ±   0.035114
+Mean PPL(Q)/PPL(base)         :   1.372083 ±   0.048180
+Mean PPL(Q)-PPL(base)         :   8.498116 ±   1.143139
+
+====== KL divergence statistics ======
+Mean    KLD:   0.636690 ±   0.016669
+Maximum KLD:   8.314472
+99.9%   KLD:   6.559957
+99.0%   KLD:   3.113605
+95.0%   KLD:   1.850310
+90.0%   KLD:   1.418315
+Median  KLD:   0.454348
+10.0%   KLD:   0.061106
+ 5.0%   KLD:   0.025255
+ 1.0%   KLD:   0.001430
+ 0.1%   KLD:   0.000116
+Minimum KLD:   0.000008
+
+====== Token probability statistics ======
+Mean    Δp: -4.877 ± 0.349 %
+Maximum Δp: 82.682%
+99.9%   Δp: 59.366%
+99.0%   Δp: 28.793%
+95.0%   Δp: 14.438%
+90.0%   Δp:  6.461%
+75.0%   Δp:  0.246%
+Median  Δp: -0.614%
+25.0%   Δp: -9.043%
+10.0%   Δp: -24.777%
+ 5.0%   Δp: -33.378%
+ 1.0%   Δp: -52.584%
+ 0.1%   Δp: -78.886%
+Minimum Δp: -80.484%
+RMS Δp    : 15.510 ± 0.473 %
+Same top p: 62.373 ± 1.149 %
+
+=== END gpu-kld rc=0 elapsed_seconds=31 2026-09-07T05:52:04Z ===

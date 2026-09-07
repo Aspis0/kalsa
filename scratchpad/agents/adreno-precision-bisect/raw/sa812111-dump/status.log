@@ -1,0 +1,9 @@
+verify-model rc=0 elapsed_seconds=5
+device-select rc=0 elapsed_seconds=1
+verify-board rc=0 elapsed_seconds=1
+prepare-remote rc=0 elapsed_seconds=1
+transfer-kit rc=0 elapsed_seconds=3
+transfer-model rc=0 elapsed_seconds=8
+push-corpus rc=0 elapsed_seconds=1
+cpu-dump rc=0 elapsed_seconds=14
+gpu-dump rc=0 elapsed_seconds=15

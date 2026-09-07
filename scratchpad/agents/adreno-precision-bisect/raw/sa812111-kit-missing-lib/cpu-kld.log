@@ -1,0 +1,4 @@
+=== START cpu-kld 2026-09-07T05:39:49Z ===
+command: adbT 1800 -s df8ea83f shell cd\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-bisect/kit-2f3b24dee/lib\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-bisect/corpus.txt\'\ -c\ \'256\'\ -b\ \'256\'\ -ngl\ 0\ -s\ 42\ --temp\ 0\ --kl-divergence-base\ \'/data/local/tmp/kalsa-bisect/cpu.kld\'
+CANNOT LINK EXECUTABLE "./bin/llama-perplexity": library "libllama-perplexity-impl.so" not found: needed by main executable
+=== END cpu-kld rc=1 elapsed_seconds=310 2026-09-07T05:44:59Z ===

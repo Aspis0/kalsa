@@ -1,0 +1,14 @@
+=== START cpu-kld 2026-09-07T06:04:34Z ===
+command: adbT 1800 -s 36aa3b71 shell cd\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-bisect/kit-2f3b24dee/lib\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-bisect/corpus.txt\'\ -c\ \'256\'\ -b\ \'1\'\ -ngl\ 0\ -s\ 42\ -fa\ off\ --temp\ 0\ --kl-divergence-base\ \'/data/local/tmp/kalsa-bisect/cpu.kld\'
+0.00.978.155 W llama_kv_cache: the V embeddings have different sizes across layers and FA is not enabled - padding V cache to 512
+0.13.398.573 I 
+0.13.398.654 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.13.428.527 I perplexity: saving all logits to /data/local/tmp/kalsa-bisect/cpu.kld
+0.13.428.536 I perplexity: tokenizing the input ..
+0.13.431.021 I perplexity: tokenization took 2.481 ms
+0.13.431.050 I perplexity: calculating perplexity over 14 chunks, n_ctx=256, batch_size=1, n_seq=1
+4.07 minutes
+0.30.882.276 I perplexity: 17.45 seconds per pass - ETA [1]15.3029,[2]20.6323,[3]22.3932,[4]28.1416,[5]23.9769,[6]26.5137,[7]25.3068,[8]24.0690,[9]22.8651,[10]21.9371,[11]21.6053,[12]22.2751,[13]22.0412,[14]22.9415,
+4.12.788.903 I Final estimate: PPL = 22.9415 +/- 1.68463
+
+=== END cpu-kld rc=0 elapsed_seconds=254 2026-09-07T06:08:48Z ===

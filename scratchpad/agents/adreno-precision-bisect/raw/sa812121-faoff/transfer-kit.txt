@@ -1,0 +1,8 @@
+=== START transfer-kit 2026-09-07T05:59:51Z ===
+command: transfer_kit
+kit_local_sha256=758414020421327bb0354653cc8ec6f86a788eb3041f0ed77cbc6375c167ce13
+MISSING
+kit_push=performed reason=sha256_mismatch_or_missing
+/Users/marco/kalsa-qdc/adreno-precision-bisect/kit-2f3b24dee.tgz: 1 file pushed, 0 skipped. 9.3 MB/s (27316685 bytes in 2.811s)
+kit_extract=ok
+=== END transfer-kit rc=0 elapsed_seconds=8 2026-09-07T05:59:59Z ===

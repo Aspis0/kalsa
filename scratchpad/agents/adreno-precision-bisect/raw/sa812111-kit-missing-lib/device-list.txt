@@ -1,0 +1,3 @@
+List of devices attached
+df8ea83f	device
+

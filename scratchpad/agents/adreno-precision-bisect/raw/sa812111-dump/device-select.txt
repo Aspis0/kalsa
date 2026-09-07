@@ -1,0 +1,8 @@
+=== START device-select 2026-09-07T05:53:23Z ===
+command: select_device
+List of devices attached
+df8ea83f	device
+
+device_count=       1
+serial=df8ea83f state=device
+=== END device-select rc=0 elapsed_seconds=1 2026-09-07T05:53:24Z ===

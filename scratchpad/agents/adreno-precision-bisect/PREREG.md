@@ -85,7 +85,7 @@ Websearch (Luna 28c3a483, sources verified as URLs + dates in the agent report) 
 Revised order for this cell: (1) KLD CPU-vs-GPU on device to quantify the gap with a standard metric, (2) eval-callback
 diff to localize, (3) only then the ACC_TYPE experiment, in its own cell with its own PREREG and its own speed budget.
 
-## Amendment 1 (7/09 02:05 EDT — written after the first KLD and the dump, before the next run)
+## Amendment 1 (7/09 01:56 EDT, ora del commit af110da4 — written after the first KLD and the dump, before the next run)
 First measurement, QRD8650 (Adreno 750, pineapple), kit 2f3b24dee, model LFM2.5-2.6B-QAD-Q4_0 (sha a247afd6…),
 corpus 3079 words, `-s 42`, CPU arm `-ngl 0`, GPU arm `-ngl 99`, 51 s + 31 s of device time:
 `Mean PPL(Q)-PPL(base) 8.498116 ± 1.143139` | `Mean KLD 0.636690 ± 0.016669` | `Median KLD 0.454348` |
@@ -108,7 +108,7 @@ Readings, fixed now:
 Also recorded, for the speed claims: with FA unsupported on OpenCL the GPU arm is a MIXED execution (attention on CPU
 per the same warning), so "GPU prefill" numbers in ALIVE 55 and earlier rows are for a mixed graph, not a fully-GPU one.
 
-## Amendment 2 (7/09 02:06 EDT — after the FA-parity result, before the batch experiment)
+## Amendment 2 (7/09 02:04 EDT, ora del commit 842980ef — after the FA-parity result, before the batch experiment)
 FA parity run (session 808052, host sa812121, `EXTRA_ARGS="-fa off"` appended identically to both arms):
 `Median KLD 0.453822` | `Mean KLD 0.638627 ± 0.016709` | `Same top p 62.823 ± 1.146 %` | `PPL delta 8.400806`.
 Against the confounded run (0.454348 / 0.636690 / 62.373 / 8.498116) every figure is inside the stated uncertainty.
@@ -123,7 +123,7 @@ Readings, fixed now:
 - KLD collapses (median ≤ 0.05, same-top ≥ 90 %) → the f16 GEMM path is the cause, **proven from data without editing a
   kernel**, and the ACC_TYPE cell starts with a measured target to beat.
 - KLD stays high (median ≥ 0.3) → the accumulators are NOT the dominant cause either; the search moves on (dequant,
-  the half-converted B operand feeding both paths, or something outside matmul) and the ACC_TYPE cell does not open.
+  the operand precision, which differs between the two paths as well (CL_HALF_FLOAT for GEMM, CL_FLOAT for GEMV) and is therefore NOT separable from the accumulator by the batch experiment — an error in an earlier draft of this line said the half operand fed both paths; it does not, or something outside matmul) and the ACC_TYPE cell does not open.
 - In between → partial contribution; report the number, no single culprit.
 Caveat recorded in advance: `-b 1` changes throughput, not weights; any speed figure from this run is meaningless and
 will not be quoted. If the run cannot finish inside the session, it is reported as incomplete, not extrapolated.

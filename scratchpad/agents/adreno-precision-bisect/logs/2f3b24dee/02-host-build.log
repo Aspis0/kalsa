@@ -1,0 +1,4 @@
+=== START 02-host-build 2026-09-07T05:47:46Z ===
+command: docker_cmake --build build-snapdragon --target ggml-base ggml-cpu ggml-opencl ggml llama llama-common llama-bench-impl llama-bench test-backend-ops llama-perplexity llama-eval-callback -j8
+ninja: no work to do.
+=== END 02-host-build exit=0 2026-09-07T05:47:46Z ===

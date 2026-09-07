@@ -1,0 +1,13 @@
+Provenance: run by the orchestrator directly over adb (NOT through d_run.sh, so it has no status/step files),
+session 808052, host sa812121, device serial 36aa3b71, board pineapple, kit /data/local/tmp/kalsa-bisect/kit-2f3b24dee,
+model /data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf (sha a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03).
+Command:
+  cd $K && export LD_LIBRARY_PATH=$K/lib && ./bin/llama-bench \
+    -m /data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf -p 512 -n 0 -ngl 99 -fa 0 -r 3
+Output:
+| model                          |       size |     params | backend    | ngl |  fa |            test |                  t/s |
+| ------------------------------ | ---------: | ---------: | ---------- | --: | --: | --------------: | -------------------: |
+| lfm2 2.6B Q4_0                 |   1.48 GiB |     2.70 B | OpenCL     |  99 |   0 |           pp512 |        289.98 ± 1.28 |
+build: unknown (0)
+Note: llama-bench takes `-fa 0`; the KLD runs used llama-perplexity's `-fa off`. Both map to
+LLAMA_FLASH_ATTN_TYPE_DISABLED (common/arg.cpp is_falsey), but the two binaries were invoked with different spellings.

@@ -1,0 +1,13 @@
+rc=0 devices
+rc=0 -s df8ea83f wait-for-device
+rc=0 -s df8ea83f shell printf\ \'ro.product.board=\'\;\ getprop\ ro.product.board\;\ printf\ \'ro.board.platform=\'\;\ getprop\ ro.board.platform
+rc=0 -s df8ea83f shell mkdir\ -p\ \'/data/local/tmp/kalsa-bisect\'
+rc=0 -s df8ea83f shell if\ \[\ -f\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee.tgz\'\ \]\;\ then\ sha256sum\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee.tgz\'\;\ else\ echo\ MISSING\;\ fi
+rc=0 -s df8ea83f push /Users/marco/kalsa-qdc/adreno-precision-bisect/kit-2f3b24dee.tgz /data/local/tmp/kalsa-bisect/kit-2f3b24dee.tgz
+rc=0 -s df8ea83f shell rm\ -rf\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ mkdir\ -p\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ tar\ -xzf\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee.tgz\'\ -C\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'
+rc=0 -s df8ea83f shell if\ \[\ -f\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ \]\;\ then\ sha256sum\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\;\ else\ echo\ MISSING\;\ fi
+rc=0 -s df8ea83f shell chmod\ 644\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'
+rc=0 -s df8ea83f push /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/adreno-precision-bisect/corpus.txt /data/local/tmp/kalsa-bisect/corpus.txt
+rc=0 -s df8ea83f shell cd\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-bisect/kit-2f3b24dee/lib\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-bisect/corpus.txt\'\ -c\ \'256\'\ -b\ \'256\'\ -ngl\ 0\ -s\ 42\ --temp\ 0\ --kl-divergence-base\ \'/data/local/tmp/kalsa-bisect/cpu.kld\'
+rc=0 -s df8ea83f pull /data/local/tmp/kalsa-bisect/cpu.kld /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/adreno-precision-bisect/raw/sa812111/cpu.kld
+rc=0 -s df8ea83f shell cd\ \'/data/local/tmp/kalsa-bisect/kit-2f3b24dee\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-bisect/kit-2f3b24dee/lib\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-bisect/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-bisect/corpus.txt\'\ -c\ \'256\'\ -b\ \'256\'\ -ngl\ 99\ -s\ 42\ --temp\ 0\ --kl-divergence\ --kl-divergence-base\ \'/data/local/tmp/kalsa-bisect/cpu.kld\'

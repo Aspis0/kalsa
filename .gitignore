@@ -49,3 +49,6 @@ deps/cmake/
 worktree-mali-probe/
 scratchpad/agents/q66-app-lifecycle-s23/app-build/
 scratchpad/agents/q66-app-lifecycle-s23/llama.rn-src/
+
+# KLD baseline logit dumps: 434 MB each, regenerable on device, never useful in git
+scratchpad/agents/*/raw/*/*.kld

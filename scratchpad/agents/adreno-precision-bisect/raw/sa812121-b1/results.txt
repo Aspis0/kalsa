@@ -1,0 +1,7 @@
+=== START extract-results 2026-09-07T06:12:23Z ===
+command: extract_results
+ppl_delta	raw=Mean PPL(Q)-PPL(base)         :   0.274311 ±   0.062392
+mean_kld	raw=Mean    KLD:   0.002607 ±   0.000145
+median_kld	raw=Median  KLD:   0.000962
+same_top_p	raw=Same top p: 98.031 ± 0.330 %
+=== END extract-results rc=0 elapsed_seconds=0 2026-09-07T06:12:23Z ===

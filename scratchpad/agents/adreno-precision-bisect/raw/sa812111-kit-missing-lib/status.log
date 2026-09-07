@@ -1,0 +1,8 @@
+verify-model rc=0 elapsed_seconds=4
+device-select rc=0 elapsed_seconds=4
+verify-board rc=0 elapsed_seconds=40
+prepare-remote rc=0 elapsed_seconds=6
+transfer-kit rc=0 elapsed_seconds=135
+transfer-model rc=0 elapsed_seconds=82
+push-corpus rc=0 elapsed_seconds=6
+cpu-kld rc=1 elapsed_seconds=310

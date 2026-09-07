@@ -1,0 +1,3 @@
+List of devices attached
+36aa3b71	device
+

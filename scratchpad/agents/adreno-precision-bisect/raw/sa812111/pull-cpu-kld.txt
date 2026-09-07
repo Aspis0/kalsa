@@ -1,0 +1,4 @@
+=== START pull-cpu-kld 2026-09-07T05:51:07Z ===
+command: adbT 300 -s df8ea83f pull /data/local/tmp/kalsa-bisect/cpu.kld /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/adreno-precision-bisect/raw/sa812111/cpu.kld
+/data/local/tmp/kalsa-bisect/cpu.kld: 1 file pulled, 0 skipped. 17.3 MB/s (455196580 bytes in 25.099s)
+=== END pull-cpu-kld rc=0 elapsed_seconds=26 2026-09-07T05:51:33Z ===

@@ -1,0 +1,7 @@
+=== START transfer-kit 2026-09-07T05:53:26Z ===
+command: transfer_kit
+kit_local_sha256=758414020421327bb0354653cc8ec6f86a788eb3041f0ed77cbc6375c167ce13
+758414020421327bb0354653cc8ec6f86a788eb3041f0ed77cbc6375c167ce13  /data/local/tmp/kalsa-bisect/kit-2f3b24dee.tgz
+kit_push=skipped reason=on_device_sha256_matches
+kit_extract=ok
+=== END transfer-kit rc=0 elapsed_seconds=3 2026-09-07T05:53:29Z ===
