@@ -201,3 +201,21 @@ builds, so its return value is identical in 19b67b6 and 8b6d548; what differs is
 8b6d548. Why it fired is not established. With the fix the throw disappears, so the next run must be checked for the
 abort itself (`KALSA_` telemetry present AND no unexplained interruption) before its numbers are used. If the abort
 turns out to interrupt generation rather than being the documented late no-op, any pair from that run is VOID.
+
+### Amendment 12 (7/09 00:10 EDT — written WITH the pair-1 verdict in hand; everything below is post hoc and labelled)
+The positive control on QRD8650 returned **FAIL**. That is my design error, not an instrument failure, and I am recording
+it rather than re-fitting: the positive control's premise ("a normal build must PASS") only holds on a board where GPU
+prefill is believed output-preserving — the 8 Elite (V79). On QRD8650 (V75) the strict token oracle had ALREADY failed
+in runs 9/10 (ALIVE 52/54, "oracolo FAIL ×2 con ids GPU"), so a FAIL here was expected before the run started.
+Amendment 9 moved the controls to this board for budget reasons and did not carry that expectation over. Consequence:
+**R5 is NOT met**, and the sanity control still requires the 8 Elite. No threshold is touched.
+What the run does establish, and what is banked as descriptive:
+- The oracle produces a quantified verdict on real device data (32 comparable steps, both arms).
+- CPU-vs-CPU control, free from archived data: the A arms of the positive (APK 8269aa2) and of the negative (APK
+  5243755) runs — different sessions, different installs, different builds — are bit-identical over all 936 steps
+  (`oracle=PASS steps=936 max_dlogp=0.0000 max_dp1=0.0000`). The same instrument that reads 0.0000 on CPU-vs-CPU reads a
+  median 3.44 on CPU-vs-GPU, so the divergence is not measurement noise.
+Open item found while reading the verdict (NOT changed after the fact): `record()` builds `(step, priority, rule)` and
+the script reports `min(violations)[2]`, which orders by STEP, not by severity — pair 1 is labelled R2 (earliest
+violation, step 3) although it also violates R1 (steps 3, 20, 23 have a different raw top-1 while A is confident). The
+FAIL verdict is unaffected. Any change to that ordering must be made and audited BEFORE the next verdict is read.
