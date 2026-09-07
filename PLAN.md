@@ -3013,3 +3013,29 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 > Conseguenza sulla priorità: **q4_0 = metà bassa del parco, q4_K = metà alta**, e la metà alta è quella non misurata.
 > I board QDC su cui misuriamo (12+ GB) sono essi stessi di fascia high, quindi il modello che raccomanderebbero è
 > proprio quello col kernel senza misura. Il braccio q4_K sale da nota a piè di pagina a misura che copre metà del parco.
+
+### 7/09 sera (EDT) — LA MISURA: il fix funziona sul device, e il costo di banco si trasferisce entro il 2 %
+> 19:45 — Cella `gemm-f32-ship`, QRD8650/Adreno 750 (unità 36aa3b71), sessione QDC 808521, job `sa812590d`,
+> APK `6fc14d1`. **Fedeltà**: sullo stesso board e sullo stesso protocollo a 32 passi teacher-forced di ALIVE 55,
+> mediana |Δp₁| 0,0861 → **0,0014**, mediana max|Δlogp| 3,444 → **0,3037**, passi oltre 0,02 21/32 → 8/32, e i
+> **flip del top-1 con la CPU sicura 8/32 → ZERO**. Tutti e quattro i criteri pre-registrati soddisfatti.
+> Il verdetto binario è `FAIL rule=R2`, ma era **scritto prima dei dati** che sarebbe successo: R2 chiede
+> |Δp₁| ≤ 0,02 a ogni passo e il same-top è 94,8 %. Il passo peggiore dopo il fix vale il passo tipico prima.
+> **Velocità**: prefill da 925 token, `engine_prefill=GPU` verificato nei route facts, CPU 7,599 s vs GPU 6,119 s
+> = **1,242×** contro 1,78× pre-fix. Previsione pre-registrata 1,17× (intervallo 1,05-1,30): dentro. E il costo
+> misurato al banco predice il tempo in-app entro il 2 % (6,229 s attesi contro 6,119). Decode invariato.
+>
+> **Conseguenza per il governor, e correzione della previsione del PLAN**: avevo scritto che il vantaggio sarebbe
+> sceso "a quasi parità" (~1,16× sul 750). La direzione è giusta ma la stima era troppo forte: **1,24× è un
+> vantaggio reale**, non parità. Sulla fascia V75 la GPU mantiene un caso di velocità più piccolo, più il
+> vantaggio termico (nello stesso turno: GPU +4,5 °C contro CPU +10,1 °C di skin) e la CPU liberata.
+> Non è invece deciso il flip di `GPU_PREFILL_CORRECT.V75`: R6 vieta la promozione automatica e R2 fallisce
+> ancora — ma ora fallisce per rumore numerico un ordine di grandezza più piccolo e con zero disaccordi sui token.
+>
+> **Tre run perse prima, tutte per parametri miei dell'harness**: deadline 40 min (una coppia qui ne costa ~50,
+> per via di reinstall + copia modello 1,6 GB + bootstrap a OGNI turno); poi due cooldown falliti al tetto di
+> 900 s, il secondo per 0,22 °C. Amendment 2 registrato e pushato PRIMA della run: tetto di **attesa** 900 → 1500 s,
+> target termico **invariato a 37,0** — alzarlo avrebbe invalidato l'esperimento, perché sopra ~38 °C il governor
+> degrada il turno a prefill CPU e il braccio B avrebbe misurato la CPU. Col nuovo tetto il cooldown ha chiuso a
+> 36,96 °C in **1200 s**: il device ne chiedeva 1200 e l'harness ne concedeva 900.
+> Sessione chiusa e verificata (`Completed`, Ended On 19:46:35), tunnel chiuso. ALIVE riga 60.

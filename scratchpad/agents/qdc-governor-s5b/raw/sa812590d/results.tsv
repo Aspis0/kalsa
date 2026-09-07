@@ -1,0 +1,3 @@
+arm	turn	ttft_ms	prefill_ms	prefill_chunks	new_tokens_a	new_tokens_b	decode_tps	engine_prefill	engine_decode	thermal_state	skin_c_before	skin_c_after	fallback_count	lmkd_count	ids_sha	oracle	oracle_logit	oracle_rule
+A	1	7599.368	na	na	925	na	21.2707874406795	na	na	na	36.434	46.523	0	0	1a006db308a7446272deca1cc1162ebcf8c624bb3a07503e0ff23028deb85adf	na	na	na
+B	1	6119.098	6119.098	2+128+128+128+128+128+128+128+27	na	925	22.1795960594728	GPU	CPU	FAST	36.968	41.495	0	0	na	VOID	FAIL	R2
