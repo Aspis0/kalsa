@@ -1,0 +1,1 @@
+status=0 row_void=1 cooldown_s=900 cool_target_c=37.0 thermo= governor_count=0 commit_bytes=na commit_ms=na thermo_source=na oracle_mode=TF anchor_epoch=1788750481 anchor_stamp=09-06 20:08:02.000 telemetry_rc=1 new_tokens_a=na new_tokens_b=na structuredCalls=0 tool_calls=0 void_reason=hot logcat_rc=na logcat_retries=0

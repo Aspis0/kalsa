@@ -1,0 +1,5 @@
+         1788731063.935 19559 19589 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+         1788731063.948 19559 19589 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":4289}
+         1788731066.956 19559 19635 W RNLlama : loadPrompt:470 KALSA_KVPREFIX embd=369 text_tokens=1289 n_common=366 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007949bbe5b0
+         1788731066.956 19559 19635 W RNLlama : loadPrompt:519 KALSA_KVDIVERGE n_common=366 shared_lo=358 embd_hi=369 text_hi=378 shared_ids=[5966 8029 22 124900 207 124899 5922 207 ] embd_ids=[22 124900 207 ] text_ids=[22155 267 14991 2352 6133 836 267 1286 11319 11671 309 6986 ]
+         1788731066.956 19559 19635 I RNLlama : loadPrompt:572 restored state checkpoint: reusing 364/1289 prompt tokens

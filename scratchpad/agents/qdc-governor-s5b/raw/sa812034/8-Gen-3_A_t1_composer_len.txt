@@ -1,0 +1,1 @@
+attempt=initial actual=5142 expected=5142 minimum=4627 hint_len=0 empty_text_len=17

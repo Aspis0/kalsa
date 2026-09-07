@@ -15,11 +15,15 @@ def load(path):
                 if not line.strip():
                     continue
                 row = json.loads(line)
-                if len(row["top"]) < 5:
-                    raise ValueError
                 row["step"] = int(row["step"])
                 row["tok"] = int(row["tok"])
-                row["top"] = [(int(pair[0]), float(pair[1])) for pair in row["top"][:5]]
+                # A step whose logits were unavailable is emitted with an empty
+                # top by design (the hook makes it visible instead of dropping
+                # it). It is not comparable, but it must not discard the file.
+                if len(row["top"]) < 5:
+                    row["top"] = []
+                else:
+                    row["top"] = [(int(pair[0]), float(pair[1])) for pair in row["top"][:5]]
                 rows[row["step"]] = row
     except (OSError, TypeError, ValueError, KeyError, json.JSONDecodeError):
         return None
@@ -75,6 +79,10 @@ def main():
             if arow is None or brow is None:
                 coverage_bad = True
                 break
+            if not arow["top"] or not brow["top"]:
+                # First non-comparable step ends the comparison; whether the run
+                # still has its 32 steps is decided by the coverage check below.
+                break
             compared.append((step, arow, brow))
             rule, _, _ = step_rule(arow, brow, margin_limit, prob_limit, logp_limit)
             record(violations, step, rule)
@@ -87,6 +95,9 @@ def main():
             arow = a_rows[step]
             brow = b_rows.get(step)
             if brow is None:
+                coverage_bad = True
+                continue
+            if not arow["top"] or not brow["top"]:
                 coverage_bad = True
                 continue
             if brow["tok"] != arow["tok"]:
