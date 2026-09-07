@@ -2847,3 +2847,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > passo di esaurimento degli ids e porta `"top":[]` (la visibilità che ho voluto stamattina); `load()` in oracle_logit.py
 > alza ValueError su `len(top)<5` e **scarta l'intero file** → zero passi confrontabili. Nessuna modifica finché il
 > driver gira; i verdetti si ricalcolano offline dai .probs.jsonl salvati, senza altro tempo di dispositivo.
+> 23:06 — positivo chiuso a `deadline_110_min`: **coppia 1 COMPLETA** (A1 7,294 s / B1 4,105 s, 32 passi forzati),
+> **coppia 2 persa per termica** (B2 `void_reason=hot`, `cooldown_s=900` = tetto raggiunto senza scendere a 37,0 °C —
+> il gate ha funzionato), A3 tagliata dalla deadline. Serve una seconda coppia per un verdetto (R4).
+> Negativo lanciato subito con APK fault 5243755 (`TYPE_LADDER=100 ORACLE_MODE=logit … ABABAB 50`, pid 17524,
+> raw/sa812039-fault/) per usare la sessione fino a scadenza (~00:05).
