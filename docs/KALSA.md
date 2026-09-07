@@ -284,6 +284,25 @@ address. n=1 seed; both arms ran with production repack.
 
 ---
 
+## 2.2 Privacy — network egress filter (fail-closed)
+
+The only user-triggered outbound traffic that can carry private data is `web_search` (its query)
+and `web_fetch` (its URL **and** query). Both are scanned by the tool-call gate (`src/rules/
+toolGate.ts`) before they leave the device. A match — a stored memory fact echoed verbatim, a
+card/IBAN/SSN pattern, an email address — blocks the call and returns a localized "blocked"
+message.
+
+- **Fail-closed.** If gate evaluation itself throws, the call is blocked, never allowed. There is
+  no allow-on-error path.
+- **`kalsa.bench.toolgate=0`** (bypass) is honored **only in `__DEV__`**. A release/store build can
+  never disable the gate via this knob.
+- **Rule set** (`src/rules/toolGate.ts`): `sensitive-pattern-in-query`, `sensitive-pattern-in-url`,
+  `echo-of-context`, `echo-of-memory-fact`, `empty-query`.
+
+**Honest limit.** The gate is a regex/structural filter, not an LLM. It catches known patterns and
+a fact echoed verbatim, but it **cannot** catch a secret the model rephrases into its own words
+inside a search query. That is the boundary of this on-device approach — documented, not hidden.
+
 ## 3. Engine knobs — measured, never invented
 
 Rule (from `docs/DEVICE_TUNING_LAYER.md`, status DESIGN): every knob traces to a measurement, an

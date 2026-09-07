@@ -86,8 +86,8 @@ TOOLHELP="${TOOLHELP:-}"
 PAIR_POS="${PAIR_POS:-1}"
 CLEAR_GATE_AUDIT="${CLEAR_GATE_AUDIT:-}"
 RUNS_PER_ARM="${RUNS_PER_ARM:-3}"
-MODEL_FILE="${MODEL_FILE:-Qwen3.5-2B-Q4_K_M.gguf}"
-MODEL_DIR="${MODEL_DIR:-qwen3.5-2b}"
+MODEL_FILE="${MODEL_FILE:-Qwen3.5-4B-Q4_K_M.gguf}"
+MODEL_DIR="${MODEL_DIR:-qwen3.5-4b}"
 APK_PATH="${APK_PATH:-android/app/build/outputs/apk/release/app-release.apk}"
 PKG=com.kalsa.app
 BENCH_TARGET="${BENCH_TARGET:-emulator}"
@@ -255,13 +255,6 @@ case "$TOOLHELP" in
 esac
 
 log "target=$BENCH_TARGET arm=$ARM phase=$PHASE seed=$SEED format=$BLOCK_FORMAT thinking=$THINKING compaction=$COMPACTION ciswireFlags=$CISWIREFLAGS toolchoice=$TOOLCHOICE toolgate=$TOOLGATE nctx=$NCTX winBudget=$WINBUDGET legacyWindow=$LEGACYWINDOW norepack=$NOREPACK ngl=$NGL moe=$MOE moeJson=$MOE_JSON useMmap=$USE_MMAP memory=$MEMORY toolhelp=$TOOLHELP pairPos=$PAIR_POS sessionContinuity=$SESSION_CONTINUITY runsPerArm=$RUNS_PER_ARM"
-# LFM2.5 is always-on reasoning: its chat template has preserve_thinking only.
-# Record THINKING for the matrix; the model does not expose a separate switch
-# for this axis.
-if [ "$MODEL_DIR" = "lfm2.5-2.6b" ] || [ "$MODEL_DIR" = "lfm2.5-8b-a1b" ]; then
-  log "thinking axis is not applicable for $MODEL_DIR (template provides always-on reasoning) — THINKING=$THINKING is recorded only"
-fi
-
 # Fail fast on setup errors — do not burn emulator boot time on a broken input.
 [ -f "$APK_PATH" ] || die "APK not found at $APK_PATH (build job artifact missing?)"
 if [ "$BENCH_TARGET" = "emulator" ]; then
@@ -1776,7 +1769,7 @@ elif [ "$PHASE" = "mem" ]; then
   # Memory subsystem benchmark: measure whether memory extract/inject carries
   # user facts when the verbatim window has evicted them.
   # Plants: facts about the USER (name, job, preference, language, interest)
-  # plus a sensitive plant (IBAN) that should be rejected by isSensitiveFact.
+  # plus a sensitive plant (IBAN), which local memory may store.
   # Probes: after 8 fillers, all plants are outside legacywindow=16.
   PLAN_KIND=()
   PLAN_ID=()
@@ -1793,7 +1786,7 @@ elif [ "$PHASE" = "mem" ]; then
   plan_add plant plant_b \
     "Parlo italiano e il mio colore preferito e l indaco ho un cane di razza basenji" \
     must_not
-  # Plant C: sensitive data (IBAN) — should be rejected by isSensitiveFact.
+  # Plant C: sensitive data (IBAN) — local memory may store it.
   # IT60X054281110100000012345 matches the IBAN regex: [A-Z]{2}\d{2}[A-Z0-9]{10,30}
   plan_add plant plant_sensitive \
     "Il mio iban e IT60X054281110100000012345" \
@@ -1811,7 +1804,7 @@ elif [ "$PHASE" = "mem" ]; then
   plan_add probe probe_facts \
     "Qual e il mio colore preferito e che razza di cane ho" \
     must_not
-  # Probe 3: sensitive (IBAN) — should NOT contain the IBAN (was rejected by filter)
+  # Probe 3: sensitive (IBAN) — local memory is allowed to retain it.
   plan_add probe probe_sensitive \
     "Ti ho dato un codice bancario nei messaggi precedenti" \
     must_not

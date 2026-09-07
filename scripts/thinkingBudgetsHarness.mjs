@@ -28,6 +28,7 @@ function compile() {
       // Also emit ModelRegistry so case 10 asserts the REAL catalog values —
       // a registry typo (extended: 15360) must fail CI, not just synthetic models.
       "src/engine/ModelRegistry.ts",
+      "node_modules/react-native/src/types/globals.d.ts",
       "--outDir",
       "scripts/.build",
       "--module",
@@ -191,18 +192,17 @@ async function main() {
   // ── 10. REAL registry values (typo guard) ──────────────────────────────
   const registryPath = path.join(path.dirname(modPath), "ModelRegistry.js");
   const { MODEL_REGISTRY } = await import(pathToFileURL(registryPath).href);
-  test("registry: 2B {512,1536,2560}, 4B {256,512}, extended headroom ≥1024 when nPredict set", () => {
-    const byId = Object.fromEntries(MODEL_REGISTRY.map((m) => [m.id, m]));
-    const t2b = byId["qwen3.5-2b"]?.thinking;
+  test("registry: recommended models keep their declared budgets and answer headroom", () => {
+    const t2b = MODEL_REGISTRY.find((m) => m.recommendForTiers?.includes("low"))?.thinking;
     assert(
-      t2b && t2b.short === 512 && t2b.extended === 1536 && t2b.nPredict === 2560,
-      `qwen3.5-2b thinking expected {512,1536,2560}, got ${JSON.stringify(t2b)}`,
+      t2b && t2b.short === 256 && t2b.extended === 512 && t2b.nPredict === undefined,
+      `low-tier recommendation thinking expected {256,512}, got ${JSON.stringify(t2b)}`,
     );
-    for (const id of ["qwen3.5-4b", "qwen3.5-4b-q3"]) {
-      const t = byId[id]?.thinking;
+    for (const m of MODEL_REGISTRY.filter((entry) => entry.recommendForTiers?.includes("high"))) {
+      const t = m.thinking;
       assert(
         t && t.short === 256 && t.extended === 512 && t.nPredict === undefined,
-        `${id} thinking expected {256,512}, got ${JSON.stringify(t)}`,
+        `${m.id} thinking expected {256,512}, got ${JSON.stringify(t)}`,
       );
     }
     for (const m of MODEL_REGISTRY) {

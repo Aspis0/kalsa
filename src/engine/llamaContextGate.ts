@@ -31,6 +31,8 @@
  * Leaf module: no imports from LlamaService / EmbeddingService (no cycles).
  */
 
+import { getModelById } from "./ModelRegistry";
+
 export type LlamaContextState =
   | "idle"
   | "chat_loading"
@@ -87,21 +89,25 @@ export function allowsCoResidency(): boolean {
   return totalMemoryBytes > CO_RESIDENCY_MIN_MEMORY_BYTES && chatModelIs2B === true;
 }
 
-/**
- * True when the model id looks 2B-class (qwen3.5-2b, gemma-4-e2b, …).
- * 4B ids win if both tokens appear.
- */
-export function isChatModel2BClass(modelId: string | null | undefined): boolean {
-  if (typeof modelId !== "string" || modelId.length === 0) return false;
-  const id = modelId.toLowerCase();
-  if (id.includes("4b")) return false;
-  return id.includes("2b");
+/** Resolve the declared size class for a catalog model without parsing its id. */
+function chatModelSizeClass(
+  modelId: string | null | undefined,
+): "2B" | "4B" | "8B" | "other" | undefined {
+  if (typeof modelId !== "string" || modelId.length === 0) return undefined;
+  const model = getModelById(modelId);
+  // getModelById intentionally falls back to the default for unknown ids.
+  // Do not classify an unknown/stale id as the default model.
+  return model.id === modelId ? model.sizeClass : undefined;
 }
 
-/** True when the model id looks 4B-class (qwen3.5-4b, qwen3.5-4b-q3, …). */
+/** True when the catalog declares the model as 2B-class. */
+export function isChatModel2BClass(modelId: string | null | undefined): boolean {
+  return chatModelSizeClass(modelId) === "2B";
+}
+
+/** True when the catalog declares the model as 4B-class. */
 export function isChatModel4BClass(modelId: string | null | undefined): boolean {
-  if (typeof modelId !== "string" || modelId.length === 0) return false;
-  return modelId.toLowerCase().includes("4b");
+  return chatModelSizeClass(modelId) === "4B";
 }
 
 /**

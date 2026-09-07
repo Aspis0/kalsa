@@ -66,7 +66,10 @@ import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
 
 import { DocumentListItem } from "./documents/DocumentListItem";
-import { DocumentDetailView } from "./documents/DocumentDetailView";
+import {
+  DocumentDetailView,
+  type RebuildSemanticIndexResult,
+} from "./documents/DocumentDetailView";
 import { DocumentsEmptyState } from "./documents/DocumentsEmptyState";
 import { DocumentImportOverlay } from "./documents/DocumentImportOverlay";
 
@@ -93,6 +96,10 @@ type Props = {
    * library state (functional updater). Returns false when refused (busy latch).
    */
   onDeleteDocument: (id: string) => Promise<boolean>;
+  /** AppShell-owned dense-index reset and background re-embed. */
+  onRebuildSemanticIndex: (id: string) => Promise<RebuildSemanticIndexResult>;
+  /** Reactive busy state for a user-triggered rebuild job. */
+  isSemanticRebuildBusy: boolean;
   /** AppShell-owned reorder (strict permutation via reorderDocs). */
   onReorderDocuments: (orderedIds: string[]) => void;
   /** AppShell-owned cover commit; refuses if doc is gone. */
@@ -130,6 +137,8 @@ export function DocumentsScreen({
   library,
   onAddDocument,
   onDeleteDocument,
+  onRebuildSemanticIndex,
+  isSemanticRebuildBusy,
   onReorderDocuments,
   onUpdateDocumentPreview: _onUpdateDocumentPreview,
   isDocumentDeleteInFlight,
@@ -574,7 +583,13 @@ export function DocumentsScreen({
           doc={detailDoc}
           onBack={() => setScreenMode("list")}
           onDelete={confirmDelete}
-          busy={importing || isDocumentDeleteInFlight()}
+          onRebuildSemanticIndex={onRebuildSemanticIndex}
+          busy={
+            importing ||
+            isSemanticRebuildBusy ||
+            isDocumentDeleteInFlight() ||
+            isDocumentOpInFlight()
+          }
         />
         {importing ? <DocumentImportOverlay fileName={importName} /> : null}
       </View>

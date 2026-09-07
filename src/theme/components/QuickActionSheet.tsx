@@ -1,26 +1,63 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Modal, Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Camera, FileText, Beaker, History } from "lucide-react-native";
+import {
+  BarChart2,
+  Calculator,
+  Beaker,
+  Camera,
+  Columns2,
+  FileText,
+  History,
+  HelpCircle,
+  ListChecks,
+  Scale,
+} from "lucide-react-native";
 import { useLocale } from "../../i18n";
 import { useLabTheme } from "../../ui/labTheme";
 import { radius, spacing } from "../tokens";
 import { typography } from "../typography";
 import { GlassPanel2 } from "./GlassPanel2";
+import { MINIAPP_TEMPLATES, type MiniappTemplate, type MiniappTemplateId } from "../../domain/miniappTemplates";
 
 export type QuickAction = "chat" | "search" | "miniapp" | "openLast";
 
 type Props = {
   visible: boolean;
   onClose: () => void;
-  onAction: (action: QuickAction) => void;
+  /** When `onlyTemplates` is false, called with the chosen non-miniapp action id. */
+  onAction?: (action: QuickAction) => void;
+  /** Fired when a miniapp template is chosen (prefills the chat with its prompt). */
+  onChooseTemplate?: (template: MiniappTemplate) => void;
+  /** Show only the "miniapp" action (which expands to the 3 templates). */
+  onlyTemplates?: boolean;
 };
 
 // Bottom sheet for quick actions (no longer tied to the FAB, which was removed).
-export function QuickActionSheet({ visible, onClose, onAction }: Props) {
+export function QuickActionSheet({ visible, onClose, onAction, onChooseTemplate, onlyTemplates }: Props) {
   const { colors } = useLabTheme<any>();
   const { t } = useLocale();
   const insets = useSafeAreaInsets();
+  const [miniappOpen, setMiniappOpen] = useState(false);
+
+  const templateIcon = (id: MiniappTemplateId) => {
+    switch (id) {
+      case "compare_data":
+        return Columns2;
+      case "quick_calculator":
+        return Calculator;
+      case "reading_quiz":
+        return HelpCircle;
+      case "kpi_strip":
+        return BarChart2;
+      case "checklist":
+        return ListChecks;
+      case "pros_cons":
+        return Scale;
+      default:
+        return Columns2;
+    }
+  };
 
   const actions = useMemo(
     () =>
@@ -53,6 +90,10 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
     [t],
   );
 
+  const visibleActions = onlyTemplates
+    ? actions.filter((action) => action.id === "miniapp")
+    : actions;
+
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.42)", justifyContent: "flex-end" }}>
@@ -62,42 +103,94 @@ export function QuickActionSheet({ visible, onClose, onAction }: Props) {
               <Text style={[typography.bodyXs, { color: colors.muted, marginBottom: spacing.xs }]}>
                 {t("quickActions.title")}
               </Text>
-              {actions.map(({ id, label, sub, Icon }) => (
-                <Pressable
-                  key={id}
-                  onPress={() => {
-                    onAction(id);
-                    onClose();
-                  }}
-                  style={({ pressed }) => ({
-                    flexDirection: "row",
-                    alignItems: "center",
-                    gap: spacing.md,
-                    paddingVertical: spacing.sm,
-                    paddingHorizontal: spacing.sm,
-                    borderRadius: radius.md,
-                    backgroundColor: pressed ? colors.panel : "transparent",
-                  })}
-                >
-                  <View
-                    style={{
-                      width: 36, height: 36, borderRadius: radius.md,
-                      backgroundColor: `${colors.accent}22`,
-                      alignItems: "center", justifyContent: "center",
-                    }}
-                  >
-                    <Icon color={colors.accent} size={18} />
+              {visibleActions.map(({ id, label, sub, Icon }) => {
+                const isMiniappAction = id === "miniapp";
+                const expanded = isMiniappAction && miniappOpen;
+                return (
+                  <View key={id}>
+                    <Pressable
+                      onPress={() => {
+                        if (isMiniappAction) {
+                          setMiniappOpen((open) => !open);
+                          return;
+                        }
+                        onAction?.(id);
+                        onClose();
+                      }}
+                      style={({ pressed }) => ({
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: spacing.md,
+                        paddingVertical: spacing.sm,
+                        paddingHorizontal: spacing.sm,
+                        borderRadius: radius.md,
+                        backgroundColor: pressed ? colors.panel : "transparent",
+                      })}
+                    >
+                      <View
+                        style={{
+                          width: 36, height: 36, borderRadius: radius.md,
+                          backgroundColor: `${colors.accent}22`,
+                          alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        <Icon color={colors.accent} size={18} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={[typography.bodyMd, { color: colors.ink, fontFamily: typography.bodySm.fontFamily }]}>
+                          {label}
+                        </Text>
+                        <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2, letterSpacing: 0.4, textTransform: "none" }]}>
+                          {sub}
+                        </Text>
+                      </View>
+                    </Pressable>
+                    {expanded && (
+                      <View style={{ paddingLeft: spacing.xl, paddingTop: spacing.xs, gap: spacing.xs }}>
+                        {MINIAPP_TEMPLATES.map((template) => {
+                          const TemplateIcon = templateIcon(template.id);
+                          return (
+                            <Pressable
+                              key={template.id}
+                              onPress={() => {
+                                onChooseTemplate?.(template);
+                                onClose();
+                              }}
+                              style={({ pressed }) => ({
+                                flexDirection: "row",
+                                alignItems: "center",
+                                gap: spacing.md,
+                                paddingVertical: spacing.sm,
+                                paddingHorizontal: spacing.sm,
+                                borderRadius: radius.md,
+                                backgroundColor: pressed ? colors.panel : "transparent",
+                              })}
+                            >
+                              <View
+                                style={{
+                                  width: 32, height: 32, borderRadius: radius.md,
+                                  backgroundColor: `${colors.accent}22`,
+                                  alignItems: "center", justifyContent: "center",
+                                }}
+                              >
+                                <TemplateIcon color={colors.accent} size={16} />
+                              </View>
+                              <View style={{ flex: 1 }}>
+                                <Text style={[typography.bodySm, { color: colors.ink }]}>
+                                  {t(template.labelKey)}
+                                </Text>
+                                <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2 }]}>
+                                  {t(template.subKey)}
+                                </Text>
+                              </View>
+                            </Pressable>
+                          );
+                        })}
+                      </View>
+                    )}
                   </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[typography.bodyMd, { color: colors.ink, fontFamily: typography.bodySm.fontFamily }]}>
-                      {label}
-                    </Text>
-                    <Text style={[typography.bodyXs, { color: colors.muted, marginTop: 2, letterSpacing: 0.4, textTransform: "none" }]}>
-                      {sub}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
+                );
+              })}
             </View>
           </GlassPanel2>
         </Pressable>

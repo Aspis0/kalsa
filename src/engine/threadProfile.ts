@@ -4,7 +4,7 @@
  * What is known: the rule below reproduces the measured optimum on the three
  * SoCs we own (5 / 6 / 2). Keep the measured tables; do not invent mechanism.
  *
- * Measured (standalone llama-bench, Qwen3.5-2B Q4_K_M, pp512, warm cache):
+ * Measured (standalone llama-bench, 2B-class Q4_K_M, pp512, warm cache):
  *
  *   Snapdragon 8 Gen 2 (S23) — capacities 3x266 + 4x811 + 1x1024 (5 fast):
  *     4 threads  76.92 / 71.32 tok/s prefill

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   BackHandler,
   Linking,
@@ -14,7 +15,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import * as Clipboard from "expo-clipboard";
-import { ChevronRight, CircleQuestionMark, Trash2 } from "lucide-react-native";
+import { Check, ChevronRight, CircleQuestionMark, Pencil, Trash2, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import type {
@@ -38,6 +39,7 @@ import {
   type ModelInfo,
 } from "../engine/ModelRegistry";
 import { isEmbedderHung } from "../engine/EmbeddingService";
+import { MAX_PROMPT_FACT_CHARS, MAX_PROMPT_FACTS } from "../engine/memoryPrompt";
 import {
   getDeviceTotalMemoryBytes,
   getRamTier,
@@ -90,6 +92,7 @@ import {
 } from "../agent/toolToggles";
 import { getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
+import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, type FontScaleId, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -162,6 +165,11 @@ function modelBundleSize(model: ModelInfo): number {
   return model.sizeBytes + (model.mmproj?.sizeBytes ?? 0);
 }
 
+type MemoryNotice = {
+  message: string;
+  kind: "success" | "warning";
+};
+
 /**
  * Settings — full-screen View overlay opened from the drawer.
  * Not a Modal: Android hardware back is handled here (dirty confirm for websearch).
@@ -227,9 +235,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
   const [ciswireToolHelpEnabled, setCiswireToolHelpEnabled] = useState(false);
   const [memoryFacts, setMemoryFacts] = useState<MemoryFact[]>([]);
   const [memoryDraft, setMemoryDraft] = useState("");
+  const [editingFactId, setEditingFactId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const [memoryBusy, setMemoryBusy] = useState(false);
-  const [memoryNotice, setMemoryNotice] = useState("");
+  const [memoryNotice, setMemoryNotice] = useState<MemoryNotice | null>(null);
   const mountedRef = useRef(true);
+  const memoryAddInFlightRef = useRef(false);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -254,6 +265,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   useEffect(() => {
     void reloadMemory();
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState === "active") void reloadMemory();
+    });
+    return () => subscription.remove();
   }, [reloadMemory]);
 
   useEffect(() => {
@@ -522,14 +537,14 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     (next: boolean) => {
       const previous = memoryEnabled;
       setMemoryEnabled(next);
-      setMemoryNotice("");
+      setMemoryNotice(null);
       void (async () => {
         try {
           await MemoryStore.setEnabled(next);
         } catch {
           if (!mountedRef.current) return;
           setMemoryEnabled(previous);
-          setMemoryNotice(t("memory.saveError"));
+          setMemoryNotice({ message: t("memory.saveError"), kind: "warning" });
         }
       })();
     },
@@ -538,30 +553,106 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
   const handleAddMemoryFact = useCallback(async () => {
     const text = memoryDraft.trim();
-    if (!text || memoryBusy) return;
+    if (!text || memoryAddInFlightRef.current) return;
+    memoryAddInFlightRef.current = true;
     setMemoryBusy(true);
-    setMemoryNotice("");
+    setMemoryNotice(null);
     try {
       await MemoryStore.addFact(text);
       if (!mountedRef.current) return;
       setMemoryDraft("");
       await reloadMemory();
       if (!mountedRef.current) return;
-      setMemoryNotice(t("memory.addDone"));
+      setMemoryNotice({ message: t("memory.addDone"), kind: "success" });
     } catch (error) {
       if (!mountedRef.current) return;
-      if (error instanceof MemoryStore.SensitiveFactError) {
-        setMemoryNotice(t("memory.sensitive"));
-      } else {
-        setMemoryNotice(t("memory.saveError"));
-      }
+      setMemoryNotice({
+        message:
+          error instanceof MemoryStore.MemoryCapacityError
+            ? t("memory.full", { count: MemoryStore.MAX_FACTS })
+            : t("memory.saveError"),
+        kind: "warning",
+      });
     } finally {
+      memoryAddInFlightRef.current = false;
       if (mountedRef.current) setMemoryBusy(false);
     }
-  }, [memoryBusy, memoryDraft, reloadMemory, t]);
+  }, [memoryDraft, reloadMemory, t]);
+
+  const handleStartEditingMemoryFact = useCallback(
+    (fact: MemoryFact) => {
+      if (memoryBusy) return;
+
+      if (editingFactId === fact.id) return;
+
+      const currentFact = memoryFacts.find((candidate) => candidate.id === editingFactId);
+      if (currentFact && editingText.trim() !== currentFact.text) {
+        Alert.alert(t("settings.unsavedTitle"), t("settings.unsavedBody"), [
+          { text: t("common.cancel"), style: "cancel" },
+          {
+            text: t("settings.discard"),
+            style: "destructive",
+            onPress: () => {
+              setEditingFactId(fact.id);
+              setEditingText(fact.text);
+              setMemoryNotice(null);
+            },
+          },
+        ]);
+        return;
+      }
+
+      setEditingFactId(fact.id);
+      setEditingText(fact.text);
+      setMemoryNotice(null);
+    },
+    [editingFactId, editingText, memoryBusy, memoryFacts, t],
+  );
+
+  const handleCancelEditingMemoryFact = useCallback(() => {
+    if (memoryBusy) return;
+    setEditingFactId(null);
+    setEditingText("");
+  }, [memoryBusy]);
+
+  const handleSaveMemoryFact = useCallback(
+    async (fact: MemoryFact) => {
+      if (editingFactId !== fact.id || memoryBusy) return;
+      if (!editingText.trim()) {
+        handleCancelEditingMemoryFact();
+        setMemoryNotice({ message: t("memory.editEmpty"), kind: "warning" });
+        return;
+      }
+
+      setMemoryBusy(true);
+      setMemoryNotice(null);
+      try {
+        await MemoryStore.updateFact(fact.id, editingText);
+        if (!mountedRef.current) return;
+        await reloadMemory();
+        if (!mountedRef.current) return;
+        setEditingFactId(null);
+        setEditingText("");
+        setMemoryNotice({ message: t("memory.editDone"), kind: "success" });
+      } catch (error) {
+        if (!mountedRef.current) return;
+        setMemoryNotice({
+          message:
+            error instanceof MemoryStore.MemoryDuplicateError
+              ? t("memory.editDuplicate")
+              : t("memory.saveError"),
+          kind: "warning",
+        });
+      } finally {
+        if (mountedRef.current) setMemoryBusy(false);
+      }
+    },
+    [editingFactId, editingText, handleCancelEditingMemoryFact, memoryBusy, reloadMemory, t],
+  );
 
   const handleDeleteMemoryFact = useCallback(
     (fact: MemoryFact) => {
+      if (memoryBusy) return;
       Alert.alert(t("memory.deleteFact"), fact.text, [
         { text: t("common.cancel"), style: "cancel" },
         {
@@ -572,16 +663,20 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               try {
                 await MemoryStore.removeFact(fact.id);
                 await reloadMemory();
+                if (!mountedRef.current) return;
+                setEditingFactId(null);
+                setEditingText("");
+                setMemoryNotice(null);
               } catch {
                 if (!mountedRef.current) return;
-                setMemoryNotice(t("memory.saveError"));
+                setMemoryNotice({ message: t("memory.saveError"), kind: "warning" });
               }
             })();
           },
         },
       ]);
     },
-    [reloadMemory, t],
+    [memoryBusy, reloadMemory, t],
   );
 
   const handleClearMemory = useCallback(() => {
@@ -596,10 +691,10 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               await MemoryStore.clearFacts();
               await reloadMemory();
               if (!mountedRef.current) return;
-              setMemoryNotice(t("memory.clearDone"));
+              setMemoryNotice({ message: t("memory.clearDone"), kind: "success" });
             } catch {
               if (!mountedRef.current) return;
-              setMemoryNotice(t("memory.saveError"));
+              setMemoryNotice({ message: t("memory.saveError"), kind: "warning" });
             }
           })();
         },
@@ -986,6 +1081,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
     }
   }, [embedding.downloadPercent, embedding.state, t, isEmbedderHung()]);
 
+  const memoryAtCapacity = memoryFacts.length >= MemoryStore.MAX_FACTS;
+  const hasTruncatedReplyFacts =
+    memoryEnabled &&
+    memoryFacts
+      .slice(-MAX_PROMPT_FACTS)
+      .some((fact) => fact.text.length > MAX_PROMPT_FACT_CHARS);
+
   return (
     <View
       style={{
@@ -1182,25 +1284,6 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
             }}
           >
             <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
-              {t("settings.ciswireMemory")}
-            </Text>
-            <Switch
-              value={memoryEnabled}
-              onValueChange={handleToggleMemory}
-              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
-              thumbColor={memoryEnabled ? colors.accent : colors.muted}
-              accessibilityLabel={t("settings.ciswireMemory")}
-            />
-          </View>
-          <View
-            style={{
-              flexDirection: "row",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: spacing.sm,
-            }}
-          >
-            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
               {t("settings.ciswireToolHelp")}
             </Text>
             <Switch
@@ -1312,9 +1395,47 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("memory.title")}
           </Text>
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: spacing.sm,
+            }}
+          >
+            <Text style={[typography.bodySm, { color: colors.ink, flex: 1 }]}>
+              {t("memory.enabled")}
+            </Text>
+            <Switch
+              value={memoryEnabled}
+              onValueChange={handleToggleMemory}
+              disabled={memoryBusy}
+              trackColor={{ false: colors.line, true: `${colors.accent}88` }}
+              thumbColor={memoryEnabled ? colors.accent : colors.muted}
+              accessibilityLabel={t("memory.enabled")}
+            />
+          </View>
+          <Text style={[typography.bodyXs, { color: colors.muted }]}>
+            {t("memory.capHint", {
+              count: memoryFacts.length,
+              max: MemoryStore.MAX_FACTS,
+            })}
+            {memoryEnabled
+              ? ` — ${t("memory.capReplyHint", {
+                  perReply: MAX_PROMPT_FACTS,
+                  chars: MAX_PROMPT_FACT_CHARS,
+                })}`
+              : null}
+          </Text>
           <Text style={[typography.bodyXs, { color: colors.muted }]}>
             {t("memory.note")}
           </Text>
+
+          {hasTruncatedReplyFacts ? (
+            <Text style={[typography.bodyXs, { color: colors.muted }]}>
+              {t("memory.truncNote", { chars: MAX_PROMPT_FACT_CHARS })}
+            </Text>
+          ) : null}
 
           {!memoryEnabled ? (
             <Text style={[typography.bodyXs, { color: colors.muted }]}>
@@ -1350,23 +1471,103 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                     borderBottomColor: colors.line,
                   }}
                 >
-                  <Text
-                    style={[typography.bodySm, { color: colors.ink, flex: 1 }]}
-                    numberOfLines={3}
-                  >
-                    {fact.text}
-                  </Text>
-                  <Pressable
-                    onPress={() => handleDeleteMemoryFact(fact)}
-                    hitSlop={8}
-                    accessibilityLabel={t("memory.deleteFact")}
-                    style={{
-                      padding: spacing.xs,
-                      borderRadius: radius.sm,
-                    }}
-                  >
-                    <Trash2 size={16} color={colors.bad ?? colors.muted} />
-                  </Pressable>
+                  {editingFactId === fact.id ? (
+                    <View
+                      style={{
+                        flex: 1,
+                        flexDirection: "row",
+                        alignItems: "center",
+                        gap: spacing.xs,
+                      }}
+                    >
+                      <TextInput
+                        value={editingText}
+                        onChangeText={setEditingText}
+                        placeholder={t("memory.editPlaceholder")}
+                        placeholderTextColor={colors.muted}
+                        editable={!memoryBusy}
+                        maxLength={200}
+                        autoFocus
+                        onSubmitEditing={() => {
+                          void handleSaveMemoryFact(fact);
+                        }}
+                        returnKeyType="done"
+                        style={{
+                          flex: 1,
+                          borderWidth: 1,
+                          borderColor: colors.line,
+                          borderRadius: radius.md,
+                          paddingHorizontal: spacing.sm,
+                          paddingVertical: spacing.xs,
+                          color: colors.ink,
+                          fontSize: (typography.bodySm.fontSize as number) ?? 14,
+                        }}
+                      />
+                      <Pressable
+                        onPress={() => {
+                          void handleSaveMemoryFact(fact);
+                        }}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("common.save")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Check size={16} color={colors.good} />
+                      </Pressable>
+                      <Pressable
+                        onPress={handleCancelEditingMemoryFact}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("common.cancel")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <X size={16} color={colors.muted} />
+                      </Pressable>
+                    </View>
+                  ) : (
+                    <>
+                      <Text
+                        style={[typography.bodySm, { color: colors.ink, flex: 1 }]}
+                        numberOfLines={3}
+                      >
+                        {fact.text}
+                      </Text>
+                      <Pressable
+                        onPress={() => handleStartEditingMemoryFact(fact)}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("memory.editFact")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Pencil size={16} color={colors.muted} />
+                      </Pressable>
+                      <Pressable
+                        onPress={() => handleDeleteMemoryFact(fact)}
+                        disabled={memoryBusy}
+                        hitSlop={8}
+                        accessibilityLabel={t("memory.deleteFact")}
+                        style={{
+                          padding: spacing.xs,
+                          borderRadius: radius.sm,
+                          opacity: memoryBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Trash2 size={16} color={colors.bad ?? colors.muted} />
+                      </Pressable>
+                    </>
+                  )}
                 </View>
               ))}
             </View>
@@ -1386,7 +1587,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 onChangeText={setMemoryDraft}
                 placeholder={t("memory.addPlaceholder")}
                 placeholderTextColor={colors.muted}
-                editable={!memoryBusy}
+                editable={!memoryBusy && !memoryAtCapacity}
                 maxLength={200}
                 style={{
                   flex: 1,
@@ -1407,13 +1608,13 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 onPress={() => {
                   void handleAddMemoryFact();
                 }}
-                disabled={memoryBusy || !memoryDraft.trim()}
+                disabled={memoryBusy || memoryAtCapacity || !memoryDraft.trim()}
                 style={{
                   paddingHorizontal: spacing.md,
                   paddingVertical: spacing.sm,
                   borderRadius: radius.md,
                   backgroundColor: colors.accent,
-                  opacity: memoryBusy || !memoryDraft.trim() ? 0.5 : 1,
+                  opacity: memoryBusy || memoryAtCapacity || !memoryDraft.trim() ? 0.5 : 1,
                 }}
                 accessibilityLabel={t("memory.addFact")}
               >
@@ -1427,6 +1628,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           {memoryFacts.length > 0 ? (
             <Pressable
               onPress={handleClearMemory}
+              disabled={memoryBusy}
               style={{
                 marginTop: spacing.xs,
                 paddingVertical: spacing.sm,
@@ -1434,6 +1636,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
                 borderRadius: radius.md,
                 borderWidth: 1,
                 borderColor: colors.line,
+                opacity: memoryBusy ? 0.5 : 1,
               }}
               accessibilityLabel={t("memory.clear")}
             >
@@ -1444,8 +1647,19 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
           ) : null}
 
           {memoryNotice ? (
-            <Text style={[typography.bodyXs, { color: colors.accent }]}>
-              {memoryNotice}
+            <Text
+              style={[
+                typography.bodyXs,
+                {
+                  color:
+                    memoryNotice.kind === "warning"
+                      ? colors.bad ?? colors.muted
+                      : colors.accent,
+                },
+              ]}
+              accessibilityLiveRegion="polite"
+            >
+              {memoryNotice.message}
             </Text>
           ) : null}
         </GlassPanel2>
@@ -1870,6 +2084,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
 
         {/* ── Models ───────────────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
+          <OrphanModelMigrationBanner />
           <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
             {t("settings.models")}
           </Text>
@@ -1922,14 +2137,20 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
               {processHealth.fitTier ? ` · tier ${processHealth.fitTier}` : ""}
             </Text>
           ) : null}
-          {thermal.status === "warm" || thermal.status === "hot" ? (
+          {thermal.status === "warm" || thermal.status === "hot" || thermal.status === "critical" ? (
             <Text
               style={[
                 typography.bodyXs,
                 { color: colors.bad ?? colors.muted, marginBottom: spacing.xs },
               ]}
             >
-              {t("chat.thermalHot")}
+              {t(
+                thermal.status === "critical"
+                  ? "chat.thermalCritical"
+                  : thermal.status === "hot"
+                    ? "chat.thermalHot"
+                    : "chat.thermalWarm",
+              )}
               {thermal.currentTempC != null
                 ? ` · ${Math.round(thermal.currentTempC)}°C`
                 : ""}

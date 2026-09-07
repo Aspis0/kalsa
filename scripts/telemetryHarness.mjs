@@ -412,8 +412,9 @@ async function main() {
     assert(pure.memoryClassFromBytes(null) === "unknown");
   });
   test("modelCategory from id", () => {
-    assert(pure.modelCategoryFromId("qwen3.5-2b") === "dense.2b");
+    assert(pure.modelCategoryFromId("lfm2.5-2.6b") === "dense.2b");
     assert(pure.modelCategoryFromId("qwen3.5-4b") === "dense.4b");
+    assert(pure.modelCategoryFromId("removed-model-2b") === "unknown");
     assert(pure.modelCategoryFromId("foo-moe-bar") === "moe");
     assert(pure.modelCategoryFromId(null) === "unknown");
   });
@@ -664,7 +665,7 @@ async function main() {
         ramTier: "low",
         totalMemoryBytes: 3e9,
         osVersion: "13",
-        modelId: "qwen3.5-2b",
+        modelId: "lfm2.5-2.6b",
         hadWebTools: true,
       }),
     });

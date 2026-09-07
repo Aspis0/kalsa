@@ -102,11 +102,11 @@ async function main() {
   const contextProfilePath = path.join(projectRoot, "scripts/.build/engine/contextProfile.js");
   const { getRamTier, resolveContextProfile } = require(contextProfilePath);
   const modelRegistryPath = path.join(projectRoot, "scripts/.build/engine/ModelRegistry.js");
-  const { MODEL_REGISTRY } = require(modelRegistryPath);
-  const qwen4b = MODEL_REGISTRY.find((entry) => entry.id === "qwen3.5-4b");
-  const qwen4bQ3 = MODEL_REGISTRY.find((entry) => entry.id === "qwen3.5-4b-q3");
-  assert(qwen4b, "qwen3.5-4b missing from registry");
-  assert(qwen4bQ3, "qwen3.5-4b-q3 missing from registry");
+  const { MODEL_REGISTRY, getDefaultModel } = require(modelRegistryPath);
+  const qwen4b = getDefaultModel();
+  const lfm26 = MODEL_REGISTRY.find((entry) => entry.recommendForTiers?.includes("low"));
+  assert(qwen4b, "default model missing from registry");
+  assert(lfm26, "low-tier recommendation missing from registry");
 
   // Load the real downloader with native modules stubbed only at the boundary.
   // The blocked case must return before its internal downloadFile is reached.
@@ -237,15 +237,15 @@ async function main() {
 
   await test("nominal 6GB low MemAvailable: download allowed, load blocked", () => {
     const totalMemoryBytes = 5_600_000_000;
-    const availableMemoryBytes = 2_500 * 1024 * 1024;
+    const availableMemoryBytes = 1_000 * 1024 * 1024;
     const contextTokens = resolveContextProfile({
-      hybrid: qwen4bQ3.hybrid,
-      kvCache: qwen4bQ3.kvCache,
-      catalogCtx: qwen4bQ3.engineCtx,
+      hybrid: lfm26.hybrid,
+      kvCache: lfm26.kvCache,
+      catalogCtx: lfm26.engineCtx,
       totalMemoryBytes,
     }).nCtx;
     const modelNonEvictableMiB = estimateModelNonEvictableMiB({
-      sizeBytes: qwen4bQ3.sizeBytes + (qwen4bQ3.mmproj?.sizeBytes ?? 0),
+      sizeBytes: lfm26.sizeBytes + (lfm26.mmproj?.sizeBytes ?? 0),
       contextTokens,
     });
     const input = {
@@ -253,9 +253,9 @@ async function main() {
       availableMemoryBytes,
       freeDiskBytes: 10_000_000_000,
       ramTier: getRamTier(totalMemoryBytes),
-      modelMinRamTier: qwen4bQ3.minRamTier,
+      modelMinRamTier: lfm26.minRamTier,
       modelNonEvictableMiB,
-      modelSizeBytes: qwen4bQ3.sizeBytes + (qwen4bQ3.mmproj?.sizeBytes ?? 0),
+      modelSizeBytes: lfm26.sizeBytes + (lfm26.mmproj?.sizeBytes ?? 0),
     };
     const download = modelGateVerdict(input, { checkVolatileMemory: false });
     assert(download.allowed === true, `download allowed=${download.allowed}`);
@@ -310,21 +310,12 @@ async function main() {
     assert(calibration.q4_k_m === 2000, JSON.stringify(calibration));
   });
 
-  // Was "registry has ONE tensor-map value", which asserted the defect rather
-  // than the rule: only the KEXP carried it, so the speed advisory answered
-  // "unknown" for every other model. 2026-08-23 computed the rest with
-  // scripts/ggufWeightBytes.mjs. The invariant now protects the property that
-  // matters — a model added without its per-token bytes is a model the gate
-  // cannot reason about, and that must fail here rather than ship silently.
+  // Every listed model needs a tensor-map weight-read value. A model added
+  // without its per-token bytes is one the gate cannot reason about, and that
+  // must fail here rather than ship silently.
   await test("every dense model carries a tensor-map weight-read value", () => {
     const missing = MODEL_REGISTRY.filter((entry) => !entry.weightsBytesPerToken);
-    // LFM2.5-8B-A1B is MoE: per-token bytes depend on how many experts route,
-    // which the tensor index cannot say, so ggufWeightBytes.mjs REFUSES it.
-    // Absent is the honest state; a guessed constant here would feed the gate.
-    assert(
-      missing.every((entry) => entry.id === "lfm2.5-8b-a1b"),
-      `missing per-token bytes: ${missing.map((e) => e.id).join(", ")}`,
-    );
+    assert(missing.length === 0, `missing per-token bytes: ${missing.map((e) => e.id).join(", ")}`);
     for (const entry of MODEL_REGISTRY.filter((e) => e.weightsBytesPerToken)) {
       assert(
         entry.weightsBytesPerToken.source === "tensor-map",
@@ -507,7 +498,7 @@ async function main() {
   // Regression for the S23 case measured 2026-08-19 (§7.11): the shipping model
   // was refused because the gate assumed a repack footprint the engine would not
   // allocate under kalsa.bench.norepack. Numbers are the real ones: 5155564768
-  // bytes of LFM2.5-8B-A1B against the 4030 MiB the phone reported.
+  // bytes of a large model against the 4030 MiB the phone reported.
   await test("evaluateModelFit: repack ON refuses the 8B on 4030 MiB (measured S23)", () => {
     const v = evaluateModelFit(
       { sizeBytes: 5_155_564_768, engineCtx: 8192, kvBytesPerToken: null, mmproj: null },

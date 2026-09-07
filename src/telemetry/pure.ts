@@ -28,6 +28,7 @@ import {
   type Phase,
   type ReasonCode,
 } from "./config";
+import { MODEL_REGISTRY } from "../engine/ModelRegistry";
 
 // ── FNV-1a 64 (same constants as embeddingPure.hashChunkContent) ────────────
 
@@ -79,8 +80,8 @@ export function memoryClassFromBytes(
 }
 
 /**
- * modelCategory from model id / flags. Never the full model id.
- * Heuristic on known free-tier ids; unknown otherwise.
+ * Model category from catalog metadata / explicit flags. Never infer a size
+ * class by parsing an id: stale or unknown ids remain unknown.
  */
 export function modelCategoryFromId(
   modelId: string | null | undefined,
@@ -88,24 +89,10 @@ export function modelCategoryFromId(
 ): ModelCategory {
   if (opts?.moe) return "moe";
   if (typeof modelId !== "string" || !modelId) return "unknown";
-  const id = modelId.toLowerCase();
-  if (id.includes("moe") || id.includes("mixtral") || id.includes("a0.")) {
-    return "moe";
-  }
-  if (
-    /(^|[-_.])2b([\-_.]|$)/.test(id) ||
-    id.includes("1.5b") ||
-    id.includes("1b")
-  ) {
-    return "dense.2b";
-  }
-  if (
-    /(^|[-_.])4b([\-_.]|$)/.test(id) ||
-    id.includes("3.5-4b") ||
-    id.includes("3b")
-  ) {
-    return "dense.4b";
-  }
+  const model = MODEL_REGISTRY.find((entry) => entry.id === modelId);
+  if (model?.canStreamExperts === true) return "moe";
+  if (model?.sizeClass === "2B") return "dense.2b";
+  if (model?.sizeClass === "4B") return "dense.4b";
   return "unknown";
 }
 

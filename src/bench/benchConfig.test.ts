@@ -20,6 +20,7 @@ import {
   getThinkingMode,
   getToolChoiceMode,
   getToolGateEnabled,
+  isDevBuild,
   parseEngineArg,
   registerActiveEngineKnobGetter,
   resolveCompletionToolChoice,
@@ -28,6 +29,17 @@ import {
 } from "./benchConfig";
 
 const MAX_TOOL_ROUNDS = 3;
+type DevGlobal = typeof globalThis & { __DEV__?: boolean };
+const devGlobal = globalThis as DevGlobal;
+const originalDev = devGlobal.__DEV__;
+
+afterEach(() => {
+  if (originalDev === undefined) {
+    delete devGlobal.__DEV__;
+  } else {
+    devGlobal.__DEV__ = originalDev;
+  }
+});
 
 describe("retired thinking off value", () => {
   beforeEach(() => {
@@ -145,9 +157,38 @@ describe("getToolChoiceMode / getToolGateEnabled defaults", () => {
     await expect(getToolGateEnabled()).resolves.toBe(true);
   });
 
-  test("toolgate 0 disables", async () => {
+  test("toolgate 0 disables in dev builds", async () => {
+    devGlobal.__DEV__ = true;
     (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
     await expect(getToolGateEnabled()).resolves.toBe(false);
+  });
+
+  test("toolgate 0 cannot disable gates in release builds", async () => {
+    devGlobal.__DEV__ = false;
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
+    await expect(getToolGateEnabled()).resolves.toBe(true);
+  });
+
+  test("toolgate 0 cannot disable gates when __DEV__ is absent (Node harness)", async () => {
+    // __DEV__ intentionally left unset — the whole point of the Node harness
+    // path: the bypass must be denied, gates stay on.
+    if (originalDev === undefined) delete devGlobal.__DEV__;
+    (AsyncStorage.getItem as jest.Mock).mockResolvedValue("0");
+    await expect(getToolGateEnabled()).resolves.toBe(true);
+  });
+});
+
+describe("isDevBuild", () => {
+  test("undefined flag keeps gates on (bypass denied)", () => {
+    expect(isDevBuild(undefined)).toBe(false);
+  });
+
+  test("true flag allows the dev-only bypass", () => {
+    expect(isDevBuild(true)).toBe(true);
+  });
+
+  test("false flag keeps gates on (release build)", () => {
+    expect(isDevBuild(false)).toBe(false);
   });
 });
 

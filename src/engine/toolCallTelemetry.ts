@@ -9,6 +9,8 @@
  * A count of characters is acceptable; a string of content is a leak.
  */
 
+import { ALL_TOOL_NAMES } from "../agent/toolNames";
+
 export type ToolRoundTelemetry = {
   round: number;
   toolChoice: string; // value actually passed to the engine ("auto" / "none" / …)
@@ -29,11 +31,10 @@ export type ToolRoundTelemetry = {
 
 /**
  * Known tool names that Kalsa exposes to the model.
- * MUST stay in sync with src/app/AppShell.tsx:1698 (the tools array).
- * Adding a fourth tool requires updating BOTH files, or unknown tools
- * silently become "other" and selection grading breaks.
+ * This is the same list exported by toolRegistry, without loading tool
+ * definitions or React Native/provider modules into telemetry.
  */
-const KNOWN_TOOL_NAMES = Object.freeze(["web_search", "web_fetch", "document_chat"]);
+const KNOWN_TOOL_NAMES = new Set<string>(ALL_TOOL_NAMES);
 
 /**
  * Placeholder for tool names the model produced but Kalsa does not recognize.
@@ -75,7 +76,7 @@ export function formatToolRoundExhaustedLine(turnId: string, r: ToolRoundExhaust
 export function clampToolNames(names: string[]): string[] {
   if (!Array.isArray(names)) return [];
   return names.map((name) =>
-    KNOWN_TOOL_NAMES.includes(name) ? name : UNKNOWN_TOOL_PLACEHOLDER,
+    KNOWN_TOOL_NAMES.has(name) ? name : UNKNOWN_TOOL_PLACEHOLDER,
   );
 }
 

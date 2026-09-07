@@ -45,7 +45,7 @@ export const LEGACY_MESSAGES_KEY = "kalsa.messages.v1";
 export const MIGRATED_KEY = "kalsa.conversations.migrated";
 
 /** Cap for index searchBlob so the conversation list stays small. */
-export const SEARCH_BLOB_CAP = 8_000;
+export const SEARCH_BLOB_CAP = 12_000;
 
 const TITLE_MAX = 48;
 const PREVIEW_MAX = 80;
@@ -83,10 +83,12 @@ export function nextConversationId(): string {
   return `conv-${Date.now()}-${rand}`;
 }
 
-function clipChars(text: string, max: number): string {
+/** Clip by Unicode code points using Array.from (not grapheme clusters). */
+export function clipChars(text: string, max: number, fromEnd = false): string {
+  if (!Number.isFinite(max) || max <= 0) return "";
   const chars = Array.from(text);
   if (chars.length <= max) return chars.join("");
-  return chars.slice(0, max).join("");
+  return (fromEnd ? chars.slice(chars.length - max) : chars.slice(0, max)).join("");
 }
 
 /** First line, trim, max ~48 chars. Empty / whitespace-only → "" (UI shows untitled). */
@@ -113,19 +115,31 @@ export function previewFromMessages(
   return "";
 }
 
-/** Lowercase join of message texts, capped so the index stays small. */
+/** Lowercase message text tail, capped so the index stays small. */
 export function searchBlobFromMessages(
   messages: Array<{ text?: unknown }> | null | undefined,
 ): string {
   if (!Array.isArray(messages)) return "";
   const parts: string[] = [];
-  for (const m of messages) {
+  let remaining = SEARCH_BLOB_CAP;
+  for (let i = messages.length - 1; i >= 0 && remaining > 0; i--) {
+    const m = messages[i];
     if (typeof m?.text !== "string") continue;
     const trimmed = m.text.trim();
-    if (trimmed) parts.push(trimmed);
+    if (!trimmed) continue;
+    const text = trimmed.toLowerCase();
+    const separatorLength = parts.length > 0 ? 1 : 0;
+    const available = remaining - separatorLength;
+    if (available <= 0) break;
+    const part = clipChars(text, available, true);
+    if (!part) break;
+    parts.unshift(part);
+    remaining -= separatorLength + Array.from(part).length;
+    if (part !== text) break;
   }
   if (parts.length === 0) return "";
-  return clipChars(parts.join("\n").toLowerCase(), SEARCH_BLOB_CAP);
+  // Accumulate backward so recent messages win without materializing all history.
+  return clipChars(parts.join("\n"), SEARCH_BLOB_CAP, true);
 }
 
 function sortByRecency(items: ConversationMeta[]): ConversationMeta[] {

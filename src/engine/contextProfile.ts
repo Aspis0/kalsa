@@ -4,7 +4,7 @@
 // (KV heads 4, head_dim 256) → attention KV ≈ 16KB/token @ q8_0 → ~256MB @ 16k
 // (+ hybrid/recurrent state). The full n_ctx buffer is reserved at init.
 
-import type { KvCacheProfile } from "./ModelRegistry";
+import { MODEL_REGISTRY, type KvCacheProfile, type ModelInfo } from "./ModelRegistry";
 
 export const DEFAULT_N_CTX = 8192;
 export const HIGH_RAM_N_CTX = 16384;
@@ -49,9 +49,8 @@ export const CTX_UPGRADE_MIN_TOTAL_BYTES = 7_500_000_000;
  * NEVER auto-switches the user's chosen model). This answers "which model
  * class fits this phone", not whether it can hold a doubled KV context.
  *
- *   high (>= RAM_TIER_HIGH_BYTES, reportable "8GB" class) -> qwen3.5-4b
- *   mid  (>= RAM_MID_BYTES, reportable "6GB" class) -> qwen3.5-4b-q3
- *   low  (< RAM_MID_BYTES) -> qwen3.5-2b
+ *   Recommendation ownership is declared by each ModelInfo.recommendForTiers
+ *   entry; this module does not encode model identities.
  */
 export type RamTier = "low" | "mid" | "high";
 /**
@@ -81,16 +80,22 @@ export function getRamTier(totalBytes: number | null): RamTier {
 /**
  * Advisory recommended model id for a RAM tier — UI hint only (Settings
  * model card badge). Never used to silently switch the user's selection.
+ *
+ * Pick rule: the first matching listed entry in MODEL_REGISTRY order wins.
+ * Invariant: exactly one listed entry recommends each RamTier; the registry
+ * tests enforce that invariant so a future catalog edit cannot silently make
+ * the recommendation ambiguous or disappear.
  */
-export function recommendedModelId(tier: RamTier): string {
-  switch (tier) {
-    case "high":
-      return "qwen3.5-4b";
-    case "mid":
-      return "qwen3.5-4b-q3";
-    case "low":
-      return "qwen3.5-2b";
-  }
+export function recommendedModelId(
+  tier: RamTier,
+  registry: readonly ModelInfo[] = MODEL_REGISTRY,
+): string | null {
+  return (
+    registry.find(
+      (model) =>
+        model.listed !== false && model.recommendForTiers?.includes(tier) === true,
+    )?.id ?? null
+  );
 }
 
 /** True when a device at `deviceTier` has enough RAM for a model that needs `modelTier`. */
@@ -130,8 +135,8 @@ export function getDeviceTotalMemoryBytes(): number | null {
 /**
  * Resolve n_ctx (catalog-authoritative; RAM may only UPGRADE hybrids) and KV
  * types from the model catalog. Catalog n_ctx is never silently downgraded
- * (e.g. Qwen3.5-2B keeps engineCtx 16384 on all devices).
- * `kvCache` is authoritative when provided (Q3 low-RAM keeps q4/q4; standard
+ * (the catalog remains authoritative for each listed model).
+ * `kvCache` is authoritative when provided (standard
  * hybrids use k q8_0 / v q4_0). No blanket hybrid→q8 override.
  */
 export function resolveContextProfile(input: {
@@ -140,7 +145,7 @@ export function resolveContextProfile(input: {
   kvCache?: KvCacheProfile;
   /** Settings / test override — wins over catalog and RAM gate. */
   explicitNCtx?: number;
-  /** Catalog engineCtx — authoritative default (restores 2B's 16k everywhere). */
+  /** Catalog engineCtx — authoritative default for the selected model. */
   catalogCtx?: number;
   totalMemoryBytes?: number | null;
 }): ContextProfile {
@@ -158,7 +163,7 @@ export function resolveContextProfile(input: {
       typeof input.catalogCtx === "number" && Number.isFinite(input.catalogCtx)
         ? input.catalogCtx
         : DEFAULT_N_CTX;
-    // Catalog is authoritative — never downgrade (e.g. 2B stays 16384 on 6GB).
+    // Catalog is authoritative — never silently downgrade its context.
     nCtx = catalogCtx;
     // RAM gate only UPGRADES hybrids on high-RAM devices.
     if (
