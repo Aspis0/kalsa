@@ -4,7 +4,8 @@ export LC_ALL=C
 
 readonly CELL_DIR="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/adreno-acc-type"
 readonly CORPUS_TOKEN_TARGET=3500
-readonly KIT_TGZ="$HOME/kalsa-qdc/adreno-acc-type/kit-gemm-acc-probe.tgz"
+readonly KIT_HEAD="7ef9389bc9266fe0e028b75d83f8e89d4142d2fc"
+readonly KIT_TGZ="$HOME/kalsa-qdc/adreno-acc-type/kit-$KIT_HEAD.tgz"
 readonly MODEL="$HOME/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf"
 readonly EXPECTED_MODEL_SHA="a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03"
 readonly MODEL_FILE="LFM2.5-2.6B-QAD-Q4_0.gguf"
@@ -12,8 +13,8 @@ readonly CORPUS="$CELL_DIR/../adreno-precision-bisect/corpus.txt"
 readonly CONTEXT_SIZE=256
 readonly BATCH_SIZE=256
 readonly DEVICE_ROOT=/data/local/tmp/kalsa-acc-type
-readonly DEVICE_KIT_TGZ="$DEVICE_ROOT/kit-gemm-acc-probe.tgz"
-readonly DEVICE_KIT_DIR="$DEVICE_ROOT/kit-gemm-acc-probe"
+readonly DEVICE_KIT_TGZ="$DEVICE_ROOT/kit-$KIT_HEAD.tgz"
+readonly DEVICE_KIT_DIR="$DEVICE_ROOT/kit-$KIT_HEAD"
 readonly DEVICE_MODEL="$DEVICE_ROOT/$MODEL_FILE"
 readonly DEVICE_CORPUS="$DEVICE_ROOT/corpus.txt"
 readonly DEVICE_CPU_KLD="$DEVICE_ROOT/cpu.kld"
@@ -74,20 +75,49 @@ else
 fi
 
 REQUESTED_VARIANTS=()
+VARIANT_INPUTS=()
+
+split_variant() {
+    local variant math prec b rest key
+    variant="$1"
+    case "$variant" in
+        *:*:*)
+            math="${variant%%:*}"
+            rest="${variant#*:}"
+            prec="${rest%%:*}"
+            b="${rest#*:}"
+            ;;
+        *:*)
+            math="${variant%%:*}"
+            prec="${variant#*:}"
+            b=half
+            ;;
+        *) return 2 ;;
+    esac
+    key="$math-$prec-$b"
+    printf '%s\t%s\t%s\t%s\n' "$math" "$prec" "$b" "$key"
+}
+
 validate_variants() {
-    local list="$1" variant math prec
+    local list variant parsed math prec b key parse_rc
+    list="$1"
     [ -n "$list" ] || { echo "variant_list must contain at least one math:prec pair" >&2; return 2; }
     case "$list" in *$'\n'*|*$'\r'*) echo "variant_list must be space-separated" >&2; return 2;; esac
-    read -r -a REQUESTED_VARIANTS <<< "$list"
-    [ "${#REQUESTED_VARIANTS[@]}" -gt 0 ] || { echo "variant_list must contain at least one math:prec pair" >&2; return 2; }
-    for variant in "${REQUESTED_VARIANTS[@]}"; do
-        case "$variant" in
-            *:*) math="${variant%%:*}"; prec="${variant#*:}" ;;
-            *) echo "invalid variant: $variant" >&2; return 2;;
-        esac
+    read -r -a VARIANT_INPUTS <<< "$list"
+    [ "${#VARIANT_INPUTS[@]}" -gt 0 ] || { echo "variant_list must contain at least one math:prec pair" >&2; return 2; }
+    REQUESTED_VARIANTS=()
+    for variant in "${VARIANT_INPUTS[@]}"; do
+        parsed=$(split_variant "$variant"); parse_rc=$?
+        [ "$parse_rc" -eq 0 ] || { echo "invalid variant: $variant" >&2; return 2; }
+        IFS='	' read -r math prec b key <<< "$parsed"
         case "$math" in stock|strict) ;; *) echo "invalid math in variant: $variant" >&2; return 2;; esac
         case "$prec" in half|acc|mul|deq) ;; *) echo "invalid precision in variant: $variant" >&2; return 2;; esac
-        [ "$variant" = "$math:$prec" ] || { echo "invalid variant: $variant" >&2; return 2; }
+        case "$b" in half|float) ;; *) echo "invalid operand B in variant: $variant" >&2; return 2;; esac
+        [ "$variant" = "$math:$prec" ] || [ "$variant" = "$math:$prec:$b" ] || { echo "invalid variant: $variant" >&2; return 2; }
+        if [ "$b" = float ]; then
+            case "$prec" in mul|deq) ;; *) echo "invalid operand B/precision pair in variant: $variant" >&2; return 2;; esac
+        fi
+        REQUESTED_VARIANTS+=("$math:$prec:$b")
     done
 }
 if [ "$SELF_TEST" -eq 0 ]; then
@@ -104,7 +134,7 @@ if [ "$SELF_TEST" -eq 0 ]; then
     VARIANTS_TSV="$RAW/variants.tsv"
     : > "$ADB_LOG"
     : > "$STATUS_LOG"
-    printf 'variant\treported_prec\treported_math\tmean_kld\tmedian_kld\tsame_top_p\tppl_delta\telapsed_seconds\trc\tstatus\treason\n' > "$VARIANTS_TSV"
+    printf 'variant\treported_prec\treported_math\treported_b\tmean_kld\tmedian_kld\tsame_top_p\tppl_delta\telapsed_seconds\trc\tstatus\treason\n' > "$VARIANTS_TSV"
     END_WRITTEN=0
     START_EPOCH=$(date +%s)
     DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60))
@@ -340,15 +370,6 @@ extract_bench_pp512() {
     ' "$log"
 }
 
-split_variant() {
-    local variant math prec key
-    variant="$1"
-    math="${variant%%:*}"
-    prec="${variant#*:}"
-    key="${variant/:/-}"
-    printf '%s\t%s\t%s\n' "$math" "$prec" "$key"
-}
-
 self_test_metric() {
     local name="$1" log="$2" label="$3" expected="$4" actual rc
     actual=$(extract_metric "$log" "$label"); rc=$?
@@ -361,14 +382,35 @@ self_test_metric() {
 }
 
 self_test_variant_split() {
-    local parts math prec key
+    local parts math prec b key
     parts=$(split_variant "strict:acc")
-    IFS='	' read -r math prec key <<< "$parts"
-    if [ "$math" = strict ] && [ "$prec" = acc ] && [ "$key" = strict-acc ]; then
-        printf 'PASS variant split strict:acc math=%s prec=%s key=%s\n' "$math" "$prec" "$key"
+    IFS='	' read -r math prec b key <<< "$parts"
+    if [ "$math" != strict ] || [ "$prec" != acc ] || [ "$b" != half ] || [ "$key" != strict-acc-half ]; then
+        printf 'FAIL variant split strict:acc math=%s prec=%s b=%s key=%s\n' "$math" "$prec" "$b" "$key"
+        return 1
+    fi
+    printf 'PASS variant split strict:acc math=%s prec=%s b=%s key=%s\n' "$math" "$prec" "$b" "$key"
+    parts=$(split_variant "stock:mul:float")
+    IFS='	' read -r math prec b key <<< "$parts"
+    if [ "$math" = stock ] && [ "$prec" = mul ] && [ "$b" = float ] && [ "$key" = stock-mul-float ]; then
+        printf 'PASS variant split stock:mul:float math=%s prec=%s b=%s key=%s\n' "$math" "$prec" "$b" "$key"
         return 0
     fi
-    printf 'FAIL variant split strict:acc math=%s prec=%s key=%s\n' "$math" "$prec" "$key"
+    printf 'FAIL variant split stock:mul:float math=%s prec=%s b=%s key=%s\n' "$math" "$prec" "$b" "$key"
+    return 1
+}
+
+self_test_invalid_variant() {
+    local error_log="$CELL_DIR/.d-run-self-test-invalid-variant.$$" rc cleanup_rc
+    validate_variants "stock:half:float" > "$error_log" 2>&1
+    rc=$?
+    rm -f "$error_log"
+    cleanup_rc=$?
+    if [ "$rc" -ne 0 ] && [ "$cleanup_rc" -eq 0 ]; then
+        printf 'PASS invalid variant stock:half:float rejected before device\n'
+        return 0
+    fi
+    printf 'FAIL invalid variant stock:half:float rc=%s cleanup_rc=%s\n' "$rc" "$cleanup_rc"
     return 1
 }
 
@@ -387,29 +429,31 @@ self_test_bench_metric() {
 }
 
 self_test_provenance() {
-    local provenance_log="$CELL_DIR/raw/provenance/provenance-lines.txt" candidates="$CELL_DIR/.d-run-self-test-provenance-candidates.$$"
-    local line reported_prec reported_math find_rc prec_rc math_rc cleanup_rc compile_opts_present
+    local provenance_log="$CELL_DIR/.d-run-self-test-provenance.$$" candidates="$CELL_DIR/.d-run-self-test-provenance-candidates.$$"
+    local line reported_prec reported_math reported_b find_rc prec_rc math_rc b_rc cleanup_rc compile_opts_present
+    printf "gemm_noshuffle_q4_0_f32 prec=mul math=stock b=float compile_opts='-cl-std=CL3.0 -DKALSA_GEMM_PREC=2 -DKALSA_GEMM_B=1'\n" > "$provenance_log"
     line=$(find_provenance "$provenance_log" "$candidates"); find_rc=$?
     reported_prec=$(extract_tag "$line" prec); prec_rc=$?
     reported_math=$(extract_tag "$line" math); math_rc=$?
-    rm -f "$candidates"
+    reported_b=$(extract_tag "$line" b); b_rc=$?
+    rm -f "$provenance_log" "$candidates"
     cleanup_rc=$?
     case "$line" in
         *compile_opts=*) compile_opts_present=1 ;;
         *) compile_opts_present=0 ;;
     esac
-    if [ "$find_rc" -eq 0 ] && [ "$prec_rc" -eq 0 ] && [ "$math_rc" -eq 0 ] && [ "$reported_prec" = half ] && [ "$reported_math" = stock ] && [ "$compile_opts_present" -eq 1 ] && [ "$cleanup_rc" -eq 0 ]; then
-        printf 'PASS provenance prec=%s math=%s\n' "$reported_prec" "$reported_math"
+    if [ "$find_rc" -eq 0 ] && [ "$prec_rc" -eq 0 ] && [ "$math_rc" -eq 0 ] && [ "$b_rc" -eq 0 ] && [ "$reported_prec" = mul ] && [ "$reported_math" = stock ] && [ "$reported_b" = float ] && [ "$compile_opts_present" -eq 1 ] && [ "$cleanup_rc" -eq 0 ]; then
+        printf 'PASS provenance prec=%s math=%s b=%s\n' "$reported_prec" "$reported_math" "$reported_b"
         return 0
     fi
-    printf 'FAIL provenance prec=%s math=%s find_rc=%s tag_rc=%s/%s cleanup_rc=%s\n' "$reported_prec" "$reported_math" "$find_rc" "$prec_rc" "$math_rc" "$cleanup_rc"
+    printf 'FAIL provenance prec=%s math=%s b=%s find_rc=%s tag_rc=%s/%s/%s cleanup_rc=%s\n' "$reported_prec" "$reported_math" "$reported_b" "$find_rc" "$prec_rc" "$math_rc" "$b_rc" "$cleanup_rc"
     return 1
 }
 
 self_test_negative_provenance() {
     local probe_log="$CELL_DIR/.d-run-self-test-probe.$$" candidates="$CELL_DIR/.d-run-self-test-probe-candidates.$$"
     local line reported_prec find_rc tag_rc cleanup_rc
-    printf "gemm_noshuffle_q4_0_f32 prec=half math=stock compile_opts='-cl-std=CL3.0'\n" > "$probe_log"
+    printf "gemm_noshuffle_q4_0_f32 prec=half math=stock b=half compile_opts='-cl-std=CL3.0'\n" > "$probe_log"
     find_rc=0
     tag_rc=0
     line=$(find_provenance "$probe_log" "$candidates"); find_rc=$?
@@ -455,6 +499,7 @@ self_test() {
     self_test_metric "sa812121-b1 Same top p" "$b1_log" "Same top p" "98.031" || failed=1
     self_test_metric "sa812121-b1 Mean PPL(Q)-PPL(base)" "$b1_log" "Mean PPL(Q)-PPL(base)" "0.274311" || failed=1
     self_test_variant_split || failed=1
+    self_test_invalid_variant || failed=1
     self_test_bench_metric || failed=1
     self_test_provenance || failed=1
     self_test_negative_provenance || failed=1
@@ -464,29 +509,36 @@ self_test() {
 
 find_provenance() {
     local log="$1" candidates="$2" rc
-    grep -E '(^|[[:space:]])(prec|math)=' "$log" > "$candidates"; rc=$?
+    grep -E '(^|[[:space:]])(prec|math|b)=' "$log" > "$candidates"; rc=$?
     [ "$rc" -le 1 ] || return "$rc"
     awk '
-        /(^|[[:space:]])prec=(half|acc|mul|deq)([^[:alnum:]_-]|$)/ && /(^|[[:space:]])math=(stock|strict)([^[:alnum:]_-]|$)/ { print; found=1; exit }
-        /(^|[[:space:]])math=(stock|strict)([^[:alnum:]_-]|$)/ && /(^|[[:space:]])prec=(half|acc|mul|deq)([^[:alnum:]_-]|$)/ { print; found=1; exit }
+        /(^|[[:space:]])prec=(half|acc|mul|deq)([^[:alnum:]_-]|$)/ && /(^|[[:space:]])math=(stock|strict)([^[:alnum:]_-]|$)/ && /(^|[[:space:]])b=(half|float)([^[:alnum:]_-]|$)/ { print; found=1; exit }
         END { if (!found) exit 1 }
     ' "$candidates"
 }
 
 variant_row() {
-    local variant math prec key parts
+    local variant math prec b key parts
     local probe_step probe_log probe_remote probe_cmd probe_candidates platform_file probe_rc platform_rc
-    local step log provenance="-"
-    local provenance_rc reported_prec="-" reported_math="-" prec_rc math_rc error_file error_rc
-    local mean="-" median="-" same_top="-" ppl_delta="-" mean_rc median_rc same_rc ppl_rc
+    local step log provenance
+    local provenance_rc reported_prec reported_math reported_b prec_rc math_rc b_rc error_file error_rc
+    local mean median same_top ppl_delta mean_rc median_rc same_rc ppl_rc
     local started rc elapsed status reason
     variant="$1"
     parts=$(split_variant "$variant")
-    IFS='	' read -r math prec key <<< "$parts"
+    IFS='	' read -r math prec b key <<< "$parts"
+    provenance="-"
+    reported_prec="-"
+    reported_math="-"
+    reported_b="-"
+    mean="-"
+    median="-"
+    same_top="-"
+    ppl_delta="-"
     probe_step="probe-$key"
     probe_log="$RAW/$probe_step.log"
     probe_remote="$DEVICE_ROOT/$probe_step.log"
-    probe_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && rm -f '$probe_remote' && ./bin/llama-bench -v -m '$DEVICE_MODEL' -p 8 -n 0 -ngl 99 -fa 0 -r 1 > '$probe_remote' 2>&1; probe_rc=\$?; cat '$probe_remote'; exit \$probe_rc"
+    probe_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' KALSA_GEMM_B='$b' && rm -f '$probe_remote' && ./bin/llama-bench -v -m '$DEVICE_MODEL' -p 8 -n 0 -ngl 99 -fa 0 -r 1 > '$probe_remote' 2>&1; probe_rc=\$?; cat '$probe_remote'; exit \$probe_rc"
     run_step "$probe_step" "$probe_log" adbT 300 -s "$SERIAL" shell "$probe_cmd"; probe_rc=$?
     platform_file="$RAW/$probe_step.platform"
     grep -F "selected platform: 'QUALCOMM" "$probe_log" > "$platform_file"; platform_rc=$?
@@ -496,18 +548,21 @@ variant_row() {
         printf '%s\n' "$provenance" > "$RAW/$probe_step.provenance"
         reported_prec=$(extract_tag "$provenance" prec); prec_rc=$?
         reported_math=$(extract_tag "$provenance" math); math_rc=$?
+        reported_b=$(extract_tag "$provenance" b); b_rc=$?
         [ "$prec_rc" -eq 0 ] || reported_prec="-"
         [ "$math_rc" -eq 0 ] || reported_math="-"
+        [ "$b_rc" -eq 0 ] || reported_b="-"
     else
         : > "$RAW/$probe_step.provenance"
         prec_rc=1
         math_rc=1
+        b_rc=1
     fi
     step="variant-$key"
     log="$RAW/$step.log"
     error_file="$RAW/$step.errors"
     started=$(date +%s)
-    GPU_CMD="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 99 -fa off -s 42 --temp 0 --kl-divergence --kl-divergence-base '$DEVICE_CPU_KLD'"
+    GPU_CMD="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' KALSA_GEMM_B='$b' && ./bin/llama-perplexity -m '$DEVICE_MODEL' -f '$DEVICE_CORPUS' -c '$CONTEXT_SIZE' -b '$BATCH_SIZE' -ngl 99 -fa off -s 42 --temp 0 --kl-divergence --kl-divergence-base '$DEVICE_CPU_KLD'"
     run_step "$step" "$log" adbT 1800 -s "$SERIAL" shell "$GPU_CMD"; rc=$?
     elapsed=$(( $(date +%s) - started ))
     grep -E 'error:|CL_BUILD_PROGRAM_FAILURE|clBuildProgram[^[:alnum:]]+failed|build program[^[:alnum:]]+failed' "$log" > "$error_file"; error_rc=$?
@@ -530,12 +585,12 @@ variant_row() {
     elif [ "$provenance_rc" -gt 1 ]; then
         status=VOID
         reason=provenance_scan_failed
-    elif [ "$provenance_rc" -ne 0 ] || [ "$prec_rc" -ne 0 ] || [ "$math_rc" -ne 0 ]; then
+    elif [ "$provenance_rc" -ne 0 ] || [ "$prec_rc" -ne 0 ] || [ "$math_rc" -ne 0 ] || [ "$b_rc" -ne 0 ]; then
         status=VOID
         reason="provenance_missing"
-    elif [ "$reported_prec" != "$prec" ] || [ "$reported_math" != "$math" ]; then
+    elif [ "$reported_prec" != "$prec" ] || [ "$reported_math" != "$math" ] || [ "$reported_b" != "$b" ]; then
         status=VOID
-        reason="provenance_mismatch_requested_${math}:${prec}"
+        reason="provenance_mismatch_requested_${math}:${prec}:${b}"
     elif [ "$error_rc" -eq 0 ]; then
         status=VOID
         reason=kernel_build_error
@@ -546,8 +601,8 @@ variant_row() {
         status=VOID
         reason=summary_missing
     fi
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$variant" "$reported_prec" "$reported_math" "$mean" "$median" "$same_top" "$ppl_delta" "$elapsed" "$rc" "$status" "$reason" >> "$VARIANTS_TSV"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$variant" "$reported_prec" "$reported_math" "$reported_b" "$mean" "$median" "$same_top" "$ppl_delta" "$elapsed" "$rc" "$status" "$reason" >> "$VARIANTS_TSV"
     [ "$rc" -eq 0 ]
 }
 
@@ -612,13 +667,13 @@ build_bench_order() {
 }
 
 bench_variant() {
-    local variant math prec key parts order_index
+    local variant math prec b key parts order_index
     local step log bench_cmd temp_before temp_after host_gap bench_start bench_end bench_rc cool_rc
     local pp_values pp512 pp_std pp_rc
     variant="$1"
     order_index="$2"
     parts=$(split_variant "$variant")
-    IFS='	' read -r math prec key <<< "$parts"
+    IFS='	' read -r math prec b key <<< "$parts"
     step="bench-$key"
     log="$RAW/$step.log"
     if [ "$PREV_BENCH_END_EPOCH" -gt 0 ]; then
@@ -634,7 +689,7 @@ bench_variant() {
     else
         host_gap=0
     fi
-    bench_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' && ./bin/llama-bench -m '$DEVICE_MODEL' -p 512 -n 0 -ngl 99 -fa 0 -r 3"
+    bench_cmd="cd '$DEVICE_KIT_DIR' && export LD_LIBRARY_PATH='$DEVICE_KIT_DIR/lib' && export KALSA_GEMM_MATH='$math' KALSA_GEMM_PREC='$prec' KALSA_GEMM_B='$b' && ./bin/llama-bench -m '$DEVICE_MODEL' -p 512 -n 0 -ngl 99 -fa 0 -r 3"
     run_step "$step" "$log" adbT 1800 -s "$SERIAL" shell "$bench_cmd"
     bench_rc=$?
     bench_end=$(date +%s)
@@ -647,8 +702,8 @@ bench_variant() {
     if [ "$pp_rc" -eq 0 ]; then
         IFS='	' read -r pp512 pp_std <<< "$pp_values"
     fi
-    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
-        "$variant" "$order_index" "$temp_before" "$temp_after" "$host_gap" "$pp512" "$pp_std" "$bench_rc" >> "$BENCH_TSV"
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+        "$variant" "$b" "$order_index" "$temp_before" "$temp_after" "$host_gap" "$pp512" "$pp_std" "$bench_rc" >> "$BENCH_TSV"
     [ "$cool_rc" -eq 0 ] || return "$cool_rc"
     return "$bench_rc"
 }
@@ -658,7 +713,7 @@ run_bench() {
     BENCH_TSV="$RAW/bench.tsv"
     BENCH_ORDER_FILE="$RAW/bench-order.tsv"
     PREV_BENCH_END_EPOCH=0
-    printf 'variant\trealised_order_index\ttemperature_before\ttemperature_after\thost_gap_seconds\tpp512\tpp512_stddev\trc\n' > "$BENCH_TSV"
+    printf 'variant\tb\trealised_order_index\ttemperature_before\ttemperature_after\thost_gap_seconds\tpp512\tpp512_stddev\trc\n' > "$BENCH_TSV"
     build_bench_order
     for ((order_index=1; order_index<=${#BENCH_ORDER[@]}; order_index++)); do
         variant="${BENCH_ORDER[$((order_index - 1))]}"

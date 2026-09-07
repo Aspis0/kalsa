@@ -1,0 +1,3 @@
+a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03  /data/local/tmp/kalsa-npu-decode-kv/ship.gguf
+992d6a192b6231a73ff2750b7aa645e5f99cbecdf3a6ff933d5758ba06aefaa9  /data/local/tmp/kalsa-npu-decode-kv/lib/libggml-htp-v75.so
+ONDEVICE_SHA_EXIT=0

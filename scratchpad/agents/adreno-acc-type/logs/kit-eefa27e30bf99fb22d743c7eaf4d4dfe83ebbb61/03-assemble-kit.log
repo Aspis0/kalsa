@@ -1,0 +1,21 @@
+=== START 03-assemble-kit 2026-09-07T15:08:19Z ===
+command: assemble_kit
+kit_build_pass=first_pass
+binary_sha256 llama-bench 80d96ce75c79540341e65914ce93ff75ac3e1d42f75546c0d76e5b60f05c93c8
+binary_sha256 test-backend-ops 283f639d9e216a3c49ecdca98fa1964adaf59a59617fd0f9a15fedfd2ec1f018
+binary_sha256 llama-perplexity cdc4e45dde84b7d2e01591cc76c20cfc62bf5fd50384fd8d1f50935a69640e4a
+binary_sha256 llama-eval-callback c3c3ef538d4dc86491680717fcf57aab294a67aa2997a94b109a24dc266aef2a
+shipped_lib=libggml-base.so
+shipped_lib=libggml-cpu.so
+shipped_lib=libggml-opencl.so
+shipped_lib=libggml.so
+shipped_lib=libllama-bench-impl.so
+shipped_lib=libllama-common.so
+shipped_lib=libllama-perplexity-impl.so
+shipped_lib=libllama.so
+kernel_marker=KALSA_GEMM_B_TYPE status=found
+kernel_marker=KALSA_GEMM_READ_B status=found
+kernel_marker=kernel_transpose_32_32 status=found
+kernel_marker=b=%s status=found
+tar_sha256 0eebee77e6f8ff16ea48b2946c82deaac78ed22339663089e96401165ca2d6cd
+=== END 03-assemble-kit exit=0 2026-09-07T15:08:23Z ===

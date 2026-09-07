@@ -9,8 +9,6 @@ readonly PRESET_SOURCE="/Users/marco/Projects/kalsallama-wt-upstream/CMakeUserPr
 readonly PRESET_TARGET="$SOURCE_TREE/CMakeUserPresets.json"
 readonly IMAGE="ghcr.io/snapdragon-toolchain/arm64-android:v0.7"
 readonly KIT_ROOT="$HOME/kalsa-qdc/adreno-acc-type"
-readonly TGZ="$KIT_ROOT/kit-gemm-acc-probe.tgz"
-readonly LOG_DIR="$CELL_DIR/logs/gemm-acc-probe"
 readonly BUILDS_FILE="$CELL_DIR/BUILDS.txt"
 readonly -a REQUESTED_TARGETS=(
     ggml-base ggml-cpu ggml-opencl ggml llama llama-common
@@ -20,11 +18,21 @@ readonly -a KIT_BINARIES=(llama-bench test-backend-ops llama-perplexity llama-ev
 readonly -a EXPECTED_PATCH_PATHS=(
     ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl
     ggml/src/ggml-opencl/ggml-opencl.cpp
+    ggml/src/ggml-opencl/kernels/transpose.cl
+)
+readonly -a REQUIRED_KERNEL_MARKERS=(
+    KALSA_GEMM_B_TYPE
+    KALSA_GEMM_READ_B
+    kernel_transpose_32_32
+    'b=%s'
 )
 
 START_EPOCH=$(date +%s)
 SOURCE_HEAD="-"
-CONTAINER="kalsa-adreno-accprobe"
+KIT_NAME=""
+TGZ=""
+LOG_DIR=""
+CONTAINER=""
 HOST_TARGETS=()
 RECORD=0
 PRESET_CLEANUP=0
@@ -162,7 +170,7 @@ check_source() {
         fi
     done
     [ "$diff_count" -eq "${#EXPECTED_PATCH_PATHS[@]}" ] || missing=1
-    [ "$missing" -eq 0 ] || die "HEAD tree differs from baseline outside the two expected paths"
+    [ "$missing" -eq 0 ] || die "HEAD tree differs from baseline outside the expected paths"
 }
 
 prepare_preset() {
@@ -195,9 +203,36 @@ resolve_host_targets() {
     [ "${#HOST_TARGETS[@]}" -gt 0 ]
 }
 
+verify_kernel_markers() {
+    local library strings_file marker marker_rc strings_rc missing
+    library="$1"
+    strings_file="$2"
+    missing=0
+    if [ ! -f "$library" ]; then
+        printf 'kernel_marker_missing=library:%s\n' "$library" >&2
+        return 1
+    fi
+    strings -a "$library" > "$strings_file"; strings_rc=$?
+    [ "$strings_rc" -eq 0 ] || return "$strings_rc"
+    for marker in "${REQUIRED_KERNEL_MARKERS[@]}"; do
+        grep -F -- "$marker" "$strings_file" >/dev/null 2>&1; marker_rc=$?
+        if [ "$marker_rc" -eq 0 ]; then
+            printf 'kernel_marker=%s status=found\n' "$marker"
+        elif [ "$marker_rc" -eq 1 ]; then
+            printf 'kernel_marker=%s status=missing\n' "$marker" >&2
+            printf 'missing kernel marker: %s\n' "$marker" >&2
+            missing=1
+        else
+            printf 'kernel_marker=%s status=error rc=%s\n' "$marker" "$marker_rc" >&2
+            return "$marker_rc"
+        fi
+    done
+    [ "$missing" -eq 0 ] || return 1
+}
+
 assemble_kit() {
     local source_bin="$SOURCE_TREE/build-snapdragon/bin"
-    local staged="$KIT_ROOT/.kit-gemm-acc-probe.tmp.$$" tgz_tmp="$TGZ.tmp.$$"
+    local staged="$KIT_ROOT/.$KIT_NAME.tmp.$$" tgz_tmp="$TGZ.tmp.$$"
     local source_libs sorted_libs strings_file matches_file needed_file binary from digest rc lib_count=0 needed
     [ -d "$source_bin" ] || return 1
     printf 'kit_build_pass=%s\n' "$BUILD_PASS"
@@ -222,6 +257,7 @@ assemble_kit() {
         lib_count=$((lib_count + 1))
     done < "$sorted_libs"
     [ "$lib_count" -gt 0 ] || { echo "no shared libraries found in the build tree"; return 1; }
+    verify_kernel_markers "$staged/lib/libggml-opencl.so" "$staged/.kernel-strings" || { rm -rf "$staged" "$tgz_tmp"; return 1; }
     for binary in "${KIT_BINARIES[@]}"; do
         strings_file="$staged/.strings-$binary"
         matches_file="$staged/.matches-$binary"
@@ -251,13 +287,17 @@ assemble_kit() {
         done
         tar -czf "$tgz_tmp" bin lib GIT_SHA SHA256SUMS || exit 1
     ) || { rm -rf "$staged" "$tgz_tmp"; return 1; }
-    rm -rf "$KIT_ROOT/kit-gemm-acc-probe"
-    mv "$staged" "$KIT_ROOT/kit-gemm-acc-probe" || return 1
+    rm -rf "$KIT_ROOT/$KIT_NAME"
+    mv "$staged" "$KIT_ROOT/$KIT_NAME" || return 1
     mv "$tgz_tmp" "$TGZ" || return 1
     printf 'tar_sha256 %s\n' "$(sha256_file "$TGZ")"
 }
 
 check_source
+KIT_NAME="kit-$SOURCE_HEAD"
+TGZ="$KIT_ROOT/$KIT_NAME.tgz"
+LOG_DIR="$CELL_DIR/logs/$KIT_NAME"
+CONTAINER="kalsa-adreno-accprobe-$SOURCE_HEAD"
 mkdir -p "$CELL_DIR/logs" "$LOG_DIR" "$KIT_ROOT" || die "could not create output directories"
 RECORD=1
 trap on_exit EXIT

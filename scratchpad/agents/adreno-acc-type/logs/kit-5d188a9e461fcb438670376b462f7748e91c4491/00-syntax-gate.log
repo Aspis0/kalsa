@@ -1,0 +1,33 @@
+=== START 00-syntax-gate 2026-09-07T14:52:17Z ===
+command: ./syntax-gate.sh
+/Users/marco/Projects/kalsallama-wt-accprobe/ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl:8:26: warning: OpenCL extension 'cl_qcom_reqd_sub_group_size' unknown or does not require pragma - ignoring [-Wignored-pragmas]
+    8 | #pragma OPENCL EXTENSION cl_qcom_reqd_sub_group_size : enable
+      |                          ^
+1 warning generated.
+PREC=0 rc=0
+/Users/marco/Projects/kalsallama-wt-accprobe/ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl:8:26: warning: OpenCL extension 'cl_qcom_reqd_sub_group_size' unknown or does not require pragma - ignoring [-Wignored-pragmas]
+    8 | #pragma OPENCL EXTENSION cl_qcom_reqd_sub_group_size : enable
+      |                          ^
+1 warning generated.
+PREC=1 rc=0
+/Users/marco/Projects/kalsallama-wt-accprobe/ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl:8:26: warning: OpenCL extension 'cl_qcom_reqd_sub_group_size' unknown or does not require pragma - ignoring [-Wignored-pragmas]
+    8 | #pragma OPENCL EXTENSION cl_qcom_reqd_sub_group_size : enable
+      |                          ^
+1 warning generated.
+PREC=2 rc=0
+/Users/marco/Projects/kalsallama-wt-accprobe/ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl:8:26: warning: OpenCL extension 'cl_qcom_reqd_sub_group_size' unknown or does not require pragma - ignoring [-Wignored-pragmas]
+    8 | #pragma OPENCL EXTENSION cl_qcom_reqd_sub_group_size : enable
+      |                          ^
+1 warning generated.
+PREC=3 rc=0
+/Users/marco/Projects/kalsallama-wt-accprobe/ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl:8:26: warning: OpenCL extension 'cl_qcom_reqd_sub_group_size' unknown or does not require pragma - ignoring [-Wignored-pragmas]
+    8 | #pragma OPENCL EXTENSION cl_qcom_reqd_sub_group_size : enable
+      |                          ^
+1 warning generated.
+PREC=2 B=float rc=0
+/Users/marco/Projects/kalsallama-wt-accprobe/ggml/src/ggml-opencl/kernels/gemm_noshuffle_q4_0_f32.cl:8:26: warning: OpenCL extension 'cl_qcom_reqd_sub_group_size' unknown or does not require pragma - ignoring [-Wignored-pragmas]
+    8 | #pragma OPENCL EXTENSION cl_qcom_reqd_sub_group_size : enable
+      |                          ^
+1 warning generated.
+PREC=3 B=float rc=0
+=== END 00-syntax-gate exit=0 2026-09-07T14:52:17Z ===

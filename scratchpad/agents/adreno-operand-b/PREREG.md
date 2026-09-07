@@ -65,3 +65,27 @@ GPU su V73/V75 che scenderebbe da ~1,7× a ~1,1×) resta una previsione non fals
   kernel di trasposizione.
 - Nulla sul decode (GEMV, non toccato).
 - Non deciderà se spedire: la soglia di prodotto è una decisione dell'owner, non una misura.
+
+## Amendment 1 — 7/09, PRIMA della sessione: i bracci esatti e il protocollo di velocità
+Scritto prima di vedere qualunque numero della nuova build.
+
+**Bracci KLD, in quest'ordine** (il driver accetta `math:prec:b`, la forma a due campi vale `b=half`):
+1. `stock:half` — **controllo di continuità del kit nuovo**: deve riprodurre 0,453822 / 62,823 %. Se non lo fa, il kit
+   è VOID e non si va oltre: significa che qualcosa è cambiato oltre a ciò che volevamo.
+2. `stock:mul` — **controllo di continuità della misura precedente**: deve riprodurre 0,004736 / 94,826 %. Serve a
+   escludere che il nuovo kit (tre file diversi dal pinnato invece di due) abbia spostato il braccio già bancato.
+3. `stock:mul:float` — **il braccio in esame**.
+4. `stock:deq:float` — solo se il 3 soddisfa una lettura, per vedere se la dequantizzazione aggiunge qualcosa una
+   volta che l'operando è f32 (con B in f16 non aggiungeva nulla).
+I bracci `strict` non si ripetono: nella cella precedente `stock` e `strict` erano identici alla sesta cifra in tutte
+e quattro le coppie, quindi ripeterli qui spenderebbe device per riconfermare un risultato nullo. Se una qualunque
+lettura di questa cella risultasse ambigua, `strict:mul:float` si aggiunge come controllo.
+
+**Protocollo di velocità** (paga il debito dell'Amendment 8 della cella `adreno-acc-type`): `--cool 180`,
+`--bench-seed` registrato, temperatura letta prima e dopo ogni passo, tre bracci `half`, `mul`, `mul:float`.
+Lettura di validità **pre-registrata**: se le temperature di **inizio** dei tre passi differiscono di più di **2 °C**,
+il confronto è dichiarato degradato e i rapporti si riportano come indicativi, esattamente come nella cella
+precedente — non si nasconde la deriva dietro una media. Se rientrano nei 2 °C, il rapporto `mul/half` misurato qui
+**sostituisce** lo 0,663×/0,654× indicativo e chiude il debito. 180 s è una scelta, non una misura: nasce dal fatto che
+i passi di bench durano ~25 s e che dodici minuti di carico continuo sono bastati a portare il board fuori scala;
+se le temperature registrate mostrano che non basta, il numero si alza nella cella successiva e lo si dice.
