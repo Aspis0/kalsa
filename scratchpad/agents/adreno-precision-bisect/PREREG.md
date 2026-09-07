@@ -107,3 +107,23 @@ Readings, fixed now:
 - Anything in between → both contribute; report the split and do not pick a single culprit.
 Also recorded, for the speed claims: with FA unsupported on OpenCL the GPU arm is a MIXED execution (attention on CPU
 per the same warning), so "GPU prefill" numbers in ALIVE 55 and earlier rows are for a mixed graph, not a fully-GPU one.
+
+## Amendment 2 (7/09 02:06 EDT — after the FA-parity result, before the batch experiment)
+FA parity run (session 808052, host sa812121, `EXTRA_ARGS="-fa off"` appended identically to both arms):
+`Median KLD 0.453822` | `Mean KLD 0.638627 ± 0.016709` | `Same top p 62.823 ± 1.146 %` | `PPL delta 8.400806`.
+Against the confounded run (0.454348 / 0.636690 / 62.373 / 8.498116) every figure is inside the stated uncertainty.
+**Pre-declared reading #2 applies: the attention-path mismatch is NOT the cause**; the quantized GEMM arithmetic becomes
+the prime suspect. The accumulator hypothesis survives its first real chance to die.
+**Next experiment, declared before running — no kernel change needed.** Recon established that the Adreno Q4_0 path
+picks the kernel by batch width: `ne1 == 1` → `kernel_gemv_noshuffle_q4_0_f32` with `__private float2 totalSum` (fp32
+accumulation, B image `CL_FLOAT`), `ne1 > 1` → `kernel_gemm_noshuffle_q4_0_f32` with `half8 c0` (f16 accumulation, B
+image `CL_HALF_FLOAT`). Running the same KLD comparison with `-b 1` therefore routes the GPU arm through the fp32 GEMV
+kernel instead of the f16 GEMM, with identical weights, corpus, seed and attention setting.
+Readings, fixed now:
+- KLD collapses (median ≤ 0.05, same-top ≥ 90 %) → the f16 GEMM path is the cause, **proven from data without editing a
+  kernel**, and the ACC_TYPE cell starts with a measured target to beat.
+- KLD stays high (median ≥ 0.3) → the accumulators are NOT the dominant cause either; the search moves on (dequant,
+  the half-converted B operand feeding both paths, or something outside matmul) and the ACC_TYPE cell does not open.
+- In between → partial contribution; report the number, no single culprit.
+Caveat recorded in advance: `-b 1` changes throughput, not weights; any speed figure from this run is meaningless and
+will not be quoted. If the run cannot finish inside the session, it is reported as incomplete, not extrapolated.
