@@ -6,6 +6,7 @@ readonly SOURCE_TREE="/Users/marco/Projects/kalsallama-wt-oclpicks-25910"
 readonly SOURCE_BRANCH="kalsa/opencl-picks-2026-09+25910"
 readonly EXPECTED_HEAD="2f3b24dee"
 readonly PRESET_SOURCE="/Users/marco/Projects/kalsallama-wt-upstream/CMakeUserPresets.json"
+readonly PRESET_TARGET="$SOURCE_TREE/CMakeUserPresets.json"
 readonly IMAGE="ghcr.io/snapdragon-toolchain/arm64-android:v0.7"
 readonly KIT_ROOT="$HOME/kalsa-qdc/adreno-precision-bisect"
 readonly TGZ="$KIT_ROOT/kit-$EXPECTED_HEAD.tgz"
@@ -22,6 +23,8 @@ START_EPOCH=$(date +%s)
 CONTAINER="kalsa-adreno-precision-$EXPECTED_HEAD"
 HOST_TARGETS=()
 RECORD=0
+PRESET_CLEANUP=0
+BUILD_PASS=not_run
 
 sha256_file() {
     local text rc
@@ -45,11 +48,23 @@ die() { echo "build-kit.sh: $*" >&2; exit 1; }
 record_build() {
     local rc="$1" duration=$(( $(date +%s) - START_EPOCH )) tgz_sha="-"
     if [ -f "$TGZ" ]; then tgz_sha=$(sha256_file "$TGZ") || tgz_sha="-"; fi
-    printf '%s %s %s %s\n' "$EXPECTED_HEAD" "$rc" "$tgz_sha" "$duration" >> "$BUILDS_FILE"
+    printf '%s %s %s %s %s\n' "$EXPECTED_HEAD" "$rc" "$tgz_sha" "$duration" "$BUILD_PASS" >> "$BUILDS_FILE"
+}
+
+cleanup_preset() {
+    local rc=0
+    if [ "$PRESET_CLEANUP" -eq 1 ] && [ -e "$PRESET_TARGET" ]; then
+        rm -f "$PRESET_TARGET"
+        rc=$?
+        printf 'preset_cleanup_rc=%s\n' "$rc"
+    fi
+    return "$rc"
 }
 
 on_exit() {
-    local rc=$?
+    local rc=$? cleanup_rc
+    cleanup_preset; cleanup_rc=$?
+    [ "$rc" -eq 0 ] && [ "$cleanup_rc" -ne 0 ] && rc="$cleanup_rc"
     [ "$RECORD" -eq 1 ] && record_build "$rc"
     exit "$rc"
 }
@@ -73,7 +88,6 @@ busy_container_check() {
 docker_cmake() {
     docker run --rm --name "$CONTAINER" -u "$(id -u):$(id -g)" \
         --volume "$SOURCE_TREE:/workspace" \
-        --volume "$PRESET_SOURCE:/workspace/CMakeUserPresets.json:ro" \
         --platform linux/amd64 -w /workspace "$IMAGE" cmake "$@"
 }
 
@@ -92,19 +106,37 @@ run_step() {
 }
 
 check_source() {
-    local head branch dirty fault_count
+    local head branch dirty line unexpected=0 fault_count
     git -C "$SOURCE_TREE" rev-parse --git-dir >/dev/null 2>&1 || die "source tree is not a git worktree: $SOURCE_TREE"
     branch=$(git -C "$SOURCE_TREE" symbolic-ref --short -q HEAD 2>/dev/null || printf 'detached')
     dirty=$(git -C "$SOURCE_TREE" status --porcelain=v1) || die "could not inspect source status"
     head=$(git -C "$SOURCE_TREE" rev-parse HEAD 2>/dev/null) || die "could not inspect source HEAD"
     [ -f "$SOURCE_TREE/ggml/src/ggml-opencl/ggml-opencl.cpp" ] || die "OpenCL source file is missing"
     fault_count=$(grep -c 'KALSA_BENCH_FAULT_INJECT' "$SOURCE_TREE/ggml/src/ggml-opencl/ggml-opencl.cpp" || true)
+    while IFS= read -r line; do
+        case "$line" in
+            ""|"?? CMakeUserPresets.json") ;;
+            *) unexpected=1; printf 'unexpected_source_status=%s\n' "$line" ;;
+        esac
+    done <<< "$dirty"
     printf 'source_tree=%s\nsource_branch=%s\nsource_head=%s\nsource_dirty=%s\nfault_define_occurrences=%s\n' \
         "$SOURCE_TREE" "$branch" "$head" "$([ -n "$dirty" ] && echo 1 || echo 0)" "$fault_count"
-    [ -z "$dirty" ] || die "source tree is dirty"
+    [ "$unexpected" -eq 0 ] || die "source tree is dirty outside CMakeUserPresets.json"
     [ "$head" = "2f3b24dee5833faeeb0ef6f097c4db3d11a96fb0" ] || die "source HEAD is not 2f3b24dee"
     [ "$fault_count" -eq 0 ] || die "KALSA_BENCH_FAULT_INJECT occurs in ggml-opencl.cpp"
     [ -f "$PRESET_SOURCE" ] || die "preset source is missing: $PRESET_SOURCE"
+}
+
+prepare_preset() {
+    if [ -e "$PRESET_TARGET" ]; then
+        cmp -s "$PRESET_SOURCE" "$PRESET_TARGET" || die "existing CMakeUserPresets.json differs from the known preset"
+        PRESET_CLEANUP=1
+        echo "preset=existing_matching_copy"
+    else
+        PRESET_CLEANUP=1
+        cp "$PRESET_SOURCE" "$PRESET_TARGET" || die "could not copy CMakeUserPresets.json"
+        echo "preset=created_copy"
+    fi
 }
 
 resolve_host_targets() {
@@ -130,6 +162,7 @@ assemble_kit() {
     local staged="$KIT_ROOT/.kit-$EXPECTED_HEAD.tmp.$$" tgz_tmp="$TGZ.tmp.$$"
     local binary lib from digest
     [ -d "$source_bin" ] || return 1
+    printf 'kit_build_pass=%s\n' "$BUILD_PASS"
     rm -rf "$staged" "$tgz_tmp"
     mkdir -p "$staged/bin" "$staged/lib" || return 1
     for binary in "${KIT_BINARIES[@]}"; do
@@ -164,13 +197,21 @@ check_source
 mkdir -p "$CELL_DIR/logs" "$LOG_DIR" "$KIT_ROOT" || die "could not create output directories"
 RECORD=1
 trap on_exit EXIT
+prepare_preset
 [ ! -e "$TGZ" ] || { echo "build-kit.sh: output already exists: $TGZ"; exit 0; }
 busy_container_check
 run_step 01-cmake-configure docker_cmake --preset arm64-android-snapdragon-release -B build-snapdragon -DGGML_HEXAGON=OFF || exit $?
 busy_container_check
 resolve_host_targets || exit $?
 busy_container_check
-run_step 02-host-build docker_cmake --build build-snapdragon --target "${HOST_TARGETS[@]}" -j8 || exit $?
+BUILD_PASS=first_pass
+run_step 02-host-build docker_cmake --build build-snapdragon --target "${HOST_TARGETS[@]}" -j8; build_rc=$?
+if [ "$build_rc" -ne 0 ]; then
+    BUILD_PASS=retry
+    busy_container_check
+    run_step 02-host-build-retry docker_cmake --build build-snapdragon --target "${HOST_TARGETS[@]}" -j8; build_rc=$?
+fi
+[ "$build_rc" -eq 0 ] || exit "$build_rc"
 busy_container_check
 run_step 03-assemble-kit assemble_kit || exit $?
 exit 0

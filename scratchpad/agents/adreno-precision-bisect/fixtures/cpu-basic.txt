@@ -1,12 +1,21 @@
-ggml_debug: layer-0 = (f32) MUL(a{2, 1, 1, 1}, b{2, 2, 1, 1}) = {2, 1, 1, 1}
-[
- [ 1.0, -2.0 ],
-]
-ggml_debug: layer-0 = (f32) ADD(layer-0{2, 1, 1, 1}, bias{2, 1, 1, 1}) = {2, 1, 1, 1}
-[
- [ 2.0, -4.0 ],
-]
-ggml_debug: layer-1 = (f32) MUL(layer-0{2, 1, 1, 1}, weight{2, 2, 1, 1}) = {1, 1, 1, 1}
-[
- [ 0.5 ],
-]
+common_debug_cb_eval:                 layer-0 = (f32)        MUL(a{2, 1, 1, 1}, b{2, 2, 1, 1}) = {2, 1, 1, 1}
+    [
+        [
+            [      1.0000,     -2.0000  ],
+        ],
+    ]
+    sum = -1.000000
+common_debug_cb_eval:                 layer-0 = (f32)        ADD(layer-0{2, 1, 1, 1}, bias{2, 1, 1, 1}) = {2, 1, 1, 1}
+    [
+        [
+            [      2.0000,     -4.0000  ],
+        ],
+    ]
+    sum = -2.000000
+common_debug_cb_eval:                 layer-1 = (f32)        MUL(layer-0{2, 1, 1, 1}, weight{2, 2, 1, 1}) = {1, 1, 1, 1}
+    [
+        [
+            [      0.5000  ],
+        ],
+    ]
+    sum = 0.500000
