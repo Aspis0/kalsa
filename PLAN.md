@@ -2825,3 +2825,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > `llama_synchronize` di nuovo presente (3 occorrenze come in 19b67b6), lettura unica di `llama_get_logits_ith` dopo la
 > sync, `has_next_token = false` rimosso (niente troncamento del turno), passo senza logit → `"top":[]` visibile nel log
 > (`[]` è truthy nel lato JS). tsc/jest rc=0. CI 34066610611 / 34066611883 in corso → APK per la sessione R5.
+> 20:05 — APK con le guardie: normale **8b6d548** sha 9200f23647a0…, fault **aa4ddf2** sha 68ddef99c470…
+> Sessione **807965** `kalsa-oracle-R5c-8gen3` QRD8650 (host sa812034, serial 72c4dabb, pineapple), 170 min
+> (scade ~22:55 EDT), tunnel ~/kalsa-qdc/tunnel-sa812034.pid. Positivo in volo:
+> `TYPE_LADDER=100 ORACLE_MODE=logit d_run.sh sa812034 <apk 8b6d548> ABABAB 110` (pid 62577, raw/sa812034/).
+> Prova che il fix del crash regge: B1 arriva in fondo con `KALSA_GOVERNOR` e righe BENCH_PROBS forzate.
