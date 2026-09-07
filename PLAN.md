@@ -2841,3 +2841,9 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > (scade ~00:05), tunnel ~/kalsa-qdc/tunnel-sa812039.pid. Positivo in volo: `TYPE_LADDER=100 ORACLE_MODE=logit
 > d_run.sh sa812039 <apk 8269aa2> ABABAB 110` (pid 80817, raw/sa812039/). Da controllare su A1 prima di fidarsi:
 > `KALSA_TOOLCALL` + `KALSA_BENCH_TOKENS` presenti, TypeError assente, e nessuna interruzione anomala (Amendment 11).
+> 22:35 — **turno B in fondo per la prima volta**: A1 7,294 s / B1 4,105 s (prefill GPU 1,78× CPU), B1 `row_void=0`,
+> 32 passi forzati con probabilità complete (`"forced":true`, tok = ids di A), A1 e A2 con ids_sha identico.
+> MA `oracle_logit=DESCRIPTIVE R4 steps=0`: difetto **dello script di valutazione**, non dei dati. La riga 33 di B1 è il
+> passo di esaurimento degli ids e porta `"top":[]` (la visibilità che ho voluto stamattina); `load()` in oracle_logit.py
+> alza ValueError su `len(top)<5` e **scarta l'intero file** → zero passi confrontabili. Nessuna modifica finché il
+> driver gira; i verdetti si ricalcolano offline dai .probs.jsonl salvati, senza altro tempo di dispositivo.
