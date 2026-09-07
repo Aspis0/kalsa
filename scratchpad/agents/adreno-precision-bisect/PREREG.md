@@ -44,3 +44,20 @@ by layer index.
 - `test-backend-ops` passing is not evidence of model-level fidelity and will not be cited as such (that conflation is
   what this cell exists to break).
 - The prompt, the kit sha256 and the exact command lines go in the REPORT; the raw dumps are committed.
+
+## Addendum 1 (7/09 01:00, before any build) — provenance of the kit, and two facts from recon
+- **Trap avoided:** the worktree `kalsallama-wt-governor-v03` is currently checked out on `kalsa/bench-fault-inject`
+  @5f0701dac with `#define KALSA_BENCH_FAULT_INJECT 1` hard-enabled (`ggml-opencl.cpp:55`) and the injection live in
+  `gemm_noshuffle_q4_0_f32.cl`. A kit built from that tree would measure our own injected fault. **The kit for this cell
+  is built from `kalsallama-wt-oclpicks-25910` @2f3b24dee** (clean: 0 occurrences of the define and of the injection),
+  which is the same OpenCL code as the pin 3bec271fd used by the APK that produced ALIVE 55. Verified on disk; the
+  `half8 c0 = 0` accumulator is present on all three trees including clean upstream (64a155d24), so it is upstream code.
+- **Recon (deepseek af188cb6, quotes verified by me on the clean tree):** the prefill path converts operand B to half as
+  well (`img_fmt = {CL_RGBA, CL_HALF_FLOAT}` before `kernel_gemm_noshuffle_q4_0_f32`), so prefill is exposed twice
+  (half operand + half accumulation), while the decode path (`gemv_noshuffle_q4_0_f32.cl:225`
+  `__private float2 totalSum = (float2)(0.0f);`, B image `CL_FLOAT`) accumulates in fp32 and is NOT exposed.
+  **Pre-declared prediction from this asymmetry:** the tensor diff must show the divergence appearing in the prefill
+  matmuls and NOT in the decode GEMV path. If the dump shows the opposite, the precision hypothesis is in trouble and
+  the cell says so.
+- No precision switch exists in the backend (no env var, no define): the f32-accumulate experiment will need a real
+  kernel change, in its own cell.
