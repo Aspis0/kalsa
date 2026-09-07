@@ -102,11 +102,13 @@ does not transfer in-app and that is itself a finding. n=1 pair is descriptive o
 
 ## Amendment 1 — the q4_K arm, pre-registered 2026-09-07 before any device run
 
-Added because the audit established a fact I had wrong: the app's DEFAULT model is
-`qwen3.5-4b`, quant `Q4_K_M` (`ModelRegistry.ts`, `default: true`), so the default prefill
-path is `gemm_noshuffle_q4_k_f32.cl`, not the q4_0 kernel. That kernel is now fixed the
-same way — and **nothing about it is measured**. Shipping an unmeasured cost on the
-default path is acceptable only if it is measured next, not indefinitely.
+Added because which kernel runs is decided by the **phone**, not by one default model
+(owner correction, verified in `contextProfile.ts:89-99` + `ModelRegistry.ts:212,244`):
+low/mid-RAM phones are recommended `lfm2.5-2.6b` QAD-Q4_0 and run
+`gemm_noshuffle_q4_0_f32.cl`, which is what the banked numbers describe; high-RAM phones
+(>= 6.9 GB) are recommended `qwen3.5-4b` Q4_K_M and run `gemm_noshuffle_q4_k_f32.cl`,
+about which **nothing is measured**. So this arm is not a footnote: it covers the entire
+high-RAM half of the fleet, and the QDC boards themselves (12+ GB) are high-tier.
 
 Instrument: identical to cell `adreno-acc-type` — `llama-perplexity --kl-divergence-base`
 (CPU) + `--kl-divergence` (GPU), one shared CPU base, ~35 s per arm, on QRD8650 /

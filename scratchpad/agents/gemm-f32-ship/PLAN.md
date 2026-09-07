@@ -138,19 +138,31 @@ The fix started as ONE kernel. Eighteen sibling kernels still multiply in half:
   `q2_k:156`, `q3_k:157`, `q4_0:240`, `q4_1:236`, `q4_k:277`, `q5_0:238`, `q5_1:240`,
   `q5_k:285`, `q6_k:253`, `mxfp4:283`
 
-**The correction that matters, and I had it wrong.** I first wrote that q4_0 was "the
-shipping model, covered" and q4_K a secondary gap. The audit caught it and I verified it
-on disk: `src/engine/ModelRegistry.ts:213` puts `default: true` inside the **qwen3.5-4b**
-entry (`:176`, quant `Q4_K_M` at `:179`), not the LFM2.5-2.6B one (`:216`, `QAD-Q4_0` at
-`:219`), and `getDefaultModel()` (`:317-318`) returns the first entry with that flag. So
-the app's DEFAULT model prefills through `gemm_noshuffle_q4_k_f32.cl` — the kernel that
-was NOT fixed. Fixing only q4_0 would have left the default experience on the infidel
-path while fixing a model the user has to go and pick.
+**Which kernel runs is decided by the PHONE, not by a default model.** (Owner correction,
+2026-09-07; my two earlier framings — "q4_0 is the shipping model, covered" and then "the
+default model is Q4_K_M" — were both wrong.) Verified on disk:
 
-Note the tension with the owner's 2026-08-25 shipping decision (the 2.6B QAD-Q4_0
-ships): the registry's `default: true` still points at the 4B. Either the flag is stale
-or "shipping model" and "catalogue default" are different things. Worth an owner
-question; it does not change what to do here.
+- `recommendedModelId(tier)` (`contextProfile.ts:89-99`) returns the first listed entry
+  whose `recommendForTiers` includes the tier. `lfm2.5-2.6b` declares
+  `recommendForTiers: ["low", "mid"]` (`ModelRegistry.ts:244`, quant `QAD-Q4_0`);
+  `qwen3.5-4b` declares `["high"]` (`:212`, quant `Q4_K_M`). Tier thresholds:
+  high >= 6.9 GB, mid >= 5.4 GB (`contextProfile.ts:60-62`).
+- `default: true` is NOT "the default model". `getDefaultModel()` has exactly one
+  non-test caller, `AppShell.tsx:2541`, where it only picks the **starting index of the
+  model carousel**. The tier recommendation is explicitly advisory — the module docstring
+  says "NEVER auto-switches the user's chosen model" and it drives a Settings badge
+  (`SettingsScreen.tsx:936`).
+
+So the mapping that matters is:
+
+| phone | recommended model | prefill GEMM kernel | measured? |
+|---|---|---|---|
+| low / mid (< 6.9 GB) | `lfm2.5-2.6b` QAD-Q4_0 | `gemm_noshuffle_q4_0_f32.cl` | yes — 0.4538 -> 0.004736, cost 0.659x |
+| high (>= 6.9 GB) | `qwen3.5-4b` Q4_K_M | `gemm_noshuffle_q4_k_f32.cl` | **no** |
+
+This raises the q4_K arm from a footnote to the measurement that covers the whole
+high-RAM half of the fleet — and the QDC boards we measure on (12+ GB) are themselves
+high-tier, so the model they would recommend is the one whose kernel is unmeasured.
 
 Decision taken: q4_K is fixed too (fork `kalsa/gemm-f32-mul-q4k` @67c73d26c). The
 mechanism is identical (half product accumulated over K) so the edit transfers; the

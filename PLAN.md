@@ -3002,3 +3002,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 >
 > Prossimo: sessione QDC su QRD8650, driver `qdc-governor-s5/d_run.sh`, protocollo oracolo di ALIVE 55.
 > Arm A = APK `8269aa2` già archiviata, arm B = `6fc14d1`.
+>
+> 14:45 — **Correzione dell'owner, e la mia formulazione era sbagliata due volte.** Non esiste "il kernel del modello
+> di default": **è il telefono a scegliere il kernel**. `recommendedModelId()` (`contextProfile.ts:89-99`) dà
+> low/mid → `lfm2.5-2.6b` QAD-Q4_0 (`ModelRegistry.ts:244`) e high → `qwen3.5-4b` Q4_K_M (`:212`), con soglie
+> high ≥ 6,9 GB e mid ≥ 5,4 GB (`contextProfile.ts:60-62`). Il flag `default: true` non è il modello di default:
+> `getDefaultModel()` ha un solo chiamante non di test, `AppShell.tsx:2541`, dove decide **da dove parte il carosello**
+> dei modelli; la raccomandazione per fascia è dichiaratamente advisory (*"NEVER auto-switches the user's chosen
+> model"*, badge in `SettingsScreen.tsx:936`).
+> Conseguenza sulla priorità: **q4_0 = metà bassa del parco, q4_K = metà alta**, e la metà alta è quella non misurata.
+> I board QDC su cui misuriamo (12+ GB) sono essi stessi di fascia high, quindi il modello che raccomanderebbero è
+> proprio quello col kernel senza misura. Il braccio q4_K sale da nota a piè di pagina a misura che copre metà del parco.
