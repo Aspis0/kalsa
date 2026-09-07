@@ -186,3 +186,18 @@ Two harness parameters declared for the next R5 session, both from measurements,
    ≈ 9,5 min, B turn ≈ 19 min → ≈ 48 min per pair with the 200-rung waste, ≈ 38 min without it).
 APK for the next attempt: **8b6d548** (positive) and **aa4ddf2** (negative), i.e. the builds with the SIGSEGV guards
 restored `llama_synchronize`. Readings unchanged.
+
+### Amendment 11 (6/09 21:00 EDT, before any oracle verdict was read)
+Fourth blocker, this one introduced by my own fix chain: APK 8b6d548 produced a valid generation (272 `KALSA_BENCH_PROBS`
+steps, `tokensPredicted:271`, no crash) but the JS branch that emits `KALSA_TOOLCALL`, `KALSA_BENCH_TOKENS` and the
+governor telemetry never ran, and `[TypeError: Cannot read property 'catch' of undefined]` appeared twice. Correlation
+over four builds (A1 logcats, same driver, same prefs): TypeError 2 / TOOLCALL 0 / TOKENS 0 with 9200f23 (=8b6d548);
+0 / 1 / 1 with c6d24bb (=19b67b6) in two independent sessions. Verified on disk: llama.rn's wrapper is
+`stopCompletion(): Promise<void> { return llamaStopCompletion(this.id) }` — NOT async — so a native host function
+returning `jsi::Value::undefined()` makes `engine.stopCompletion().catch(…)` (LlamaService.ts:2790 and six sibling abort
+paths) throw. Fixed in 8269aa2 / 5243755 (host function returns a resolved Promise; synchronous interruption preserved).
+**Open question, declared rather than hidden:** the native `llamaStopCompletion` was never patched by any of these
+builds, so its return value is identical in 19b67b6 and 8b6d548; what differs is that the abort path FIRED under
+8b6d548. Why it fired is not established. With the fix the throw disappears, so the next run must be checked for the
+abort itself (`KALSA_` telemetry present AND no unexplained interruption) before its numbers are used. If the abort
+turns out to interrupt generation rather than being the documented late no-op, any pair from that run is VOID.
