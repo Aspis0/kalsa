@@ -1339,6 +1339,26 @@ index aaab748..6b137d6 100644
                      return [contextId](jsi::Runtime& rt) -> jsi::Value {
                          // Check if context is still valid (may have been released during async callback)
                          long ctxPtr = g_llamaContexts.get(contextId);
+@@ -1200,16 +1377,18 @@ namespace rnllama_jsi {
+         runtime.global().setProperty(runtime, "llamaCompletion", completion);
+
+         auto stopCompletion = jsi::Function::createFromHostFunction(runtime,
+             jsi::PropNameID::forAscii(runtime, "llamaStopCompletion"),
+             1,
+             [callInvoker](jsi::Runtime& runtime, const jsi::Value& thisValue, const jsi::Value* arguments, size_t count) -> jsi::Value {
+                 int contextId = (int)arguments[0].asNumber();
+                 auto ctx = getContextOrThrow(contextId);
+                 if (ctx->completion) {
+                     ctx->completion->is_interrupted = true;
+                 }
+-                return jsi::Value::undefined();
++                return runtime.global().getPropertyAsObject(runtime, "Promise")
++                    .getPropertyAsFunction(runtime, "resolve")
++                    .call(runtime, jsi::Value::undefined());
+             }
+         );
+         runtime.global().setProperty(runtime, "llamaStopCompletion", stopCompletion);
+
 @@ -1387,7 +1567,7 @@ namespace rnllama_jsi {
                              auto timings = slot->get_timings();
                              auto token_probs = slot->generated_token_probs;
