@@ -1,5 +1,42 @@
 # GPU prefill divergence on Adreno 750
 
+> **Status 7/09 (orchestrator) — RISOLTA LA CAUSA, e l'ipotesi che apriva questo documento è SUPERATA.**
+> Questo documento nasceva con l'ipotesi "miscompile E031/A7X nel GEMM denso f16/bf16×f32, probabilmente
+> `kernel_mul_mm_f16_f32_l4_lm`". Non è quella la causa della divergenza che abbiamo misurato sul modello spedito.
+> Due celle con strumento di serie (`llama-perplexity --kl-divergence`) l'hanno isolata sul percorso Q4_0 dell'Adreno:
+> **la moltiplicazione dentro `gemm_noshuffle_q4_0_f32.cl` è eseguita in half.** Numeri, su QRD8650/Adreno 750,
+> modello `LFM2.5-2.6B-QAD-Q4_0` (quello che spediamo):
+>
+> | configurazione | Median KLD | Same top p |
+> |---|---|---|
+> | stock (prodotto f16) | 0,453822 | 62,823 % |
+> | senza i flag `-cl-fast-relaxed-math` &c. | **identico alla sesta cifra** | **identico** |
+> | accumulatori `float8`, prodotto ancora f16 | 0,460999 | 61,417 % |
+> | **prodotto in float** (`convert_float8(B) * (float)w`) | **0,004736** | **94,826 %** |
+> | dequantizzazione anche in float | 0,004793 | 94,488 % |
+>
+> Refutati **per misura**, non per ragionamento: l'attenzione (`-fa off` su entrambi i bracci non cambia nulla,
+> ALIVE 56), i flag del compilatore, l'accumulatore f16, la dequantizzazione. Refutata anche l'analogia con i due
+> precedenti upstream su cui ci si sarebbe basati per il fix "ovvio" — WebGPU #25748 e Vulkan #18969 indicano
+> l'accumulatore, e su Adreno l'accumulatore non serve.
+>
+> **Il fix**: in `gemm_noshuffle_q4_0_f32.cl`, accumulatori `float8` e le 16 righe di accumulo che diventano
+> `c0 += convert_float8(B) * (float)dequantized_weights.s0;`. Operandi ancora a 16 bit in memoria.
+> **Costo**: `pp512` 189,73 contro 289,98 t/s di riferimento = 0,654× — **numero indicativo**, preso su un board che
+> si scaldava; la misura pulita (cooldown + ordine randomizzato + temperatura per passo) è la prossima consegna.
+>
+> **Residuo aperto**: 0,004736 contro lo 0,000962 del percorso GEMV in batch 1 — un fattore ~5 — e il same-top
+> 94,826 % che resta 0,174 punti sotto il 95 % del riferimento pubblicato. Il candidato è localizzato:
+> le attivazioni arrivano in f32 (`ggml-opencl.cpp:17164` `CL_FLOAT`) e il kernel di trasposizione le **restringe
+> deliberatamente** a f16 (`transpose.cl:113` `// converts to FP16`, `:127` `read_imageh`, `:139` `write_imageh`);
+> il percorso batch-1, che misura pulito, non traspone affatto. Cella `adreno-operand-b`, PREREG scritto.
+>
+> **Cosa NON è superato di questo documento**: il difetto upstream del MUL_MAT denso f16/bf16 batched (20 fail in
+> `test-backend-ops`) resta un problema noto e separato — non l'abbiamo testato qui, e le nostre misure sono sul
+> percorso Q4_0, non su quello f16 denso. Le due cose non vanno confuse.
+> Fonti: `scratchpad/agents/adreno-precision-bisect/` (ALIVE 56), `scratchpad/agents/adreno-acc-type/` (ALIVE 57),
+> `scratchpad/agents/adreno-operand-b/PREREG.md`.
+
 > **Status 6/09 06:15 (orchestrator):** the device test pre-registered as S5 run 6 (QRD8750 / Adreno 830, same APK 0265333) gave oracle PASS on all GPU-prefilled turns, while runs 3-5 on QRD8650 / Adreno 750 failed deterministically and a CPU-routed turn on the 750 passed. The divergence is therefore confined to the Adreno 750 GPU prefill path, consistent with the f16/bf16-batched MUL_MAT defect below (ALIVE #38/#39). Experiment #1 remains the kernel-level confirmation; the product decision for V75 is a CPU-prefill route (or GGML_OPENCL_OPFILTER containment) until the driver/compiler defect is fixed or worked around in the fork.
 
 

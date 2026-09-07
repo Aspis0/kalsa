@@ -18,6 +18,18 @@ Source exceptions: `/Users/marco/Projects/kalsa/src/services/LlamaService.ts` do
 ## 2. MEASURED evidence by axis
 
 ### GPU
+- [MEASURED 7/09 — READ THIS BEFORE ANY OTHER GPU LINE] Every GPU prefill ratio below was measured with a kernel that
+  computes the wrong numbers. On Adreno the batched Q4_0 GEMM does the multiply in half, and against a CPU reference the
+  shipped 2.6B diverges with median KL-divergence 0.453822 / same-top 62.823%. Making the product float
+  (`convert_float8(B) * (float)w` in `gemm_noshuffle_q4_0_f32.cl`) gives 0.004736 / 94.826%. The accumulator, the
+  compiler math flags, the attention path and the dequantisation are all refuted by measurement, and so is the
+  WebGPU/Vulkan analogy that makes f32 accumulation the obvious fix. — `docs/ALIVE.md` rows 56-57,
+  `scratchpad/agents/adreno-acc-type/REPORT.md`
+- [INDICATIVE, NOT MEASURED CLEAN] Correctness costs about 0.65x of prefill (pp512 189.73 vs the 289.98 reference),
+  taken on a heating board; the cooled randomised measurement is owed. If it holds, the in-app GPU prefill advantage on
+  750/735/732 (1.78x/1.72x/1.63x) drops to roughly 1.16x/1.13x/1.07x — near parity, which turns the GPU on those tiers
+  from a speed lever into a thermal-and-CPU-offload lever. On 830/V79 the margin is large enough to survive it, but GPU
+  prefill fidelity has never been measured there. — `PLAN.md` "Conseguenza per il governor, da verificare"
 
 - [MEASURED] Adreno 740/S23: for the scoped KEXP/OLMoE table, CPU wins raw speed (KEXP 17.55 vs full GPU 14.25 tok/s; hybrid 7.90); full GPU is a cool mode (−2.75 °C on KEXP), not the speed default. — `kalsa-moe-experiments/docs/ALIVE.md:84-115` “pure CPU beats full GPU”
 - [MEASURED] Adreno 740 dense phase behavior: GPU decode is 0.41× CPU; GPU prefill is only about 1.1×. — `kalsa-moe-experiments/docs/ALIVE.md:140-148` “GPU decode always loses (0.41×)”

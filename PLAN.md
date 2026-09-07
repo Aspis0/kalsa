@@ -12,7 +12,7 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-09-04 14:30, PIVOT PRODOTTO)
+# ⭐ STATO CORRENTE — vista compatta (2026-09-07 12:00, PIVOT PRODOTTO)
 
 ## Il goal (owner, ripetuto 4/09)
 Kernel che usa NPU, GPU e CPU **per fase** a seconda di temperatura, batteria e
@@ -22,6 +22,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **7/09 — perché il prefill GPU sbagliava, e quanto costa non sbagliare più (ALIVE 56+57).**
+  La divergenza del prefill GPU su Adreno **non** è l'attenzione, **non** sono i flag del compilatore e **non** è
+  l'accumulatore f16: è la **moltiplicazione eseguita in half** dentro `gemm_noshuffle_q4_0_f32.cl`. Misurato con
+  `llama-perplexity --kl-divergence` sul modello che spediamo: KLD mediana **0,4538 → 0,004736**, same-top
+  **62,8 % → 94,8 %**, col prodotto portato a float. Il fix è di 16 righe più due tipi. **Costa ~0,65× di prefill**
+  (indicativo, misura pulita ancora da fare). Conseguenza per il governor, da falsificare: il vantaggio del prefill
+  GPU in-app su 750/735/732 (1,78×/1,72×/1,63×) è misurato col kernel **infedele**; pagando la fedeltà scenderebbe a
+  ~1,16×/1,13×/1,07×, cioè **quasi parità** — la GPU in questa fascia servirebbe per il vantaggio termico e per
+  liberare la CPU, non per la velocità. Su V79 non si applica (prefill ~10×) ma là la fedeltà non è mai stata misurata.
+  Residuo aperto e localizzato: il kernel di trasposizione restringe a f16 attivazioni che arrivano in f32
+  (`transpose.cl:113/127/139`) → cella `adreno-operand-b`. Documento vivo: `docs/GPU-PREFILL-DIVERGENCE-2026-09-06.md`.
 - **Governor v0.2 nel fork** (`kalsa/governor-v0.2` @1a33da0f6, ~4.3k righe, 8
   step auditati): due contesti (prefill/decode), commit KV per range, input
   host già definiti — generazione (V73/V75/V79), fit GPU/NPU, batteria %,
