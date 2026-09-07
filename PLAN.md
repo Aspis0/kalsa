@@ -2836,3 +2836,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 > netta: TypeError=2/TOOLCALL=0/TOKENS=0 solo con 9200f23 (=8b6d548); con c6d24bb (=19b67b6) TypeError=0 e i due log ci
 > sono. Unico delta = il patch nativo. Sessione 807965 chiusa, tunnel giù. Round 3 su Luna ba2ac459 con la tabella di
 > correlazione e l'ordine di NON tirare a indovinare (una build sbagliata costa 25 min + un'ora di device).
+> 21:15 — APK round 3: normale **8269aa2** sha 8bbd449117b4…, fault **5243755** sha 3da1fc303dad… (la CI verde è anche
+> la prova che il patch scritto a mano applica). Sessione **807970** QRD8650 host sa812039 (serial 36aa3b71), 170 min
+> (scade ~00:05), tunnel ~/kalsa-qdc/tunnel-sa812039.pid. Positivo in volo: `TYPE_LADDER=100 ORACLE_MODE=logit
+> d_run.sh sa812039 <apk 8269aa2> ABABAB 110` (pid 80817, raw/sa812039/). Da controllare su A1 prima di fidarsi:
+> `KALSA_TOOLCALL` + `KALSA_BENCH_TOKENS` presenti, TypeError assente, e nessuna interruzione anomala (Amendment 11).
