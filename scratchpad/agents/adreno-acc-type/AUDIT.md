@@ -89,3 +89,36 @@ scansione, eseguita e incollata, di ogni `local` che si riferisce a un nome asse
   tutti il posto giusto. Solo la run vera lo mostra. Regola per la prossima cella: la sonda di provenienza va
   **eseguita e verificata su device** prima di considerare pronto un driver, esattamente come il parser delle metriche
   va provato contro un log archiviato.
+
+## #8 — audit del REPORT (GLM Reviewer Math, modello diverso da chi ha scritto): BANK-WITH-FIXES
+⚠️ **L'agente è morto prima di emettere il messaggio finale**: l'ultimo blocco della sua sessione contiene solo il
+ragionamento, non il report. I verdetti sono stati recuperati dal file di sessione
+(`~/.pi/agent/sessions/…01a07b25….jsonl`) e **ognuno è stato riverificato sul disco dall'orchestratore prima di
+applicarlo** — quello che segue è ciò che ho confermato io, non ciò che ha detto lui.
+- **Tutte le 32 cifre della tabella corrispondono al raw.** Nessun numero inventato.
+- **Verificato e CORRETTO: la lettura 7 non era mai stata riportata.** Era il controllo di sanità obbligatorio del
+  PREREG. Risultato: `Final estimate: PPL = 22.9415 +/- 1.68463` **identica cifra per cifra** nelle due invocazioni di
+  questa cella e in `adreno-precision-bisect/raw/sa812121-faoff/cpu-kld.log`. Passa, e passa più forte di quanto
+  chiedesse ("entro l'incertezza"). Aggiunta al REPORT come sezione propria.
+- **Verificato e CORRETTO: la prova termica era descritta male.** Il REPORT diceva "rieseguendo la stessa identica
+  configurazione": falso. È una `llama-bench -p 512 -n 128` (con in più il carico `tg128`), lanciata a mano fuori dal
+  driver, senza timestamp proprio, ~12 minuti dopo `bench-stock-half` (`08:54:33Z`) e dopo la chiusura dell'ultimo
+  passo del driver (`09:04:28Z`) — non "~20 minuti dopo". Il carico `pp512` è lo stesso, l'invocazione no. Riscritto,
+  e declassato da "prova" a "spiegazione più probabile con n=1 e senza telemetria termica".
+- **Verificato e CORRETTO: sostituzione del denominatore.** Il PREREG fissava il confronto di velocità contro
+  289,98 ± 1,28; il REPORT usava 286,30 dello stesso batch. Ora ci sono entrambi (0,663× e 0,654×) e si dice che la
+  soglia 0,50× non scatta con nessuno dei due.
+- **Verificato e CORRETTO: soglia congiuntiva.** L'Amendment 4 chiedeva mediana ≤ 0,005 **e** same-top ≥ 95 %.
+  Scrivere che `mul` sta "dentro la soglia più severa" era falso: la mediana passa, il same-top no.
+- **Verificato e CORRETTO: copertura delle sonde di provenienza.** Quattro combinazioni su otto, non tutte:
+  half/stock, mul/stock, deq/stock, acc/strict. L'asse MATH è verificato una volta per valore.
+- **Verificato e CORRETTO: `raw/sa812265/kit-device-sha.txt` contiene `MISSING`** — solo il secondo batch conserva la
+  sha del kit sul device (e corrisponde al tarball). Dichiarato.
+- Corretti anche: `96×` → `95,8×` (95,82), il blocco marcato "verbatim" che conteneva un'ellissi (ora copiato per
+  intero dal file), la formula "una sola volta per invocazione" (le invocazioni sono due, con basi identiche), e la
+  provenienza dei numeri di riga citati (albero `kalsallama-wt-accprobe` @7ef9389bc).
+- **Sostenuta dall'audit, non corretta**: l'attribuzione causale. I tre punti `half/half` = 0,4538, `float/half` =
+  0,4610, `float/float` = 0,004736 formano una griglia fattoriale in cui solo il passaggio del **prodotto** a float
+  fa crollare la KLD; l'ambiguità residua è interna allo stadio del prodotto (mantissa contro range), non fra
+  accumulatore e prodotto. E `gemv_noshuffle_q4_0_f32.cl` è intatto nel diff, quindi la neutralità sul decode è un
+  fatto di codice.
