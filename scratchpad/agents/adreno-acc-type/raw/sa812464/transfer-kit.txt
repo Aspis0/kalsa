@@ -1,0 +1,8 @@
+=== START transfer-kit 2026-09-07T15:13:41Z ===
+command: transfer_kit
+kit_local_sha256=0eebee77e6f8ff16ea48b2946c82deaac78ed22339663089e96401165ca2d6cd
+MISSING
+kit_push=performed reason=sha256_mismatch_or_missing
+/Users/marco/kalsa-qdc/adreno-acc-type/kit-eefa27e30bf99fb22d743c7eaf4d4dfe83ebbb61.tgz: 1 file pushed, 0 skipped. 14.4 MB/s (27319672 bytes in 1.808s)
+kit_extract=ok
+=== END transfer-kit rc=0 elapsed_seconds=5 2026-09-07T15:13:46Z ===

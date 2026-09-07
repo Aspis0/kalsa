@@ -1,0 +1,5 @@
+variant	reported_prec	reported_math	reported_b	mean_kld	median_kld	same_top_p	ppl_delta	elapsed_seconds	rc	status	reason
+stock:half:half	half	stock	half	0.638627	0.453822	62.823	8.400806	31	0	OK	-
+stock:mul:half	mul	stock	half	0.006651	0.004736	94.826	0.349474	37	0	OK	-
+stock:mul:float	mul	stock	float	0.006464	0.004641	94.319	0.386119	41	0	OK	-
+stock:deq:float	deq	stock	float	0.006511	0.004635	94.432	0.395435	39	0	OK	-

@@ -1,0 +1,1 @@
+.......................................................................................................ggml_opencl: gemm_noshuffle_q4_0_f32 prec=deq math=stock b=float compile_opts='-cl-std=CL3.0 -cl-mad-enable -cl-unsafe-math-optimizations -cl-finite-math-only -cl-fast-relaxed-math -DKALSA_GEMM_PREC=3 -DKALSA_GEMM_B_FLOAT=1'

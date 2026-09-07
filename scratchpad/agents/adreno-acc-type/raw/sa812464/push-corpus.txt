@@ -1,0 +1,5 @@
+=== START push-corpus 2026-09-07T15:15:07Z ===
+command: push_corpus
+corpus_token_target=3500 approximate_word_count=    3079
+/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/adreno-acc-type/../adreno-precision-bisect/corpus.txt: 1 file pushed, 0 skipped. 44.7 MB/s (18233 bytes in 0.000s)
+=== END push-corpus rc=0 elapsed_seconds=1 2026-09-07T15:15:08Z ===

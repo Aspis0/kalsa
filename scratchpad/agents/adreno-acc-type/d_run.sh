@@ -4,7 +4,7 @@ export LC_ALL=C
 
 readonly CELL_DIR="/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/adreno-acc-type"
 readonly CORPUS_TOKEN_TARGET=3500
-readonly KIT_HEAD="7ef9389bc9266fe0e028b75d83f8e89d4142d2fc"
+readonly KIT_HEAD="${KIT_HEAD:-eefa27e30bf99fb22d743c7eaf4d4dfe83ebbb61}"
 readonly KIT_TGZ="$HOME/kalsa-qdc/adreno-acc-type/kit-$KIT_HEAD.tgz"
 readonly MODEL="$HOME/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf"
 readonly EXPECTED_MODEL_SHA="a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03"

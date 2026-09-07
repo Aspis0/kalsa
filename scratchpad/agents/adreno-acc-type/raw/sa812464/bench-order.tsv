@@ -1,0 +1,5 @@
+bench_seed=42
+1	stock:half:half
+2	stock:deq:float
+3	stock:mul:float
+4	stock:mul:half

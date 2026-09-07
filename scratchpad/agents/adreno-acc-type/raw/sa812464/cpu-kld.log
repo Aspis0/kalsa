@@ -1,0 +1,14 @@
+=== START cpu-kld 2026-09-07T15:15:09Z ===
+command: adbT 1800 -s 45207755 shell cd\ \'/data/local/tmp/kalsa-acc-type/kit-eefa27e30bf99fb22d743c7eaf4d4dfe83ebbb61\'\ \&\&\ export\ LD_LIBRARY_PATH=\'/data/local/tmp/kalsa-acc-type/kit-eefa27e30bf99fb22d743c7eaf4d4dfe83ebbb61/lib\'\ \&\&\ rm\ -f\ \'/data/local/tmp/kalsa-acc-type/cpu.kld\'\ \&\&\ ./bin/llama-perplexity\ -m\ \'/data/local/tmp/kalsa-acc-type/LFM2.5-2.6B-QAD-Q4_0.gguf\'\ -f\ \'/data/local/tmp/kalsa-acc-type/corpus.txt\'\ -c\ \'256\'\ -b\ \'256\'\ -ngl\ 0\ -fa\ off\ -s\ 42\ --temp\ 0\ --kl-divergence-base\ \'/data/local/tmp/kalsa-acc-type/cpu.kld\'
+0.01.180.027 W llama_kv_cache: the V embeddings have different sizes across layers and FA is not enabled - padding V cache to 512
+0.03.591.792 I 
+0.03.591.870 I system_info: n_threads = 8 (n_threads_batch = 8) / 8 | CPU : NEON = 1 | ARM_FMA = 1 | FP16_VA = 1 | MATMUL_INT8 = 1 | DOTPROD = 1 | REPACK = 1 | 
+0.03.591.939 I perplexity: saving all logits to /data/local/tmp/kalsa-acc-type/cpu.kld
+0.03.591.945 I perplexity: tokenizing the input ..
+0.03.594.410 I perplexity: tokenization took 2.462 ms
+0.03.594.437 I perplexity: calculating perplexity over 14 chunks, n_ctx=256, batch_size=256, n_seq=1
+0.43 minutes
+0.05.514.415 I perplexity: 1.92 seconds per pass - ETA [1]15.3029,[2]20.6323,[3]22.3932,[4]28.1416,[5]23.9769,[6]26.5137,[7]25.3068,[8]24.0690,[9]22.8651,[10]21.9371,[11]21.6053,[12]22.2751,[13]22.0412,[14]22.9415,
+0.34.476.470 I Final estimate: PPL = 22.9415 +/- 1.68463
+
+=== END cpu-kld rc=0 elapsed_seconds=35 2026-09-07T15:15:44Z ===

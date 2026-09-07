@@ -1,0 +1,5 @@
+variant	b	realised_order_index	temperature_before	temperature_after	host_gap_seconds	pp512	pp512_stddev	rc
+stock:half:half	half	1	40.971	41.709	0	288.62	1.07	0
+stock:deq:float	float	2	36.931	37.61	182	168.66	0.13	0
+stock:mul:float	float	3	35.778	36.699	182	147.05	0.67	0
+stock:mul:half	half	4	35.261	35.986	182	190.25	0.49	0

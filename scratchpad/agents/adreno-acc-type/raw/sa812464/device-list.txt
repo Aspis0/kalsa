@@ -1,0 +1,3 @@
+List of devices attached
+45207755	device
+
