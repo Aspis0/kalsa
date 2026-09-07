@@ -2954,3 +2954,24 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 > 12:37 — Su richiesta owner le due linee dell'app sono state **unite**: `feat/governor-ux` @`07a279b` (governor + UX
 > miniapp/battery/i18n), unico conflitto in `ModelRegistry.ts` risolto tenendo entrambi i lati. Il pin del kernel resta
 > un commit separato, così la coppia di misura non perde la variabile unica.
+>
+> 13:20 — **Correzione mia, trovata dall'audit e verificata sul disco**: avevo scritto che il modello di catalogo
+> coperto dal fix era quello spedito. Falso. `ModelRegistry.ts:213` mette `default: true` dentro l'entry di
+> **`qwen3.5-4b`, quant Q4_K_M** (`:176`/`:179`), non dentro quella del 2.6B (`:216`/`:219`), e `getDefaultModel()`
+> (`:317-318`) restituisce la prima con quel flag. Cioè il modello **di default** dell'app fa il prefill su
+> `gemm_noshuffle_q4_k_f32.cl`, il kernel NON sistemato: spedire il solo q4_0 avrebbe lasciato l'esperienza di default
+> sul percorso infedele sistemando un modello che l'utente deve andare a scegliere. Fixato anche q4_k (fork
+> `kalsa/gemm-f32-mul-q4k` @`67c73d26c`, 21/17 righe, verificato da me: zero `half8` residui, 16 righe col pattern
+> giusto, sintassi rc 0 senza warning, epilogo intatto). Per q4_k **non c'è nessuna misura**: né la fedeltà né lo
+> 0,659× si trasferiscono, e né il codice né i messaggi di commit lo lasciano intendere.
+> Resta da chiedere all'owner se quel `default: true` sia stale rispetto alla decisione del 25/08 (spedisce il 2.6B).
+>
+> Il buco è più largo di come l'avevo scritto: oltre agli otto `gemm_noshuffle_*` rimasti, **dieci kernel MoE
+> `gemm_moe_*_ns.cl` usano `half8 acc8`** (i nostri, dalla campagna KEXP). Nessun modello di catalogo li raggiunge —
+> si registrano, non si toccano.
+>
+> 13:35 — Due APK in coda su CI in parallelo: `bench/gemm-f32-apk` @`6fc14d1` (arm B a variabile unica: commit app
+> invariato da `8269aa2`, si muove solo il pin; diff vendorizzato = pin + VENDOR_SHA + build-info + due `.cl`, come
+> pre-registrato) e `feat/governor-ux` @`c4c5280` (governor + UX + kernel, l'APK da usare davvero).
+> L'audit GLM è morto in piedi dopo un'ora senza scrivere il report (token fermi a due rilevazioni): ucciso e
+> ridispacciato a deepseek col brief allargato al lavoro nuovo. Ogni claim portante era già stato verificato da me.

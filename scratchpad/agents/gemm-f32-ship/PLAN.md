@@ -128,32 +128,46 @@ Two facts pull in opposite directions and the run must arbitrate them:
 Both can be true at once: (A) dominates the bulk numerical error, (B) adds a 750-only
 term. That is precisely why the verdict must come from the continuous metrics.
 
-## Coverage gap found while shipping (verified 2026-09-07)
+## Coverage gap found while shipping (verified 2026-09-07) — and it is worse than it looked
 
-The fix covers ONE kernel. Nine sibling kernels in the same directory still declare
-`half8 c0 = 0, c1 = 0, c2 = 0, c3 = 0;` and therefore still multiply in half:
+The fix started as ONE kernel. Eighteen sibling kernels still multiply in half:
 
-    gemm_noshuffle_iq4_nl_f32.cl:55   gemm_noshuffle_q1_0_f32.cl:32
-    gemm_noshuffle_q4_k_f32.cl:54     gemm_noshuffle_q5_0_f32.cl:32
-    gemm_noshuffle_q4_1_f32.cl:35     gemm_noshuffle_q5_1_f32.cl:33
-    gemm_noshuffle_q6_k_f32.cl:37     gemm_noshuffle_q8_0_f32.cl:35
-    gemm_noshuffle_q5_k_f32.cl:55
+- `gemm_noshuffle_*` (eight left after q4_K was fixed):
+  `iq4_nl:55`, `q1_0:32`, `q4_1:35`, `q5_0:32`, `q5_1:33`, `q5_k:55`, `q6_k:37`, `q8_0:35`
+- `gemm_moe_*_ns.cl` (ten, ours, from the KEXP campaign), all `half8 acc8`:
+  `q2_k:156`, `q3_k:157`, `q4_0:240`, `q4_1:236`, `q4_k:277`, `q5_0:238`, `q5_1:240`,
+  `q5_k:285`, `q6_k:253`, `mxfp4:283`
 
-That is a live shipping gap, not an academic one. The app catalog
-(`src/engine/ModelRegistry.ts`) holds:
+**The correction that matters, and I had it wrong.** I first wrote that q4_0 was "the
+shipping model, covered" and q4_K a secondary gap. The audit caught it and I verified it
+on disk: `src/engine/ModelRegistry.ts:213` puts `default: true` inside the **qwen3.5-4b**
+entry (`:176`, quant `Q4_K_M` at `:179`), not the LFM2.5-2.6B one (`:216`, `QAD-Q4_0` at
+`:219`), and `getDefaultModel()` (`:317-318`) returns the first entry with that flag. So
+the app's DEFAULT model prefills through `gemm_noshuffle_q4_k_f32.cl` — the kernel that
+was NOT fixed. Fixing only q4_0 would have left the default experience on the infidel
+path while fixing a model the user has to go and pick.
 
-- `lfm2.5-2.6b`, quant `QAD-Q4_0` (:219) — the shipping model, **covered by the fix**;
-- `qwen3.5-4b`, quant `Q4_K_M` (:179) — **not covered**: its prefill GEMM is
-  `gemm_noshuffle_q4_k_f32.cl`, still infidel;
-- `multilingual-e5-small` Q8_0 (:300) and `whisper-tiny` f16 (:263) — embeddings and
-  ASR, loaded at `n_gpu_layers: 0` (`EmbeddingService.ts:443`, `:638`), so off the path.
+Note the tension with the owner's 2026-08-25 shipping decision (the 2.6B QAD-Q4_0
+ships): the registry's `default: true` still points at the 4B. Either the flag is stale
+or "shipping model" and "catalogue default" are different things. Worth an owner
+question; it does not change what to do here.
 
-So turning the governor's GPU prefill on while only q4_0 is fixed would ship a
-known-infidel path for a catalogue model. The mechanism is identical (half product
-accumulated over K), so the same edit transfers directly; what does NOT transfer is the
-measurement — neither the fidelity gain nor the 0.659x cost is known for q4_k.
+Decision taken: q4_K is fixed too (fork `kalsa/gemm-f32-mul-q4k` @67c73d26c). The
+mechanism is identical (half product accumulated over K) so the edit transfers; the
+MEASUREMENT does not — neither the fidelity gain nor the 0.659x cost is known for q4_K,
+and nothing in the code or the commit messages may claim otherwise. The other eighteen
+stay as they are: no catalogue model reaches the `gemm_moe_*` family (that is the MoE/
+KEXP line, out since the 2.6B decision) nor the remaining noshuffle quants.
 
-Decision taken: extend the same edit to `gemm_noshuffle_q4_k_f32.cl` and leave the other
-eight alone (no catalogue model reaches them; KEXP's Q5_K/Q6_K trunk is out since the
-2.6B shipping decision). The q4_k arm joins the KLD/speed cell as a separate reading —
-it is NOT covered by the banked 0.659x.
+## The two APKs (2026-09-07)
+
+- **`bench/gemm-f32-apk` @6fc14d1** — arm B of the A/B. App commit unchanged from
+  `8269aa2` (the already-built arm A, the very APK behind ALIVE 55); only the pin moves.
+  Vendored diff, as pre-registered: pin + `VENDOR_SHA` + `build-info.cpp` + exactly two
+  `.cl` files, nothing else.
+- **`feat/governor-ux` @c4c5280** — the APK to actually use: `feat/moe-stream` merged
+  into `feat/governor-in-app` (one conflict, `ModelRegistry.ts`, both sides kept) plus
+  the same pin. CI typecheck+jest green on the merge before the pin landed.
+
+Both dispatched to `apk.yml` (arm64-v8a, debuggable) on 2026-09-07, runs 34148006630 and
+34148008166.
