@@ -2975,3 +2975,30 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 > pre-registrato) e `feat/governor-ux` @`c4c5280` (governor + UX + kernel, l'APK da usare davvero).
 > L'audit GLM è morto in piedi dopo un'ora senza scrivere il report (token fermi a due rilevazioni): ucciso e
 > ridispacciato a deepseek col brief allargato al lavoro nuovo. Ogni claim portante era già stato verificato da me.
+>
+> 14:25 — **Le due APK sono verdi.** `bench/gemm-f32-apk` @`6fc14d1` (arm B, artefatto
+> `kalsa-apk-arm64-v8a-debuggable-6fc14d17…`, 60 141 315 byte) e `feat/governor-ux` @`c4c5280`
+> (`…-c4c5280f…`, 60 159 868 byte), entrambe arm64-v8a debuggable, run 34148006630 e 34148008166.
+> Nota di provenienza: l'artefatto del ramo prodotto è costruito da `c4c5280`, mentre la punta del ramo è ora
+> `d1e3861` — il commit che ripara la topologia della merge con `merge -s ours`. L'albero è identico
+> (`git diff c4c5280 d1e3861` vuoto), quindi l'APK è esattamente quella che `d1e3861` produrrebbe: nessuna rebuild.
+>
+> **Audit deepseek: BANK-WITH-FIXES**, quattro fix richiesti, adjudicati uno per uno sul disco.
+> (1) Topologia della merge: **vero, ed era colpa mia** — `git checkout -b` dopo `git merge --no-commit` azzera
+> `MERGE_HEAD`, il commit esce con UN genitore e nessun comando dà errore. Riparato additivo in `d1e3861`.
+> (2) "la risoluzione del conflitto ha perso `qwen3.5-4b-q3`": **refutato nel meccanismo**. Il catalogo passa davvero
+> da 9 voci a 4, ma per una potatura VOLUTA di `feat/moe-stream` (`7b71d18`, messaggio: *"Prune
+> gemma/qwen2b/qwen4b-q3/lfm8b(+kexp)"*), che una merge corretta deve prendere. La mia prima verifica di questa accusa
+> era a sua volta sbagliata (un `printf` con sostituzioni annidate mi ha corrotto i conteggi): corretto nel report.
+> (3) "q4_K è il kernel del modello di default e non è misurato": **vero**, risolto con l'Amendment 1 del PREREG
+> (braccio q4_K su `LFM2.5-2.6B-Q4_K_M.gguf`, già sul Mac, stesse weight dell'arm Q4_0 → le due fedeltà differiscono
+> per il kernel e non per il modello; regola di decisione ≥9,6× di riduzione KLD e costo ≥0,55×).
+> (4) "il prefill MoE di un modello spedito usa ancora la via half": **refutato per il prodotto** — i due 8B MoE sono
+> fra i potati da `7b71d18`. Numeri di riga del report presi da un albero diverso da quello citato.
+>
+> **Conseguenza che vale la pena dire chiara**: sul ramo prodotto il catalogo è di **due LLM** — `qwen3.5-4b` Q4_K_M
+> e `lfm2.5-2.6b` QAD-Q4_0 — e dopo questo lavoro **entrambi i loro kernel di prefill sono corretti**. Gli otto
+> `gemm_noshuffle_*` e i dieci `gemm_moe_*_ns.cl` rimasti in half non sono raggiungibili da lì.
+>
+> Prossimo: sessione QDC su QRD8650, driver `qdc-governor-s5/d_run.sh`, protocollo oracolo di ALIVE 55.
+> Arm A = APK `8269aa2` già archiviata, arm B = `6fc14d1`.
