@@ -40,9 +40,10 @@ RAW="$OUT/raw/$JOB"; mkdir -p "$RAW"
 ADB_LOG="$RAW/adb-exit.log"; DRIVER_LOG="$RAW/driver.log"; RESULTS="$RAW/results.tsv"; END_MARKER="$RAW/END.txt"; : > "$ADB_LOG"; : > "$DRIVER_LOG"
 printf 'arm\tturn\tttft_ms\tprefill_ms\tprefill_chunks\tnew_tokens_a\tnew_tokens_b\tdecode_tps\tengine_prefill\tengine_decode\tthermal_state\tskin_c_before\tskin_c_after\tfallback_count\tlmkd_count\tids_sha\toracle\toracle_logit\toracle_rule\n' > "$RESULTS"
 PKG=com.kalsa.app
-MODEL="/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf"; MODEL_SIZE=1593894944
-MODEL_SHA=a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03
-MODEL_DIR=lfm2.5-2.6b; MODEL_FILE=LFM2.5-2.6B-QAD-Q4_0.gguf
+# Defaults are the q4_0 shipping-model arm; the q4_K arm overrides them from the environment (cell gemm-f32-ship, PREREG Amendment 3).
+MODEL="${MODEL:-/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf}"; MODEL_SIZE="${MODEL_SIZE:-1593894944}"
+MODEL_SHA="${MODEL_SHA:-a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03}"
+MODEL_DIR="${MODEL_DIR:-lfm2.5-2.6b}"; MODEL_FILE="${MODEL_FILE:-LFM2.5-2.6B-QAD-Q4_0.gguf}"
 DEVICE_TMP=/data/local/tmp/kalsa-s5; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAVED=""; IME_SUSPENDED=0

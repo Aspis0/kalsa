@@ -224,3 +224,13 @@ two device cool-downs and the analysis: 214 minutes consumed for ~50 minutes of 
 Standing rule from now on: open the session only when driver, APK and model are ready on
 the Mac, and end it the moment the driver exits — never hold it open to cool a device or to
 read results.
+
+### Amendment 3, deviation noted before the run
+
+Amendment 3 said the five model constants would be *substituted*. They are instead made
+**environment-overridable with the current values as defaults** (`${VAR:-default}`), so the
+q4_0 arm still reproduces byte-for-byte with no variables set and the driver does not
+silently become Qwen-only for whoever runs it next. Same five constants, same three lines,
+no other line moved; the deviation is recorded here rather than made quietly. Proof required
+before the run: the defaults resolve to the LFM values and the overrides resolve to the Qwen
+ones, both executed, not asserted.
