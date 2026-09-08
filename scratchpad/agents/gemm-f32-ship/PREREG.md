@@ -173,3 +173,54 @@ remains the budget.
 No other parameter, threshold or code path is touched. `DEADLINE_MINUTES` stays at the
 value passed on the command line (60), which Amendment-2 runs must respect: a pair now
 needs ~20 min (A) + ~18 min (cooldown) + ~15 min (B).
+
+## Amendment 3 — the q4_K arm moves to Qwen3.5-4B on the Adreno 735, registered 2026-09-08 before the run
+
+Owner decision, taken on a hard constraint. Amendment 1 registered the q4_K arm as
+`LFM2.5-2.6B-Q4_K_M.gguf` on the QRD8650 / Adreno 750. Two things changed:
+
+1. **The owner asked for the real high-tier model**, `qwen3.5-4b` Q4_K_M — the one a
+   high-RAM phone is actually recommended (`ModelRegistry.ts`, `recommendForTiers: ["high"]`).
+   That is what ships on that tier, so that is what gets measured.
+2. **The QRD8650 has 35 minutes left of 249.** A pair needs ~55. The budget was spent by a
+   mistake of mine, recorded in full below, so the 750 is out for now.
+
+Registered design:
+
+- **Board**: QRD8635 / SM8635 / **Adreno 735** (889 min). Chosen deliberately, and the
+  trade-off is stated up front: ALIVE 39 measured the 735 clean on `test-backend-ops`
+  (MUL_MAT 925/925), i.e. it does **not** carry the 750-only f16/bf16-batched driver
+  defect. So this arm answers *"is the q4_K kernel fidelity-fixed?"* without that
+  confound — and it does **not** answer anything about V75, which is a different
+  generation. Nothing measured here may be quoted as evidence about the Adreno 750.
+- **Model**: `Qwen3.5-4B-Q4_K_M.gguf`, `unsloth/Qwen3.5-4B-MTP-GGUF` @
+  `86835bf9949e4d14d6860f7910b1340ad4f271a9`, 2 834 975 040 bytes (matches the registry's
+  `sizeBytes`), sha256 **`3874209241c9a397e2f62cd3f70f80fd2dfbf0dfccb6838416bdb48a714e8630`**.
+  Recorded here before the run so a substituted file cannot pass unnoticed.
+- **Route**: V73 has `GPU_PREFILL_CORRECT.V73 = false`, so arm B must be enabled through the
+  pre-existing bench lever `kalsa.bench.governor_force`, exactly as ALIVE 39/52/54 did. That
+  lever is not part of production policy and this run does not change it.
+- **Instrument and rules**: unchanged — logit oracle, 32 teacher-forced steps, thresholds
+  R1-R6 as registered in cell `logit-oracle`. Amendment 2's `COOL_MAX_S=1500` stands.
+- **Driver parameterisation**: `d_run.sh` hardcodes `MODEL`, `MODEL_SIZE`, `MODEL_SHA`,
+  `MODEL_DIR`, `MODEL_FILE` for the LFM model. Only those five constants change, to the
+  Qwen values above with `MODEL_DIR` matching the registry id `qwen3.5-4b`. No threshold,
+  no gate, no code path is touched. The diff must be exactly those five lines.
+
+Registered reading, same shape as the q4_0 arm: the binary verdict is expected to be
+uninformative (R2 is a promotion gate); the answer is the continuous metrics. **No pre-fix
+baseline exists for q4_K on this board**, so unlike the q4_0 arm there is no before/after
+pair — this arm measures the *absolute* CPU-vs-GPU agreement with the fixed kernel. The
+registered success condition is therefore: **R1 satisfied (zero confident top-1 flips)** and
+median |Δp₁| of the same order as the fixed q4_0 arm (0.0014), i.e. **≤ 0.01**. A median
+above 0.05 means the q4_K fix does not deliver what the q4_0 fix delivered, and the high
+tier goes back on the bench.
+
+### Recorded error — how the 750's budget was spent
+
+QDC bills **wall-clock session duration**, not active device use. I asserted the opposite
+earlier in the session and extended session 808521 by three hours, then kept it open across
+two device cool-downs and the analysis: 214 minutes consumed for ~50 minutes of measurement.
+Standing rule from now on: open the session only when driver, APK and model are ready on
+the Mac, and end it the moment the driver exits — never hold it open to cool a device or to
+read results.
