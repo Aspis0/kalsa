@@ -1,0 +1,14 @@
+run_as_attempt=1 chmod_rc=0 run_rc=0
+run_as_attempt=1 chmod_rc=0 run_rc=0
+2834975040
+mmproj_local_sha=cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864 mmproj_local_size=672423616
+/Users/marco/kalsa-qdc/models/mmproj-F16.gguf: 1 file pushed, 0 skipped. 30.2 MB/s (672423616 bytes in 21.221s)
+mmproj_push_rc=0
+mmproj_chmod_rc=0
+run_as_attempt=1 chmod_rc=0 run_rc=0
+run_as_attempt=1 chmod_rc=0 run_rc=0
+672423616
+mmproj_device_size=672423616 expected=672423616
+run_as_attempt=1 chmod_rc=0 run_rc=0
+cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864  files/models/qwen3.5-4b/mmproj-F16.gguf
+mmproj_device_sha=cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864 expected=cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864

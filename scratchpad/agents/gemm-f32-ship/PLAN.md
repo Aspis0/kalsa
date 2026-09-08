@@ -263,3 +263,101 @@ Operating rule from now on: **request the minimum cap that can hold the run, nev
 margin** — and open the session only when driver, APK and model are ready.
 
 Budget after tonight: QRD8650 35, QRD8750 89, QRD7675 555, HDK8550 854, QRD8635 889.
+
+## 2026-09-08, 04:33 EDT — fourth attempt at the q4_K arm, launched
+
+Both causes of the third failure are fixed in the driver (`1712bdbf`) and registered in
+PREREG Amendment 4: the mmproj is copied when configured, and `MODEL_LOAD_PATTERN` is now
+derived from `MODEL_DIR`/`MODEL_FILE` instead of pinning the LFM path. An uncommitted
+driver refactor that arrived after that commit was **discarded** rather than run — the tool
+does not change on the way into a paid session.
+
+Session **808791**, QRD8635 / 8s Gen 3, cap 75 min, found `Running` with 67m 40s left
+(≈7 minutes had already burned before the driver started: the session was opened at the end
+of the previous working block). Tunnel on local **6037**, job host `sa812860`.
+
+Pre-run device state, read before launching:
+
+- `MemTotal 11 530 632 kB` → the driver's `gpu_fit_ram_gate` (voids at ≤ 8 GiB) passes.
+- `ro.soc.model SM8635`, `device_tag=8s-Gen-3`, `ro.debuggable=1`, serial `7da1a203`.
+- **Cold board**: skin **28.7 °C**, `Thermal Status: 0`, max HAL temp 42.0 (battery).
+  The best starting point of the whole campaign — the 8650 runs started around 36-37 °C.
+
+Launched `./d_run.sh sa812860 <armB 6fc14d1> ABABAB 58` with `ORACLE_MODE=logit` and the six
+Qwen overrides. One APK serves both arms: app commit `6fc14d1` is
+`build: bump kalsallama pin to 67c73d26c (f32 product in the Adreno q4_0 and q4_K GEMMs)`,
+verified on disk — the same binary that produced ALIVE 60 already carries the q4_K fix.
+Arm B reaches the GPU through `kalsa.bench.governor_force=1` (`d_run.sh:279`), as registered,
+because `GPU_PREFILL_CORRECT.V73` is `false` and this run does not change production policy.
+
+Deadline set to **58** and not the planned 70, for the session time actually left. The
+registered risk is the 3.5 GB push (model + vision head); if it eats the budget the driver
+hits its deadline mid-order and only a complete A/B pair counts.
+
+## 2026-09-08, 05:11 EDT — the q4_K arm is UNMEASURABLE in-app with Qwen 3.5 4B
+
+Session 808791 ended at `05:11:12` (`Completed`, 47 min of a 75 cap). Two rows came out and
+they answer a different question than the one registered.
+
+```
+A 1 ttft=27524ms  new_tokens=915 decode=8.227 skin 32.888 -> 46.209  status=0
+B 1 ttft=28221ms  prefill_ms=0   decode=8.942 skin 36.913 -> 43.756  row_void=1  oracle=VOID R4
+```
+
+Arm B ran **on the CPU**. The device said why, in one line of its own telemetry:
+
+```
+KALSA_GOVERNOR {"engine_prefill":"CPU","engine_decode":"CPU","commit_bytes":0,"commit_ms":0,
+"prefill_ms":0,"prefill_chunks":"","prefill_ctx_ngl":0,"forced":true,"thermal_state":"Unknown",
+"thermo_source":"bench-skin","fit":"NoFit","fallback_reason":"governor not eligible"}
+```
+
+`forced: true` — the bench lever `kalsa.bench.governor_force` **was** applied and was not
+enough. The cause is not the board, not the thermals (skin 36.9 °C, target 37.0, cooldown
+succeeded in 465 s), not the kernel. It is two static gates in the app, either of which
+alone is fatal, and **both were readable on the Mac before the session was opened**:
+
+1. `src/engine/governorInputs.ts:82-83` — the first executable lines of `gpuFit()`:
+   ```ts
+   const kv = model.kvBytesPerToken;
+   if (typeof kv !== "number" || !Number.isFinite(kv) || kv <= 0) return "NoFit" as const;
+   ```
+   and the `qwen3.5-4b` entry in `ModelRegistry.ts:187` says, in a comment:
+   `// kvBytesPerToken intentionally omitted: no on-device measurement for the 4B`.
+   So `gpu_fit` is **NoFit for this model on every device, always** — before any memory
+   arithmetic, before the generation check. The `availableMb: 4381` in the app's own
+   `KALSA_SEND {"phase":"fit"}` line is a red herring: that is the *download/load* gate,
+   which allowed the load (`allow: true`), not the governor's.
+2. `src/engine/LlamaService.ts:1387-1389` — the governor is only wired when
+   ```ts
+   governorBase.gpu_fit !== "NoFit" &&
+   !options.mmprojPath &&
+   !streamExperts
+   ```
+   `!options.mmprojPath` means **any model with a vision head disables the governor**,
+   independently of point 1.
+
+The board itself was classified correctly: `ro.soc.model=SM8635` → `generationFor()`
+returns `V73` (`governorInputs.ts:56`), exactly as Amendment 3 registered.
+
+### What this costs and what it is worth
+
+Cost: one session, and the q4_K fidelity question is **still unanswered** — the fixed GPU
+kernel never executed. I registered a measurement of "q4_K GPU prefill in the app on the
+high-tier model" without first checking whether the app can route that model to the GPU at
+all. It cannot, and two greps would have said so.
+
+Worth: the finding is real and it is a product gap, not a lab artefact. **The high tier —
+the tier where prefill hurts most — never gets the governor**, for a reason that has nothing
+to do with whether the GPU would win: one missing catalogue field and one blanket exclusion
+of multimodal models. The owner had already suspected the vision head mattered; it does, and
+more than expected — the app does not merely account for it, it switches the governor off.
+
+### Where the q4_K measurement can actually go
+
+Any vehicle must satisfy, simultaneously: q4_K weights, **no mmproj**, and a non-null
+`kvBytesPerToken` in the registry. No shipping entry does today. The cheapest honest path is
+a registry entry for `LFM2.5-2.6B-Q4_K_M.gguf` (already on the Mac, 1 674 455 040 bytes) with
+`listed: false` and a measured `kvBytesPerToken`, plus a CI APK — the same route Amendment 4
+considered and rejected as more expensive than downloading the vision head. That trade-off
+has now inverted.

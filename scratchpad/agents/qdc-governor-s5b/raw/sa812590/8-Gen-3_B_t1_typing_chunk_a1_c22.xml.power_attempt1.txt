@@ -1,0 +1,2182 @@
+POWER MANAGER (dumpsys power)
+
+Power Manager State:
+  Settings power_manager_constants:
+    no_cached_wake_locks=true
+  mDirty=0x0
+  mWakefulness=Awake
+  mWakefulnessChanging=false
+  mIsPowered=true
+  mPlugType=1
+  mBatteryLevel=100
+  mDreamsBatteryLevelDrain=0
+  mDockState=0
+  mStayOn=true
+  mProximityPositive=false
+  mBootCompleted=true
+  mSystemReady=true
+  mEnhancedDischargeTimeElapsed=0
+  mLastEnhancedDischargeTimeUpdatedElapsed=0
+  mEnhancedDischargePredictionIsPersonalized=false
+  mHalAutoSuspendModeEnabled=false
+  mHalInteractiveModeEnabled=true
+  mWakeLockSummary=0x23
+  mNotifyLongScheduled=+51s781ms
+  mNotifyLongDispatched=-8s217ms
+  mNotifyLongNextCheck=+51s781ms
+  mRequestWaitForNegativeProximity=false
+  mInterceptedPowerKeyForProximity=false
+  mSandmanScheduled=false
+  mBatteryLevelLow=false
+  mLightDeviceIdleMode=false
+  mDeviceIdleMode=false
+  mDeviceIdleWhitelist=[1001, 2000, 10048, 10050, 10057, 10107, 10117, 10125, 10152, 10157, 10158, 10161, 10174, 10185, 10187, 10197, 10199]
+  mDeviceIdleTempWhitelist=[]
+  mLowPowerStandbyActive=false
+  mLastWakeTime=7145957 (2033561 ms ago)
+  mLastSleepTime=6409178 (2770340 ms ago)
+  mLastSleepReason=timeout
+  mLastGlobalWakeTimeRealtime=7145961 (2033557 ms ago)
+  mLastGlobalSleepTimeRealtime=6409179 (2770339 ms ago)
+  mLastInteractivePowerHintTime=9168476 (11042 ms ago)
+  mLastScreenBrightnessBoostTime=0 (9179518 ms ago)
+  mScreenBrightnessBoostInProgress=false
+  mHoldingWakeLockSuspendBlocker=true
+  mHoldingDisplaySuspendBlocker=true
+  mLastFlipTime=0
+  mIsFaceDown=false
+
+Settings and Configuration:
+  mDecoupleHalAutoSuspendModeFromDisplayConfig=true
+  mDecoupleHalInteractiveModeFromDisplayConfig=false
+  mWakeUpWhenPluggedOrUnpluggedConfig=true
+  mWakeUpWhenPluggedOrUnpluggedInTheaterModeConfig=false
+  mTheaterModeEnabled=false
+  mKeepDreamingWhenUnplugging=false
+  mSuspendWhenScreenOffDueToProximityConfig=false
+  mDreamsSupportedConfig=true
+  mDreamsEnabledByDefaultConfig=true
+  mDreamsActivatedOnSleepByDefaultConfig=false
+  mDreamsActivatedOnDockByDefaultConfig=true
+  mDreamsEnabledOnBatteryConfig=false
+  mDreamsBatteryLevelMinimumWhenPoweredConfig=-1
+  mDreamsBatteryLevelMinimumWhenNotPoweredConfig=15
+  mDreamsBatteryLevelDrainCutoffConfig=5
+  mDreamsEnabledSetting=true
+  mDreamsActivateOnSleepSetting=false
+  mDreamsActivateOnDockSetting=true
+  mDozeAfterScreenOff=true
+  mMinimumScreenOffTimeoutConfig=10000
+  mMaximumScreenDimDurationConfig=7000
+  mMaximumScreenDimRatioConfig=0.20000005
+  mAttentiveTimeoutConfig=-1
+  mAttentiveTimeoutSetting=-1
+  mAttentiveWarningDurationConfig=30000
+  mScreenOffTimeoutSetting=1800000
+  mSleepTimeoutSetting=-1
+  mMaximumScreenOffTimeoutFromDeviceAdmin=9223372036854775807 (enforced=false)
+  mStayOnWhilePluggedInSetting=15
+  mScreenBrightnessOverrideFromWindowManager=NaN
+  mUserActivityTimeoutOverrideFromWindowManager=-1
+  mUserInactiveOverrideFromWindowManager=false
+  mDozeScreenStateOverrideFromDreamManager=1
+  mDrawWakeLockOverrideFromSidekick=false
+  mDozeScreenBrightnessOverrideFromDreamManager=17
+  mScreenBrightnessMinimum=0.035433073
+  mScreenBrightnessMaximum=1.0
+  mScreenBrightnessDefault=0.39763778
+  mDoubleTapWakeEnabled=false
+  mForegroundProfile=0
+  mUserId=0
+
+Attentive timeout: -1 ms
+Sleep timeout: -1 ms
+Screen off timeout: 1800000 ms
+Screen dim duration: 7000 ms
+
+UID states (changing=false changed=false):
+  UID 1000:   ACTIVE  count=1 state=0
+  UID 1001:   ACTIVE  count=0 state=0
+  UID 1027:   ACTIVE  count=0 state=0
+  UID 1068:   ACTIVE  count=0 state=0
+  UID 1073:   ACTIVE  count=0 state=0
+  UID 2000: INACTIVE  count=0 state=19
+  UID u0a47: INACTIVE  count=0 state=19
+  UID u0a48: INACTIVE  count=0 state=19
+  UID u0a50: INACTIVE  count=0 state=19
+  UID u0a53: INACTIVE  count=0 state=19
+  UID u0a55: INACTIVE  count=0 state=19
+  UID u0a59: INACTIVE  count=0 state=19
+  UID u0a60: INACTIVE  count=0 state=19
+  UID u0a65: INACTIVE  count=0 state=19
+  UID u0a73: INACTIVE  count=0 state=19
+  UID u0a82:   ACTIVE  count=0 state=0
+  UID u0a83:   ACTIVE  count=0 state=0
+  UID u0a85: INACTIVE  count=0 state=19
+  UID u0a86: INACTIVE  count=0 state=19
+  UID u0a88: INACTIVE  count=0 state=19
+  UID u0a92: INACTIVE  count=0 state=19
+  UID u0a94:   ACTIVE  count=0 state=0
+  UID u0a98: INACTIVE  count=0 state=19
+  UID u0a99:   ACTIVE  count=0 state=0
+  UID u0a100: INACTIVE  count=0 state=19
+  UID u0a101:   ACTIVE  count=0 state=5
+  UID u0a102: INACTIVE  count=0 state=19
+  UID u0a104: INACTIVE  count=0 state=19
+  UID u0a105: INACTIVE  count=0 state=19
+  UID u0a106: INACTIVE  count=0 state=19
+  UID u0a107:   ACTIVE  count=0 state=5
+  UID u0a109: INACTIVE  count=0 state=19
+  UID u0a113: INACTIVE  count=0 state=19
+  UID u0a114: INACTIVE  count=0 state=19
+  UID u0a115:   ACTIVE  count=0 state=5
+  UID u0a117:   ACTIVE  count=0 state=0
+  UID u0a121:   ACTIVE  count=0 state=5
+  UID u0a123: INACTIVE  count=0 state=19
+  UID u0a129: INACTIVE  count=0 state=19
+  UID u0a140:   ACTIVE  count=0 state=0
+  UID u0a142: INACTIVE  count=0 state=19
+  UID u0a147:   ACTIVE  count=0 state=7
+  UID u0a149:   ACTIVE  count=0 state=0
+  UID u0a153:   ACTIVE  count=0 state=0
+  UID u0a155:   ACTIVE  count=0 state=0
+  UID u0a157:   ACTIVE  count=0 state=0
+  UID u0a160:   ACTIVE  count=0 state=0
+  UID u0a162: INACTIVE  count=0 state=19
+  UID u0a163: INACTIVE  count=0 state=19
+  UID u0a167:   ACTIVE  count=0 state=5
+  UID u0a168:   ACTIVE  count=0 state=0
+  UID u0a173:   ACTIVE  count=0 state=0
+  UID u0a174: INACTIVE  count=0 state=19
+  UID u0a176:   ACTIVE  count=0 state=0
+  UID u0a183: INACTIVE  count=0 state=19
+  UID u0a185: INACTIVE  count=0 state=19
+  UID u0a186:   ACTIVE  count=0 state=0
+  UID u0a193:   ACTIVE  count=0 state=6
+  UID u0a199: INACTIVE  count=0 state=19
+  UID u0a203: INACTIVE  count=0 state=19
+  UID u0a211:   ACTIVE  count=0 state=0
+  UID u0a212:   ACTIVE  count=0 state=5
+  UID u0a214: INACTIVE  count=0 state=19
+  UID u0a215: INACTIVE  count=0 state=19
+  UID u0a225:   ACTIVE  count=0 state=2
+
+Looper state:
+  Looper (PowerManagerService, tid 48) {5a59f3a}
+    Message 0: { when=+51s780ms what=4 target=android.os.Handler }
+    Message 1: { when=+29m41s957ms what=1 target=android.os.Handler }
+    (Total messages: 2, polling=true, quitting=false)
+
+Wake Locks: size=1
+  SCREEN_BRIGHT_WAKE_LOCK        'WindowManager/displayId:0' ON_AFTER_RELEASE ACQ=-4m52s151ms (uid=1000 pid=2752 ws=WorkSource{10121 com.google.android.tts})
+
+Suspend Blockers: size=5
+  PowerManagerService.Booting: ref count=0 []
+  PowerManagerService.WakeLocks: ref count=1 [unknown: (09-07 20:42:16.053)]
+  PowerManagerService.Display: ref count=1 [holding display: (09-07 20:13:14.671)]
+  PowerManagerService.Broadcasts: ref count=0 []
+  PowerManagerService.WirelessChargerDetector: ref count=0 []
+
+Display Power: com.android.server.power.PowerManagerService$1@ee4a7eb
+
+Battery saving stats:
+  Battery Saver is currently: OFF
+    Times full enabled: 0
+    Times adaptive enabled: 0
+  
+  Drain stats:
+                     Battery saver OFF                          ON
+  NonDoze NonIntr:      4m      0mAh(  0%)      0.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+             Intr:      0m      0mAh(  0%)      0.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+  Deep    NonIntr:     55m      0mAh(  0%)      0.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+             Intr:      0m      0mAh(  0%)      0.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+  Light   NonIntr:     57m      0mAh(  0%)      0.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+             Intr:      0m      0mAh(  0%)      0.0mAh/h          0m      0mAh(  0%)      0.0mAh/h
+
+Battery saver policy (*NOTE* they only apply when battery saver is ON):
+  Settings: battery_saver_constants
+    value: 
+  Settings: (overlay)
+    value: 
+  DeviceConfig: battery_saver
+    location_mode: 
+  mAccessibilityEnabled=false
+  mAutomotiveProjectionActive=false
+  mPolicyLevel=0
+  
+  Policy 'default full'
+    advertise_is_enabled=true
+    disable_vibration=true
+    disable_animation=false
+    defer_full_backup=true
+    defer_keyvalue_backup=true
+    enable_firewall=true
+    enable_datasaver=false
+    disable_launch_boost=true
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=0.5
+    location_mode=3
+    force_all_apps_standby=true
+    force_background_check=true
+    disable_optional_sensors=true
+    disable_aod=true
+    soundtrigger_mode=1
+    enable_quick_doze=true
+    enable_night_mode=true
+  
+  Policy 'current full'
+    advertise_is_enabled=true
+    disable_vibration=true
+    disable_animation=false
+    defer_full_backup=true
+    defer_keyvalue_backup=true
+    enable_firewall=true
+    enable_datasaver=false
+    disable_launch_boost=true
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=0.5
+    location_mode=3
+    force_all_apps_standby=true
+    force_background_check=true
+    disable_optional_sensors=true
+    disable_aod=true
+    soundtrigger_mode=1
+    enable_quick_doze=true
+    enable_night_mode=true
+  
+  Policy 'default adaptive'
+    advertise_is_enabled=false
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=false
+    defer_keyvalue_backup=false
+    enable_firewall=false
+    enable_datasaver=false
+    disable_launch_boost=false
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=1.0
+    location_mode=0
+    force_all_apps_standby=false
+    force_background_check=false
+    disable_optional_sensors=false
+    disable_aod=false
+    soundtrigger_mode=0
+    enable_quick_doze=false
+    enable_night_mode=false
+  
+  Policy 'current adaptive'
+    advertise_is_enabled=false
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=false
+    defer_keyvalue_backup=false
+    enable_firewall=false
+    enable_datasaver=false
+    disable_launch_boost=false
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=1.0
+    location_mode=0
+    force_all_apps_standby=false
+    force_background_check=false
+    disable_optional_sensors=false
+    disable_aod=false
+    soundtrigger_mode=0
+    enable_quick_doze=false
+    enable_night_mode=false
+  
+  Policy 'effective'
+    advertise_is_enabled=false
+    disable_vibration=false
+    disable_animation=false
+    defer_full_backup=false
+    defer_keyvalue_backup=false
+    enable_firewall=false
+    enable_datasaver=false
+    disable_launch_boost=false
+    enable_brightness_adjustment=false
+    adjust_brightness_factor=1.0
+    location_mode=0
+    force_all_apps_standby=false
+    force_background_check=false
+    disable_optional_sensors=false
+    disable_aod=false
+    soundtrigger_mode=0
+    enable_quick_doze=false
+    enable_night_mode=false
+
+Battery saver state machine:
+  Enabled=false
+    full=false
+    adaptive=false
+  mState=1
+  mLastChangedIntReason=0
+  mLastChangedStrReason=null
+  mBootCompleted=true
+  mSettingsLoaded=true
+  mBatteryStatusSet=true
+  mIsPowered=true
+  mBatteryLevel=100
+  mIsBatteryLevelLow=false
+  mSettingAutomaticBatterySaver=0
+  mSettingBatterySaverEnabled=false
+  mSettingBatterySaverEnabledSticky=false
+  mSettingBatterySaverStickyAutoDisableEnabled=true
+  mSettingBatterySaverStickyAutoDisableThreshold=90
+  mSettingBatterySaverTriggerThreshold=0
+  mBatterySaverStickyBehaviourDisabled=false
+  mDynamicPowerSavingsDefaultDisableThreshold=80
+  mDynamicPowerSavingsDisableThreshold=80
+  mDynamicPowerSavingsEnableBatterySaver=false
+  mLastAdaptiveBatterySaverChangedExternallyElapsed=0
+AttentionDetector:
+ mIsSettingEnabled=false
+ mMaxExtensionMillis=900000
+ mPreDimCheckDurationMillis=2000
+ mEffectivePostDimTimeout=0
+ mLastUserActivityTime(excludingAttention)=9168476
+ mAttentionServiceSupported=true
+ mRequested=false
+
+Profile power states: size=0
+Display Group User Activity:
+  displayGroupId=0
+  userActivitySummary=0x1
+  lastUserActivityTime=9168476 (11045 ms ago)
+  lastUserActivityTimeNoChangeLights=8290454 (889067 ms ago)
+  mWakeLockSummary=0x23
+
+Wireless Charger Detector State:
+  mGravitySensor={Sensor name="gravity  Non-wakeup", vendor="QTI", version=1, type=9, maxRange=156.91, resolution=0.01, power=0.515, minDelay=5000}
+  mPoweredWirelessly=false
+  mAtRest=false
+  mRestX=0.0, mRestY=0.0, mRestZ=0.0
+  mDetectionInProgress=false
+  mDetectionStartTime=0 (never)
+  mMustUpdateRestPosition=false
+  mTotalSamples=0
+  mMovingSamples=0
+  mFirstSampleX=0.0, mFirstSampleY=0.0, mFirstSampleZ=0.0
+  mLastSampleX=0.0, mLastSampleY=0.0, mLastSampleZ=0.0
+Wake Lock Log
+  03-22 09:15:38.438 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.440 - 1000 - REL NetworkStats
+  03-22 09:15:38.440 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.443 - 1000 - REL NetworkStats
+  03-22 09:15:38.468 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.479 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.481 - 1000 - REL NetworkStats
+  03-22 09:15:38.482 - --- - REL UNKNOWN
+  03-22 09:15:38.486 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.488 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.494 - 1000 - REL NetworkStats
+  03-22 09:15:38.495 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.498 - 1000 - REL NetworkStats
+  03-22 09:15:38.502 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.504 - 1000 - REL NetworkStats
+  03-22 09:15:38.505 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.506 - 1000 - REL NetworkStats
+  03-22 09:15:38.507 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.508 - 1000 - REL NetworkStats
+  03-22 09:15:38.613 - --- - REL UNKNOWN
+  03-22 09:15:38.757 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.758 - --- - REL UNKNOWN
+  03-22 09:15:38.765 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.765 - 1001 - ACQ RILJ_ACK_WL (partial)
+  03-22 09:15:38.765 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.765 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.777 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.777 - 1001 - ACQ RILJ_ACK_WL (partial)
+  03-22 09:15:38.777 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.777 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.778 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.779 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.780 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.781 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.788 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.789 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.789 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.792 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.792 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.792 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.792 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.792 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.792 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.802 - --- - REL UNKNOWN
+  03-22 09:15:38.819 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.823 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.824 - 1073 - ACQ GsmCellBroadcastHandler (partial)
+  03-22 09:15:38.826 - 1073 - ACQ CellBroadcastHandler (partial)
+  03-22 09:15:38.827 - 1073 - ACQ CdmaServiceCategoryProgramHandler (partial)
+  03-22 09:15:38.835 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:38.838 - 1000 - REL NetworkStats
+  03-22 09:15:38.843 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.843 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.843 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.845 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.845 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.845 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.870 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.871 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.871 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.872 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.872 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.872 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.878 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.879 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:38.889 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.889 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.889 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.890 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.890 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.890 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.902 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.902 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.902 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.903 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.903 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.903 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.956 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.956 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.956 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.957 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.957 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.957 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.960 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.960 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.960 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.961 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.961 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.961 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.974 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.974 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.974 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.977 - 1001 - REL *telephony-radio*
+  03-22 09:15:38.977 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:38.977 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.012 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.012 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.012 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.013 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.013 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.013 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.018 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.018 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.018 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.018 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.018 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.019 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.021 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.021 - 1001 - REL *telephony-radio*
+  03-22 09:15:39.021 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:39.055 - --- - REL UNKNOWN
+  03-22 09:15:39.055 - --- - REL UNKNOWN
+  03-22 09:15:39.056 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.058 - 1001 - REL RILJ_ACK_WL
+  03-22 09:15:39.058 - --- - REL UNKNOWN
+  03-22 09:15:39.058 - 1001 - REL RILJ_ACK_WL
+  03-22 09:15:39.058 - --- - REL UNKNOWN
+  03-22 09:15:39.058 - --- - REL UNKNOWN
+  03-22 09:15:39.059 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.060 - --- - REL UNKNOWN
+  03-22 09:15:39.075 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.083 - --- - REL UNKNOWN
+  03-22 09:15:39.366 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.366 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.368 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.368 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.368 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.368 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.369 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:39.449 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  03-22 09:15:39.455 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  03-22 09:15:39.455 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  03-22 09:15:39.460 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.464 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  03-22 09:15:39.570 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.573 - --- - REL UNKNOWN
+  03-22 09:15:39.650 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.650 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.651 - --- - REL UNKNOWN
+  03-22 09:15:39.723 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.723 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:39.736 - --- - REL UNKNOWN
+  03-22 09:15:39.754 - --- - REL UNKNOWN
+  03-22 09:15:39.792 - 10157 - ACQ LocationService (partial)
+  03-22 09:15:39.796 - --- - REL UNKNOWN
+  03-22 09:15:39.837 - 10157 - REL LocationService
+  03-22 09:15:39.917 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  03-22 09:15:39.942 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:15:40.077 - 10107 - REL CMWakeLock
+  03-22 09:15:40.092 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:15:40.205 - 10107 - REL CMWakeLock
+  03-22 09:15:40.269 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:40.269 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:40.296 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:15:40.300 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:40.304 - 10107 - REL CMWakeLock
+  03-22 09:15:40.307 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:15:40.318 - --- - REL UNKNOWN
+  03-22 09:15:40.332 - 10107 - REL CMWakeLock
+  03-22 09:15:40.333 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:40.333 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:40.338 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:15:40.340 - --- - REL UNKNOWN
+  03-22 09:15:40.342 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:40.342 - --- - REL UNKNOWN
+  03-22 09:15:40.367 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:40.377 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:40.378 - 1000 - ACQ *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#45 (partial)
+  03-22 09:15:40.378 - 1000 - ACQ *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#45 (partial)
+  03-22 09:15:40.379 - 1000 - REL *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#45
+  03-22 09:15:40.393 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:40.406 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:40.453 - --- - REL UNKNOWN
+  03-22 09:15:40.453 - 10107 - REL CMWakeLock
+  03-22 09:15:40.486 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  03-22 09:15:40.489 - 10107 - REL UlrDispSvcFastWL
+  03-22 09:15:40.489 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  03-22 09:15:40.495 - 10107 - REL UlrDispSvcFastWL
+  03-22 09:15:40.503 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  03-22 09:15:40.505 - 10107 - REL UlrDispSvcFastWL
+  03-22 09:15:40.507 - 10107 - REL CallbackRunner
+  03-22 09:15:40.519 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:40.524 - 10107 - REL CallbackRunner
+  03-22 09:15:40.525 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:40.528 - 10107 - REL CallbackRunner
+  03-22 09:15:40.542 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:15:40.547 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:40.548 - 10107 - REL CallbackRunner
+  03-22 09:15:40.568 - 1027 - REL NfcService:mRoutingWakeLock
+  03-22 09:15:40.571 - 1041 - REL AudioMix
+  03-22 09:15:40.571 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:40.628 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:40.628 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:40.629 - --- - REL UNKNOWN
+  03-22 09:15:40.675 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:40.676 - 1001 - REL *telephony-radio*
+  03-22 09:15:40.676 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:40.677 - 1001 - REL *telephony-radio*
+  03-22 09:15:40.677 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:40.678 - 1001 - REL *telephony-radio*
+  03-22 09:15:40.681 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:40.681 - 1001 - REL *telephony-radio*
+  03-22 09:15:40.681 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:40.689 - 1000 - ACQ *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#48 (partial)
+  03-22 09:15:40.689 - 1000 - ACQ *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#48 (partial)
+  03-22 09:15:40.691 - 1000 - REL *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#48
+  03-22 09:15:40.694 - 1001 - REL *telephony-radio*
+  03-22 09:15:40.694 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:40.695 - 1001 - REL *telephony-radio*
+  03-22 09:15:40.719 - --- - ACQ UNKNOWN (partial)
+  03-22 09:15:40.734 - --- - REL UNKNOWN
+  03-22 09:15:40.738 - --- - REL UNKNOWN
+  03-22 09:15:40.782 - 10107 - ACQ IntentOp:.c.a.AppDoctorConfigChangedIntentOperation (partial)
+  03-22 09:15:40.841 - 1000 - ACQ dream:dream (partial)
+  03-22 09:15:40.860 - 10173 - ACQ Doze (partial)
+  03-22 09:15:40.867 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-369 (partial)
+  03-22 09:15:40.867 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-369 (partial)
+  03-22 09:15:40.871 - 10173 - ACQ Scrims (partial)
+  03-22 09:15:40.871 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-369
+  03-22 09:15:40.879 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-237 (partial)
+  03-22 09:15:40.879 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-237 (partial)
+  03-22 09:15:40.880 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-237
+  03-22 09:15:40.881 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  03-22 09:15:40.886 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:40.899 - 1000 - ACQ *job*/c.g.a.g/a.w.i.b.s.SystemJobService#55 (partial)
+  03-22 09:15:40.899 - 1000 - ACQ *job*/c.g.a.g/a.w.i.b.s.SystemJobService#55 (partial)
+  03-22 09:15:40.905 - 1000 - ACQ dream:doze (doze)
+  03-22 09:15:40.908 - 1000 - REL dream:dream
+  03-22 09:15:40.924 - 1000 - REL *job*/c.g.a.g/a.w.i.b.s.SystemJobService#55
+  03-22 09:15:40.937 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  03-22 09:15:40.937 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  03-22 09:15:40.938 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  03-22 09:15:40.980 - 10173 - REL Scrims
+  03-22 09:15:40.992 - 10107 - ACQ Icing (partial)
+  03-22 09:15:40.998 - 10173 - REL Doze
+  03-22 09:15:41.016 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  03-22 09:15:41.017 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-237
+  03-22 09:15:41.019 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-369
+  03-22 09:15:41.059 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  03-22 09:15:41.060 - 1000 - REL *job*/c.g.a.g/a.w.i.b.s.SystemJobService#55
+  03-22 09:15:41.080 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.081 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.081 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.138 - 1000 - ACQ *job*/c.g.a.g/a.w.i.b.s.SystemJobService#56 (partial)
+  03-22 09:15:41.138 - 1000 - ACQ *job*/c.g.a.g/a.w.i.b.s.SystemJobService#56 (partial)
+  03-22 09:15:41.139 - 1000 - REL *job*/c.g.a.g/a.w.i.b.s.SystemJobService#56
+  03-22 09:15:41.147 - 1001 - ACQ RILJ_ACK_WL (partial)
+  03-22 09:15:41.150 - 1001 - ACQ RILJ_ACK_WL (partial)
+  03-22 09:15:41.154 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.154 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.154 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.158 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  03-22 09:15:41.158 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.158 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.158 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.159 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.165 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.174 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.181 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.182 - 10115 - ACQ GnpBroadcastReceiver (partial)
+  03-22 09:15:41.182 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.182 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.185 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.186 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.186 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.193 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  03-22 09:15:41.200 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.201 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  03-22 09:15:41.201 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.202 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.202 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.204 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.213 - 1000 - REL *job*/c.g.a.g/a.w.i.b.s.SystemJobService#56
+  03-22 09:15:41.229 - 10115 - REL GnpBroadcastReceiver
+  03-22 09:15:41.235 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  03-22 09:15:41.235 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.236 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:41.236 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.237 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.237 - 10107 - REL CallbackRunner
+  03-22 09:15:41.241 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.282 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.283 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.283 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.285 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.285 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.285 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.301 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.301 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.301 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.303 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.303 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:41.303 - 1001 - REL *telephony-radio*
+  03-22 09:15:41.311 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:41.314 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  03-22 09:15:41.316 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:41.321 - 10107 - ACQ wake:com.google.android.gms/.chimera.GmsIntentOperationService - 913 (partial)
+  03-22 09:15:41.323 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  03-22 09:15:41.324 - 10107 - ACQ wake:com.google.android.gms/.chimera.GmsIntentOperationService - 913 (partial)
+  03-22 09:15:41.328 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  03-22 09:15:41.330 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  03-22 09:15:41.333 - 10107 - ACQ Checkin Service (partial)
+  03-22 09:15:41.335 - 10107 - REL Icing
+  03-22 09:15:41.344 - 10107 - REL Checkin Service
+  03-22 09:15:41.345 - 10107 - REL wake:com.google.android.gms/.chimera.GmsIntentOperationService - 913
+  03-22 09:15:41.347 - 10107 - ACQ Checkin Service (partial)
+  03-22 09:15:41.348 - 1001 - REL RILJ_ACK_WL
+  03-22 09:15:41.348 - 10107 - REL Checkin Service
+  03-22 09:15:41.348 - 10107 - REL wake:com.google.android.gms/.chimera.GmsIntentOperationService - 913
+  03-22 09:15:41.351 - 1001 - REL RILJ_ACK_WL
+  03-22 09:15:41.370 - 1041 - REL AudioMix
+  03-22 09:15:41.371 - 1041 - REL AudioMix
+  03-22 09:15:41.372 - 1041 - REL AudioMix
+  03-22 09:15:41.373 - 1041 - REL AudioMix
+  03-22 09:15:41.374 - 1041 - REL AudioMix
+  03-22 09:15:41.381 - 1041 - REL AudioMix
+  03-22 09:15:41.460 - 10107 - REL IntentOp:.c.a.AppDoctorConfigChangedIntentOperation
+  03-22 09:15:41.500 - 1000 - ACQ *alarm* (partial)
+  03-22 09:15:41.501 - 1000 - ACQ *job*/c.g.a.p/.PhenotypeJobService#1 (partial)
+  03-22 09:15:41.501 - 1000 - ACQ *job*/c.g.a.p/.PhenotypeJobService#1 (partial)
+  03-22 09:15:41.509 - 1000 - REL *job*/c.g.a.p/.PhenotypeJobService#1
+  03-22 09:15:41.521 - 10107 - ACQ IntentOp:.a.f.FrpUpdateIntentOperation (partial)
+  03-22 09:15:41.529 - 10107 - REL IntentOp:.a.f.FrpUpdateIntentOperation
+  03-22 09:15:41.539 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  03-22 09:15:41.549 - 1000 - REL *job*/c.g.a.p/.PhenotypeJobService#1
+  03-22 09:15:41.568 - 10107 - ACQ IntentOp:.u.e.InstallationIntentOperation (partial)
+  03-22 09:15:41.574 - 10107 - REL IntentOp:.u.e.InstallationIntentOperation
+  03-22 09:15:41.651 - 1000 - ACQ *job*/c.g.a.p/.PhenotypeJobService#2 (partial)
+  03-22 09:15:41.652 - 1000 - ACQ *job*/c.g.a.p/.PhenotypeJobService#2 (partial)
+  03-22 09:15:41.658 - 1000 - REL *job*/c.g.a.p/.PhenotypeJobService#2
+  03-22 09:15:41.667 - 10048 - ACQ CalendarReceiver_Provider (partial)
+  03-22 09:15:41.678 - 10173 - REL Doze:KeyguardIndication
+  03-22 09:15:41.679 - 10048 - REL CalendarReceiver_Provider
+  03-22 09:15:41.682 - 10107 - ACQ wake:com.google.android.gms/.chimera.GmsIntentOperationService - 913 (partial)
+  03-22 09:15:41.687 - 10107 - ACQ Checkin Service (partial)
+  03-22 09:15:41.734 - 10107 - ACQ Icing (partial)
+  03-22 09:15:41.752 - 1000 - REL *job*/c.g.a.p/.PhenotypeJobService#2
+  03-22 09:15:41.762 - 10107 - REL Icing
+  03-22 09:15:41.834 - 1073 - REL CdmaServiceCategoryProgramHandler
+  03-22 09:15:41.834 - 1073 - REL CellBroadcastHandler
+  03-22 09:15:41.835 - 1073 - REL GsmCellBroadcastHandler
+  03-22 09:15:41.856 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:41.862 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9614 (partial)
+  03-22 09:15:41.862 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9614 (partial)
+  03-22 09:15:41.868 - 10107 - REL CallbackRunner
+  03-22 09:15:41.870 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9614
+  03-22 09:15:41.905 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.908 - 10107 - ACQ IntentOp:.r.n.RefreshNotificationsIntentOperation (partial)
+  03-22 09:15:41.911 - 10107 - ACQ IntentOp:.r.n.ScheduleTimeRemindersIntentOperation (partial)
+  03-22 09:15:41.911 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService (partial)
+  03-22 09:15:41.911 - 10107 - REL IntentOp:.r.n.RefreshNotificationsIntentOperation
+  03-22 09:15:41.915 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.918 - 10107 - REL IntentOp:.r.n.ScheduleTimeRemindersIntentOperation
+  03-22 09:15:41.919 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.925 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService (partial)
+  03-22 09:15:41.928 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.936 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.947 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.949 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService
+  03-22 09:15:41.949 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.951 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.951 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.952 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:41.952 - 10107 - REL CallbackRunner
+  03-22 09:15:41.955 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.966 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.968 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.968 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.970 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:41.971 - 10107 - REL CallbackRunner
+  03-22 09:15:41.976 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService (partial)
+  03-22 09:15:41.981 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.983 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:41.985 - 10107 - REL CallbackRunner
+  03-22 09:15:41.985 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService
+  03-22 09:15:41.987 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.987 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  03-22 09:15:41.987 - 10107 - REL UlrDispSvcFastWL
+  03-22 09:15:41.987 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  03-22 09:15:41.990 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:41.991 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService
+  03-22 09:15:41.992 - 10107 - REL CallbackRunner
+  03-22 09:15:41.993 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:41.994 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:41.995 - 10107 - REL UlrDispSvcFastWL
+  03-22 09:15:42.002 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:42.003 - 10107 - REL CallbackRunner
+  03-22 09:15:42.006 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService (partial)
+  03-22 09:15:42.011 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:42.012 - 10107 - REL CallbackRunner
+  03-22 09:15:42.014 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService (partial)
+  03-22 09:15:42.018 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:42.018 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:42.020 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:42.020 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService
+  03-22 09:15:42.021 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService
+  03-22 09:15:42.023 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:42.024 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:42.024 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:42.027 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:42.027 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:15:42.029 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:15:42.413 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.413 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.413 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.416 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.416 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.418 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.473 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9614
+  03-22 09:15:42.482 - 10119 - ACQ ChimeExecutorApi::com.google.android.syncadapters.calendar (partial)
+  03-22 09:15:42.492 - 10117 - ACQ QcrilOemhookMsgTunnel (partial)
+  03-22 09:15:42.501 - 10117 - REL QcrilOemhookMsgTunnel
+  03-22 09:15:42.501 - 10119 - REL ChimeExecutorApi::com.google.android.syncadapters.calendar
+  03-22 09:15:42.571 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.571 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.571 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.577 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.577 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.577 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.586 - 10157 - ACQ LocationService (partial)
+  03-22 09:15:42.587 - 10157 - REL LocationService
+  03-22 09:15:42.660 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  03-22 09:15:42.660 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  03-22 09:15:42.662 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  03-22 09:15:42.666 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  03-22 09:15:42.670 - 1000 - ACQ *job*/c.a.s/.s.r.SimSlotChangeService#2131427422 (partial)
+  03-22 09:15:42.670 - 1000 - ACQ *job*/c.a.s/.s.r.SimSlotChangeService#2131427422 (partial)
+  03-22 09:15:42.671 - 1000 - REL *job*/c.a.s/.s.r.SimSlotChangeService#2131427422
+  03-22 09:15:42.673 - 1000 - ACQ *job*/c.a.s/.s.r.SimSlotChangeService#2131427422 (partial)
+  03-22 09:15:42.673 - 1000 - ACQ *job*/c.a.s/.s.r.SimSlotChangeService#2131427422 (partial)
+  03-22 09:15:42.673 - 1000 - REL *job*/c.a.s/.s.r.SimSlotChangeService#2131427422
+  03-22 09:15:42.680 - 1000 - REL *job*/c.a.s/.s.r.SimSlotChangeService#2131427422
+  03-22 09:15:42.681 - 1000 - REL *job*/c.a.s/.s.r.SimSlotChangeService#2131427422
+  03-22 09:15:42.682 - 1000 - REL *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#48
+  03-22 09:15:42.739 - 1041 - REL AudioMix
+  03-22 09:15:42.740 - 1041 - ACQ AudioMix (partial)
+  03-22 09:15:42.834 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.834 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.834 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.836 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.836 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.836 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.837 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.838 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.838 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.838 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.838 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.838 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.844 - 10117 - ACQ QcrilOemhookMsgTunnel (partial)
+  03-22 09:15:42.846 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:42.846 - 10160 - ACQ NotifyRegistrantLock (partial)
+  03-22 09:15:42.846 - 10107 - REL CallbackRunner
+  03-22 09:15:42.847 - 10117 - REL QcrilOemhookMsgTunnel
+  03-22 09:15:42.848 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:15:42.848 - 10117 - ACQ QcrilOemhookMsgTunnel (partial)
+  03-22 09:15:42.850 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  03-22 09:15:42.850 - 10117 - REL QcrilOemhookMsgTunnel
+  03-22 09:15:42.853 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  03-22 09:15:42.853 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  03-22 09:15:42.856 - 10160 - ACQ ImsSenderRxr (partial)
+  03-22 09:15:42.857 - 10160 - REL ImsSenderRxr
+  03-22 09:15:42.859 - 10160 - ACQ NotifyRegistrantLock (partial)
+  03-22 09:15:42.860 - 10107 - ACQ IntentOp:c.g.a.g/.c.PersistentIntentOperationService (partial)
+  03-22 09:15:42.860 - 1000 - REL NetworkStats
+  03-22 09:15:42.861 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  03-22 09:15:42.861 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.861 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.861 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.863 - 1000 - REL *alarm*
+  03-22 09:15:42.865 - 10160 - ACQ ImsSenderRxr (partial)
+  03-22 09:15:42.866 - 10107 - ACQ IntentOp:.p.p.PSimMonitorIntentOperation (partial)
+  03-22 09:15:42.866 - 10107 - REL IntentOp:c.g.a.g/.c.PersistentIntentOperationService
+  03-22 09:15:42.867 - 10107 - REL IntentOp:.p.p.PSimMonitorIntentOperation
+  03-22 09:15:42.867 - 10160 - REL ImsSenderRxr
+  03-22 09:15:42.867 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.867 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.867 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.868 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.868 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.868 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.870 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.870 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:42.870 - 1001 - REL *telephony-radio*
+  03-22 09:15:42.871 - 10107 - ACQ IntentOp:c.g.a.g/.c.PersistentIntentOperationService (partial)
+  03-22 09:15:42.875 - 10107 - ACQ IntentOp:.p.p.PSimMonitorIntentOperation (partial)
+  03-22 09:15:42.876 - 10107 - REL IntentOp:.p.p.PSimMonitorIntentOperation
+  03-22 09:15:42.876 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:42.876 - 10107 - REL IntentOp:c.g.a.g/.c.PersistentIntentOperationService
+  03-22 09:15:42.876 - 10107 - REL CallbackRunner
+  03-22 09:15:42.879 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  03-22 09:15:42.879 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  03-22 09:15:42.886 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  03-22 09:15:42.886 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:42.892 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  03-22 09:15:42.892 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  03-22 09:15:42.896 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  03-22 09:15:42.901 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:42.909 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  03-22 09:15:42.911 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:42.912 - 10107 - REL CallbackRunner
+  03-22 09:15:42.912 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:15:42.916 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  03-22 09:15:42.918 - 10107 - REL CallbackRunner
+  03-22 09:15:43.057 - 10160 - REL NotifyRegistrantLock
+  03-22 09:15:43.065 - 10160 - REL NotifyRegistrantLock
+  03-22 09:15:44.842 - 1041 - REL AudioMix
+  03-22 09:15:45.588 - 10107 - REL CMWakeLock
+  03-22 09:15:45.600 - 1000 - REL *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#45
+  03-22 09:15:46.677 - 1000 - ACQ *alarm* (partial)
+  03-22 09:15:46.687 - 1000 - ACQ *job*/c.a.p.c/.CalendarProviderJobService#117262813 (partial)
+  03-22 09:15:46.687 - 1000 - ACQ *job*/c.a.p.c/.CalendarProviderJobService#117262813 (partial)
+  03-22 09:15:46.690 - 1000 - REL *job*/c.a.p.c/.CalendarProviderJobService#117262813
+  03-22 09:15:46.691 - 1000 - REL *alarm*
+  03-22 09:15:46.707 - 1000 - REL *job*/c.a.p.c/.CalendarProviderJobService#117262813
+  03-22 09:15:47.838 - 1000 - ACQ *alarm* (partial)
+  03-22 09:15:47.923 - 1000 - REL *alarm*
+  03-22 09:15:50.649 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:50.651 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:50.654 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:50.656 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  03-22 09:15:50.658 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:50.661 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  03-22 09:15:52.907 - 1001 - REL *telephony-radio*
+  03-22 09:15:52.908 - 1001 - ACQ *telephony-radio* (partial)
+  03-22 09:15:52.909 - 1001 - REL *telephony-radio*
+  03-22 09:16:26.295 - 1000 - ACQ *alarm* (partial)
+  03-22 09:16:26.307 - 1000 - ACQ *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#49 (partial)
+  03-22 09:16:26.308 - 1000 - ACQ *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#49 (partial)
+  03-22 09:16:26.316 - 1000 - REL *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#49
+  03-22 09:16:26.318 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:16:26.320 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  03-22 09:16:26.320 - 1000 - REL *alarm*
+  03-22 09:16:26.321 - 10107 - REL CallbackRunner
+  03-22 09:16:26.324 - 10107 - REL *gms_scheduler*:internal
+  03-22 09:16:26.349 - 10107 - ACQ CMWakeLock (partial)
+  03-22 09:16:26.353 - 10107 - REL CMWakeLock
+  03-22 09:16:26.369 - 1000 - REL *job*/c.g.a.a.w/a.w.i.b.s.SystemJobService#49
+  03-22 09:16:41.686 - 10107 - REL wake:com.google.android.gms/.chimera.GmsIntentOperationService - 913
+  03-22 09:17:01.541 - 10107 - REL Checkin Service
+  03-22 09:19:09.852 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:19:09.854 - 10107 - REL CallbackRunner
+  03-22 09:19:09.855 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:19:09.858 - 10107 - REL CallbackRunner
+  03-22 09:19:12.040 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:19:12.041 - 10107 - REL CallbackRunner
+  03-22 09:19:12.044 - 10107 - ACQ CallbackRunner (partial)
+  03-22 09:19:12.045 - 10107 - REL CallbackRunner
+  03-22 09:19:24.386 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:19:24.395 - 1000 - REL NetworkStats
+  03-22 09:19:24.463 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:19:24.468 - 1000 - REL NetworkStats
+  03-22 09:19:24.479 - 1000 - ACQ NetworkStats (partial)
+  03-22 09:19:24.484 - 1000 - REL NetworkStats
+  03-22 09:19:24.502 - 1000 - ACQ NetworkTimeUpdateService (partial)
+  03-22 09:19:24.515 - 10107 - ACQ GCM_WORK (partial)
+  03-22 09:19:24.516 - 10107 - ACQ GCM_CONN_ALARM (partial)
+  03-22 09:19:24.517 - 10107 - REL GCM_WORK
+  03-22 09:19:24.538 - 1000 - ACQ time_detector (partial)
+  03-22 09:19:24.538 - 1000 - REL NetworkTimeUpdateService
+  09-07 18:18:00.693 - 1000 - REL time_detector
+  09-07 18:18:00.703 - 1000 - ACQ *alarm* (partial)
+  09-07 18:18:00.725 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:18:00.731 - 10107 - REL GCM_WORK
+  09-07 18:18:00.731 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:18:00.731 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-362 (partial)
+  09-07 18:18:00.732 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-362 (partial)
+  09-07 18:18:00.733 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-362
+  09-07 18:18:00.734 - 10107 - REL GCM_WORK
+  09-07 18:18:00.734 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.740 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.c.m.c.CredentialExporterTaskBoundService (partial)
+  09-07 18:18:00.742 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  09-07 18:18:00.748 - 1000 - ACQ NtpTimeHelper (partial)
+  09-07 18:18:00.751 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.756 - 1000 - REL NtpTimeHelper
+  09-07 18:18:00.756 - 1000 - ACQ *job*/c.a.d/a.w.i.b.s.SystemJobService#5 (partial)
+  09-07 18:18:00.756 - 1000 - ACQ *job*/c.a.d/a.w.i.b.s.SystemJobService#5 (partial)
+  09-07 18:18:00.759 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-07 18:18:00.760 - 1000 - REL *job*/c.a.d/a.w.i.b.s.SystemJobService#5
+  09-07 18:18:00.760 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:18:00.760 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:18:00.761 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:18:00.761 - 1000 - ACQ *job*/c.g.a.g/c.g.a.l.n.e.s.ScheduledTaskService#2000010999 (partial)
+  09-07 18:18:00.761 - 1000 - ACQ *job*/c.g.a.g/c.g.a.l.n.e.s.ScheduledTaskService#2000010999 (partial)
+  09-07 18:18:00.765 - 10107 - ACQ IntentOp:.r.n.RefreshNotificationsIntentOperation (partial)
+  09-07 18:18:00.768 - 1000 - REL *job*/c.g.a.g/c.g.a.l.n.e.s.ScheduledTaskService#2000010999
+  09-07 18:18:00.768 - 1000 - ACQ *job*/c.a.r/a.w.i.b.s.SystemJobService#10 (partial)
+  09-07 18:18:00.769 - 1000 - ACQ *job*/c.a.r/a.w.i.b.s.SystemJobService#10 (partial)
+  09-07 18:18:00.777 - 10107 - ACQ IntentOp:.r.n.ScheduleTimeRemindersIntentOperation (partial)
+  09-07 18:18:00.778 - 1000 - REL *job*/c.a.r/a.w.i.b.s.SystemJobService#10
+  09-07 18:18:00.778 - 1000 - ACQ *job*/c.a.i/.f.FcmRegistrationService#2 (partial)
+  09-07 18:18:00.778 - 1000 - ACQ *job*/c.a.i/.f.FcmRegistrationService#2 (partial)
+  09-07 18:18:00.781 - 1000 - REL *job*/c.a.i/.f.FcmRegistrationService#2
+  09-07 18:18:00.781 - 1000 - ACQ *job*/c.a.r/a.w.i.b.s.SystemJobService#12 (partial)
+  09-07 18:18:00.781 - 1000 - ACQ *job*/c.a.r/a.w.i.b.s.SystemJobService#12 (partial)
+  09-07 18:18:00.782 - 1000 - REL *job*/c.a.r/a.w.i.b.s.SystemJobService#12
+  09-07 18:18:00.782 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9613 (partial)
+  09-07 18:18:00.782 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9613 (partial)
+  09-07 18:18:00.784 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9613
+  09-07 18:18:00.784 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10107 (partial)
+  09-07 18:18:00.784 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10107 (partial)
+  09-07 18:18:00.784 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10107
+  09-07 18:18:00.785 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-362
+  09-07 18:18:00.785 - 1000 - ACQ *job*/c.g.a.s.c/c.g.a.l.n.e.s.ScheduledTaskService#111010999 (partial)
+  09-07 18:18:00.785 - 1000 - ACQ *job*/c.g.a.s.c/c.g.a.l.n.e.s.ScheduledTaskService#111010999 (partial)
+  09-07 18:18:00.789 - 10107 - REL IntentOp:.r.n.RefreshNotificationsIntentOperation
+  09-07 18:18:00.792 - 10107 - REL IntentOp:.r.n.ScheduleTimeRemindersIntentOperation
+  09-07 18:18:00.793 - 1000 - REL *job*/c.g.a.s.c/c.g.a.l.n.e.s.ScheduledTaskService#111010999
+  09-07 18:18:00.795 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-07 18:18:00.798 - 10107 - ACQ GCM_READ (partial)
+  09-07 18:18:00.799 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:18:00.799 - 10107 - REL GCM_READ
+  09-07 18:18:00.800 - 10107 - ACQ GCM_READ (partial)
+  09-07 18:18:00.802 - 1000 - REL *alarm*
+  09-07 18:18:00.802 - 10107 - REL GCM_CONN_ALARM
+  09-07 18:18:00.803 - 10107 - REL GCM_READ
+  09-07 18:18:00.804 - 10107 - REL GCM_WORK
+  09-07 18:18:00.805 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.807 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.807 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.808 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.809 - 10107 - ACQ IntentOp:.u.e.InstallationIntentOperation (partial)
+  09-07 18:18:00.809 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  09-07 18:18:00.809 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.811 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.811 - 10107 - REL IntentOp:.u.e.InstallationIntentOperation
+  09-07 18:18:00.811 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.814 - 1000 - REL *job*/c.a.d/a.w.i.b.s.SystemJobService#5
+  09-07 18:18:00.814 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.d.DroidGuardFastRefreshGmsTaskBoundService (partial)
+  09-07 18:18:00.815 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.825 - 1000 - REL *job*/c.g.a.g/c.g.a.l.n.e.s.ScheduledTaskService#2000010999
+  09-07 18:18:00.826 - 10085 - ACQ TimeService (partial)
+  09-07 18:18:00.827 - 1000 - REL *job*/c.a.i/.f.FcmRegistrationService#2
+  09-07 18:18:00.834 - 10085 - REL TimeService
+  09-07 18:18:00.844 - 10107 - REL *gms_scheduler*/c.g.a.g/.d.DroidGuardFastRefreshGmsTaskBoundService
+  09-07 18:18:00.845 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.845 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.846 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.846 - 1000 - REL *job*/c.g.a.s.c/c.g.a.l.n.e.s.ScheduledTaskService#111010999
+  09-07 18:18:00.849 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.a.a.i.d.DeviceAccountTaskService (partial)
+  09-07 18:18:00.850 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.859 - 10107 - REL *gms_scheduler*/c.g.a.g/.a.a.i.d.DeviceAccountTaskService
+  09-07 18:18:00.860 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.860 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.861 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.865 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  09-07 18:18:00.869 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.870 - 10107 - REL *gms_scheduler*/c.g.a.g/.c.m.c.CredentialExporterTaskBoundService
+  09-07 18:18:00.870 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.871 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.871 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.875 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  09-07 18:18:00.879 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.879 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  09-07 18:18:00.879 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.879 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  09-07 18:18:00.880 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.881 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.884 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.a.s.GcmSchedulerWakeupService (partial)
+  09-07 18:18:00.885 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10107
+  09-07 18:18:00.887 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.887 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.891 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.c.CheckinService (partial)
+  09-07 18:18:00.895 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.902 - 10107 - REL *gms_scheduler*/c.g.a.g/.c.CheckinService
+  09-07 18:18:00.903 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.905 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.906 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.908 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:18:00.910 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.d.DroidGuardFastRefreshGmsTaskBoundService (partial)
+  09-07 18:18:00.910 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.911 - 10107 - REL *gms_scheduler*/c.g.a.g/.a.s.GcmSchedulerWakeupService
+  09-07 18:18:00.913 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.915 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.915 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.918 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.i.p.IcingInternalCorporaUpdateService (partial)
+  09-07 18:18:00.918 - 1000 - REL *job*/c.a.r/a.w.i.b.s.SystemJobService#12
+  09-07 18:18:00.920 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.921 - 1000 - REL *job*/c.a.r/a.w.i.b.s.SystemJobService#10
+  09-07 18:18:00.934 - 10107 - REL *gms_scheduler*/c.g.a.g/.i.p.IcingInternalCorporaUpdateService
+  09-07 18:18:00.934 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.937 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.937 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.944 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.g.c.SchedulePeriodicTasksService (partial)
+  09-07 18:18:00.948 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.969 - 10107 - REL *gms_scheduler*/c.g.a.g/.g.c.SchedulePeriodicTasksService
+  09-07 18:18:00.970 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.971 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.971 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.976 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService (partial)
+  09-07 18:18:00.979 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.991 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.g.PayGcmTaskService
+  09-07 18:18:00.992 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:00.994 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:00.994 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.000 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.u.s.UdcContextInitService (partial)
+  09-07 18:18:01.004 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.051 - 10107 - REL *gms_scheduler*/c.g.a.g/.u.s.UdcContextInitService
+  09-07 18:18:01.052 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.056 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.056 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.062 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService (partial)
+  09-07 18:18:01.066 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.099 - 10107 - REL *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService
+  09-07 18:18:01.100 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.101 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.101 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.109 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.e.c.EsimBackupTaskService (partial)
+  09-07 18:18:01.110 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.131 - 10107 - REL *gms_scheduler*/c.g.a.g/.e.c.EsimBackupTaskService
+  09-07 18:18:01.132 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.137 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.138 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.143 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.s.SpamListSyncTaskService (partial)
+  09-07 18:18:01.147 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.157 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.s.SpamListSyncTaskService
+  09-07 18:18:01.157 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.161 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.162 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:01.164 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:01.481 - 1000 - ACQ *alarm* (partial)
+  09-07 18:18:01.487 - 1000 - REL *alarm*
+  09-07 18:18:01.827 - 1000 - ACQ *job*/@.w.s.a.v/a.w.i.b.s.SystemJobService#1000000008 (partial)
+  09-07 18:18:01.827 - 1000 - ACQ *job*/@.w.s.a.v/a.w.i.b.s.SystemJobService#1000000008 (partial)
+  09-07 18:18:01.829 - 1000 - REL *job*/@.w.s.a.v/a.w.i.b.s.SystemJobService#1000000008
+  09-07 18:18:01.849 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10119 (partial)
+  09-07 18:18:01.850 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10119 (partial)
+  09-07 18:18:01.850 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10119
+  09-07 18:18:01.852 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10120 (partial)
+  09-07 18:18:01.852 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10120 (partial)
+  09-07 18:18:01.853 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10120
+  09-07 18:18:01.891 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:18:01.894 - 1000 - REL NetworkStats
+  09-07 18:18:01.917 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10120
+  09-07 18:18:01.918 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10119
+  09-07 18:18:01.960 - 1000 - REL *job*/@.w.s.a.v/a.w.i.b.s.SystemJobService#1000000008
+  09-07 18:18:02.287 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 18:18:02.288 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 18:18:02.303 - 1000 - ACQ *job*/c.a.v/c.g.a.f.i.s.EnabledStatusSyncService#160422051 (partial)
+  09-07 18:18:02.303 - 1000 - ACQ *job*/c.a.v/c.g.a.f.i.s.EnabledStatusSyncService#160422051 (partial)
+  09-07 18:18:02.304 - 1000 - REL *job*/c.a.v/c.g.a.f.i.s.EnabledStatusSyncService#160422051
+  09-07 18:18:02.392 - 1000 - ACQ *job*/c.a.v/c.g.a.f.i.PhenotypeUpdateService#174406261 (partial)
+  09-07 18:18:02.392 - 1000 - ACQ *job*/c.a.v/c.g.a.f.i.PhenotypeUpdateService#174406261 (partial)
+  09-07 18:18:02.393 - 1000 - REL *job*/c.a.v/c.g.a.f.i.PhenotypeUpdateService#174406261
+  09-07 18:18:02.426 - 1000 - REL *job*/c.a.v/c.g.a.f.i.PhenotypeUpdateService#174406261
+  09-07 18:18:02.429 - 1000 - REL *job*/c.a.v/c.g.a.f.i.s.EnabledStatusSyncService#160422051
+  09-07 18:18:02.462 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:02.469 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.c.CheckinService (partial)
+  09-07 18:18:02.470 - 10107 - ACQ CMWakeLock (partial)
+  09-07 18:18:02.472 - 10107 - REL CMWakeLock
+  09-07 18:18:02.474 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:02.496 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  09-07 18:18:02.496 - 10107 - REL UlrDispSvcFastWL
+  09-07 18:18:02.496 - 10107 - ACQ UlrDispSvcFastWL (partial)
+  09-07 18:18:02.497 - 10107 - REL *gms_scheduler*/c.g.a.g/.c.CheckinService
+  09-07 18:18:02.498 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:02.501 - 10107 - REL UlrDispSvcFastWL
+  09-07 18:18:02.502 - 10107 - ACQ CallbackRunner (partial)
+  09-07 18:18:02.502 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:02.503 - 10107 - REL CallbackRunner
+  09-07 18:18:02.503 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:02.505 - 10107 - ACQ Icing (partial)
+  09-07 18:18:02.505 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:02.510 - 10107 - ACQ CallbackRunner (partial)
+  09-07 18:18:02.510 - 10107 - REL CallbackRunner
+  09-07 18:18:02.513 - 10107 - REL Icing
+  09-07 18:18:02.529 - 10107 - ACQ IntentOp:.u.e.InstallationIntentOperation (partial)
+  09-07 18:18:02.530 - 10107 - REL IntentOp:.u.e.InstallationIntentOperation
+  09-07 18:18:03.001 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 18:18:03.003 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 18:18:04.093 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:18:04.113 - 1000 - REL NetworkStats
+  09-07 18:18:05.034 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10135 (partial)
+  09-07 18:18:05.034 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10135 (partial)
+  09-07 18:18:05.037 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10135
+  09-07 18:18:05.039 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10136 (partial)
+  09-07 18:18:05.039 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10136 (partial)
+  09-07 18:18:05.042 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10136
+  09-07 18:18:05.554 - 1000 - ACQ *alarm* (partial)
+  09-07 18:18:05.555 - 1000 - REL *alarm*
+  09-07 18:18:05.727 - 1000 - ACQ *alarm* (partial)
+  09-07 18:18:05.734 - 1000 - ACQ *job*/c.a.p.c/.CalendarProviderJobService#117262813 (partial)
+  09-07 18:18:05.735 - 1000 - ACQ *job*/c.a.p.c/.CalendarProviderJobService#117262813 (partial)
+  09-07 18:18:05.736 - 1000 - REL *job*/c.a.p.c/.CalendarProviderJobService#117262813
+  09-07 18:18:05.739 - 1000 - REL *alarm*
+  09-07 18:18:05.741 - 1000 - REL *job*/c.a.p.c/.CalendarProviderJobService#117262813
+  09-07 18:18:06.898 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:18:06.905 - 1000 - REL NetworkStats
+  09-07 18:18:06.908 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9613
+  09-07 18:18:08.766 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:18:08.775 - 1000 - REL NetworkStats
+  09-07 18:18:09.930 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:18:09.942 - 1000 - REL NetworkStats
+  09-07 18:18:10.851 - 10107 - REL *gms_scheduler*/c.g.a.g/.d.DroidGuardFastRefreshGmsTaskBoundService
+  09-07 18:18:10.853 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:10.854 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:10.855 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:10.860 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.s.s.PhenotypeConfigurator (partial)
+  09-07 18:18:10.863 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:11.011 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:18:11.017 - 1000 - REL NetworkStats
+  09-07 18:18:11.668 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.s.s.PhenotypeConfigurator
+  09-07 18:18:11.669 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:11.670 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:11.670 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:11.671 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:11.673 - 10107 - ACQ IntentOp:.a.a.AuthInitIntentOperation (partial)
+  09-07 18:18:11.675 - 10107 - REL IntentOp:.a.a.AuthInitIntentOperation
+  09-07 18:18:11.676 - 10107 - ACQ IntentOp:.a.f.FrpUpdateIntentOperation (partial)
+  09-07 18:18:11.686 - 10107 - REL IntentOp:.a.f.FrpUpdateIntentOperation
+  09-07 18:18:12.461 - 1000 - ACQ *job*/c.g.a.c/.MainJobService#1 (partial)
+  09-07 18:18:12.462 - 1000 - ACQ *job*/c.g.a.c/.MainJobService#1 (partial)
+  09-07 18:18:12.466 - 1000 - REL *job*/c.g.a.c/.MainJobService#1
+  09-07 18:18:12.474 - 1000 - REL *job*/c.g.a.c/.MainJobService#1
+  09-07 18:18:13.355 - 1000 - ACQ ArtService (partial)
+  09-07 18:18:13.689 - 1000 - REL ArtService
+  09-07 18:18:14.235 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 18:18:14.238 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 18:18:14.240 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 18:18:14.240 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation (partial)
+  09-07 18:18:14.245 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation
+  09-07 18:18:14.247 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 18:18:14.249 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 18:18:14.256 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 18:18:14.258 - 10107 - ACQ Icing (partial)
+  09-07 18:18:14.264 - 10107 - REL Icing
+  09-07 18:18:14.269 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation (partial)
+  09-07 18:18:14.274 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation
+  09-07 18:18:14.287 - 10107 - ACQ Icing (partial)
+  09-07 18:18:14.291 - 10107 - REL Icing
+  09-07 18:18:14.296 - 10107 - ACQ Icing (partial)
+  09-07 18:18:14.303 - 10107 - REL Icing
+  09-07 18:18:14.338 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10135
+  09-07 18:18:14.341 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.b.PhoneskyJobServiceBackground#10136
+  09-07 18:18:15.473 - 1000 - ACQ *alarm* (partial)
+  09-07 18:18:15.477 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:18:15.479 - 1000 - REL *alarm*
+  09-07 18:18:15.479 - 10107 - REL GCM_WORK
+  09-07 18:18:27.161 - 1000 - ACQ *alarm* (partial)
+  09-07 18:18:27.166 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:18:27.167 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:18:27.172 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:18:27.173 - 1000 - ACQ deviceidle_going_idle (partial)
+  09-07 18:18:27.175 - 1000 - REL *alarm*
+  09-07 18:18:27.178 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:18:27.180 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:18:27.196 - 1000 - REL deviceidle_going_idle
+  09-07 18:18:27.204 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:22:00.010 - 1000 - ACQ *alarm* (partial)
+  09-07 18:22:00.018 - 1000 - REL *alarm*
+  09-07 18:24:27.178 - 1000 - ACQ *alarm* (partial)
+  09-07 18:24:27.179 - 1000 - ACQ deviceidle_maint (partial)
+  09-07 18:24:27.182 - 1000 - REL *alarm*
+  09-07 18:24:27.195 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:24:27.195 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:24:27.195 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:24:27.197 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:24:27.203 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.p.s.s.PhenotypeConfigurator (partial)
+  09-07 18:24:27.210 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.a.a.c.f.a.CryptauthKeyAutoEnrollmentService (partial)
+  09-07 18:24:27.213 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:24:27.243 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:24:27.261 - 10107 - REL *gms_scheduler*/c.g.a.g/.a.a.c.f.a.CryptauthKeyAutoEnrollmentService
+  09-07 18:24:27.262 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:24:27.267 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:24:27.267 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:24:27.269 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:24:28.019 - 10107 - REL *gms_scheduler*/c.g.a.g/.p.s.s.PhenotypeConfigurator
+  09-07 18:24:28.020 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:24:28.023 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:24:28.024 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:24:28.026 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:24:30.197 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9633 (partial)
+  09-07 18:24:30.198 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9633 (partial)
+  09-07 18:24:30.205 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9633
+  09-07 18:24:30.205 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9745 (partial)
+  09-07 18:24:30.205 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9745 (partial)
+  09-07 18:24:30.206 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9745
+  09-07 18:24:30.281 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9633
+  09-07 18:24:30.849 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9745
+  09-07 18:24:32.201 - 1000 - ACQ deviceidle_going_idle (partial)
+  09-07 18:24:32.201 - 1000 - REL deviceidle_maint
+  09-07 18:24:32.240 - 1000 - REL deviceidle_going_idle
+  09-07 18:26:12.247 - 1000 - ACQ *alarm* (partial)
+  09-07 18:26:12.252 - 1000 - REL *alarm*
+  09-07 18:26:50.887 - 10107 - ACQ GCM_READ (partial)
+  09-07 18:26:50.889 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:26:50.890 - 10107 - REL GCM_READ
+  09-07 18:26:50.894 - 10107 - REL GCM_WORK
+  09-07 18:35:41.426 - 10107 - ACQ GCM_READ (partial)
+  09-07 18:35:41.428 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:35:41.428 - 10107 - REL GCM_READ
+  09-07 18:35:41.434 - 10107 - REL GCM_WORK
+  09-07 18:36:32.204 - 1000 - ACQ *alarm* (partial)
+  09-07 18:36:32.207 - 1000 - ACQ deviceidle_maint (partial)
+  09-07 18:36:32.213 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:36:32.220 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:36:32.220 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:36:32.221 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:36:32.222 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:36:32.222 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:36:32.223 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:36:32.225 - 1000 - REL *alarm*
+  09-07 18:36:32.254 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:36:35.227 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 18:36:35.227 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 18:36:35.230 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 18:36:35.231 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9754 (partial)
+  09-07 18:36:35.232 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9754 (partial)
+  09-07 18:36:35.236 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9754
+  09-07 18:36:35.238 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 18:36:35.286 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9754
+  09-07 18:36:37.228 - 1000 - ACQ deviceidle_going_idle (partial)
+  09-07 18:36:37.229 - 1000 - REL deviceidle_maint
+  09-07 18:36:37.264 - 1000 - REL deviceidle_going_idle
+  09-07 18:38:46.523 - 1000 - ACQ PhoneWindowManager.mPowerKeyWakeLock (partial)
+  09-07 18:38:46.536 - 1000 - ACQ *alarm* (partial)
+  09-07 18:38:46.536 - 1000 - REL PhoneWindowManager.mPowerKeyWakeLock
+  09-07 18:38:46.536 - 1000 - REL *alarm*
+  09-07 18:38:46.539 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 18:38:46.576 - 10107 - ACQ CallbackRunner (partial)
+  09-07 18:38:46.577 - 10107 - REL CallbackRunner
+  09-07 18:38:46.580 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 18:38:46.901 - 1000 - REL dream:doze
+  09-07 18:38:46.910 - 10173 - ACQ Doze (partial)
+  09-07 18:38:47.013 - 10173 - REL Doze
+  09-07 18:38:57.161 - 1000 - ACQ dream:dream (partial)
+  09-07 18:38:57.175 - 10173 - ACQ Doze (partial)
+  09-07 18:38:57.184 - 10173 - ACQ Scrims (partial)
+  09-07 18:38:57.188 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  09-07 18:38:57.197 - 1000 - ACQ dream:doze (doze)
+  09-07 18:38:57.200 - 1000 - REL dream:dream
+  09-07 18:38:57.204 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 18:38:57.229 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 18:38:57.237 - 10107 - ACQ CallbackRunner (partial)
+  09-07 18:38:57.238 - 10107 - REL CallbackRunner
+  09-07 18:38:57.250 - 1000 - ACQ WifiSuspend (partial)
+  09-07 18:38:57.285 - 1000 - REL WifiSuspend
+  09-07 18:38:57.286 - 10173 - REL Scrims
+  09-07 18:38:57.297 - 10173 - REL Doze
+  09-07 18:38:57.967 - 10173 - REL Doze:KeyguardIndication
+  09-07 18:40:02.264 - 1000 - ACQ *alarm* (partial)
+  09-07 18:40:02.274 - 1000 - REL *alarm*
+  09-07 18:44:00.011 - 1000 - ACQ *alarm* (partial)
+  09-07 18:44:00.016 - 1000 - REL *alarm*
+  09-07 18:44:08.426 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 18:44:08.427 - 1001 - REL *telephony-radio*
+  09-07 18:44:08.427 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 18:44:08.435 - 1001 - REL *telephony-radio*
+  09-07 18:44:08.435 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 18:44:08.435 - 1001 - REL *telephony-radio*
+  09-07 18:44:18.925 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 18:44:18.925 - 1001 - REL *telephony-radio*
+  09-07 18:44:18.925 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 18:44:18.931 - 1001 - REL *telephony-radio*
+  09-07 18:44:18.931 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 18:44:18.932 - 1001 - REL *telephony-radio*
+  09-07 18:44:31.963 - 10107 - ACQ GCM_READ (partial)
+  09-07 18:44:31.964 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:44:31.965 - 10107 - REL GCM_READ
+  09-07 18:44:31.978 - 10107 - REL GCM_WORK
+  09-07 18:45:18.955 - 1000 - ACQ *alarm* (partial)
+  09-07 18:45:18.956 - 1000 - ACQ NetworkStats (partial)
+  09-07 18:45:18.969 - 1000 - REL NetworkStats
+  09-07 18:45:18.981 - 1000 - REL *alarm*
+  09-07 18:45:18.988 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:45:18.990 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:53:22.393 - 10107 - ACQ GCM_READ (partial)
+  09-07 18:53:22.394 - 10107 - ACQ GCM_WORK (partial)
+  09-07 18:53:22.395 - 10107 - REL GCM_READ
+  09-07 18:53:22.404 - 10107 - REL GCM_WORK
+  09-07 18:55:37.236 - 1000 - ACQ *alarm* (partial)
+  09-07 18:55:37.239 - 1000 - ACQ deviceidle_maint (partial)
+  09-07 18:55:37.253 - 1000 - REL *alarm*
+  09-07 18:55:37.259 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:55:37.264 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:55:37.264 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 18:55:37.271 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:55:37.271 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 18:55:37.271 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 18:55:37.272 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 18:55:37.277 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.s.s.SettingsSyncOneOffService (partial)
+  09-07 18:55:37.279 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:55:37.284 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 18:55:37.307 - 10107 - REL *gms_scheduler*/c.g.a.g/.s.s.SettingsSyncOneOffService
+  09-07 18:55:37.311 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:55:37.315 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:55:37.315 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 18:55:37.317 - 10107 - REL *gms_scheduler*:internal
+  09-07 18:55:37.334 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 18:55:40.270 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 18:55:40.271 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 18:55:40.276 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 18:55:40.276 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9759 (partial)
+  09-07 18:55:40.278 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9759 (partial)
+  09-07 18:55:40.283 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9759
+  09-07 18:55:40.287 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 18:55:40.377 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9759
+  09-07 18:55:40.388 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9761 (partial)
+  09-07 18:55:40.388 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9761 (partial)
+  09-07 18:55:40.390 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9761
+  09-07 18:55:40.413 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9761
+  09-07 18:55:42.266 - 1000 - ACQ deviceidle_going_idle (partial)
+  09-07 18:55:42.266 - 1000 - REL deviceidle_maint
+  09-07 18:55:42.310 - 1000 - REL deviceidle_going_idle
+  09-07 18:59:16.708 - 1000 - ACQ PhoneWindowManager.mPowerKeyWakeLock (partial)
+  09-07 18:59:16.719 - 1000 - REL PhoneWindowManager.mPowerKeyWakeLock
+  09-07 18:59:16.724 - 1000 - ACQ *alarm* (partial)
+  09-07 18:59:16.725 - 1000 - REL *alarm*
+  09-07 18:59:16.728 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 18:59:16.771 - 10107 - ACQ CallbackRunner (partial)
+  09-07 18:59:16.771 - 10107 - REL CallbackRunner
+  09-07 18:59:16.772 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 18:59:17.080 - 1000 - REL dream:doze
+  09-07 18:59:17.092 - 10173 - ACQ Doze (partial)
+  09-07 18:59:17.196 - 10173 - REL Doze
+  09-07 18:59:27.342 - 1000 - ACQ dream:dream (partial)
+  09-07 18:59:27.356 - 10173 - ACQ Doze (partial)
+  09-07 18:59:27.363 - 10173 - ACQ Scrims (partial)
+  09-07 18:59:27.368 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  09-07 18:59:27.375 - 1000 - ACQ dream:doze (doze)
+  09-07 18:59:27.378 - 1000 - REL dream:dream
+  09-07 18:59:27.384 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 18:59:27.410 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 18:59:27.421 - 10107 - ACQ CallbackRunner (partial)
+  09-07 18:59:27.422 - 10107 - REL CallbackRunner
+  09-07 18:59:27.428 - 1000 - ACQ WifiSuspend (partial)
+  09-07 18:59:27.465 - 10173 - REL Scrims
+  09-07 18:59:27.465 - 1000 - REL WifiSuspend
+  09-07 18:59:27.474 - 10173 - REL Doze
+  09-07 18:59:28.160 - 10173 - REL Doze:KeyguardIndication
+  09-07 19:00:00.007 - 1000 - ACQ *alarm* (partial)
+  09-07 19:00:00.035 - 1000 - REL *alarm*
+  09-07 19:00:00.075 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:00:00.076 - 1001 - REL *telephony-radio*
+  09-07 19:00:00.076 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:00:00.083 - 1001 - REL *telephony-radio*
+  09-07 19:00:00.083 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:00:00.084 - 1001 - REL *telephony-radio*
+  09-07 19:02:37.341 - 1000 - ACQ *alarm* (partial)
+  09-07 19:02:37.347 - 1000 - REL *alarm*
+  09-07 19:03:12.935 - 10107 - ACQ GCM_READ (partial)
+  09-07 19:03:12.937 - 10107 - ACQ GCM_WORK (partial)
+  09-07 19:03:12.939 - 10107 - REL GCM_READ
+  09-07 19:03:12.947 - 10107 - REL GCM_WORK
+  09-07 19:06:00.016 - 1000 - ACQ *alarm* (partial)
+  09-07 19:06:00.017 - 1000 - REL *alarm*
+  09-07 19:13:03.379 - 10107 - ACQ GCM_READ (partial)
+  09-07 19:13:03.380 - 10107 - ACQ GCM_WORK (partial)
+  09-07 19:13:03.381 - 10107 - REL GCM_READ
+  09-07 19:13:03.387 - 10107 - REL GCM_WORK
+  09-07 19:14:08.407 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:14:08.408 - 1001 - REL *telephony-radio*
+  09-07 19:14:08.408 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:14:08.413 - 1001 - REL *telephony-radio*
+  09-07 19:14:08.413 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:14:08.413 - 1001 - REL *telephony-radio*
+  09-07 19:14:19.094 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:14:19.095 - 1001 - REL *telephony-radio*
+  09-07 19:14:19.095 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:14:19.103 - 1001 - REL *telephony-radio*
+  09-07 19:14:19.103 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:14:19.104 - 1001 - REL *telephony-radio*
+  09-07 19:16:18.988 - 1000 - ACQ *alarm* (partial)
+  09-07 19:16:18.991 - 1000 - ACQ deviceidle_maint (partial)
+  09-07 19:16:18.992 - 1000 - ACQ NetworkStats (partial)
+  09-07 19:16:19.000 - 1000 - ACQ AnyMotionDetector (partial)
+  09-07 19:16:19.011 - 1000 - REL NetworkStats
+  09-07 19:16:19.026 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.029 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 19:16:19.029 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 19:16:19.038 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 19:16:19.038 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 19:16:19.039 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 19:16:19.040 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService (partial)
+  09-07 19:16:19.040 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 19:16:19.043 - 1000 - REL *alarm*
+  09-07 19:16:19.052 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  09-07 19:16:19.060 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.061 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 19:16:19.061 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.065 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.068 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  09-07 19:16:19.069 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.073 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.074 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.079 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService (partial)
+  09-07 19:16:19.083 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.091 - 10107 - REL *gms_scheduler*/c.g.a.g/.t.g.TapAndPayGcmTaskService
+  09-07 19:16:19.091 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.092 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 19:16:19.098 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.098 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.104 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.a.a.b.a.GcmTaskService (partial)
+  09-07 19:16:19.109 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.120 - 10107 - REL *gms_scheduler*/c.g.a.g/.a.a.b.a.GcmTaskService
+  09-07 19:16:19.121 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.122 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:19.123 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:19.124 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:20.047 - 10107 - REL *gms_scheduler*/c.g.a.g/.c.u.QosUploaderService
+  09-07 19:16:20.050 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:20.052 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:20.053 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:20.057 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:16:22.023 - 1000 - ACQ *job*/a/c.a.s.SmartStorageMaintIdler#2808 (partial)
+  09-07 19:16:22.024 - 1000 - ACQ *job*/a/c.a.s.SmartStorageMaintIdler#2808 (partial)
+  09-07 19:16:22.027 - 1000 - REL *job*/a/c.a.s.SmartStorageMaintIdler#2808
+  09-07 19:16:22.027 - 1000 - ACQ *job*/c.g.a.p/.InstalledAppJobService#4096 (partial)
+  09-07 19:16:22.028 - 1000 - ACQ *job*/c.g.a.p/.InstalledAppJobService#4096 (partial)
+  09-07 19:16:22.034 - 1000 - REL *job*/c.g.a.p/.InstalledAppJobService#4096
+  09-07 19:16:22.035 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 19:16:22.035 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 19:16:22.037 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 19:16:22.061 - 1000 - REL *job*/a/c.a.s.SmartStorageMaintIdler#2808
+  09-07 19:16:22.063 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 19:16:22.092 - 1000 - REL *job*/c.g.a.p/.InstalledAppJobService#4096
+  09-07 19:16:24.054 - 1000 - ACQ deviceidle_going_idle (partial)
+  09-07 19:16:24.054 - 1000 - REL deviceidle_maint
+  09-07 19:16:24.064 - 1000 - REL AnyMotionDetector
+  09-07 19:16:24.092 - 1000 - ACQ *location*:GnssLocationProvider (partial)
+  09-07 19:16:24.092 - 1000 - REL deviceidle_going_idle
+  09-07 19:16:24.101 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:16:24.104 - 1000 - REL *location*:GnssLocationProvider
+  09-07 19:16:24.109 - 10107 - REL CallbackRunner
+  09-07 19:16:34.100 - 1000 - ACQ *location*:GnssLocationProvider (partial)
+  09-07 19:16:34.102 - 1000 - ACQ *alarm* (partial)
+  09-07 19:16:34.105 - 1000 - REL *location*:GnssLocationProvider
+  09-07 19:16:34.106 - 1000 - REL *alarm*
+  09-07 19:16:44.110 - 1000 - ACQ *alarm* (partial)
+  09-07 19:16:44.112 - 1000 - ACQ *location*:GnssLocationProvider (partial)
+  09-07 19:16:44.112 - 1000 - REL *alarm*
+  09-07 19:16:44.116 - 1000 - REL *location*:GnssLocationProvider
+  09-07 19:16:54.071 - 1000 - ACQ *alarm* (partial)
+  09-07 19:16:54.075 - 1000 - ACQ deviceidle_going_idle (partial)
+  09-07 19:16:54.076 - 1000 - REL *alarm*
+  09-07 19:16:54.080 - 1000 - REL deviceidle_going_idle
+  09-07 19:16:54.093 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:16:54.097 - 10107 - REL CallbackRunner
+  09-07 19:16:54.116 - 1000 - ACQ *alarm* (partial)
+  09-07 19:16:54.117 - 1000 - REL *alarm*
+  09-07 19:16:54.587 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:16:54.588 - 10107 - REL CallbackRunner
+  09-07 19:16:54.593 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 19:16:54.595 - 10107 - REL *gms_scheduler*:internal
+  09-07 19:19:47.003 - 1000 - ACQ PhoneWindowManager.mPowerKeyWakeLock (partial)
+  09-07 19:19:47.010 - 1000 - REL PhoneWindowManager.mPowerKeyWakeLock
+  09-07 19:19:47.020 - 1000 - ACQ *alarm* (partial)
+  09-07 19:19:47.021 - 1000 - REL *alarm*
+  09-07 19:19:47.023 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 19:19:47.057 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 19:19:47.058 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:19:47.058 - 10107 - REL CallbackRunner
+  09-07 19:19:47.358 - 1000 - REL dream:doze
+  09-07 19:19:47.368 - 10173 - ACQ Doze (partial)
+  09-07 19:19:47.471 - 10173 - REL Doze
+  09-07 19:19:57.635 - 1000 - ACQ dream:dream (partial)
+  09-07 19:19:57.651 - 10173 - ACQ Doze (partial)
+  09-07 19:19:57.660 - 10173 - ACQ Scrims (partial)
+  09-07 19:19:57.665 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  09-07 19:19:57.674 - 1000 - ACQ dream:doze (doze)
+  09-07 19:19:57.676 - 1000 - REL dream:dream
+  09-07 19:19:57.685 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 19:19:57.710 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 19:19:57.723 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:19:57.724 - 10107 - REL CallbackRunner
+  09-07 19:19:57.728 - 1000 - ACQ WifiSuspend (partial)
+  09-07 19:19:57.762 - 10173 - REL Scrims
+  09-07 19:19:57.769 - 1000 - REL WifiSuspend
+  09-07 19:19:57.772 - 10173 - REL Doze
+  09-07 19:19:58.450 - 10173 - REL Doze:KeyguardIndication
+  09-07 19:22:53.919 - 10107 - ACQ GCM_READ (partial)
+  09-07 19:22:53.920 - 10107 - ACQ GCM_WORK (partial)
+  09-07 19:22:53.921 - 10107 - REL GCM_READ
+  09-07 19:22:53.928 - 10107 - REL GCM_WORK
+  09-07 19:23:00.011 - 1000 - ACQ *alarm* (partial)
+  09-07 19:23:00.017 - 1000 - REL *alarm*
+  09-07 19:27:00.012 - 1000 - ACQ *alarm* (partial)
+  09-07 19:27:00.014 - 1000 - REL *alarm*
+  09-07 19:32:44.355 - 10107 - ACQ GCM_READ (partial)
+  09-07 19:32:44.356 - 10107 - ACQ GCM_WORK (partial)
+  09-07 19:32:44.357 - 10107 - REL GCM_READ
+  09-07 19:32:44.362 - 10107 - REL GCM_WORK
+  09-07 19:40:17.176 - 1000 - ACQ PhoneWindowManager.mPowerKeyWakeLock (partial)
+  09-07 19:40:17.185 - 1000 - REL PhoneWindowManager.mPowerKeyWakeLock
+  09-07 19:40:17.193 - 1000 - ACQ *alarm* (partial)
+  09-07 19:40:17.195 - 1000 - REL *alarm*
+  09-07 19:40:17.198 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 19:40:17.220 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:40:17.222 - 10107 - REL CallbackRunner
+  09-07 19:40:17.229 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 19:40:17.547 - 1000 - REL dream:doze
+  09-07 19:40:17.557 - 10173 - ACQ Doze (partial)
+  09-07 19:40:17.661 - 10173 - REL Doze
+  09-07 19:40:27.808 - 1000 - ACQ dream:dream (partial)
+  09-07 19:40:27.821 - 10173 - ACQ Doze (partial)
+  09-07 19:40:27.831 - 10173 - ACQ Scrims (partial)
+  09-07 19:40:27.835 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  09-07 19:40:27.845 - 1000 - ACQ dream:doze (doze)
+  09-07 19:40:27.847 - 1000 - REL dream:dream
+  09-07 19:40:27.854 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 19:40:27.880 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 19:40:27.900 - 10107 - ACQ CallbackRunner (partial)
+  09-07 19:40:27.901 - 10107 - REL CallbackRunner
+  09-07 19:40:27.908 - 1000 - ACQ WifiSuspend (partial)
+  09-07 19:40:27.932 - 10173 - REL Scrims
+  09-07 19:40:27.942 - 1000 - REL WifiSuspend
+  09-07 19:40:27.943 - 10173 - REL Doze
+  09-07 19:40:28.626 - 10173 - REL Doze:KeyguardIndication
+  09-07 19:43:34.909 - 10107 - ACQ GCM_READ (partial)
+  09-07 19:43:34.911 - 10107 - ACQ GCM_WORK (partial)
+  09-07 19:43:34.911 - 10107 - REL GCM_READ
+  09-07 19:43:34.918 - 10107 - REL GCM_WORK
+  09-07 19:44:00.016 - 1000 - ACQ *alarm* (partial)
+  09-07 19:44:00.017 - 1000 - REL *alarm*
+  09-07 19:44:08.442 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:44:08.443 - 1001 - REL *telephony-radio*
+  09-07 19:44:08.443 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:44:08.449 - 1001 - REL *telephony-radio*
+  09-07 19:44:08.449 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:44:08.450 - 1001 - REL *telephony-radio*
+  09-07 19:44:19.318 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:44:19.319 - 1001 - REL *telephony-radio*
+  09-07 19:44:19.319 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:44:19.327 - 1001 - REL *telephony-radio*
+  09-07 19:44:19.327 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 19:44:19.328 - 1001 - REL *telephony-radio*
+  09-07 19:48:00.012 - 1000 - ACQ *alarm* (partial)
+  09-07 19:48:00.014 - 1000 - ACQ NetworkStats (partial)
+  09-07 19:48:00.028 - 1000 - REL NetworkStats
+  09-07 19:48:00.029 - 1000 - REL *alarm*
+  09-07 19:54:25.350 - 10107 - ACQ GCM_READ (partial)
+  09-07 19:54:25.351 - 10107 - ACQ GCM_WORK (partial)
+  09-07 19:54:25.352 - 10107 - REL GCM_READ
+  09-07 19:54:25.360 - 10107 - REL GCM_WORK
+  09-07 20:00:00.012 - 1000 - ACQ *alarm* (partial)
+  09-07 20:00:00.035 - 1000 - REL *alarm*
+  09-07 20:00:00.071 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:00:00.072 - 1001 - REL *telephony-radio*
+  09-07 20:00:00.072 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:00:00.077 - 1001 - REL *telephony-radio*
+  09-07 20:00:00.077 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:00:00.078 - 1001 - REL *telephony-radio*
+  09-07 20:00:47.535 - 1000 - ACQ PhoneWindowManager.mPowerKeyWakeLock (partial)
+  09-07 20:00:47.544 - 1000 - REL PhoneWindowManager.mPowerKeyWakeLock
+  09-07 20:00:47.552 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 20:00:47.578 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 20:00:47.591 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:00:47.592 - 10107 - REL CallbackRunner
+  09-07 20:00:47.906 - 1000 - REL dream:doze
+  09-07 20:00:47.918 - 10173 - ACQ Doze (partial)
+  09-07 20:00:48.020 - 10173 - REL Doze
+  09-07 20:00:58.163 - 1000 - ACQ dream:dream (partial)
+  09-07 20:00:58.176 - 10173 - ACQ Doze (partial)
+  09-07 20:00:58.185 - 10173 - ACQ Scrims (partial)
+  09-07 20:00:58.189 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  09-07 20:00:58.198 - 1000 - ACQ dream:doze (doze)
+  09-07 20:00:58.201 - 1000 - REL dream:dream
+  09-07 20:00:58.209 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 20:00:58.233 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 20:00:58.247 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:00:58.248 - 10107 - REL CallbackRunner
+  09-07 20:00:58.251 - 1000 - ACQ WifiSuspend (partial)
+  09-07 20:00:58.283 - 1000 - REL WifiSuspend
+  09-07 20:00:58.286 - 10173 - REL Scrims
+  09-07 20:00:58.298 - 10173 - REL Doze
+  09-07 20:00:58.981 - 10173 - REL Doze:KeyguardIndication
+  09-07 20:04:00.011 - 1000 - ACQ *alarm* (partial)
+  09-07 20:04:00.012 - 1000 - REL *alarm*
+  09-07 20:05:15.900 - 10107 - ACQ GCM_READ (partial)
+  09-07 20:05:15.902 - 10107 - ACQ GCM_WORK (partial)
+  09-07 20:05:15.903 - 10107 - REL GCM_READ
+  09-07 20:05:15.912 - 10107 - REL GCM_WORK
+  09-07 20:08:00.008 - 1000 - ACQ *alarm* (partial)
+  09-07 20:08:00.013 - 1000 - REL *alarm*
+  09-07 20:13:14.676 - 1000 - ACQ *alarm* (partial)
+  09-07 20:13:14.683 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 20:13:14.693 - 1000 - REL *alarm*
+  09-07 20:13:14.708 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 20:13:14.715 - 10173 - ACQ Doze:KeyguardIndication (partial)
+  09-07 20:13:14.715 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:14.716 - 1001 - REL *telephony-radio*
+  09-07 20:13:14.716 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:14.718 - 1000 - ACQ *vibrator* (partial)
+  09-07 20:13:14.719 - 1001 - REL *telephony-radio*
+  09-07 20:13:14.719 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:14.720 - 1001 - REL *telephony-radio*
+  09-07 20:13:14.722 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:14.723 - 10107 - REL CallbackRunner
+  09-07 20:13:14.728 - 10107 - ACQ CMWakeLock (partial)
+  09-07 20:13:14.729 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-128 (partial)
+  09-07 20:13:14.730 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-128 (partial)
+  09-07 20:13:14.731 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-128
+  09-07 20:13:14.731 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 20:13:14.731 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 20:13:14.732 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 20:13:14.732 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 20:13:14.732 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 20:13:14.733 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 20:13:14.736 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:13:14.746 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:13:14.746 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-128
+  09-07 20:13:14.752 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:14.752 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:13:14.761 - 10107 - REL CallbackRunner
+  09-07 20:13:14.765 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:14.767 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 20:13:14.770 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:13:14.772 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:13:14.773 - 10107 - ACQ GCM_WORK (partial)
+  09-07 20:13:14.776 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:13:14.781 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:14.781 - 1001 - REL *telephony-radio*
+  09-07 20:13:14.781 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:14.783 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 20:13:14.785 - 1001 - REL *telephony-radio*
+  09-07 20:13:14.785 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:14.785 - 1001 - REL *telephony-radio*
+  09-07 20:13:14.797 - 10107 - REL GCM_WORK
+  09-07 20:13:14.805 - 10107 - ACQ CollectionLib (partial)
+  09-07 20:13:14.818 - 10107 - ACQ CollectionLib-SigCollector (partial)
+  09-07 20:13:14.819 - 10107 - ACQ GCM_READ (partial)
+  09-07 20:13:14.820 - 10107 - ACQ GCM_WORK (partial)
+  09-07 20:13:14.820 - 10107 - REL GCM_READ
+  09-07 20:13:14.820 - 10107 - REL CMWakeLock
+  09-07 20:13:14.821 - 10107 - REL GCM_WORK
+  09-07 20:13:14.828 - 10107 - REL CallbackRunner
+  09-07 20:13:14.891 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.891 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.891 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.891 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.892 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.892 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.892 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:14.895 - 1041 - REL AudioMix
+  09-07 20:13:14.895 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:15.041 - 1000 - REL dream:doze
+  09-07 20:13:15.064 - 10173 - ACQ Doze (partial)
+  09-07 20:13:15.169 - 10173 - REL Doze
+  09-07 20:13:15.381 - 1000 - REL *vibrator*
+  09-07 20:13:15.489 - 10173 - REL Doze:KeyguardIndication
+  09-07 20:13:15.555 - 10107 - REL CollectionLib
+  09-07 20:13:16.235 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:16.238 - 10107 - REL CallbackRunner
+  09-07 20:13:16.241 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:16.244 - 10107 - REL CallbackRunner
+  09-07 20:13:16.251 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-07 20:13:16.256 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:13:16.258 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-07 20:13:16.259 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  09-07 20:13:16.261 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  09-07 20:13:16.261 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:13:16.264 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-07 20:13:16.270 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-07 20:13:16.271 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  09-07 20:13:16.299 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  09-07 20:13:16.348 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:16.348 - 10107 - REL CallbackRunner
+  09-07 20:13:16.353 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-07 20:13:16.356 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:13:16.358 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  09-07 20:13:16.359 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  09-07 20:13:16.361 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-07 20:13:16.361 - 1000 - ACQ NetworkStats (partial)
+  09-07 20:13:16.361 - 10107 - ACQ IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation (partial)
+  09-07 20:13:16.362 - 10107 - REL IntentOp:.f.s.l.BluetoothStateChangeListenerIntentOperation
+  09-07 20:13:16.362 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:13:16.363 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-07 20:13:16.364 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-07 20:13:16.369 - 1000 - REL NetworkStats
+  09-07 20:13:16.372 - 1000 - ACQ ConnectivityService (partial)
+  09-07 20:13:16.373 - 10107 - ACQ GCM_WORK (partial)
+  09-07 20:13:16.375 - 10107 - ACQ GCM_READ (partial)
+  09-07 20:13:16.375 - 10107 - REL GCM_READ
+  09-07 20:13:16.378 - 10107 - REL GCM_WORK
+  09-07 20:13:16.822 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:16.822 - 1001 - REL *telephony-radio*
+  09-07 20:13:16.822 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:16.826 - 1001 - REL *telephony-radio*
+  09-07 20:13:16.826 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:13:16.826 - 1001 - REL *telephony-radio*
+  09-07 20:13:16.891 - 1041 - REL AudioMix
+  09-07 20:13:16.892 - 1041 - REL AudioMix
+  09-07 20:13:16.892 - 1041 - REL AudioMix
+  09-07 20:13:16.896 - 1041 - REL AudioMix
+  09-07 20:13:16.897 - 1041 - REL AudioMix
+  09-07 20:13:16.913 - 1041 - REL AudioMix
+  09-07 20:13:17.728 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:13:17.729 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:13:17.731 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:13:17.734 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:13:17.734 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:13:17.734 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:13:17.736 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:13:17.739 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:13:17.850 - 1041 - REL AudioMix
+  09-07 20:13:17.850 - 1041 - ACQ AudioMix (partial)
+  09-07 20:13:18.241 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:18.243 - 10107 - REL CallbackRunner
+  09-07 20:13:18.249 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:18.250 - 10107 - REL CallbackRunner
+  09-07 20:13:18.277 - 10107 - REL CollectionLib-SigCollector
+  09-07 20:13:18.320 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:18.320 - 10107 - REL CallbackRunner
+  09-07 20:13:19.960 - 1041 - REL AudioMix
+  09-07 20:13:23.322 - 1000 - ACQ *alarm* (partial)
+  09-07 20:13:23.324 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:23.326 - 1000 - REL *alarm*
+  09-07 20:13:23.327 - 10107 - ACQ CollectionLib-SigCollector (partial)
+  09-07 20:13:23.335 - 10107 - REL CallbackRunner
+  09-07 20:13:26.740 - 10107 - REL CollectionLib-SigCollector
+  09-07 20:13:26.766 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:13:26.773 - 10107 - ACQ PendingIntentClient (partial)
+  09-07 20:13:26.774 - 10107 - REL PendingIntentClient
+  09-07 20:13:26.774 - 10107 - ACQ PendingIntentClient (partial)
+  09-07 20:13:26.781 - 10107 - REL CallbackRunner
+  09-07 20:13:26.781 - 10107 - REL PendingIntentClient
+  09-07 20:13:26.783 - 10107 - ACQ GCoreFlp (partial)
+  09-07 20:13:26.784 - 10107 - REL GCoreFlp
+  09-07 20:13:33.864 - 1000 - ACQ *alarm* (partial)
+  09-07 20:13:33.873 - 1000 - REL *alarm*
+  09-07 20:14:00.004 - 1000 - ACQ *alarm* (partial)
+  09-07 20:14:00.006 - 1000 - REL *alarm*
+  09-07 20:14:08.742 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:14:08.742 - 1001 - REL *telephony-radio*
+  09-07 20:14:08.742 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:14:08.747 - 1001 - REL *telephony-radio*
+  09-07 20:14:08.747 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:14:08.748 - 1001 - REL *telephony-radio*
+  09-07 20:14:16.435 - 1000 - REL ConnectivityService
+  09-07 20:14:57.479 - 1000 - ACQ *alarm* (partial)
+  09-07 20:14:57.483 - 1000 - ACQ NetworkStats (partial)
+  09-07 20:14:57.486 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:14:57.487 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:14:57.490 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:14:57.493 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:14:57.494 - 1000 - REL NetworkStats
+  09-07 20:14:57.496 - 1000 - REL *alarm*
+  09-07 20:14:57.500 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:14:57.511 - 10107 - ACQ *gms_scheduler*/c.g.a.g/c.g.a.c.s.ContextManagerLogsUploadBoundService (partial)
+  09-07 20:14:57.512 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:14:57.522 - 10107 - ACQ CMWakeLock (partial)
+  09-07 20:14:57.525 - 10107 - REL *gms_scheduler*/c.g.a.g/c.g.a.c.s.ContextManagerLogsUploadBoundService
+  09-07 20:14:57.526 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:14:57.538 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:14:57.538 - 10107 - REL CMWakeLock
+  09-07 20:14:57.543 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:14:57.553 - 10107 - ACQ *gms_scheduler*/c.g.a.g/.m.s.MdiSyncBackgroundTaskService (partial)
+  09-07 20:14:57.558 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:14:57.644 - 10107 - REL *gms_scheduler*/c.g.a.g/.m.s.MdiSyncBackgroundTaskService
+  09-07 20:14:57.648 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:14:57.655 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:14:57.657 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:14:57.660 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:15:00.005 - 1000 - ACQ *alarm* (partial)
+  09-07 20:15:00.006 - 1000 - REL *alarm*
+  09-07 20:16:00.006 - 1000 - ACQ *alarm* (partial)
+  09-07 20:16:00.007 - 1000 - REL *alarm*
+  09-07 20:16:58.166 - 1000 - ACQ *job*/c.g.a.p/.InstalledAppJobService#4096 (partial)
+  09-07 20:16:58.167 - 1000 - ACQ *job*/c.g.a.p/.InstalledAppJobService#4096 (partial)
+  09-07 20:16:58.175 - 1000 - REL *job*/c.g.a.p/.InstalledAppJobService#4096
+  09-07 20:16:58.176 - 1000 - ACQ *job*/a/c.a.s.SmartStorageMaintIdler#2808 (partial)
+  09-07 20:16:58.176 - 1000 - ACQ *job*/a/c.a.s.SmartStorageMaintIdler#2808 (partial)
+  09-07 20:16:58.176 - 1000 - REL *job*/a/c.a.s.SmartStorageMaintIdler#2808
+  09-07 20:16:58.177 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:16:58.177 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:16:58.177 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:16:58.179 - 1041 - ACQ AudioMix (partial)
+  09-07 20:16:58.184 - 1000 - REL *job*/a/c.a.s.SmartStorageMaintIdler#2808
+  09-07 20:16:58.185 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:16:58.186 - 1000 - REL *job*/c.g.a.p/.InstalledAppJobService#4096
+  09-07 20:16:58.596 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:16:58.597 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:16:58.602 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:16:58.605 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:16:58.612 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation (partial)
+  09-07 20:16:58.618 - 10107 - ACQ Icing (partial)
+  09-07 20:16:58.624 - 10107 - REL Icing
+  09-07 20:16:58.628 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation
+  09-07 20:16:58.637 - 10107 - ACQ Icing (partial)
+  09-07 20:16:58.638 - 10107 - REL Icing
+  09-07 20:16:58.641 - 10107 - ACQ Icing (partial)
+  09-07 20:16:58.647 - 10107 - REL Icing
+  09-07 20:16:58.658 - 10107 - ACQ Icing (partial)
+  09-07 20:16:58.665 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9753 (partial)
+  09-07 20:16:58.665 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9753 (partial)
+  09-07 20:16:58.667 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9753
+  09-07 20:16:58.672 - 10107 - REL Icing
+  09-07 20:16:58.697 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9753
+  09-07 20:16:59.265 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:16:59.266 - 1001 - REL *telephony-radio*
+  09-07 20:16:59.266 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:16:59.271 - 1001 - REL *telephony-radio*
+  09-07 20:16:59.271 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:16:59.272 - 1001 - REL *telephony-radio*
+  09-07 20:16:59.407 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:16:59.407 - 1001 - REL *telephony-radio*
+  09-07 20:16:59.407 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:16:59.414 - 1001 - REL *telephony-radio*
+  09-07 20:16:59.414 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:16:59.414 - 1001 - REL *telephony-radio*
+  09-07 20:17:00.001 - 1000 - ACQ *alarm* (partial)
+  09-07 20:17:00.002 - 1000 - REL *alarm*
+  09-07 20:17:00.185 - 1041 - REL AudioMix
+  09-07 20:17:10.156 - 1041 - ACQ AudioMix (partial)
+  09-07 20:17:10.157 - 1041 - REL AudioMix
+  09-07 20:17:10.157 - 1041 - ACQ AudioMix (partial)
+  09-07 20:17:10.162 - 1027 - ACQ NfcService:mRoutingWakeLock (partial)
+  09-07 20:17:10.186 - 1027 - REL NfcService:mRoutingWakeLock
+  09-07 20:17:10.511 - 1041 - REL AudioMix
+  09-07 20:17:10.511 - 1041 - ACQ AudioMix (partial)
+  09-07 20:17:10.663 - 10107 - ACQ CallbackRunner (partial)
+  09-07 20:17:10.664 - 10107 - REL CallbackRunner
+  09-07 20:17:10.681 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:17:10.684 - 10107 - ACQ IntentOp:c.g.a.g/.c.GmsIntentOperationService (partial)
+  09-07 20:17:10.686 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:17:10.703 - 10107 - ACQ IntentOp:.p.p.UserPresentIntentOperation (partial)
+  09-07 20:17:10.711 - 10107 - REL IntentOp:.p.p.UserPresentIntentOperation
+  09-07 20:17:10.714 - 10107 - REL IntentOp:c.g.a.g/.c.GmsIntentOperationService
+  09-07 20:17:12.612 - 1041 - REL AudioMix
+  09-07 20:17:17.797 - 1000 - ACQ *launch* (partial)
+  09-07 20:17:18.323 - 1000 - REL *launch*
+  09-07 20:17:19.346 - 10121 - ACQ Application creation -> Application.onCreate -> Startup Listeners -> AfterPackageReplaced -> StartupAfterPackageReplaced (partial)
+  09-07 20:17:19.370 - 10121 - ACQ Application creation -> Application.onCreate -> Startup Listeners -> AfterPackageReplaced -> StartupAfterPackageReplaced (partial)
+  09-07 20:17:19.371 - 10121 - REL Application creation -> Application.onCreate -> Startup Listeners -> AfterPackageReplaced -> StartupAfterPackageReplaced
+  09-07 20:17:19.387 - 10121 - REL Application creation -> Application.onCreate -> Startup Listeners -> AfterPackageReplaced -> StartupAfterPackageReplaced
+  09-07 20:17:20.780 - 1000 - ACQ *alarm* (partial)
+  09-07 20:17:20.784 - 1000 - REL *alarm*
+  09-07 20:17:20.789 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:17:20.790 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:17:20.791 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:17:20.794 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:17:25.797 - 1000 - ACQ *alarm* (partial)
+  09-07 20:17:25.807 - 1000 - REL *alarm*
+  09-07 20:17:25.811 - 10107 - ACQ *gms_scheduler*:internal (partial)
+  09-07 20:17:25.814 - 10107 - REL *gms_scheduler*:internal
+  09-07 20:18:00.006 - 1000 - ACQ *alarm* (partial)
+  09-07 20:18:00.006 - 1000 - REL *alarm*
+  09-07 20:18:15.934 - 1000 - ACQ *launch* (partial)
+  09-07 20:18:16.441 - 1000 - REL *launch*
+  09-07 20:18:34.865 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:34.868 - 1041 - REL AudioMix
+  09-07 20:18:34.868 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:35.136 - 1041 - REL AudioMix
+  09-07 20:18:35.136 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:37.236 - 1041 - REL AudioMix
+  09-07 20:18:42.134 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.134 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.134 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.134 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.134 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.135 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.135 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.146 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:42.146 - 1041 - REL AudioIn
+  09-07 20:18:42.159 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:42.159 - 1041 - REL AudioIn
+  09-07 20:18:42.159 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:42.184 - 1041 - REL AudioMix
+  09-07 20:18:42.184 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:42.293 - 1000 - ACQ WindowManager/displayId:0 (screen-bright,on-after-release)
+  09-07 20:18:42.637 - 1041 - REL AudioMix
+  09-07 20:18:42.637 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:44.135 - 1041 - REL AudioMix
+  09-07 20:18:44.136 - 1041 - REL AudioMix
+  09-07 20:18:44.139 - 1041 - REL AudioMix
+  09-07 20:18:44.139 - 1041 - REL AudioMix
+  09-07 20:18:44.140 - 1041 - REL AudioMix
+  09-07 20:18:44.141 - 1041 - REL AudioMix
+  09-07 20:18:44.740 - 1041 - REL AudioMix
+  09-07 20:18:47.175 - 1041 - REL AudioIn
+  09-07 20:18:47.176 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:47.195 - 1041 - REL AudioIn
+  09-07 20:18:47.196 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:47.201 - 1041 - REL AudioIn
+  09-07 20:18:47.201 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.201 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.202 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.202 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.202 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.202 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.202 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:47.203 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.203 - 1041 - REL AudioIn
+  09-07 20:18:47.216 - 1041 - REL AudioMix
+  09-07 20:18:47.216 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:47.218 - 1041 - ACQ AudioIn (partial)
+  09-07 20:18:47.218 - 1041 - REL AudioIn
+  09-07 20:18:47.824 - 1041 - REL AudioMix
+  09-07 20:18:47.824 - 1041 - ACQ AudioMix (partial)
+  09-07 20:18:49.202 - 1041 - REL AudioMix
+  09-07 20:18:49.205 - 1041 - REL AudioMix
+  09-07 20:18:49.206 - 1041 - REL AudioMix
+  09-07 20:18:49.208 - 1041 - REL AudioMix
+  09-07 20:18:49.208 - 1041 - REL AudioMix
+  09-07 20:18:49.209 - 1041 - REL AudioMix
+  09-07 20:18:49.934 - 1041 - REL AudioMix
+  09-07 20:19:00.000 - 1000 - ACQ *alarm* (partial)
+  09-07 20:19:00.002 - 1000 - REL *alarm*
+  09-07 20:19:02.108 - 1041 - ACQ AudioMix (partial)
+  09-07 20:19:02.108 - 1041 - REL AudioMix
+  09-07 20:19:02.108 - 1041 - ACQ AudioMix (partial)
+  09-07 20:19:02.398 - 1041 - REL AudioMix
+  09-07 20:19:02.398 - 1041 - ACQ AudioMix (partial)
+  09-07 20:19:04.693 - 1041 - REL AudioMix
+  09-07 20:20:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:20:00.003 - 1000 - REL *alarm*
+  09-07 20:21:00.003 - 1000 - ACQ *alarm* (partial)
+  09-07 20:21:00.004 - 1000 - REL *alarm*
+  09-07 20:22:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:22:00.003 - 1000 - REL *alarm*
+  09-07 20:23:00.003 - 1000 - ACQ *alarm* (partial)
+  09-07 20:23:00.004 - 1000 - REL *alarm*
+  09-07 20:24:00.003 - 1000 - ACQ *alarm* (partial)
+  09-07 20:24:00.003 - 1000 - REL *alarm*
+  09-07 20:25:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:25:00.002 - 1000 - REL *alarm*
+  09-07 20:26:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:26:00.002 - 1000 - REL *alarm*
+  09-07 20:27:00.000 - 1000 - ACQ *alarm* (partial)
+  09-07 20:27:00.003 - 1000 - REL *alarm*
+  09-07 20:28:00.003 - 1000 - ACQ *alarm* (partial)
+  09-07 20:28:00.004 - 1000 - REL *alarm*
+  09-07 20:29:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:29:00.003 - 1000 - REL *alarm*
+  09-07 20:30:00.003 - 1000 - ACQ *alarm* (partial)
+  09-07 20:30:00.003 - 1000 - REL *alarm*
+  09-07 20:31:00.000 - 1000 - ACQ *alarm* (partial)
+  09-07 20:31:00.002 - 1000 - REL *alarm*
+  09-07 20:32:00.003 - 1000 - ACQ *alarm* (partial)
+  09-07 20:32:00.004 - 1000 - REL *alarm*
+  09-07 20:32:15.272 - 1041 - ACQ AudioMix (partial)
+  09-07 20:32:15.272 - 1041 - REL AudioMix
+  09-07 20:32:15.272 - 1041 - ACQ AudioMix (partial)
+  09-07 20:32:15.548 - 1041 - REL AudioMix
+  09-07 20:32:15.548 - 1041 - ACQ AudioMix (partial)
+  09-07 20:32:17.641 - 1041 - REL AudioMix
+  09-07 20:32:19.156 - 1000 - REL WindowManager/displayId:0
+  09-07 20:32:19.291 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:32:19.291 - 1001 - REL *telephony-radio*
+  09-07 20:32:19.291 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:32:19.295 - 1001 - REL *telephony-radio*
+  09-07 20:32:19.295 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:32:19.295 - 1001 - REL *telephony-radio*
+  09-07 20:33:00.005 - 1000 - ACQ *alarm* (partial)
+  09-07 20:33:00.007 - 1000 - REL *alarm*
+  09-07 20:33:16.230 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 20:33:16.232 - 1000 - ACQ *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353 (partial)
+  09-07 20:33:16.239 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 20:33:16.336 - 1000 - REL *job*/c.g.a.g/c.g.a.a.g.t.BackgroundTasksJobService#-353
+  09-07 20:33:17.537 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 20:33:17.537 - 1000 - ACQ *job*/c.a.p.m.m/c.a.p.m.MediaService#-300 (partial)
+  09-07 20:33:17.541 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 20:33:17.566 - 1000 - REL *job*/c.a.p.m.m/c.a.p.m.MediaService#-300
+  09-07 20:33:17.575 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:33:17.577 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:33:17.610 - 1000 - ACQ NetworkStats (partial)
+  09-07 20:33:17.621 - 1000 - REL NetworkStats
+  09-07 20:33:17.657 - 10107 - ACQ Icing (partial)
+  09-07 20:33:17.673 - 10107 - REL Icing
+  09-07 20:33:17.689 - 10107 - ACQ Icing (partial)
+  09-07 20:33:17.700 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9778 (partial)
+  09-07 20:33:17.700 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9778 (partial)
+  09-07 20:33:17.701 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9778
+  09-07 20:33:17.744 - 10107 - REL Icing
+  09-07 20:33:17.747 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9778
+  09-07 20:33:29.824 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation (partial)
+  09-07 20:33:29.831 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$GmsReceiverIntentOperation
+  09-07 20:33:29.835 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:33:29.836 - 10107 - ACQ IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation (partial)
+  09-07 20:33:29.839 - 10107 - ACQ Icing (partial)
+  09-07 20:33:29.840 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:33:29.843 - 10107 - REL IntentOp:.c.b.BackgroundBroadcastReceiverSupport$PersistentReceiverIntentOperation
+  09-07 20:33:29.844 - 10107 - REL Icing
+  09-07 20:33:29.853 - 10107 - ACQ Icing (partial)
+  09-07 20:33:29.857 - 10107 - REL Icing
+  09-07 20:33:29.858 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9781 (partial)
+  09-07 20:33:29.858 - 1000 - ACQ *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9781 (partial)
+  09-07 20:33:29.862 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9781
+  09-07 20:33:29.862 - 10107 - ACQ Icing (partial)
+  09-07 20:33:29.876 - 10107 - REL Icing
+  09-07 20:33:29.880 - 1000 - REL *job*/c.a.v/c.g.a.f.s.p.m.PhoneskyJobServiceMain#9781
+  09-07 20:33:30.373 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:33:30.374 - 1001 - REL *telephony-radio*
+  09-07 20:33:30.374 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:33:30.379 - 1001 - REL *telephony-radio*
+  09-07 20:33:30.380 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:33:30.380 - 1001 - REL *telephony-radio*
+  09-07 20:33:30.497 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:33:30.497 - 1001 - REL *telephony-radio*
+  09-07 20:33:30.497 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:33:30.501 - 1001 - REL *telephony-radio*
+  09-07 20:33:30.501 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:33:30.501 - 1001 - REL *telephony-radio*
+  09-07 20:33:49.109 - 1000 - ACQ *launch* (partial)
+  09-07 20:33:49.630 - 1000 - REL *launch*
+  09-07 20:34:00.006 - 1000 - ACQ *alarm* (partial)
+  09-07 20:34:00.007 - 1000 - REL *alarm*
+  09-07 20:34:15.137 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:34:15.137 - 1000 - ACQ *job*/a/c.a.s.n.NotificationHistoryJobService#237039804 (partial)
+  09-07 20:34:15.138 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:34:15.141 - 1000 - REL *job*/a/c.a.s.n.NotificationHistoryJobService#237039804
+  09-07 20:35:00.006 - 1000 - ACQ *alarm* (partial)
+  09-07 20:35:00.008 - 1000 - REL *alarm*
+  09-07 20:36:00.007 - 1000 - ACQ *alarm* (partial)
+  09-07 20:36:00.008 - 1000 - REL *alarm*
+  09-07 20:37:00.008 - 1000 - ACQ *alarm* (partial)
+  09-07 20:37:00.009 - 1000 - REL *alarm*
+  09-07 20:38:00.009 - 1000 - ACQ *alarm* (partial)
+  09-07 20:38:00.010 - 1000 - REL *alarm*
+  09-07 20:39:00.008 - 1000 - ACQ *alarm* (partial)
+  09-07 20:39:00.009 - 1000 - REL *alarm*
+  09-07 20:40:00.007 - 1000 - ACQ *alarm* (partial)
+  09-07 20:40:00.008 - 1000 - REL *alarm*
+  09-07 20:41:00.006 - 1000 - ACQ *alarm* (partial)
+  09-07 20:41:00.007 - 1000 - REL *alarm*
+  09-07 20:41:45.350 - 1000 - ACQ *launch* (partial)
+  09-07 20:41:45.866 - 1000 - REL *launch*
+  09-07 20:42:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:42:00.004 - 1000 - REL *alarm*
+  09-07 20:42:16.054 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:42:16.055 - 1001 - REL *telephony-radio*
+  09-07 20:42:16.055 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:42:16.057 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.057 - 1041 - REL AudioMix
+  09-07 20:42:16.057 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.066 - 1001 - REL *telephony-radio*
+  09-07 20:42:16.066 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:42:16.067 - 1001 - REL *telephony-radio*
+  09-07 20:42:16.069 - 1000 - ACQ WindowManager/displayId:0 (screen-bright,on-after-release)
+  09-07 20:42:16.075 - 1041 - ACQ AudioIn (partial)
+  09-07 20:42:16.075 - 1041 - REL AudioIn
+  09-07 20:42:16.079 - 1041 - ACQ AudioIn (partial)
+  09-07 20:42:16.079 - 1041 - REL AudioIn
+  09-07 20:42:16.079 - 1041 - ACQ AudioIn (partial)
+  09-07 20:42:16.096 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.096 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.096 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.096 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.096 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.097 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:16.542 - 1041 - REL AudioMix
+  09-07 20:42:16.542 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:18.098 - 1041 - REL AudioMix
+  09-07 20:42:18.099 - 1041 - REL AudioMix
+  09-07 20:42:18.099 - 1041 - REL AudioMix
+  09-07 20:42:18.102 - 1041 - REL AudioMix
+  09-07 20:42:18.102 - 1041 - REL AudioMix
+  09-07 20:42:18.105 - 1041 - REL AudioMix
+  09-07 20:42:18.651 - 1041 - REL AudioMix
+  09-07 20:42:21.107 - 1041 - REL AudioIn
+  09-07 20:42:21.107 - 1041 - ACQ AudioIn (partial)
+  09-07 20:42:21.126 - 1041 - REL AudioIn
+  09-07 20:42:21.144 - 1041 - ACQ AudioIn (partial)
+  09-07 20:42:21.144 - 1041 - REL AudioIn
+  09-07 20:42:21.160 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.160 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.160 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.161 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.162 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.162 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.163 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.170 - 1041 - REL AudioMix
+  09-07 20:42:21.170 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:21.777 - 1041 - REL AudioMix
+  09-07 20:42:21.777 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:23.165 - 1041 - REL AudioMix
+  09-07 20:42:23.165 - 1041 - REL AudioMix
+  09-07 20:42:23.166 - 1041 - REL AudioMix
+  09-07 20:42:23.172 - 1041 - REL AudioMix
+  09-07 20:42:23.172 - 1041 - REL AudioMix
+  09-07 20:42:23.177 - 1041 - REL AudioMix
+  09-07 20:42:24.086 - 1041 - REL AudioMix
+  09-07 20:42:32.786 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:32.786 - 1041 - REL AudioMix
+  09-07 20:42:32.786 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:33.073 - 1041 - REL AudioMix
+  09-07 20:42:33.074 - 1041 - ACQ AudioMix (partial)
+  09-07 20:42:35.378 - 1041 - REL AudioMix
+  09-07 20:43:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:43:00.008 - 1000 - REL *alarm*
+  09-07 20:44:00.004 - 1000 - ACQ *alarm* (partial)
+  09-07 20:44:00.005 - 1000 - REL *alarm*
+  09-07 20:44:08.735 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:44:08.736 - 1001 - REL *telephony-radio*
+  09-07 20:44:08.736 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:44:08.739 - 1001 - REL *telephony-radio*
+  09-07 20:44:08.739 - 1001 - ACQ *telephony-radio* (partial)
+  09-07 20:44:08.739 - 1001 - REL *telephony-radio*
+  09-07 20:45:00.004 - 1000 - ACQ *alarm* (partial)
+  09-07 20:45:00.005 - 1000 - REL *alarm*
+  09-07 20:46:00.002 - 1000 - ACQ *alarm* (partial)
+  09-07 20:46:00.003 - 1000 - REL *alarm*
+  09-07 20:47:00.001 - 1000 - ACQ *alarm* (partial)
+  09-07 20:47:00.003 - 1000 - REL *alarm*
+  -
+  Events: 1793, Time-Resets: 202
+  Buffer, Bytes used: 6301
+FaceDownDetector:
+  mFaceDown=false
+  mActive=true
+  mLastFlipTime=0
+  mSensorMaxLatencyMicros=2000000
+  mUserInteractionBackoffMillis=60000
+  mPreviousResultTime=0
+  mPreviousResultType=1
+  mMillisSaved=0
+  mZAccelerationThreshold=-9.5
+  mAccelerationThreshold=0.2
+  mTimeThreshold=PT1S
+AmbientDisplaySuppressionController:
+ ambientDisplaySuppressed=false
+ mSuppressionTokens={}
+
+Low Power Standby Controller:
+  mIsActive=false
+  mIsEnabled=false
+  mSupportedConfig=false
+  mEnabledByDefaultConfig=false
+  mStandbyTimeoutConfig=0
+  mEnableCustomPolicy=false
+  Allowed UIDs=[]
+  
+  UID allowed reasons:

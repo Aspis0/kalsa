@@ -267,3 +267,39 @@ Note on the alternative that was considered and rejected: measuring q4_K with th
 validates the file's exact size against the catalogue (1 674 455 040 vs the LFM entry's
 1 593 894 944), and therefore an app change and a new APK. Downloading a 672 MB vision head
 is cheaper than that, and it keeps the measurement on the model the high tier actually runs.
+
+## Amendment 5 — run parameters of the q4_K attempt, and a billing claim corrected, 2026-09-08
+
+**Correction to Amendment 3.** The "Recorded error" paragraph above says QDC bills
+*wall-clock session duration*. That is wrong, and it was my second wrong answer on the same
+question (the first was "by active use"). Measured on session 808600: cap requested **70**
+minutes, ~15 minutes worked, **70** charged — QRD7675 went 625 → 555 on the catalogue. QDC
+bills **the requested `maxTestMinsPerDevice` cap**, used or not; billing starts at
+`Started On` (session 808596 died in Setup with `Started On: N/A` and consumed nothing).
+The operational rule the old paragraph draws is unchanged and still stands — open late,
+close the moment the driver exits — but the reason is different: the cap is what is paid,
+so the cap is what must be minimal.
+
+Run as actually launched, recorded before any result is read:
+
+- **Session 808791**, board **QRD8635 / Snapdragon 8s Gen 3 / Android U**, cap **75 min**,
+  SSH-only, key `kalsa-mac`. `Started On 09/08/26 4:23:55 AM`; found `Running` with
+  67m 40s left. SSH job host `sa812860.sa.svc.cluster.local`, tunnel on **local port 6037**.
+- **Device gate**: `MemTotal 11 530 632 kB` (> 8 GiB), so `gpu_fit_ram_gate` passes;
+  `ro.board.platform=pineapple`, serial `7da1a203`.
+- **APK**: `armB` `6fc14d1`, the ALIVE 60 binary. Verified on disk that this app commit is
+  `build: bump kalsallama pin to 67c73d26c (f32 product in the Adreno q4_0 and q4_K GEMMs)`
+  — i.e. **one binary carries both kernel fixes**, which is why this arm needs no second
+  APK. Consistent with the ALIVE 60 `strings` count of 32 occurrences of
+  `convert_float8(B) * (float)` (16 per kernel × 2 kernels).
+- **Command**: `ORACLE_MODE=logit` with the six model overrides of Amendments 3-4,
+  `./d_run.sh sa812860 <armB apk> ABABAB 58`.
+- **`DEADLINE_MINUTES=58`**, not the 70 planned: the session had already burned ~7 of its
+  75 minutes before the driver started, and the driver must exit before the session dies so
+  the results are pulled. `ABABAB` is the shortest order the driver accepts.
+
+Registered risk, stated before the outcome: the Qwen bundle is **3.5 GB** to push over the
+tunnel (2.83 GB model + 672 MB vision head) against a 2.6 GB single file in the q4_0 arm.
+If the push plus six turns does not fit in 58 minutes the driver will hit its deadline
+mid-order; a partial `results.tsv` with a complete A/B pair is still a valid n=1 answer to
+the registered question, a partial one is not and the arm is re-run.
