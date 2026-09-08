@@ -114,3 +114,47 @@ from the merged one.
 — `qwen3.5-4b` Q4_K_M and `lfm2.5-2.6b` QAD-Q4_0 — and after this work **both of their
 prefill kernels are fixed**. Coverage on the product APK is complete. The eight remaining
 `gemm_noshuffle_*` and ten `gemm_moe_*_ns.cl` kernels are unreachable from it.
+
+## Audit 2 — the V75 promotion
+
+Commit `523f5e3` (branch `feat/governor-ux`). Verdict: **BANK** — the code does exactly what the owner decided and nothing else; two test-quality nits and one comment omission, none blocking.
+
+**Gates (re-run, not trusted):** `npx jest src/engine/governorInputs.test.ts` → 8/8 passed, `rc=0`. `npm run typecheck` → `rc=0`. Probe: `expect({enabled:true, reason:"x"}).toEqual({enabled:true})` fails (`rc=1`) — Jest `toEqual` enforces absence of extra keys.
+
+**F1 — Blast radius: REFUTED (the severe form), scoped correctly.** The flag has exactly one read: `src/engine/governorInputs.ts:135` `const enabled = force || GPU_PREFILL_CORRECT[generation];`. Call path: `enabled` → `governorLoad` (`src/engine/LlamaService.ts:1383-1395`, `governorBase.enabled &&` at :1385) → `params.governor` (:1471 `...(governorLoad ? { governor: governorLoad } : {}),`) → `initWithGovernorFallback` (:1598-1605) → native governor = GPU prefill/decode CPU (:1622-1624 `nGpuLayers: governorUsed ? { prefill: 99, decode: 0 }`). Decode was CPU on both arms (:1623, per-native-contract — kernel never used in decode; the claim is PLAUSIBLE but the native half is outside this repo). KV/session side effects under governor mode (restore disabled :1720, save refused :3746) become reachable on V75 but are parity with V79-by-design, not per-phase gates. Prewarm (:770-790) rides the existing context; not newly gated. No decode/KV-commit/prewarm leak.
+
+**F2 — Guards all still hold: CONFIRMED (no severity).** RAM fit: `gpuFit` untouched; NoFit paths at `governorInputs.ts:90` (`if (typeof total !== "number" || total <= EIGHT_GIB) return "NoFit" as const;`), :92 (`if (generationFor(profile) === "Unknown") return "NoFit" as const;`), :104 (`return requiredMiB <= availableMiB ? "Fit" as const : "NoFit" as const;`); governor refuses NoFit at `LlamaService.ts:1388` (`governorBase.gpu_fit !== "NoFit" &&`). Thermal: JS still demands `sensor_valid` (:1386-1387); native WARM≥38 policy (`thermalThresholds.ts:12-15`) untouched by this 2-file diff. Force: `force ||` preserved (:135), `readBenchGovernorForce` unchanged (:147-152), `bench_force_gpu_prefill: force` / `forced: force` emitted (:140-141), `activeGovernorForced` (:1701). V73 false (:25), V79 true (:15), Unknown false (:26).
+
+**F3 — Test honesty: CONFIRMED honest.** The `toEqual` at `governorInputs.test.ts:73-83` (now `enabled: true`…`forced: false,` with no `reason`) **does** assert absence: `toEqual` fails on extra keys (probe rc=1), so a revert adding `reason` reds the suite. The map value itself is pinned twice (unforced V75 → enabled:true must come from the map). Wrong config is still refused and proven: `reason: "gpu-prefill-incorrect-V73"` asserted at :107, :127, :145. Weak spot (pre-existing, unchanged): Unknown path never asserts its `reason` string.
+
+**F4 — Bench override test: weakened but not false.** `governorInputs.test.ts:160-164` `buildGovernorParams(model, device("QRD8650"), memory, true)` → `{enabled: true, generation: "V75", forced: true}`. `enabled: true` is now implied by the map alone — the section's title "permits an explicit V75 bench override" is vacuous on the enabling property; only `forced: true` plumbing survives, and it is true unconditionally when `force=true` (:141 `forced: force`). The genuinely discriminating proof of `force ||` lives in the V73 arm (:137-141: SM7675 force → `enabled: true`, no force → `enabled: false`), which suffices. Suggest asserting `bench_force_gpu_prefill: true` or a forced-vs-unforced diff; functional behavior is unaffected.
+
+**F5 — Comment accuracy: CONFIRMED, no overclaim.** `governorInputs.ts:16-23`: "8/32 → 0" ✓ (`DECISION.md:27`), "0.0861 → 0.0014" ✓ (:28), "1.242×" ✓ (:31), "raw oracle is still FAIL on R2" ✓ (:41), "≤0.02 at every step" ✓ (:41-42), "94.8%" ✓ (:42), "n=1 pair on one board (ALIVE 60)" ✓ (:45). Omissions only: median max|Δlogp| 3.444→0.3037 (`REPORT.md:18`) and the boundary driver `steps |Δp₁|>0.02 21/32→8/32, max_dp1=0.0883` (:19,:24) absent from the comment — a reader can't see the FAIL is a boundary call, but the comment neither hides FAIL nor inflates the evidence. "was 1.78×" survives only in the commit message; omission, not error.
+
+**F6 — Leftovers: CONFIRMED clean.** `grep -rn "gpu-prefill-incorrect"` (excl. the two changed files, node_modules): zero hits. No doc/README/settings text still claims V75 disabled; the only remaining claim of falsity is the comment's own historical note (:19-20). Note: `PINEAPPLE` also maps to V75 (:65 `if (/(SM8650|PINEAPPLE)/.test(soc)) return "V75";`) — same Adreno 750 GPU as the measured QRD8650, so the enabled set is coherent with the evidence.
+
+**Net:** the promotion is faithful to R6/ALIVE 60. Non-blocking nits: (1) F4 test-title overstatement; (2) F5 comment omits the R2 boundary figures; (3) pre-existing Unknown-reason non-assertion. None changes runtime behavior; nothing found that the owner's decision did not already price.
+
+### Orchestrator adjudication of Audit 2 (verified on disk)
+
+Verdict accepted: **BANK**. Re-checked myself, not taken on the auditor's word:
+
+- **One read of the flag**, and only one: `governorInputs.ts:130`
+  `const enabled = force || GPU_PREFILL_CORRECT[generation];`.
+- **Prefill only.** The decisive line is `LlamaService.ts` in the governor branch:
+  `nGpuLayers: governorUsed ? { prefill: 99, decode: 0 } : params.n_gpu_layers ?? 0` —
+  decode is pinned to 0 whenever the governor is used, so the flag cannot leak into decode.
+- **No leftovers**: `grep -rn "gpu-prefill-incorrect" src/` returns nothing outside the two
+  changed files.
+- **The test-honesty claim holds, and I proved it rather than reasoning about it.** A
+  throwaway probe run under the repo's own jest config: `toEqual` **fails** on an extra
+  *defined* key, and **ignores** an extra `undefined` one. So the reason-less `toEqual`
+  would fail if the code still returned `reason: "gpu-prefill-incorrect-V75"`: the
+  assertion is real, not an edit that made the object match by deletion. It does not
+  distinguish "key absent" from "key present but undefined", which has no behavioural
+  consequence. Probe deleted, tree clean.
+
+One caveat about the report itself: its line citations run ~5 lines ahead of the file
+(it cites `governorInputs.ts:135` for a line that is at `:130`), because the added comment
+block shifted everything below it. The quoted line *contents* are correct, which is why the
+findings stand — but cite-by-number from that report and you will land in the wrong place.
