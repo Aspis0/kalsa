@@ -69,9 +69,9 @@ describe("governor inputs", () => {
     });
   });
 
-  test("disables the incorrect V75 GPU-prefill route", () => {
+  test("enables the V75 GPU-prefill route", () => {
     expect(buildGovernorParams(model, device("QRD8650"), memory)).toEqual({
-      enabled: false,
+      enabled: true,
       generation: "V75",
       model_kind: "Hybrid",
       gpu_fit: "Fit",
@@ -80,7 +80,6 @@ describe("governor inputs", () => {
       npu_lane_enabled: false,
       reload_budget_available: false,
       forced: false,
-      reason: "gpu-prefill-incorrect-V75",
     });
     expect(buildGovernorParams(model, device("unlisted"), memory).generation).toBe(
       "Unknown",
@@ -96,11 +95,10 @@ describe("governor inputs", () => {
         memory,
       ),
     ).toMatchObject({
-      enabled: false,
+      enabled: true,
       generation: "V75",
       gpu_fit: "Fit",
       gpu_prefill_measured: true,
-      reason: "gpu-prefill-incorrect-V75",
     });
     expect(buildGovernorParams(model, device("SM8550"), memory)).toMatchObject({
       enabled: false,
