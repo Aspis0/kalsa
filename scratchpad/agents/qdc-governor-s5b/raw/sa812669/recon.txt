@@ -1,0 +1,22 @@
+serial=f6d5d957
+port=6037
+ro.soc.model
+SM7675
+ro.product.name
+pineapple
+ro.product.model
+Pineapple for arm64
+ro.build.fingerprint
+qti/pineapple/pineapple:14/UKQ1.240624.001/eng.lnxbui.20240723.055527:userdebug/test-keys
+ro.build.type
+userdebug
+ro.debuggable
+1
+MemTotal
+MemTotal:       11595000 kB
+id
+uid=0(root) gid=0(root) groups=0(root),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs) context=u:r:su:s0
+screen_off_timeout_previous=60000
+screen_stayon=true screen_off_timeout_set=1800000
+device_tag=7p-Gen-3
+memtotal_kb=11595000

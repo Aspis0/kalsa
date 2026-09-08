@@ -1,0 +1,1 @@
+/Users/marco/kalsa-qdc/models/Qwen3.5-4B-Q4_K_M.gguf: 1 file pushed, 0 skipped. 23.4 MB/s (2834975040 bytes in 115.360s)

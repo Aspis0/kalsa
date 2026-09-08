@@ -211,3 +211,55 @@ Two things worth keeping:
 
 Salvaged from the lost run: A1 = TTFT 7348.9 ms, decode 21.91 tok/s, skin 29.601 -> 42.573,
 ids_sha `1a006db3…`.
+
+## The q4_K arm did not run — three attempts, 2026-09-08 night
+
+Nothing measured. What was learned is about the harness and about QDC billing, and both are
+worth more than the attempts cost.
+
+### Attempt 1 — QRD8635 (Adreno 735), session 808596
+`Completed with Error` after 8 minutes in Setup, `Started On: N/A`. The device pool is busy:
+the catalogue shows the 8635 as **Unavailable** while still holding 889 minutes, i.e. the
+queue is pool-side, not quota-side (the same pattern recorded on 2026-08-30). **Cost: zero
+minutes** — verified on the catalogue afterwards, which also proves billing does not start
+before `Started On`.
+
+### Attempt 2 — QRD7675 (Adreno 732), session 808600
+Substituted for the 8635 with the owner's reasoning preserved: ALIVE 39 established that the
+735 and the 732 are twins ("una sola classe di performance mid-tier"), both clean of the
+750-only f16-batched defect, and the 732 had 625 minutes and was available. Device
+`f6d5d957`, SM7675, 11.6 GB.
+
+The driver died at the first turn with `END reason=exit_1`, `status=1`, `telemetry_rc=1`,
+skin 29.3 -> 30.6 (so it failed before doing any real work). Diagnosis from the artefacts:
+
+- The APK installed (`Success`) and the model copied correctly (2 834 975 040 bytes on the
+  device, sha gate passed).
+- The app launched and was alive — it emitted `pressure.transition` telemetry throughout.
+- **It never loaded a model**: zero `llama_model_loader` lines and zero `KALSA_PREWARM` in
+  the full logcat.
+
+Two distinct problems, both mine to fix before the next attempt:
+
+1. **A sixth hardcoded model constant that I missed.** `d_run.sh:295`
+   `MODEL_LOAD_PATTERN='llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf'`
+   pins the LFM path *and* filename. PREREG Amendment 3 said "five constants"; there are six.
+   Even a successful Qwen load would have been reported as a failure.
+2. **The app-side precondition for loading a non-default model is not understood.** Setting
+   `kalsa.model.id` and copying the file is enough for the LFM and was not enough here. The
+   open suspects, in order: the Qwen entry declares an **mmproj** (672 423 616 bytes) that
+   the driver never copies, whereas the LFM entry is text-only; and the ModelDownloader's
+   "downloaded" bookkeeping may not consider the model present. **To be settled by reading
+   the app, not by another session.**
+
+### QDC billing — measured, and it corrects me twice
+
+Session 808600 requested `maxTestMinsPerDevice = 70`, ran ~15 minutes of wall clock, and was
+charged **70**: QRD7675 went 625 -> 555 on the catalogue. So **the requested cap is charged
+whether or not it is used**. Earlier in this campaign I asserted first that minutes are
+consumed by active use, then that they are consumed by wall-clock duration; both were wrong.
+
+Operating rule from now on: **request the minimum cap that can hold the run, never a safety
+margin** — and open the session only when driver, APK and model are ready.
+
+Budget after tonight: QRD8650 35, QRD8750 89, QRD7675 555, HDK8550 854, QRD8635 889.

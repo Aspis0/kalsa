@@ -1,0 +1,3 @@
+A	1	na	na	na	na	na	na	na	na	na	29.289	30.557	0	0	na	na	na	na
+[01:02:01] ABORT arm=A turn=1
+[01:02:01] DONE board=7p-Gen-3 final_rc=1 results=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/qdc-governor-s5b/raw/sa812669/results.tsv
