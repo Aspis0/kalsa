@@ -234,3 +234,36 @@ silently become Qwen-only for whoever runs it next. Same five constants, same th
 no other line moved; the deviation is recorded here rather than made quietly. Proof required
 before the run: the defaults resolve to the LFM values and the overrides resolve to the Qwen
 ones, both executed, not asserted.
+
+## Amendment 4 — the vision head, and a sixth constant, registered 2026-09-08 before the run
+
+The first Qwen attempt (session 808600) failed because the app **correctly refused** to load
+an incomplete bundle, and because the driver would have mis-read a success. Both causes are
+now understood from the app's source, not guessed:
+
+- `ModelDownloader.ts:81-87` — `isModelBundleDownloaded()` requires the GGUF **and**, when
+  the entry declares one, the mmproj, each matching its registry `sizeBytes` exactly
+  (`isFileComplete`, `:76-79`). `AppShell.tsx:3349` gates the load on it:
+  `if (!(await isModelBundleDownloaded(model))) return false;`.
+  The `qwen3.5-4b` entry declares `mmproj-F16.gguf`, 672 423 616 bytes — the vision head.
+  The driver copied only the GGUF, so the bundle was incomplete and no model was ever loaded.
+- `d_run.sh:295` pins the LFM path *and* filename inside `MODEL_LOAD_PATTERN`. That is a
+  **sixth** model constant; Amendment 3 said five. Even a correct Qwen load would have been
+  reported as a failure.
+
+Registered changes, both before any run:
+
+1. The driver copies the mmproj too when one is configured, via a new optional
+   `MMPROJ`/`MMPROJ_SIZE`/`MMPROJ_SHA` triple that defaults to empty — so the q4_0 arm,
+   which has no mmproj, is untouched and still reproduces byte-for-byte.
+2. `MODEL_LOAD_PATTERN` is derived from `MODEL_DIR` and `MODEL_FILE` instead of being
+   hardcoded, so it cannot silently disagree with the model actually under test.
+
+Vision head recorded before the run: `mmproj-F16.gguf`, `unsloth/Qwen3.5-4B-GGUF` @
+`e87f176479d0855a907a41277aca2f8ee7a09523`, **672 423 616 bytes**, sha256 **`cd88edcf8d031894960bb0c9c5b9b7e1fea6ebee02b9f7ce925a00d12891f864`**.
+
+Note on the alternative that was considered and rejected: measuring q4_K with the
+`LFM2.5-2.6B-Q4_K_M.gguf` already on the Mac would need a registry entry, because the app
+validates the file's exact size against the catalogue (1 674 455 040 vs the LFM entry's
+1 593 894 944), and therefore an app change and a new APK. Downloading a 672 MB vision head
+is cheaper than that, and it keeps the measurement on the model the high tier actually runs.
