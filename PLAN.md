@@ -3039,3 +3039,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 > degrada il turno a prefill CPU e il braccio B avrebbe misurato la CPU. Col nuovo tetto il cooldown ha chiuso a
 > 36,96 °C in **1200 s**: il device ne chiedeva 1200 e l'harness ne concedeva 900.
 > Sessione chiusa e verificata (`Completed`, Ended On 19:46:35), tunnel chiuso. ALIVE riga 60.
+>
+> 20:10 — **Decisione owner: prefill GPU ACCESO su V75.** `GPU_PREFILL_CORRECT.V75` false → true. È una decisione
+> sotto **R6** (il protocollo dell'oracolo vieta la promozione automatica: il PASS si riporta, accendere una
+> generazione in produzione è scelta dell'owner sui numeri) e va a verbale in
+> `scratchpad/agents/gemm-f32-ship/DECISION.md`. Presa sull'**effect size**, non sul cancello binario: il verdetto
+> grezzo resta `FAIL rule=R2` per disegno, perché R2 chiede |Δp₁| ≤ 0,02 a OGNI passo e il same-top è 94,8 %.
+> Ciò che si accetta sapendolo, scritto nel verbale: n=1 coppia su un board e un'unità; **q4_K non misurato** ed è
+> il kernel della fascia high (`qwen3.5-4b` Q4_K_M), quindi si accende un percorso misurato per low/mid e non
+> misurato per high; 732/735/8 Elite non rifatti; V73 resta false; e il guadagno è 1,24×, non l'1,78× di prima —
+> quel numero era comprato con un modello che rispondeva diverso. Decode invariato (non usa quel kernel) e la
+> policy termica invariata (a ~38 °C il runtime degrada comunque a prefill CPU).
