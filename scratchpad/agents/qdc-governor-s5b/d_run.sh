@@ -218,7 +218,8 @@ copy_model_with_mmproj() {
   [ -n "$MMPROJ" ] || return 0
   local copy_file="${prefix}_model_copy.txt" copy_out="${prefix}_mmproj_copy.runas"
   local stat_out_file="${prefix}_mmproj_stat.runas" sha_out_file="${prefix}_mmproj_sha.runas"
-  local mmproj_file="${MMPROJ##*/}" mmproj_remote="$DEVICE_TMP/$mmproj_file"
+  local mmproj_file="${MMPROJ##*/}"
+  local mmproj_remote="$DEVICE_TMP/$mmproj_file"
   local local_sha size sha_out sha run_rc
   [ -f "$MMPROJ" ] || { printf 'mmproj_local_missing=%s\n' "$MMPROJ" >> "$copy_file"; return 1; }
   local_sha=$(/usr/bin/shasum -a 256 "$MMPROJ" | awk '{print $1}')
