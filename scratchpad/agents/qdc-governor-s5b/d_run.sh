@@ -44,6 +44,7 @@ PKG=com.kalsa.app
 MODEL="${MODEL:-/Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf}"; MODEL_SIZE="${MODEL_SIZE:-1593894944}"
 MODEL_SHA="${MODEL_SHA:-a247afd6414918eac8e520a9e6137dc271235461ecbe1180462221d5b8d40b03}"
 MODEL_DIR="${MODEL_DIR:-lfm2.5-2.6b}"; MODEL_FILE="${MODEL_FILE:-LFM2.5-2.6B-QAD-Q4_0.gguf}"
+MMPROJ="${MMPROJ:-}"; MMPROJ_SIZE="${MMPROJ_SIZE:-}"; MMPROJ_SHA="${MMPROJ_SHA:-}"
 DEVICE_TMP=/data/local/tmp/kalsa-s5; MODEL_REMOTE="$DEVICE_TMP/$MODEL_FILE"
 START_EPOCH=$(date +%s); DEADLINE_EPOCH=$((START_EPOCH + DEADLINE_MINUTES * 60)); END_WRITTEN=0
 SER=""; HOLDER_PID=0; SCREEN_OFF_TIMEOUT=""; SCREEN_OFF_TIMEOUT_SAVED=0; IME_SAVED=""; IME_SUSPENDED=0
@@ -211,6 +212,41 @@ model_setup() {
   [ "$device_sha" = "$MODEL_SHA" ] || { log "DEVICE_MODEL_SHA_FAIL=$device_sha"; return 1; }
   adbT 60 -s "$SER" shell "chmod 644 $MODEL_REMOTE" > "$RAW/model_chmod.txt" 2>&1
 }
+copy_model_with_mmproj() {
+  local prefix="$1"
+  copy_model "$prefix" || return 1
+  [ -n "$MMPROJ" ] || return 0
+  local copy_file="${prefix}_model_copy.txt" copy_out="${prefix}_mmproj_copy.runas"
+  local stat_out_file="${prefix}_mmproj_stat.runas" sha_out_file="${prefix}_mmproj_sha.runas"
+  local mmproj_file="${MMPROJ##*/}" mmproj_remote="$DEVICE_TMP/$mmproj_file"
+  local local_sha size sha_out sha run_rc
+  [ -f "$MMPROJ" ] || { printf 'mmproj_local_missing=%s\n' "$MMPROJ" >> "$copy_file"; return 1; }
+  local_sha=$(/usr/bin/shasum -a 256 "$MMPROJ" | awk '{print $1}')
+  size=$(wc -c < "$MMPROJ" | tr -d '[:space:]')
+  printf 'mmproj_local_sha=%s mmproj_local_size=%s\n' "$local_sha" "$size" >> "$copy_file"
+  [ "$local_sha" = "$MMPROJ_SHA" ] && [ "$size" = "$MMPROJ_SIZE" ] || return 1
+  adbT 600 -s "$SER" push "$MMPROJ" "$mmproj_remote" >> "$copy_file" 2>&1
+  run_rc=$?; printf 'mmproj_push_rc=%s\n' "$run_rc" >> "$copy_file"
+  [ "$run_rc" -eq 0 ] || return 1
+  adbT 60 -s "$SER" shell "chmod 644 $mmproj_remote" >> "$copy_file" 2>&1
+  run_rc=$?; printf 'mmproj_chmod_rc=%s\n' "$run_rc" >> "$copy_file"
+  [ "$run_rc" -eq 0 ] || return 1
+  run_as_retry shell "$copy_file" "$copy_out" 300 "sh -c 'mkdir -p files/models/$MODEL_DIR && cp $mmproj_remote files/models/$MODEL_DIR/$mmproj_file'"
+  run_rc=$?; cat "$copy_out" >> "$copy_file"; rm -f "$copy_out"
+  [ "$run_rc" -eq 0 ] || return 1
+  run_as_retry shell "$copy_file" "$stat_out_file" 60 "stat -c %s files/models/$MODEL_DIR/$mmproj_file"
+  run_rc=$?; size=$(cat "$stat_out_file"); cat "$stat_out_file" >> "$copy_file"; rm -f "$stat_out_file"
+  [ "$run_rc" -eq 0 ] || return 1
+  size=$(printf '%s' "$size" | tr -d '[:space:]')
+  printf 'mmproj_device_size=%s expected=%s\n' "$size" "$MMPROJ_SIZE" >> "$copy_file"
+  [ "$size" = "$MMPROJ_SIZE" ] || return 1
+  run_as_retry shell "$copy_file" "$sha_out_file" 60 "sha256sum files/models/$MODEL_DIR/$mmproj_file"
+  run_rc=$?; sha_out=$(cat "$sha_out_file"); cat "$sha_out_file" >> "$copy_file"; rm -f "$sha_out_file"
+  [ "$run_rc" -eq 0 ] || return 1
+  sha=$(printf '%s' "$sha_out" | awk '{print $1}' | tr -d '[:space:]')
+  printf 'mmproj_device_sha=%s expected=%s\n' "$sha" "$MMPROJ_SHA" >> "$copy_file"
+  [ "$sha" = "$MMPROJ_SHA" ]
+}
 bootstrap_db() {
   local prefix="$1" i
   device_wake
@@ -292,7 +328,7 @@ fresh_install() {
   printf 'application-debuggable required; flags=%s\n' "$flags" >> "${prefix}_apk_sha.txt"
   printf '%s' "$flags" | grep -qi DEBUGGABLE
 }
-MODEL_LOAD_PATTERN='llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf'; PREWARM_PATTERN='KALSA_PREWARM.*"op":"done"'
+MODEL_LOAD_PATTERN="llama_model_loader: loaded meta data with .* from /data/user/0/com.kalsa.app/files/models/$MODEL_DIR/$MODEL_FILE"; PREWARM_PATTERN='KALSA_PREWARM.*"op":"done"'
 has_load_proof() { grep -E "$MODEL_LOAD_PATTERN" "$1" >/dev/null 2>&1 && grep -E "$PREWARM_PATTERN" "$1" >/dev/null 2>&1; }
 memory_before() { local prefix="$1"; local file="${prefix}_meminfo_before.txt"; adbT 60 -s "$SER" shell "cat /proc/meminfo | head -3" > "$file" 2>&1 || return 1; MEM_BEFORE_KB=$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$file" | head -1 | tr -d '\r'); [ -n "$MEM_BEFORE_KB" ]; }
 memory_after() { local prefix="$1"; local file="${prefix}_meminfo_after.txt"; adbT 60 -s "$SER" shell "cat /proc/meminfo | head -3" > "$file" 2>&1 || return 1; adbT 90 -s "$SER" shell "dumpsys meminfo $PKG | head -25" > "${prefix}_appmem_after.txt" 2>&1 || return 1; MEM_AFTER_KB=$(sed -n 's/^MemAvailable:[[:space:]]*\([0-9][0-9]*\) kB.*/\1/p' "$file" | head -1 | tr -d '\r'); [ -n "$MEM_BEFORE_KB" ] && [ -n "$MEM_AFTER_KB" ] || return 1; printf 'MEM before=%s after=%s\n' "$MEM_BEFORE_KB" "$MEM_AFTER_KB" | tee -a "$DRIVER_LOG"; }
@@ -371,7 +407,7 @@ run_observation() {
   local a_reused a_total probs_file="${prefix}_probs.jsonl" oracle_result="" oracle_mode=na
   local ids_file="${prefix}_ids.txt"
   SEND_ANCHOR_EPOCH=0; LOGCAT_RC=na; LOGCAT_RETRIES=0
-  deadline_check; fresh_install "$prefix" || status=1; [ "$status" -eq 0 ] && copy_model "$prefix" || status=1; [ "$status" -eq 0 ] && bootstrap_db "$prefix" || status=1
+  deadline_check; fresh_install "$prefix" || status=1; [ "$status" -eq 0 ] && copy_model_with_mmproj "$prefix" || status=1; [ "$status" -eq 0 ] && bootstrap_db "$prefix" || status=1
   if [ "$status" -eq 0 ]; then
     COOL_TARGET_C=$(cool_target_for_arm "$arm") || status=1
     if [ "$status" -eq 0 ]; then
