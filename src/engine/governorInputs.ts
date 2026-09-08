@@ -13,7 +13,15 @@ type Generation = "V73" | "V75" | "V79" | "Unknown";
 
 const GPU_PREFILL_CORRECT: Record<Generation, boolean> = {
   V79: true, // S5 run 6 oracle PASS 4/4 (kalsa-moe-experiments ALIVE 48)
-  V75: false, // Adreno 750 f16/bf16-batched MUL_MAT defect: S5 runs 3-5 deterministic divergence @token 14 (ALIVE 38/39/48)
+  /* Owner decision (2026-09-07): enable V75 under R6 of the logit-oracle protocol;
+   * a PASS is reported, but production enablement is the owner's call, not an automatic promotion.
+   * q4_0 GEMM product now computes in f32 (fork Aspis0/kalsallama @ 67c73d26c),
+   * which was the cause of old divergence (historical ALIVE 38/39/48): confident-CPU top-1 flips 8/32 → 0.
+   * Median |Δp₁| 0.0861 → 0.0014; GPU prefill is 1.242× vs CPU.
+   * Caveat: raw oracle is still FAIL on R2; R2 requires ≤0.02 at every step;
+   * same-top is 94.8%; evidence is n=1 pair on one board (ALIVE 60).
+   */
+  V75: true,
   V73: false, // never measured in-app; bench runs use kalsa.bench.governor_force
   Unknown: false,
 };
