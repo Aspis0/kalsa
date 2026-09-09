@@ -3932,3 +3932,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   invio, logcat attorno all'ultimo caso, stato schermo/keyguard, un probe manuale). Lezione da scrivere nel runner:
   il watchdog deve guardare l'ultima riga scritta, e fermarsi al terzo `send_failed` consecutivo.
 
+- **9/09 ~17:05 EDT — CAUSA DEI `send_failed` S23: BUG DEL RUNNER, L'APP È SANA** (deepseek 100fe465, diagnosi in
+  `device/s23/RUN-STATE.md`; verificato da me sul file). `run_device_subset.sh:361` tronca il "needle" ai primi 48
+  caratteri del turno e poi pretende l'uguaglianza esatta col composer: ogni turno più lungo di 48 caratteri non
+  combacia mai → rilancio (che distrugge il testo atterrato) → nuovo share → fallimento. C01 (46 caratteri) passava,
+  coerente con 12/12. Secondo bug: `OUT=` a riga 48 viene definito dopo il `source` di `device-share-send.sh`, che a
+  riga 29 imposta il proprio default → tutta l'evidenza finiva in `device-share-send-out/`. Probe manuale con lo
+  script non modificato: percorso di invio integro. Fix in corso (uguaglianza sul testo intero, OUT prima del source,
+  watchdog che esce al terzo fallimento consecutivo, no re-run di C01), righe fallite rimosse lato host e conservate in
+  `s23/lfm.out.send_failed-2026-09-09.jsonl`, braccio LFM ripartito col gate termico del protocollo (telefono a 41 °C).
+
