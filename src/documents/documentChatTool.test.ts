@@ -5,7 +5,7 @@ import {
   type DocumentChatHost,
 } from "./documentChatTool";
 import { SemanticVectorIndex } from "./semanticIndex";
-import type { LibraryDoc } from "./DocumentLibrary";
+import { decideDocStrategy, type LibraryDoc } from "./DocumentLibrary";
 
 const doc: LibraryDoc = {
   id: "doc-1",
@@ -37,6 +37,26 @@ function host(overrides: Partial<DocumentChatHost> = {}): DocumentChatHost {
   };
 }
 
+function selectionHost(
+  docs: LibraryDoc[],
+  activeAttachment?: DocumentChatHost["getActiveAttachment"],
+): DocumentChatHost {
+  return host({
+    getLibraryDocs: () => docs,
+    getActiveAttachment: activeAttachment,
+    requestPdfText: async (selected) => ({
+      docs: [
+        {
+          docId: `${selected.sourceId}#p1`,
+          title: selected.name,
+          text: `Selected ${selected.id}. ${pageText}`,
+        },
+      ],
+      skippedPages: [],
+    }),
+  });
+}
+
 beforeEach(() => {
   __resetDocumentChatBusyForTests();
 });
@@ -52,6 +72,129 @@ describe("document_chat executor", () => {
 
     expect(result.strategy).toBe("error");
     expect(result.error).toMatch(/document/i);
+  });
+
+  test("selects an exact library id first", async () => {
+    const other = { ...doc, id: "doc-2", name: "Other.pdf", sourceId: "other" };
+    const exec = createDocumentChatExecutor(selectionHost([doc, other]));
+    const result = await exec("document_chat", { query: "apples", docId: "doc-2" });
+
+    expect(result.strategy).not.toBe("error");
+    expect(result.text).toMatch(/Selected doc-2/);
+  });
+
+  test("matches a document filename stem case-insensitively", async () => {
+    const named = { ...doc, id: "library-id", name: "Small Condominium Notice IT.pdf" };
+    const other = { ...doc, id: "doc-2", name: "Other.pdf", sourceId: "other" };
+    const exec = createDocumentChatExecutor(selectionHost([named, other]));
+    const result = await exec("document_chat", {
+      query: "apples",
+      docId: "small_condominium_notice_it",
+    });
+
+    expect(result.strategy).not.toBe("error");
+    expect(result.text).toMatch(/Selected library-id/);
+  });
+
+  test("uses the only library document when docId is absent", async () => {
+    const exec = createDocumentChatExecutor(selectionHost([doc]));
+    const result = await exec("document_chat", { query: "apples" });
+
+    expect(result.strategy).not.toBe("error");
+    expect(result.text).toMatch(/Selected doc-1/);
+  });
+
+  test("prefixes a not-found line when docId matches nothing and one doc exists", async () => {
+    const exec = createDocumentChatExecutor(selectionHost([doc]));
+    const result = await exec("document_chat", {
+      query: "apples",
+      docId: "missing-document",
+    });
+
+    expect(result.strategy).not.toBe("error");
+    expect(result.text).toMatch(/missing-document/);
+    expect(result.text).toMatch(/only available document/);
+    expect(result.text).toMatch(/Selected doc-1/);
+  });
+
+  test("routes a 40-page text document to retrieval", () => {
+    expect(
+      decideDocStrategy({
+        docCount: 40,
+        estimatedTokens: 20_000,
+        ctxTokens: 16_384,
+      }),
+    ).toBe("retrieve");
+  });
+
+  test("retrieves a match from page 31 of a 40-page PDF", async () => {
+    const manual: LibraryDoc = {
+      ...doc,
+      id: "manual",
+      sourceId: "manual",
+      name: "Manual.pdf",
+      docCount: 40,
+      estimatedTokens: 20_000,
+    };
+    const exec = createDocumentChatExecutor(
+      host({
+        getLibraryDocs: () => [manual],
+        requestPdfText: async () => ({
+          docs: Array.from({ length: 40 }, (_, index) => ({
+            docId: `manual#p${index + 1}`,
+            title: `Page ${index + 1}`,
+            text:
+              index === 30
+                ? "The buriedword-31 procedure is documented here."
+                : `General manual text for page ${index + 1}.`,
+          })),
+          skippedPages: [],
+        }),
+      }),
+    );
+    const result = await exec("document_chat", { query: "buriedword-31" });
+
+    expect(result.strategy).toBe("retrieve");
+    expect(result.passages.some((passage) => passage.docId === "manual#p31")).toBe(true);
+  });
+
+  test("uses the active document attachment when the library is ambiguous", async () => {
+    const other = { ...doc, id: "doc-2", name: "Other.pdf", sourceId: "other" };
+    const exec = createDocumentChatExecutor(
+      selectionHost([doc, other], () => ({ libraryDocId: "doc-2", name: "Other.pdf" })),
+    );
+    const result = await exec("document_chat", { query: "apples" });
+
+    expect(result.strategy).not.toBe("error");
+    expect(result.text).toMatch(/Selected doc-2/);
+  });
+
+  test("lists available documents when selection remains ambiguous", async () => {
+    const other = { ...doc, id: "doc-2", name: "Other.pdf", sourceId: "other" };
+    const exec = createDocumentChatExecutor(selectionHost([doc, other]));
+    const result = await exec("document_chat", {
+      query: "apples",
+      docId: "missing-document",
+    });
+
+    expect(result.strategy).toBe("error");
+    expect(result.error).toMatch(/doc-1.*Notes\.pdf/);
+    expect(result.error).toMatch(/doc-2.*Other\.pdf/);
+  });
+
+  test("ignores the active attachment for an unmatched explicit docId", async () => {
+    const other = { ...doc, id: "doc-2", name: "Other.pdf", sourceId: "other" };
+    const exec = createDocumentChatExecutor(
+      selectionHost([doc, other], () => ({ libraryDocId: "doc-2", name: "Other.pdf" })),
+    );
+    const result = await exec("document_chat", {
+      query: "apples",
+      docId: "missing-document",
+    });
+
+    expect(result.strategy).toBe("error");
+    expect(result.error).toMatch(/Available documents: doc-1/);
+    expect(result.error).toMatch(/doc-2 — Other\.pdf/);
   });
 
   test("forwards abort to the host and returns an aborted error", async () => {

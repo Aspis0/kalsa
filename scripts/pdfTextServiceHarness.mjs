@@ -92,7 +92,7 @@ async function main() {
     isPdfTextExtractionBusy,
   } = mod;
 
-  check("timeout constant", PDF_TEXT_SERVICE_TIMEOUT_MS === 160_000);
+  check("timeout constant", PDF_TEXT_SERVICE_TIMEOUT_MS === 185_000);
 
   // ── No host → immediate reject ─────────────────────────────────────────
   {

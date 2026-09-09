@@ -32,8 +32,12 @@ export type LibraryDoc = {
   kind: LibraryDocKind;
   /** Epoch ms when the doc was added. */
   addedAt: number;
-  /** Extracted PDF page count (capped at MAX_PDF_PAGES); omitted for TXT. */
+  /** Total PDF page count when reported by pdf.js; omitted for TXT. */
   pageCount?: number;
+  /** Number of PDF pages inspected by text extraction; omitted for TXT. */
+  processedPageCount?: number;
+  /** True when hostile-PDF limits stopped extraction before the final page. */
+  truncated?: boolean;
   sizeBytes: number;
   /**
    * Number of text-layer retrieval docs available after extraction.
@@ -448,6 +452,16 @@ function sanitizeDoc(doc: LibraryDoc): LibraryDoc {
     out.pageCount = Math.floor(doc.pageCount);
   }
   if (
+    typeof doc.processedPageCount === "number" &&
+    Number.isFinite(doc.processedPageCount) &&
+    doc.processedPageCount >= 0
+  ) {
+    out.processedPageCount = Math.floor(doc.processedPageCount);
+  }
+  if (doc.truncated === true) {
+    out.truncated = true;
+  }
+  if (
     typeof doc.estimatedTokens === "number" &&
     Number.isFinite(doc.estimatedTokens) &&
     doc.estimatedTokens >= 0
@@ -490,11 +504,14 @@ function tryParseDoc(item: unknown): LibraryDoc | null {
     kind: o.kind,
     addedAt: typeof o.addedAt === "number" ? o.addedAt : Date.now(),
     pageCount: typeof o.pageCount === "number" ? o.pageCount : undefined,
+    processedPageCount:
+      typeof o.processedPageCount === "number" ? o.processedPageCount : undefined,
     sizeBytes: typeof o.sizeBytes === "number" ? o.sizeBytes : 0,
     docCount: typeof o.docCount === "number" ? o.docCount : 0,
     fileUri: typeof o.fileUri === "string" ? o.fileUri : "",
     estimatedTokens:
       typeof o.estimatedTokens === "number" ? o.estimatedTokens : undefined,
+    ...(o.truncated === true ? { truncated: true } : {}),
     ...(extractionStatus ? { extractionStatus } : {}),
     ...(typeof o.previewUri === "string" && o.previewUri.length > 0
       ? { previewUri: o.previewUri }

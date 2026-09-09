@@ -33,23 +33,23 @@ const config = {
     permissions: ["android.permission.RECORD_AUDIO", "android.permission.READ_CALENDAR"],
     intentFilters: [
       {
-        action: "android.intent.action.SEND",
-        category: ["android.intent.category.DEFAULT"],
+        action: "SEND",
+        category: ["DEFAULT"],
         data: [{ mimeType: "text/plain" }],
       },
       {
-        action: "android.intent.action.SEND",
-        category: ["android.intent.category.DEFAULT"],
+        action: "SEND",
+        category: ["DEFAULT"],
         data: [{ mimeType: "application/pdf" }],
       },
       {
-        action: "android.intent.action.SEND_MULTIPLE",
-        category: ["android.intent.category.DEFAULT"],
+        action: "SEND_MULTIPLE",
+        category: ["DEFAULT"],
         data: [{ mimeType: "text/plain" }],
       },
       {
-        action: "android.intent.action.SEND_MULTIPLE",
-        category: ["android.intent.category.DEFAULT"],
+        action: "SEND_MULTIPLE",
+        category: ["DEFAULT"],
         data: [{ mimeType: "application/pdf" }],
       },
     ],

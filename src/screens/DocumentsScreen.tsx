@@ -57,10 +57,10 @@ import {
   isPdfTextExtractionBusy,
   requestPdfText,
 } from "../pdf/pdfTextService";
-import { MAX_PDF_PAGES } from "../util/pdfBridgeProtocol";
 import { htmlToText } from "../util/htmlToText";
 import { useLocale } from "../i18n";
 import { Header } from "../theme/components";
+import { summarizePdfExtraction } from "../documents/extractionScope";
 import { spacing } from "../theme/tokens";
 import { useTypography, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -309,6 +309,8 @@ export function DocumentsScreen({
       let storedSizeBytes = sizeBytes;
       let docCount = 0;
       let pageCount: number | undefined;
+      let processedPageCount: number | undefined;
+      let truncated = false;
       let estimatedTokens: number | undefined;
       let extractionStatus: ExtractionStatus = "ok";
 
@@ -385,29 +387,12 @@ export function DocumentsScreen({
             sourceId,
             title: name,
           });
-          const extractedDocs = Array.isArray(extracted?.docs)
-            ? extracted.docs
-            : [];
-          docCount = extractedDocs.filter(
-            (d) => d && typeof d.text === "string" && d.text.trim().length > 0,
-          ).length;
-          // Store the extracted cap, not pdf.js numPages — we only read
-          // MAX_PDF_PAGES, so claiming the full document length is dishonest.
-          const extractedPages =
-            extractedDocs.length + (extracted?.skippedPages?.length ?? 0);
-          if (extractedPages > 0) {
-            pageCount = extractedPages;
-          } else if (
-            typeof extracted?.documentPageCount === "number" &&
-            extracted.documentPageCount > 0
-          ) {
-            pageCount = Math.min(
-              Math.floor(extracted.documentPageCount),
-              MAX_PDF_PAGES,
-            );
-          }
-          const fullText = extractedDocs.map((d) => d.text ?? "").join("\n\n");
-          estimatedTokens = estimateTokensForDoc(fullText);
+          const scope = summarizePdfExtraction(extracted);
+          docCount = scope.docCount;
+          pageCount = scope.pageCount;
+          processedPageCount = scope.processedPageCount;
+          truncated = scope.truncated;
+          estimatedTokens = estimateTokensForDoc(scope.fullText);
           extractionStatus = docCount === 0 ? "no_text_layer" : "ok";
         } catch (err) {
           const code =
@@ -479,6 +464,8 @@ export function DocumentsScreen({
         fileUri: ownedUri,
         extractionStatus,
         ...(pageCount != null ? { pageCount } : {}),
+        ...(processedPageCount != null ? { processedPageCount } : {}),
+        ...(truncated ? { truncated: true } : {}),
         ...(estimatedTokens != null ? { estimatedTokens } : {}),
       };
 

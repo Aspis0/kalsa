@@ -110,6 +110,13 @@ export function DocumentDetailView({
         ? t("documents.pageCountOne")
         : t("documents.pageCount", { count: doc.pageCount })
       : null;
+  const visiblePagesLabel =
+    pagesLabel &&
+    doc.truncated &&
+    typeof doc.processedPageCount === "number" &&
+    doc.processedPageCount < (doc.pageCount ?? 0)
+      ? `${pagesLabel} (${doc.processedPageCount}/${doc.pageCount})`
+      : pagesLabel;
 
   const bucket = formatAddedBucket(doc.addedAt);
   const addedLabel =
@@ -122,7 +129,7 @@ export function DocumentDetailView({
           });
 
   const metaParts = [
-    pagesLabel,
+    visiblePagesLabel,
     sizeLabel,
     addedLabel,
   ].filter(Boolean) as string[];

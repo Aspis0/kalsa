@@ -3,8 +3,8 @@
  * a PDF): copy to owned storage, extract text, build a LibraryDoc.
  */
 
-import { MAX_PDF_PAGES } from "../util/pdfBridgeProtocol";
 import { requestPdfText } from "../pdf/pdfTextService";
+import { summarizePdfExtraction } from "./extractionScope";
 import {
   estimateTokensForDoc,
   type ExtractionStatus,
@@ -75,6 +75,8 @@ export async function importSharedPdf(
 
   let docCount = 0;
   let pageCount: number | undefined;
+  let processedPageCount: number | undefined;
+  let truncated = false;
   let estimatedTokens: number | undefined;
   let extractionStatus: ExtractionStatus = "ok";
 
@@ -83,21 +85,12 @@ export async function importSharedPdf(
       sourceId: id,
       title: name,
     });
-    const extractedDocs = Array.isArray(extracted?.docs) ? extracted.docs : [];
-    docCount = extractedDocs.filter(
-      (d) => d && typeof d.text === "string" && d.text.trim().length > 0,
-    ).length;
-    const extractedPages = extractedDocs.length + (extracted?.skippedPages?.length ?? 0);
-    if (extractedPages > 0) {
-      pageCount = extractedPages;
-    } else if (
-      typeof extracted?.documentPageCount === "number" &&
-      extracted.documentPageCount > 0
-    ) {
-      pageCount = Math.min(Math.floor(extracted.documentPageCount), MAX_PDF_PAGES);
-    }
-    const fullText = extractedDocs.map((d) => d.text ?? "").join("\n\n");
-    estimatedTokens = estimateTokensForDoc(fullText);
+    const scope = summarizePdfExtraction(extracted);
+    docCount = scope.docCount;
+    pageCount = scope.pageCount;
+    processedPageCount = scope.processedPageCount;
+    truncated = scope.truncated;
+    estimatedTokens = estimateTokensForDoc(scope.fullText);
     extractionStatus = docCount === 0 ? "no_text_layer" : "ok";
   } catch (err) {
     const code =
@@ -133,6 +126,8 @@ export async function importSharedPdf(
     fileUri: ownedUri,
     extractionStatus,
     ...(pageCount != null ? { pageCount } : {}),
+    ...(processedPageCount != null ? { processedPageCount } : {}),
+    ...(truncated ? { truncated: true } : {}),
     ...(estimatedTokens != null ? { estimatedTokens } : {}),
   };
 }

@@ -1002,6 +1002,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     };
   }, [bindActiveConversation, enqueueConversationSave]);
   const docIndexByIdRef = useRef<Map<string, DocRetrieverIndex>>(new Map());
+  /** Current chat turn's library attachment for lenient document selection. */
+  const activeDocumentAttachmentRef = useRef<LocalAttachment | null>(null);
   /**
    * Per-doc dense vector index. Durable under kalsa-documents/{docId}.vec.json;
    * also held in memory for the session. Dropped on delete / library prune
@@ -2013,6 +2015,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     const documentExec = createDocumentChatExecutor(
       {
         getLibraryDocs: () => documentLibraryRef.current.docs ?? [],
+        getActiveAttachment: () => {
+          const attachment = activeDocumentAttachmentRef.current;
+          return attachment?.kind === "document"
+            ? {
+                libraryDocId: attachment.libraryDocId,
+                name: attachment.name,
+              }
+            : null;
+        },
         requestPdfText: (doc: LibraryDoc, opts) =>
           requestPdfText(doc.fileUri, {
             sourceId: doc.sourceId,
@@ -3032,6 +3043,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const shareNonceRef = useRef(0);
   const shareImportingRef = useRef(false);
   const handledShareUrlsRef = useRef(new Set<string>());
+  const pendingShareUrlRef = useRef<string | null>(null);
+  const consumeShareUrlRef = useRef<((url: string | null) => void) | null>(null);
+  const conversationsReadyRef = useRef(conversationsReady);
+  conversationsReadyRef.current = conversationsReady;
 
   const applySharePayload = useCallback(
     async (url: string) => {
@@ -3108,19 +3123,32 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     let cancelled = false;
     const consume = (url: string | null) => {
       if (cancelled || !url || handledShareUrlsRef.current.has(url)) return;
+      if (!conversationsReadyRef.current) {
+        pendingShareUrlRef.current = url;
+        return;
+      }
       if (!parseShareUrl(url)) return;
       handledShareUrlsRef.current.add(url);
       void applySharePayload(url);
     };
+    consumeShareUrlRef.current = consume;
+    const sub = Linking.addEventListener("url", (event) => consume(event.url));
     void Linking.getInitialURL()
       .then((url) => consume(url))
       .catch(() => undefined);
-    const sub = Linking.addEventListener("url", (event) => consume(event.url));
     return () => {
       cancelled = true;
       sub.remove();
     };
   }, [applySharePayload]);
+
+  useEffect(() => {
+    if (!conversationsReady) return;
+    const pending = pendingShareUrlRef.current;
+    if (!pending) return;
+    pendingShareUrlRef.current = null;
+    consumeShareUrlRef.current?.(pending);
+  }, [applySharePayload, conversationsReady]);
 
   // Platform CRITICAL is a hard resource boundary. The native event callback
   // flips thermalHardGateRef synchronously; this edge effect performs the safe
@@ -4546,10 +4574,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         const liveMiniapp = (callbacks as {
           onMiniapp?: (miniapp: unknown) => void;
         }).onMiniapp;
+        activeDocumentAttachmentRef.current =
+          attachments?.find((attachment) => attachment.kind === "document") ?? null;
         if (liveMiniapp) onMiniappRef.current = liveMiniapp;
         const finish = () => {
           if (settled) return;
           settled = true;
+          activeDocumentAttachmentRef.current = null;
           streamInFlightRef.current = false;
           setStreaming(false);
           // Clear the create_miniapp hook so a stale turn can never route into
