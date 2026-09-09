@@ -194,3 +194,16 @@ Model-visible empty/bare-`>` answers: 1024 `0/60` empty, `0/60` bare `>`; nobudg
 Phone cost at 6.5 tok/s S23 / 4.5 tok/s Jelly: 1024 median/p90 `24.23/110.32 s` / `35.00/159.36 s`; nobudget `28.69/110.32 s` / `41.44/159.36 s`.
 
 Outputs: `results/wild-v2c/`, `results/bakeoff-v2c/`; scores: `results/score-v2c-1024.txt`, `results/score-v2c-nobudget.txt`; blind packs and fresh keys: `results/judge-pack-v2c-1024.jsonl` + `results/judge-key-v2c-1024.json`, and `results/judge-pack-v2c-nobudget.jsonl` + `results/judge-key-v2c-nobudget.json`. No blind judging was performed.
+
+## v2c blind judging (2026-09-09 ~17:30 EDT)
+
+Two packs, 60 rows each, fresh per-row A/B (`results/judge-key-v2c-{1024,nobudget}.json`), MiniCPM5 v2c vs LFM v2b-merged. Unblinded by the orchestrator. Judge files: `judge-A-deepseek-v2c-*.jsonl`, `judge-B-mimo-v2c-*.jsonl`.
+
+| cell | judge | LFM | MiniCPM5 | tie | mean LFM | mean MiniCPM5 | bake-off (44) | wild (16) |
+|---|---|---|---|---|---|---|---|---|
+| MiniCPM5 @1024 vs LFM | deepseek | 28 | 15 | 17 | 3.53 | 3.15 | 19/10/15 | 9/5/2 |
+| MiniCPM5 @1024 vs LFM | mimo | 27 | 13 | 20 | 3.63 | 3.18 | 16/9/19 | 11/4/1 |
+| MiniCPM5 unbounded vs LFM | deepseek | 26 | 17 | 17 | 3.53 | 3.27 | 20/10/14 | 6/7/3 |
+| MiniCPM5 unbounded vs LFM | mimo | 24 | 15 | 21 | 3.62 | 3.30 | 16/9/19 | 8/6/2 |
+
+Judge agreement on the winner: 43/60 (1024), 38/60 (unbounded). Compared with v2b-merged (LFM 34/13/13 and 30/15/15 at budget 256/512), lifting MiniCPM5's thinking budget moves it by two to four rows, all on the wild block; the bake-off gap (fabricated facts, language drift) does not move. The budget hypothesis is REFUTED as the cause of the loss. Failure classes named by both judges on the MiniCPM5 side: confabulated places/dates/names (Lirinda, Vichy, Mairzac, "Sahara Solar", Villeneuve, invented fruit varieties), answers in English or garbled to non-English prompts, a Chinese character leak in a Spanish answer, one counting error. Next cell (v2d): same at Q8_0 to separate quantisation from model behaviour.

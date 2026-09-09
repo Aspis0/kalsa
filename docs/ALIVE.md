@@ -526,6 +526,7 @@ Plan: `kalsa/docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`. Detail and eviden
 | **G1 Mac, dev corpus** | 48 deterministic cases per model, shipped prompt/sampler/budget, fork 67c73d26c CPU | LFM 2 FAIL, MiniCPM5 3 FAIL (same conversation-EN fail) | rubric cases judged separately |
 | **G1 Mac, blind judges v2** | 60 open rows, two independent judges (deepseek, mimo), A/B randomised per row, key never shown | A: LFM 25 / MiniCPM5 22 / tie 13; B: 23 / 24 / 13; agreement 43/60 | 14 LFM finals empty by a harness round-cap (v2b re-run in flight) |
 | **G1 Mac, blind judges v2 + v2b (app tool-loop semantics)** | the 18 rows the round-cap had emptied, re-judged fresh by both judges, merged into v2 | **A: LFM 34 / MiniCPM5 13 / tie 13; B: 30 / 15 / 15** (means 3.57 vs 3.18, 3.72 vs 3.22) | 18 rows judged in a separate session; 17/18 are LFM-side repairs; MiniCPM5 `@256` has 2/44 bare-`>` answers from the thinking-budget cut |
+| **G1 Mac, MiniCPM5 thinking budget (v2c)** | MiniCPM5 at budget 1024 and unbounded vs LFM v2b, 60 rows, both judges, fresh A/B | **LFM 28/15/17 and 27/13/20 (@1024); 26/17/17 and 24/15/21 (unbounded)**; deterministic 33/44 at both; 0/60 bare-`>` | budget moves 2-4 rows, wild block only; bake-off gap (fabrications, language drift) unchanged → budget REFUTED as the cause; Q8_0 cell (v2d) next to separate quant from behaviour |
 | **G1 Mac, harness artefacts** | three, in opposite directions | prompt forced locale language (hurt MiniCPM5, fixed on main f77ea7b); no tool schemas offered (hurt LFM: raw tool syntax 15/44); 2-round cap without forced synthesis (hurt LFM: 14/60 empty) | only v2b counts for G1 |
 | **G1 Mac, language drift with the fixed prompt** | wild block, es/fr/de/pt/zh/ja + it/en | MiniCPM5 3/9 non-en/it prompts answered in English (W01, W02 es; W16 ja); LFM 0/9 | heuristic language detector |
 | **MiniCPM5 quants (Mac)** | PPL on one text, fork llama-perplexity | Q8_0 22.34 · Q4_K_M 23.55 · **Q4_K_M-imx 23.36** · Q4_0 26.19 · Q4_0-imx 24.64 | one text, one ctx; calibration disjoint from the G1 corpus |
@@ -3902,4 +3903,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   35-41 s / 159 s. Lettura: la mediana sta sotto 256 anche a budget libero, è la coda (p90) che il 256 tagliava
   lasciando `>`; la scelta del budget è un problema di coda e di UX, non di media. Giudizio cieco dei due pack
   (MiniCPM5@1024 vs LFM v2b, MiniCPM5@libero vs LFM v2b) mandato a deepseek e mimo, mappe A/B fresche.
+
+- **9/09 ~17:30 EDT — v2c GIUDICATO: IL BUDGET NON ERA LA CAUSA, LFM RESTA AVANTI A OGNI BUDGET** (deepseek 5b79eee5,
+  mimo 020b69f0, 60+60 righe, mappe fresche; unblind mio). @1024: LFM 28/15/17 (deepseek) e 27/13/20 (mimo); libero:
+  26/17/17 e 24/15/21. Accordo tra giudici 43/60 e 38/60. Rispetto a v2b (34/13/13, 30/15/15) MiniCPM5 recupera 2-4 righe,
+  tutte sul blocco wild; sul bake-off il gap non si muove: fatti inventati (Lirinda, Vichy, Mairzac, "Sahara Solar",
+  Villeneuve), risposte in inglese a prompt es/fr/it, un carattere cinese in una risposta spagnola. La mia ipotesi
+  delle 15:30 ("è il budget che lo strozza") è **smentita dai dati**. Domanda dell'owner: questi fallimenti sono
+  recuperabili col fine tuning? Sono comportamentali (onestà, lingua, tool offline), il bersaglio classico di SFT/DPO su
+  un 2B; ma prima va separata la quant dal modello → cella v2d (MiniCPM5 Q8_0, thinking libero, stesso harness) in
+  corso sul Mac. G1 sceglie sul modello com'è oggi; "MiniCPM5 + fine tune" resta una traccia post-G1.
 
