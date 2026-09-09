@@ -1,0 +1,1 @@
+tap center=(240,370) target=kalsa-v2-small-condominium.pdf; source ui-library-modal-small.xml bounds=[19,315][461,426]

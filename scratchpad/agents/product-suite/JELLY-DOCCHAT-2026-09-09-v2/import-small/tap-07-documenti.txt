@@ -1,0 +1,2 @@
+tap source ui-menu2.xml Documenti center=240,755
+input_tap_rc=0

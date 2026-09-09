@@ -1,0 +1,351 @@
+--------- beginning of main
+09-09 11:20:03.846 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.846 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.846 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.846 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.847 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.847 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.847 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.848 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.848 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.849 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.849 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.849 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.850 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.906 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.906 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.907 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.907 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.907 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.908 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.908 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.908 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.909 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.909 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.909 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.910 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.910 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.910 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.911 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.919 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.919 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.920 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.920 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.921 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.921 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.921 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.921 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.922 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.922 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.922 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.922 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.923 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.923 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.923 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.924 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.924 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.925 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.925 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.925 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.926 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.926 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.926 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.927 I/  978  1192 [sunwave-ca-device] (  978): (795) uevent: got power supply event.'POWER_SUPPLY_STATUS=Charging', charging_fix = false.
+09-09 11:20:03.927 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.928 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.928 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.928 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.928 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.929 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.929 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.929 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/11017000.i2c/i2c-5/5-0053/power_supply/5-0053
+09-09 11:20:03.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.931 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.931 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.931 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.931 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.932 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.932 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.932 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.933 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.933 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.933 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.933 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.933 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.934 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.934 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.934 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.934 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.934 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.935 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.935 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.935 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.936 I/BatteryChangeCtroller( 1564): <onReceive> : action=android.intent.action.BATTERY_CHANGED
+09-09 11:20:03.941 I/BatteryChangeCtroller( 1564): <onReceive> : mPlugged=1  level=100 mMinTemperature=16 mMaxTemperature=48
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.942 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.943 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.943 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.943 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.943 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.947 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.947 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.947 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.947 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.948 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.948 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.948 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.948 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.949 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.949 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.949 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.949 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.949 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.950 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.950 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:03.956 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.956 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.957 I/  978  1192 [sunwave-ca-device] (  978): (795) uevent: got power supply event.'POWER_SUPPLY_STATUS=Charging', charging_fix = false.
+09-09 11:20:03.957 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.957 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.957 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.957 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.957 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.958 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.958 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.958 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.958 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.958 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.958 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.959 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.959 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.959 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.959 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.959 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.960 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.960 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.960 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.960 I/BufferQueueProducer(  784): [StatusBar#75](this:0xb40000732e2ad9e8,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.26 dur=3886.88 max=3886.88 min=3886.88
+09-09 11:20:03.960 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.960 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:03.962 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.257318,dur:3886.25,max:3886.25,min:3886.25  
+09-09 11:20:04.067 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:04.441 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021912,0.000152, totalTime 0.022066 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:05.067 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:06.067 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:06.987 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:20:07.068 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:07.069 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:20:07.142 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:20:07.215 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:20:07.801 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000002,0.021953,0.000139, totalTime 0.022094 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:07.901 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021884,0.000130, totalTime 0.022015 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:08.068 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:08.901 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021972,0.000137, totalTime 0.022110 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:09.069 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:09.181 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.022033,0.000166, totalTime 0.022200 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:10.801 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021894,0.000133, totalTime 0.022028 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:10.901 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021901,0.000136, totalTime 0.022037 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:11.241 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021885,0.000137, totalTime 0.022023 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:11.646 I/CastDatabase( 2504): Saving the database
+09-09 11:20:11.650 I/SQLiteCastStore( 2504): [CastNetworkInfo] saved: 0, skipped: 0, [CastDeviceInfo]: saved 0, skipped 0, [ProbedNetworks]: saved 0, skipped: 0, [ProbedSocketAddress]: saved 0, skipped: 0, [Network-Device pairs]: saved: 0
+09-09 11:20:11.681 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.022050,0.000138, totalTime 0.022190 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:12.161 W/ThreadPoolForeg( 2504): type=1400 audit(0.0:21295): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 11:20:12.402 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:20:12.480 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:20:12.544 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:20:12.615 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:20:13.382 I/ReactNativeJS(14689): 'pressure.transition', '{"availableMb":3809}'
+09-09 11:20:14.087 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.087 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.087 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.088 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.088 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.088 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.088 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.088 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.089 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.089 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.089 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.089 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.090 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.090 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.090 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:14.361 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000002,0.021889,0.000135, totalTime 0.022026 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:15.101 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021870,0.000130, totalTime 0.022002 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:15.241 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000002,0.021995,0.000230, totalTime 0.022226 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:15.581 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021965,0.000119, totalTime 0.022086 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:16.421 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021861,0.000140, totalTime 0.022002 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:16.813 W/ThreadPoolForeg( 3423): type=1400 audit(0.0:21296): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 11:20:17.793 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:20:17.874 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:20:17.944 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:20:18.018 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:20:18.701 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021735,0.000275, totalTime 0.022012 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:21.559 I/BugleRcsEngine( 2930): handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[5035159d-fdfd]>Handler" thread_id=60 ]
+09-09 11:20:21.559 I/BugleRcsEngine( 2930): Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=55 ]
+09-09 11:20:21.566 E/PhoneInterfaceManager( 2159): [PhoneIntfMgr] getCarrierPrivilegeStatusForUid: Invalid subId
+09-09 11:20:21.569 I/NullBinder( 2504): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+09-09 11:20:21.570 W/.gms.persistent( 2504): Large reply transaction of 1056768 bytes, interface descriptor , code 1
+09-09 11:20:21.572 I/NearbyMediums( 2504): Wifi changed new SSID: "[]"
+09-09 11:20:21.572 I/NearbyMediums( 2504): WifiLanConnectivityInfo is not changed, skip notify.
+09-09 11:20:21.575 I/BugleRcsEngine( 2930): No RCS Configuration was found in Bugle for simID: redacted-pii:sim_id[chars:0,last3:] [CONTEXT log_prefix="ProvisioningEngineDataRetriever" thread_id=60 ]
+09-09 11:20:22.069 I/NearbySharing( 2504): Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+09-09 11:20:23.201 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.022011,0.000127, totalTime 0.022139 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:23.202 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:20:23.288 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:20:23.323 I/eulf    ( 2900): (REDACTED) #onAudioData: %s bytes, getAudioReadSize %s
+09-09 11:20:23.357 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:20:23.428 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:20:23.803 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.019895,0.002444, totalTime 0.022340 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:23.952 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.953 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.953 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.954 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.954 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.954 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.954 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.954 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.955 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.955 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.955 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.955 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.956 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.956 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:23.956 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.323 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.323 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.324 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.324 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.324 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.325 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.325 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.325 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.325 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.325 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.326 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.326 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.326 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.326 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.327 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:24.344 I/native  ( 2900): I0000 00:00:1788967224.344355    6718 soda_async_impl.cc:1420] Current audio timestamp: 1788967224097242
+09-09 11:20:24.580 I/BugleRcsEngine( 2930): handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[5035159d-fdfd]>Handler" thread_id=60 ]
+09-09 11:20:24.581 I/BugleRcsEngine( 2930): Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=55 ]
+09-09 11:20:24.584 E/PhoneInterfaceManager( 2159): [PhoneIntfMgr] getCarrierPrivilegeStatusForUid: Invalid subId
+09-09 11:20:24.587 I/NullBinder( 2504): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+09-09 11:20:24.587 W/.gms.persistent( 2504): Large reply transaction of 1056768 bytes, interface descriptor , code 1
+09-09 11:20:24.591 I/NearbyMediums( 2504): Wifi changed new SSID: "[]"
+09-09 11:20:24.591 I/NearbyMediums( 2504): WifiLanConnectivityInfo is not changed, skip notify.
+09-09 11:20:24.592 I/BugleRcsEngine( 2930): No RCS Configuration was found in Bugle for simID: redacted-pii:sim_id[chars:0,last3:] [CONTEXT log_prefix="ProvisioningEngineDataRetriever" thread_id=60 ]
+09-09 11:20:25.088 I/NearbySharing( 2504): Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+09-09 11:20:26.106 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.106 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.106 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.107 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.107 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.107 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.107 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.108 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.108 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.108 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.108 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.109 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.109 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.109 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.109 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:26.118 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.118 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.118 I/  978  1192 [sunwave-ca-device] (  978): (795) uevent: got power supply event.'POWER_SUPPLY_STATUS=Charging', charging_fix = false.
+09-09 11:20:26.119 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.119 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.119 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.119 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.120 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.120 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.120 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.120 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.121 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.121 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.121 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.121 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.121 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.122 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.122 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.122 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.122 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.123 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.123 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.123 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.123 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:26.126 I/BatteryChangeCtroller( 1564): <onReceive> : action=android.intent.action.BATTERY_CHANGED
+09-09 11:20:26.130 I/BatteryChangeCtroller( 1564): <onReceive> : mPlugged=1  level=100 mMinTemperature=16 mMaxTemperature=48
+09-09 11:20:26.163 I/BufferQueueProducer(  784): [StatusBar#75](this:0xb40000732e2ad9e8,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.05 dur=22202.88 max=22202.88 min=22202.88
+09-09 11:20:26.166 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.045038,dur:22203.68,max:22203.68,min:22203.68  
+09-09 11:20:27.161 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:28.161 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:28.386 I/ReactNativeJS(14689): 'pressure.transition', '{"availableMb":3809}'
+09-09 11:20:28.609 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:20:28.693 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:20:28.765 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:20:28.836 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:20:29.161 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:29.221 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021912,0.000146, totalTime 0.022059 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:30.161 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:30.610 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.610 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.611 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.611 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.611 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.611 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.612 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.612 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.612 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.612 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.613 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.613 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.613 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.613 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.614 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:20:30.614 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.615 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.615 I/  978  1192 [sunwave-ca-device] (  978): (795) uevent: got power supply event.'POWER_SUPPLY_STATUS=Charging', charging_fix = false.
+09-09 11:20:30.615 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.615 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.615 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.616 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.616 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.616 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.617 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.617 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.617 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.617 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.617 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.618 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.618 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.618 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.618 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.619 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.619 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.619 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.619 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.619 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.620 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:20:30.661 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021964,0.000141, totalTime 0.022106 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:31.162 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:32.162 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:32.381 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021966,0.000120, totalTime 0.022088 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:33.162 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:20:33.581 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021883,0.000141, totalTime 0.022025 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:20:34.022 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''

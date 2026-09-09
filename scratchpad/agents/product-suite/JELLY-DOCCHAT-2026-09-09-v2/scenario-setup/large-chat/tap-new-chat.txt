@@ -1,0 +1,1 @@
+tap center=(436,171) target=Nuova chat; source ui-before-newchat.xml

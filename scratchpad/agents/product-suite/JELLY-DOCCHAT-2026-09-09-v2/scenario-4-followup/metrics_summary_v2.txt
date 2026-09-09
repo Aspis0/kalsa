@@ -1,0 +1,4 @@
+rss_peak_hwm_kb=2714640
+battery_temperature_max_c=40.0
+thermal_status_max=3
+probe_files=88

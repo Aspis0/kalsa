@@ -1,0 +1,1 @@
+tap center=(240,480) target=kalsa-v2-large-asterion-manual.pdf; source ui-library.xml bounds=[19,426][461,536]

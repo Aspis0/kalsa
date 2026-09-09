@@ -1,0 +1,2 @@
+tap source ui-search.xml item kalsa-v2-small-condominium.pdf bounds [0,248][854,348] center=427,298
+input_tap_rc=0

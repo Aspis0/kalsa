@@ -1,0 +1,44 @@
+--------- beginning of main
+09-09 11:17:41.262 I/PowerHalWrapper( 1564): amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+09-09 11:17:41.267 E/surfaceflinger(  784): == MALI DEBUG ===eglp_winsys_populate_image_templates ==12288
+09-09 11:17:41.269 I/GoogleInputMethodService( 2702): GoogleInputMethodService.onFinishInput():2361 
+09-09 11:17:41.270 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:am start -a android.intent.action.SEND -t application/pdf --grant-read-uri-permission --eu android.intent.extra.STREAM content://media/external/file/1000000720 -n com.kalsa.app/.MainActivity'
+09-09 11:17:41.270 W/hwcomposer(  761): [DRMDEV] paramIsSame(), id 63, w 480/480, h 33/33, pitch 480/480, format 0x2/0x1, secure 0/0  
+09-09 11:17:41.271 I/GoogleInputMethodService( 2702): GoogleInputMethodService.onStartInput():1532 onStartInput(EditorInfo{EditorInfo{packageName=com.android.launcher3, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=-1, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+09-09 11:17:41.271 W/LatinIMEBase( 2702): LatinIMEBase.updateInputViewCoverNavigation():321 Null input view, cannot update padding!
+09-09 11:17:41.272 I/Module  ( 2702): DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatusInternal():119 repeatCheckTimes = 0, locked = false
+09-09 11:17:41.276 I/Module  ( 2702): DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatusInternal():119 repeatCheckTimes = 1, locked = false
+--------- beginning of system
+09-09 11:17:41.294 I/ActivityTaskManager( 1564): START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x10000001 cmp=com.kalsa.app/.MainActivity (has extras)} from uid 2000
+09-09 11:17:41.298 I/mtkpower@impl(  777): [setMode] type:5, enabled:1
+09-09 11:17:41.299 I/PowerHalWrapper( 1564): <amsBoostResume> last:com.android.launcher3, next:com.kalsa.app 
+09-09 11:17:41.300 I/BufferQueueProducer(  784): [StatusBar#75](this:0xb40000732e2ad9e8,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.02 dur=41233.43 max=41233.43 min=41233.43
+09-09 11:17:41.300 I/libPowerHal(  777): [perfLockAcq] idx:0 hdl:230 hint:11 pid:777 duration:30000 lock_user:mtkpower@1.0-se => ret_hdl:230
+09-09 11:17:41.301 I/libPowerHal(  777): [setClusterFreq] LAUNCH: sysfs_freq set cpu freq: 2000000 -1 2200000 -1 
+09-09 11:17:41.301 I/libPowerHal(  777): [PE] LAUNCH update cmd:1408300, param:100
+09-09 11:17:41.302 I/libPowerHal(  777): [PE] LAUNCH update cmd:300c000, param:15
+09-09 11:17:41.302 I/libPowerHal(  777): [PE] LAUNCH update cmd:2054400, param:0
+09-09 11:17:41.302 I/libPowerHal(  777): [PE] LAUNCH update cmd:1000000 param:0
+09-09 11:17:41.303 I/libPowerHal(  777): [perfLockRel] hdl:229, idx:-1
+09-09 11:17:41.303 I/PowerHalWrapper( 1564): amsBoostProcessCreate package:com.kalsa.app 
+09-09 11:17:41.304 I/libPowerHal(  777): [perfLockAcq] idx:1 hdl:231 hint:22 pid:777 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:231
+09-09 11:17:41.304 I/libPowerHal(  777): [perfLockRel] hdl:228, idx:-1
+09-09 11:17:41.305 I/libPowerHal(  777): [perfLockAcq] idx:2 hdl:232 hint:21 pid:777 duration:10000 lock_user:mtkpower@1.0-se => ret_hdl:232
+09-09 11:17:41.305 I/libPowerHal(  777): [perfLockRel] hdl:221, idx:-1
+09-09 11:17:41.308 I/PowerHalWrapper( 1564): amsBoostNotify pid:2289,activity:com.android.searchlauncher.SearchLauncher, package:com.android.launcher3, mProcessCreatePackcom.kalsa.app 
+09-09 11:17:41.308 I/PowerHalWrapper( 1564): state: 0 
+09-09 11:17:41.308 I/mtkpower_client( 1564): [Legacy][PowerHal_Wrap_notifyAppState] com.android.launcher3/com.android.searchlauncher.SearchLauncher pid=2289 state:0
+09-09 11:17:41.308 I/game_scn( 1564): collectForegroundAppList packName=com.android.launcher3, actName=com.android.searchlauncher.SearchLauncher, pid=2289, uid=10176, state:PAUSED
+09-09 11:17:41.309 I/PowerHalWrapper( 1564): amsBoostNotify AMS_BOOST_PROCESS_CREATE_BOOST:true 
+09-09 11:17:41.309 I/libPowerHal(  777): [perfNotifyAppState] pack:com.android.launcher3, act:com.android.searchlauncher.SearchLauncher, state:0, pid:2289, uid:10176, fps:-1
+09-09 11:17:41.313 W/ogle.android.as( 2883): Reducing the number of considered missed Gc histogram windows from 1342 to 100
+09-09 11:17:41.317 E/surfaceflinger(  784): == MALI DEBUG ===eglp_winsys_populate_image_templates ==12288
+09-09 11:17:41.317 I/BufferQueueDebug(  784): [Splash Screen com.kalsa.app#649](this:0xb40000732e26ef88,id:-1,api:0,p:-1,c:-1) BufferQueue core=(784:/system/bin/surfaceflinger)
+09-09 11:17:41.321 W/WindowManager( 1564): Changing focus from Window{beff558 u0 com.android.launcher3/com.android.searchlauncher.SearchLauncher} to null displayId=0 Callers=com.android.server.wm.RootWindowContainer.updateFocusedWindowLocked:476 com.android.server.wm.WindowManagerService.updateFocusedWindowLocked:6061 com.android.server.wm.WindowManagerService.relayoutWindow:2496 com.android.server.wm.Session.relayout:267 
+09-09 11:17:41.322 I/ActivityManager( 1564): Start proc 14689:com.kalsa.app/u0a190 for next-top-activity {com.kalsa.app/com.kalsa.app.MainActivity}
+09-09 11:17:41.328 W/Parcel  ( 1916): Expecting binder but got null!
+09-09 11:17:41.331 I/com.kalsa.app(14689): Late-enabling -Xcheck:jni
+09-09 11:17:41.335 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:17:41.336 E/surfaceflinger(  784): == MALI DEBUG ===eglp_winsys_populate_image_templates ==12288
+09-09 11:17:41.348 I/com.kalsa.app(14689): Using generational CollectorTypeCMC GC.
+09-09 11:17:41.352 I/adbd    (10663): jdwp connection from 14689

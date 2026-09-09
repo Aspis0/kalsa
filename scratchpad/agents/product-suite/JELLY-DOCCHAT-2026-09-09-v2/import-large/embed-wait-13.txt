@@ -1,0 +1,329 @@
+--------- beginning of main
+09-09 11:29:51.763 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=15 text_tokens=16 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:51.763 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 86667 4 2940 100 2347 100 188 2347 18244 80596 102 ] text_ids=[3190 11 78292 100 4 19111 2940 100 188 11 100 100 ]
+09-09 11:29:51.763 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=16, num_prompt_tokens=16, has_media=0
+09-09 11:29:51.764 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:51.782 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#22","dims":384}
+09-09 11:29:52.305 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":628}
+09-09 11:29:52.307 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:52.307 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 372 102 
+09-09 11:29:52.307 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=16 text_tokens=7 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:52.307 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=7 shared_ids=[101 100 12 ] embd_ids=[3190 11 78292 100 4 19111 2940 100 188 11 100 100 ] text_ids=[100 100 372 102 ]
+09-09 11:29:52.307 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=7, num_prompt_tokens=7, has_media=0
+09-09 11:29:52.307 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:52.311 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#23","dims":384}
+09-09 11:29:52.415 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '300''
+09-09 11:29:52.829 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":629}
+09-09 11:29:52.833 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:52.833 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 206469 100 102 
+09-09 11:29:52.833 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=7 text_tokens=18 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:52.833 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=7 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 100 372 102 ] text_ids=[42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 ]
+09-09 11:29:52.833 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=18, num_prompt_tokens=18, has_media=0
+09-09 11:29:52.833 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:52.855 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#24","dims":384}
+09-09 11:29:53.386 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":630}
+09-09 11:29:53.387 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:53.387 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 22584 4 100 2347 100 4 100 2472 2347 100 102 
+09-09 11:29:53.387 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=18 text_tokens=15 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:53.387 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 ] text_ids=[100 22584 4 100 2347 100 4 100 2472 2347 100 102 ]
+09-09 11:29:53.387 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=15, num_prompt_tokens=15, has_media=0
+09-09 11:29:53.388 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:53.396 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#25","dims":384}
+09-09 11:29:53.424 I/eulf    ( 2900): (REDACTED) #onAudioData: %s bytes, getAudioReadSize %s
+09-09 11:29:53.917 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":631}
+09-09 11:29:53.920 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:53.920 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 188 100 4 2940 100 100 2472 100 102 
+09-09 11:29:53.921 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=15 text_tokens=12 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:53.921 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=12 shared_ids=[101 100 12 ] embd_ids=[100 22584 4 100 2347 100 4 100 2472 2347 100 102 ] text_ids=[188 100 4 2940 100 100 2472 100 102 ]
+09-09 11:29:53.921 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=12, num_prompt_tokens=12, has_media=0
+09-09 11:29:53.922 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:53.933 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#26","dims":384}
+09-09 11:29:54.345 I/native  ( 2900): I0000 00:00:1788967794.345211    6718 soda_async_impl.cc:1420] Current audio timestamp: 1788967794097242
+09-09 11:29:54.465 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":632}
+09-09 11:29:54.467 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:54.467 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 86667 4 2940 100 2347 100 188 2347 18244 102 
+09-09 11:29:54.467 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=12 text_tokens=25 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:54.467 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=12 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[188 100 4 2940 100 100 2472 100 102 ] text_ids=[100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 ]
+09-09 11:29:54.467 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=25, num_prompt_tokens=25, has_media=0
+09-09 11:29:54.468 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:54.483 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#27","dims":384}
+09-09 11:29:54.990 I/com.kalsa.app(14689): Background young concurrent mark compact GC freed 368KB AllocSpace bytes, 2(19MB) LOS objects, 7% free, 52MB/57MB, paused 5.056ms,3.063ms total 29.149ms
+09-09 11:29:55.013 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":633}
+09-09 11:29:55.017 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:55.017 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 3190 11 78292 100 4 19111 2940 100 188 11 100 100 102 
+09-09 11:29:55.018 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=25 text_tokens=16 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:55.018 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 ] text_ids=[3190 11 78292 100 4 19111 2940 100 188 11 100 100 ]
+09-09 11:29:55.018 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=16, num_prompt_tokens=16, has_media=0
+09-09 11:29:55.019 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:55.037 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#28","dims":384}
+09-09 11:29:55.566 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":634}
+09-09 11:29:55.568 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:55.568 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 372 42424 76228 100 100 2940 100 102 
+09-09 11:29:55.568 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=16 text_tokens=13 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:55.568 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=13 shared_ids=[101 100 12 ] embd_ids=[3190 11 78292 100 4 19111 2940 100 188 11 100 100 ] text_ids=[100 100 372 42424 76228 100 100 2940 100 102 ]
+09-09 11:29:55.568 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=13, num_prompt_tokens=13, has_media=0
+09-09 11:29:55.569 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:55.578 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#29","dims":384}
+09-09 11:29:56.104 I/ReactNativeJS(14689): 'pressure.transition', '{"availableMb":5408}'
+09-09 11:29:56.117 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":635}
+09-09 11:29:56.120 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:56.120 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 76228 100 4 17489 4 2940 206469 100 102 
+09-09 11:29:56.120 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=13 text_tokens=12 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:56.121 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=13 text_hi=12 shared_ids=[101 100 12 ] embd_ids=[100 100 372 42424 76228 100 100 2940 100 102 ] text_ids=[76228 100 4 17489 4 2940 206469 100 102 ]
+09-09 11:29:56.121 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=12, num_prompt_tokens=12, has_media=0
+09-09 11:29:56.122 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:56.136 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#30","dims":384}
+09-09 11:29:56.147 W/System  (14689): A resource failed to call close. 
+09-09 11:29:56.669 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":636}
+09-09 11:29:56.671 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:56.671 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 22584 4 100 2347 100 4 100 2472 2347 100 188 100 4 2940 100 100 2472 100 102 
+09-09 11:29:56.671 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=12 text_tokens=23 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:56.671 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=12 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[76228 100 4 17489 4 2940 206469 100 102 ] text_ids=[100 22584 4 100 2347 100 4 100 2472 2347 100 188 ]
+09-09 11:29:56.671 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=23, num_prompt_tokens=23, has_media=0
+09-09 11:29:56.671 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:56.685 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#31","dims":384}
+09-09 11:29:57.189 I/com.kalsa.app(14689): Background young concurrent mark compact GC freed 368KB AllocSpace bytes, 2(19MB) LOS objects, 7% free, 53MB/57MB, paused 5.344ms,3.042ms total 29.410ms
+09-09 11:29:57.213 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":637}
+09-09 11:29:57.218 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:57.218 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 86667 4 2940 100 2347 100 188 2347 18244 80596 102 
+09-09 11:29:57.218 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=23 text_tokens=26 n_common=6 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:57.218 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=6 shared_lo=0 embd_hi=18 text_hi=18 shared_ids=[101 100 12 100 22584 4 ] embd_ids=[100 2347 100 4 100 2472 2347 100 188 100 4 2940 ] text_ids=[16428 2347 39379 9 6954 4 132340 2347 100 86667 4 2940 ]
+09-09 11:29:57.218 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=6, embd.size=26, num_prompt_tokens=26, has_media=0
+09-09 11:29:57.219 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:57.244 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#32","dims":384}
+09-09 11:29:57.421 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.421 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.422 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.422 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.422 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.422 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.423 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.423 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.423 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.423 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.423 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.424 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.424 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.424 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.425 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.501 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '300''
+09-09 11:29:57.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.762 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.762 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.762 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.762 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.763 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.763 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.763 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.763 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.764 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.764 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.764 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.765 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.765 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:29:57.765 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":638}
+09-09 11:29:57.767 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:57.767 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 3190 11 78292 100 4 19111 2940 100 188 11 102 
+09-09 11:29:57.767 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=26 text_tokens=14 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:57.767 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=14 shared_ids=[101 100 12 ] embd_ids=[100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 ] text_ids=[3190 11 78292 100 4 19111 2940 100 188 11 102 ]
+09-09 11:29:57.767 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=14, num_prompt_tokens=14, has_media=0
+09-09 11:29:57.769 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:57.776 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#33","dims":384}
+09-09 11:29:58.265 W/com.kalsa.app(14689): Suspending all threads took: 5.358ms
+09-09 11:29:58.286 I/com.kalsa.app(14689): Background young concurrent mark compact GC freed 336KB AllocSpace bytes, 2(20MB) LOS objects, 6% free, 53MB/57MB, paused 5.796ms,3.106ms total 30.222ms
+09-09 11:29:58.310 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":639}
+09-09 11:29:58.314 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:58.314 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 102 
+09-09 11:29:58.314 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=14 text_tokens=6 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:58.314 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=14 text_hi=6 shared_ids=[101 100 12 ] embd_ids=[3190 11 78292 100 4 19111 2940 100 188 11 102 ] text_ids=[100 100 102 ]
+09-09 11:29:58.314 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=6, num_prompt_tokens=6, has_media=0
+09-09 11:29:58.315 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:58.326 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#34","dims":384}
+09-09 11:29:58.343 I/com.kalsa.app(14689): Background concurrent mark compact GC freed 176KB AllocSpace bytes, 2(19MB) LOS objects, 41% free, 33MB/57MB, paused 521us,5.864ms total 55.477ms
+09-09 11:29:58.863 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":640}
+09-09 11:29:58.865 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:58.865 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 372 42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 206469 100 102 
+09-09 11:29:58.865 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=6 text_tokens=21 n_common=5 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:58.865 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=5 shared_lo=0 embd_hi=6 text_hi=17 shared_ids=[101 100 12 100 100 ] embd_ids=[102 ] text_ids=[372 42424 76228 100 100 2940 100 76228 100 4 17489 4 ]
+09-09 11:29:58.865 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=5, embd.size=21, num_prompt_tokens=21, has_media=0
+09-09 11:29:58.866 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:58.876 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#35","dims":384}
+09-09 11:29:59.412 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":641}
+09-09 11:29:59.417 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:59.417 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 3611 4390 22469 1837 102 
+09-09 11:29:59.417 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=21 text_tokens=8 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:59.417 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=8 shared_ids=[101 100 12 ] embd_ids=[100 100 372 42424 76228 100 100 2940 100 76228 100 4 ] text_ids=[3611 4390 22469 1837 102 ]
+09-09 11:29:59.417 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=8, num_prompt_tokens=8, has_media=0
+09-09 11:29:59.418 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:59.428 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#36","dims":384}
+09-09 11:29:59.966 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":642}
+09-09 11:29:59.969 I/RNLlama (14689): loadPrompt:440 
+09-09 11:29:59.969 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 76228 2347 100 100 100 2472 100 100 4 100 4 2940 100 100 102 
+09-09 11:29:59.969 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=8 text_tokens=19 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:29:59.969 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=8 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[3611 4390 22469 1837 102 ] text_ids=[100 76228 2347 100 100 100 2472 100 100 4 100 4 ]
+09-09 11:29:59.969 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=19, num_prompt_tokens=19, has_media=0
+09-09 11:29:59.970 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:29:59.981 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#sentence#37","dims":384}
+09-09 11:30:00.051 I/BufferQueueProducer(  784): [StatusBar#75](this:0xb40000732e2ad9e8,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.04 dur=25774.78 max=25774.78 min=25774.78
+09-09 11:30:00.053 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.038798,dur:25774.41,max:25774.41,min:25774.41  
+09-09 11:30:00.522 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":643}
+09-09 11:30:00.525 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:00.525 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 100 1280 22469 1837 100 1837 12 28394 239879 2940 22584 100 2347 100 100 100 29001 100 100 2472 100 4 100 4 100 4 2940 100 100 100 100 100 100 73 2347 22584 4867 4 100 18244 100 100 4 2940 100 86673 100 1046 100 100 100 62783 100231 100 100 100 239879 100 2940 100 100 2347 115840 100 73 100 238778 196651 991 86673 100 22469 10557 11 100 22829 100 102 
+09-09 11:30:00.526 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=19 text_tokens=83 n_common=4 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:00.526 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=4 shared_lo=0 embd_hi=16 text_hi=16 shared_ids=[101 100 12 100 ] embd_ids=[76228 2347 100 100 100 2472 100 100 4 100 4 2940 ] text_ids=[100 100 1280 22469 1837 100 1837 12 28394 239879 2940 22584 ]
+09-09 11:30:00.526 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=4, embd.size=83, num_prompt_tokens=83, has_media=0
+09-09 11:30:00.529 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:00.594 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#paragraph#0","dims":384}
+09-09 11:30:01.048 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:01.137 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":644}
+09-09 11:30:01.140 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:01.140 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 2347 100 100 100 29001 100 100 2472 100 4 100 4 100 4 2940 100 100 100 100 100 100 73 2347 22584 4867 4 100 18244 100 100 4 2940 100 86673 100 1046 100 100 100 62783 100231 100 100 100 239879 100 2940 100 100 2347 115840 100 73 100 238778 196651 991 86673 100 22469 10557 11 100 22829 100 2347 100 100 100 29001 100 100 2472 100 4 100 4 100 4 2940 100 100 102 
+09-09 11:30:01.140 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=83 text_tokens=86 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:01.140 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 100 100 1280 22469 1837 100 1837 12 28394 239879 2940 ] text_ids=[2347 100 100 100 29001 100 100 2472 100 4 100 4 ]
+09-09 11:30:01.140 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=86, num_prompt_tokens=86, has_media=0
+09-09 11:30:01.140 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:01.197 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#paragraph#1","dims":384}
+09-09 11:30:01.530 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.531 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.531 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.531 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.532 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.532 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.532 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.533 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.533 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.533 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.534 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.534 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.534 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.535 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.535 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:30:01.536 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.537 I/  978  1192 [sunwave-ca-device] (  978): (804) uevent: got power supply event.'POWER_SUPPLY_STATUS=Not charging', charging_fix = false.
+09-09 11:30:01.537 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.537 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.537 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.538 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.538 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.538 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.539 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.539 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.539 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.540 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.540 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.540 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.541 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.541 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.542 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.542 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.542 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.543 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.543 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.543 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.544 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.544 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:30:01.547 I/BatteryChangeCtroller( 1564): <onReceive> : action=android.intent.action.BATTERY_CHANGED
+09-09 11:30:01.550 I/BatteryChangeCtroller( 1564): <onReceive> : mPlugged=1  level=100 mMinTemperature=16 mMaxTemperature=48
+09-09 11:30:01.577 I/BufferQueueProducer(  784): [StatusBar#75](this:0xb40000732e2ad9e8,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.66 dur=1525.64 max=1525.64 min=1525.64
+09-09 11:30:01.578 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.655487,dur:1525.58,max:1525.58,min:1525.58  
+09-09 11:30:01.745 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":645}
+09-09 11:30:01.749 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:01.749 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 100 100 73 2347 22584 4867 4 100 18244 100 100 4 2940 100 86673 100 1046 100 100 100 62783 100231 100 100 100 239879 100 2940 100 100 2347 115840 100 73 100 238778 196651 991 86673 100 22469 10557 11 100 22829 100 100 22584 4 100 2347 100 4 100 2472 2347 100 188 100 4 2940 100 100 2472 100 100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 86667 4 2940 100 2347 100 188 2347 18244 80596 3190 11 78292 100 4 19111 2940 100 188 11 100 100 100 100 372 102 
+09-09 11:30:01.749 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=86 text_tokens=108 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:01.749 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[2347 100 100 100 29001 100 100 2472 100 4 100 4 ] text_ids=[100 100 100 100 73 2347 22584 4867 4 100 18244 100 ]
+09-09 11:30:01.749 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=108, num_prompt_tokens=108, has_media=0
+09-09 11:30:01.754 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:01.829 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#paragraph#2","dims":384}
+09-09 11:30:02.048 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:02.375 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":646}
+09-09 11:30:02.377 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:02.377 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 206469 100 100 22584 4 100 2347 100 4 100 2472 2347 100 188 100 4 2940 100 100 2472 100 100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 86667 4 2940 100 2347 100 188 2347 18244 80596 3190 11 78292 100 4 19111 2940 100 188 11 100 100 100 100 372 42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 206469 100 100 22584 4 100 2347 100 4 100 2472 2347 100 188 100 4 2940 100 100 2472 100 102 
+09-09 11:30:02.377 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=108 text_tokens=107 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:02.377 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 100 100 100 73 2347 22584 4867 4 100 18244 100 ] text_ids=[42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 ]
+09-09 11:30:02.377 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=107, num_prompt_tokens=107, has_media=0
+09-09 11:30:02.378 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:02.440 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#paragraph#3","dims":384}
+09-09 11:30:02.586 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '300''
+09-09 11:30:02.937 W/com.kalsa.app(14689): Suspending all threads took: 6.976ms
+09-09 11:30:02.960 I/com.kalsa.app(14689): Background young concurrent mark compact GC freed 368KB AllocSpace bytes, 2(20MB) LOS objects, 6% free, 53MB/57MB, paused 7.892ms,3.413ms total 33.579ms
+09-09 11:30:02.989 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":647}
+09-09 11:30:02.994 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:02.994 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 86667 4 2940 100 2347 100 188 2347 18244 80596 3190 11 78292 100 4 19111 2940 100 188 11 100 100 100 100 372 42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 206469 100 3611 4390 22469 1837 100 76228 2347 100 100 100 2472 100 100 4 100 4 2940 100 100 102 
+09-09 11:30:02.994 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=107 text_tokens=74 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:02.994 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[42424 76228 100 100 2940 100 76228 100 4 17489 4 2940 ] text_ids=[100 22584 4 16428 2347 39379 9 6954 4 132340 2347 100 ]
+09-09 11:30:02.994 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=74, num_prompt_tokens=74, has_media=0
+09-09 11:30:02.996 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:03.048 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:03.057 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p15#paragraph#4","dims":384}
+09-09 11:30:03.606 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":648}
+09-09 11:30:03.608 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:03.608 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 100 1280 22469 2485 102 
+09-09 11:30:03.608 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=74 text_tokens=10 n_common=4 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:03.608 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=4 shared_lo=0 embd_hi=16 text_hi=10 shared_ids=[101 100 12 100 ] embd_ids=[22584 4 16428 2347 39379 9 6954 4 132340 2347 100 86667 ] text_ids=[100 100 1280 22469 2485 102 ]
+09-09 11:30:03.608 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=4, embd.size=10, num_prompt_tokens=10, has_media=0
+09-09 11:30:03.609 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:03.615 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#0","dims":384}
+09-09 11:30:04.048 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:04.102 W/com.kalsa.app(14689): Suspending all threads took: 5.158ms
+09-09 11:30:04.123 I/com.kalsa.app(14689): Background young concurrent mark compact GC freed 368KB AllocSpace bytes, 2(20MB) LOS objects, 6% free, 54MB/57MB, paused 5.603ms,3.069ms total 29.723ms
+09-09 11:30:04.166 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":649}
+09-09 11:30:04.170 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:04.170 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 2485 12 28394 239879 2940 22584 100 102 
+09-09 11:30:04.170 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=10 text_tokens=12 n_common=4 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:04.171 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=4 shared_lo=0 embd_hi=10 text_hi=12 shared_ids=[101 100 12 100 ] embd_ids=[100 100 1280 22469 2485 102 ] text_ids=[2485 12 28394 239879 2940 22584 100 102 ]
+09-09 11:30:04.171 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=4, embd.size=12, num_prompt_tokens=12, has_media=0
+09-09 11:30:04.171 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:04.181 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#1","dims":384}
+09-09 11:30:04.727 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":650}
+09-09 11:30:04.729 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:04.729 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 2347 100 100 100 29001 100 100 2472 100 4 100 4 100 4 2940 100 100 102 
+09-09 11:30:04.729 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=12 text_tokens=21 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:04.729 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=12 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 2485 12 28394 239879 2940 22584 100 102 ] text_ids=[2347 100 100 100 29001 100 100 2472 100 4 100 4 ]
+09-09 11:30:04.729 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=21, num_prompt_tokens=21, has_media=0
+09-09 11:30:04.730 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:04.742 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#2","dims":384}
+09-09 11:30:05.049 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:05.286 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":651}
+09-09 11:30:05.289 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:05.289 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 100 100 73 2347 22584 4867 4 100 18244 100 100 4 2940 100 86673 100 1046 100 100 100 62783 102 
+09-09 11:30:05.289 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=21 text_tokens=27 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:05.289 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[2347 100 100 100 29001 100 100 2472 100 4 100 4 ] text_ids=[100 100 100 100 73 2347 22584 4867 4 100 18244 100 ]
+09-09 11:30:05.289 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=27, num_prompt_tokens=27, has_media=0
+09-09 11:30:05.291 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:05.318 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#3","dims":384}
+09-09 11:30:05.869 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":652}
+09-09 11:30:05.871 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:05.871 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100231 100 102 
+09-09 11:30:05.871 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=27 text_tokens=6 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:05.871 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=15 text_hi=6 shared_ids=[101 100 12 ] embd_ids=[100 100 100 100 73 2347 22584 4867 4 100 18244 100 ] text_ids=[100231 100 102 ]
+09-09 11:30:05.871 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=6, num_prompt_tokens=6, has_media=0
+09-09 11:30:05.871 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:05.876 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#4","dims":384}
+09-09 11:30:06.049 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:06.418 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":653}
+09-09 11:30:06.427 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:06.427 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 100 239879 100 2940 100 100 2347 115840 100 73 100 238778 196651 991 86673 100 22469 10557 11 102 
+09-09 11:30:06.427 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=6 text_tokens=24 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:06.427 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=6 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100231 100 102 ] text_ids=[100 100 239879 100 2940 100 100 2347 115840 100 73 100 ]
+09-09 11:30:06.427 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=24, num_prompt_tokens=24, has_media=0
+09-09 11:30:06.428 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:06.448 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#5","dims":384}
+09-09 11:30:06.987 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":654}
+09-09 11:30:06.988 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:06.988 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 100 22829 100 102 
+09-09 11:30:06.988 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=24 text_tokens=7 n_common=4 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:06.988 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=4 shared_lo=0 embd_hi=16 text_hi=7 shared_ids=[101 100 12 100 ] embd_ids=[100 239879 100 2940 100 100 2347 115840 100 73 100 238778 ] text_ids=[22829 100 102 ]
+09-09 11:30:06.988 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=4, embd.size=7, num_prompt_tokens=7, has_media=0
+09-09 11:30:06.989 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:06.994 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#6","dims":384}
+09-09 11:30:07.049 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:30:07.535 I/ReactNativeJS(14689): [embed] write {"docId":"doc-mtu94b3v-u7hs1x","chunks":655}
+09-09 11:30:07.543 I/RNLlama (14689): loadPrompt:440 
+09-09 11:30:07.543 I/RNLlama (14689): loadPrompt: prompt_tokens = 101 100 12 2347 100 100 100 29001 100 100 2472 100 4 100 4 100 4 2940 102 
+09-09 11:30:07.543 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=7 text_tokens=19 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2b7550
+09-09 11:30:07.543 W/RNLlama (14689): loadPrompt:520 KALSA_KVDIVERGE n_common=3 shared_lo=0 embd_hi=7 text_hi=15 shared_ids=[101 100 12 ] embd_ids=[100 22829 100 102 ] text_ids=[2347 100 100 100 29001 100 100 2472 100 4 100 4 ]
+09-09 11:30:07.543 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=3, embd.size=19, num_prompt_tokens=19, has_media=0
+09-09 11:30:07.544 I/ReactNativeJS(14689): KALSA_NATIVE info decode: cannot decode batches with this context (calling encode() instead)
+09-09 11:30:07.564 I/ReactNativeJS(14689): [embed] chunk ok {"docId":"doc-mtu94b3v-u7hs1x","chunkId":"doc-mtu94b3v-u7hs1x#p16#sentence#7","dims":384}
+09-09 11:30:07.693 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '300''

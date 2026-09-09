@@ -1,0 +1,1 @@
+/sdcard/jelly-v2-small-search.xml: 1 file pulled, 0 skipped. 6.5 MB/s (19030 bytes in 0.003s)

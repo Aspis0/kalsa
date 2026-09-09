@@ -1,0 +1,2 @@
+tap source ui-menu.xml Documenti row center=240,755
+input_tap_rc=0

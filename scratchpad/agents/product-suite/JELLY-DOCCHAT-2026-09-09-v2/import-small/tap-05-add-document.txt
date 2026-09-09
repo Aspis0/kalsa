@@ -1,0 +1,2 @@
+tap_evidence_source=ui-docs-list.xml content-desc="Aggiungi documento" bounds [414,41][461,88] center=438,64
+input_tap_rc=0

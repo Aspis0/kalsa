@@ -1,0 +1,1 @@
+cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45  /tmp/apk-main-5707cfe/kalsa-apk-arm64-v8a-debuggable-5707cfe31271e78431e4cd4323e907e522b8a4d8/app-release.apk

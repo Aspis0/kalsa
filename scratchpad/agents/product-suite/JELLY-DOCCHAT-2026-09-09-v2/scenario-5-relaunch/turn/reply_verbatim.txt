@@ -1,0 +1,1 @@
+Secondo il manuale (kalsa-v2-large-asterion-manual.pdf), il codice prodotto approvato per il relé Asterion blu è **AXR-7Q4-031**, indicato alla **pagina 3**.

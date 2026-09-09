@@ -1,0 +1,2 @@
+tap_evidence_source=ui-attachment-menu.xml content-desc="PDF o Word" bounds [19,735][461,809] center=240,772
+input_tap_rc=0

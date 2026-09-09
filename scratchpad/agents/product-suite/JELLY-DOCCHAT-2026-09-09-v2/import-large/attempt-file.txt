@@ -1,0 +1,2 @@
+large_file_uri=file:///sdcard/Download/large_asterion_manual_en.pdf
+am_start_file_rc=0

@@ -1,0 +1,35 @@
+--------- beginning of main
+09-09 11:23:24.146 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:am start -a android.intent.action.SEND -t application/pdf --grant-read-uri-permission --eu android.intent.extra.STREAM file:///sdcard/Download/small_condominium_notice_it.pdf -n com.kalsa.app/.MainActivity'
+--------- beginning of system
+09-09 11:23:24.200 I/ActivityTaskManager( 1564): START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x10000001 cmp=com.kalsa.app/.MainActivity (has extras)} from uid 2000
+09-09 11:23:24.207 W/unknown:BridgelessReact(14689): ReactHost{0}.onHostPause(activity)
+09-09 11:23:24.207 W/unknown:BridgelessReact(14689): ReactHost{0}.ReactContext.onHostPause()
+09-09 11:23:24.218 E/MediaProvider( 2882): Permission to access file: /storage/emulated/0/Download/small_condominium_notice_it.pdf is denied
+09-09 11:23:24.224 E/MediaProvider( 2882): Permission to access file: /storage/emulated/0/Download/small_condominium_notice_it.pdf is denied
+09-09 11:23:24.227 W/unknown:BridgelessReact(14689): ReactHost{0}.onHostResume(activity)
+09-09 11:23:24.227 W/unknown:BridgelessReact(14689): ReactHost{0}.ReactContext.onHostResume()
+09-09 11:23:24.239 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '250''
+09-09 11:23:24.249 I/PowerHalWrapper( 1564): amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+09-09 11:23:24.252 I/ReactNativeJS(14689): 'model.fit', '{"verdict":"fits","availableMb":5694}'
+09-09 11:23:24.284 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:23:24.345 I/native  ( 2900): I0000 00:00:1788967404.345006    6718 soda_async_impl.cc:1420] Current audio timestamp: 1788967404097242
+09-09 11:23:24.345 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:23:24.412 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:23:26.461 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021869,0.000132, totalTime 0.022003 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:23:28.498 I/ReactNativeJS(14689): 'pressure.transition', '{"availableMb":5693}'
+09-09 11:23:28.643 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.643 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.643 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.643 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.644 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.644 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.644 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.644 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.645 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.645 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.645 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.645 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.646 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.646 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:28.646 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:23:29.585 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '250''

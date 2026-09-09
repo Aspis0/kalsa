@@ -1,0 +1,2 @@
+tap_evidence_source=ui-picker.xml content-desc="Indietro" bounds [19,41][66,88] center=42,64
+input_tap_rc=0

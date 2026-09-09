@@ -1,0 +1,1 @@
+tap center=(385,665) target=Documento in libreria; source ui-after-newchat.xml

@@ -1,0 +1,2 @@
+tap source ui-chat-ready.xml Menu center=44,171
+input_tap_rc=0

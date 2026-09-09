@@ -1,0 +1,2 @@
+tap_evidence_source=ui-search.xml item large_asterion_manual_en.pdf bounds [0,248][854,348] center=427,298
+input_tap_rc=0

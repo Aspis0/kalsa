@@ -1,0 +1,7 @@
+The user is asking whether the document contains the personal phone number of the administrator. I need to search the document for this information. Let me use the document_chat tool to look for this specific information in the PDF file.No, il documento "kalsa-v2-small-condominium.pdf" non contiene il numero di telefono personale dell'amministratrice (Marta Bellini). 
+
+L'unica informazione relativa al contatto è:
+- "La referente per i lavori è la signora Marta Bellini, interno 4"
+- "In caso di emergenza, chiamare il numero indicato nel regolamento condominiale"
+
+Non viene indicato alcun numero di telefono specifico. Il documento fa riferimento al regolamento condominiale per le emergenze, ma non fornisce un numero concreto.

@@ -1,0 +1,1 @@
+force-stop package=com.kalsa.app

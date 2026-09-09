@@ -1,0 +1,62 @@
+--------- beginning of main
+09-09 11:22:19.329 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:am start -a android.intent.action.SEND -t application/pdf --grant-read-uri-permission --eu android.intent.extra.STREAM content://media/external/file/1000000705 -n com.kalsa.app/.MainActivity'
+--------- beginning of system
+09-09 11:22:19.379 I/ActivityTaskManager( 1564): START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x10000001 cmp=com.kalsa.app/.MainActivity (has extras)} from uid 2000
+09-09 11:22:19.390 W/unknown:BridgelessReact(14689): ReactHost{0}.onHostPause(activity)
+09-09 11:22:19.391 W/unknown:BridgelessReact(14689): ReactHost{0}.ReactContext.onHostPause()
+09-09 11:22:19.423 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '250''
+09-09 11:22:19.430 E/DatabaseUtils( 2882): Writing exception to parcel
+09-09 11:22:19.430 E/DatabaseUtils( 2882): java.lang.SecurityException: com.kalsa.app has no access to content://media/external/file/1000000705
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.enforceCallingPermissionInternal(MediaProvider.java:12989)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.enforceCallingPermission(MediaProvider.java:12884)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.checkAccess(MediaProvider.java:13010)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openFileAndEnforcePathPermissionsHelper(MediaProvider.java:11396)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openFileCommon(MediaProvider.java:10882)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openTypedAssetFileCommon(MediaProvider.java:10994)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openTypedAssetFile(MediaProvider.java:10923)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at android.content.ContentProvider$Transport.openTypedAssetFile(ContentProvider.java:561)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:327)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at android.os.Binder.execTransactInternal(Binder.java:1280)
+09-09 11:22:19.430 E/DatabaseUtils( 2882): 	at android.os.Binder.execTransact(Binder.java:1244)
+09-09 11:22:19.437 I/ReactNativeJS(14689): KALSA_SESSION {"op":"save","ms":1,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}
+09-09 11:22:19.437 I/ReactNativeJS(14689): KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}
+09-09 11:22:19.442 E/DatabaseUtils( 2882): Writing exception to parcel
+09-09 11:22:19.442 E/DatabaseUtils( 2882): java.lang.SecurityException: com.kalsa.app has no access to content://media/external/file/1000000705
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.enforceCallingPermissionInternal(MediaProvider.java:12989)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.enforceCallingPermission(MediaProvider.java:12884)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.checkAccess(MediaProvider.java:13010)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openFileAndEnforcePathPermissionsHelper(MediaProvider.java:11396)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openFileCommon(MediaProvider.java:10882)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openTypedAssetFileCommon(MediaProvider.java:10994)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at com.android.providers.media.MediaProvider.openTypedAssetFile(MediaProvider.java:10923)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at android.content.ContentProvider$Transport.openTypedAssetFile(ContentProvider.java:561)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at android.content.ContentProviderNative.onTransact(ContentProviderNative.java:327)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at android.os.Binder.execTransactInternal(Binder.java:1280)
+09-09 11:22:19.442 E/DatabaseUtils( 2882): 	at android.os.Binder.execTransact(Binder.java:1244)
+09-09 11:22:19.446 W/unknown:BridgelessReact(14689): ReactHost{0}.onHostResume(activity)
+09-09 11:22:19.446 W/unknown:BridgelessReact(14689): ReactHost{0}.ReactContext.onHostResume()
+09-09 11:22:19.456 I/ReactNativeJS(14689): KALSA_NATIVE info set_adapters_lora: adapters = 0x0
+09-09 11:22:19.456 I/ReactNativeJS(14689): KALSA_NATIVE info adapters_lora_are_same: adapters = 0x0
+09-09 11:22:19.456 I/ReactNativeJS(14689): KALSA_NATIVE info detach_threadpool: call
+09-09 11:22:19.456 I/ReactNativeJS(14689): KALSA_NATIVE info ~llama_context:        CPU compute buffer size is 129.0010 MiB, matches expectation of 129.0010 MiB
+09-09 11:22:19.468 I/ReactNativeJS(14689): 'model.fit', '{"verdict":"fits","availableMb":3863}'
+09-09 11:22:19.469 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:22:19.470 I/PowerHalWrapper( 1564): amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+09-09 11:22:19.480 W/Choreographer( 1564): Frame time is 0.046659  now = 16087224384958  timestampNanos = 16087224431617 ms in the future!  Check that graphics HAL is generating vsync timestamps using the correct timebase.
+09-09 11:22:19.523 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:22:19.580 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:22:19.652 I/BufferQueueProducer(  784): [com.kalsa.app/com.kalsa.app.MainActivity#654](this:0xb40000732e2ccf18,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.00 dur=271092.75 max=271092.75 min=271092.75
+09-09 11:22:19.653 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.051095,dur:19571.23,max:19571.23,min:19571.23  
+09-09 11:22:19.704 I/ReactNativeJS(14689): 'model.unload', '{"reason":"background"}'
+09-09 11:22:19.921 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021958,0.000122, totalTime 0.022081 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:22:20.041 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021954,0.000129, totalTime 0.022084 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:22:20.644 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:22:20.731 I/GmscoreIpa( 3423): Starting mediastore instant index [CONTEXT service_id=255 ]
+09-09 11:22:21.644 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:22:22.644 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:22:22.961 W/AudioALSACaptureDataProviderNormal(  754): readThread, latency_in_s,0.000001,0.021904,0.000163, totalTime 0.022068 > logTimeout 0.022000 TIMEOUT!!
+09-09 11:22:23.345 I/eulf    ( 2900): (REDACTED) #onAudioData: %s bytes, getAudioReadSize %s
+09-09 11:22:23.644 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:22:24.346 I/native  ( 2900): I0000 00:00:1788967344.346379    6718 soda_async_impl.cc:1420] Current audio timestamp: 1788967344097242
+09-09 11:22:24.645 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:22:24.736 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '250''

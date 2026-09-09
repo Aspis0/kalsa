@@ -1,0 +1,104 @@
+=== battery ===
+Current Battery Service state:
+  AC powered: true
+  USB powered: false
+  Wireless powered: false
+  Max charging current: 1500000
+  Max charging voltage: 4700000
+  Charge counter: 2946000
+  status: 4
+  health: 2
+  present: true
+  level: 100
+  scale: 100
+  voltage: 4400
+  temperature: 370
+  technology: Li-ion
+=== process status ===
+pid=16229
+Name:	com.kalsa.app
+Umask:	0077
+State:	S (sleeping)
+Tgid:	16229
+Ngid:	0
+Pid:	16229
+PPid:	746
+TracerPid:	0
+Uid:	10190	10190	10190	10190
+Gid:	10190	10190	10190	10190
+FDSize:	512
+Groups:	3003 9997 20190 50190 
+VmPeak:	76646424 kB
+VmSize:	52482224 kB
+VmLck:	  211020 kB
+VmPin:	       0 kB
+VmHWM:	 2685172 kB
+VmRSS:	 2680996 kB
+RssAnon:	 2302648 kB
+RssFile:	  354556 kB
+RssShmem:	   23792 kB
+VmData:	 5591224 kB
+VmStk:	    8192 kB
+VmExe:	       4 kB
+VmLib:	  364148 kB
+VmPTE:	    7036 kB
+VmSwap:	    9212 kB
+CoreDumping:	0
+THP_enabled:	1
+Threads:	120
+SigQ:	0/30301
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000080001204
+SigIgn:	0000000000000001
+SigCgt:	0000006e400084f8
+CapInh:	0000000000000000
+CapPrm:	0000000000000000
+CapEff:	0000000000000000
+CapBnd:	0000000000000000
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	2
+Seccomp_filters:	1
+Speculation_Store_Bypass:	thread vulnerable
+Cpus_allowed:	ff
+Cpus_allowed_list:	0-7
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	60000
+nonvoluntary_ctxt_switches:	5635
+=== thermal ===
+IsStatusOverride: false
+ThermalEventListeners:
+	callbacks: 3
+	killed: false
+	broadcasts count: -1
+ThermalStatusListeners:
+	callbacks: 6
+	killed: false
+	broadcasts count: -1
+Thermal Status: 0
+Cached temperatures:
+	Temperature{mValue=43.635, mType=0, mName=CPU, mStatus=0}
+	Temperature{mValue=43.635, mType=1, mName=GPU, mStatus=0}
+	Temperature{mValue=43.666, mType=9, mName=NPU, mStatus=0}
+	Temperature{mValue=44.066, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=24.0, mType=2, mName=BATTERY, mStatus=0}
+HAL Ready: true
+HAL connection:
+	ThermalHAL 2.0 connected: yes
+Current temperatures from HAL:
+	Temperature{mValue=46.739, mType=0, mName=CPU, mStatus=0}
+	Temperature{mValue=46.739, mType=1, mName=GPU, mStatus=0}
+	Temperature{mValue=37.0, mType=2, mName=BATTERY, mStatus=0}
+	Temperature{mValue=43.588, mType=3, mName=SKIN, mStatus=0}
+	Temperature{mValue=46.739, mType=9, mName=NPU, mStatus=0}
+Current cooling devices from HAL:
+	CoolingDevice{mValue=0, mType=4, mName=mutt-pa1}
+	CoolingDevice{mValue=0, mType=2, mName=thermal-devfreq-0}
+Temperature static thresholds from HAL:
+	{.type = CPU, .name = CPU, .hotThrottlingThresholds = [NaN, NaN, NaN, 85.0, 90.0, 100.0, 117.0], .coldThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, NaN, NaN], .vrThrottlingThreshold = 85.0}
+	{.type = GPU, .name = GPU, .hotThrottlingThresholds = [NaN, NaN, NaN, 85.0, 90.0, 100.0, 117.0], .coldThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, NaN, NaN], .vrThrottlingThreshold = 85.0}
+	{.type = BATTERY, .name = BATTERY, .hotThrottlingThresholds = [NaN, NaN, NaN, 50.0, 55.0, 59.0, 60.0], .coldThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, NaN, NaN], .vrThrottlingThreshold = 50.0}
+	{.type = SKIN, .name = SKIN, .hotThrottlingThresholds = [NaN, NaN, NaN, 47.0, 56.0, 58.0, 80.0], .coldThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, NaN, NaN], .vrThrottlingThreshold = 50.0}
+	{.type = NPU, .name = NPU, .hotThrottlingThresholds = [NaN, NaN, NaN, 85.0, 90.0, 100.0, 117.0], .coldThrottlingThresholds = [NaN, NaN, NaN, NaN, NaN, NaN, NaN], .vrThrottlingThreshold = NaN}

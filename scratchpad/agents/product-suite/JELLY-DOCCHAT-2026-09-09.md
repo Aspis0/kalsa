@@ -33,3 +33,32 @@ Every reply is saved verbatim under JELLY-DOCCHAT-2026-09-09/replies/; logcat ex
 
 Could not validate BM25/hybrid retrieval, chunk counts, or citations because the shipped import cap routed the imported LARGE to full-context and the tool/model repeatedly interrupted. No git changes, commit, or push was made.
 
+## v2 on main@5707cfe
+
+Device remained USB-only `JELLYS0000053795`; no network serials were touched. APK SHA-256 matched `cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45`; `adb install -r -d` succeeded and app data/models were retained. Initial battery temperature was 30.0°C (31.0°C after install).
+
+### Import and routing
+
+- The installed APK resolver has proper `SEND`/`SEND_MULTIPLE` PDF and text filters. However, direct SEND import was **NO** for both PDFs: content URIs returned `rc=0` but MediaProvider logged `com.kalsa.app has no access to content://media/external/file/1000000720`; file URIs returned `rc=0` but logged `Permission to access file ... is denied`. The in-app Documents library picker fallback was **YES** for both, with UI dump/tap evidence.
+- New SMALL `kalsa-v2-small-condominium.pdf` (`doc-mtu9bner-wnzk32`): `pageCount=1`, `processedPageCount=1`, `truncated=null` (false/omitted), `estimatedTokens=489`, extraction `ok`; `full_context` (<8,192 tokens at n_ctx 16,384).
+- New LARGE `kalsa-v2-large-asterion-manual.pdf` (`doc-mtu94b3v-u7hs1x`): `pageCount=40`, `processedPageCount=40`, `truncated=null` (false/omitted), `estimatedTokens=26655`, extraction `ok`; `hybrid`/retrieval (>8,192 tokens). Logcat confirms `[pdf-extract] pages=40 ... documentPageCount=40`. Retrieval chunk count was not logged. Background embedding reached `chunks=707` without a `done` line before force-stop; later successful turns still reported `strategy=hybrid`.
+
+### v1 → v2 scenarios
+
+| Scenario | v1 | v2 | v2 evidence (reply; telemetry; first/completion; peak) |
+|---|---|---|---|
+| 1 SMALL facts | PASS | PASS | “martedì 22 settembre 2026” and “1.860 euro”; `document_chat`, `full_context`, 3.66 tok/s; 165/242s; RSS 2,723,512 kB, thermal 3, battery 37°C. |
+| 2 SMALL absent | FAIL | PASS | “non contiene il numero ...” / “Non viene indicato alcun numero”; `document_chat`, `full_context`, 3.12 tok/s tool round; 172/397s; RSS 2,738,936 kB, thermal 3, battery 39°C. |
+| 3a LARGE p.3 | FAIL/PARTIAL | PASS | “AXR-7Q4-031 ... pagina 3”; `document_chat`, `hybrid`, 3.20 tok/s; 334/334s store-observed; RSS 2,758,588 kB, thermal 3, battery 39°C. |
+| 3b LARGE p.17 | FAIL | PASS | “42.6 N·m ... pagina 17”; `document_chat`, `hybrid`, 3.19 tok/s tool round; 175/306s; RSS 2,777,384 kB, thermal 3, battery 39°C. |
+| 3c LARGE p.31 | FAIL | PASS | “QX9-YYWW-NNNN ... pagina 31”; `document_chat`, `hybrid`, 2.88 tok/s tool round; 243/417s; RSS 2,777,384 kB, thermal 3, battery 39°C. |
+| 4 follow-up torque | FAIL | PASS | “42.6 N·m ... pagina 17”; no new `document_chat` attribution, context survived; 2.85 tok/s; 310/366s; RSS 2,714,640 kB, thermal 3, battery 40°C. |
+| 5 relaunch | FAIL/PARTIAL | PASS | “AXR-7Q4-031 ... pagina 3”; `document_chat`, `hybrid`, 2.78 tok/s; 72/119s; RSS 2,587,252 kB, thermal 3, battery 39°C. Library survived; attachment required re-selection after relaunch. |
+
+All seven v2 replies are verbatim under `JELLY-DOCCHAT-2026-09-09-v2/replies/`; telemetry, logcat, probe, PDF, import, and UI evidence are under the same directory. No chat error text reached the final replies; successful stored replies sometimes include untagged model planning prose before the answer.
+
+### Remaining defects
+
+1. Direct PDF SEND still fails before import: `MainActivity.kt:84-90,145-188` silently turns unreadable `EXTRA_STREAM` URIs into no share payload, while `importSharedDocument.ts:61-73` assumes a readable URI. The installed filters are fixed, but the adb/provider delivery path remains unusable without a picker/grant-compatible path.
+2. A 40-page import starts a long single-flight embed and blocks another library add with “C'è già un'operazione in corso. Riprova tra poco.” (`AppShell.tsx:1258-1261,1473-1496`; `DocumentsScreen.tsx:190-194`). This forced a process restart/cancel to continue the test and leaves dense indexing incomplete.
+3. Several device replies persist untagged planning prose before the user answer. The stream cleaner only recognizes tagged think/tool markup (`LlamaService.ts:2986-3006`), while raw model emission is retained during finalization (`AiChatPage.tsx:2440-2445,2684-2694`); this is visible in the verbatim v2 replies and degrades shipped chat quality.

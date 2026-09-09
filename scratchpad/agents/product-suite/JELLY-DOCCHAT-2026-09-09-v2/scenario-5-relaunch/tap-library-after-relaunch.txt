@@ -1,0 +1,1 @@
+tap center=(385,665) target=Documento in libreria after relaunch; source ui-after-relaunch.xml

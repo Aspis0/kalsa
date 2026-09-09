@@ -1,0 +1,13 @@
+--------- beginning of main
+09-09 11:23:24.146 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:am start -a android.intent.action.SEND -t application/pdf --grant-read-uri-permission --eu android.intent.extra.STREAM file:///sdcard/Download/small_condominium_notice_it.pdf -n com.kalsa.app/.MainActivity'
+--------- beginning of system
+09-09 11:23:24.200 I/ActivityTaskManager( 1564): START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x10000001 cmp=com.kalsa.app/.MainActivity (has extras)} from uid 2000
+09-09 11:23:24.207 W/unknown:BridgelessReact(14689): ReactHost{0}.onHostPause(activity)
+09-09 11:23:24.207 W/unknown:BridgelessReact(14689): ReactHost{0}.ReactContext.onHostPause()
+09-09 11:23:24.218 E/MediaProvider( 2882): Permission to access file: /storage/emulated/0/Download/small_condominium_notice_it.pdf is denied
+09-09 11:23:24.224 E/MediaProvider( 2882): Permission to access file: /storage/emulated/0/Download/small_condominium_notice_it.pdf is denied
+09-09 11:23:24.227 W/unknown:BridgelessReact(14689): ReactHost{0}.onHostResume(activity)
+09-09 11:23:24.227 W/unknown:BridgelessReact(14689): ReactHost{0}.ReactContext.onHostResume()
+09-09 11:23:24.239 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '250''
+09-09 11:23:24.249 I/PowerHalWrapper( 1564): amsBoostStop AMS_BOOST_PACK_SWITCH:false, AMS_BOOST_ACT_SWITCH:false, AMS_BOOST_PROCESS_CREATE:false 
+09-09 11:23:24.252 I/ReactNativeJS(14689): 'model.fit', '{"verdict":"fits","availableMb":5694}'

@@ -1,0 +1,6 @@
+completed=1
+first_visible_ms=1788969878064
+first_visible_note=assistant_text_in_messages
+completion_ms=1788970008738
+first_visible_after_share_ms=175199
+completion_after_share_ms=305873

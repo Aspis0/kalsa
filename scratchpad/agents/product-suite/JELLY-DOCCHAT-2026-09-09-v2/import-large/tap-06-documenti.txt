@@ -1,0 +1,2 @@
+tap_evidence_source=ui-docmenu-open.xml text/content-desc="Documenti" row around [42,754][438,756] center=240,755
+input_tap_rc=0

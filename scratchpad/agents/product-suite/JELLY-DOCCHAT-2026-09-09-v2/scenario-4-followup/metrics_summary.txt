@@ -1,0 +1,1 @@
+telemetry {"ciswireFlags": 4, "contextFull": false, "draftAccepted": 0, "draftTokens": 0, "interrupted": false, "predictedMs": 58887.339, "predictedPerSecond": 2.8529052739163507, "promptMs": 90399.02500000001, "round": 0, "tokensCached": 2643, "tokensEvaluated": 2474, "tokensPredicted": 168, "turnId": "6"}

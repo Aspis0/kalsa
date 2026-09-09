@@ -1,0 +1,352 @@
+--------- beginning of main
+09-09 11:17:46.992 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.21.attn_k.weight with q4_0_4x4
+09-09 11:17:46.993 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.21.attn_v.weight with q4_0_4x4
+09-09 11:17:46.995 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.21.attn_output.weight with q4_0_4x4
+09-09 11:17:47.002 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.22.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.014 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.020 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.22.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.032 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.039 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.22.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.054 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.22.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:47.062 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.062 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.22.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:47.070 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.23.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.089 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.23.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.091 I/AlarmManager( 2504): setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 17614835]
+09-09 11:17:47.102 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.106 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.23.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.107 I/AlarmManager( 2504): setExactAndAllowWhileIdle [name: FcmRetry type: 2 triggerAtMillis: 15934851]
+09-09 11:17:47.115 I/AlarmManager( 2504): setExactAndAllowWhileIdle [name: GCM_HB_ALARM type: 2 triggerAtMillis: 17614859]
+09-09 11:17:47.119 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.122 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.23.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:47.130 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.23.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:47.137 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.150 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.155 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.167 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.172 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.185 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.attn_q.weight with q4_0_4x4
+09-09 11:17:47.188 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.188 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.attn_k.weight with q4_0_4x4
+09-09 11:17:47.189 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.attn_v.weight with q4_0_4x4
+09-09 11:17:47.191 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.24.attn_output.weight with q4_0_4x4
+09-09 11:17:47.198 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.25.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.214 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.25.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.226 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.227 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:47.228 I/libPerfCtl(  777): xgfGetFPS pid:2289 fps:-1
+09-09 11:17:47.228 I/libPerfCtl(  777): xgfGetFPS pid:3230 fps:-1
+09-09 11:17:47.228 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:47.228 I/libPowerHal(  777): [updateFPS] pid(14689) : 60 => -1
+09-09 11:17:47.229 I/libPowerHal(  777): [perfNotifyAppState] pack:com.kalsa.app, act:com.kalsa.app.MainActivity, state:5, pid:14689, uid:10190, fps:-1
+09-09 11:17:47.230 E/UxUtility(  777): notifyAppState error = NULL
+09-09 11:17:47.230 I/TouchUtility(  777): notifyAppState error = NULL
+09-09 11:17:47.230 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.25.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.242 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.245 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.25.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:47.252 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.25.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:47.259 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.26.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.272 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.276 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.26.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.288 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.292 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.26.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.306 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.26.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:47.314 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.315 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.26.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:47.323 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.335 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.340 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.356 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.369 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.372 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.attn_q.weight with q4_0_4x4
+09-09 11:17:47.372 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.attn_k.weight with q4_0_4x4
+09-09 11:17:47.374 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.attn_v.weight with q4_0_4x4
+09-09 11:17:47.375 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.27.attn_output.weight with q4_0_4x4
+09-09 11:17:47.383 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.28.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.396 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.400 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.28.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.412 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.417 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.28.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.432 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.28.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:47.439 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.440 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.28.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:47.449 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.29.ffn_gate.weight with q4_0_4x4
+09-09 11:17:47.453 W/pry     (27522): [Gmail] MailSyncAdapterService: MailSyncAdapterService is destroyed! [CONTEXT android_log_tag="MailSyncAdapterService" ]
+09-09 11:17:47.461 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.465 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.29.ffn_down.weight with q4_0_4x4
+09-09 11:17:47.481 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.29.ffn_up.weight with q4_0_4x4
+09-09 11:17:47.494 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.497 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.29.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:47.506 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.29.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:47.508 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:47.508 I/ReactNativeJS(14689): KALSA_NATIVE info 
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: constructing llama_context
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_seq_max     = 1
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_ctx         = 16384
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_ctx_seq     = 16384
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_batch       = 512
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_ubatch      = 256
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: causal_attn   = 1
+09-09 11:17:47.529 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: flash_attn    = auto
+09-09 11:17:47.531 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: kv_unified    = false
+09-09 11:17:47.531 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: freq_base     = 10000000.0
+09-09 11:17:47.531 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: freq_scale    = 1
+09-09 11:17:47.531 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_rs_seq      = 0
+09-09 11:17:47.531 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_outputs_max = 512
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: n_ctx_seq (16384) < n_ctx_train (128000) -- the full capacity of the model will not be utilized
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info set_abort_callback: call
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.49 MiB
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   0: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   1: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   2: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   3: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   4: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   5: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   6: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   7: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   8: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer   9: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  10: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  11: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  12: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  13: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  14: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  15: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  16: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  17: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  18: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  19: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  20: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  21: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  22: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  23: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  24: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  25: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  26: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  27: dev = CPU
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  28: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: layer  29: filtered
+09-09 11:17:47.532 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache:        CPU KV buffer size =   104.00 MiB
+09-09 11:17:47.571 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: size =  104.00 MiB ( 16384 cells,   8 layers,  1/1 seqs), K (q8_0):   68.00 MiB, V (q4_0):   36.00 MiB
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 64
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 64
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   0: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   1: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer   2: skipped
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   3: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   4: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer   5: skipped
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   6: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   7: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer   8: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer   9: skipped
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  10: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  11: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  12: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer  13: skipped
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  14: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  15: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  16: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer  17: skipped
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  18: dev = CPU
+09-09 11:17:47.572 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  19: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  20: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer  21: skipped
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  22: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  23: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer  24: skipped
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  25: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  26: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: layer  27: skipped
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  28: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent, layer  29: dev = CPU
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent:        CPU RS buffer size =     0.34 MiB
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_memory_recurrent: size =    0.34 MiB (     1 cells,  30 layers,  1 seqs  0 rs_seq), R (f32):    0.34 MiB, S (f32):    0.00 MiB
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: enumerating backends
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info llama_context: backend_ptrs.size() = 1
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: reserving ...
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: max_nodes = 2136
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: reserving full memory module
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: worst-case: n_tokens = 256, n_seqs = 1, n_outputs = 1
+09-09 11:17:47.573 I/ReactNativeJS(14689): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+09-09 11:17:47.574 I/ReactNativeJS(14689): KALSA_NATIVE info resolve_fused_ops: Flash Attention enabled
+09-09 11:17:47.574 I/ReactNativeJS(14689): KALSA_NATIVE info resolve_fused_ops: resolving fused Gated Delta Net support:
+09-09 11:17:47.574 I/ReactNativeJS(14689): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+09-09 11:17:47.575 I/ReactNativeJS(14689): KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+09-09 11:17:47.575 I/ReactNativeJS(14689): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+09-09 11:17:47.576 I/ReactNativeJS(14689): KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+09-09 11:17:47.576 I/ReactNativeJS(14689): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+09-09 11:17:47.578 I/ReactNativeJS(14689): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+09-09 11:17:47.579 I/ReactNativeJS(14689): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+09-09 11:17:47.581 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+09-09 11:17:47.581 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: graph nodes  = 1110
+09-09 11:17:47.581 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: graph splits = 1
+09-09 11:17:47.581 I/ReactNativeJS(14689): KALSA_NATIVE info sched_reserve: reserve took 9.05 ms, sched copies = 1
+09-09 11:17:47.581 I/ReactNativeJS(14689): KALSA_NATIVE info set_adapters_lora: adapters = 0x0
+09-09 11:17:47.581 I/ReactNativeJS(14689): KALSA_NATIVE info adapters_lora_are_same: adapters = 0x0
+09-09 11:17:47.795 I/BugleRcsEngine( 2930): Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=55 ]
+09-09 11:17:47.796 I/BugleRcsEngine( 2930): handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[5035159d-fdfd]>Handler" thread_id=60 ]
+09-09 11:17:47.817 E/PhoneInterfaceManager( 2159): [PhoneIntfMgr] getCarrierPrivilegeStatusForUid: Invalid subId
+09-09 11:17:47.823 I/NearbyMediums( 2504): Wifi changed new SSID: "[]"
+09-09 11:17:47.823 I/NearbyMediums( 2504): WifiLanConnectivityInfo is not changed, skip notify.
+09-09 11:17:47.824 I/NullBinder( 2504): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+09-09 11:17:47.824 W/.gms.persistent( 2504): Large reply transaction of 1056768 bytes, interface descriptor , code 1
+09-09 11:17:47.834 I/BugleRcsEngine( 2930): No RCS Configuration was found in Bugle for simID: redacted-pii:sim_id[chars:0,last3:] [CONTEXT log_prefix="ProvisioningEngineDataRetriever" thread_id=60 ]
+09-09 11:17:47.965 I/system_server( 1564): Background young concurrent mark compact GC freed 21MB AllocSpace bytes, 51(2416KB) LOS objects, 38% free, 39MB/63MB, paused 975us,1.851ms total 162.625ms
+09-09 11:17:47.976 W/System  ( 1564): A resource failed to call release. 
+09-09 11:17:48.161 I/mtkpower@impl(  777): [powerd_req] TIMER_MSG_PERF_LOCK_TIMEOUT hdl:235
+09-09 11:17:48.162 I/libPowerHal(  777): [perfLockRel] hdl:235, idx:-1
+09-09 11:17:48.227 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:48.227 I/libPerfCtl(  777): xgfGetFPS pid:2289 fps:-1
+09-09 11:17:48.227 I/libPerfCtl(  777): xgfGetFPS pid:3230 fps:-1
+09-09 11:17:48.227 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:48.324 I/NearbySharing( 2504): Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+09-09 11:17:48.474 I/RNLlama (14689): loadModel:768 Context initialized with n_seq_max = 1
+09-09 11:17:48.474 I/RNLlama (14689): loadModel:777 ctx_shift: enabled
+09-09 11:17:48.475 I/ReactNativeJS(14689): KALSA_NATIVE info attach_threadpool: call
+09-09 11:17:48.475 I/RNLlama (14689): attachThreadpoolsIfAvailable:542 Attached ggml threadpool (n_threads=2, n_threads_batch=8)
+09-09 11:17:48.482 I/ReactNativeJS(14689): KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-09 11:17:48.509 I/ReactNativeJS(14689): KALSA_SESSION {"op":"load","ms":26,"ok":false,"reason":"no_file"}
+09-09 11:17:48.509 I/ReactNativeJS(14689): 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'
+09-09 11:17:48.525 I/ReactNativeJS(14689): 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-09 11:17:48.550 I/RNLlama (14689): loadPrompt:440 
+09-09 11:17:48.550 I/RNLlama (14689): loadPrompt: prompt_tokens = 124894 124899 23630 207 2245 81 483 44874 20 445 6226 2462 13508 2335 1572 1135 39790 750 2919 441 19535 61022 22 427 393 384 8528 20 316 393 384 3362 20 316 393 384 57076 423 6094 22 2534 1411 717 47660 34 342 73 17 2607 12240 81 36450 1272 81826 81314 2978 8923 75624 407 28972 723 1122 5591 1426 61323 7646 16828 67843 342 80213 6499 20 626 292 3706 428 20 81826 18219 20 68687 42282 451 6427 20 40686 17 7703 47660 296 11497 14935 474 308 15 341 2462 22 1039 443 47660 5662 15 341 2462 1721 3292 20860 2648 286 3292 295 2771 20 44063 308 15 1502 4852 22 342 74 17 52320 4949 81 113446 717 4924 89637 20 723 2827 6499 7646 9645 81 45633 1779 571 7703 47660 29032 22 342 75 17 10144 2364 19614 17138 20 20860 18889 25943 20 2847 81 5880 6973 81 717 889 27413 20 7017 723 2847 81 5880 6189 4924 89637 1406 4924 96346 1406 3978 71 26741 22 1856 368 1717 34 10144 8830 571 10089 291 16695 20 5061 20 2847 81 20 5144 81 20 4949 13026 20 9645 81 286 48524 33999 22 1039 1721 70103 2
+09-09 11:17:48.550 W/RNLlama (14689): loadPrompt:471 KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2af210
+09-09 11:17:48.550 I/RNLlama (14689): probeStateCache:154 prompt state cache enabled (recurrent/hybrid model)
+09-09 11:17:48.550 I/RNLlama (14689): loadPrompt:708 [DEBUG] Input processed: n_past=0, embd.size=1832, num_prompt_tokens=1832, has_media=0
+09-09 11:17:48.559 I/BufferQueueProducer(  784): [com.kalsa.app/com.kalsa.app.MainActivity#654](this:0xb40000732e2ccf18,id:-1,api:0,p:-1,c:784) queueBuffer: fps=5.76 dur=2949.98 max=2678.90 min=16.41
+09-09 11:17:48.560 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:5.762307,dur:2950.21,max:2678.97,min:16.53  
+09-09 11:17:48.928 E/Icing   ( 3423): Failed to remove thing with error code :error uri not found
+09-09 11:17:49.227 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:49.227 I/libPerfCtl(  777): xgfGetFPS pid:2289 fps:-1
+09-09 11:17:49.227 I/libPerfCtl(  777): xgfGetFPS pid:3230 fps:-1
+09-09 11:17:49.227 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:50.227 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:50.227 I/libPerfCtl(  777): xgfGetFPS pid:2289 fps:-1
+09-09 11:17:50.227 I/libPerfCtl(  777): xgfGetFPS pid:3230 fps:-1
+09-09 11:17:50.227 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:50.720 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.720 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.720 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.720 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.720 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.720 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.721 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:50.810 I/BugleRcsEngine( 2930): Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=55 ]
+09-09 11:17:50.811 I/BugleRcsEngine( 2930): handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[5035159d-fdfd]>Handler" thread_id=60 ]
+09-09 11:17:50.811 I/NullBinder( 2504): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+09-09 11:17:50.812 W/.gms.persistent( 2504): Large reply transaction of 1056768 bytes, interface descriptor , code 1
+09-09 11:17:50.813 E/PhoneInterfaceManager( 2159): [PhoneIntfMgr] getCarrierPrivilegeStatusForUid: Invalid subId
+09-09 11:17:50.822 I/BugleRcsEngine( 2930): No RCS Configuration was found in Bugle for simID: redacted-pii:sim_id[chars:0,last3:] [CONTEXT log_prefix="ProvisioningEngineDataRetriever" thread_id=60 ]
+09-09 11:17:50.824 I/NearbyMediums( 2504): Wifi changed new SSID: "[]"
+09-09 11:17:50.824 I/NearbyMediums( 2504): WifiLanConnectivityInfo is not changed, skip notify.
+09-09 11:17:50.917 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.424380,dur:2356.38,max:2356.38,min:2356.38  
+09-09 11:17:50.918 W/System  ( 1916): A resource failed to call release. 
+09-09 11:17:51.228 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:51.228 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:51.318 I/NearbySharing( 2504): Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+09-09 11:17:51.998 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:17:52.085 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-wal'
+09-09 11:17:52.093 I/com.kalsa.app(14689): Background concurrent mark compact GC freed 26MB AllocSpace bytes, 54(2740KB) LOS objects, 49% free, 10MB/21MB, paused 356us,2.459ms total 399.184ms
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.130 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.131 W/System  (14689): A resource failed to call close. 
+09-09 11:17:52.171 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:run-as com.kalsa.app test -f databases/RKStorage-shm'
+09-09 11:17:52.228 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:52.228 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:52.268 I/adbd    (10663): adbd service requested 'exec:run-as 'com.kalsa.app' 'tar' 'cf' '-' '-C' 'databases' 'RKStorage''
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:52.930 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:53.228 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:53.228 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:53.299 I/eulf    ( 2900): (REDACTED) #onAudioData: %s bytes, getAudioReadSize %s
+09-09 11:17:53.814 I/BugleRcsEngine( 2930): handleMessage processing message:[NOTIFY_UPTIME_IGNORE_STATE_CHANGED] with [non-null]:RcsEngineImpl reference [CONTEXT log_prefix="RcsEngineImpl[DUAL_REG]:[5035159d-fdfd]>Handler" thread_id=60 ]
+09-09 11:17:53.815 I/BugleRcsEngine( 2930): Connected state: [1], networkType: [WIFI] [CONTEXT thread_id=55 ]
+09-09 11:17:53.820 E/PhoneInterfaceManager( 2159): [PhoneIntfMgr] getCarrierPrivilegeStatusForUid: Invalid subId
+09-09 11:17:53.823 I/BugleRcsEngine( 2930): No RCS Configuration was found in Bugle for simID: redacted-pii:sim_id[chars:0,last3:] [CONTEXT log_prefix="ProvisioningEngineDataRetriever" thread_id=60 ]
+09-09 11:17:53.825 I/NullBinder( 2504): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+09-09 11:17:53.825 W/.gms.persistent( 2504): Large reply transaction of 1056768 bytes, interface descriptor , code 1
+09-09 11:17:53.860 I/NearbyMediums( 2504): Wifi changed new SSID: "[]"
+09-09 11:17:53.860 I/NearbyMediums( 2504): WifiLanConnectivityInfo is not changed, skip notify.
+09-09 11:17:54.228 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:54.340 I/native  ( 2900): I0000 00:00:1788967074.339905    6718 soda_async_impl.cc:1420] Current audio timestamp: 1788967074097242
+09-09 11:17:54.368 I/NearbySharing( 2504): Network state changed: NetworkState(isRestricted=false, isOnline=true, isCongested=false, isMetered=false, isWifiConnected=true)
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.755 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/1101a000.i2c/i2c-6/6-002f/power_supply/oz8806
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/  978  1192 [sunwave-ca-device] (  978): (804) uevent: got power supply event.'POWER_SUPPLY_STATUS=Not charging', charging_fix = false.
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.761 I/android.hardware.usb@1.2-service-mediatekv2(  769): uevent_event change@/devices/platform/soc/10026000.pwrap/10026000.pwrap:mt6366/mt6358-gauge/power_supply/battery
+09-09 11:17:54.770 I/BatteryChangeCtroller( 1564): <onReceive> : action=android.intent.action.BATTERY_CHANGED
+09-09 11:17:54.771 I/BatteryChangeCtroller( 1564): <onReceive> : mPlugged=1  level=100 mMinTemperature=16 mMaxTemperature=48
+09-09 11:17:54.817 I/BufferQueueProducer(  784): [StatusBar#75](this:0xb40000732e2ad9e8,id:-1,api:0,p:-1,c:784) queueBuffer: fps=0.17 dur=11514.55 max=11497.70 min=16.84
+09-09 11:17:54.818 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:0.512612,dur:3901.59,max:3891.60,min:9.99  
+09-09 11:17:55.228 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:55.228 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:56.228 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:57.447 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''

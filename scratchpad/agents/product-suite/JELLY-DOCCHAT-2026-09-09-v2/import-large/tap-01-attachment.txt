@@ -1,0 +1,2 @@
+tap_evidence_source=ui-before-picker.xml bounds [92,780][142,830] content-desc="Aggiungi allegato" center=117,805
+input_tap_rc=0

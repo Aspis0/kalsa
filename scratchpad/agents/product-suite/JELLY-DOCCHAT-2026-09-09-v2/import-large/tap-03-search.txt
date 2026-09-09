@@ -1,0 +1,4 @@
+tap_evidence_source=ui-system-picker.xml content-desc="Search" bounds [721,33][788,99] center=754,66
+input_tap_rc=0
+input_text_rc=0
+enter_rc=0

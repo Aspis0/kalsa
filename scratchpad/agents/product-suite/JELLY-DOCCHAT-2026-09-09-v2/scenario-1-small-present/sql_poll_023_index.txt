@@ -1,0 +1,1 @@
+{"activeId":"conv-1787883952192-9zk6blxq","items":[{"id":"conv-1787883952192-9zk6blxq","title":"Nel documento, quale data e quale importo sono i","updatedAt":1788968467564,"preview":"The","searchBlob":"nel documento, quale data e quale importo sono indicati per l’assemblea straordinaria? rispondi in italiano citando solo il documento.\nthe","hasMessages":true}]}

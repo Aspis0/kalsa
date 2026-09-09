@@ -1,0 +1,1 @@
+Il valore del torque per il lower hinge clamp è **42.6 N·m**, come indicato nel manuale (kalsa-v2-large-asterion-manual.pdf) alla **pagina 17**.

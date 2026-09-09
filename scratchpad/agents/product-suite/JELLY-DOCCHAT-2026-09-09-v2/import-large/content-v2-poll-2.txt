@@ -1,0 +1,351 @@
+--------- beginning of main
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_k_norm.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_q.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_k.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_v.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.21.attn_output.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_norm.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_gate.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_down.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.ffn_up.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.attn_norm.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.shortconv.conv.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.shortconv.in_proj.weight
+09-09 11:17:44.612 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.22.shortconv.out_proj.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_gate.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_down.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.ffn_up.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.attn_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.shortconv.conv.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.shortconv.in_proj.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.23.shortconv.out_proj.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_gate.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_down.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.ffn_up.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_q_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_k_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_q.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_k.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_v.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.24.attn_output.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_norm.weight
+09-09 11:17:44.613 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_gate.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_down.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.ffn_up.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.attn_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.shortconv.conv.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.shortconv.in_proj.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.25.shortconv.out_proj.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_gate.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_down.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.ffn_up.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.attn_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.shortconv.conv.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.shortconv.in_proj.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.26.shortconv.out_proj.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_gate.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_down.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.ffn_up.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_q_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_k_norm.weight
+09-09 11:17:44.614 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_q.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_k.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_v.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.27.attn_output.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_norm.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_gate.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_down.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.ffn_up.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.attn_norm.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.shortconv.conv.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.shortconv.in_proj.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.28.shortconv.out_proj.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_norm.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_gate.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_down.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.ffn_up.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.attn_norm.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.shortconv.conv.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.shortconv.in_proj.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info create_tensor: loading tensor blk.29.shortconv.out_proj.weight
+09-09 11:17:44.615 I/ReactNativeJS(14689): KALSA_NATIVE info done_getting_tensors: tensor 'token_embd.weight' (q6_K) (and 99 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+09-09 11:17:44.626 I/native  (12483): I0000 00:00:1788967064.626078   12483 exl_node_generator.cc:58] Setting legal word grammar as macro_only: true
+09-09 11:17:44.626 I/native  (12483): I0000 00:00:1788967064.626423   12483 android_resource_loader.cc:100] Built resource lettuce_node_generator
+09-09 11:17:44.626 I/native  (12483): I0000 00:00:1788967064.626459   12483 android_resource_loader.cc:116] Loaded resource:lettuce_node_generator
+09-09 11:17:44.626 I/native  (12483): I0000 00:00:1788967064.626494   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/burdock_model.params.pb" (as: FILE) ...
+09-09 11:17:44.626 I/native  (12483): I0000 00:00:1788967064.626550   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/burdock_model.params.pb" of size 8875
+09-09 11:17:44.627 I/native  (12483): I0000 00:00:1788967064.627496   12483 android_resource_loader.cc:100] Built resource lstm_add_specification_resource
+09-09 11:17:44.627 I/native  (12483): I0000 00:00:1788967064.627541   12483 android_resource_loader.cc:116] Loaded resource:lstm_add_specification_resource
+09-09 11:17:44.627 I/native  (12483): I0000 00:00:1788967064.627575   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/chive_model_fused.pb" (as: FILE) ...
+09-09 11:17:44.627 I/native  (12483): I0000 00:00:1788967064.627631   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/chive_model_fused.pb" of size 1281
+09-09 11:17:44.627 I/native  (12483): I0000 00:00:1788967064.627716   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/burdock_valerian_model.tflite" (as: MEMORY) ...
+09-09 11:17:44.627 I/native  (12483): I0000 00:00:1788967064.627771   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/burdock_valerian_model.tflite" of size 1790608
+09-09 11:17:44.628 E/tflite  (12483): third_party/tensorflow/lite/core/subgraph.cc:1089 tensor.data.raw != nullptr was not true.
+09-09 11:17:44.628 I/native  (12483): I0000 00:00:1788967064.628169   12483 chive_inference_resource.cc:233] Creating new CHiVE model [model graph]: 
+09-09 11:17:44.628 I/native  (12483): I0000 00:00:1788967064.628187   12483 chive_model.cc:179] Creating a single pass CHiVE model
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629489   12483 android_resource_loader.cc:100] Built resource chive_inference_config
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629547   12483 android_resource_loader.cc:116] Loaded resource:chive_inference_config
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629579   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/converter_en_us_android.far" (as: FILE) ...
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629638   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/converter_en_us_android.far" of size 1473
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629876   12483 android_resource_loader.cc:100] Built resource pron_buffet_to_tts_converter
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629902   12483 android_resource_loader.cc:116] Loaded resource:pron_buffet_to_tts_converter
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629925   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/regexp_rewrite_embedded.pb" (as: FILE) ...
+09-09 11:17:44.629 I/native  (12483): I0000 00:00:1788967064.629960   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/regexp_rewrite_embedded.pb" of size 6025
+09-09 11:17:44.630 I/native  (12483): I0000 00:00:1788967064.630168   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/punctuation.pb" (as: FILE) ...
+09-09 11:17:44.630 I/native  (12483): I0000 00:00:1788967064.630200   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/punctuation.pb" of size 452
+09-09 11:17:44.667 I/ReactNativeJS(14689): KALSA_NATIVE info load_tensors:          CPU model buffer size =   206.07 MiB
+09-09 11:17:44.667 I/ReactNativeJS(14689): KALSA_NATIVE info load_tensors:   CPU_REPACK model buffer size =  1511.20 MiB
+09-09 11:17:44.667 I/ReactNativeJS(14689): KALSA_NATIVE info load_all_data: no device found for buffer type CPU for async uploads
+09-09 11:17:44.698 E/native  (12483): E0000 00:00:1788967064.698493   12483 re2.cc:250] Error parsing '^|[^\p{Letter}\\]': invalid character class range: \p{Letter}
+09-09 11:17:44.698 E/native  (12483): E0000 00:00:1788967064.698614   12483 replacement_rule.cc:40] Invalid context regexp: invalid character class range: \p{Letter}
+09-09 11:17:44.698 E/native  (12483): E0000 00:00:1788967064.698635   12483 replacement_rule.cc:151] Error creating replacement rule.
+09-09 11:17:44.698 E/native  (12483): E0000 00:00:1788967064.698648   12483 regexp_rewriter.cc:35] Error creating rule MessageLite at 0xb400007cfd264a90.
+09-09 11:17:44.699 I/native  (12483): I0000 00:00:1788967064.699255   12483 android_resource_loader.cc:100] Built resource rewrite_algo
+09-09 11:17:44.699 I/native  (12483): I0000 00:00:1788967064.699302   12483 android_resource_loader.cc:116] Loaded resource:rewrite_algo
+09-09 11:17:44.699 I/native  (12483): I0000 00:00:1788967064.699338   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/roman_numeral_contexts.pb" (as: FILE) ...
+09-09 11:17:44.699 I/native  (12483): I0000 00:00:1788967064.699413   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/roman_numeral_contexts.pb" of size 9114
+09-09 11:17:44.699 I/native  (12483): I0000 00:00:1788967064.699740   12483 android_resource_loader.cc:100] Built resource roman_numeral_context_words
+09-09 11:17:44.699 I/native  (12483): I0000 00:00:1788967064.699768   12483 android_resource_loader.cc:116] Loaded resource:roman_numeral_context_words
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700358   12483 android_resource_loader.cc:100] Built resource classify_roman_numerals_grm_algo
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700403   12483 android_resource_loader.cc:116] Loaded resource:classify_roman_numerals_grm_algo
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700461   12483 android_resource_loader.cc:100] Built resource runtime_override
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700475   12483 android_resource_loader.cc:116] Loaded resource:runtime_override
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700498   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/seanet_model_options.pb" (as: FILE) ...
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700570   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/seanet_model_options.pb" of size 32
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700637   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/seanet_model.tflite" (as: FILE) ...
+09-09 11:17:44.700 I/native  (12483): I0000 00:00:1788967064.700665   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/seanet_model.tflite" of size 2786320
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704491   12483 android_resource_loader.cc:100] Built resource seanet_enhancer
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704588   12483 android_resource_loader.cc:116] Loaded resource:seanet_enhancer
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704627   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/sb_model.bin" (as: MEMORY) ...
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704728   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/sb_model.bin" of size 48272
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704805   12483 android_resource_loader.cc:100] Built resource sentence_boundary_model_resource
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704822   12483 android_resource_loader.cc:116] Loaded resource:sentence_boundary_model_resource
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704844   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/en_verbalize_spec.pb" (as: FILE) ...
+09-09 11:17:44.704 I/native  (12483): I0000 00:00:1788967064.704877   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/en_verbalize_spec.pb" of size 3984
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705090   12483 android_resource_loader.cc:100] Built resource serialization_spec
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705113   12483 android_resource_loader.cc:116] Loaded resource:serialization_spec
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705138   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/textnorm_params_embedded_en_us.pb" (as: FILE) ...
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705168   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/textnorm_params_embedded_en_us.pb" of size 321
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705236   12483 android_resource_loader.cc:100] Built resource textnorm_params
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705249   12483 android_resource_loader.cc:116] Loaded resource:textnorm_params
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705813   12483 android_resource_loader.cc:100] Built resource icu_transliterator_to_latin
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705847   12483 android_resource_loader.cc:116] Loaded resource:icu_transliterator_to_latin
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705872   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/g2p_m3_syls0_stress0_en-US.fst" (as: FILE) ...
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705908   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/g2p_m3_syls0_stress0_en-US.fst" of size 696736
+09-09 11:17:44.705 I/native  (12483): I0000 00:00:1788967064.705938   12483 compact_fst.cc:20] Loading FST from "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/g2p_m3_syls0_stress0_en-US.fst" ...
+09-09 11:17:44.733 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:44.734 I/ReactNativeJS(14689): KALSA_NATIVE info load_all_data: buffer type CPU_REPACK is not the default buffer type for device CPU for async uploads
+09-09 11:17:44.735 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:44.787 I/native  (12483): I0000 00:00:1788967064.787364   12483 decoder.cc:51] G2P FST loaded (56 graphemes and 41 phonemes).
+09-09 11:17:44.793 I/native  (12483): I0000 00:00:1788967064.793585   12483 android_resource_loader.cc:100] Built resource learned_fst_g2p_mapper
+09-09 11:17:44.793 I/native  (12483): I0000 00:00:1788967064.793656   12483 android_resource_loader.cc:116] Loaded resource:learned_fst_g2p_mapper
+09-09 11:17:44.793 I/native  (12483): I0000 00:00:1788967064.793712   12483 android_resource_loader.cc:100] Built resource spelling_normalizer
+09-09 11:17:44.793 I/native  (12483): I0000 00:00:1788967064.793726   12483 android_resource_loader.cc:116] Loaded resource:spelling_normalizer
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.809989   12483 android_resource_loader.cc:100] Built resource token_resolver_algo
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810072   12483 android_resource_loader.cc:116] Loaded resource:token_resolver_algo
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810107   12483 android_resource_loader.cc:100] Built resource utf8_utils
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810119   12483 android_resource_loader.cc:116] Loaded resource:utf8_utils
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810147   12483 android_resource_loader.cc:100] Built resource lexical_classifier
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810157   12483 android_resource_loader.cc:116] Loaded resource:lexical_classifier
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810179   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/universal_carrier_pigeon_config.binarypb" (as: FILE) ...
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810235   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/universal_carrier_pigeon_config.binarypb" of size 52
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810564   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/universal_carrier_pigeon_model.tflite" (as: FILE) ...
+09-09 11:17:44.810 I/native  (12483): I0000 00:00:1788967064.810622   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/universal_carrier_pigeon_model.tflite" of size 638952
+09-09 11:17:44.811 I/native  (12483): I0000 00:00:1788967064.811940   12483 android_resource_loader.cc:100] Built resource carrier_pigeon_algo
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812008   12483 android_resource_loader.cc:116] Loaded resource:carrier_pigeon_algo
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812085   12483 android_resource_loader.cc:100] Built resource icu_transliterator
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812101   12483 android_resource_loader.cc:116] Loaded resource:icu_transliterator
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812121   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/variant_overrides_en_us.pb" (as: FILE) ...
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812171   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/variant_overrides_en_us.pb" of size 1525
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812455   12483 android_resource_loader.cc:100] Built resource variant_overrides
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812483   12483 android_resource_loader.cc:116] Loaded resource:variant_overrides
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812508   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/variant_selection_model_en_us_embedded.bin" (as: MEMORY) ...
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812575   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/variant_selection_model_en_us_embedded.bin" of size 221608
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812614   12483 android_resource_loader.cc:100] Built resource variant_selection_model_data_resource
+09-09 11:17:44.812 I/native  (12483): I0000 00:00:1788967064.812626   12483 android_resource_loader.cc:116] Loaded resource:variant_selection_model_data_resource
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814083   12483 select_variants.cc:128] Word with override has only one variant: her
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814178   12483 android_resource_loader.cc:100] Built resource select_variants_algo
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814193   12483 android_resource_loader.cc:116] Loaded resource:select_variants_algo
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814217   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/us_verbalization_capabilities.pb" (as: FILE) ...
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814269   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/us_verbalization_capabilities.pb" of size 5224
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814607   12483 android_resource_loader.cc:100] Built resource verbalization_capabilities
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814634   12483 android_resource_loader.cc:116] Loaded resource:verbalization_capabilities
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814656   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/verbalize_embedded_android.far" (as: FILE) ...
+09-09 11:17:44.814 I/native  (12483): I0000 00:00:1788967064.814700   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/verbalize_embedded_android.far" of size 2342559
+09-09 11:17:44.818 I/native  (12483): I0000 00:00:1788967064.818158   12483 android_resource_loader.cc:100] Built resource verbalize_grm_fst
+09-09 11:17:44.818 I/native  (12483): I0000 00:00:1788967064.818230   12483 android_resource_loader.cc:116] Loaded resource:verbalize_grm_fst
+09-09 11:17:44.818 I/native  (12483): I0000 00:00:1788967064.818270   12483 android_resource_loader.cc:100] Built resource speller_algo
+09-09 11:17:44.818 I/native  (12483): I0000 00:00:1788967064.818282   12483 android_resource_loader.cc:116] Loaded resource:speller_algo
+09-09 11:17:44.820 I/native  (12483): I0000 00:00:1788967064.820220   12483 android_resource_loader.cc:100] Built resource verbalize_grm_algo
+09-09 11:17:44.820 I/native  (12483): I0000 00:00:1788967064.820274   12483 android_resource_loader.cc:116] Loaded resource:verbalize_grm_algo
+09-09 11:17:44.820 I/native  (12483): I0000 00:00:1788967064.820326   12483 voice_params_resource.cc:31] Voice information: MessageLite at 0xb400007d1d6d88e0
+09-09 11:17:44.820 I/native  (12483): I0000 00:00:1788967064.820346   12483 android_resource_loader.cc:100] Built resource voice_params
+09-09 11:17:44.820 I/native  (12483): I0000 00:00:1788967064.820357   12483 android_resource_loader.cc:116] Loaded resource:voice_params
+09-09 11:17:44.840 I/native  (12483): I0000 00:00:1788967064.840799   12483 android_resource_loader.cc:100] Built resource word_resolver_algo
+09-09 11:17:44.840 I/native  (12483): I0000 00:00:1788967064.840912   12483 android_resource_loader.cc:116] Loaded resource:word_resolver_algo
+09-09 11:17:44.840 I/native  (12483): I0000 00:00:1788967064.840980   12483 data_source.cc:95] Opening data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/xsampa_to_tts_to-en_us.far" (as: FILE) ...
+09-09 11:17:44.841 I/native  (12483): I0000 00:00:1788967064.841065   12483 data_source.cc:99] ... Opened data source "/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83/../en-us-x-multi-r83/xsampa_to_tts_to-en_us.far" of size 22132
+09-09 11:17:44.841 I/native  (12483): I0000 00:00:1788967064.841487   12483 android_resource_loader.cc:100] Built resource xsampa_to_tts_phoneme_mapper
+09-09 11:17:44.841 I/native  (12483): I0000 00:00:1788967064.841521   12483 android_resource_loader.cc:116] Loaded resource:xsampa_to_tts_phoneme_mapper
+09-09 11:17:44.841 I/native  (12483): I0000 00:00:1788967064.841534   12483 local_pipeline_runner.cc:49] Done loading all resources from: {/data/user_de/0/com.google.android.tts/files/superpacks/en-us/en-us-x-multi-seanet-r83}
+09-09 11:17:44.847 I/ComposerWrapperImpl(12483): Done initializing en-us-x-iog-seanet-embedded
+09-09 11:17:44.850 I/TextToSpeech(14689): Connected to TTS engine
+09-09 11:17:44.891 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor token_embd.weight with q6_K_8x4
+09-09 11:17:45.051 I/GoogleTTSServiceImpl(12483): currentLocale = en-US
+09-09 11:17:45.227 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:45.227 I/libPerfCtl(  777): xgfGetFPS pid:2289 fps:-1
+09-09 11:17:45.227 I/libPerfCtl(  777): xgfGetFPS pid:3230 fps:-1
+09-09 11:17:45.227 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:-1
+09-09 11:17:45.233 I/GoogleTTSServiceImpl(12483): For default lang en-us is name en-US-language (en-us-x-iog-server)
+09-09 11:17:45.234 I/TextToSpeech(14689): Setting up the connection to TTS engine...
+09-09 11:17:45.609 I/BufferQueueProducer(  784): [com.kalsa.app/com.kalsa.app.MainActivity#654](this:0xb40000732e2ccf18,id:-1,api:0,p:-1,c:784) queueBuffer: fps=2.90 dur=2069.66 max=1222.55 min=16.34
+09-09 11:17:45.610 I/hwcomposer(  761): [HWCDisplay] [Display_0 (type:1)] fps:3.141847,dur:1273.14,max:1222.18,min:16.66  
+09-09 11:17:45.671 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.676 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.0.ffn_gate.weight with q4_0_4x4
+09-09 11:17:45.688 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.692 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.0.ffn_down.weight with q4_0_4x4
+09-09 11:17:45.705 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.709 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.0.ffn_up.weight with q4_0_4x4
+09-09 11:17:45.722 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.724 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.0.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:45.732 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.0.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:45.740 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.1.ffn_gate.weight with q4_0_4x4
+09-09 11:17:45.752 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.757 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.1.ffn_down.weight with q4_0_4x4
+09-09 11:17:45.773 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.1.ffn_up.weight with q4_0_4x4
+09-09 11:17:45.786 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.788 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.1.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:45.796 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.1.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:45.799 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.803 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.ffn_gate.weight with q4_0_4x4
+09-09 11:17:45.819 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.ffn_down.weight with q4_0_4x4
+09-09 11:17:45.831 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.835 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.ffn_up.weight with q4_0_4x4
+09-09 11:17:45.847 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.849 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.attn_q.weight with q4_0_4x4
+09-09 11:17:45.851 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.attn_k.weight with q4_0_4x4
+09-09 11:17:45.852 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.attn_v.weight with q4_0_4x4
+09-09 11:17:45.854 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.2.attn_output.weight with q4_0_4x4
+09-09 11:17:45.861 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.3.ffn_gate.weight with q4_0_4x4
+09-09 11:17:45.873 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.878 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.3.ffn_down.weight with q4_0_4x4
+09-09 11:17:45.893 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.3.ffn_up.weight with q4_0_4x4
+09-09 11:17:45.905 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.907 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.3.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:45.915 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.3.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:45.918 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.922 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.4.ffn_gate.weight with q4_0_4x4
+09-09 11:17:45.937 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.4.ffn_down.weight with q4_0_4x4
+09-09 11:17:45.949 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.952 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.4.ffn_up.weight with q4_0_4x4
+09-09 11:17:45.965 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.967 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.4.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:45.974 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.4.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:45.981 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.ffn_gate.weight with q4_0_4x4
+09-09 11:17:45.993 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:45.997 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.009 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.013 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.026 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.attn_q.weight with q4_0_4x4
+09-09 11:17:46.028 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.attn_k.weight with q4_0_4x4
+09-09 11:17:46.029 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.attn_v.weight with q4_0_4x4
+09-09 11:17:46.031 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.5.attn_output.weight with q4_0_4x4
+09-09 11:17:46.034 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.038 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.6.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.054 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.6.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.066 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.070 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.6.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.082 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.084 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.6.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.092 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.6.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.099 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.7.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.111 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.115 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.7.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.127 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.131 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.7.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.145 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.7.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.152 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.153 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.7.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.160 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.8.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.176 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.8.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.188 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.192 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.8.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.204 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.206 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.8.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.214 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.8.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.221 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.227 I/libPerfCtl(  777): xgfGetFPS pid:1916 fps:-1
+09-09 11:17:46.227 I/libPerfCtl(  777): xgfGetFPS pid:2289 fps:-1
+09-09 11:17:46.227 I/libPerfCtl(  777): xgfGetFPS pid:3230 fps:-1
+09-09 11:17:46.227 I/libPerfCtl(  777): xgfGetFPS pid:14689 fps:59
+09-09 11:17:46.227 I/libPowerHal(  777): [updateFPS] pid(14689) : -1 => 60
+09-09 11:17:46.228 I/libPowerHal(  777): [perfNotifyAppState] pack:com.kalsa.app, act:com.kalsa.app.MainActivity, state:5, pid:14689, uid:10190, fps:60
+09-09 11:17:46.228 E/UxUtility(  777): notifyAppState error = NULL
+09-09 11:17:46.228 I/TouchUtility(  777): notifyAppState error = NULL
+09-09 11:17:46.234 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.237 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.249 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.252 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.265 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.attn_q.weight with q4_0_4x4
+09-09 11:17:46.267 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.268 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.attn_k.weight with q4_0_4x4
+09-09 11:17:46.269 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.attn_v.weight with q4_0_4x4
+09-09 11:17:46.270 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.9.attn_output.weight with q4_0_4x4
+09-09 11:17:46.277 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.10.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.293 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.10.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.304 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.308 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.10.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.320 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.322 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.10.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.330 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.10.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.337 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.11.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.357 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.357 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.11.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.364 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.368 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.11.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.382 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.11.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.389 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.390 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.11.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.397 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.12.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.409 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.414 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.12.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.430 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.12.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.442 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.445 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.12.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.453 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.12.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.460 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.472 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.477 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.488 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.493 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.505 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.506 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.attn_q.weight with q4_0_4x4
+09-09 11:17:46.508 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.attn_k.weight with q4_0_4x4
+09-09 11:17:46.509 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.attn_v.weight with q4_0_4x4
+09-09 11:17:46.511 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.13.attn_output.weight with q4_0_4x4
+09-09 11:17:46.518 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.14.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.529 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.534 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.14.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.549 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.14.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.561 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.564 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.14.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.572 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.14.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.579 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.15.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.591 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.595 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.15.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.607 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.611 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.15.ffn_up.weight with q4_0_4x4
+09-09 11:17:46.624 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.626 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.15.shortconv.in_proj.weight with q4_0_4x4
+09-09 11:17:46.634 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.15.shortconv.out_proj.weight with q4_0_4x4
+09-09 11:17:46.641 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.16.ffn_gate.weight with q4_0_4x4
+09-09 11:17:46.651 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb:export ANDROID_LOG_TAGS=''; exec logcat '-d' '-v' 'time' '-t' '350''
+09-09 11:17:46.653 I/ReactNativeJS(14689): KALSA_NATIVE info .
+09-09 11:17:46.658 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.16.ffn_down.weight with q4_0_4x4
+09-09 11:17:46.673 I/ReactNativeJS(14689): KALSA_NATIVE info repack: repack tensor blk.16.ffn_up.weight with q4_0_4x4

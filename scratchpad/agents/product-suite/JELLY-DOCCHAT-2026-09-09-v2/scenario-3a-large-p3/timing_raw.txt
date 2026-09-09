@@ -1,0 +1,6 @@
+completed=1
+first_visible_ms=1788969535000
+first_visible_note=first new-conversation assistant text observed in RKStorage (5s poll granularity)
+completion_ms=1788969535000
+first_visible_after_share_ms=334026
+completion_after_share_ms=334026

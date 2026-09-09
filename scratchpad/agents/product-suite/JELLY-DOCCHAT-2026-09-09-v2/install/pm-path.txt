@@ -1,0 +1,2 @@
+package:/data/app/~~iROYqDbW7CChckdhrL9A-Q==/com.kalsa.app-RodHFKy1YIa_y242HdM0JQ==/base.apk
+pm_path_rc=0

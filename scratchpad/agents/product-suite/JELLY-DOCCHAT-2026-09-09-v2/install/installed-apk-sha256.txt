@@ -1,0 +1,2 @@
+cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45  /tmp/jelly-v2-installed-base.apk
+expected=cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45

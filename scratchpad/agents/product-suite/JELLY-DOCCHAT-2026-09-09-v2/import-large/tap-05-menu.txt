@@ -1,0 +1,2 @@
+tap_evidence_source=ui-docmenu-before.xml content-desc="Menu" bounds [19,147][69,196] center=44,171
+input_tap_rc=0
