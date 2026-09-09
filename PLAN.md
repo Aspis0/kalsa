@@ -22,6 +22,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~11:50 EDT — MiniCPM5 Q4_0 costruito dal F16 (`MINICPM5-Q4_0.md`)**: PPL Q8_0 22,34 / Q4_K_M 23,55 (+5 %) /
+  Q4_0 26,19 (+17 %): il Q4_0 NON è un QAD come quello di LFM, costa qualità. E il quant non è la leva del prefill:
+  l'overlay ripacchetta anche Q4_K su ARM (`repack.cpp:5130` → `q4_K_8x8_q8_K` con NEON+i8mm, che l'S23 ha).
+  Sul Mac MiniCPM5 prefilla PIÙ veloce di LFM (378 vs ~180 tok/s) → il "prewarm 2,5 min / skip eval-failed" sull'S23
+  è sospetto di artefatto app/runner (template + n_predict 0 + enable_thinking:false?) → recon deepseek in corso sui
+  log del dry run. Il Q4_0 resta come riferimento se servirà a separare quant e architettura sul telefono.
 - **9/09 ~11:30 EDT — SHARE COLD-START RISOLTO SU S23 (APK 5707cfe, sha cedd7301…)**: filtri SEND corretti nel
   package dump; cold VIEW `kalsa://share` PASS; cold SEND text/plain dal ResolverActivity PASS (composer riempito);
   SEND application/pdf con URI `file://` → Kalsa riceve il clip ma nessun documento in libreria (FAIL, da capire se
