@@ -22,6 +22,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~12:15 EDT — JELLY DOCUMENT CHAT: 7/7 PASS SU main@5707cfe (era 1/5)** (`product-suite/JELLY-DOCCHAT-2026-09-09.md`
+  §v2, Luna e1b923b9, stesse domande e stesso protocollo): il PDF da 40 pagine ora ha pageCount=40/processed=40,
+  estimatedTokens 26 655 → strategia `hybrid` (retrieval), i tre fatti sepolti (p.3/17/31) trovati con la pagina
+  citata, il fatto assente detto assente, follow-up corretto, riapertura corretta (allegato da riselezionare).
+  **Tempi sul Jelly**: 2,8-3,7 tok/s, completamento 119-417 s per scenario, thermal status 3 costante a 37-40 °C:
+  corretto ma lento — sono i numeri da cui fissare gli obiettivi Jelly a G1 (§9/§13). Import via intent SEND:
+  fallito per "no access" del MediaProvider = adb `am start` non concede il permesso URI (un'app vera lo dà con
+  FLAG_GRANT_READ_URI_PERMISSION); re-test con `--grant-read-uri-permission` in corso prima di chiamarlo difetto.
+  Embedding in background arrivato a 707 chunk senza riga `done` prima del force-stop (da guardare in §8).
 - **9/09 ~12:05 EDT — QUANT NOSTRI CON IMATRIX (MiniCPM5, `MINICPM5-Q4_0.md` §imatrix)**: calibrazione 370 KB
   disgiunta dal corpus G1 (sha 241f2b…, 55 chunk, 756 s). PPL sullo stesso testo: Q8_0 22,34 · Q4_K_M ufficiale 23,55 ·
   **Q4_K_M-imx 23,36** · Q4_0 ufficiale 26,19 · **Q4_0-imx 24,64** (Q4_0-imx contiene 5 tensori Q4_1 promossi dal
