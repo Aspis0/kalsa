@@ -1,0 +1,5 @@
+small_condominium_notice_it.pdf bytes=2407 sha256=eae977be22425155278cdeb95352bace59e0fb22f2df2661df25d602b0bb9fa4 pages=1 words=270 chars=1955
+large_asterion_manual_en.pdf bytes=64009 sha256=9b1c9af44b1809727c54b4d689e1f2cc87e7c6744dfec19c4f3248230a6c4f8d pages=40 words=15570 chars=106619
+  contains AXR-7Q4-031 at_page 3
+  contains 42.6 N·m at_page 17
+  contains QX9-YYWW-NNNN at_page 31

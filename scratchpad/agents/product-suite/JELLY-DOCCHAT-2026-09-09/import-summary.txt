@@ -1,0 +1,10 @@
+Device: Jelly Star, USB serial JELLYS0000053795 only. Wireless serial was not used.
+MediaStore: small _id=1000000705; large _id=1000000706; both application/pdf in Download/.
+cmd media: rc=20, Can't find service: media.
+SEND content://media/external/file/1000000705: am start rc=0, no library import.
+SEND file:///sdcard/Download/small_condominium_notice_it.pdf: am start rc=0, no library import.
+Picker fallback: worked. UI dump/tap evidence is in ../import-small/picker and ../import-large/picker.
+SMALL library record: docCount=1, pageCount=1, estimatedTokens=489, extractionStatus=ok.
+LARGE library record: docCount=5, pageCount=5, estimatedTokens=3362, extractionStatus=ok.
+Source PDFs verified separately: SMALL 1 page/270 words; LARGE 40 pages/15,570 words, with facts on pages 3, 17, 31.
+Strategy at ctxTokens=16384: SMALL 489 and imported LARGE 3362 are both full_context (<8192); retrieval was not reached.

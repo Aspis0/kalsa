@@ -1,0 +1,6 @@
+  ACTIVITY com.android.launcher3/com.android.searchlauncher.SearchLauncher b4f2fcf pid=2289
+TASK 10190:com.kalsa.app id=653 userId=0
+  ACTIVITY com.kalsa.app/.MainActivity 6d1fb99 pid=14422
+       mInputChannel: c4c1b3b com.kalsa.app/com.kalsa.app.MainActivity (client)
+          mChannel = c4c1b3b com.kalsa.app/com.kalsa.app.MainActivity (client)
+          context: com.kalsa.app.MainActivity@150c726

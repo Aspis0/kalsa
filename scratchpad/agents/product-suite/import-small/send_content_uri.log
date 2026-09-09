@@ -1,0 +1,2 @@
+Starting: Intent { act=android.intent.action.SEND typ=application/pdf flg=0x1 cmp=com.kalsa.app/.MainActivity (has extras) }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.

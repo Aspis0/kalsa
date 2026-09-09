@@ -1,0 +1,3 @@
+The user is asking about the torque specification for the lower hinge clamp according to the attached manual. They want the exact value and page reference if available. The document ID is "doc-mtu1fw5b-68iy0t" which corresponds to "large_asterion_manual_en.pdf". I need to search this document for the specific information about the lower hinge clamp torque.
+
+Let me use document_chat to search for this specific information in the document.The

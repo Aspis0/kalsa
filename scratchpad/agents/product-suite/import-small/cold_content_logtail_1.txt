@@ -1,0 +1,18 @@
+09-09 07:42:43.844 I/adbd    (10663): adbd service requested 'shell,v2,TERM=dumb,raw:am start -a android.intent.action.SEND -t application/pdf --grant-read-uri-permission --eu android.intent.extra.STREAM content://media/external/file/1000000705 -n com.kalsa.app/.MainActivity'
+09-09 07:42:43.880 I/ActivityTaskManager( 1564): START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x10000001 cmp=com.kalsa.app/.MainActivity (has extras)} from uid 2000
+09-09 07:42:43.886 I/PowerHalWrapper( 1564): <amsBoostResume> last:com.android.launcher3, next:com.kalsa.app 
+09-09 07:42:43.892 I/PowerHalWrapper( 1564): amsBoostProcessCreate package:com.kalsa.app 
+09-09 07:42:43.900 I/PowerHalWrapper( 1564): amsBoostNotify pid:2289,activity:com.android.searchlauncher.SearchLauncher, package:com.android.launcher3, mProcessCreatePackcom.kalsa.app 
+09-09 07:42:43.901 I/ActivityManager( 1564): Start proc 14422:com.kalsa.app/u0a190 for next-top-activity {com.kalsa.app/com.kalsa.app.MainActivity}
+09-09 07:42:43.910 I/com.kalsa.app(14422): Late-enabling -Xcheck:jni
+09-09 07:42:43.911 I/BufferQueueDebug(  784): [Splash Screen com.kalsa.app#247](this:0xb40000732e2c4668,id:-1,api:0,p:-1,c:-1) BufferQueue core=(784:/system/bin/surfaceflinger)
+09-09 07:42:43.927 I/com.kalsa.app(14422): Using generational CollectorTypeCMC GC.
+09-09 07:42:43.945 I/PowerHalWrapper( 1564): amsBoostNotify pid:14422,activity:com.kalsa.app.MainActivity, package:com.kalsa.app, mProcessCreatePackcom.kalsa.app 
+09-09 07:42:43.945 I/mtkpower_client( 1564): [Legacy][PowerHal_Wrap_notifyAppState] com.kalsa.app/com.kalsa.app.MainActivity pid=14422 state:1
+09-09 07:42:43.945 I/game_scn( 1564): collectForegroundAppList packName=com.kalsa.app, actName=com.kalsa.app.MainActivity, pid=14422, uid=10190, state:RESUMED
+09-09 07:42:43.945 I/game_scn( 1564): powerNotifyForegroundApp multi_resumed_app_info: pid: 14422, packname: com.kalsa.app, actname: com.kalsa.app.MainActivity
+09-09 07:42:43.945 I/libPowerHal(  777): [perfNotifyAppState] pack:com.kalsa.app, act:com.kalsa.app.MainActivity, state:1, pid:14422, uid:10190, fps:-1
+09-09 07:42:43.945 I/libPowerHal(  777): [perfNotifyAppState] foreground:com.kalsa.app, pid:14422, uid:10190
+09-09 07:42:43.946 E/UxUtility(  777): notifyAppState error = NULL
+09-09 07:42:43.946 I/TouchUtility(  777): notifyAppState error = NULL
+09-09 07:42:43.946 I/mtkpower@impl(  777): [notifyAppState] pc:1, com.android.launcher3 => com.kalsa.app

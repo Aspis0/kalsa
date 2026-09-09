@@ -1,0 +1,4 @@
+-rw-rw---- 1 u0_a201 media_rw 64009 2026-09-09 07:30 /sdcard/Download/large_asterion_manual_en.pdf
+-rw-rw---- 1 u0_a201 media_rw  2407 2026-09-09 07:30 /sdcard/Download/small_condominium_notice_it.pdf
+eae977be22425155278cdeb95352bace59e0fb22f2df2661df25d602b0bb9fa4  /sdcard/Download/small_condominium_notice_it.pdf
+9b1c9af44b1809727c54b4d689e1f2cc87e7c6744dfec19c4f3248230a6c4f8d  /sdcard/Download/large_asterion_manual_en.pdf

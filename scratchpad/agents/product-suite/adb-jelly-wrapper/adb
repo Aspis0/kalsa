@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+: "${ANDROID_SERIAL:?ANDROID_SERIAL must be set}"
+if [ "${1:-}" = "devices" ]; then
+  state=$(/opt/homebrew/bin/adb -s "$ANDROID_SERIAL" get-state </dev/null 2>/dev/null || true)
+  printf 'List of devices attached\n'
+  if [ "$state" = "device" ]; then
+    printf '%s\tdevice\n' "$ANDROID_SERIAL"
+  fi
+  exit 0
+fi
+exec /opt/homebrew/bin/adb -s "$ANDROID_SERIAL" "$@" </dev/null

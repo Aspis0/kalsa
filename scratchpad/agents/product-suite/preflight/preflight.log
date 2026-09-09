@@ -1,0 +1,14 @@
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+PASS: exactly one attached non-emulator device (JELLYS0000053795)
+PASS: debuggable APK, run-as id="uid=10190(u0_a190) gid=10190(u0_a190) groups=10190(u0_a190),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs),50190(all_a190) context=u:r:runas_app:s0:c190,c256,c512,c768"
+PASS: database read path, catalystLocalStorage count=51
+PASS: stopped-app write/read/delete round-trip
+PASS: uiautomator dump + input text usable (nodes=99)
+PASS: host sqlite3 (3.51.0 2025-06-12 13:14:41 f0ca7bba1c5e232e5d279fad6338121ab55af0c8c68c84cdfb18ba5114dcaapl (64-bit))
+PASS: battery level=100, USB powered: false, temperature=30.0 °C
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

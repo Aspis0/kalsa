@@ -22,6 +22,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~09:20 EDT — JELLY: DOCUMENT CHAT 1/5 (LFM spedito, main@332aeed)** (`product-suite/JELLY-DOCCHAT-2026-09-09.md`,
+  Luna e1b923b9; PDF piccolo 1 pagina/5 fatti, PDF grande 40 pagine/3 fatti sepolti): PASS solo "due fatti dal
+  piccolo" (full_context, 199 s a completare, 4,2 tok/s). FAIL: fatto assente (errore "Documento non trovato
+  id=<stem>" arriva in chat), i tre fatti sepolti (mai visti), follow-up (allucina "1.860 euro" come coppia),
+  riapertura (promptMs 564 s, loop). **Tre difetti confermati sul sorgente**: (1) `pdfBridgeProtocol.ts:28
+  MAX_PDF_PAGES=5` tronca OGNI PDF a 5 pagine (era il cap vision) → il retrieval non parte mai; (2) i filtri
+  SEND/SEND_MULTIPLE generati dal manifest hanno il prefisso raddoppiato (`android.intent.action.android.intent.
+  action.SEND`, app.config.js passa il nome già prefissato) → "condividi a Kalsa" non matcha da nessuna app;
+  (3) `documentChatTool.ts selectDoc` match esatto sull'id, il modello passa lo stem del file → errore con un solo
+  documento in libreria. Fix in corso: (1)+(3) Luna 41…(agent "document chat fixes"), (2) all'agente share-intent
+  ad050d23 (stesso file app.config.js). **Punto di design aperto (§5/§8)**: `decideDocStrategy` manda in
+  full_context tutto ciò che sta in metà ctx (fino a 8k token su ctx 16k) → sul Jelly sono minuti di prefill;
+  la soglia deve dipendere dal budget di prefill del telefono, non solo dal fit. Il Jelly a 2,4-4 tok/s con
+  thermal status 3 costante (36-40 °C) non regge un documento medio con questa strategia.
 - **9/09 ~09:00 EDT — S23: IL RESTORE FUNZIONA IN CONFIG DI SPEDIZIONE (n=1, thinking ON, LFM, main@332aeed)**
   (`session-contract/S23-RESTORE-2026-09-09.md`, Luna 6c0dfc7f): seed a freddo 37,9 s per 1811 token; dopo
   force-stop + riapertura `KALSA_KVRESUME resumable=1`, `KALSA_SESSION load ok tokens=2051` in 36 ms, `KALSA_KVDIAG

@@ -1,0 +1,2 @@
+eae977be22425155278cdeb95352bace59e0fb22f2df2661df25d602b0bb9fa4  /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/product-suite/small_condominium_notice_it.pdf
+9b1c9af44b1809727c54b4d689e1f2cc87e7c6744dfec19c4f3248230a6c4f8d  /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/product-suite/large_asterion_manual_en.pdf

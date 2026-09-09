@@ -1,0 +1,20 @@
+09-09 07:42:50.204 I/ReactNativeJS(14422): KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (autoregressive) enabled
+09-09 07:42:50.204 I/ReactNativeJS(14422): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =   16, n_seqs =  1, n_outputs =   16
+09-09 07:42:50.205 I/ReactNativeJS(14422): KALSA_NATIVE info resolve_fused_ops: fused Gated Delta Net (chunked) enabled
+09-09 07:42:50.205 I/ReactNativeJS(14422): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+09-09 07:42:50.207 I/ReactNativeJS(14422): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =    1, n_seqs =  1, n_outputs =    1
+09-09 07:42:50.208 I/ReactNativeJS(14422): KALSA_NATIVE info graph_reserve: reserving a graph for ubatch with n_tokens =  256, n_seqs =  1, n_outputs =  256
+09-09 07:42:50.209 I/ReactNativeJS(14422): KALSA_NATIVE info sched_reserve:        CPU compute buffer size =   129.00 MiB
+09-09 07:42:50.209 I/ReactNativeJS(14422): KALSA_NATIVE info sched_reserve: graph nodes  = 1110
+09-09 07:42:50.209 I/ReactNativeJS(14422): KALSA_NATIVE info sched_reserve: graph splits = 1
+09-09 07:42:50.209 I/ReactNativeJS(14422): KALSA_NATIVE info sched_reserve: reserve took 9.19 ms, sched copies = 1
+09-09 07:42:50.209 I/ReactNativeJS(14422): KALSA_NATIVE info set_adapters_lora: adapters = 0x0
+09-09 07:42:50.210 I/ReactNativeJS(14422): KALSA_NATIVE info adapters_lora_are_same: adapters = 0x0
+09-09 07:42:50.559 I/ReactNativeJS(14422): KALSA_NATIVE info attach_threadpool: call
+09-09 07:42:50.580 I/ReactNativeJS(14422): KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-09 07:42:50.601 I/ReactNativeJS(14422): KALSA_SESSION {"op":"load","ms":21,"ok":false,"reason":"no_file"}
+09-09 07:42:50.601 I/ReactNativeJS(14422): 'KALSA_KVDIAG', '{"n_past":0,"tokens_on_disk":0,"ok":false}'
+09-09 07:42:50.613 I/ReactNativeJS(14422): 'KALSA_PREWARM', '{"op":"start","hash":"3918250672","systemChars":3863,"toolCount":5}'
+09-09 07:42:50.635 W/RNLlama (14422): loadPrompt:471 KALSA_KVPREFIX embd=0 text_tokens=1795 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d27cbd0
+09-09 07:42:50.638 I/BufferQueueProducer(  784): [com.kalsa.app/com.kalsa.app.MainActivity#253](this:0xb40000732e282e78,id:-1,api:0,p:-1,c:784) queueBuffer: fps=5.33 dur=2813.37 max=2543.96 min=11.90
+09-09 07:42:53.368 I/NullBinder( 2504): NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0

@@ -1,0 +1,1 @@
+{"turnId": "3", "round": 0, "tokensCached": 3129, "tokensEvaluated": 3034, "tokensPredicted": 94, "draftTokens": 0, "draftAccepted": 0, "promptMs": 179214.533, "predictedMs": 31687.595999999998, "predictedPerSecond": 2.966460440861465, "contextFull": false, "interrupted": false, "tool": "document_chat", "strategy": "full_context", "ciswireFlags": 4}

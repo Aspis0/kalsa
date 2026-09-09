@@ -1,0 +1,10 @@
+Error while accessing provider:media
+java.lang.IllegalArgumentException: Invalid column size
+	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:172)
+	at android.database.DatabaseUtils.readExceptionFromParcel(DatabaseUtils.java:142)
+	at android.content.ContentProviderProxy.query(ContentProviderNative.java:481)
+	at com.android.commands.content.Content$QueryCommand.onExecute(Content.java:661)
+	at com.android.commands.content.Content$Command.execute(Content.java:522)
+	at com.android.commands.content.Content.main(Content.java:735)
+	at com.android.internal.os.RuntimeInit.nativeFinishInit(Native Method)
+	at com.android.internal.os.RuntimeInit.main(RuntimeInit.java:376)

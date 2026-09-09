@@ -1,0 +1,1 @@
+The user is asking about the serial-number format for QX9 controllers according to the attached manual. I need to search the document "doc-mtu1fw5b-68iy0t" (large_asterion_manual_en.pdf) for this specific information. Let me use the document_chat tool to search for "QX9 controllers" and "serial-number format" within this document.

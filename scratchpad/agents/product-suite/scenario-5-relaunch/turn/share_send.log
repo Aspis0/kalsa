@@ -1,0 +1,9 @@
+[ci] share-send attempt 1/3: After relaunch, what is the approved product code for the blue Asterion relay module? Give the page reference if available.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] node 'Tap to reload' NOT FOUND
+[ci] node 'Tocca per ricaricare' NOT FOUND
+[ci] reload: label found in dump but tap_node missed
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share-send: submitted prev=6 count=6

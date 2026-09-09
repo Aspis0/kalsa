@@ -1,0 +1,4 @@
+VmRSS_peak_kB=2619612
+VmHWM_peak_kB=2651780
+thermal_status_max=3
+battery_max_deciC=360
