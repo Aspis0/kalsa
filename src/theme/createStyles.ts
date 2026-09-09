@@ -2058,7 +2058,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   qpcrCommandIcon: {
     alignItems: "center",
     backgroundColor: colors.accent,
-    borderColor: "rgba(232, 238, 231, 0.46)",
+    borderColor: "rgba(232, 234, 231, 0.46)",
     borderBottomColor: glass.rimDark,
     borderTopColor: glass.hairline,
     borderRadius: radius.lg,
@@ -2271,7 +2271,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   primaryButton: {
     alignItems: "center",
     backgroundColor: colors.accent,
-    borderColor: "rgba(232, 238, 231, 0.46)",
+    borderColor: "rgba(232, 234, 231, 0.46)",
     borderBottomColor: glass.rimDark,
     borderTopColor: glass.hairline,
     borderRadius: radius.lg,
@@ -2727,7 +2727,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 26,
   },
   rnaWizardStepIndexActive: {
-    backgroundColor: "rgba(232,238,231,0.30)",
+    backgroundColor: "rgba(232,234,231,0.30)",
     borderColor: glass.hairline,
   },
   rnaWizardStepIndexDone: {
@@ -3133,7 +3133,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   toolHeroIcon: {
     alignItems: "center",
     backgroundColor: colors.accent,
-    borderColor: "rgba(232, 238, 231, 0.46)",
+    borderColor: "rgba(232, 234, 231, 0.46)",
     borderBottomColor: glass.rimDark,
     borderTopColor: glass.hairline,
     borderRadius: radius.lg,
@@ -3285,7 +3285,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   },
   benchToolPillActive: {
     backgroundColor: colors.accent,
-    borderColor: "rgba(232,238,231,0.46)",
+    borderColor: "rgba(232,234,231,0.46)",
     borderBottomColor: glass.rimDark,
     borderTopColor: glass.hairline,
     borderWidth: 1,
@@ -3343,7 +3343,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
     width: 34,
   },
   benchToolIconActive: {
-    backgroundColor: "rgba(232,238,231,0.28)",
+    backgroundColor: "rgba(232,234,231,0.28)",
   },
   benchToolTitle: {
     fontFamily: fontDisplay,
@@ -3830,7 +3830,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   primaryMiniButton: {
     alignItems: "center",
     backgroundColor: colors.accent,
-    borderColor: "rgba(232, 238, 231, 0.46)",
+    borderColor: "rgba(232, 234, 231, 0.46)",
     borderBottomColor: glass.rimDark,
     borderTopColor: glass.hairline,
     borderRadius: radius.md,
@@ -3903,7 +3903,7 @@ export function createStyles(colors: ThemeColors, metrics: ResponsiveMetrics = D
   dangerButton: {
     alignItems: "center",
     backgroundColor: colors.danger,
-    borderColor: "rgba(232, 238, 231, 0.42)",
+    borderColor: "rgba(232, 234, 231, 0.42)",
     borderBottomColor: glass.rimDark,
     borderTopColor: glass.hairline,
     borderRadius: radius.md,

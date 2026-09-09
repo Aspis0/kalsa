@@ -499,11 +499,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11yRemoveAttachment: "Remove attachment",
     a11yStop: "Stop generation",
     a11ySend: "Send",
-    regenerate: "Regenerate",
     more: "More",
     edit: "Edit",
-    cancelRegenerate: "Cancel regenerate",
-    regenCostHint: "Reload — may take several seconds",
     regenBusy: "Already regenerating",
     unloaded: "Unloaded due to memory pressure",
     lazyReload: "Tap to reload",
@@ -533,6 +530,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     deepResearchNeedsQuestion: "Ask a question to research your library.",
     deepResearchIgnoringImages:
       "Deep research works on text documents — images on this message won't be used.",
+    notesContextTruncated:
+      "Some notes were trimmed to fit the context limit.",
     deepResearchWriterFailed:
       "The report could not be finished on this device — retrieved passages below.",
     deepResearchInterrupted:

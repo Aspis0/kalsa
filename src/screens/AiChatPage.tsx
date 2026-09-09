@@ -294,7 +294,11 @@ type Props = {
     history?: unknown[],
     /** Persist/assemble user text (trimmed, no docHints / placeholder). */
     lastUserBare?: string,
-    opts?: { research?: boolean },
+    opts?: {
+      research?: boolean;
+      notes?: boolean;
+      onNotice?: () => void;
+    },
   ) => Promise<SendStreamResult | void>;
   selectedRun?: AiChatSelectedRun | null;
   prefillText?: string | null;
@@ -1137,6 +1141,24 @@ export function AiChatPage({
   const [researchMode, setResearchMode] = useState(false);
   const researchModeRef = useRef(false);
   researchModeRef.current = researchMode;
+  /** Arms the next send with local Notes context (one-shot; cleared on send). */
+  const [notesMode, setNotesMode] = useState(false);
+  const notesModeRef = useRef(false);
+  notesModeRef.current = notesMode;
+  /** Draft cancelled (had content → emptied): drop one-shot arms, same
+   *  semantics as switch/clear — prevents stale Notes/Research context
+   *  riding the next send after the user cleared the draft. */
+  const draftHadContentRef = useRef(false);
+  useEffect(() => {
+    const has = draft.trim().length > 0;
+    if (!has && draftHadContentRef.current) {
+      notesModeRef.current = false;
+      setNotesMode(false);
+      researchModeRef.current = false;
+      setResearchMode(false);
+    }
+    draftHadContentRef.current = has;
+  }, [draft]);
   const [attachSheetOpen, setAttachSheetOpen] = useState(false);
   /** Nested picker: choose a library document to attach as a retrieval source. */
   const [docPickOpen, setDocPickOpen] = useState(false);
@@ -1737,6 +1759,8 @@ export function AiChatPage({
     // Arm must not leak across conversations (cross-chat bug).
     researchModeRef.current = false;
     setResearchMode(false);
+    notesModeRef.current = false;
+    setNotesMode(false);
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
     voiceStopInFlightRef.current = false;
@@ -2068,10 +2092,10 @@ export function AiChatPage({
       // Audit follow-up: also belt-and-braces block while a PDF conversion
       // is in flight — the composer-side guards (onSubmitEditing, send
       // button) already block this, but handleSend can also be invoked
-      // directly (suggestion cards / regen). Read pdfToRenderRef so a stale
-      // handleSend/regenerate closure cannot bypass or stay blocked.
+      // directly (suggestion cards / edit). Read pdfToRenderRef so a stale
+      // handleSend/edit closure cannot bypass or stay blocked.
       // regenInFlight blocks concurrent user sends; regenHandleSendPassRef is a
-      // one-shot allow so regenerate/edit can call handleSend without deadlock.
+      // one-shot allow so edit can call handleSend without deadlock.
       // sendClaimRef is the pre-await lock: two rapid ordinary sends must not
       // both pass the busy check and both enter the uncached fit-gate await.
       // Attachment-only turns are allowed: modelText falls back to doc hints
@@ -2301,9 +2325,17 @@ export function AiChatPage({
         .map((a) => `[document:${a.libraryDocId} name="${a.name}"]`)
         .join(" ");
       const armedResearch = researchModeRef.current;
+      const armedNotes = notesModeRef.current;
       const keywordResearch = hasDeepResearchTrigger(trimmed);
       const useResearch = armedResearch || keywordResearch;
-      if (armedResearch) setResearchMode(false);
+      if (armedResearch) {
+        researchModeRef.current = false;
+        setResearchMode(false);
+      }
+      if (armedNotes) {
+        notesModeRef.current = false;
+        setNotesMode(false);
+      }
       // Research is text-only: on a vision-capable model an attached image
       // would be silently dropped — say so.
       if (useResearch && hasVisionInput && supportsVision) {
@@ -2523,7 +2555,13 @@ export function AiChatPage({
             snapshotAttachments.length > 0 ? snapshotAttachments : undefined,
             messagesRef.current,
             trimmed,
-            useResearch ? { research: true } : undefined,
+            useResearch || armedNotes
+              ? {
+                  research: useResearch,
+                  notes: armedNotes,
+                  onNotice: () => showVoiceNote(t("chat.notesContextTruncated")),
+                }
+              : undefined,
           );
           // clearChat mid-stream: do not adopt stream result into a new chat.
           if (!stillThisRun(myGen) || sendRunIdRef.current !== runId) {
@@ -2932,8 +2970,8 @@ export function AiChatPage({
         sendingRef.current = false;
         sendingInFlightRef.current = false;
         sendClaimRef.current = false;
-        // Stop during regen: the bumped generation makes regen's finally skip
-        // lock release — clear here so the composer does not stay regenBusy.
+        // Stop during an edit-triggered send: clear the shared lock state so
+        // the composer does not stay regenBusy.
         regenInFlightRef.current = false;
         regenHandleSendPassRef.current = false;
         setSending(false);
@@ -3012,7 +3050,9 @@ export function AiChatPage({
     // conversation and gets sent with the next message.
     attachedItemsRef.current = [];
     setAttachedItems([]);
+    notesModeRef.current = false;
     setResearchMode(false);
+    setNotesMode(false);
     // Voice: invalidate transcription token, cancel capture, stop TTS, clear UI.
     voiceRunIdRef.current += 1;
     voiceBusyRef.current = false;
@@ -3043,160 +3083,7 @@ export function AiChatPage({
   }, [onNewConversation, persistActiveMessages, setVoicePhase]);
 
   /**
-   * Find the original user turn that produced a target message in a slice.
-   * Walks backwards for the nearest user message with text and/or attachments
-   * (captionless image turns are valid regen sources).
-   */
-  const findOriginalUserMessage = useCallback((slice: Message[]): Message | null => {
-    for (let i = slice.length - 1; i >= 0; i -= 1) {
-      const m = slice[i];
-      if (!m || m.role !== "user") continue;
-      const hasText = typeof m.text === "string" && !!m.text.trim();
-      const hasAttachments = (m.attachments?.length ?? 0) > 0;
-      if (hasText || hasAttachments) return m;
-    }
-    return null;
-  }, []);
-
-  /**
-   * Regenerate an assistant reply: truncate to target, re-send original user text.
-   * Reuses handleSend (abort / fit / save / persist). Single-flight via regenInFlightRef.
-   *
-   * Generation-gated body (round-4): after every await, if clearChat bumped
-   * regenGenerationRef, abort immediately — no rollback setMessages, no
-   * setSending, no lock release in finally for the new owner.
-   */
-  const regenerate = useCallback(
-    async (targetMsgId: string): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
-      if (
-        regenInFlightRef.current ||
-        sendingRef.current ||
-        sendClaimRef.current
-      ) {
-        return { ok: false, reasonKey: "chat.regenBusy" };
-      }
-      // Capture generation at acquire (before any await). Body + finally only
-      // mutate when we still own this generation.
-      const myGeneration = regenGenerationRef.current;
-      regenInFlightRef.current = true;
-      regenAbortRef.current = new AbortController();
-      const snapshot = messagesRef.current.slice();
-      try {
-        const targetIndex = messagesRef.current.findIndex((m) => m.id === targetMsgId);
-        if (targetIndex < 0) {
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        const slice = messagesRef.current.slice(0, targetIndex + 1);
-        const originalUser = findOriginalUserMessage(slice);
-        if (!originalUser) {
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        const originalUserText = originalUser.text ?? "";
-        const originalAttachments = originalUser.attachments;
-        // Truncate to target (keep target and everything before).
-        // For assistant targets we drop the assistant bubble so handleSend can
-        // append a fresh user+assistant pair from the original user text —
-        // but history already has the user message. So truncate BEFORE the
-        // assistant target (keep up to targetIndex - 1 when target is assistant).
-        const target = messagesRef.current[targetIndex];
-        const cutExclusive =
-          target?.role === "assistant" ? targetIndex : targetIndex + 1;
-        const truncated = messagesRef.current.slice(0, cutExclusive);
-        // Drop trailing user message that we will re-send (handleSend appends it).
-        let base = truncated;
-        if (base.length > 0 && base[base.length - 1]?.role === "user") {
-          base = base.slice(0, -1);
-        }
-        setMessages((prev) => {
-          if (regenGenerationRef.current !== myGeneration) {
-            return prev;
-          }
-          return base;
-        });
-        // Keep ref in lockstep only while we still own the generation.
-        if (regenGenerationRef.current === myGeneration) {
-          messagesRef.current = base;
-        }
-        // One-shot pass so handleSend accepts while regenInFlightRef is true.
-        regenHandleSendPassRef.current = true;
-        // If background disposal aborted regen before send starts, refuse cleanly.
-        if (regenAbortRef.current?.signal.aborted) {
-          if (regenGenerationRef.current !== myGeneration) {
-            return { ok: false, reasonKey: "chat.regenFailed" };
-          }
-          setMessages((prev) => {
-            if (regenGenerationRef.current !== myGeneration) {
-              return prev;
-            }
-            return snapshot;
-          });
-          if (regenGenerationRef.current === myGeneration) {
-            messagesRef.current = snapshot;
-          }
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        const sendResult = await handleSendTracked(
-          originalUserText,
-          originalAttachments,
-        );
-        // clearChat during handleSend: do not rollback into the new chat.
-        if (regenGenerationRef.current !== myGeneration) {
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        if (!sendResult.ok) {
-          setMessages((prev) => {
-            if (regenGenerationRef.current !== myGeneration) {
-              return prev;
-            }
-            return snapshot;
-          });
-          if (regenGenerationRef.current === myGeneration) {
-            messagesRef.current = snapshot;
-            setSending(false);
-            sendingRef.current = false;
-            sendingInFlightRef.current = false;
-          }
-          return { ok: false, reasonKey: sendResult.reasonKey || "chat.regenFailed" };
-        }
-        return { ok: true };
-      } catch {
-        // Stale after clearChat: skip snapshot restore and sending reset.
-        if (regenGenerationRef.current !== myGeneration) {
-          return { ok: false, reasonKey: "chat.regenFailed" };
-        }
-        setMessages((prev) => {
-          if (regenGenerationRef.current !== myGeneration) {
-            return prev;
-          }
-          return snapshot;
-        });
-        if (regenGenerationRef.current === myGeneration) {
-          messagesRef.current = snapshot;
-          setSending(false);
-          sendingRef.current = false;
-          sendingInFlightRef.current = false;
-        }
-        return { ok: false, reasonKey: "chat.regenFailed" };
-      } finally {
-        // Generation-gated release: only the current owner clears all locks.
-        if (regenGenerationRef.current === myGeneration) {
-          regenInFlightRef.current = false;
-          regenHandleSendPassRef.current = false;
-          regenAbortRef.current = null;
-        }
-      }
-    },
-    [findOriginalUserMessage, handleSendTracked],
-  );
-
-  const regenerateRef = useRef(regenerate);
-  regenerateRef.current = regenerate;
-  const onRegenerateStable = useCallback((id: string) => {
-    void regenerateRef.current(id);
-  }, []);
-
-  /**
-   * Edit a user message then regenerate from that point.
+   * Edit a user message then generate from that point.
    * Atomic splice (edited flag) + truncate + handleSend(newText).
    *
    * Generation-gated body (round-4): after every await and before each
@@ -3347,7 +3234,7 @@ export function AiChatPage({
     }
   }, [messageMenu]);
 
-  /** Open message action sheet (Copy + Translate + Read aloud + Regen/Edit). No-op while streaming / engine busy. */
+  /** Open message action sheet (Copy + Translate + Read aloud + Edit). No-op while streaming / engine busy. */
   const openMessageMenu = useCallback(
     (id: string, text: string, role: Message["role"], streaming?: boolean) => {
       // Skip while this message streams, a chat turn is in flight, or a translate is running.
@@ -3356,8 +3243,7 @@ export function AiChatPage({
       // inside memoized rows (user rows created mid-send froze sending=true
       // and their long-press menu died — hostile-review finding 1a).
       // sendingRef / translationInFlightRef / messagesRef keep this callback
-      // identity-stable. onRegenerate is compared so a stale regen cannot
-      // bypass or stay blocked on the PDF-in-flight gate.
+      // identity-stable.
       const menuMsg = messagesRef.current.find((m) => m.id === id);
       const hasAttachments = (menuMsg?.attachments?.length ?? 0) > 0;
       if (
@@ -3509,6 +3395,28 @@ export function AiChatPage({
     },
     [t],
   );
+
+  const toggleResearchMode = useCallback(() => {
+    const next = !researchModeRef.current;
+    researchModeRef.current = next;
+    setResearchMode(next);
+  }, []);
+
+  const toggleNotesMode = useCallback(() => {
+    const next = !notesModeRef.current;
+    notesModeRef.current = next;
+    setNotesMode(next);
+  }, []);
+
+  const hasDocumentContext = attachedItems.some((item) => item.kind === "document");
+  const onComposerDocument = useCallback(() => {
+    const docs = documentLibrary?.docs ?? [];
+    if (docs.length === 0) {
+      onOpenDocuments?.();
+      return;
+    }
+    setDocPickOpen(true);
+  }, [documentLibrary, onOpenDocuments]);
 
   const onComposerSendOrStop = useCallback(() => {
     if (sendingRef.current) {
@@ -3752,7 +3660,6 @@ export function AiChatPage({
           onOpenMessageMenu={openMessageMenu}
           onCopyText={(text) => { void copyTextToClipboard(text); }}
           onSpeak={handleReadAloud}
-          onRegenerate={onRegenerateStable}
           isSpeaking={speakingId === m.id}
           onCloseTranslation={closeTranslation}
           onRetryTranslate={runTranslate}
@@ -3770,7 +3677,6 @@ export function AiChatPage({
       locale,
       onCtaPress,
       onOpenMiniapp,
-      onRegenerateStable,
       openMessageMenu,
       rowTypography,
       runTranslate,
@@ -4037,29 +3943,38 @@ export function AiChatPage({
           </View>
         ) : null}
 
-        {researchMode ? (
-          <Pressable
-            onPress={() => setResearchMode(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t("chat.deepResearchActive")}
-            accessibilityHint={t("chat.deepResearchActive")}
-            style={{
-              alignSelf: "flex-start",
-              maxWidth: "90%",
-              paddingHorizontal: spacing.sm,
-              paddingVertical: 4,
-              borderRadius: radius.md ?? 12,
-              backgroundColor: colors.panelSolid,
-              borderWidth: 1,
-              borderColor: colors.lineStrong,
-              marginBottom: 4,
-            }}
-          >
-            <Text style={[typography.bodyXs, { color: colors.ink }]}>
-              {t("chat.deepResearchActive")}
-            </Text>
-          </Pressable>
-        ) : null}
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ gap: spacing.xs, paddingBottom: 4 }}
+        >
+          <ComposerContextChip
+            icon={<Search size={15} color={researchMode ? colors.accent : colors.muted} />}
+            label={t("chat.deepResearch")}
+            onPress={toggleResearchMode}
+            colors={colors}
+            active={researchMode}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+            accessibilityLabel={researchMode ? t("chat.deepResearchActive") : t("chat.deepResearch")}
+          />
+          <ComposerContextChip
+            icon={<BookOpen size={15} color={hasDocumentContext ? colors.accent : colors.muted} />}
+            label={t("chat.libraryDocument")}
+            onPress={onComposerDocument}
+            colors={colors}
+            active={hasDocumentContext}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+            toggle={false}
+          />
+          <ComposerContextChip
+            icon={<ClipboardList size={15} color={notesMode ? colors.accent : colors.muted} />}
+            label={t("notes.title")}
+            onPress={toggleNotesMode}
+            colors={colors}
+            active={notesMode}
+            disabled={sending || voiceBlocksComposer || !!pdfToRender}
+          />
+        </ScrollView>
 
         {attachedItems.length > 0 ? (
           <ScrollView
@@ -4250,24 +4165,26 @@ export function AiChatPage({
                 >
                   {copiedFlash ? t("common.copied") : t("chat.a11yLongPress")}
                 </Text>
-                <AttachSheetRow
-                  icon={<BrandIcon name="copy" size={22} />}
-                  label={copiedFlash ? t("common.copied") : t("common.copy")}
-                  onPress={() => {
-                    // Keep menu open ~400ms with "Copied!" so feedback is visible.
-                    void (async () => {
-                      await copyTextToClipboard(messageMenu.text);
-                      if (messageMenuCloseTimer.current) {
-                        clearTimeout(messageMenuCloseTimer.current);
-                      }
-                      messageMenuCloseTimer.current = setTimeout(() => {
-                        messageMenuCloseTimer.current = null;
-                        if (mountedRef.current) setMessageMenu(null);
-                      }, 400);
-                    })();
-                  }}
-                  colors={colors}
-                />
+                {!messageMenu.text.trim() ? (
+                  <AttachSheetRow
+                    icon={<BrandIcon name="copy" size={22} />}
+                    label={copiedFlash ? t("common.copied") : t("common.copy")}
+                    onPress={() => {
+                      // Keep menu open ~400ms with "Copied!" so feedback is visible.
+                      void (async () => {
+                        await copyTextToClipboard(messageMenu.text);
+                        if (messageMenuCloseTimer.current) {
+                          clearTimeout(messageMenuCloseTimer.current);
+                        }
+                        messageMenuCloseTimer.current = setTimeout(() => {
+                          messageMenuCloseTimer.current = null;
+                          if (mountedRef.current) setMessageMenu(null);
+                        }, 400);
+                      })();
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
                 {onSaveToNotes ? (
                   <AttachSheetRow
                     icon={<ClipboardList size={18} color={colors.ink} />}
@@ -4287,41 +4204,6 @@ export function AiChatPage({
                   }}
                   colors={colors}
                 />
-                {messageMenu.role === "assistant" ? (
-                  <AttachSheetRow
-                    icon={
-                      <Volume2
-                        size={18}
-                        color={speakingId === messageMenu.id ? colors.accent : colors.ink}
-                      />
-                    }
-                    label={
-                      speakingId === messageMenu.id
-                        ? t("voice.stopReading")
-                        : t("voice.readAloud")
-                    }
-                    onPress={() => {
-                      void handleReadAloud(messageMenu.id, messageMenu.text);
-                    }}
-                    colors={colors}
-                  />
-                ) : null}
-                {messageMenu.role === "assistant" && !sending ? (
-                  <AttachSheetRow
-                    icon={<Sparkles size={18} color={colors.ink} />}
-                    label={t("chat.regenerate")}
-                    onPress={() => {
-                      const id = messageMenu.id;
-                      setMessageMenu(null);
-                      void regenerate(id).then((res) => {
-                        if (!res.ok && res.reasonKey === "chat.regenBusy") {
-                          // silent refuse — already busy
-                        }
-                      });
-                    }}
-                    colors={colors}
-                  />
-                ) : null}
                 {messageMenu.role === "user" && !sending ? (
                   <AttachSheetRow
                     icon={<SquarePen size={18} color={colors.ink} />}
@@ -4464,29 +4346,6 @@ export function AiChatPage({
                   icon={<FileText size={18} color={colors.ink} />}
                   label={t("chat.pdfOrWord")}
                   onPress={() => void addPdfAttachment()}
-                  colors={colors}
-                />
-                <AttachSheetRow
-                  icon={<BookOpen size={18} color={colors.ink} />}
-                  label={t("chat.libraryDocument")}
-                  onPress={() => {
-                    setAttachSheetOpen(false);
-                    const docs = documentLibrary?.docs ?? [];
-                    if (docs.length === 0) {
-                      onOpenDocuments?.();
-                      return;
-                    }
-                    setDocPickOpen(true);
-                  }}
-                  colors={colors}
-                />
-                <AttachSheetRow
-                  icon={<Search size={18} color={colors.ink} />}
-                  label={t("chat.deepResearch")}
-                  onPress={() => {
-                    setAttachSheetOpen(false);
-                    setResearchMode(true);
-                  }}
                   colors={colors}
                 />
               </View>
@@ -4811,6 +4670,54 @@ const ComposerActionRow = React.memo(function ComposerActionRow({
   );
 });
 
+function ComposerContextChip({
+  icon,
+  label,
+  onPress,
+  colors,
+  active,
+  disabled,
+  accessibilityLabel,
+  toggle = true,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  onPress: () => void;
+  colors: any;
+  active: boolean;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  toggle?: boolean;
+}) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessible
+      accessibilityRole={toggle ? "switch" : "button"}
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={toggle ? { checked: active, disabled } : { selected: active, disabled }}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 4,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 5,
+        borderRadius: radius.md ?? 12,
+        backgroundColor: active ? colors.accentSoft : colors.panelSolid,
+        borderWidth: 1,
+        borderColor: active ? colors.accent : colors.line,
+        opacity: disabled ? 0.45 : pressed ? 0.78 : 1,
+      })}
+    >
+      {icon}
+      <Text style={[typography.bodyXs, { color: active ? colors.accent : colors.ink }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 function AttachSheetRow({
   icon,
   label,
@@ -4858,7 +4765,7 @@ function MessageActionChip({
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      hitSlop={6}
+      hitSlop={10}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
@@ -5023,6 +4930,19 @@ function CodeFenceBlock({
 // updateMessage only replaces the streaming message's object identity; other
 // Message refs stay stable. Custom compare ignores callback identity so parent
 // re-renders (new inline arrows) do not force history rows to repaint.
+const PROVIDER_COLORS: Record<string, { light: string; dark: string }> = {
+  brave: { light: "#9A3412", dark: "#FF6B4A" },
+  exa: { light: "#6D28D9", dark: "#A78BFA" },
+  "exa-mcp": { light: "#6D28D9", dark: "#A78BFA" },
+  tavily: { light: "#0369A1", dark: "#38BDF8" },
+};
+
+function getProviderColor(provider: string | undefined, colors: any): string {
+  const providerColors = PROVIDER_COLORS[provider ?? ""];
+  if (!providerColors) return colors.accent;
+  return colors.panelSolid === "#FFFFFF" ? providerColors.light : providerColors.dark;
+}
+
 type ChatMessageRowProps = {
   message: Message;
   topGap: number;
@@ -5049,7 +4969,6 @@ type ChatMessageRowProps = {
   ) => void;
   onCopyText: (text: string) => void;
   onSpeak?: (id: string, text: string) => void;
-  onRegenerate?: (id: string) => void;
   isSpeaking: boolean;
   onCloseTranslation: () => void;
   onRetryTranslate: (id: string, text: string) => void;
@@ -5070,8 +4989,7 @@ function chatMessageRowPropsEqual(prev: ChatMessageRowProps, next: ChatMessageRo
     prev.colors === next.colors &&
     prev.typography === next.typography &&
     prev.t === next.t &&
-    prev.isSpeaking === next.isSpeaking &&
-    prev.onRegenerate === next.onRegenerate
+    prev.isSpeaking === next.isSpeaking
   );
 }
 
@@ -5089,7 +5007,6 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
   onOpenMessageMenu,
   onCopyText,
   onSpeak,
-  onRegenerate,
   isSpeaking,
   onCloseTranslation,
   onRetryTranslate,
@@ -5410,14 +5327,6 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                 active={isSpeaking}
               />
             ) : null}
-            {onRegenerate ? (
-              <MessageActionChip
-                icon={<Sparkles size={14} color={colors.muted} />}
-                label={t("chat.regenerate")}
-                onPress={() => onRegenerate(m.id)}
-                colors={colors}
-              />
-            ) : null}
             <MessageActionChip
               icon={<MoreHorizontal size={14} color={colors.muted} />}
               label={t("chat.more")}
@@ -5482,6 +5391,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             {m.sources.map((s, sIdx) => {
               const rawUrl = typeof s.url === "string" ? s.url.trim() : "";
               const safe = rawUrl.length > 0 && isSafeHttpUrl(rawUrl);
+              const providerColor = getProviderColor(s.provider, colors);
               const hostMatch = safe
                 ? /^[a-zA-Z][a-zA-Z\d+\-.]*:\/\/([^/?#]+)/.exec(rawUrl)
                 : null;
@@ -5517,7 +5427,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                     style={[
                       typography.bodyXs,
                       {
-                        color: colors.accent,
+                        color: providerColor,
                         backgroundColor: colors.accentSoft,
                         borderRadius: radius.xs,
                         paddingHorizontal: spacing.xxs,
@@ -5530,7 +5440,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
                   <View style={{ flexShrink: 1, minWidth: 0 }}>
                     {s.provider ? (
                       <Text
-                        style={[typography.bodyXs, { color: colors.muted }]}
+                        style={[typography.bodyXs, { color: providerColor }]}
                         numberOfLines={1}
                       >
                         {t("errors.sourceVia", {

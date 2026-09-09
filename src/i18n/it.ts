@@ -497,11 +497,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11yRemoveAttachment: "Rimuovi allegato",
     a11yStop: "Interrompi generazione",
     a11ySend: "Invia",
-    regenerate: "Rigenera",
     more: "Altro",
     edit: "Modifica",
-    cancelRegenerate: "Annulla rigenera",
-    regenCostHint: "Ricarica la risposta — può richiedere diversi secondi",
     regenBusy: "Rigenera già in corso",
     unloaded: "Scaricato per pressione di memoria",
     lazyReload: "Tocca per ricaricare",
@@ -532,6 +529,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     deepResearchNeedsQuestion: "Scrivi una domanda per ricercare nella libreria.",
     deepResearchIgnoringImages:
       "La ricerca approfondita lavora sui documenti di testo — le immagini di questo messaggio non verranno usate.",
+    notesContextTruncated:
+      "Alcune note sono state accorciate per rientrare nel limite del contesto.",
     deepResearchWriterFailed:
       "Il report non è stato completato su questo dispositivo — passaggi trovati qui sotto.",
     deepResearchInterrupted:
