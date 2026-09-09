@@ -1,3 +1,8 @@
+> **Two documents only (owner, 2026-09-09):** `PLAN.md` (long-term plan) and `docs/ALIVE.md` (living state
+> with the diary at its tail). Everything older — previous plans, design docs and their audits, mandates,
+> `PLAN-archive.md` — is frozen under `archived/`. The repo map below predates that decision; paths under
+> `docs/` other than `ALIVE.md` now live under `archived/docs/`.
+
 # Kalsa MoE experiments
 
 Measurement and design repository for running large MoE (and dense) models on
