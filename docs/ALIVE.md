@@ -527,6 +527,7 @@ Plan: `kalsa/docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`. Detail and eviden
 | **G1 Mac, blind judges v2** | 60 open rows, two independent judges (deepseek, mimo), A/B randomised per row, key never shown | A: LFM 25 / MiniCPM5 22 / tie 13; B: 23 / 24 / 13; agreement 43/60 | 14 LFM finals empty by a harness round-cap (v2b re-run in flight) |
 | **G1 Mac, blind judges v2 + v2b (app tool-loop semantics)** | the 18 rows the round-cap had emptied, re-judged fresh by both judges, merged into v2 | **A: LFM 34 / MiniCPM5 13 / tie 13; B: 30 / 15 / 15** (means 3.57 vs 3.18, 3.72 vs 3.22) | 18 rows judged in a separate session; 17/18 are LFM-side repairs; MiniCPM5 `@256` has 2/44 bare-`>` answers from the thinking-budget cut |
 | **G1 Mac, MiniCPM5 thinking budget (v2c)** | MiniCPM5 at budget 1024 and unbounded vs LFM v2b, 60 rows, both judges, fresh A/B | **LFM 28/15/17 and 27/13/20 (@1024); 26/17/17 and 24/15/21 (unbounded)**; deterministic 33/44 at both; 0/60 bare-`>` | budget moves 2-4 rows, wild block only; bake-off gap (fabrications, language drift) unchanged → budget REFUTED as the cause; Q8_0 cell (v2d) next to separate quant from behaviour |
+| **G1 Mac, MiniCPM5 quantisation (v2d)** | MiniCPM5 Q8_0, unbounded thinking, vs LFM v2b, 60 rows, both judges | **LFM 24/16/20 (deepseek), 26/13/21 (mimo)**; deterministic 31/44 (Q4_K_M 33/44) | same failure classes at 8 bit → quantisation REFUTED as the cause; remaining lever for MiniCPM5 is fine-tuning, post-G1 |
 | **G1 Mac, harness artefacts** | three, in opposite directions | prompt forced locale language (hurt MiniCPM5, fixed on main f77ea7b); no tool schemas offered (hurt LFM: raw tool syntax 15/44); 2-round cap without forced synthesis (hurt LFM: 14/60 empty) | only v2b counts for G1 |
 | **G1 Mac, language drift with the fixed prompt** | wild block, es/fr/de/pt/zh/ja + it/en | MiniCPM5 3/9 non-en/it prompts answered in English (W01, W02 es; W16 ja); LFM 0/9 | heuristic language detector |
 | **MiniCPM5 quants (Mac)** | PPL on one text, fork llama-perplexity | Q8_0 22.34 · Q4_K_M 23.55 · **Q4_K_M-imx 23.36** · Q4_0 26.19 · Q4_0-imx 24.64 | one text, one ctx; calibration disjoint from the G1 corpus |
@@ -3913,4 +3914,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   recuperabili col fine tuning? Sono comportamentali (onestà, lingua, tool offline), il bersaglio classico di SFT/DPO su
   un 2B; ma prima va separata la quant dal modello → cella v2d (MiniCPM5 Q8_0, thinking libero, stesso harness) in
   corso sul Mac. G1 sceglie sul modello com'è oggi; "MiniCPM5 + fine tune" resta una traccia post-G1.
+
+- **9/09 ~18:00 EDT — v2d GIUDICATO: NEANCHE LA QUANT È LA CAUSA. LA CATENA v2b→v2c→v2d È CHIUSA** (deepseek e mimo,
+  60 righe, mappe fresche, unblind mio). MiniCPM5 **Q8_0** a thinking libero contro LFM v2b: LFM 24/16/20 e 26/13/21;
+  deterministico 31/44 (Q4_K_M 33/44, fr 5/11). Stesse classi di errore a 8 bit (Lirinda, "Sahara Solar", Lorenzo
+  de' Medici, tedesco sgrammaticato in W08). Conclusione: su questo corpus, con prompt e tool loop dell'app,
+  **LFM2.5-2.6B batte MiniCPM5-2B sul comportamento da assistente** (onestà, fedeltà alla lingua, tool offline)
+  indipendentemente dal budget di thinking e dalla quantizzazione; i punteggi deterministici sono pari (34 vs 33).
+  Per MiniCPM5 resta solo il post-training (fine tuning, Apache 2.0), che l'owner ha messo dopo G1. Sui telefoni:
+  sweep S23 in corso; sul Jelly il prefill a pari temperatura è alla pari (17,8 vs 15,9 tok/s), decode 4,5 vs 3,1-3,7.
 

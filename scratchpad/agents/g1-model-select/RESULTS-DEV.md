@@ -226,3 +226,14 @@ MiniCPM5 Q8_0: `/Users/marco/kalsa-qdc/models/MiniCPM5-2B-Q8_0.gguf`; SHA-256 `c
 | Q4_K_M v2c nobudget | 33/44 (75%) | 9/11 | 8/11 | 8/11 | 8/11 | 16 rubric |
 
 Reasoning tokens (total `timings.predicted_n` minus exact `/tokenize` visible tokens): Q8 median/p90/max `156.5/528.0/1540`; Q4 v2c `186.5/717.1/3751`. Q8 empty/bare-`>` model answers `0/60` and `0/60`; median wall `8742 ms`. Outputs: `results/wild-v2d/`, `results/bakeoff-v2d/`; score `results/score-v2d-q8-nobudget.txt`; blind pack/key `results/judge-pack-v2d-q8.jsonl` and `results/judge-key-v2d-q8.json`. No judging; run/score/pack/validation rc=0; server stopped.
+
+## v2d blind judging (2026-09-09 ~18:00 EDT)
+
+MiniCPM5 **Q8_0**, unbounded thinking, vs LFM v2b-merged (Q4_0, budget 256/512), 60 rows, fresh A/B (`results/judge-key-v2d-q8.json`). Judge files `judge-A-deepseek-v2d-q8.jsonl`, `judge-B-mimo-v2d-q8.jsonl`.
+
+| judge | LFM | MiniCPM5-Q8 | tie | mean LFM | mean MiniCPM5 | bake-off (44) | wild (16) |
+|---|---|---|---|---|---|---|---|
+| deepseek | 24 | 16 | 20 | 3.53 | 3.35 | 15/13/16 | 9/3/4 |
+| mimo | 26 | 13 | 21 | 3.62 | 3.27 | 17/9/18 | 9/4/3 |
+
+Against the Q4_K_M unbounded cell (26/17/17, 24/15/21) the 8-bit model moves nothing outside noise; deterministic is 31/44 vs 33/44. Quantisation is REFUTED as the cause of MiniCPM5's loss; the same failure classes recur at Q8 (Lirinda, "Sahara Solar", Lorenzo de' Medici, garbled German in W08). Conclusion of the v2b→v2d chain: on this corpus, with the app's prompt and tool loop, LFM2.5-2.6B beats MiniCPM5-2B on assistant behaviour (honesty, language fidelity, offline-tool handling) independently of thinking budget and of quantisation. What remains model-side for MiniCPM5 is post-training, i.e. fine-tuning (Apache 2.0), which the owner has placed after G1.
