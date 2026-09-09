@@ -245,6 +245,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
         "Liquid AI hybrid model. Always-on reasoning, text only (no images). ~1.7 GB download.",
       ramBadge: "Under 6 GB RAM",
     },
+    dev: {
+      description: "Developer sideload model. Store download is disabled until the artifact is published.",
+    },
     whisperTiny: {
       description:
         "On-device speech recognition (multilingual tiny). ~75 MB. Used for voice dictation only.",

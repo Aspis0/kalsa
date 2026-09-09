@@ -3,7 +3,7 @@ name: Build Kalsa APK
 on:
   workflow_dispatch:
   push:
-    branches: [engine-pin-kalsallama]
+    branches: [engine-pin-kalsallama, bench-dev-models]
 
 permissions:
   contents: read
@@ -51,11 +51,13 @@ jobs:
       - name: Prebuild Android native project
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
+          KALSA_DEBUGGABLE: ${{ github.ref == 'refs/heads/bench-dev-models' && '1' || '0' }}
         run: npx expo prebuild --platform android --no-install
 
       - name: Build arm64 release APK
         env:
           KALSA_LLAMA_FROM_SOURCE: "1"
+          KALSA_DEBUGGABLE: ${{ github.ref == 'refs/heads/bench-dev-models' && '1' || '0' }}
           CMAKE_BUILD_PARALLEL_LEVEL: "2"
           NINJAFLAGS: "-j2"
         run: |
