@@ -5268,7 +5268,9 @@ longer reads `prompt_ms` (this commit); fork follow-up: `llama_synchronize` befo
 `JSICompletion.h` so `n_predict=0` timings are real. What stays real: the wall times — MiniCPM5 9.4 tok/s vs LFM
 15.9 tok/s prefill on the Jelly (~15 vs ~48 on the S23), decode 6.5 vs 10.4-11.7 on the S23 — and the open question
 whether the Q4_K repack path (`q4_K_8x4`) is the reason, which the G1 device sweep will answer. Do not read the real
-turn's `promptMs 3.5 s` as a 619 tok/s prefill: it reused ~2200 cached tokens.
+turn's `promptMs 3.5 s` as a 619 tok/s prefill: it reused ~2200 cached tokens. **Verified on the Jelly with
+e168b4a**: cold MiniCPM5 prewarm `start → done` in 116.5 s (2112 tokens, 29 °C), no second `start` after
+HOME → foreground → new chat, warm turn `n_common=2263` with `promptMs 2.46 s`.
 
 ### 7.45 METHOD 2026-09-09: three harness artefacts, in opposite directions, would have chosen the model
 
