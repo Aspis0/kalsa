@@ -5207,10 +5207,81 @@ exception worth fixing: `scripts/ci-dflash-ab.sh:235-238` dumps the whole messag
 artifacts. With thinking **off**, which is the bench default, the emitted text differs from the
 cleaned text only by the four empty-block tokens, so there is nothing hidden to expose.
 
+## 7b. The product track — 2026-09-09, the first day of the practical plan
+
+Plan: `docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`. Raw evidence lives in `kalsa-moe-experiments`
+(`scratchpad/agents/{g1-model-select,session-contract,product-suite,competitors}/`, diary in `PLAN.md`,
+banked cells in `docs/ALIVE.md §9`). Only the findings that change this repo are recorded here.
+
+### 7.41 MEASURED 2026-09-09: the restore is real in the shipping configuration — 37.9 s cold, 562 ms after a relaunch (n=1)
+
+S23, LFM2.5-2.6B QAD-Q4_0, thinking ON, compaction default, main@332aeed. Cold seed prewarm 37 915 ms for 1811
+tokens. After `force-stop` → relaunch: `KALSA_KVRESUME … resumable=1`, `KALSA_SESSION {"op":"load","ms":36,
+"ok":true,"tokens":2051}`, `KALSA_KVDIAG {"n_past":2051,"tokens_on_disk":2051}`, continuation turn `promptMs`
+**562.5** (evaluated 2075, cached 2314), decode 7.40 tok/s. Of §7.30's four defects: `n_past:0` FIXED, the 12.7×
+disk over-charge FIXED (15.8 MB file vs 16.0 MB estimate), the double write FIXED (one `op:"save"` per turn);
+`KALSA_PREWARM match:false` still logged, now with `reason:"kv_holds_chat"` — a cosmetic diagnostic, not a miss.
+**Limits:** one cycle; the phone reached thermal status 3 at 42.7 °C unplugged and the protocol stopped at its own
+gate; `uiautomator dump` dies intermittently on this One UI build (rc=164, signal 36); the `kalsa://share` deep link
+did not fill the composer on a cold start (→ §7.43).
+
+### 7.42 MEASURED 2026-09-09: document chat was 1/5 on the Jelly, and three of the causes were in this repo, not in the model
+
+Jelly Star, shipped LFM, 1-page Italian notice (5 facts) + 40-page English manual (3 buried facts). On main@332aeed:
+PASS only "two facts from the small PDF"; FAIL absent-fact (tool error text reached the chat), all three buried
+facts, the follow-up (hallucinated "1.860 euro" as a torque), the relaunch. Causes confirmed on source and fixed in
+`5707cfe`: `MAX_PDF_PAGES=5` (the vision bound) capped every text extraction, so retrieval never saw page 17;
+`selectDoc` matched the id exactly while the model passes the file stem; the SEND/SEND_MULTIPLE filters were
+generated with a doubled prefix (`app.config.js` passed already-qualified names to a plugin that prefixes them).
+Same five scenarios on main@5707cfe: **7/7 PASS**, `pageCount=40/processedPageCount=40`, strategy `hybrid`,
+page cited. **Cost on the Jelly:** 2.8-3.7 tok/s, 119-417 s per answer, thermal status 3 throughout — correct,
+not fast; `decideDocStrategy` still sends anything under half the context to full_context regardless of the
+phone's prefill budget. PDF SEND from adb is denied by MediaProvider even with `--grant-read-uri-permission`:
+a harness limit, the real Files→Kalsa share is still to be done by hand.
+
+### 7.43 MEASURED 2026-09-09: a cold-start share was wiped by conversation hydration, and the retry loop that was first written for it was refuted by audit
+
+S23, VIEW `kalsa://share?text=` and SEND text/plain, three app states. Warm and foreground filled the composer;
+cold start lost the text every time. Root cause (audit, quoted lines): `AppShell.tsx` passes
+`conversationId={conversationsReady ? activeId : undefined}`; the share is applied while the id is still
+undefined, merged into the draft once, then hydration flips the id and `AiChatPage`'s load effect runs
+`setDraft("")`; the prefill effect's deps have not changed, so nothing re-merges. A `getInitialURL` retry loop
+could not fix that and was removed; the URL is now parked until `conversationsReady` and drained through the same
+dedup path. On main@5707cfe: cold VIEW PASS, cold SEND via the system resolver PASS.
+
+### 7.44 MEASURED 2026-09-09: MiniCPM5-2B's prewarm on the S23 ingests 2112 tokens one at a time — cause open
+
+Opt-in dev entry `dev-minicpm5-2b` (Q4_K_M, 7836db7). `KALSA_PREWARM start → skip eval-failed` after 137.9 s (and
+116.1 s in a second run) with `promptMs:0, promptN:1, tokensEvaluated:2112`; LFM logs `done` in 40.2 s for 1919
+tokens. `eval-failed` is `promptMs <= 0` (`LlamaService.ts:811`); `promptN:1` comes from `llama-context.cpp:655-673`,
+which books batch==1 decodes as eval, not prompt — the prompt was decoded token by token (138 s ≈ 2112 × 65 ms).
+Excluded on source: the template (`enable_thinking` only matters with `add_generation_prompt`, which the prewarm
+sets false), the state-checkpoint splitting (recurrent/hybrid only, `rn-completion.cpp:150`), `n_batch` (fixed 512).
+Decode on the same phone: MiniCPM5 6.5-6.6 vs LFM 10.4-11.7 tok/s — that part is real. The runner's logcat
+whitelist dropped every native perf line; a full-logcat prewarm on the Jelly is in flight. Do not read the real
+turn's `promptMs 3.5 s` as a 619 tok/s prefill: it reused ~2200 cached tokens.
+
+### 7.45 METHOD 2026-09-09: three harness artefacts, in opposite directions, would have chosen the model
+
+(1) The shipped system prompt said "write … in English/italiano": MiniCPM5 obeyed and answered English to
+Spanish/Chinese users, LFM disobeyed — the "multilingual" block measured prompt obedience. Fixed in `f77ea7b`
+("the language the user writes in", locale as fallback). (2) The 44-question bake-off offered no tool schemas while
+the prompt named `web_search`: LFM emitted raw `<|tool_call_start|>` text in 15/44 answers and the blind judges
+scored it 1. (3) The tool stub capped rounds at 2 with no forced synthesis: 14/60 LFM finals were empty; the app
+runs 3 rounds with the last text-only plus a fallback completion (`LlamaService.ts:478, :3204, :3548`). Rule: a
+quality harness sends the app's exact prompt, the app's tool schemas AND the app's tool-loop semantics; raw tool
+syntax in a final answer is a harness finding first. Blind judging: two judges, per-row randomised A/B, the key
+never shown, unblinded by script (`unblind.py`).
+
 ## Change log
 
 | date | change |
 |---|---|
+| 2026-09-09 | **§7.45: three harness artefacts in opposite directions — forced-locale prompt, no tool schemas, 2-round stub — would have chosen the model; only a harness that mirrors prompt, schemas and tool-loop semantics counts.** |
+| 2026-09-09 | **§7.44: MiniCPM5's prewarm on the S23 decodes 2112 tokens one at a time (138 s, promptN=1); template, checkpoint splitting and n_batch excluded on source; full-logcat measurement on the Jelly in flight.** Decode 6.5 vs 10.4-11.7 tok/s is real. |
+| 2026-09-09 | **§7.43: a cold-start share was wiped by conversation hydration (`setDraft("")` on the id flip); fixed by parking the URL until `conversationsReady` (5707cfe); the retry-loop first draft was refuted by audit.** |
+| 2026-09-09 | **§7.42: document chat 1/5 → 7/7 on the Jelly once the 5-page text cap, the exact-id selection and the doubled-prefix SEND filters were fixed (5707cfe); 2.8-3.7 tok/s and 2-7 min per answer remain.** |
+| 2026-09-09 | **§7.41: the restore is real in the shipping configuration on the S23 — 37.9 s cold, 562 ms after a relaunch, three of §7.30's four defects gone (n=1, stopped by the thermal gate).** |
 | 2026-08-22 | **§7.39: the streaming lane is closed, and it closes for the opposite of the expected reason.** The 8B does not fail slowly on the Jelly, it fails by being killed, so streaming the experts was the one untried idea aimed at the real failure. Cross-compiled the custom fork (NDK 29, no i8mm, backend-DL off so the overlap hook survives) and measured ABBA n=3: mmap **9.37 tok/s**, streaming **3.44**. **RSS halves and the kind of memory flips** — 4931 MiB of reclaimable *file* pages become 2602 MiB of unreclaimable *anon* — so `MemAvailable` gets **worse**, 5797 → 3597 MiB, and streaming would make lmkd **more** likely to kill the app. A compute ceiling closes it anyway: 0.219 s/token of pure compute caps the path at **4.57 tok/s**, below KEXP's 7.0 even with infinitely fast flash. **My 3–5 tok/s prediction was right in the number and wrong in every reason** — 13.5 % experts dropped not 71.8 % (that figure was another model's), flash at 265 MiB/s not 984, and an 87 % cache hit doing the actual work. **Side-quest, from a review agent that died mid-stream but had already pointed at the right line:** `RLIMIT_MEMLOCK` is **unlimited** on this phone, for the shell and the app alike, not the ≈64 KB that `KNOWN_ISSUES.md` and `engineLiveness.ts` both asserted, and mlock genuinely fires (`Mlocked` 4 912 → 215 932 kB) — but locks 211 MB, not the model, so **my hypothesis that mlock caused the lmkd death is dead too**. Both files corrected (`a093d89`). Still unexplained and now the open question: the app holds 5.15 GB of file pages with 0.92 GB available where the CLI holds the same pages with 5.8 GB available. |
 | 2026-08-21 | **§7.38: model quality measured for the first time, and it argues against every 8B we were going to ship.** 24 cells, 11 questions written before any model ran, 4 languages, exact paired McNemar; every figure regenerated by `scripts/quality/analyse.mjs` rather than transcribed. **LFM2.5-2.6B beats KEXP** in three independent configurations (p = 0.006 / 0.021 / 0.039) and beats 8B-A1B in most but ties in one — `prod-8b-a1b` at 33/44 sits above that model's other five cells, which is what a lucky sample looks like at temp 0.7. **Qwen3.5-2B ties the 2.6B** (7–6, p = 1.000) but cannot run uncapped: 44 of 44 questions hit the 8192-token ceiling in a *semantic* loop that a repeat penalty cannot break. **The thinking budget was tuned backwards** — the ladder 64/128/256/512/∞ scores 30/32/34/**37**/36 on the 2.6B (512 vs 64: 8–1, p = 0.039) and is flat on KEXP, so raise the 2.6B to 512 (median tokens 306 → 309: latency does not move) and leave KEXP alone. **I had reported the opposite** — 'the budget buys nothing on any tier' — from adjacent steps that 44 binary items cannot resolve; retracted in §7.38. **Language drift is a 30 % defect on the 8B tiers and ~0 % on the 2.6B**, always into English, concentrated on questions the model cannot answer; one clause pinning the answer to the *question's* language (Kalsa pins to the *app locale*) removes it in 6 of 6 comparisons at no quality cost. **KV-cache quantization is free** on both 8B tiers — an axis moe-experiments never tested, since its `k` is `--n-expert-used`. **A KEXP for the 2.6B is impossible**: `llama-gguf` shows 0 `_exps` tensors against 8B-A1B's 264. Eight harness defects fixed along the way, all mine, four in the runner (2048-token cap, greedy decoding, no system prompt, an English prompt in front of non-English questions) and four in the judge — the judge's monolingual marker lookup alone manufactured the run's only significant KV result, which evaporated from p = 0.039 to p = 0.289 once fixed. Harness 37 → 54 assertions. Still unmeasured and blocking the tier decision: the 2.6B on an S23, and VL-3B's absence from `ModelRegistry.ts`. |
 | 2026-08-21 | **§7.37: the tool round no longer costs the whole cache — 15 of 16 — so the replay that was next to build is demoted before it was built.** Checked BEFORE building, because §7.35 had just cost a day on an `anchored` window aimed at a sliding window that no longer slides. §7.12 priced a tool round at **3.1-3.9 s on a hit against 195-405 s on a miss** and measured **zero of ten** tool-preceded turns surviving. In campaign `32503221846`, of the 16 seeds where a tool actually executed, **15 kept 0.90-0.98 of the cache on the next turn** (mean 0.956). ⭐ The single failure has a shape: it is the only seed whose tool turn recorded **`rounds: 1` with `executed: 1`** — tool ran, no synthesis round — and its next turn reused **nothing** and paid **128 167 ms**. The two other `rounds: 1` seeds had `executed: 0` and kept 0.994. So §7.12's mechanism survives as an edge case, not a rule: the cache dies when a tool result sits in the KV with no assistant answer in stored history accounting for it. ⚠️ **Not a retraction of §7.12**: these arms ran `thinking: "off"`, which switches off the *other* divergence source entirely (§7.9, §7.29), and §7.12's own thinking mode is unrecorded. Neither can be settled against the other until an arm runs with thinking on — which is now the top open item, ahead of the replay. |
