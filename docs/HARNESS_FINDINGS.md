@@ -5284,11 +5284,19 @@ quality harness sends the app's exact prompt, the app's tool schemas AND the app
 syntax in a final answer is a harness finding first. Blind judging: two judges, per-row randomised A/B, the key
 never shown, unblinded by script (`unblind.py`).
 
+**Measured after the repair (v2b, 2026-09-09 15:40)**: the 18 rows the round-cap had emptied were re-run with the
+app's loop semantics and re-judged blind by both judges. On the 60-row pack the verdict moved from parity
+(deepseek 25/22/13, mimo 23/24/13) to **LFM 34 / MiniCPM5 13 / tie 13 and 30 / 15 / 15** — one harness parameter was
+worth the whole result. One artefact remains on the MiniCPM5 side and it is a product one: at the app's short
+thinking budget (256) 2/44 answers are a bare `>` (`predicted_n=258`, reasoning present, content empty after the
+forced close); 0/44 at 512. If MiniCPM5 ships, budget enforcement must guarantee a visible answer.
+
 ## Change log
 
 | date | change |
 |---|---|
 | 2026-09-09 | **§7.45: three harness artefacts in opposite directions — forced-locale prompt, no tool schemas, 2-round stub — would have chosen the model; only a harness that mirrors prompt, schemas and tool-loop semantics counts.** |
+| 2026-09-09 | **§7.45 after the repair: the blind verdict moved from parity to LFM 34/13/13 (deepseek) and 30/15/15 (mimo) on 60 rows once the harness used the app's tool-loop semantics.** MiniCPM5 at thinking budget 256 leaves a bare `>` answer in 2/44 rows — a budget-enforcement gap to close before any dense model ships on the short budget. |
 | 2026-09-09 | **§7.44 corrected: `promptN=1/promptMs=0` is a perf-accounting artefact — `decode()` never syncs, `perf_get_data()` never syncs, `n_predict=0` never fetches logits; only hybrid models sync via the state checkpoint. The Jelly turn reused the prefix (`n_common=2109`), so dense-model prewarms were succeeding and being discarded by `promptMs <= 0`.** Wall times stand: MiniCPM5 9.4 vs LFM 15.9 tok/s prefill on the Jelly. Fix in the app; fork follow-up in `JSICompletion.h`. |
 | 2026-09-09 | **§7.43: a cold-start share was wiped by conversation hydration (`setDraft("")` on the id flip); fixed by parking the URL until `conversationsReady` (5707cfe); the retry-loop first draft was refuted by audit.** |
 | 2026-09-09 | **§7.42: document chat 1/5 → 7/7 on the Jelly once the 5-page text cap, the exact-id selection and the doubled-prefix SEND filters were fixed (5707cfe); 2.8-3.7 tok/s and 2-7 min per answer remain.** |
