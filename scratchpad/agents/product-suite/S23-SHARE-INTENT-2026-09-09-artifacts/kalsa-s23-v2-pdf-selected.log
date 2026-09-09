@@ -1,0 +1,17 @@
+--------- beginning of system
+09-09 11:31:59.120  2434  4830 W ActivityTaskManager: Force removing ActivityRecord{129207220 u0 com.kalsa.app/.MainActivity t376 f}}: app died, no saved state
+09-09 11:31:59.235  2434  4127 W ActivityTaskManager: callingPackage for (uid=2000, pid=7998) has no WPC
+09-09 11:31:59.246  2434  4127 I ActivityTaskManager: START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x10000000 xflg=0x4 cmp=android/com.android.internal.app.ResolverActivity (has extras)} with LAUNCH_MULTIPLE from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+09-09 11:31:59.396  2434  3137 I ActivityTaskManager: done cause=notifyTransitionStarting drawn timestamp=14337882415258 info=TransitionInfo{a735944 a=ActivityRecord{40905179 u0 android/com.android.internal.app.ResolverActivity t377} d=true}
+--------- beginning of main
+09-09 11:31:59.404  2434  3133 I ActivityTaskManager: Displayed android/com.android.internal.app.ResolverActivity for user 0: +171ms
+09-09 11:32:43.847  2434  4127 I ActivityTaskManager: START u0 {act=android.intent.action.SEND typ=application/pdf flg=0x13000001 xflg=0x4 cmp=com.vcast.mediamanager/com.newbay.syncdrive.android.ui.gui.activities.OneTouchUploadActivity clip={application/pdf {U(file)}} (has extras)} with LAUNCH_MULTIPLE from uid 2000 (realCallingUid=1000) (sr=40905179) (BAL_ALLOW_PERMISSION) result code=0
+09-09 11:32:47.287  2434  3137 I ActivityTaskManager: done cause=notifyTransitionStarting drawn timestamp=14385773617740 info=TransitionInfo{ca4c5c2 a=ActivityRecord{226492535 u0 com.vcast.mediamanager/com.newbay.syncdrive.android.ui.gui.activities.OneTouchUploadActivity t378} d=true}
+09-09 11:32:47.295  2434  3133 I ActivityTaskManager: Displayed com.vcast.mediamanager/com.newbay.syncdrive.android.ui.gui.activities.OneTouchUploadActivity for user 0: +3s454ms
+09-09 11:32:47.429  2434  6479 W ActivityTaskManager: Finishing task with all activities already finished
+09-09 11:32:47.429  2434  6479 W ActivityTaskManager: Duplicate finish request for r=ActivityRecord{40905179 u0 android/com.android.internal.app.ResolverActivity t377 f}}
+09-09 11:32:47.712  2434  6479 I ActivityTaskManager: Add Task{cf6e002 #378 type=standard A=10162:com.vcast.mediamanager} to hidden list because adding Task{dee9f7e #379 type=standard A=10162:com.vcast.mediamanager}
+09-09 11:32:47.713  2434  6479 I ActivityTaskManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10000000 xflg=0x4 pkg=com.vcast.mediamanager cmp=com.vcast.mediamanager/.gui.activities.SplashLogoActivity} with LAUNCH_MULTIPLE from uid 10162 (sr=226492535) (BAL_ALLOW_VISIBLE_WINDOW) result code=0
+09-09 11:32:47.923  2434  3137 I ActivityTaskManager: done cause=notifyWindowsDrawn timestamp=14386409207011 info=TransitionInfo{accc21c a=ActivityRecord{259203328 u0 com.vcast.mediamanager/.gui.activities.SplashLogoActivity t379} d=true}
+09-09 11:32:47.923  2434  3133 I ActivityTaskManager: Displayed com.vcast.mediamanager/.gui.activities.SplashLogoActivity for user 0: +217ms
+09-09 11:32:48.027  2434  7014 W ActivityTaskManager: Request to remove task ignored for non-existent task 377

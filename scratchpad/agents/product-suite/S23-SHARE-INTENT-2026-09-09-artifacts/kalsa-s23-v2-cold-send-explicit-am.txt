@@ -1,0 +1,7 @@
+Starting: Intent { act=android.intent.action.SEND typ=text/plain cmp=com.kalsa.app/.MainActivity (has extras) }
+Status: ok
+LaunchState: COLD
+Activity: com.kalsa.app/.MainActivity
+TotalTime: 2175
+WaitTime: 2177
+Complete

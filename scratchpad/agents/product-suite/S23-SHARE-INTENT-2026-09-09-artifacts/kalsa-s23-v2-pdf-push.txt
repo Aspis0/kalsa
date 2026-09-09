@@ -1,0 +1,1 @@
+/tmp/kalsa-share-v2.pdf: 1 file pushed, 0 skipped. 7.5 MB/s (587 bytes in 0.000s)

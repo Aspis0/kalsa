@@ -1,0 +1,8 @@
+    numWindow=0 mCanAddInternalSystemWindow=false mAlertWindows={} mClientDead=false    mPackageName=com.vcast.mediamanager
+  mCurrentFocus=Window{73dc963 u0 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity}
+  mFocusedApp=ActivityRecord{73043168 u0 com.sec.android.app.launcher/.activities.LauncherActivity t336}
+ [ModeId] Requested ( modeId=1 w=Window{7ca7d91 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{7cd1466 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{3cd4bdd u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{8aa73f0 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{efb2459 u0 com.kalsa.app/com.kalsa.app.MainActivity})

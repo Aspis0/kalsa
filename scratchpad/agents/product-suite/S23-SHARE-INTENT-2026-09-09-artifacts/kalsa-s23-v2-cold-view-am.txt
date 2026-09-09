@@ -1,0 +1,7 @@
+Starting: Intent { act=android.intent.action.VIEW dat=kalsa://share/... }
+Status: ok
+LaunchState: COLD
+Activity: com.kalsa.app/.MainActivity
+TotalTime: 877
+WaitTime: 879
+Complete

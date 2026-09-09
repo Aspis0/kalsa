@@ -1,0 +1,1 @@
+/sdcard/kalsa_v2_pdf_chooser2.xml: 1 file pulled, 0 skipped. 0.5 MB/s (15214 bytes in 0.027s)

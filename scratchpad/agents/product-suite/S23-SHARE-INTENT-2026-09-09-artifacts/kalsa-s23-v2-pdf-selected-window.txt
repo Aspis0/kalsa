@@ -1,0 +1,8 @@
+  mCurrentFocus=Window{58394d8 u0 com.vcast.mediamanager/com.vcast.mediamanager.gui.activities.SplashLogoActivity}
+  mFocusedApp=ActivityRecord{259203328 u0 com.vcast.mediamanager/.gui.activities.SplashLogoActivity t379}
+ [ModeId] Requested ( modeId=1 w=Window{7ca7d91 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{7cd1466 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{3cd4bdd u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{8aa73f0 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{efb2459 u0 com.kalsa.app/com.kalsa.app.MainActivity})
+ [ModeId] Requested ( modeId=1 w=Window{d843577 u0 com.kalsa.app/com.kalsa.app.MainActivity})

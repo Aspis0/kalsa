@@ -1,0 +1,6 @@
+    mFocusedWindow=com.kalsa.app/com.kalsa.app.MainActivity
+      Window #3: WindowStateAnimator{1c214ac com.kalsa.app/com.kalsa.app.MainActivity}
+    numWindow=1 mCanAddInternalSystemWindow=false mAlertWindows={} mClientDead=false    mPackageName=com.kalsa.app
+  deepestLastOrientationSource=ActivityRecord{129207220 u0 com.kalsa.app/.MainActivity t376}
+  mCurrentFocus=Window{7ca7d91 u0 com.kalsa.app/com.kalsa.app.MainActivity}
+  mFocusedApp=ActivityRecord{129207220 u0 com.kalsa.app/.MainActivity t376}

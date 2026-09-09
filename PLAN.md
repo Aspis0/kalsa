@@ -22,6 +22,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~11:30 EDT — SHARE COLD-START RISOLTO SU S23 (APK 5707cfe, sha cedd7301…)**: filtri SEND corretti nel
+  package dump; cold VIEW `kalsa://share` PASS; cold SEND text/plain dal ResolverActivity PASS (composer riempito);
+  SEND application/pdf con URI `file://` → Kalsa riceve il clip ma nessun documento in libreria (FAIL, da capire se
+  è solo `file://`: il Jelly v2 prova `content://`). Evidenze copiate in `S23-SHARE-INTENT-2026-09-09-artifacts/`.
+  **Sweep G1 24×2 sull'S23 partito** (deepseek 100fe465, ~4-5 h, PROTOCOL.md). In parallelo: Jelly v2 document
+  chat su 5707cfe (Luna e1b923b9), v2b (Luna 131645cd), MiniCPM5 Q4_0 dal F16 (Luna e2d0075b).
 - **9/09 ~11:10 EDT — RUNNER DEVICE G1 PRONTO, DRY RUN S23 4/4 PASS** (`g1-model-select/device/`, deepseek
   100fe465, committato): 24 casi dev (7 conv, 11 istruzioni, 2 tool offline, 4 memoria; 12 IT/12 EN; scarto
   dichiarato: il corpus ha tool `weather.*`/`calendar.*`/`web.search` che l'APK non ha, solo T09/T11 sono offline),

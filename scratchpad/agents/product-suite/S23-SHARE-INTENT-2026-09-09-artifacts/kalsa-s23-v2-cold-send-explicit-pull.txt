@@ -1,0 +1,1 @@
+adb: error: failed to stat remote object '/sdcard/kalsa_v2_cold_send_explicit.xml': No such file or directory

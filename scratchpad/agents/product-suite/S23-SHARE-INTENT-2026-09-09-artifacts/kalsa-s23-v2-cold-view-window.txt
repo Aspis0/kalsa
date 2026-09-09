@@ -1,0 +1,5 @@
+      Window #3: WindowStateAnimator{5894f1 com.kalsa.app/com.kalsa.app.MainActivity}
+    numWindow=1 mCanAddInternalSystemWindow=false mAlertWindows={} mClientDead=false    mPackageName=com.kalsa.app
+  mCurrentFocus=Window{3659293 u0 NotificationShade}
+  mFocusedApp=ActivityRecord{152630005 u0 com.kalsa.app/.MainActivity t373}
+      mPreferredTopFocusableRootTask=Task{824488a #373 type=standard A=10347:com.kalsa.app}

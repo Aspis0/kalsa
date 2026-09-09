@@ -1,0 +1,619 @@
+TASK null id=336 userId=0 displayId=0(type=INTERNAL)
+  ACTIVITY com.sec.android.app.launcher/.activities.LauncherActivity 45a8ce0 pid=4501 userId=0 uid=10153 displayId=0(type=INTERNAL)
+    Local Activity 30886bd State:
+      mResumed=false mStopped=true mFinished=false
+      mIsInMultiWindowMode=false mIsInPictureInPictureMode=false
+      mChangingConfigurations=false
+      mCurrentConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.3 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+      mLoadersStarted=true
+      Active Fragments in 64d8135:
+        #0: ReportFragment{5c59ca #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+          mFragmentId=#0 mContainerId=#0 mTag=androidx.lifecycle.LifecycleDispatcher.report_fragment_tag
+          mState=3 mIndex=0 mWho=android:fragment:0 mBackStackNesting=0
+          mAdded=true mRemoving=false mFromLayout=false mInLayout=false
+          mHidden=false mDetached=false mMenuVisible=true mHasMenu=false
+          mRetainInstance=false mRetaining=false mUserVisibleHint=true
+          mFragmentManager=FragmentManager{64d8135 in HostCallbacks{6e9f73b}}
+          mHost=android.app.Activity$HostCallbacks@6e9f73b
+          Child FragmentManager{d946e58 in ReportFragment{5c59ca}}:
+            FragmentManager misc state:
+              mHost=android.app.Activity$HostCallbacks@6e9f73b
+              mContainer=android.app.Fragment$1@1e1fbb1
+              mParent=ReportFragment{5c59ca #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+              mCurState=3 mStateSaved=true mDestroyed=false
+      Added Fragments:
+        #0: ReportFragment{5c59ca #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+      FragmentManager misc state:
+        mHost=android.app.Activity$HostCallbacks@6e9f73b
+        mContainer=android.app.Activity$HostCallbacks@6e9f73b
+        mCurState=3 mStateSaved=true mDestroyed=false
+    PhoneWindow:
+      mStatusBarColor=0x0 mForcedStatusBarColor=false
+      mNavigationBarColor=0x0 mForcedNavigationBarColor=false
+      mDeviceDefaultNavigationBarColor=0xFFF1F1F3
+      mDefaultNavigationBarColor=0xFFF1F1F3
+      mSettingsNavigationBarColor=0xFFF1F1F3
+      mThemeApplied=false
+    ViewRoot:
+      mAdded=true
+      mRemoved=false
+      mStopped=true
+      mPausedForTransition=false
+      mConsumeBatchedInputScheduled=false
+      mConsumeBatchedInputImmediatelyScheduled=false
+      mPendingInputEventCount=0
+      mProcessInputEventsScheduled=false
+      mTraversalScheduled=false
+      mReportNextDraw=false
+      mLastPerformTraversalsFailedReason=view_not_visible
+      mLastReportedMergedConfiguration={mGlobalConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.33 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0} mOverrideConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.3 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}}
+      mLastConfigurationFromResources={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=home mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.3 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+      mLastReportedActivityWindowInfo=ActivityWindowInfo{isEmbedded=false, taskBounds=Rect(0, 0 - 1080, 2340), taskFragmentBounds=Rect(0, 0 - 1080, 2340)}
+      mIsAmbientMode=false
+      mUnbufferedInputSource=0
+      mAttachInfo=       AttachInfo:
+        mHasWindowFocus=false
+        mWindowVisibility=8
+        mInTouchMode=true
+        mUnbufferedDispatchRequested=false
+      android.view.ViewRootImpl$NativePreImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$ImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$NativePostImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$WindowInputEventReceiver
+       mInputChannel: 73dc963 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity
+       mSeqMap: {}
+       mReceiverPtr:
+        mInputConsumer:
+          mResampleTouch = true
+          mChannel = 73dc963 com.sec.android.app.launcher/com.sec.android.app.launcher.activities.LauncherActivity
+          mMsgDeferred: false
+          Batches:
+              <empty>
+          mSeqChains:
+              <empty>
+          mConsumeTimes:
+              <empty>
+          
+        mBatchedInputEventPending: false
+        mOutboundQueue:
+          <empty>
+        
+    Choreographer:
+      mFrameScheduled=false
+      mLastFrameTime=14197963 (5188 ms ago)
+    InsetsController:
+        InsetsState
+          mDisplayFrame=Rect(0, 0 - 1080, 2340)
+          mDisplayCutout=DisplayCutout{insets=Rect(0, 81 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 81), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={3.0} cutoutSpec={M 0,0 H -9.333333333333333‬ V 27 H 9.333333333333333‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}
+          mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=108, center=Point(108, 108)}, RoundedCorner{position=TopRight, radius=108, center=Point(972, 108)}, RoundedCorner{position=BottomRight, radius=108, center=Point(972, 2232)}, RoundedCorner{position=BottomLeft, radius=108, center=Point(108, 2232)}]}
+          mRoundedCornerFrame=Rect(0, 0 - 1080, 2340)
+          mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 81) rotation=0}
+          mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}
+            InsetsSource id=3 type=ime frame=[0,0][0,0] visibleFrame=[0,1314][1080,2340] visible=false flags= sideHint=NONE boundingRects=null
+            InsetsSource id=27 type=displayCutout frame=[0,0][1080,81] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=286c0000 type=statusBars frame=[0,0][1080,81] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=286c0005 type=mandatorySystemGestures frame=[0,0][1080,117] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=286c0006 type=tappableElement frame=[0,0][1080,81] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=47e40001 type=navigationBars frame=[0,2196][1080,2340] visible=true flags= sideHint=BOTTOM boundingRects=null
+            InsetsSource id=47e40004 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+            InsetsSource id=47e40005 type=mandatorySystemGestures frame=[0,2196][1080,2340] visible=true flags= sideHint=BOTTOM boundingRects=null
+            InsetsSource id=47e40006 type=tappableElement frame=[0,2196][1080,2340] visible=true flags= sideHint=BOTTOM boundingRects=null
+            InsetsSource id=47e40024 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        mIsPredictiveBackImeHideAnimInProgress=false
+    WindowOnBackDispatcher:
+        Top Callback: android.view.ViewRootImpl$$ExternalSyntheticLambda16@741229
+        Callbacks: 
+          Callback: android.view.ViewRootImpl$$ExternalSyntheticLambda16@741229 Priority=0
+    ImeBackAnimationController:
+        mLastProgress=0.0
+        mTriggerBack=false
+        mIsPreCommitAnimationInProgress=false
+        mStartRootScrollY=0
+        isBackAnimationAllowed=true
+        isAdjustPan=false
+        isHideAnimationInProgress=false
+    ViewRootSurfaceController:
+      mSkipScreenshot=false
+      mDisableSuperHdr=false
+      mMetaDataMaps= <empty>
+      mAllowList={ 32}
+    View Hierarchy:
+      com.android.internal.policy.DecorView{ada75d6 I.E...... R.....ID 0,0-1080,2340 aid=0}[LauncherActivity]
+        H1.c{2b14bd G.ED..... ......ID 0,0-1080,2340} WBlurView - visibility:8, alpha:1.0
+        H1.b{741d0d9 V.ED..... ........ 0,0-1080,2340} ScrimView - visibility:0, alpha:1.0
+        android.widget.LinearLayout{57e3a9e V.E...... ........ 0,0-1080,2340}
+          android.view.ViewStub{1e182f1 G.E...... ......I. 0,0-0,0 #10201ef android:id/action_mode_bar_stub}
+          android.widget.FrameLayout{5fa5d2d V.E...... ........ 0,0-1080,2340 #1020002 android:id/content}
+            androidx.constraintlayout.widget.ConstraintLayout{c6e14b0 V.E...... ........ 0,0-1080,2340}
+        android.widget.FrameLayout{cf497f V.E...... .......D 0,0-1080,2340}
+          com.honeyspace.ui.honeypots.homescreen.presentation.HomeView{1fa084f V.E.....X .......D 0,0-1080,2340 #7f0a02de app:id/home_screen aid=1073741825} - visibility:0, alpha:1.0, scale: 1.0, translation:(0.0, 0.0)
+            com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceContainer{823257e V.E...... .......D 0,0-1080,2340 #7f0a07aa app:id/workspace_pot_view aid=1073741826} - visibility:0, alpha:1.0, scale:1.0, translation:(0.0, 0.0)
+              com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceFastRecyclerView{12182d4 V.E...... .......D 0,0-1080,1924 #7f0a07a8 app:id/workspace_fast_recycler_view aid=1073741827} - visibility:0, alpha:1.0
+                com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceCellLayoutContainer{5764772 V.E...C.. ......ID 41,-135-1039,1885} - visibility:0, alpha:1.0 translation:(0.0, 0.0)
+                  android.widget.FrameLayout{27df840 V.E...... ........ 0,0-998,260}
+                    com.honeyspace.ui.honeypots.workspace.presentation.DeletePageLayout{95d68be IFE...C.. ......ID 0,0-998,193 #7f0a01dc app:id/delete_page_layout aid=1073741828}
+                      android.view.View{6a586c V.ED..... ......ID 434,32-563,161 #7f0a01db app:id/delete_page_icon aid=1073741829}
+                      android.view.View{50352ca V.ED..... ......ID 17,190-981,193 #7f0a04e5 app:id/remove_page_divider aid=1073741830}
+                  com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceCellLayout{9da8f58 V.E...C.. ......ID 0,260-998,1954 #7f0a07b2 app:id/wsCellLayout aid=1073741831} - visibility:0, alpha:1.0, translation:(0.0, 0.0)
+				occupied:	0000	0000	0110	0110	1111	1111
+                    com.honeyspace.ui.common.iconview.IconViewImpl{f22442 VFED..CL. ......ID 0,1410-250,1692 #7f0a02ed app:id/icon aid=1073741832} - Store, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=5
+                    com.honeyspace.ui.common.iconview.IconViewImpl{50d94bb VFED..CL. ......ID 250,1410-500,1692 #7f0a02ed app:id/icon aid=1073741833} - Gallery, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=5
+                    com.honeyspace.ui.common.iconview.IconViewImpl{e977520 VFED..CL. ......ID 500,1410-750,1692 #7f0a02ed app:id/icon aid=1073741834} - Play Store, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=5
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{cca15f VFED..CL. ......ID 750,1410-1000,1692 #7f0a027a app:id/folder_icon_view aid=1073741835} - Google, visibility:0, alpha:1.0, badge:0, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=5
+                    com.honeyspace.ui.common.widget.WidgetHostViewContainer{f9f6cf8 VFE...CL. .......D 250,564-750,1128} - Weather, appWidgetId=2, alpha=1.0, spanX=2, spanY=2, isStandardized: true, lastLabel: null, lastCornerRadius: null, lastBackgroundOpacity: 255, lastTransparent: true, x=1, y=2
+                      com.honeyspace.ui.common.blurbackground.BlurScrollBackgroundView{49e9ea5 G.ED..... ......ID 0,0-0,0} - position: null, size: null
+                      com.honeyspace.ui.common.blurbackground.BlurBackgroundView{47e027a G.ED..... ......ID 0,0-0,0} - position: null, size: null
+                      android.widget.FrameLayout{2c46a2b V.E...... .......D 0,0-500,564}
+                        com.honeyspace.ui.common.widget.HoneyAppWidgetHostView{7e7439d VFE...... R......D 30,30-470,534} - span boundary: (2, 1) ~ (4, 3), appWidgetSize: 30, flag: 3, lastAppliedInfo: RemoteViewInfo(packages=com.sec.android.daemonapp), cachedImageView: false
+                          android.widget.FrameLayout{cdca8e6 V.E...... .......D 0,0-440,504 #7f09045f app:id/rootView}
+                            android.widget.FrameLayout{c98be3a VFE...C.. .......D 0,0-440,504 #2}
+                              android.widget.FrameLayout{d4e2e27 V.E...... ......ID 0,0-440,504 #1020000 android:id/background}
+                                android.widget.LinearLayout{413847c V.E...... .......D 0,0-440,504 #3}
+                                  android.widget.FrameLayout{2956105 V.E...... .......D 48,0-416,504 #4}
+                                    android.widget.FrameLayout{c08055a V.E...... .......D 0,12-368,469 #5}
+                                      android.widget.FrameLayout{d526c68 V.E...... .......D 0,0-368,226 #6}
+                                        android.widget.FrameLayout{1dadaeb V.E...... .......D 142,0-368,226 #7}
+                                          android.widget.ImageView{f3cc57b V.ED..... ......ID 0,0-226,226 #8}
+                                      android.widget.FrameLayout{ea7e38b V.E...... ........ 0,0-368,457 #9}
+                                        android.widget.LinearLayout{9900881 V.E...... ........ 0,179-344,457 #a}
+                                          android.widget.FrameLayout{9b11d26 V.E...... ........ 0,0-344,9 #b}
+                                          android.widget.TextView{b81e5b2 V.ED..... ........ 0,9-121,112 #c}
+                                          android.widget.FrameLayout{3f73903 V.E...... ........ 0,112-344,118 #d}
+                                          android.widget.LinearLayout{ef46080 V.E...... ........ 0,118-344,220 #e}
+                                            android.widget.TextView{5a50048 V.ED..... ........ 0,0-102,51 #f}
+                                            android.widget.TextView{d073ee1 V.ED..... ........ 0,51-181,102 #10}
+                                          android.widget.FrameLayout{4448406 V.E...... ........ 0,220-344,226 #11}
+                                          android.widget.TextView{40a3ac7 V.ED..... ........ 0,226-198,278 #12}
+                              android.widget.ImageView{864bf6f V.ED..... ......ID 0,0-440,504 #13}
+                      com.honeyspace.ui.common.LabelView{df9b632 I.ED..... ......ID 0,534-500,537 #7f0a0318 app:id/label aid=1073741840}
+                    com.honeyspace.ui.common.widget.WidgetHostViewContainer{450f6a5 VFE...CL. .......D 0,1128-1000,1410} - Search, appWidgetId=3, alpha=1.0, spanX=4, spanY=1, isStandardized: false, lastLabel: null, lastCornerRadius: null, lastBackgroundOpacity: 0, lastTransparent: true, x=0, y=4
+                      com.honeyspace.ui.common.blurbackground.BlurScrollBackgroundView{c8b139 G.ED..... ......ID 0,0-0,0} - position: null, size: null
+                      com.honeyspace.ui.common.blurbackground.BlurBackgroundView{689037e G.ED..... ......ID 0,0-0,0} - position: null, size: null
+                      android.widget.FrameLayout{8db10df V.E...... .......D 0,0-1000,282}
+                        com.honeyspace.ui.common.widget.HoneyAppWidgetHostView{3b07827 VFE...... R......D 30,40-970,242} - span boundary: (1, 1) ~ (4, 6), appWidgetSize: 0, flag: 1, lastAppliedInfo: RemoteViewInfo(packages=com.google.android.googlequicksearchbox), cachedImageView: false
+                          android.widget.FrameLayout{957cdbe V.E...... .......D 0,17-940,185 #7f0b2244 app:id/googleapp_search_widget_ghost_tap_targets aid=1073741841}
+                            android.widget.LinearLayout{189dbfb V.E...... ........ 0,0-940,168 #7f0b2245 app:id/googleapp_search_widget_ghost_tap_targets_4dp aid=1073741842}
+                              android.widget.FrameLayout{e924e71 VFE...C.. ........ 0,0-144,168 #7f0b2241 app:id/googleapp_search_widget_ghost_google_logo aid=1073741843}
+                              android.widget.FrameLayout{6903cd7 VFE...C.. ........ 144,0-652,168 #7f0b2246 app:id/googleapp_search_widget_ghost_text_search aid=1073741844}
+                              android.widget.FrameLayout{7ac60ad G.E...... ......I. 0,0-0,0 #7f0b2243 app:id/googleapp_search_widget_ghost_shortcut aid=1073741845}
+                              android.widget.FrameLayout{331cf73 VFE...C.. ........ 652,0-796,168 #7f0b2247 app:id/googleapp_search_widget_ghost_voice_search aid=1073741846}
+                              android.widget.FrameLayout{6db5aa9 VFE...C.. ........ 796,0-940,168 #7f0b2242 app:id/googleapp_search_widget_ghost_lens aid=1073741847}
+                            android.widget.FrameLayout{a06ae1f V.E...... .......D 0,12-940,156 #7f0b2259 app:id/googleapp_search_widget_two_right_icons aid=1073741848}
+                              android.widget.ImageView{b345d5c V.ED..... ......ID 0,0-940,144 #7f0b2239 app:id/googleapp_search_widget_background_protection}
+                              android.widget.ImageView{8b7b93a G.ED..... ......I. 0,0-0,0 #7f0b223b app:id/googleapp_search_widget_background_protection_light_mode}
+                              android.widget.ImageView{757f348 G.ED..... ......I. 0,0-0,0 #7f0b223a app:id/googleapp_search_widget_background_protection_dark_mode}
+                              android.widget.ImageView{2d82f06 VFED..C.. ......ID 0,0-940,144 #7f0b2236 app:id/googleapp_search_widget_background}
+                              android.widget.ImageView{89cfbf4 G.ED..... ......I. 0,0-0,0 #7f0b2238 app:id/googleapp_search_widget_background_light_mode}
+                              android.widget.ImageView{4383592 G.ED..... ......I. 0,0-0,0 #7f0b2237 app:id/googleapp_search_widget_background_dark_mode}
+                              android.widget.LinearLayout{987e360 V.E...... .......D 0,0-940,144 #7f0b2228 app:id/googleapp_search_plate aid=1073741849}
+                                android.widget.FrameLayout{e2018de V.E...... .......D 0,0-144,144}
+                                  android.widget.ImageButton{677d58c VFED..C.. ......ID 0,0-144,144 #7f0b2249 app:id/googleapp_search_widget_google_logo}
+                                  android.widget.ImageButton{c10e4ea GFED..C.. ......I. 0,0-0,0 #7f0b2240 app:id/googleapp_search_widget_doodle}
+                                android.widget.FrameLayout{92be78 V.E...... ........ 144,0-652,144 #7f0b2214 app:id/googleapp_search_edit_frame aid=1073741850}
+                                android.widget.FrameLayout{e9065b6 V.E...... ........ 652,0-652,144}
+                                  android.widget.ImageButton{3714a24 GFED..C.. ......I. 0,0-0,0 #7f0b2254 app:id/googleapp_search_widget_shortcut_btn}
+                                android.widget.FrameLayout{6b52742 V.E...... .......D 652,0-796,144}
+                                  android.widget.ImageButton{98ae490 VFED..C.. ......ID 0,0-144,144 #7f0b225a app:id/googleapp_search_widget_voice_btn}
+                                android.widget.FrameLayout{e72758e V.E...... .......D 796,0-940,144}
+                                  android.widget.ImageButton{b61b9bc VFED..C.. ......ID 0,0-144,144 #7f0b224e app:id/googleapp_search_widget_lens_btn}
+                      com.honeyspace.ui.common.LabelView{9a45c9a I.ED..... ......ID 0,242-1000,245 #7f0a0318 app:id/label aid=1073741851}
+                com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceCellLayoutContainer{56eb5a8 V.E...C.. ......ID 1080,-135-2078,1885} - visibility:0, alpha:1.0 translation:(0.0, 0.0)
+                  android.widget.FrameLayout{bdba866 V.E...... ........ 0,0-998,260}
+                    com.honeyspace.ui.honeypots.workspace.presentation.DeletePageLayout{cd8454 IFE...C.. ......ID 0,0-998,193 #7f0a01dc app:id/delete_page_layout aid=1073741852}
+                      android.view.View{ee9e4f2 V.ED..... ......ID 434,32-563,161 #7f0a01db app:id/delete_page_icon aid=1073741853}
+                      android.view.View{aa891c0 V.ED..... ......ID 17,190-981,193 #7f0a04e5 app:id/remove_page_divider aid=1073741854}
+                  com.honeyspace.ui.honeypots.workspace.presentation.WorkspaceCellLayout{62d5e3e V.E...C.. ......ID 0,260-998,1954 #7f0a07b2 app:id/wsCellLayout aid=1073741855} - visibility:0, alpha:1.0, translation:(0.0, 0.0)
+				occupied:	0000	0000	0000	0000	0001	0011
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{6b31481 VFED..CL. ......ID 750,1128-1000,1410 #7f0a027a app:id/folder_icon_view aid=1073741856} - Microsoft, visibility:0, alpha:1.0, badge:0, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=4
+                    com.honeyspace.ui.common.iconview.IconViewImpl{acc11e5 VFED..CL. ......ID 500,1410-750,1692 #7f0a02ed app:id/icon aid=1073741857} - My Verizon, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=5
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{48c66c5 VFED..CL. ......ID 750,1410-1000,1692 #7f0a027a app:id/folder_icon_view aid=1073741858} - Verizon, visibility:0, alpha:1.0, badge:0, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=5
+              com.honeyspace.ui.common.pageindicator.PageIndicatorView{d85cd01 V.E...... .......D 0,1834-1080,1924 #7f0a07a9 app:id/workspace_page_indicator aid=1073741859}
+                android.widget.LinearLayout{68ed8d8 V.E...... .......D 465,20-615,70}
+                  com.honeyspace.ui.common.pageindicator.PageIndicatorMarker{b94f716 V.E...C.. .......D 0,0-50,50}
+                    android.widget.ImageView{884aa84 V.ED..... ......ID 0,0-50,50 #7f0a02ed app:id/icon}
+                  com.honeyspace.ui.common.pageindicator.PageIndicatorMarker{616ea2 V.E...C.. ..S....D 50,0-100,50}
+                    android.widget.ImageView{ee3eaf0 V.ED..... ..S...ID 0,0-50,50 #7f0a02ed app:id/icon}
+                  com.honeyspace.ui.common.pageindicator.PageIndicatorMarker{68bd2ee V.E...C.. .......D 100,0-150,50}
+                    android.widget.ImageView{6b4c61c V.ED..... ......ID 0,0-50,50 #7f0a02ed app:id/icon}
+              android.widget.FrameLayout{8e62ffa G.E...... ......I. 0,0-0,0 #7f0a01d0 app:id/default_page_layout_container aid=1073741860}
+                android.widget.ImageView{3562808 VFED..C.. ..S...I. 0,0-0,0 #7f0a01cf app:id/default_page_layout}
+                android.view.View{b5751c6 GFED..C.. ......I. 0,0-0,0 #7f0a01d1 app:id/default_page_layout_sync}
+            com.honeyspace.ui.honeypots.hotseat.presentation.HotseatContainer{1398548 V.E...... .......D 0,1924-1080,2340 #7f0a02eb app:id/hotseat_container aid=1073741861}
+              com.honeyspace.ui.honeypots.hotseat.presentation.HotseatBalloon{97c60dd V.E...... .......D 39,0-1041,272 #7f0a02ea app:id/hotseat_balloon aid=1073741862}
+                com.honeyspace.ui.honeypots.hotseat.presentation.HotseatCellLayout{3c0cf5c V.E...... ......ID 0,0-1002,272 #7f0a02ec app:id/hotseat_layout aid=1073741863}
+                  com.honeyspace.ui.common.iconview.IconViewImpl{90649c6 VFED..CL. ......ID 0,0-250,272 #7f0a02ed app:id/icon aid=1073741864} - Phone, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=0
+                  com.honeyspace.ui.common.iconview.IconViewImpl{74bed87 VFED..CL. ......ID 250,0-500,272 #7f0a02ed app:id/icon aid=1073741865} - Messages, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=0
+                  com.honeyspace.ui.common.iconview.IconViewImpl{b1d74b4 VFED..CL. ......ID 500,0-750,272 #7f0a02ed app:id/icon aid=1073741866} - Chrome, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=0
+                  com.honeyspace.ui.common.iconview.IconViewImpl{c51b8dd VFED..CL. ......ID 750,0-1000,272 #7f0a02ed app:id/icon aid=1073741867} - Camera, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=0
+                android.widget.ImageView{e43ee4c G.ED..... ......ID 0,0-0,0 #7f0a0200 app:id/divider}
+          com.honeyspace.ui.honeypots.appscreen.presentation.AppscreenContainerView{7e12d4c G.E...... ......ID 0,0-1080,2340 #7f0a00b3 app:id/apps_screen aid=1073741868} - visibility:8, alpha:0.0
+            com.honeyspace.ui.honeypots.applist.presentation.ApplistContainer{a00062 V.E...... ......ID 0,0-1080,2340 #7f0a00a0 app:id/applist_container aid=1073741869} - visibility:0, alpha:1.0
+              com.honeyspace.ui.honeypots.applist.presentation.ApplistFastRecyclerView{498fe9b V.E...... ......ID 0,0-1080,2340 #7f0a00a1 app:id/applist_fast_recycler_view aid=1073741870} - visibility:0, alpha:1.0
+                com.honeyspace.ui.honeypots.applist.presentation.ApplistCellLayoutContainer{1296614 V.E...... ......ID 41,81-1039,1884} - visibility:0, alpha:1.0
+                  com.honeyspace.ui.honeypots.applist.presentation.ApplistCellLayout{d9ca0c8 V.E...... ......ID 0,160-998,1775 #7f0a012a app:id/cell_layout aid=1073741871} - pageIndex:0, visibility:0, alpha:1.0
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{aa3f07d VFED..CL. ......ID 0,0-249,269 #7f0a027a app:id/folder_icon_view aid=1073741872} - Google, visibility:0, alpha:1.0, badge:0, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=0
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{9279f93 VFED..CL. ......ID 249,0-498,269 #7f0a027a app:id/folder_icon_view aid=1073741873} - Microsoft, visibility:0, alpha:1.0, badge:0, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=0
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{f91e760 VFED..CL. ......ID 498,0-747,269 #7f0a027a app:id/folder_icon_view aid=1073741874} - Samsung, visibility:0, alpha:1.0, badge:1, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=0
+                    com.honeyspace.ui.common.iconview.FolderIconViewImpl{e660a1c VFED..CL. ......ID 747,0-996,269 #7f0a027a app:id/folder_icon_view aid=1073741875} - Verizon, visibility:0, alpha:1.0, badge:0, icon:261x261, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=0
+                    com.honeyspace.ui.common.iconview.IconViewImpl{86605bd VFED..CL. ......ID 0,269-249,538 #7f0a02ed app:id/icon aid=1073741876} - Calculator, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=1
+                    com.honeyspace.ui.common.iconview.IconViewImpl{362ad6b VFED..CL. ......ID 249,269-498,538 #7f0a02ed app:id/icon aid=1073741877} - Calendar, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=1
+                    com.honeyspace.ui.common.iconview.IconViewImpl{571fd2f VFED..CL. ......ID 498,269-747,538 #7f0a02ed app:id/icon aid=1073741878} - Camera, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=1
+                    com.honeyspace.ui.common.iconview.IconViewImpl{b6626a3 VFED..CL. ......ID 747,269-996,538 #7f0a02ed app:id/icon aid=1073741879} - Clock, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=1
+                    com.honeyspace.ui.common.iconview.IconViewImpl{45dea94 VFED..CL. ......ID 0,538-249,807 #7f0a02ed app:id/icon aid=1073741880} - Contacts, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=2
+                    com.honeyspace.ui.common.iconview.IconViewImpl{7d6f83a VFED..CL. ......ID 249,538-498,807 #7f0a02ed app:id/icon aid=1073741881} - Gallery, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=2
+                    com.honeyspace.ui.common.iconview.IconViewImpl{687a4af VFED..CL. ......ID 498,538-747,807 #7f0a02ed app:id/icon aid=1073741882} - Gaming Hub, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=2
+                    com.honeyspace.ui.common.iconview.IconViewImpl{1707d6d VFED..CL. ......ID 747,538-996,807 #7f0a02ed app:id/icon aid=1073741883} - Gemini, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=2
+                    com.honeyspace.ui.common.iconview.IconViewImpl{3d364d VFED..CL. ......ID 0,807-249,1076 #7f0a02ed app:id/icon aid=1073741884} - Browser, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=3
+                    com.honeyspace.ui.common.iconview.IconViewImpl{c17df2d VFED..CL. ......ID 249,807-498,1076 #7f0a02ed app:id/icon aid=1073741885} - Messages, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=3
+                    com.honeyspace.ui.common.iconview.IconViewImpl{8f8465b VFED..CL. ......ID 498,807-747,1076 #7f0a02ed app:id/icon aid=1073741886} - Notes, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=3
+                    com.honeyspace.ui.common.iconview.IconViewImpl{aace2be VFED..CL. ......ID 747,807-996,1076 #7f0a02ed app:id/icon aid=1073741887} - Phone, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=3
+                    com.honeyspace.ui.common.iconview.IconViewImpl{759c534 VFED..CL. ......ID 0,1076-249,1345 #7f0a02ed app:id/icon aid=1073741888} - Play Store, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=4
+                    com.honeyspace.ui.common.iconview.IconViewImpl{9e4dfda VFED..CL. ......ID 249,1076-498,1345 #7f0a02ed app:id/icon aid=1073741889} - Settings, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=4
+                    com.honeyspace.ui.common.iconview.IconViewImpl{9a57830 VFED..CL. ......ID 498,1076-747,1345 #7f0a02ed app:id/icon aid=1073741890} - Store, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=4
+                    com.honeyspace.ui.common.iconview.IconViewImpl{1441fb6 VFED..CL. ......ID 747,1076-996,1345 #7f0a02ed app:id/icon aid=1073741891} - Tips, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=4
+                    com.honeyspace.ui.common.iconview.IconViewImpl{54bc8a2 VFED..CL. ......ID 0,1345-249,1614 #7f0a02ed app:id/icon aid=1073741892} - Visual Voicemail, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=5
+                com.honeyspace.ui.honeypots.applist.presentation.ApplistCellLayoutContainer{4e718b0 V.E...... ......ID 1080,81-2078,1884} - visibility:0, alpha:1.0
+                  com.honeyspace.ui.honeypots.applist.presentation.ApplistCellLayout{c388cb9 V.E...... ......ID 0,160-998,1775 #7f0a012a app:id/cell_layout aid=1073741893} - pageIndex:1, visibility:0, alpha:1.0
+                    com.honeyspace.ui.common.iconview.IconViewImpl{b5d44d0 VFED..CL. ......ID 0,0-249,269 #7f0a02ed app:id/icon aid=1073741894} - Wallet, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=0
+                    com.honeyspace.ui.common.iconview.IconViewImpl{6e70956 VFED..CL. ......ID 249,0-498,269 #7f0a02ed app:id/icon aid=1073741895} - Termux, visibility:0, alpha:1.0, badge:1, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=0
+                    com.honeyspace.ui.common.iconview.IconViewImpl{45cc28c VFED..CL. ......ID 498,0-747,269 #7f0a02ed app:id/icon aid=1073741896} - Termux:API, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=0
+                    com.honeyspace.ui.common.iconview.IconViewImpl{bd1f9f2 VFED..CL. ......ID 747,0-996,269 #7f0a02ed app:id/icon aid=1073741897} - Termux:Boot, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=3, y=0
+                    com.honeyspace.ui.common.iconview.IconViewImpl{e88a508 VFED..CL. ......ID 0,269-249,538 #7f0a02ed app:id/icon aid=1073741898} - MoE ADB Boot, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=0, y=1
+                    com.honeyspace.ui.common.iconview.IconViewImpl{8cd854e VFED..CL. ......ID 249,269-498,538 #7f0a02ed app:id/icon aid=1073741899} - Edge Gallery, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=1, y=1
+                    com.honeyspace.ui.common.iconview.IconViewImpl{36be262 VFED..CL. ......ID 498,269-747,538 #7f0a02ed app:id/icon aid=1073741900} - Kalsa AI Chat, visibility:0, alpha:1.0, badge:0, icon:174x174, iconAlpha:255, iconState:NONE, iconSize:181, forceHideBadge:false, isTransparent:false, x=2, y=1
+              android.widget.FrameLayout{222a9d6 G.E...... ......I. 0,0-0,0 #7f0a00ab app:id/apps_knox_icon aid=1073741901}
+                android.widget.ImageView{3aa7b44 V.ED..... ......ID 0,0-0,0 #7f0a00ac app:id/apps_knox_icon_image_view}
+              com.honeyspace.ui.common.pageindicator.PageIndicatorView{bb3cd9 V.E...... .......D 0,1884-1080,1980 #7f0a00a2 app:id/applist_page_indicator aid=1073741902}
+                android.widget.LinearLayout{1473ef3 V.E...... .......D 490,23-590,73}
+                  com.honeyspace.ui.common.pageindicator.PageIndicatorMarker{999d238 V.E...C.. ..S....D 0,0-50,50}
+                    android.widget.ImageView{d451dae V.ED..... ..S...ID 0,0-50,50 #7f0a02ed app:id/icon}
+                  com.honeyspace.ui.common.pageindicator.PageIndicatorMarker{3dbc211 V.E...C.. .......D 50,0-100,50}
+                    android.widget.ImageView{8a3ebe5 V.ED..... ......ID 0,0-50,50 #7f0a02ed app:id/icon}
+              android.widget.LinearLayout{be9996b G.E...... ......I. 0,0-0,0 #7f0a00a5 app:id/apps_change_page_mode_button aid=1073741903}
+            com.honeyspace.ui.honeypots.appscreen.presentation.AppsSearchBar{68f62aa V.E...... ......ID 0,1980-1080,2340 #7f0a00b4 app:id/appscreen_search_bar_container aid=1073741904}
+              android.widget.FrameLayout{9173486 V.E...... .......D 0,0-1080,216 #7f0a009d app:id/app_search_wrapper aid=1073741905}
+                android.widget.ImageView{3d8ff76 V.ED..... ......ID 30,30-1050,186 #7f0a009f app:id/app_searchbar_round_background}
+                android.widget.LinearLayout{63d8adb V.E...... .......D 30,30-1050,186 #7f0a009a app:id/app_search_edit_text_container aid=1073741906}
+                  android.widget.LinearLayout{c7ee977 VFE...C.. ........ 0,0-858,156 #7f0a009b app:id/app_search_edit_text_wrapper aid=1073741907}
+                    android.widget.TextView{93dcae3 V.ED..... ........ 0,0-858,156 #7f0a0099 app:id/app_search_edit_text aid=1073741908}
+                  android.widget.FrameLayout{635d9e4 V.E...... .......D 858,0-1020,156 #7f0a009c app:id/app_search_more_button_wrapper aid=1073741909}
+                    android.widget.ImageView{7a96e4d V.ED..... ........ 0,0-132,132 #7f0a03bb app:id/more_icon_round_background}
+                    android.widget.FrameLayout{f4d9d02 V.E...... .......D 0,12-132,144 #7f0a03b6 app:id/more_icon_button aid=1073741910}
+                      android.widget.ImageView{b6ea613 VFED..C.. ......ID 0,0-132,132 #7f0a03b9 app:id/more_icon_imageview}
+                      android.view.View{a68b050 V.ED..... ........ 0,0-132,0 #7f0a0686 app:id/support_sort_option aid=1073741911}
+          com.honeyspace.search.ui.honeypot.presentation.control.GestureControlView{b75a195 G.E...C.. ......ID 0,0-1080,2340 #7f0a028a app:id/gesture_control_layout aid=1073741912}
+            androidx.constraintlayout.widget.ConstraintLayout{4c7b35b V.E...... ......ID 0,0-1080,2340 #7f0a0501 app:id/root_layout aid=1073741913}
+              androidx.constraintlayout.widget.Guideline{13f64d1 G.ED..... ......I. 0,0-0,0 #7f0a0333 app:id/left_guideline aid=1073741914}
+              androidx.constraintlayout.widget.Guideline{7c42a37 G.ED..... ......I. 1080,0-1080,0 #7f0a04f8 app:id/right_guideline aid=1073741915}
+              android.widget.RelativeLayout{9847d0d V.E...... ......ID 0,81-1080,2340 #7f0a0353 app:id/main_ui aid=1073741916}
+                android.widget.FrameLayout{22ba249 V.E...... ........ 0,0-1080,2259 #7f0a0351 app:id/main_bg_container aid=1073741917}
+                android.widget.RelativeLayout{57c874e V.E...... ......ID 0,0-1080,2007 #7f0a0183 app:id/content_area aid=1073741918}
+                  android.widget.LinearLayout{688dd09 G.E...... ......I. 0,0-0,0 #7f0a040b app:id/no_recent_searches aid=1073741919}
+                    android.widget.TextView{8a8292f VFED..... ......ID 0,0-0,0 #7f0a040c app:id/no_recent_searches_text}
+                  com.honeyspace.search.ui.honeypot.presentation.content.animatable.EnterAnimateRecyclerView{75940c5 VFED..... ......ID 0,0-1080,1125 #7f0a0126 app:id/card_list}
+                androidx.constraintlayout.widget.ConstraintLayout{b93906f V.E...... ......ID 0,1017-1080,2259 #7f0a030a app:id/input_layout aid=1073741927}
+    Looper (main, tid 2) {3ce4896}
+      (MessageQueue is using Legacy implementation)
+      (Total messages: 0, polling=false, quitting=false)
+    ResourcesManager:
+      total apks: 16
+      resources: 35
+      resource impls: 13
+    1 dumpables:
+    #0: AutofillManager
+        AutofillManager:
+          sessionId: 1118745176
+          state: ACTIVE
+          context: com.sec.android.app.launcher.Launcher@30886bd
+          service client: android.view.autofill.AutofillManager$AutofillManagerClient@2f6cc17
+          client: android.view.autofill.AutofillClientController@60e1804 (android.os.BinderProxy@ad324f4)
+          enabled: true
+          enabledAugmentedOnly: true
+          hasService: true
+          hasCallback: false
+          onInvisibleCalled true
+          last autofilled data: null
+          id of last fill UI shown: null
+          tracked views: null
+          fillable ids: null
+          entered ids: {1073741824}
+          For Augmented Autofill Only
+          save trigger id: null
+          save on finish(): false
+          options: logLvl=0, compatMode=false, augmented=false, appDisabledExpiration=0
+          fill dialog enabled: false
+          fill dialog enabled hints: []
+          compat mode enabled: false
+          debug: false verbose: false
+        Autofill Compat Mode: false
+    Local FragmentActivity 30886bd State:
+      mCreated=true mResumed=false mStopped=true    Back Stack Index: 0
+    FragmentManager misc state:
+      mHost=androidx.fragment.app.FragmentActivity$HostCallbacks@669a1ed
+      mContainer=androidx.fragment.app.FragmentActivity$HostCallbacks@669a1ed
+      mCurState=4 mStateSaved=true mStopped=true mDestroyed=false
+
+TASK 10347:com.kalsa.app id=376 userId=0 displayId=0(type=INTERNAL)
+  ACTIVITY com.kalsa.app/.MainActivity 7b38bb4 pid=7562 userId=0 uid=10347 displayId=0(type=INTERNAL)
+    Local Activity 36cc9be State:
+      mResumed=true mStopped=false mFinished=false
+      mIsInMultiWindowMode=false mIsInPictureInPictureMode=false
+      mChangingConfigurations=false
+      mCurrentConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.2 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+      mLoadersStarted=true
+      Active Fragments in 6497a15:
+        #0: ReportFragment{1b9912a #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+          mFragmentId=#0 mContainerId=#0 mTag=androidx.lifecycle.LifecycleDispatcher.report_fragment_tag
+          mState=5 mIndex=0 mWho=android:fragment:0 mBackStackNesting=0
+          mAdded=true mRemoving=false mFromLayout=false mInLayout=false
+          mHidden=false mDetached=false mMenuVisible=true mHasMenu=false
+          mRetainInstance=false mRetaining=false mUserVisibleHint=true
+          mFragmentManager=FragmentManager{6497a15 in HostCallbacks{6b9cb1b}}
+          mHost=android.app.Activity$HostCallbacks@6b9cb1b
+          Child FragmentManager{adfe4b8 in ReportFragment{1b9912a}}:
+            FragmentManager misc state:
+              mHost=android.app.Activity$HostCallbacks@6b9cb1b
+              mContainer=android.app.Fragment$1@754a291
+              mParent=ReportFragment{1b9912a #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+              mCurState=5 mStateSaved=false mDestroyed=false
+      Added Fragments:
+        #0: ReportFragment{1b9912a #0 androidx.lifecycle.LifecycleDispatcher.report_fragment_tag}
+      FragmentManager misc state:
+        mHost=android.app.Activity$HostCallbacks@6b9cb1b
+        mContainer=android.app.Activity$HostCallbacks@6b9cb1b
+        mCurState=5 mStateSaved=false mDestroyed=false
+    PhoneWindow:
+      mStatusBarColor=0x0 mForcedStatusBarColor=false
+      mNavigationBarColor=0x0 mForcedNavigationBarColor=true
+      mDeviceDefaultNavigationBarColor=0xFFF1F1F3
+      mDefaultNavigationBarColor=0xFFF1F1F3
+      mSettingsNavigationBarColor=0xFFF1F1F3
+      mThemeApplied=false
+    ViewRoot:
+      mAdded=true
+      mRemoved=false
+      mStopped=false
+      mPausedForTransition=false
+      mConsumeBatchedInputScheduled=false
+      mConsumeBatchedInputImmediatelyScheduled=false
+      mPendingInputEventCount=0
+      mProcessInputEventsScheduled=false
+      mTraversalScheduled=false
+      mReportNextDraw=false
+      mLastReportedMergedConfiguration={mGlobalConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=undefined mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.68 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0} mOverrideConfig={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.2 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}}
+      mLastConfigurationFromResources={1.0 ?mcc0mnc [en_US] ldltr sw360dp w360dp h780dp 480dpi nrml long port finger -keyb/v/h -nav/h winConfig={ mBounds=Rect(0, 0 - 1080, 2340) mAppBounds=Rect(0, 0 - 1080, 2340) mMaxBounds=Rect(0, 0 - 1080, 2340) mDisplayRotation=ROTATION_0 mWindowingMode=fullscreen mActivityType=standard mAlwaysOnTop=undefined mRotation=ROTATION_0 mStageConfig=undefined mEmbedActivityMode=undefined mPopOver=off mOverlappingWithCutout=false} s.2 fontWeightAdjustment=0 ff=0 bf=-1 bts=0 cst=1.0 nightDim=0 themeSeq=0}
+      mLastReportedActivityWindowInfo=ActivityWindowInfo{isEmbedded=false, taskBounds=Rect(0, 0 - 1080, 2340), taskFragmentBounds=Rect(0, 0 - 1080, 2340)}
+      mIsAmbientMode=false
+      mUnbufferedInputSource=0
+      mAttachInfo=       AttachInfo:
+        mHasWindowFocus=true
+        mWindowVisibility=0
+        mInTouchMode=true
+        mUnbufferedDispatchRequested=false
+      android.view.ViewRootImpl$NativePreImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$ImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$NativePostImeInputStage: mQueueLength=0
+      android.view.ViewRootImpl$WindowInputEventReceiver
+       mInputChannel: 7ca7d91 com.kalsa.app/com.kalsa.app.MainActivity
+       mSeqMap: {}
+       mReceiverPtr:
+        mInputConsumer:
+          mResampleTouch = true
+          mChannel = 7ca7d91 com.kalsa.app/com.kalsa.app.MainActivity
+          mMsgDeferred: false
+          Batches:
+              <empty>
+          mSeqChains:
+              <empty>
+          mConsumeTimes:
+              <empty>
+          
+        mBatchedInputEventPending: false
+        mOutboundQueue:
+          <empty>
+        
+    Choreographer:
+      mFrameScheduled=true
+      mLastFrameTime=14203185 (25 ms ago)
+    InsetsController:
+        InsetsState
+          mDisplayFrame=Rect(0, 0 - 1080, 2340)
+          mDisplayCutout=DisplayCutout{insets=Rect(0, 81 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 81), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={3.0} cutoutSpec={M 0,0 H -9.333333333333333‬ V 27 H 9.333333333333333‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}
+          mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=108, center=Point(108, 108)}, RoundedCorner{position=TopRight, radius=108, center=Point(972, 108)}, RoundedCorner{position=BottomRight, radius=108, center=Point(972, 2232)}, RoundedCorner{position=BottomLeft, radius=108, center=Point(108, 2232)}]}
+          mRoundedCornerFrame=Rect(0, 0 - 1080, 2340)
+          mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 81) rotation=0}
+          mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}
+            InsetsSource id=3 type=ime frame=[0,0][0,0] visibleFrame=[0,1314][1080,2340] visible=false flags= sideHint=NONE boundingRects=null
+            InsetsSource id=27 type=displayCutout frame=[0,0][1080,81] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=286c0000 type=statusBars frame=[0,0][1080,81] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=286c0005 type=mandatorySystemGestures frame=[0,0][1080,117] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=286c0006 type=tappableElement frame=[0,0][1080,81] visible=true flags= sideHint=TOP boundingRects=null
+            InsetsSource id=47e40001 type=navigationBars frame=[0,2196][1080,2340] visible=true flags= sideHint=BOTTOM boundingRects=null
+            InsetsSource id=47e40004 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+            InsetsSource id=47e40005 type=mandatorySystemGestures frame=[0,2196][1080,2340] visible=true flags= sideHint=BOTTOM boundingRects=null
+            InsetsSource id=47e40006 type=tappableElement frame=[0,2196][1080,2340] visible=true flags= sideHint=BOTTOM boundingRects=null
+            InsetsSource id=47e40024 type=systemGestures frame=[0,0][0,0] visible=true flags= sideHint=NONE boundingRects=null
+        mIsPredictiveBackImeHideAnimInProgress=false
+    WindowOnBackDispatcher:
+        Top Callback: android.view.ViewRootImpl$$ExternalSyntheticLambda16@4d5a4a7
+        Callbacks: 
+          Callback: android.view.ViewRootImpl$$ExternalSyntheticLambda16@4d5a4a7 Priority=0
+    ImeBackAnimationController:
+        mLastProgress=0.0
+        mTriggerBack=false
+        mIsPreCommitAnimationInProgress=false
+        mStartRootScrollY=0
+        isBackAnimationAllowed=true
+        isAdjustPan=false
+        isHideAnimationInProgress=false
+    ViewRootSurfaceController:
+      mSkipScreenshot=false
+      mDisableSuperHdr=false
+      mMetaDataMaps= <empty>
+      mAllowList={ 32}
+    View Hierarchy:
+      com.android.internal.policy.DecorView{1966cb V.E...... R....... 0,0-1080,2340 aid=0}[MainActivity]
+        android.widget.LinearLayout{5b795f6 V.E...... ........ 0,0-1080,2340}
+          android.view.ViewStub{11ffdf7 G.E...... ......I. 0,0-0,0 #10201ef android:id/action_mode_bar_stub}
+          android.widget.FrameLayout{e0a9464 V.E...... ........ 0,0-1080,2340}
+            androidx.appcompat.widget.FitWindowsLinearLayout{d0fd6cd V.E...... ........ 0,0-1080,2340 #7f090045 app:id/action_bar_root}
+              androidx.appcompat.widget.ViewStubCompat{2bf1b82 G.E...... ......I. 0,0-0,0 #7f090050 app:id/action_mode_bar_stub}
+              androidx.appcompat.widget.ContentFrameLayout{e4c8293 V.E...... ........ 0,0-1080,2340 #1020002 android:id/content}
+                com.facebook.react.runtime.ReactSurfaceView{460c74a V.E...... ........ 0,0-1080,2340 #1}
+                  com.swmansion.gesturehandler.react.RNGestureHandlerRootView{70e92d0 V.E...... ........ 0,0-1080,2340 #4}
+                    com.th3rdwave.safeareacontext.SafeAreaProvider{ed012c9 V.E...... ........ 0,0-1080,2340 #2}
+                      com.reactnativekeyboardcontroller.views.EdgeToEdgeReactViewGroup{4c76dce V.E...... ........ 0,0-1080,2340 #8}
+                        com.facebook.react.views.view.ReactViewGroup{7b2b4ef V.E...... ........ 0,0-1080,2340 #e4}
+                        com.facebook.react.views.view.ReactViewGroup{a120bfc V.E...... ........ 0,0-1080,2340 #18}
+                          expo.modules.lineargradient.LinearGradientView{a3e1285 V.ED..... ........ 0,0-1080,2340 #c}
+                          expo.modules.lineargradient.LinearGradientView{df098da V.ED..... ........ 0,0-1080,2340 #10}
+                          expo.modules.lineargradient.LinearGradientView{9fb10b V.ED..... ........ 0,0-1080,2340 #14}
+                        com.th3rdwave.safeareacontext.SafeAreaView{571ebe8 V.E...... ........ 0,0-1080,2340 #de}
+                          com.facebook.react.views.text.ReactTextView{4d25201 V.ED..... ........ 54,93-835,159 #1c}
+                          com.facebook.react.views.view.ReactViewGroup{4f68a6 VF....C.. ........ 54,159-835,207 #2a}
+                            com.facebook.react.views.text.ReactTextView{a1652e7 V.ED..... ........ 0,0-781,48 #28}
+                          com.facebook.react.views.text.ReactTextView{e6dde94 V.ED..... ........ 54,207-835,303 #20c}
+                          com.facebook.react.views.view.ReactViewGroup{9110d3d VFE...C.. ........ 865,173-1026,242 #3c}
+                            com.horcrux.svg.SvgView{8796932 V.ED..... ........ 27,18-60,51 #36}
+                              com.horcrux.svg.GroupView{86b3683 V.E...... ........ 0,0-0,0 #34}
+                                com.horcrux.svg.CircleView{c945000 V.E...... ........ 2,2-31,31 #2e}
+                                com.horcrux.svg.PathView{b864039 V.E...... ........ 3,2-30,31 #30}
+                                com.horcrux.svg.PathView{4d0e67e V.E...... ........ 2,16-31,17 #32}
+                            com.facebook.react.views.text.ReactTextView{6a0b7df V.ED..... ........ 72,12-134,57 #3a}
+                          com.facebook.react.views.view.ReactViewGroup{fee6c2c V.E...... ........ 0,327-1080,2340 #da}
+                            com.facebook.react.views.view.ReactViewGroup{381a6f5 V.E...... ........ 0,0-1080,147 #5e}
+                            com.facebook.react.views.view.ReactViewGroup{590ec8a VFE...C.. ........ 42,18-150,126 #4c}
+                              com.horcrux.svg.SvgView{382f2fb V.ED..... ........ 24,24-84,84 #4a}
+                                com.horcrux.svg.GroupView{dec1f18 V.E...... ........ 0,0-0,0 #48}
+                                  com.horcrux.svg.PathView{392bd71 V.E...... ........ 10,12-50,13 #42}
+                                  com.horcrux.svg.PathView{1994756 V.E...... ........ 10,30-50,30 #44}
+                                  com.horcrux.svg.PathView{483c3d7 V.E...... ........ 10,47-50,48 #46}
+                            com.facebook.react.views.view.ReactViewGroup{11014c4 VFE...C.. ........ 822,18-930,126 #54}
+                              com.facebook.react.views.view.ReactViewGroup{dc4bfad V.E...... ........ 12,12-96,96 #52}
+                                ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                            com.facebook.react.views.view.ReactViewGroup{bfa82e2 VFE...C.. ........ 930,18-1038,126 #5a}
+                              com.facebook.react.views.view.ReactViewGroup{a56c673 V.E...... ........ 12,12-96,96 #58}
+                                ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                            com.facebook.react.views.scroll.ReactScrollView{75bb930 VFED.V... ........ 0,147-1080,1362 #202}
+                              com.facebook.react.views.view.ReactViewGroup{f9aa9a9 V.E...... ........ 0,0-1080,2022 #200}
+                                com.facebook.react.views.view.ReactViewGroup{641eb2e V.E...... ........ 42,480-1038,1458 #1ce}
+                                  com.facebook.react.views.view.ReactViewGroup{34d56cf V.E...... ........ 0,69-24,93 #176}
+                                  com.facebook.react.views.text.ReactTextView{b7b385c V.ED..... ........ 42,54-145,108 #17a}
+                                  com.facebook.react.views.view.ReactViewGroup{1cb3765 VFE...C.. ........ 0,120-996,870 #19e}
+                                    com.facebook.react.views.text.ReactTextView{b858c3a VFED..... ........ 0,0-996,375 #182}
+                                    com.facebook.react.views.text.ReactTextView{77290eb VFED..... ........ 0,375-996,600 #188}
+                                    com.facebook.react.views.text.ReactTextView{4b17e48 VFED..... ........ 0,600-996,750 #19a}
+                                  com.facebook.react.views.view.ReactViewGroup{7bce4e1 VFE...C.. ........ 0,900-202,978 #1a8}
+                                    com.facebook.react.views.view.ReactViewGroup{303206 V.E...... ........ 18,12-72,66 #1a2}
+                                      ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_SET_CONTROLLER, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER]}}
+                                    com.facebook.react.views.text.ReactTextView{a6750c7 V.ED..... ........ 84,15-184,63 #1a6}
+                                  com.facebook.react.views.view.ReactViewGroup{98436f4 VFE...C.. ........ 202,903-601,975 #1b8}
+                                    com.horcrux.svg.SvgView{ac1ee1d V.ED..... ........ 18,15-60,57 #1b2}
+                                      com.horcrux.svg.GroupView{28d6892 V.E...... ........ 0,0-0,0 #1b0}
+                                        com.horcrux.svg.PathView{efe3263 V.E...... ........ 3,6-20,36 #1aa}
+                                        com.horcrux.svg.PathView{127ce60 V.E...... ........ 28,15-32,27 #1ac}
+                                        com.horcrux.svg.PathView{d144f19 V.E...... ........ 33,9-42,33 #1ae}
+                                    com.facebook.react.views.text.ReactTextView{8157bde V.ED..... ........ 72,12-381,60 #1b6}
+                                  com.facebook.react.views.view.ReactViewGroup{89791bf VFE...C.. ........ 601,903-777,975 #1c8}
+                                    com.horcrux.svg.SvgView{fab708c V.ED..... ........ 18,15-60,57 #1c2}
+                                      com.horcrux.svg.GroupView{91c3d5 V.E...... ........ 0,0-0,0 #1c0}
+                                        com.horcrux.svg.CircleView{37977ea V.E...... ........ 19,19-23,23 #1ba}
+                                        com.horcrux.svg.CircleView{63d8adb V.E...... ........ 31,19-35,23 #1bc}
+                                        com.horcrux.svg.CircleView{8e50978 V.E...... ........ 7,19-11,23 #1be}
+                                    com.facebook.react.views.text.ReactTextView{d37c851 V.ED..... ........ 72,12-158,60 #1c6}
+                            com.facebook.react.views.view.ReactViewGroup{f6f28b6 V.E...... ........ 0,1362-1080,2013 #d8}
+                            com.facebook.react.views.scroll.ReactHorizontalScrollView{37ff9b7 VFED..... ........ 42,1395-1038,1491 #96}
+                              com.facebook.react.views.view.ReactViewGroup{61d4524 V.E...... ........ 0,0-1231,96 #94}
+                                com.facebook.react.views.view.ReactViewGroup{35f988d VFE...C.. ........ 0,0-491,84 #6e}
+                                  com.horcrux.svg.SvgView{a3d1a42 V.ED..... ........ 33,20-78,65 #68}
+                                    com.horcrux.svg.GroupView{b107a53 V.E...... ........ 0,0-0,0 #66}
+                                      com.horcrux.svg.PathView{a7b8f90 V.E...... ........ 31,31-40,40 #62}
+                                      com.horcrux.svg.CircleView{5ba3089 V.E...... ........ 5,5-36,36 #64}
+                                  com.facebook.react.views.text.ReactTextView{e06988e V.ED..... ........ 90,18-458,66 #6c}
+                                com.facebook.react.views.view.ReactViewGroup{71e68af VFE...C.. ........ 509,0-1006,84 #7c}
+                                  com.horcrux.svg.SvgView{23214bc V.ED..... ........ 33,20-78,65 #76}
+                                    com.horcrux.svg.GroupView{70c4c45 V.E...... ........ 0,0-0,0 #74}
+                                      com.horcrux.svg.PathView{1d7af9a V.E...... ........ 22,9-23,40 #70}
+                                      com.horcrux.svg.PathView{b72e0cb V.E...... ........ 3,5-42,40 #72}
+                                  com.facebook.react.views.text.ReactTextView{869c0a8 V.ED..... ........ 90,18-464,66 #7a}
+                                com.facebook.react.views.view.ReactViewGroup{7aa67c1 VFE...C.. ........ 1024,0-1231,84 #92}
+                                  com.horcrux.svg.SvgView{f712b66 V.ED..... ........ 33,20-78,65 #8c}
+                                    com.horcrux.svg.GroupView{54cbea7 V.E...... ........ 0,0-0,0 #8a}
+                                      com.horcrux.svg.RectView{fee3f54 V.E...... ........ 15,3-30,12 #7e}
+                                      com.horcrux.svg.PathView{eb4befd V.E...... ........ 7,7-38,42 #80}
+                                      com.horcrux.svg.PathView{9d497f2 V.E...... ........ 22,20-30,21 #82}
+                                      com.horcrux.svg.PathView{cfc9e43 V.E...... ........ 22,30-30,30 #84}
+                                      com.horcrux.svg.PathView{a99fcc0 V.E...... ........ 15,20-16,21 #86}
+                                      com.horcrux.svg.PathView{b134df9 V.E...... ........ 15,30-16,30 #88}
+                                  com.facebook.react.views.text.ReactTextView{90413e V.ED..... ........ 90,18-174,66 #90}
+                            com.facebook.react.views.view.ReactViewGroup{540db9f V.E...... ........ 42,1509-1038,1863 #d6}
+                            com.facebook.react.views.view.ReactViewGroup{b8224ec VFE...C.. ........ 63,1530-1017,1716 #9a}
+                              com.facebook.react.views.textinput.ReactEditText{831d0b5 VFED..CL. ........ 0,0-954,186 #98 aid=1073741824}
+                            com.facebook.react.views.view.ReactViewGroup{bcb334a VFE...C.. ........ 63,1734-171,1842 #a8}
+                              com.horcrux.svg.SvgView{46192bb V.ED..... ........ 27,27-81,81 #a6}
+                                com.horcrux.svg.GroupView{fe2a3d8 V.E...... ........ 0,0-0,0 #a4}
+                                  com.horcrux.svg.PathView{27bc331 V.E...... ........ 4,4-50,50 #9c}
+                                  com.horcrux.svg.PathView{d113a16 V.E...... ........ 45,4-45,14 #9e}
+                                  com.horcrux.svg.PathView{30c9f97 V.E...... ........ 40,9-50,9 #a0}
+                                  com.horcrux.svg.CircleView{aca2584 V.E...... ........ 4,40-14,50 #a2}
+                            com.facebook.react.views.view.ReactViewGroup{798616d VFE...C.. ........ 201,1734-309,1842 #ae}
+                              com.facebook.react.views.view.ReactViewGroup{dee1a2 V.E...... ........ 0,0-108,108 #ac}
+                                ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                            com.facebook.react.views.view.ReactViewGroup{cf19e33 VFE...C.. ........ 771,1734-879,1842 #b6}
+                              com.facebook.react.views.view.ReactViewGroup{f8615f0 V.E...... ........ 0,0-108,108 #b4}
+                                ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                            com.facebook.react.views.view.ReactViewGroup{e66a769 VFE...C.. ........ 909,1734-1017,1842 #d0}
+                              com.facebook.react.views.view.ReactViewGroup{ced75ee V.E...... ........ 0,0-108,108 #bc}
+                                com.facebook.react.views.view.ReactViewGroup{f1dea8f V.E...... ........ 0,0-108,108 #ba}
+                                  ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                              com.facebook.react.views.view.ReactViewGroup{6cea11c V.E...... ........ 0,0-108,108 #cc}
+                                com.facebook.react.views.view.ReactViewGroup{2b95125 V.E...... ........ 0,0-108,108 #c2}
+                                  com.facebook.react.views.view.ReactViewGroup{73f02fa V.E...... ........ 0,0-108,108 #c0}
+                                    ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                                com.facebook.react.views.view.ReactViewGroup{18a0ab V.E...... ........ 0,0-108,108 #c8}
+                                  com.facebook.react.views.view.ReactViewGroup{ab2b308 V.E...... ........ 0,0-108,108 #c6}
+                                    ReactImageView{holder=DraweeHolder{controllerAttached=true, holderAttached=true, drawableVisible=true, events=[ON_SET_HIERARCHY, ON_DRAWABLE_HIDE, ON_DRAWABLE_SHOW, ON_HOLDER_ATTACH, ON_ATTACH_CONTROLLER, ON_DETACH_CONTROLLER, ON_SET_CONTROLLER, ON_ATTACH_CONTROLLER]}}
+                      com.facebook.react.views.view.ReactViewGroup{d2daa1 I.E...... ......ID 0,0-0,0 #a}
+              com.facebook.react.views.view.ReactViewGroup{1ea54c6 V.E...... ........ 0,2340-1080,2340}
+        android.view.View{dbe9c87 V.ED..... ........ 0,2196-1080,2340 #1020030 android:id/navigationBarBackground}
+    Looper (main, tid 2) {543f7b4}
+      (MessageQueue is using Legacy implementation)
+      (Total messages: 0, polling=false, quitting=false)
+    ResourcesManager:
+      total apks: 1
+      resources: 3
+      resource impls: 2
+    1 dumpables:
+    #0: AutofillManager
+        AutofillManager:
+          sessionId: 835487214
+          state: ACTIVE
+          context: com.kalsa.app.MainActivity@36cc9be
+          service client: android.view.autofill.AutofillManager$AutofillManagerClient@ca17fdd
+          client: android.view.autofill.AutofillClientController@7a6f752 (android.os.BinderProxy@96111a4)
+          enabled: true
+          enabledAugmentedOnly: true
+          hasService: true
+          hasCallback: false
+          onInvisibleCalled false
+          last autofilled data: null
+          id of last fill UI shown: null
+          tracked views: null
+          fillable ids: null
+          entered ids: {1073741824}
+          entered ids for augmented autofill: {1073741824}
+          For Augmented Autofill Only
+          save trigger id: null
+          save on finish(): false
+          options: logLvl=0, compatMode=false, augmented=true, appDisabledExpiration=0
+          fill dialog enabled: false
+          fill dialog enabled hints: []
+          compat mode enabled: false
+          debug: false verbose: false
+        Autofill Compat Mode: false
+    Local FragmentActivity 36cc9be State:
+      mCreated=true mResumed=true mStopped=false    Back Stack Index: 0
+    FragmentManager misc state:
+      mHost=androidx.fragment.app.FragmentActivity$HostCallbacks@e02db20
+      mContainer=androidx.fragment.app.FragmentActivity$HostCallbacks@e02db20
+      mCurState=7 mStateSaved=false mStopped=false mDestroyed=false

@@ -1,0 +1,7 @@
+--------- beginning of system
+09-09 11:28:09.388  2434  4129 W ActivityTaskManager: Force removing ActivityRecord{152630005 u0 com.kalsa.app/.MainActivity t373 f}}: app died, no saved state
+09-09 11:28:09.583  2434  7017 W ActivityTaskManager: callingPackage for (uid=2000, pid=7039) has no WPC
+09-09 11:28:09.604  2434  7017 I ActivityTaskManager: START u0 {act=android.intent.action.SEND typ=text/plain flg=0x10000000 xflg=0x4 cmp=android/com.android.internal.app.ResolverActivity (has extras)} with LAUNCH_MULTIPLE from uid 2000 (BAL_ALLOW_PERMISSION) result code=0
+09-09 11:28:10.343  2434  3137 I ActivityTaskManager: done cause=notifyTransitionStarting drawn timestamp=14108828954877 info=TransitionInfo{bd81188 a=ActivityRecord{100939542 u0 android/com.android.internal.app.ResolverActivity t374} d=true}
+--------- beginning of main
+09-09 11:28:10.345  2434  3133 I ActivityTaskManager: Displayed android/com.android.internal.app.ResolverActivity for user 0: +756ms

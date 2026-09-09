@@ -1,0 +1,8 @@
+    mFocusedWindow=android/com.android.internal.app.ResolverActivity
+      Window #3: WindowStateAnimator{8a06bd7 android/com.android.internal.app.ResolverActivity}
+  mCurrentFocus=Window{202694b u0 android/com.android.internal.app.ResolverActivity}
+  mFocusedApp=ActivityRecord{100939542 u0 android/com.android.internal.app.ResolverActivity t374}
+      mPreferredTopFocusableRootTask=Task{ca5ea84 #374 type=standard I=android/com.android.internal.app.ResolverActivity}
+      mLastFocusedRootTask=Task{ca5ea84 #374 type=standard I=android/com.android.internal.app.ResolverActivity}
+      * Task{ca5ea84 #374 type=standard I=android/com.android.internal.app.ResolverActivity U=0 visible=true visibleRequested=true mode=fullscreen translucent=true sz=1}
+        * ActivityRecord{100939542 u0 android/com.android.internal.app.ResolverActivity t374}

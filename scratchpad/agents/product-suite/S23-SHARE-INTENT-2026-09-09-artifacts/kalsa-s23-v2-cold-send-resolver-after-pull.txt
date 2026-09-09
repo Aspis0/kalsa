@@ -1,0 +1,1 @@
+/sdcard/kalsa_v2_cold_send_resolver_after.xml: 1 file pulled, 0 skipped. 0.7 MB/s (18757 bytes in 0.024s)
