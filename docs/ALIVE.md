@@ -528,6 +528,7 @@ Plan: `kalsa/docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`. Detail and eviden
 | **G1 Mac, blind judges v2 + v2b (app tool-loop semantics)** | the 18 rows the round-cap had emptied, re-judged fresh by both judges, merged into v2 | **A: LFM 34 / MiniCPM5 13 / tie 13; B: 30 / 15 / 15** (means 3.57 vs 3.18, 3.72 vs 3.22) | 18 rows judged in a separate session; 17/18 are LFM-side repairs; MiniCPM5 `@256` has 2/44 bare-`>` answers from the thinking-budget cut |
 | **G1 Mac, MiniCPM5 thinking budget (v2c)** | MiniCPM5 at budget 1024 and unbounded vs LFM v2b, 60 rows, both judges, fresh A/B | **LFM 28/15/17 and 27/13/20 (@1024); 26/17/17 and 24/15/21 (unbounded)**; deterministic 33/44 at both; 0/60 bare-`>` | budget moves 2-4 rows, wild block only; bake-off gap (fabrications, language drift) unchanged → budget REFUTED as the cause; Q8_0 cell (v2d) next to separate quant from behaviour |
 | **G1 Mac, MiniCPM5 quantisation (v2d)** | MiniCPM5 Q8_0, unbounded thinking, vs LFM v2b, 60 rows, both judges | **LFM 24/16/20 (deepseek), 26/13/21 (mimo)**; deterministic 31/44 (Q4_K_M 33/44) | same failure classes at 8 bit → quantisation REFUTED as the cause; remaining lever for MiniCPM5 is fine-tuning, post-G1 |
+| **Jelly, three app fixes on a36074e** | shipped LFM, USB, 30 °C start | prefill budget live: prewarm 1832 tok / 53.7 s = 34 tok/s → `budgetTokens 653`; large PDF (26 655 tok) → retrieve, small (489) → retrieve at the hot-run budget 344; session after a tool turn: `mark_prefix ok`, relaunch `load ok tokens 2161`, turn 3 `n_common=2161`, `promptMs 32 s` vs ~120 s cold | the two document answers ended `interrupted=true` (harness poll/timeout, not the fix); large-doc answer began in English to an Italian question (open) |
 | **G1 Mac, harness artefacts** | three, in opposite directions | prompt forced locale language (hurt MiniCPM5, fixed on main f77ea7b); no tool schemas offered (hurt LFM: raw tool syntax 15/44); 2-round cap without forced synthesis (hurt LFM: 14/60 empty) | only v2b counts for G1 |
 | **G1 Mac, language drift with the fixed prompt** | wild block, es/fr/de/pt/zh/ja + it/en | MiniCPM5 3/9 non-en/it prompts answered in English (W01, W02 es; W16 ja); LFM 0/9 | heuristic language detector |
 | **MiniCPM5 quants (Mac)** | PPL on one text, fork llama-perplexity | Q8_0 22.34 · Q4_K_M 23.55 · **Q4_K_M-imx 23.36** · Q4_0 26.19 · Q4_0-imx 24.64 | one text, one ctx; calibration disjoint from the G1 corpus |
@@ -3941,4 +3942,16 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   script non modificato: percorso di invio integro. Fix in corso (uguaglianza sul testo intero, OUT prima del source,
   watchdog che esce al terzo fallimento consecutivo, no re-run di C01), righe fallite rimosse lato host e conservate in
   `s23/lfm.out.send_failed-2026-09-09.jsonl`, braccio LFM ripartito col gate termico del protocollo (telefono a 41 °C).
+
+- **9/09 ~17:35 EDT — I TRE FIX DELL'APK a36074e VERIFICATI SUL JELLY** (Luna e1b923b9,
+  `product-suite/JELLY-FIXES-a36074e-2026-09-09.md`). **A, budget di prefill: funziona come da specifica.** Il prewarm
+  LFM (1832 token, 53,7 s a 30 °C = 34 tok/s) entra nell'EMA → `budgetTokens 653`; il PDF grande (26 655 token) va a
+  `retrieve`; il PDF piccolo (489 token) va a `retrieve` perché nel frattempo l'EMA è scesa a 17 tok/s (telefono caldo)
+  → budget 344 < 489. Prima sarebbe andato in `full_context`. TTFT 39 s e 30 s. Due residui non del fix: entrambe le
+  risposte chiuse `interrupted=true` (poll/timeout dell'harness) e la risposta sul manuale inglese è partita in inglese a
+  una domanda italiana (deriva di lingua di LFM su documento inglese: aperto). **B, sessione dopo turno con tool: PASS.**
+  Turno 1 `save ok`; turno 2 col PDF `mark_prefix ok` (usedTokens 3200) e nessun `save ok`; force-stop → riapertura
+  `load ok tokens 2161`; turno 3 `n_common=2161`, `promptMs 32,2 s` contro ~120 s a freddo. **C: PASS**, il prewarm LFM
+  logga timing reali. Nota di misura: LFM prefill 34 tok/s a 30 °C contro 15,9 misurato a caldo stamattina → ogni
+  numero di prefill sul Jelly va letto con la temperatura accanto.
 

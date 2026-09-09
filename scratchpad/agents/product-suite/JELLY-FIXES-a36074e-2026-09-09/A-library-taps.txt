@@ -1,0 +1,2 @@
+tap Documento in libreria bounds [350,650][461,679], center 405,665
+tap library large row text bounds [76,445][461,517], center 240,480

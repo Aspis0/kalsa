@@ -1,0 +1,3 @@
+active=conv-1788988052804-c38m9noa baseline_bytes=0 question=Di cosa parla il documento (adb input text; punctuation omitted)
+tap send bounds after keyboard dismissal [402,780][451,830]
+send_host=2026-09-09 17:08:50 EDT

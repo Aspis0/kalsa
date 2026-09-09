@@ -1,0 +1,9 @@
+host=2026-09-09 16:52:41 EDT
+Starting: Intent { act=android.intent.action.SEND typ=application/pdf flg=0x1 cmp=com.kalsa.app/.MainActivity (has extras) }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+rc=0
+issued=2026-09-09 16:52:41 EDT
+cold_send_start=2026-09-09 16:53:21 EDT
+Starting: Intent { act=android.intent.action.SEND typ=application/pdf flg=0x1 cmp=com.kalsa.app/.MainActivity (has extras) }
+cold_rc=0
+issued=2026-09-09 16:53:21 EDT

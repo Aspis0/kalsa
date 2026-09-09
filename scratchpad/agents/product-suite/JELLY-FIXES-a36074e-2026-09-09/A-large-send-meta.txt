@@ -1,0 +1,4 @@
+active=conv-1788986990548-537agchi
+baseline_bytes=0
+send_tap_bounds=[402,472][451,522]
+send_host=2026-09-09 16:57:23 EDT

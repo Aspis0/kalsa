@@ -1,0 +1,2 @@
+diagnostic send tap on physical-key input bounds [402,472][451,522]
+tap=2026-09-09 17:05:41 EDT

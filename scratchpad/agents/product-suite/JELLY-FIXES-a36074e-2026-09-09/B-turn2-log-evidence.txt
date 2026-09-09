@@ -1,0 +1,5 @@
+09-09 17:22:42.882 16449 16472 I ReactNativeJS: KALSA_DOC_STRATEGY {"strategy":"retrieve","estTokens":489,"ctx":16384,"budgetTokens":375,"tokPerSec":18.772098677329765}
+09-09 17:22:42.917 16449 16531 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=9 text_tokens=10 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d289a10
+09-09 17:22:42.954 16449 16525 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=2161 text_tokens=2651 n_common=2161 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d298470
+09-09 17:25:47.283 16449 16472 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":3200,"tokensEvaluated":2651,"tokensPredicted":548,"draftTokens":0,"draftAccepted":0,"promptMs":21963.638,"predictedMs":162034.40699999998,"predictedPerSecond":3.3819977506382335,"contextFull":false,"interrupted":false,"tool":"document_chat","strategy":"hybrid","ciswireFlags":4}
+09-09 17:25:47.360 16449 16472 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":14,"ok":true,"estimatedBytes":209715200,"usedTokens":3200,"reason":"last_exchange_prefix"}

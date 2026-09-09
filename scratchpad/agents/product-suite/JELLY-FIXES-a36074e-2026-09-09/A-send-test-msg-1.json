@@ -1,0 +1,1 @@
+[{"id":"u-141096286","role":"user","text":"Di Cosa parla il documento/d","createdAt":1788988017196,"attachments":[{"id":"pdf-141096285","kind":"pdf","name":"kalsa-v2-large-asterion-manual.pdf","uri":"","pageCount":5}]},{"id":"a-141096287","role":"assistant","text":"⚠️ Multimodal support not enabled. Call initMultimodal first.","createdAt":1788988017196}]

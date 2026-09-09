@@ -1,0 +1,2 @@
+tap reload model status bounds [25,79][357,137], center 180,105
+tap=2026-09-09 17:04:10 EDT

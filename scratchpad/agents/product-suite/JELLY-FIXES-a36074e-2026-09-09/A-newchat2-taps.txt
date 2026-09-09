@@ -1,0 +1,1 @@
+retry tap Nuova chat parent [42,347][438,414], center 240,380

@@ -1,0 +1,5 @@
+host_start=1788986797.997502000
+start_iso=2026-09-09 16:46:38.3N EDT
+logcat_pid=15437
+Starting: Intent { cmp=com.kalsa.app/.MainActivity }
+launch_issued=2026-09-09 16:46:39.3N EDT

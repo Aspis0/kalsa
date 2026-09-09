@@ -1,0 +1,4 @@
+tap paperclip (bounds [92,780][142,830], center 117,805)
+tap PDF o Word (visible text bounds [76,754][221,790], row center 200,772)
+tap large file (DocumentsUI bounds [99,426][568,465], row center 300,448)
+tap_issued=2026-09-09 16:55:04 EDT

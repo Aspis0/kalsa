@@ -1,0 +1,2 @@
+tap send after hiding keyboard bounds expected [402,780][451,830]
+tap=2026-09-09 17:06:57 EDT

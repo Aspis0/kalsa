@@ -1,0 +1,4 @@
+host=2026-09-09 16:50:14 EDT
+Starting: Intent { act=android.intent.action.VIEW dat=kalsa://share/... cmp=com.kalsa.app/.MainActivity }
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+issued=2026-09-09 16:50:14 EDT
