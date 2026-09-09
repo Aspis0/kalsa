@@ -22,6 +22,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~08:40 EDT — G1 BLOCCHI COMPLETI (commit moe-exp) + DIFETTO DI PRODOTTO NEL PROMPT**: wild deterministico
+  LFM 11/14 vs MiniCPM5 6/14; bake-off 44 domande dell'owner MiniCPM5 30/44 vs LFM 25/44 (@256; @512 29 vs 23; MiniCPM
+  vince fermi 4/4 vs 1/4 e local_knowledge 3/4 vs 1/4, LFM vince absurd_gift e format); estesa 3/4 entrambi (I11).
+  Letti i FAIL wild a mano: W19/W24/W28 sono risposte buone bocciate da check rigidi (NON si allentano: restano
+  registrati), W20/W25 impossibili per entrambi. Segnale vero: **MiniCPM5 risponde in inglese a prompt es/zh/ja
+  (7/9) e scrive "I must answer in English per my language rules"** → il prompt di sistema spedito (`en.ts:1087`)
+  dice "Write all natural-language answer text … in English" (it.ts: "in italiano"): il modello OBBEDISCE, LFM
+  disobbedisce e risponde nella lingua dell'utente. È un difetto dell'app per un utente umano (telefono in EN,
+  utente scrive in spagnolo → risposta in inglese). Fix in corso (Luna: "nella lingua in cui scrive l'utente,
+  fallback locale"), poi wild v2 con il prompt nuovo per entrambi. Difetti veri di MiniCPM5 restati: W02 rifiuto
+  immotivato (riscrittura in spagnolo), W23 inglese a un prompt italiano, W10 perde il nome. LFM: W16 ja→en.
+  Giudizio cieco in corso su 72 righe con due giudici indipendenti (deepseek 5b79eee5, mimo 020b69f0), chiave
+  in `results/judge-key.json` mai aperta dai giudici. Il verdetto wild-multilingue sotto il prompt vecchio va
+  letto come "obbedienza al prompt", non come qualità linguistica.
 - **9/09 ~08:10 EDT — MiniCPM5 NELL'APP: main@7836db7** (`dev-minicpm5-2b`, opt-in via `/bench devmodels on`;
   Luna 80b2da28, audit deepseek 2ca5328c in due round → SHIP). Nessuna modifica al motore: il parser MiniCPM5 è
   già nel fork/overlay. Aggiunto `ModelInfo.sha256` opzionale: verifica UNA volta dopo il download o lazy per un
