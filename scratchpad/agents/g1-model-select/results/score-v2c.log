@@ -1,0 +1,6 @@
+1024: report_rc=0 score_file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/results/score-v2c-1024.txt
+1024: wild_rubric_rows=16 (excluded from deterministic pass rate)
+1024: bakeoff score is in results/score-v2c-1024.txt
+nobudget: report_rc=0 score_file=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/results/score-v2c-nobudget.txt
+nobudget: wild_rubric_rows=16 (excluded from deterministic pass rate)
+nobudget: bakeoff score is in results/score-v2c-nobudget.txt

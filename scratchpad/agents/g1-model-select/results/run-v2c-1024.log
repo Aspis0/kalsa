@@ -1,0 +1,3 @@
+wrote=results/wild-v2c/minicpm@1024.jsonl rows=16 errors=0 budget=1024
+wrote=results/bakeoff-v2c/minicpm@1024.jsonl rows=44 errors=0 budget=1024
+v2c complete budget=1024

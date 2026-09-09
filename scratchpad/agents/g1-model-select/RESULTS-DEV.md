@@ -147,6 +147,21 @@ Corrected tool-call distributions (calls per response round, including fallback 
 
 Corrected commands: `bash run_v2b.sh lfm samplers/lfm.json` rc=0; `bash run_v2b.sh minicpm samplers/minicpm.json` rc=0; `python3 score_v2b.py` rc=0; `python3 make_judge_pack_v2b.py` rc=0; final pack/output validation rc=0.
 
+## v2c: MiniCPM5 thinking-budget cell
+
+MiniCPM5 only, same Q4_K_M model, v2 prompt snapshots, `tools-app-default.json`, and app loop. The 1024 cell sent `thinking_budget_tokens: 1024`. The `nobudget` cell omitted `thinking_budget_tokens`; this fork documents omission/default `-1` as unrestricted. Both retained `samplers/minicpm.json` sampling and `max_tokens: 1024`.
+
+| budget | bake-off deterministic | en | it | es | fr | wild |
+|---|---:|---:|---:|---:|---:|---:|
+| 1024 | 33/44 (75%) | 9/11 | 8/11 | 8/11 | 8/11 | 16 rubric |
+| nobudget | 33/44 (75%) | 9/11 | 8/11 | 8/11 | 8/11 | 16 rubric |
+
+Wild rows are excluded from deterministic pass rates and remain for blind judging. Empty model answers: 1024 `0`; nobudget `0`. Bare-`>` model answers: 1024 `0`; nobudget `0`. Reasoning tokens use `sum(timings.predicted_n)` minus exact visible-answer token count from the server `/tokenize` endpoint; p90 is inclusive interpolation: 1024 median `157.5`, p90 `717.1`, max `3751`; nobudget median `186.5`, p90 `717.1`, max `3751`.
+
+Phone cost estimate from reasoning tokens: 1024 S23 median/p90 `24.23/110.32 s` at 6.5 tok/s, Jelly `35.00/159.36 s` at 4.5 tok/s; nobudget S23 `28.69/110.32 s`, Jelly `41.44/159.36 s`.
+
+Both cells completed 60 rows with zero HTTP errors; median row wall time was 7297 ms at 1024 and 8255 ms unbounded. Blind packs (fresh per-row A/B mappings) are `results/judge-pack-v2c-1024.jsonl` with `results/judge-key-v2c-1024.json`, and `results/judge-pack-v2c-nobudget.jsonl` with `results/judge-key-v2c-nobudget.json`. Scores are in `results/score-v2c-1024.txt` and `results/score-v2c-nobudget.txt`.
+
 ## v2b blind judging, merged into v2 (2026-09-09 ~15:40 EDT)
 
 The 18 affected rows (`results/judge-pack-v2b.jsonl`, same per-row A/B mapping as v2 — `judge-key-v2b.json` agrees with `judge-key-v2.json` on all 18) were re-judged fresh by the same two judges (`judge-A-deepseek-v2b.jsonl`, `judge-B-mimo-v2b.jsonl`, 18/18 each). Unblinded by the orchestrator; the 18 v2b verdicts replace the v2 verdicts for those rows, the other 42 rows keep their v2 verdicts.
@@ -167,3 +182,15 @@ Per block, merged: bakeoff (44) deepseek 23/8/13, mimo 23/7/14; wild (16) deepse
 Caveats, all real: the 18 rows were judged in a separate session from the other 42 (a session effect is possible; both judges move the same way); 17 of the 18 are LFM-side repairs, so the flip measures what the harness round-cap had been costing LFM, not new MiniCPM5 weakness; wild rows are single-language and few.
 
 Artefact still in the pack, MiniCPM5 side: `bakeoff/fact_spa2000/fr` and `bakeoff/honesty_unknown/en` at `@256` have a bare `>` as the whole answer (`results/bakeoff-v2/minicpm@256.jsonl`, `finish=stop`, `predicted_n=258`, reasoning present): the 256-token thinking budget cut the reasoning and the forced close left `>` as content. 2/44 at `@256`, 0/44 at `@512`, 0 for LFM. This is a product risk for MiniCPM5 on the app's short budget (256), and a budget-enforcement/parser question for the fork, not a judging error.
+
+## v2c final appended record
+
+MiniCPM5 v2c deterministic table: 1024 = bake-off `33/44 (75%)`, en `9/11`, it `8/11`, es `8/11`, fr `8/11`; nobudget = bake-off `33/44 (75%)`, en `9/11`, it `8/11`, es `8/11`, fr `8/11`. The 16 wild rows per cell are rubric-only and excluded from deterministic rates.
+
+Budget semantics: 1024 sent `thinking_budget_tokens: 1024`; nobudget omitted it, using the fork's documented default `-1` unrestricted. Both used the app prompt, seven default tools, v2b app loop, MiniCPM5 Q4_K_M, and sampler `samplers/minicpm.json` with `max_tokens: 1024`.
+
+Model-visible empty/bare-`>` answers: 1024 `0/60` empty, `0/60` bare `>`; nobudget `0/60`, `0/60`. Reasoning tokens were `sum(timings.predicted_n)` minus exact `/tokenize` visible-answer tokens: 1024 median `157.5`, p90 `717.1`, max `3751`; nobudget median `186.5`, p90 `717.1`, max `3751`.
+
+Phone cost at 6.5 tok/s S23 / 4.5 tok/s Jelly: 1024 median/p90 `24.23/110.32 s` / `35.00/159.36 s`; nobudget `28.69/110.32 s` / `41.44/159.36 s`.
+
+Outputs: `results/wild-v2c/`, `results/bakeoff-v2c/`; scores: `results/score-v2c-1024.txt`, `results/score-v2c-nobudget.txt`; blind packs and fresh keys: `results/judge-pack-v2c-1024.jsonl` + `results/judge-key-v2c-1024.json`, and `results/judge-pack-v2c-nobudget.jsonl` + `results/judge-key-v2c-nobudget.json`. No blind judging was performed.

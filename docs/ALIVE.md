@@ -3893,3 +3893,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (`recordPrefillSample`, a36074e), quindi il budget del document chat sul Jelly parte da ~350 token invece del
   fallback 800.
 
+- **9/09 ~17:00 EDT — CELLA v2c (MAC): IL BUDGET DI THINKING NON SPOSTA IL PUNTEGGIO DETERMINISTICO DI MiniCPM5, MA
+  TOGLIE L'ARTEFATTO** (Luna 131645cd, `g1-model-select/RESULTS-DEV.md` §v2c, `results/{bakeoff,wild}-v2c/`). Stesso
+  setup v2b, MiniCPM5 a budget 1024 e libero (`thinking_budget_tokens` omesso = default del fork −1), 60 righe ciascuno,
+  zero errori HTTP. Deterministico bake-off **33/44 a entrambi**, uguale al @512 (33) e quasi al @256 (32); LFM v2b 34.
+  Risposte vuote o `>`: **0/60** a entrambi (erano 2/44 a @256). Token di ragionamento: mediana 157 (1024) / 187 (libero),
+  p90 717, max 3751 → costo prima parola stimato a 6,5 tok/s sull'S23: mediana 24-29 s, p90 110 s; sul Jelly a 4,5:
+  35-41 s / 159 s. Lettura: la mediana sta sotto 256 anche a budget libero, è la coda (p90) che il 256 tagliava
+  lasciando `>`; la scelta del budget è un problema di coda e di UX, non di media. Giudizio cieco dei due pack
+  (MiniCPM5@1024 vs LFM v2b, MiniCPM5@libero vs LFM v2b) mandato a deepseek e mimo, mappe A/B fresche.
+
