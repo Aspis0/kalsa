@@ -1,0 +1,5 @@
+logcat_pid=10380
+terminal_found_elapsed_s=130
+terminal_seen=1
+foreground_ui_ready=1
+found=1

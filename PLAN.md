@@ -22,6 +22,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~15:00 EDT — FIX PREWARM VERIFICATO SUL JELLY (APK e168b4a, sha 3e59781e…): PASS** (Luna e1b923b9,
+  `JELLY-PREWARM-2026-09-09.md` §Re-measure). MiniCPM5 a freddo: `op=start 14:24:10.063 → op=done 14:26:06.523`
+  = 116,5 s (2112 token, 29 °C di partenza contro i 223 s a 47 °C della mattina), `promptMs=0/promptN=1` restano
+  diagnostici come previsto. HOME → foreground → nuova chat: nessun secondo `op=start` sullo stesso hash. Turno
+  caldo: `n_common=2263`, `tokensCached=2388/tokensEvaluated=2281`, `promptMs=2460`, 4,5 tok/s a 32 °C. L'unico
+  altro start (14:29:37) è un reload del motore nello stesso PID provocato da un tentativo di share sbagliato
+  dell'harness: reload → hash azzerato per design, non regressione. Il difetto "ogni modello denso rifà minuti
+  di prefill a ogni trigger" è chiuso sul device. Resta il follow-up nel fork (sync prima dei timing) per avere
+  `promptMs` veri nei log dei prewarm densi.
 - **9/09 ~14:40 EDT — FIX PREWARM COMMITTATO: `e168b4a` su main** (Luna 53f7ade9, audit mimo 9f763325: 0 rilievi
   bloccanti, criterio CONFERMATO su decode fallita / interrupt / prefisso pieno / context full). Criterio nuovo in
   `src/engine/prefixPrewarm.ts::classifyPrewarmResult`: nessun errore nativo, non interrotto, zero token generati,

@@ -1,0 +1,2 @@
+kalsa.bench.devmodels|1
+kalsa.model.id|dev-minicpm5-2b

@@ -1,0 +1,5 @@
+logcat_pid=11321
+turn_start_epoch=1788978543
+share_rc=0
+baseline_assistant_count=7
+share_rc=1

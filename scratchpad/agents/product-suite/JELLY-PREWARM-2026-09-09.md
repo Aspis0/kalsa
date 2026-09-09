@@ -41,3 +41,20 @@ Chain, all quoted from `kalsa/node_modules/llama.rn/cpp` at fork pin 67c73d26c:
 So the numbers to keep are wall times: MiniCPM5 2112 tok / 223.5 s (9.4 tok/s), LFM 1832 tok / 115.5 s (15.9 tok/s) on the Jelly, skin 47 °C during MiniCPM5. Whether the 1.7× gap (S23: ~3×) is the Q4_K repack path (`q4_K_8x4`, no i8mm on MT6789) is a separate question for the G1 device sweep.
 
 Fix in flight: app criterion no longer depends on `prompt_ms` (Paseo agent 53f7ade9). Follow-up in the fork: `llama_synchronize` before `llama_perf_context` in `JSICompletion.h` so `n_predict=0` timings are real.
+
+## Re-measure on e168b4a
+
+MiniCPM5 (`dev-minicpm5-2b`) on USB `JELLYS0000053795`; `kalsa.bench.devmodels=1`; battery 29°C at cold launch and 32°C before the turn. Full unfiltered captures and raw RKStorage reply are under `JELLY-PREWARM-2026-09-09/fix-e168b4a/`.
+- Cold prewarm wall: `14:24:10.063` → `14:26:06.523` = **116.460 s**. Quoted lines: `09-09 14:24:10.063 ... 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'`; `09-09 14:26:06.523 ... 'KALSA_PREWARM', '{"op":"done","promptMs":0,"promptN":1,"hash":"3586270056"}'`. No `tokensCached`/`tokensEvaluated` fields were emitted.
+- Native evidence: `09-09 14:24:08.836 ... llama_context: n_batch = 512`; same timestamp `n_ubatch = 256`; `09-09 14:24:09.842 ... Attached ggml threadpool (n_threads=2, n_threads_batch=8)`; `09-09 14:24:09.982 ... KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}`; `09-09 14:24:10.093 ... KALSA_KVPREFIX embd=0 text_tokens=2112 n_common=0`.
+- After `done`, HOME → foreground → `Nuova chat` tap (`new-chat-tap.txt`, `436 171`) produced no additional `KALSA_PREWARM` line in `cold-transition-logcat-threadtime-full.txt`.
+- For completeness, the first share-helper attempt was run under the wrong shell and delivered the URI but not the text; its recovery capture records the only later start/done pair: `09-09 14:29:37.083 ... 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'`; `09-09 14:32:03.241 ... 'KALSA_PREWARM', '{"op":"done","promptMs":0,"promptN":1,"hash":"3586270056"}'`.
+- Corrected Bash warm turn reply (verbatim in `turn-retry/reply-verbatim.txt`): “Ciao! Sono un assistente AI privato di Kasa, pensato per essere sempre a tu disposizione su questo dispositivo. Non ho accesso a internet, account o tracciamento — resto puramente sul tuo dispositivo. Se hai bisogno di aiuto, puoi chiedermi qualsiasi cosa!”
+- Corrected-turn prewarm lines: `09-09 14:33:21.796 ... 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'`; `09-09 14:33:21.810 ... 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'`.
+- Warm native/telemetry: `09-09 14:33:21.859 ... KALSA_KVPREFIX embd=2263 text_tokens=2281 n_common=2263`; `09-09 14:33:47.852 ... KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":2388,"tokensEvaluated":2281,"tokensPredicted":106,"draftTokens":0,"draftAccepted":0,"promptMs":2459.841,"predictedMs":23309.704,"predictedPerSecond":4.547462292957474,"contextFull":false,"interrupted":false,"ciswireFlags":4}`. No native `llama_perf`/prompt-eval timing line was emitted.
+
+Verdict: PASS — e168b4a correctly reports MiniCPM5 prewarm `done` despite diagnostic `promptMs=0/promptN=1`, the prescribed foreground/new-chat transition caused no second start, and warm-turn `n_common=2263` proves KV reuse; the later share-induced restart was a separate harness attempt and is fully recorded above.
+
+### Parent note on the 14:29:37 second start (orchestrator)
+
+Same PID 4246, so no app restart: at `14:29:36.7` the engine was re-created in-process (`sched_reserve`, `attach_threadpool`, `KALSA_SESSION load … no_file`), which is what the harness's wrong-shell share attempt did to the activity. A model reload nulls `prewarmPrefixHash` by design (`LlamaService.ts:690-691`), so that prewarm is expected, not a regression. The prescribed transition (HOME → foreground → new chat) produced no second start. Verdict PASS stands.
