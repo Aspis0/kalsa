@@ -22,6 +22,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~10:55 EDT — GIUDICI v2 ENTRAMBI SBLINDATI (committati)**: A deepseek = LFM 25 / MiniCPM5 22 / pari 13;
+  B mimo = MiniCPM5 24 / LFM 23 / pari 13; accordo 43/60. **Escludendo le 14 righe con finale LFM vuoto (artefatto
+  round-cap, in rifacimento v2b)**: A = LFM 25 / MiniCPM5 11 / pari 10; B = LFM 21 / MiniCPM5 15 / pari 10. Quindi
+  sulle righe in cui LFM ha risposto davvero, col prompt corretto e i tool offerti, LFM è avanti nelle risposte
+  aperte; il vantaggio MiniCPM5 di v2 veniva dai vuoti. Le medie (MiniCPM5 3,1 vs LFM 2,8) sono trascinate dagli
+  stessi vuoti. Nessun verdetto prima di v2b + pass sui telefoni (24 casi × 3) del 14-15/09.
 - **9/09 ~10:40 EDT — GIUDICE B v2 SBLINDATO + TERZO ARTEFATTO (contro LFM)**: mimo v2 = MiniCPM5 24 / LFM 23 /
   pari 13, media 3,17 vs 2,77; senza multilingue MiniCPM5 20 / LFM 16 / pari 12; multilingue LFM 7 / MiniCPM5 4.
   Ma **14 risposte finali LFM su 60 sono VUOTE** (tutte bake-off: fact_spa2000, honesty_unknown, fermi, local_knowledge,
