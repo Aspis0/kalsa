@@ -22,6 +22,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~08:00 EDT — §3 RICOGNIZIONE SESSIONE FATTA (deepseek, verificata a campione; report
+  `scratchpad/agents/session-contract/RECON-MAIN-332aeed.md`)**: save/restore esistono e sono ben protetti sul
+  percorso CPU (hash del prefisso, meta sidecar, guardia `resumable` contro il falso-warm dell'issue upstream 25913,
+  checkpoint di stato per gli ibridi = fix di §7.29). Sette buchi in ordine di impatto: (1) **ogni turno con tool
+  rende la sessione non salvabile** (`kvReproState=tool_calls_detected` :3188 → save saltato :2117) → riapertura
+  FREDDA per ogni chat che ha usato un tool, e `document_chat` È un tool: il RAG perde sempre il restore;
+  (2) prewarm ed estrazione memoria renderizzano senza thinking (:783, :3888), i turni veri con thinking → possibile
+  miss del prefisso, da misurare (test 12); (3) `translateText`/`completeOnce` fanno clearCache e distruggono la KV
+  della chat; (4) quant/template/versione motore NON sono nell'identità della sessione; (5) Stop non salva;
+  (6) identità dello stato ricorrente mai verificata al restore; (7) nessuna riga "token riusati": si deriva da
+  `tokensCached`+`promptMs`. Dodici casi obbligatori per la suite device elencati nel report. In corso: protocollo
+  restore sull'S23 in config di spedizione (Luna 6c0dfc7f) e document chat E2E sul Jelly (Luna e1b923b9).
+  Inventario feature (mimo 80edb3d8): sulla carta c'è quasi tutto (edit/regen, stop, documenti, tool, memoria, voce,
+  vision, auto-release, compattazione), quasi niente provato sui telefoni col modello spedito.
 - **9/09 ~07:30 EDT — L'APP NON ASPETTA G1 (owner: "aspettare il confronto serve a decidere il modello, ma l'app in sé no")**:
   partono in parallelo i lavori del piano chat che non dipendono dal modello scelto, tutti via Paseo:
   (1) **voce dev-catalog MiniCPM5-2B Q4_K_M nell'app** (Luna 80b2da28; riga "10–11 set" della timeline §12; il fork al
