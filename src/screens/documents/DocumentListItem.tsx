@@ -45,10 +45,16 @@ export function DocumentListItem({ doc, drag, isActive, onOpen }: Props) {
   if (isUnreadable(doc)) {
     meta = t("documents.unreadable");
   } else if (doc.kind === "pdf" && typeof doc.pageCount === "number" && doc.pageCount > 0) {
-    meta =
+    const pages =
       doc.pageCount === 1
         ? t("documents.pageCountOne")
         : t("documents.pageCount", { count: doc.pageCount });
+    meta =
+      doc.truncated &&
+      typeof doc.processedPageCount === "number" &&
+      doc.processedPageCount < doc.pageCount
+        ? `${pages} (${doc.processedPageCount}/${doc.pageCount})`
+        : pages;
   } else {
     meta = t("documents.sizeOnly", { size: sizeLabel });
   }

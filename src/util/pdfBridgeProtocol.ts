@@ -24,8 +24,11 @@ import type { PdfTextItem } from "./pdfText";
 
 // ── Caps (hostile-PDF / phone-memory bounds) ───────────────────────────────
 
-/** Match existing PdfToImages default — vision token budget + phone RAM. */
+/** Vision bound — JPEG pages are injected into the model and kept phone-safe. */
 export const MAX_PDF_PAGES = 5;
+
+/** Text bound — hostile-PDF backstop, separate from the vision page budget. */
+export const MAX_PDF_TEXT_PAGES = 200;
 
 /**
  * pdf.js can emit huge item arrays for crafted PDFs. Cap before RN holds them.
@@ -82,10 +85,13 @@ export const MAX_CHUNKS_PER_PAGE = maxChunksForPayload(
 export const PAGE_TIMEOUT_MS = 30_000;
 
 /**
- * Whole-document budget: text pass for up to MAX_PDF_PAGES plus optional JPEG
- * fallback for text-less pages (same per-page timeout headroom).
+ * Whole-document budget: hard product bound for a phone, NOT derived from the
+ * page cap. A 200-page text pass must not hold the tool call for ~100 min;
+ * on fire the component delivers the partial text extracted so far with
+ * truncated=true (graceful path), so the bound can stay short. A hung page is
+ * caught earlier by PAGE_TIMEOUT_MS (per-page liveness, silence-based).
  */
-export const TOTAL_EXTRACTION_TIMEOUT_MS = 150_000;
+export const TOTAL_EXTRACTION_TIMEOUT_MS = 180_000;
 
 // ── Message types ──────────────────────────────────────────────────────────
 
@@ -146,8 +152,10 @@ export type TextPageDoneMessage = {
 export type TextPassDoneMessage = {
   kind: "textPassDone";
   pageCount: number;
-  /** Real document page count from pdf.js (not clamped to MAX_PDF_PAGES). */
+  /** Real document page count from pdf.js (not clamped to the text cap). */
   documentPageCount?: number;
+  /** True when a text page or total-text budget stopped the pass early. */
+  truncated?: boolean;
 };
 
 export type BridgeMessage =
@@ -268,7 +276,7 @@ export function parseBridgeMessage(raw: unknown): ParseResult {
 
   // Text-mode messages (discriminated by kind) — check before bare shapes.
   if (m.kind === "textChunk") {
-    const fields = parseChunkFields(m, MAX_PDF_PAGES, MAX_CHUNKS_PER_PAGE);
+    const fields = parseChunkFields(m, MAX_PDF_TEXT_PAGES, MAX_CHUNKS_PER_PAGE);
     if (!fields.ok) return fields;
     return {
       ok: true,
@@ -286,7 +294,7 @@ export function parseBridgeMessage(raw: unknown): ParseResult {
     if (!isPosInt(m.page)) {
       return malformed("bad_page");
     }
-    if (m.page > MAX_PDF_PAGES) {
+    if (m.page > MAX_PDF_TEXT_PAGES) {
       return cap("page_cap");
     }
     const getTextContentMs =
@@ -329,7 +337,7 @@ export function parseBridgeMessage(raw: unknown): ParseResult {
     if (!isNonNegInt(m.pageCount)) {
       return malformed("bad_page_count");
     }
-    if (m.pageCount > MAX_PDF_PAGES) {
+    if (m.pageCount > MAX_PDF_TEXT_PAGES) {
       return cap("page_cap");
     }
     let documentPageCount: number | undefined;
@@ -337,8 +345,15 @@ export function parseBridgeMessage(raw: unknown): ParseResult {
       if (!isNonNegInt(m.documentPageCount)) {
         return malformed("bad_document_page_count");
       }
-      // Hard sanity bound only — not MAX_PDF_PAGES (real docs can be huge).
+      // Hard sanity bound only — not the text page cap (real docs can be huge).
       documentPageCount = Math.min(m.documentPageCount, 1_000_000);
+    }
+    let truncated: boolean | undefined;
+    if (m.truncated !== undefined) {
+      if (typeof m.truncated !== "boolean") {
+        return malformed("bad_truncated");
+      }
+      truncated = m.truncated;
     }
     return {
       ok: true,
@@ -346,6 +361,7 @@ export function parseBridgeMessage(raw: unknown): ParseResult {
         kind: "textPassDone",
         pageCount: m.pageCount,
         ...(documentPageCount !== undefined ? { documentPageCount } : {}),
+        ...(truncated !== undefined ? { truncated } : {}),
       },
     };
   }
@@ -412,7 +428,12 @@ export type TextPageMeta = {
 export type AccumulatorEvent =
   | { type: "image_page"; page: number; base64: string }
   | { type: "text_page"; page: number; items: ProjectedTextItem[]; meta: TextPageMeta }
-  | { type: "text_pass_done"; pageCount: number; documentPageCount?: number }
+  | {
+      type: "text_pass_done";
+      pageCount: number;
+      documentPageCount?: number;
+      truncated?: boolean;
+    }
   | { type: "global_done" }
   | { type: "error"; error: string }
   | { type: "cap_exceeded"; reason: string }
@@ -519,7 +540,7 @@ export function reconcileTextPassPages(
     typeof reportedPageCount === "number" &&
     Number.isFinite(reportedPageCount) &&
     reportedPageCount > 0
-      ? Math.min(Math.floor(reportedPageCount), MAX_PDF_PAGES)
+      ? Math.min(Math.floor(reportedPageCount), MAX_PDF_TEXT_PAGES)
       : 0;
   const expected: number[] = [];
   for (let p = 1; p <= n; p++) expected.push(p);
@@ -553,7 +574,7 @@ export function sanitizePdfSourceId(
   return safe.length > 0 ? safe : "pdf";
 }
 
-/** Floor maxPages: 0/NaN/negative → default; otherwise clamp to [1, MAX_PDF_PAGES]. */
+/** Floor a vision page request to [1, MAX_PDF_PAGES]. */
 export function clampMaxPages(
   maxPages: unknown,
   fallback: number = MAX_PDF_PAGES,
@@ -568,8 +589,26 @@ export function clampMaxPages(
   return Math.min(n, MAX_PDF_PAGES);
 }
 
+/** Floor a text page request to [1, MAX_PDF_TEXT_PAGES]. */
+export function clampMaxTextPages(
+  maxPages: unknown,
+  fallback: number = MAX_PDF_TEXT_PAGES,
+): number {
+  const fb =
+    typeof fallback === "number" && fallback >= 1
+      ? Math.min(Math.floor(fallback), MAX_PDF_TEXT_PAGES)
+      : MAX_PDF_TEXT_PAGES;
+  if (typeof maxPages !== "number" || !Number.isFinite(maxPages)) return fb;
+  const n = Math.floor(maxPages);
+  if (n < 1) return fb;
+  return Math.min(n, MAX_PDF_TEXT_PAGES);
+}
+
 export type AccumulatorOptions = {
+  /** Legacy alias: applies to both modes when the mode-specific options are absent. */
   maxPages?: number;
+  maxTextPages?: number;
+  maxVisionPages?: number;
   maxItemsPerPage?: number;
   maxTotalTextBytes?: number;
   maxPagePayloadBytes?: number;
@@ -582,7 +621,8 @@ export type AccumulatorOptions = {
  * duplicate chunk indices).
  */
 export class PdfBridgeAccumulator {
-  private readonly maxPages: number;
+  private readonly maxTextPages: number;
+  private readonly maxVisionPages: number;
   private readonly maxItemsPerPage: number;
   private readonly maxTotalTextBytes: number;
   private readonly maxPagePayloadBytes: number;
@@ -600,7 +640,12 @@ export class PdfBridgeAccumulator {
   private reportedTextPageCount = 0;
 
   constructor(opts: AccumulatorOptions = {}) {
-    this.maxPages = opts.maxPages ?? MAX_PDF_PAGES;
+    this.maxTextPages = clampMaxTextPages(
+      opts.maxTextPages ?? opts.maxPages,
+    );
+    this.maxVisionPages = clampMaxPages(
+      opts.maxVisionPages ?? opts.maxPages,
+    );
     this.maxItemsPerPage = opts.maxItemsPerPage ?? MAX_ITEMS_PER_PAGE;
     this.maxTotalTextBytes = opts.maxTotalTextBytes ?? MAX_TOTAL_TEXT_BYTES;
     this.maxPagePayloadBytes =
@@ -690,6 +735,11 @@ export class PdfBridgeAccumulator {
           ...(typeof message.documentPageCount === "number"
             ? { documentPageCount: message.documentPageCount }
             : {}),
+          ...(message.truncated === true ||
+          (typeof message.documentPageCount === "number" &&
+            message.documentPageCount > message.pageCount)
+            ? { truncated: true }
+            : {}),
         };
       }
     }
@@ -716,7 +766,7 @@ export class PdfBridgeAccumulator {
 
   private feedTextChunk(message: TextChunkMessage): AccumulatorEvent {
     const page = message.page;
-    if (page < 1 || page > this.maxPages) {
+    if (page < 1 || page > this.maxTextPages) {
       return { type: "cap_exceeded", reason: "page_out_of_range" };
     }
     if (this.textCompletedPages.has(page)) {
@@ -788,7 +838,7 @@ export class PdfBridgeAccumulator {
 
   private feedImageChunk(message: ImageChunkMessage): AccumulatorEvent {
     const page = message.page;
-    if (page < 1 || page > this.maxPages) {
+    if (page < 1 || page > this.maxVisionPages) {
       return { type: "cap_exceeded", reason: "page_out_of_range" };
     }
     if (this.imageCompletedPages.has(page)) {

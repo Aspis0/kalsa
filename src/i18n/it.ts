@@ -796,6 +796,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     documentChatNoDoc:
       "Nessun documento locale disponibile. Aggiungi un PDF o un TXT in Documenti, oppure passa docId.",
     documentChatDocNotFound: "Documento non trovato in libreria (id={id}).",
+    documentChatDocFallbackSingle:
+      "Documento richiesto «{id}» non trovato: uso l'unico documento in libreria, «{name}».",
     documentChatTimeout: "document_chat scaduto per timeout.",
     documentChatAborted: "document_chat interrotto.",
     documentChatFailed: "document_chat non riuscito.",

@@ -820,6 +820,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     documentChatNoDoc:
       "No local document is available. Add a PDF or TXT in Documents, or pass docId.",
     documentChatDocNotFound: "Document not found in the library (id={id}).",
+    documentChatDocFallbackSingle:
+      "Document not found in the library (id={id}); using the only available document “{name}” instead.",
     documentChatTimeout: "document_chat timed out.",
     documentChatAborted: "document_chat was aborted.",
     documentChatFailed: "document_chat failed.",

@@ -23,8 +23,13 @@
 
 import type { PdfRetrievalDocsResult } from "../util/pdfText";
 
-/** Slightly above PdfToImages TOTAL_EXTRACTION_TIMEOUT_MS (150s). */
-export const PDF_TEXT_SERVICE_TIMEOUT_MS = 160_000;
+/**
+ * Just above PdfToImages TOTAL_EXTRACTION_TIMEOUT_MS (180 s). The component's
+ * total timer fires first and delivers partial text (truncated=true); this
+ * backstop only catches a host that never delivers. Short by design: a phone
+ * tool call must not hang ~100 min while a 200-page pass crawls.
+ */
+export const PDF_TEXT_SERVICE_TIMEOUT_MS = 185_000;
 
 export type PdfTextRequestOpts = {
   /** Retrieval source id base (passed through to PdfToImages). */
@@ -289,6 +294,7 @@ function normalizeResult(result: PdfExtractionResult): PdfExtractionResult {
     ? result.skippedPages
     : [];
   const docCount = result?.documentPageCount;
+  const processedPageCount = result?.processedPageCount;
   return {
     docs: docs.map((d) => ({
       docId: typeof d?.docId === "string" ? d.docId : "",
@@ -303,5 +309,11 @@ function normalizeResult(result: PdfExtractionResult): PdfExtractionResult {
     docCount >= 1
       ? { documentPageCount: docCount }
       : {}),
+    ...(typeof processedPageCount === "number" &&
+    Number.isInteger(processedPageCount) &&
+    processedPageCount >= 0
+      ? { processedPageCount }
+      : {}),
+    ...(result?.truncated === true ? { truncated: true } : {}),
   };
 }

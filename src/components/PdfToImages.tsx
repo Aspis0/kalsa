@@ -6,6 +6,7 @@ import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import { useLocale } from "../i18n";
 import { useTypography } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
+import { addPdfExtractionMetadata } from "../documents/extractionScope";
 import {
   pageHasTextLayer,
   pdfPagesToRetrievalDocs,
@@ -20,11 +21,13 @@ import {
   MAX_ITEM_STR_CHARS,
   MAX_ITEMS_PER_PAGE,
   MAX_PAGE_PAYLOAD_BYTES,
+  MAX_TOTAL_TEXT_BYTES,
   MAX_PDF_PAGES,
   PAGE_TIMEOUT_MS,
   TOTAL_EXTRACTION_TIMEOUT_MS,
   PdfBridgeAccumulator,
   clampMaxPages,
+  clampMaxTextPages,
   parseBridgeMessage,
   reconcileTextPassPages,
   sanitizePdfSourceId,
@@ -32,8 +35,8 @@ import {
 } from "../util/pdfBridgeProtocol";
 
 /**
- * PdfToImages — renderizza un PDF locale in immagini JPEG (max 5 pagine)
- * usando pdf.js v3.11 (UMD) in una WebView dedicata.
+ * PdfToImages — renders vision PDFs as JPEGs (max 5 pages) and extracts text
+ * from up to 200 pages using pdf.js v3.11 (UMD) in a dedicated WebView.
  *
  * Design (piano V2, review ostile):
  * - pdf.min.js / pdf.worker.min.js vendored come asset `.txt` (Metro li tratta
@@ -138,12 +141,11 @@ type Props = {
   headless?: boolean;
 };
 
-const DEFAULT_MAX_PAGES = MAX_PDF_PAGES;
 const DEFAULT_MAX_BYTES = 5 * 1024 * 1024;
 
 export function PdfToImages({
   pdfUri,
-  maxPages = DEFAULT_MAX_PAGES,
+  maxPages,
   maxBytes = DEFAULT_MAX_BYTES,
   mode = "images",
   onPage,
@@ -167,13 +169,14 @@ export function PdfToImages({
   const doneRef = useRef(false);
   const pageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const totalTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const accRef = useRef(new PdfBridgeAccumulator({ maxPages: clampMaxPages(maxPages) }));
+  const accRef = useRef(new PdfBridgeAccumulator());
   const textPagesRef = useRef<
     Map<number, { items: PdfTextItem[]; meta: TextPageMeta; reconstructMs: number; text: string }>
   >(new Map());
   const textDocsEmittedRef = useRef(false);
   /** Uncapped pdf.numPages from textPassDone, when reported. */
   const documentPageCountRef = useRef<number | null>(null);
+  const textPassTruncatedRef = useRef(false);
   const rasterizeInjectedRef = useRef(false);
   const metricsPagesRef = useRef<PdfPageExtractMetrics[]>([]);
   /** In-flight JPEG writes — global done must wait (image-mode last-page race). */
@@ -245,11 +248,18 @@ export function PdfToImages({
     succeededRef.current = false;
     pendingGlobalDoneRef.current = false;
     inFlightWritesRef.current = 0;
-    const pages = clampMaxPages(maxPages);
-    accRef.current = new PdfBridgeAccumulator({ maxPages: pages });
+    const pages = isTextExtractMode(mode)
+      ? clampMaxTextPages(maxPages)
+      : clampMaxPages(maxPages);
+    accRef.current = new PdfBridgeAccumulator(
+      isTextExtractMode(mode)
+        ? { maxTextPages: pages }
+        : { maxVisionPages: pages },
+    );
     textPagesRef.current = new Map();
     textDocsEmittedRef.current = false;
     documentPageCountRef.current = null;
+    textPassTruncatedRef.current = false;
     rasterizeInjectedRef.current = false;
     metricsPagesRef.current = [];
     deleteCreatedImages();
@@ -299,14 +309,6 @@ export function PdfToImages({
     );
   }, [fail, t]);
 
-  const armTotalTimer = useCallback(() => {
-    if (totalTimerRef.current) clearTimeout(totalTimerRef.current);
-    totalTimerRef.current = setTimeout(
-      () => fail(t("errors.pdfExtractTimeout"), "timeout"),
-      TOTAL_EXTRACTION_TIMEOUT_MS,
-    );
-  }, [fail, t]);
-
   const emitTextDocsAndMaybeRasterize = useCallback(
     (pageTexts: PdfPageText[]) => {
       if (textDocsEmittedRef.current) return;
@@ -315,12 +317,11 @@ export function PdfToImages({
       const sid = sanitizePdfSourceId(pdfUri, sourceId);
       const base = pdfPagesToRetrievalDocs(sid, title, pageTexts);
       const docPages = documentPageCountRef.current;
-      const result: PdfRetrievalDocsResult = {
-        ...base,
-        ...(typeof docPages === "number" && docPages > 0
-          ? { documentPageCount: docPages }
-          : {}),
-      };
+      const result: PdfRetrievalDocsResult = addPdfExtractionMetadata(base, {
+        documentPageCount: docPages,
+        processedPageCount: pageTexts.length,
+        truncated: textPassTruncatedRef.current,
+      });
 
       const pages = metricsPagesRef.current.slice().sort((a, b) => a.pageNumber - b.pageNumber);
       const metrics: PdfDocumentExtractMetrics = {
@@ -338,7 +339,8 @@ export function PdfToImages({
           `getTextContentMs=${metrics.totalGetTextContentMs} skipped=${metrics.skippedPages.length}` +
           (result.documentPageCount != null
             ? ` documentPageCount=${result.documentPageCount}`
-            : ""),
+            : "") +
+          (result.truncated ? " truncated=true" : ""),
       );
       onExtractMetrics?.(metrics);
       onTextDocs?.(result);
@@ -352,7 +354,12 @@ export function PdfToImages({
 
       if (rasterizeInjectedRef.current) return;
       rasterizeInjectedRef.current = true;
-      const pagesJson = JSON.stringify(result.skippedPages);
+      // Text extraction can inspect 200 pages, but vision fallback keeps the
+      // original first-five-page bound and must not rasterize a later page.
+      const fallbackPages = result.skippedPages
+        .filter((page) => page >= 1 && page <= MAX_PDF_PAGES)
+        .slice(0, MAX_PDF_PAGES);
+      const pagesJson = JSON.stringify(fallbackPages);
       webViewRef.current?.injectJavaScript(
         `try{if(typeof window.__pdfRasterizePages==="function"){window.__pdfRasterizePages(${pagesJson});}else{window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({error:"rasterize_unavailable"}));}}catch(e){window.ReactNativeWebView&&window.ReactNativeWebView.postMessage(JSON.stringify({error:String((e&&e.message)||e)}));}true;`,
       );
@@ -368,6 +375,34 @@ export function PdfToImages({
       sourceId,
       title,
     ],
+  );
+
+  const armTotalTimer = useCallback(
+    () => {
+      if (totalTimerRef.current) clearTimeout(totalTimerRef.current);
+      totalTimerRef.current = setTimeout(() => {
+        if (isTextExtractMode(mode) && !textDocsEmittedRef.current) {
+          // Whole-document timeout in text mode: deliver the partial text
+          // extracted so far (truncated=true) instead of failing the request.
+          // The per-page liveness timer still reports 30 s of silence; this
+          // timer only bounds a slowly-but-steadily progressing extraction.
+          const partial = Array.from(textPagesRef.current.entries())
+            .sort((a, b) => a[0] - b[0])
+            .map(([pageNumber, entry]) => ({
+              pageNumber,
+              text: entry.text,
+              hasTextLayer: pageHasTextLayer(entry.text),
+            }));
+          if (partial.length > 0) {
+            textPassTruncatedRef.current = true;
+            emitTextDocsAndMaybeRasterize(partial);
+            return;
+          }
+        }
+        fail(t("errors.pdfExtractTimeout"), "timeout");
+      }, TOTAL_EXTRACTION_TIMEOUT_MS);
+    },
+    [emitTextDocsAndMaybeRasterize, fail, mode, t],
   );
 
   const handleMessage = useCallback(
@@ -430,6 +465,7 @@ export function PdfToImages({
       }
 
       if (eventOut.type === "text_pass_done") {
+        textPassTruncatedRef.current = eventOut.truncated === true;
         if (
           typeof eventOut.documentPageCount === "number" &&
           Number.isFinite(eventOut.documentPageCount) &&
@@ -728,9 +764,11 @@ function buildPdfHtmlTextMode(
   }
   var pdfDoc = null;
   var MAX_PAGES = ${maxPages};
+  var MAX_VISION_PAGES = ${MAX_PDF_PAGES};
   var CHUNK = ${CHUNK_SIZE};
   var MAX_CHUNKS = ${MAX_CHUNKS_PER_PAGE};
   var MAX_PAYLOAD = ${MAX_PAGE_PAYLOAD_BYTES};
+  var MAX_TOTAL_TEXT = ${MAX_TOTAL_TEXT_BYTES};
   var MAX_ITEMS = ${MAX_ITEMS_PER_PAGE};
   var MAX_STR = ${MAX_ITEM_STR_CHARS};
   try {
@@ -741,9 +779,18 @@ function buildPdfHtmlTextMode(
       var total = Math.min(pdf.numPages, MAX_PAGES);
       var documentPageCount = pdf.numPages;
       var current = 0;
+      var totalTextBytes = 0;
+      function finishTextPass(truncated){
+        post({
+          kind: "textPassDone",
+          pageCount: current,
+          documentPageCount: documentPageCount,
+          truncated: !!truncated
+        });
+      }
       function extractPage(){
         if (current >= total) {
-          post({kind: "textPassDone", pageCount: total, documentPageCount: documentPageCount});
+          finishTextPass(documentPageCount > total);
           return;
         }
         var pageNum = current + 1;
@@ -753,6 +800,12 @@ function buildPdfHtmlTextMode(
             var t1 = (typeof performance !== "undefined" && performance.now) ? performance.now() : Date.now();
             var ms = Math.max(0, t1 - t0);
             var raw = (tc && tc.items) ? tc.items : [];
+            var pageBudget = Math.min(MAX_PAYLOAD, MAX_TOTAL_TEXT - totalTextBytes);
+            if (pageBudget < 2) {
+              // Total-text budget exhausted — end the pass (truncated).
+              finishTextPass(true);
+              return;
+            }
             // Exact O(n) payload budget: stringify each item once, accumulate
             // lengths. Avoids estimate/JSON.stringify divergence (control chars
             // escape to 6 units) and the O(n²) pop+re-stringify cut.
@@ -760,6 +813,11 @@ function buildPdfHtmlTextMode(
             var limit = Math.min(raw.length, MAX_ITEMS);
             var total = 2; // "[]"
             var first = true;
+            // The per-page item cap (MAX_ITEMS) only truncates THIS page — the
+            // pass continues with the next page. Only the total-text budget or
+            // the page cap (MAX_PAGES) end the pass. No per-reason flag is
+            // threaded to RN: consumers only need the boolean "truncated".
+            var budgetHit = false;
             for (var i = 0; i < limit; i++) {
               var it = raw[i];
               if (!it || typeof it.str !== "string") continue;
@@ -776,7 +834,12 @@ function buildPdfHtmlTextMode(
               }
               var piece = JSON.stringify(projected);
               var add = piece.length + (first ? 0 : 1);
-              if (total + add > MAX_PAYLOAD) break;
+              if (total + add > pageBudget) {
+                // Remaining total-text budget cannot fit this item — the page
+                // is cut at the budget edge and the pass ends after it.
+                budgetHit = true;
+                break;
+              }
               pieces.push(piece);
               total += add;
               first = false;
@@ -786,6 +849,7 @@ function buildPdfHtmlTextMode(
               post({error: "text_payload_cap"});
               return;
             }
+            totalTextBytes += json.length;
             var nChunks = Math.max(1, Math.ceil(json.length / CHUNK) || 1);
             if (nChunks > MAX_CHUNKS) {
               post({error: "text_chunk_cap"});
@@ -794,7 +858,8 @@ function buildPdfHtmlTextMode(
             sendTextChunks(pageNum, json, {
               getTextContentMs: ms,
               itemCount: pieces.length,
-              projectedBytes: json.length
+              projectedBytes: json.length,
+              budgetHit: budgetHit
             });
           }).catch(function(e){ post({error: String((e && e.message) || e)}); });
         }).catch(function(e){ post({error: String((e && e.message) || e)}); });
@@ -812,7 +877,13 @@ function buildPdfHtmlTextMode(
         function next(){
           if (i >= n) {
             current++;
-            setTimeout(extractPage, 20);
+            // Only a filled total-text budget ends the pass here; the per-page
+            // item cap (MAX_ITEMS) truncates that page but the pass continues.
+            if (meta.budgetHit) {
+              finishTextPass(true);
+            } else {
+              setTimeout(extractPage, 20);
+            }
             return;
           }
           post({
@@ -863,11 +934,16 @@ function buildPdfHtmlTextMode(
       }
       window.__pdfRasterizePages = function(pageNums){
         if (!pdfDoc) { post({error: "pdf_not_ready"}); return; }
-        if (!pageNums || !pageNums.length) { post({done: true}); return; }
+        var safePages = (pageNums || [])
+          .filter(function(pageNum){
+            return Number.isInteger(pageNum) && pageNum >= 1 && pageNum <= MAX_VISION_PAGES;
+          })
+          .slice(0, MAX_VISION_PAGES);
+        if (!safePages.length) { post({done: true}); return; }
         var idx = 0;
         function step(){
-          if (idx >= pageNums.length) { post({done: true}); return; }
-          var pageNum = pageNums[idx++];
+          if (idx >= safePages.length) { post({done: true}); return; }
+          var pageNum = safePages[idx++];
           renderOne(pageNum).then(function(b64){
             sendImageChunks(pageNum, b64, function(){ setTimeout(step, 20); });
           }).catch(function(e){ post({error: String((e && e.message) || e)}); });

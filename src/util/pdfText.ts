@@ -62,9 +62,13 @@ export interface PdfRetrievalDocsResult {
   /**
    * Real document page count from the PDF (pdf.js numPages), when known.
    * May exceed docs.length + skippedPages.length when only the first N pages
-   * were processed (MAX_PDF_PAGES cap).
+   * were processed (MAX_PDF_TEXT_PAGES or text-budget cap).
    */
   documentPageCount?: number;
+  /** Number of pages actually inspected by the text pass. */
+  processedPageCount?: number;
+  /** True when the text pass stopped before the document's final page. */
+  truncated?: boolean;
 }
 
 export interface ReconstructStats {
