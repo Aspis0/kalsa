@@ -3870,3 +3870,15 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 
 - **Strumenti pronti**: APK debuggable A/B (run-as, ALIVE 46), QDC con 8 Gen
   2/3, 8s Gen 3, 8 Elite (~900/866/981/623 min), kit v73 per commit.
+
+- **9/09 ~16:20 EDT — TRE FIX APP COMMITTATI SU main, APK COMBINATO IN CI** (dopo i due doc). (1) `33502b2` document chat:
+  `full_context` solo se il documento sta nel budget di prefill del telefono (tok/s misurati × 20 s, EMA per modello,
+  fallback 800 token finché non c'è un campione), riga `KALSA_DOC_STRATEGY` alla decisione; audit mimo: fallback
+  abbassato da 1500, alpha 0,3, test ai bordi. (2) sessione dopo un turno con tool (Luna d1552823, audit deepseek
+  586ed041 "nessun percorso di corruzione"): il `.kvs` buono precedente resta e viene marcato `divergesAtLastExchange`,
+  la riapertura accetta esattamente prefisso + [user, assistant] non interrotto → riapertura calda fino al prefisso;
+  limiti scritti nel codice (due turni tool consecutivi → fredda; tool al primo turno → `kv_prefix_unavailable`);
+  il no-op logga `op:"mark_prefix"`, mai `save ok:true`. (3) campione di prefill agganciato al prewarm e alla telemetria
+  con `prompt_n/prompt_ms` (mai `tokens_evaluated`: con il riuso del prefisso gonfierebbe la stima di ~60×).
+  Nativo: `e6d6aa0` (sync prima dei contatori) passato da CI, installato sul Jelly, misura in corso.
+
