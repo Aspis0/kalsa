@@ -1,0 +1,6 @@
+logcat_pid=90698
+turn_start_epoch=1788973646
+baseline_assistant_count=6
+share_send_rc=0
+reply_found_elapsed_s=300
+completed=1

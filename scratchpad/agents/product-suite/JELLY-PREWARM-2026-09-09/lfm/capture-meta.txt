@@ -1,0 +1,4 @@
+logcat_pid=90336
+launch_epoch=1788973458
+terminal_found_elapsed_s=125
+found=1

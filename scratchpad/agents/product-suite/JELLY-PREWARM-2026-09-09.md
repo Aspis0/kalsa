@@ -1,0 +1,43 @@
+# Jelly prewarm measurement — 2026-09-09
+
+- Device: USB `JELLYS0000053795` only; app kept awake; no S23/Xiaomi access.
+- `kalsa.bench.devmodels=1` verified. Model preference restored to `lfm2.5-2.6b`; app force-stopped at end. Battery gate was <=38°C at each launch; thermal status was 0 at launch. During MiniCPM5, skin reached ~47°C / status 3.
+- Full unfiltered logs are under `JELLY-PREWARM-2026-09-09/{minicpm5,lfm}/`; `prewarm-native-all.txt` contains every llama/RNLlama/ggml-tagged line between that model's prewarm start and terminal line.
+
+## MiniCPM5 (`dev-minicpm5-2b`)
+
+- Prewarm wall: `12:45:13.115` → `12:48:56.614` = **223.499 s**. Result: `skip/eval-failed`, `promptMs=0`, `promptN=1`, `tokensEvaluated=2112`.
+- Evidence: `12:45:13.115 ... KALSA_PREWARM ... op=start`; `12:48:56.614 ... op=skip ... promptN=1 ... tokensEvaluated=2112`.
+- Native/batch: `12:45:12.622 ... llama_context: n_batch = 512`; `... n_ubatch = 256`; `12:45:12.943 ... ggml threadpool (n_threads=2, n_threads_batch=8)`; `12:45:13.165 ... KALSA_KVPREFIX embd=0 text_tokens=2112 n_common=0`.
+- Repack: `12:45:06.981 ... output.weight with q6_K_8x4`; `12:45:12.574 ... blk.41.ffn_up.weight with q4_K_8x4`; variant `rnllama_jni_v8_2_dotprod`. No `llama_perf`, `prompt eval time`, `KleidiAI`, `q4_K_8x8`, `Q4_0_4_8`, or `KALSA_GOVERNOR` line.
+- Warm turn reply: “Ciao! Sono un assistente AI privato che lavora sul dispositivo, senza nessuna interazione con il web o account esterni. Se hai altri domande o bisogni, sono qui per aiutarti.”
+- Turn telemetry: `tokensCached=3235`, `tokensEvaluated=3117`, `promptMs=289058.421`, `predictedMs=60702.475`, `predictedPerSecond=1.927`; reply poll completed at 610 s after submission (telemetry at `13:02:20.090`). Native turn prefix: `embd=2112 text_tokens=3117 n_common=2109`.
+
+## LFM (`lfm2.5-2.6b`)
+
+- Prewarm wall: `13:04:27.185` → `13:06:22.674` = **115.489 s**. Result: `done`, `promptMs=114669.581`.
+- Evidence: `13:04:27.185 ... KALSA_PREWARM ... op=start`; `13:06:22.674 ... op=done ... promptMs=114669.581`.
+- Native/batch: `13:04:26.462 ... llama_context: n_batch = 512`; `... n_ubatch = 256`; `13:04:26.942 ... ggml threadpool (n_threads=2, n_threads_batch=8)`; `13:04:27.205 ... KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0`.
+- Repack: `13:04:22.080 ... token_embd.weight with q6_K_8x4`; `13:04:26.434 ... blk.29.shortconv.out_proj.weight with q4_0_4x4`; variant `rnllama_jni_v8_2_dotprod`. No `llama_perf`, `prompt eval time`, `KleidiAI`, `q4_K_8x8`, `Q4_0_4_8`, or `KALSA_GOVERNOR` line.
+- Warm turn reply: “Ciao! Sono un assistente AI privato, senza accesso al cloud o a contatti esterni. Sono pronto ad aiutarti con qualsiasi domanda che hai. Posso rispondere in italiano, inglese o in altri linguaggi. C'è qualcosa su cui posso assisterti oggi?” (verbatim saved in `lfm/turn/reply.txt`).
+- Turn telemetry: `tokensCached=3089`, `tokensEvaluated=2956`, `promptMs=135263.860`, `predictedMs=42466.912`, `predictedPerSecond=3.108`; reply poll completed at 300 s after submission (telemetry at `13:13:17.290`). Native turn prefix: `embd=1832 text_tokens=2956 n_common=1829`, reusing `1827/2956`.
+
+## Conclusion
+
+The S23-style single-token perf-counter signature is reproduced on the Jelly for **MiniCPM5 only**: its terminal prewarm explicitly reports `promptN=1` while evaluating 2112 tokens and ends `eval-failed`. LFM reports a successful `done` with prompt timing, but this log has no `promptN` or native `llama_perf`/batch-consumption line; `n_batch=512` and `n_ubatch=256` are configuration values, not proof of the actual ingest batch. Therefore the capture directly demonstrates single-token ingest for MiniCPM5, not for LFM; the native logger does not expose enough evidence to claim N single-token evals for LFM.
+
+## Parent verification and root cause (orchestrator, 2026-09-09 ~14:00 EDT)
+
+The "single-token ingest" reading is **REFUTED**. The signature `promptN=1, promptMs=0` is a perf-accounting artefact, not a batching defect, and the KV was fully computed (the warm turn reused the prefix: `n_common=2109`).
+
+Chain, all quoted from `kalsa/node_modules/llama.rn/cpp` at fork pin 67c73d26c:
+
+1. `llama_context::decode()` never synchronises (`llama-context.cpp:2020-2021`, `//synchronize();` commented out); queued tokens are folded into `n_p_eval/t_p_eval_us` only inside `synchronize()` (`llama-context.cpp:664-682`).
+2. `perf_get_data()` is `const` and does not sync (`llama-context.cpp:3150`); `data.n_p_eval = std::max(1, n_p_eval)` is where the `1` comes from (`:3157`). llama.rn reads it as-is in `jsi/JSICompletion.h:205`.
+3. With `n_predict: 0` the completion returns before any `llama_get_logits*` (`rn-completion.cpp:1203-1208`), so nothing syncs.
+4. LFM2.5 (hybrid) syncs by accident: the prompt state-checkpoint capture calls `llama_state_seq_get_data_ext`, which does `ctx->synchronize()` (`llama-context.cpp:~3976`). Dense models have `state_cache_enabled=false` (`rn-completion.cpp:146-152`), so MiniCPM5 never syncs → `prompt_n=0→1`, `prompt_ms=0`. That is also why LFM's `promptMs=114669` ≈ its wall time.
+5. App side: `evalFailed = nativeError || tokensEvaluated <= 0 || promptMs <= 0` (`src/engine/LlamaService.ts:811-812`) marks the prewarm failed, `prewarmPrefixHash` stays null, and the next trigger re-runs the whole multi-minute prefill.
+
+So the numbers to keep are wall times: MiniCPM5 2112 tok / 223.5 s (9.4 tok/s), LFM 1832 tok / 115.5 s (15.9 tok/s) on the Jelly, skin 47 °C during MiniCPM5. Whether the 1.7× gap (S23: ~3×) is the Q4_K repack path (`q4_K_8x4`, no i8mm on MT6789) is a separate question for the G1 device sweep.
+
+Fix in flight: app criterion no longer depends on `prompt_ms` (Paseo agent 53f7ade9). Follow-up in the fork: `llama_synchronize` before `llama_perf_context` in `JSICompletion.h` so `n_predict=0` timings are real.

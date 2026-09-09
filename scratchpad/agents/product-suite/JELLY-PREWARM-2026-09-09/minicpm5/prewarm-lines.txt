@@ -1,0 +1,2 @@
+2960:09-09 12:45:13.115 29899 29928 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+7469:09-09 12:48:56.614 29899 29928 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"eval-failed","hash":"3586270056","promptMs":0,"promptN":1,"tokensEvaluated":2112}'

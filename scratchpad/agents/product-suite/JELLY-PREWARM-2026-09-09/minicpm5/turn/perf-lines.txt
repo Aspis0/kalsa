@@ -1,0 +1,1 @@
+16804:09-09 13:02:20.090 29899 29928 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":3235,"tokensEvaluated":3117,"tokensPredicted":117,"draftTokens":0,"draftAccepted":0,"promptMs":289058.42100000003,"predictedMs":60702.475,"predictedPerSecond":1.927433766086144,"contextFull":false,"interrupted":false,"ciswireFlags":4}

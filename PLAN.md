@@ -22,7 +22,24 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
-- **9/09 ~12:30 EDT — PREWARM MiniCPM5 SULL'S23: ANOMALIA REALE, CAUSA NON ANCORA TROVATA** (recon deepseek 0399b4e5
+- **9/09 ~14:00 EDT — PREWARM MiniCPM5: LA CAUSA È TROVATA, E LA LETTURA DELLE 12:30 ERA SBAGLIATA** (misura Jelly a
+  logcat completo, Luna e1b923b9, `product-suite/JELLY-PREWARM-2026-09-09.md` + verifica mia sul sorgente, righe
+  citate nel report). Non è ingest a token singoli: è un **artefatto di contabilità dei contatori perf**. Catena:
+  `llama_context::decode()` non sincronizza mai (`llama-context.cpp:2021`, chiamata commentata); i token in coda
+  entrano in `n_p_eval/t_p_eval_us` solo dentro `synchronize()` (`:664-682`); `perf_get_data()` è `const` e non
+  sincronizza (`:3150`, e `max(1, n_p_eval)` a `:3157` è l'origine dell'`1`); llama.rn lo legge così com'è
+  (`JSICompletion.h:205`); con `n_predict: 0` la completion esce prima di qualunque `llama_get_logits*`
+  (`rn-completion.cpp:1203`). LFM e Qwen3.5 sincronizzano per caso: la cattura del checkpoint di stato chiama
+  `llama_state_seq_get_data_ext` → `ctx->synchronize()`, ed è abilitata solo per modelli ricorrenti/ibridi
+  (`rn-completion.cpp:146-152`). **Prova che il KV c'era**: il turno caldo dopo il prewarm MiniCPM5 riusa il prefisso
+  (`KALSA_KVPREFIX n_common=2109`). Conseguenza prodotto: OGNI modello denso ha il prewarm marcato `eval-failed`
+  (`evalFailed = … || promptMs <= 0`, LlamaService:811), `prewarmPrefixHash` resta null e il trigger successivo
+  rifà minuti di prefill — sul Jelly 223 s a 47 °C di skin. Fix app in corso (Luna 53f7ade9: criterio senza
+  `prompt_ms`, helper puro + test); follow-up nel fork: `llama_synchronize` prima di `llama_perf_context` in
+  `JSICompletion.h`. Numeri veri che restano: prefill MiniCPM5 9,4 vs LFM 15,9 tok/s sul Jelly (~15 vs ~48 sull'S23),
+  decode 1,9 vs 3,1 tok/s sul Jelly a 47 °C (6,5 vs 10,4-11,7 sull'S23). Se il gap sia il percorso repack Q4_K
+  (`q4_K_8x4`) è una domanda per lo sweep G1 sui device, non un'anomalia. HARNESS_FINDINGS §7.44 riscritta.
+- **9/09 ~12:30 EDT — PREWARM MiniCPM5 SULL'S23: ANOMALIA REALE, CAUSA NON ANCORA TROVATA** — SUPERATA dalla voce delle 14:00: non era ingest a token singoli (recon deepseek 0399b4e5
   sui log del dry run + lettura mia del sorgente): `KALSA_PREWARM start → skip eval-failed` dopo **138 s** (e 116 s
   nell'altro run) con `promptMs:0, promptN:1, tokensEvaluated:2112`; LFM `done` in 40 s (1919 token, 48 tok/s =
   coerente col seed a freddo del protocollo restore). `eval-failed` = `promptMs <= 0` (LlamaService:811); promptN=1

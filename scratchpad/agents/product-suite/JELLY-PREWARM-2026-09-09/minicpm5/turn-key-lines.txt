@@ -1,0 +1,478 @@
+09-09 12:50:58.366 29899 29928 I ReactNativeJS: KALSA_NATIVE info detach_threadpool: call
+09-09 12:50:58.379 29899 29928 I ReactNativeJS: KALSA_NATIVE info ~llama_context:        CPU compute buffer size is 133.5010 MiB, matches expectation of 133.5010 MiB
+09-09 12:51:15.733  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35204): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:51:16.004 29899 30078 I RNLlama : loadModel:667 Using n_parallel: 1 (enables up to 1 parallel slots)
+09-09 12:51:16.004 29899 30078 I RNLlama : loadModel:690 kalsa moe stream: kalsa_moe disabled
+09-09 12:51:16.063 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 36 key-value pairs and 381 tensors from /data/user/0/com.kalsa.app/files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf (version GGUF V3 (latest))
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: Dumping metadata keys/values. Note: KV overrides do not apply in this output.
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   0:                       general.architecture str              = llama
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   1:                               general.type str              = model
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   2:                     general.sampling.top_p f32              = 0.950000
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   3:                      general.sampling.temp f32              = 1.000000
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   4:                               general.name str              = MiniCPM5 2.6B
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   5:                       general.organization str              = Openbmb
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   6:                           general.finetune str              = 0822_job_758798.iter_000144.opd.C26_m...
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   7:                           general.basename str              = MiniCPM5
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   8:                         general.size_label str              = 2.6B
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv   9:                          llama.block_count u32              = 42
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  10:                       llama.context_length u32              = 131072
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  11:                     llama.embedding_length u32              = 2048
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  12:                  llama.feed_forward_length u32              = 6144
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  13:                 llama.attention.head_count u32              = 16
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  14:              llama.attention.head_count_kv u32              = 2
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  15:                       llama.rope.freq_base f32              = 5000000.000000
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  16:     llama.attention.layer_norm_rms_epsilon f32              = 0.000001
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  17:                 llama.attention.key_length u32              = 128
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  18:               llama.attention.value_length u32              = 128
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  19:                           llama.vocab_size u32              = 130560
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  20:                 llama.rope.dimension_count u32              = 128
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  21:                       tokenizer.ggml.model str              = gpt2
+09-09 12:51:16.064 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  22:                         tokenizer.ggml.pre str              = minicpm5
+09-09 12:51:16.098 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  23:                      tokenizer.ggml.tokens arr[str,130560]  = ["<s>", "</s>", "<tool_call>", "</too...
+09-09 12:51:16.109 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  24:                  tokenizer.ggml.token_type arr[i32,130560]  = [3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 3, 3, ...
+09-09 12:51:16.144 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  25:                      tokenizer.ggml.merges arr[str,129794]  = ["Ġ t", "h e", "Ġ a", "i n", "Ġ Ġ...
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  26:                tokenizer.ggml.bos_token_id u32              = 0
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  27:                tokenizer.ggml.eos_token_id u32              = 1
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  28:            tokenizer.ggml.unknown_token_id u32              = 130074
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  29:            tokenizer.ggml.padding_token_id u32              = 1
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  30:               tokenizer.ggml.add_bos_token bool             = false
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  31:               tokenizer.ggml.add_sep_token bool             = false
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  32:               tokenizer.ggml.add_eos_token bool             = false
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  33:                    tokenizer.chat_template str              = {{- bos_token }}{%- if tools %}\n    {...
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  34:               general.quantization_version u32              = 2
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - kv  35:                          general.file_type u32              = 15
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type  f32:   85 tensors
+09-09 12:51:16.145 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q4_K:  253 tensors
+09-09 12:51:16.146 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: - type q6_K:   43 tensors
+09-09 12:51:16.492 29899 29928 I ReactNativeJS: KALSA_NATIVE info print_info: arch                  = llama
+09-09 12:51:16.515 29899 29928 I ReactNativeJS: KALSA_NATIVE info done_getting_tensors: tensor 'token_embd.weight' (q4_K) (and 85 others) cannot be used with preferred buffer type CPU_REPACK, using CPU instead
+09-09 12:51:16.576 29899 29928 I ReactNativeJS: KALSA_NATIVE info load_tensors:   CPU_REPACK model buffer size =  1339.98 MiB
+09-09 12:51:16.631 29899 29928 I ReactNativeJS: KALSA_NATIVE info load_all_data: buffer type CPU_REPACK is not the default buffer type for device CPU for async uploads
+09-09 12:51:16.802 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor output.weight with q6_K_8x4
+09-09 12:51:17.595 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.attn_q.weight with q4_K_8x4
+09-09 12:51:17.604 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.attn_k.weight with q4_K_8x4
+09-09 12:51:17.606 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.attn_v.weight with q6_K_8x4
+09-09 12:51:17.609 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.attn_output.weight with q4_K_8x4
+09-09 12:51:17.620 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.ffn_gate.weight with q4_K_8x4
+09-09 12:51:17.649 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.ffn_down.weight with q6_K_8x4
+09-09 12:51:17.689 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.0.ffn_up.weight with q4_K_8x4
+09-09 12:51:17.715 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.attn_q.weight with q4_K_8x4
+09-09 12:51:17.723 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.attn_k.weight with q4_K_8x4
+09-09 12:51:17.725 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.attn_v.weight with q6_K_8x4
+09-09 12:51:17.727 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.attn_output.weight with q4_K_8x4
+09-09 12:51:17.740 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.ffn_gate.weight with q4_K_8x4
+09-09 12:51:17.769 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.ffn_down.weight with q6_K_8x4
+09-09 12:51:17.809 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.1.ffn_up.weight with q4_K_8x4
+09-09 12:51:17.835 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_q.weight with q4_K_8x4
+09-09 12:51:17.844 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_k.weight with q4_K_8x4
+09-09 12:51:17.846 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_v.weight with q6_K_8x4
+09-09 12:51:17.849 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.attn_output.weight with q4_K_8x4
+09-09 12:51:17.860 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.ffn_gate.weight with q4_K_8x4
+09-09 12:51:17.889 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.ffn_down.weight with q6_K_8x4
+09-09 12:51:17.929 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.2.ffn_up.weight with q4_K_8x4
+09-09 12:51:17.956 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.attn_q.weight with q4_K_8x4
+09-09 12:51:17.965 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.attn_k.weight with q4_K_8x4
+09-09 12:51:17.966 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.attn_v.weight with q6_K_8x4
+09-09 12:51:17.969 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.attn_output.weight with q4_K_8x4
+09-09 12:51:17.980 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.010 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.ffn_down.weight with q6_K_8x4
+09-09 12:51:18.051 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.3.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.078 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.attn_q.weight with q4_K_8x4
+09-09 12:51:18.087 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.attn_k.weight with q4_K_8x4
+09-09 12:51:18.089 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.attn_v.weight with q6_K_8x4
+09-09 12:51:18.092 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.attn_output.weight with q4_K_8x4
+09-09 12:51:18.103 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.133 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.ffn_down.weight with q6_K_8x4
+09-09 12:51:18.173 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.4.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.199 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_q.weight with q4_K_8x4
+09-09 12:51:18.208 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_k.weight with q4_K_8x4
+09-09 12:51:18.210 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_v.weight with q4_K_8x4
+09-09 12:51:18.212 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.attn_output.weight with q4_K_8x4
+09-09 12:51:18.224 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.253 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.ffn_down.weight with q4_K_8x4
+09-09 12:51:18.280 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.5.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.307 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.attn_q.weight with q4_K_8x4
+09-09 12:51:18.316 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.attn_k.weight with q4_K_8x4
+09-09 12:51:18.318 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.attn_v.weight with q4_K_8x4
+09-09 12:51:18.320 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.attn_output.weight with q4_K_8x4
+09-09 12:51:18.331 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.359 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.ffn_down.weight with q4_K_8x4
+09-09 12:51:18.388 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.6.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.415 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.attn_q.weight with q4_K_8x4
+09-09 12:51:18.424 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.attn_k.weight with q4_K_8x4
+09-09 12:51:18.425 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.attn_v.weight with q6_K_8x4
+09-09 12:51:18.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.attn_output.weight with q4_K_8x4
+09-09 12:51:18.439 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.469 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.ffn_down.weight with q6_K_8x4
+09-09 12:51:18.509 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.7.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.536 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.attn_q.weight with q4_K_8x4
+09-09 12:51:18.546 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.attn_k.weight with q4_K_8x4
+09-09 12:51:18.546 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.attn_v.weight with q4_K_8x4
+09-09 12:51:18.549 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.attn_output.weight with q4_K_8x4
+09-09 12:51:18.561 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.589 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.ffn_down.weight with q4_K_8x4
+09-09 12:51:18.617 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.8.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.645 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_q.weight with q4_K_8x4
+09-09 12:51:18.654 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_k.weight with q4_K_8x4
+09-09 12:51:18.654 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_v.weight with q4_K_8x4
+09-09 12:51:18.657 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.attn_output.weight with q4_K_8x4
+09-09 12:51:18.668 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.696 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.ffn_down.weight with q4_K_8x4
+09-09 12:51:18.724 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.9.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.751 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.attn_q.weight with q4_K_8x4
+09-09 12:51:18.760 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.attn_k.weight with q4_K_8x4
+09-09 12:51:18.761 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.attn_v.weight with q6_K_8x4
+09-09 12:51:18.765 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.attn_output.weight with q4_K_8x4
+09-09 12:51:18.776 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.804 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.ffn_down.weight with q6_K_8x4
+09-09 12:51:18.844 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.10.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.871 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.attn_q.weight with q4_K_8x4
+09-09 12:51:18.879 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.attn_k.weight with q4_K_8x4
+09-09 12:51:18.881 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.attn_v.weight with q4_K_8x4
+09-09 12:51:18.883 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.attn_output.weight with q4_K_8x4
+09-09 12:51:18.894 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.ffn_gate.weight with q4_K_8x4
+09-09 12:51:18.922 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.ffn_down.weight with q4_K_8x4
+09-09 12:51:18.950 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.11.ffn_up.weight with q4_K_8x4
+09-09 12:51:18.976 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.attn_q.weight with q4_K_8x4
+09-09 12:51:18.985 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.attn_k.weight with q4_K_8x4
+09-09 12:51:18.987 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.attn_v.weight with q4_K_8x4
+09-09 12:51:18.989 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.attn_output.weight with q4_K_8x4
+09-09 12:51:19.001 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.028 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.ffn_down.weight with q4_K_8x4
+09-09 12:51:19.056 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.12.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.082 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_q.weight with q4_K_8x4
+09-09 12:51:19.090 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_k.weight with q4_K_8x4
+09-09 12:51:19.092 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_v.weight with q6_K_8x4
+09-09 12:51:19.095 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.attn_output.weight with q4_K_8x4
+09-09 12:51:19.106 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.135 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.ffn_down.weight with q6_K_8x4
+09-09 12:51:19.175 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.13.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.202 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.attn_q.weight with q4_K_8x4
+09-09 12:51:19.211 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.attn_k.weight with q4_K_8x4
+09-09 12:51:19.213 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.attn_v.weight with q4_K_8x4
+09-09 12:51:19.215 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.attn_output.weight with q4_K_8x4
+09-09 12:51:19.228 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.257 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.ffn_down.weight with q4_K_8x4
+09-09 12:51:19.286 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.14.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.313 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.attn_q.weight with q4_K_8x4
+09-09 12:51:19.322 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.attn_k.weight with q4_K_8x4
+09-09 12:51:19.324 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.attn_v.weight with q4_K_8x4
+09-09 12:51:19.326 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.attn_output.weight with q4_K_8x4
+09-09 12:51:19.339 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.368 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.ffn_down.weight with q4_K_8x4
+09-09 12:51:19.397 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.15.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.424 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.attn_q.weight with q4_K_8x4
+09-09 12:51:19.433 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.attn_k.weight with q4_K_8x4
+09-09 12:51:19.434 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.attn_v.weight with q6_K_8x4
+09-09 12:51:19.437 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.attn_output.weight with q4_K_8x4
+09-09 12:51:19.449 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.479 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.ffn_down.weight with q6_K_8x4
+09-09 12:51:19.521 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.16.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.548 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_q.weight with q4_K_8x4
+09-09 12:51:19.557 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_k.weight with q4_K_8x4
+09-09 12:51:19.559 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_v.weight with q4_K_8x4
+09-09 12:51:19.562 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.attn_output.weight with q4_K_8x4
+09-09 12:51:19.574 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.603 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.ffn_down.weight with q4_K_8x4
+09-09 12:51:19.632 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.17.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.659 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.attn_q.weight with q4_K_8x4
+09-09 12:51:19.668 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.attn_k.weight with q4_K_8x4
+09-09 12:51:19.670 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.attn_v.weight with q4_K_8x4
+09-09 12:51:19.672 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.attn_output.weight with q4_K_8x4
+09-09 12:51:19.685 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.714 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.ffn_down.weight with q4_K_8x4
+09-09 12:51:19.743 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.18.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.770 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.attn_q.weight with q4_K_8x4
+09-09 12:51:19.779 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.attn_k.weight with q4_K_8x4
+09-09 12:51:19.780 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.attn_v.weight with q6_K_8x4
+09-09 12:51:19.783 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.attn_output.weight with q4_K_8x4
+09-09 12:51:19.795 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.824 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.ffn_down.weight with q6_K_8x4
+09-09 12:51:19.865 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.19.ffn_up.weight with q4_K_8x4
+09-09 12:51:19.892 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.attn_q.weight with q4_K_8x4
+09-09 12:51:19.901 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.attn_k.weight with q4_K_8x4
+09-09 12:51:19.903 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.attn_v.weight with q4_K_8x4
+09-09 12:51:19.904 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.attn_output.weight with q4_K_8x4
+09-09 12:51:19.916 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.ffn_gate.weight with q4_K_8x4
+09-09 12:51:19.945 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.ffn_down.weight with q4_K_8x4
+09-09 12:51:19.973 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.20.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.000 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_q.weight with q4_K_8x4
+09-09 12:51:20.009 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_k.weight with q4_K_8x4
+09-09 12:51:20.011 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_v.weight with q4_K_8x4
+09-09 12:51:20.013 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.attn_output.weight with q4_K_8x4
+09-09 12:51:20.025 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.053 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.ffn_down.weight with q4_K_8x4
+09-09 12:51:20.082 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.21.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.085  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35207): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:51:20.109 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.attn_q.weight with q4_K_8x4
+09-09 12:51:20.118 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.attn_k.weight with q4_K_8x4
+09-09 12:51:20.119 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.attn_v.weight with q6_K_8x4
+09-09 12:51:20.122 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.attn_output.weight with q4_K_8x4
+09-09 12:51:20.134 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.164 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.ffn_down.weight with q6_K_8x4
+09-09 12:51:20.205 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.22.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.232 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.attn_q.weight with q4_K_8x4
+09-09 12:51:20.242 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.attn_k.weight with q4_K_8x4
+09-09 12:51:20.242 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.attn_v.weight with q4_K_8x4
+09-09 12:51:20.244 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.attn_output.weight with q4_K_8x4
+09-09 12:51:20.256 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.285 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.ffn_down.weight with q4_K_8x4
+09-09 12:51:20.313 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.23.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.340 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_q.weight with q4_K_8x4
+09-09 12:51:20.350 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_k.weight with q4_K_8x4
+09-09 12:51:20.351 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_v.weight with q4_K_8x4
+09-09 12:51:20.353 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.attn_output.weight with q4_K_8x4
+09-09 12:51:20.364 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.393 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.ffn_down.weight with q4_K_8x4
+09-09 12:51:20.421 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.24.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.448 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.attn_q.weight with q4_K_8x4
+09-09 12:51:20.457 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.attn_k.weight with q4_K_8x4
+09-09 12:51:20.458 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.attn_v.weight with q6_K_8x4
+09-09 12:51:20.461 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.attn_output.weight with q4_K_8x4
+09-09 12:51:20.472 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.502 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.ffn_down.weight with q6_K_8x4
+09-09 12:51:20.543 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.25.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.569 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.attn_q.weight with q4_K_8x4
+09-09 12:51:20.578 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.attn_k.weight with q4_K_8x4
+09-09 12:51:20.580 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.attn_v.weight with q4_K_8x4
+09-09 12:51:20.583 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.attn_output.weight with q4_K_8x4
+09-09 12:51:20.594 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.622 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_down.weight with q4_K_8x4
+09-09 12:51:20.651 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.26.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.677 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_q.weight with q4_K_8x4
+09-09 12:51:20.686 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_k.weight with q4_K_8x4
+09-09 12:51:20.688 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_v.weight with q4_K_8x4
+09-09 12:51:20.690 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.attn_output.weight with q4_K_8x4
+09-09 12:51:20.702 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.731 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_down.weight with q4_K_8x4
+09-09 12:51:20.758 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.27.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.785 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.attn_q.weight with q4_K_8x4
+09-09 12:51:20.794 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.attn_k.weight with q4_K_8x4
+09-09 12:51:20.795 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.attn_v.weight with q6_K_8x4
+09-09 12:51:20.798 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.attn_output.weight with q4_K_8x4
+09-09 12:51:20.810 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.839 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_down.weight with q6_K_8x4
+09-09 12:51:20.879 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.28.ffn_up.weight with q4_K_8x4
+09-09 12:51:20.907 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.attn_q.weight with q4_K_8x4
+09-09 12:51:20.915 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.attn_k.weight with q4_K_8x4
+09-09 12:51:20.917 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.attn_v.weight with q4_K_8x4
+09-09 12:51:20.919 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.attn_output.weight with q4_K_8x4
+09-09 12:51:20.931 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_gate.weight with q4_K_8x4
+09-09 12:51:20.960 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_down.weight with q4_K_8x4
+09-09 12:51:20.988 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.29.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.014 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.attn_q.weight with q4_K_8x4
+09-09 12:51:21.023 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.attn_k.weight with q4_K_8x4
+09-09 12:51:21.025 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.attn_v.weight with q4_K_8x4
+09-09 12:51:21.027 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.attn_output.weight with q4_K_8x4
+09-09 12:51:21.039 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.067 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.ffn_down.weight with q4_K_8x4
+09-09 12:51:21.095 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.30.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.122 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.attn_q.weight with q4_K_8x4
+09-09 12:51:21.130 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.attn_k.weight with q4_K_8x4
+09-09 12:51:21.132 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.attn_v.weight with q6_K_8x4
+09-09 12:51:21.135 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.attn_output.weight with q4_K_8x4
+09-09 12:51:21.146 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.176 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.ffn_down.weight with q6_K_8x4
+09-09 12:51:21.216 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.31.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.243 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.attn_q.weight with q4_K_8x4
+09-09 12:51:21.253 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.attn_k.weight with q4_K_8x4
+09-09 12:51:21.253 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.attn_v.weight with q4_K_8x4
+09-09 12:51:21.256 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.attn_output.weight with q4_K_8x4
+09-09 12:51:21.267 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.296 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.ffn_down.weight with q4_K_8x4
+09-09 12:51:21.324 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.32.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.351 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.attn_q.weight with q4_K_8x4
+09-09 12:51:21.359 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.attn_k.weight with q4_K_8x4
+09-09 12:51:21.362 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.attn_v.weight with q4_K_8x4
+09-09 12:51:21.364 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.attn_output.weight with q4_K_8x4
+09-09 12:51:21.375 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.404 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.ffn_down.weight with q4_K_8x4
+09-09 12:51:21.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.33.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.458 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.attn_q.weight with q4_K_8x4
+09-09 12:51:21.466 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.attn_k.weight with q4_K_8x4
+09-09 12:51:21.468 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.attn_v.weight with q6_K_8x4
+09-09 12:51:21.471 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.attn_output.weight with q4_K_8x4
+09-09 12:51:21.482 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.511 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.ffn_down.weight with q6_K_8x4
+09-09 12:51:21.552 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.34.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.578 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.attn_q.weight with q4_K_8x4
+09-09 12:51:21.587 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.attn_k.weight with q4_K_8x4
+09-09 12:51:21.589 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.attn_v.weight with q4_K_8x4
+09-09 12:51:21.591 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.attn_output.weight with q4_K_8x4
+09-09 12:51:21.603 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.630 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.ffn_down.weight with q4_K_8x4
+09-09 12:51:21.659 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.35.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.686 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.attn_q.weight with q4_K_8x4
+09-09 12:51:21.695 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.attn_k.weight with q4_K_8x4
+09-09 12:51:21.696 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.attn_v.weight with q6_K_8x4
+09-09 12:51:21.699 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.attn_output.weight with q4_K_8x4
+09-09 12:51:21.710 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.740 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.ffn_down.weight with q6_K_8x4
+09-09 12:51:21.780 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.36.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.807 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.attn_q.weight with q4_K_8x4
+09-09 12:51:21.815 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.attn_k.weight with q4_K_8x4
+09-09 12:51:21.817 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.attn_v.weight with q6_K_8x4
+09-09 12:51:21.820 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.attn_output.weight with q4_K_8x4
+09-09 12:51:21.831 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.861 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.ffn_down.weight with q6_K_8x4
+09-09 12:51:21.900 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.37.ffn_up.weight with q4_K_8x4
+09-09 12:51:21.925 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.attn_q.weight with q4_K_8x4
+09-09 12:51:21.934 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.attn_k.weight with q4_K_8x4
+09-09 12:51:21.935 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.attn_v.weight with q6_K_8x4
+09-09 12:51:21.938 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.attn_output.weight with q4_K_8x4
+09-09 12:51:21.949 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.ffn_gate.weight with q4_K_8x4
+09-09 12:51:21.978 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.ffn_down.weight with q6_K_8x4
+09-09 12:51:22.017 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.38.ffn_up.weight with q4_K_8x4
+09-09 12:51:22.043 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.attn_q.weight with q4_K_8x4
+09-09 12:51:22.052 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.attn_k.weight with q4_K_8x4
+09-09 12:51:22.054 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.attn_v.weight with q6_K_8x4
+09-09 12:51:22.057 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.attn_output.weight with q4_K_8x4
+09-09 12:51:22.067 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.ffn_gate.weight with q4_K_8x4
+09-09 12:51:22.097 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.ffn_down.weight with q6_K_8x4
+09-09 12:51:22.137 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.39.ffn_up.weight with q4_K_8x4
+09-09 12:51:22.164 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.attn_q.weight with q4_K_8x4
+09-09 12:51:22.173 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.attn_k.weight with q4_K_8x4
+09-09 12:51:22.174 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.attn_v.weight with q6_K_8x4
+09-09 12:51:22.177 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.attn_output.weight with q4_K_8x4
+09-09 12:51:22.188 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.ffn_gate.weight with q4_K_8x4
+09-09 12:51:22.217 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.ffn_down.weight with q6_K_8x4
+09-09 12:51:22.258 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.40.ffn_up.weight with q4_K_8x4
+09-09 12:51:22.283 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.attn_q.weight with q4_K_8x4
+09-09 12:51:22.292 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.attn_k.weight with q4_K_8x4
+09-09 12:51:22.293 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.attn_v.weight with q6_K_8x4
+09-09 12:51:22.297 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.attn_output.weight with q4_K_8x4
+09-09 12:51:22.308 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.ffn_gate.weight with q4_K_8x4
+09-09 12:51:22.337 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.ffn_down.weight with q6_K_8x4
+09-09 12:51:22.377 29899 29928 I ReactNativeJS: KALSA_NATIVE info repack: repack tensor blk.41.ffn_up.weight with q4_K_8x4
+09-09 12:51:22.427 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: constructing llama_context
+09-09 12:51:22.427 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_seq_max     = 1
+09-09 12:51:22.427 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx         = 8192
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq     = 8192
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_batch       = 512
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ubatch      = 256
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: causal_attn   = 1
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: flash_attn    = auto
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: kv_unified    = false
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_base     = 5000000.0
+09-09 12:51:22.428 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: freq_scale    = 1
+09-09 12:51:22.429 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_rs_seq      = 0
+09-09 12:51:22.429 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_outputs_max = 512
+09-09 12:51:22.429 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: n_ctx_seq (8192) < n_ctx_train (131072) -- the full capacity of the model will not be utilized
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context:        CPU  output buffer size =     0.50 MiB
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   0: dev = CPU
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   1: dev = CPU
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   2: dev = CPU
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   3: dev = CPU
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   4: dev = CPU
+09-09 12:51:22.430 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   5: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   6: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   7: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   8: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer   9: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  10: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  11: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  12: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  13: dev = CPU
+09-09 12:51:22.431 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  14: dev = CPU
+09-09 12:51:22.432 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  15: dev = CPU
+09-09 12:51:22.432 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  16: dev = CPU
+09-09 12:51:22.432 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  17: dev = CPU
+09-09 12:51:22.432 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  18: dev = CPU
+09-09 12:51:22.433 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  19: dev = CPU
+09-09 12:51:22.433 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  20: dev = CPU
+09-09 12:51:22.433 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  21: dev = CPU
+09-09 12:51:22.433 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  22: dev = CPU
+09-09 12:51:22.434 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  23: dev = CPU
+09-09 12:51:22.434 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  24: dev = CPU
+09-09 12:51:22.434 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  25: dev = CPU
+09-09 12:51:22.434 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  26: dev = CPU
+09-09 12:51:22.435 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  27: dev = CPU
+09-09 12:51:22.435 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  28: dev = CPU
+09-09 12:51:22.435 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  29: dev = CPU
+09-09 12:51:22.435 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  30: dev = CPU
+09-09 12:51:22.436 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  31: dev = CPU
+09-09 12:51:22.436 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  32: dev = CPU
+09-09 12:51:22.436 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  33: dev = CPU
+09-09 12:51:22.437 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  34: dev = CPU
+09-09 12:51:22.437 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  35: dev = CPU
+09-09 12:51:22.437 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  36: dev = CPU
+09-09 12:51:22.438 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  37: dev = CPU
+09-09 12:51:22.438 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  38: dev = CPU
+09-09 12:51:22.438 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  39: dev = CPU
+09-09 12:51:22.438 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  40: dev = CPU
+09-09 12:51:22.439 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: layer  41: dev = CPU
+09-09 12:51:22.439 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache:        CPU KV buffer size =   136.50 MiB
+09-09 12:51:22.487 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: size =  136.50 MiB (  8192 cells,  42 layers,  1/1 seqs), K (q8_0):   89.25 MiB, V (q4_0):   47.25 MiB
+09-09 12:51:22.487 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_k = 1, n_embd_head_k_all = 128
+09-09 12:51:22.487 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_kv_cache: attn_rot_v = 1, n_embd_head_k_all = 128
+09-09 12:51:22.487 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: enumerating backends
+09-09 12:51:22.488 29899 29928 I ReactNativeJS: KALSA_NATIVE info llama_context: backend_ptrs.size() = 1
+09-09 12:51:22.851 29899 30078 I RNLlama : loadModel:768 Context initialized with n_seq_max = 1
+09-09 12:51:22.851 29899 30078 I RNLlama : loadModel:777 ctx_shift: enabled
+09-09 12:51:22.852 29899 30078 I RNLlama : attachThreadpoolsIfAvailable:542 Attached ggml threadpool (n_threads=2, n_threads_batch=8)
+09-09 12:51:22.852 29899 29928 I ReactNativeJS: KALSA_NATIVE info attach_threadpool: call
+09-09 12:51:22.875 29899 29928 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-09 12:51:22.968 29899 30072 I RNLlama : loadPrompt:440 
+09-09 12:51:22.968 29899 30072 I RNLlama : loadPrompt: prompt_tokens = 0 130072 17261 220 4682 94 653 63797 33 497 959 121731 14182 3466 4916 1996 101374 917 11674 474 1894 100 111026 35 91734 368 11217 33 331 446 368 2920 33 331 446 368 967 624 3374 58143 35 4637 1943 1767 15643 86 47 343 86 30 48546 92115 18512 642 10940 1812 100 80560 1384 42958 2780 15299 86 440 18512 15274 734 983 16471 1812 712 94 84337 21968 47836 343 111313 16738 33 1125 313 7143 513 33 1812 100 71547 33 436 528 101 98069 7466 33 78446 30 331 8080 15643 86 310 291 6684 9664 489 333 28 351 10990 35 1325 997 15643 86 63318 28 351 10990 1774 87275 25458 5337 289 87275 7315 86 33 94758 333 28 1901 13395 35 343 87 30 104907 5967 94 2780 593 13154 1767 9737 72903 33 734 11594 16738 84337 14705 94 1563 35063 2456 731 331 8080 15643 86 6321 1384 35 343 88 30 9505 59990 366 284 19917 33 514 685 6870 43754 33 11190 94 65639 11475 94 1767 1027 40264 33 39392 734 11190 94 65639 7722 9737 72903 978 9737 4494 11988 978 5953 84 33196 35 2092 451 12935 47 9505 9459 731 72529 
+09-09 12:51:22.969 29899 30072 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=0 text_tokens=2112 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d274bb0
+09-09 12:51:22.969 29899 30072 I RNLlama : loadPrompt:708 [DEBUG] Input processed: n_past=0, embd.size=2112, num_prompt_tokens=2112, has_media=0
+09-09 12:51:45.769  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35208): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:51:50.117  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35209): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:52:15.777  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35210): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:52:20.125  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35211): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:52:45.813  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35212): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:52:50.153  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35213): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:53:15.821  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35214): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:53:20.161  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35215): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:53:45.853  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35216): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:53:50.189  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35217): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:54:15.869  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35235): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:54:20.197  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35236): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:54:45.897  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35237): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:54:50.225  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35238): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:55:15.905  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35239): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:55:19.918  2504  7736 W PhBaseOp: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:55:19.918  2504  7736 W PhBaseOp: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:55:19.919  2504  7736 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:55:19.919  2504  7736 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:55:20.136  2504 21840 W PhBaseOp: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:55:20.136  2504 21840 W PhBaseOp: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:55:20.137  2504 21840 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:55:20.137  2504 21840 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:55:20.245  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35240): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:55:45.945  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35241): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:55:50.273  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35242): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:56:15.953  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35243): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:56:20.281  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35244): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:56:29.779 29899 30074 I RNLlama : loadPrompt:440 
+09-09 12:56:29.779 29899 30074 I RNLlama : loadPrompt: prompt_tokens = 0 130072 17261 220 4682 94 653 63797 33 497 959 121731 14182 3466 4916 1996 101374 917 11674 474 1894 100 111026 35 91734 368 11217 33 331 446 368 2920 33 331 446 368 967 624 3374 58143 35 4637 1943 1767 15643 86 47 343 86 30 48546 92115 18512 642 10940 1812 100 80560 1384 42958 2780 15299 86 440 18512 15274 734 983 16471 1812 712 94 84337 21968 47836 343 111313 16738 33 1125 313 7143 513 33 1812 100 71547 33 436 528 101 98069 7466 33 78446 30 331 8080 15643 86 310 291 6684 9664 489 333 28 351 10990 35 1325 997 15643 86 63318 28 351 10990 1774 87275 25458 5337 289 87275 7315 86 33 94758 333 28 1901 13395 35 343 87 30 104907 5967 94 2780 593 13154 1767 9737 72903 33 734 11594 16738 84337 14705 94 1563 35063 2456 731 331 8080 15643 86 6321 1384 35 343 88 30 9505 59990 366 284 19917 33 514 685 6870 43754 33 11190 94 65639 11475 94 1767 1027 40264 33 39392 734 11190 94 65639 7722 9737 72903 978 9737 4494 11988 978 5953 84 33196 35 2092 451 12935 47 9505 9459 731 72529 
+09-09 12:56:29.779 29899 30074 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=2112 text_tokens=3117 n_common=2109 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d274bb0
+09-09 12:56:29.779 29899 30074 W RNLlama : loadPrompt:520 KALSA_KVDIVERGE n_common=2109 shared_lo=2101 embd_hi=2112 text_hi=2121 shared_ids=[11638 51 21 130073 220 130072 8448 220 ] embd_ids=[35 130073 220 ] text_ids=[18137 317 285 11966 16085 33 976 357 285 16087 2339 5018 ]
+09-09 12:56:29.779 29899 30074 I RNLlama : loadPrompt:708 [DEBUG] Input processed: n_past=2109, embd.size=3117, num_prompt_tokens=3117, has_media=0
+09-09 12:56:46.001  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35245): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:56:50.309  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35246): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:57:16.009  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35247): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:57:20.321  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35248): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:57:46.037  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35278): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:57:50.353  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35279): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:58:16.049  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35280): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:58:20.369  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35281): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:58:25.220  2504 31172 E jqrj    : 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:58:25.220  2504 31172 E jqrj    : 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:58:46.081  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35283): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:58:50.401  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35284): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:59:16.093  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35285): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:59:20.409  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35286): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:59:46.125  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35287): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:59:50.437  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35288): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:00:16.133  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35289): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:00:20.445  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35290): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:00:46.169  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35292): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:00:50.477  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35293): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:01:16.181  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35294): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:01:20.485  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35295): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:01:46.209  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35297): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:01:50.501  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35298): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:02:16.221  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35299): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:02:20.090 29899 29928 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":3235,"tokensEvaluated":3117,"tokensPredicted":117,"draftTokens":0,"draftAccepted":0,"promptMs":289058.42100000003,"predictedMs":60702.475,"predictedPerSecond":1.927433766086144,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-09 13:02:20.509  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35300): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms

@@ -1,0 +1,4 @@
+poll=1 rc=0 temp_tenths=390
+poll=2 rc=0 temp_tenths=390
+poll=3 rc=0 temp_tenths=390
+poll=4 rc=0 temp_tenths=380

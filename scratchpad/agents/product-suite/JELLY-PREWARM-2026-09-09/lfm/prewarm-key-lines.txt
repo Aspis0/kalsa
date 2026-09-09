@@ -1,0 +1,27 @@
+09-09 13:04:27.185 32154 32177 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-09 13:04:27.205 32154 32233 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=0 text_tokens=1832 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d277130
+09-09 13:04:45.371  1916  9548 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:04:46.341  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35329): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:04:50.617  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35330): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:04:51.416  1916 10326 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:04:59.044  1916 10411 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:02.470  1916  2419 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:12.708  1916  3460 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:16.349  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35331): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:05:20.633  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35332): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:05:21.952  1916  6194 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:31.963  1916  8299 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:32.182  1916 10069 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:39.976  1916  9548 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:46.381  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35333): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:05:50.661  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35334): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:05:52.509  1916 10326 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:05:53.650  1916 10411 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:06:02.532  1916  2419 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:06:07.335  1916  3460 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:06:11.892  1916  6194 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:06:16.393  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35335): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:06:20.669  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35336): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 13:06:20.961  1916  8299 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:06:22.548  1916 10069 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 13:06:22.674 32154 32177 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":114669.581,"hash":"3586270056"}'

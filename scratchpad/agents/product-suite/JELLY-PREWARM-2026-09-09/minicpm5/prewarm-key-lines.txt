@@ -1,0 +1,41 @@
+09-09 12:45:13.115 29899 29928 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-09 12:45:13.165 29899 30075 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=0 text_tokens=2112 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2732b0
+09-09 12:45:15.473  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35164): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:45:19.849  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35165): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:45:28.731  1916  2419 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:45:42.392  1916  3460 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:45:45.501  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35166): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:45:49.877  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35167): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:46:00.842   772   772 E android.hardware.lights-service.mediatek: write error2 none to /sys/class/leds/green/trigger, result: -13
+09-09 12:46:00.842   772   772 D android.hardware.lights-service.mediatek: write error2 none to /sys/class/leds/green/trigger, result: -13
+09-09 12:46:00.941  1916  6194 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:46:00.948  1916  8299 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:46:00.950  1916  9548 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:46:09.712  1916 10069 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:46:15.521  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35169): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:46:19.885  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35170): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:46:23.377  1916 10326 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:46:26.196  2504  7736 W PhBaseOp: Phenotype API error. Event: # izuz@782ca07f, EventCode: COMMIT_CONFIG [CONTEXT service_id=51 ]
+09-09 12:46:26.196  2504  7736 W PhBaseOp: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:46:26.196  2504  7736 W PhBaseOp: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:46:26.197  2504  7736 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1100)
+09-09 12:46:26.197  2504  7736 W AsyncOperation: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+09-09 12:46:34.516  1916 10411 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:46:45.553  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35171): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:46:49.917  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35172): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:46:50.650  1916  2419 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:47:15.565  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35173): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:47:19.929  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35174): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:47:21.001   772   772 E android.hardware.lights-service.mediatek: write error2 none to /sys/class/leds/green/trigger, result: -13
+09-09 12:47:21.001   772   772 D android.hardware.lights-service.mediatek: write error2 none to /sys/class/leds/green/trigger, result: -13
+09-09 12:47:21.010  1916  3460 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:47:21.080  1916  6194 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:47:31.625  1916  8299 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:47:45.593  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35176): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:47:49.957  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35177): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:48:15.605  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35178): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:48:19.969  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35179): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:48:45.637  2504  2504 W ThreadPoolForeg: type=1400 audit(0.0:35180): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:48:49.997  3423  3423 W ThreadPoolForeg: type=1400 audit(0.0:35181): avc: denied { write } for name="traced_producer" dev="tmpfs" ino=1400 scontext=u:r:gmscore_app:s0:c512,c768 tcontext=u:object_r:traced_producer_socket:s0 tclass=sock_file permissive=0 app=com.google.android.gms
+09-09 12:48:51.117  1916  9548 D PowerUI : can't show warning due to - plugged: true status unknown: false
+09-09 12:48:56.614 29899 29928 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"eval-failed","hash":"3586270056","promptMs":0,"promptN":1,"tokensEvaluated":2112}'
