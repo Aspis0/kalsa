@@ -1,0 +1,290 @@
+{
+  "C07": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "C08": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "C09": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "C10": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "C11": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "C12": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "C15": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "I13": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "I14": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "M05": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "M06": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "M09": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W01": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W02": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W04": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W05": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W07": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W08": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W11": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W12": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W13": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W15": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W16": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W18": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W21": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W22": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W26": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W27": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/absurd_gift/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/absurd_gift/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/absurd_gift/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/absurd_gift/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/ambiguous/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/ambiguous/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/ambiguous/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/ambiguous/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/arith_change/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/arith_change/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/arith_change/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/arith_change/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/count_vowels/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/count_vowels/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/count_vowels/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/count_vowels/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fact_spa2000/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fact_spa2000/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fact_spa2000/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fact_spa2000/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/false_premise/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/false_premise/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/false_premise/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/false_premise/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fermi_estimate/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fermi_estimate/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fermi_estimate/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fermi_estimate/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/format_obedience/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/format_obedience/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/format_obedience/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/format_obedience/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/genuine_refusal/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/genuine_refusal/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/genuine_refusal/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/genuine_refusal/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/honesty_unknown/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/honesty_unknown/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/honesty_unknown/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/honesty_unknown/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/local_knowledge/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/local_knowledge/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/local_knowledge/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/local_knowledge/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  }
+}

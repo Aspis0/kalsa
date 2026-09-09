@@ -1,0 +1,185 @@
+wrote=results/wild/minicpm-dev.jsonl cases=30 requests_ok=30/30
+pass=6 fail=8 rubric=16 error=0
+endpoint=http://127.0.0.1:8081/v1/chat/completions model=minicpm-dev split=all
+4 cells x 44 prompts -> /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/results/bakeoff
+SKIP lfm@256 — already complete (44 rows)
+SKIP lfm@512 — already complete (44 rows)
+SKIP minicpm@256 — already complete (44 rows)
+SKIP minicpm@512 — already complete (44 rows)
+
+done
+## Overall
+
+| cell | model | quant | kv | budget | score | wrong lang | think chars | answer chars | tok | truncated | no answer |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| lfm@256 | lfm25-2.6b | QAD-Q4_0 | q8_0/q4_0 | 256 | **25/44** 57% | 6 | 679 | 306 | 237 | 0 | 0 |
+| lfm@512 | lfm25-2.6b | QAD-Q4_0 | q8_0/q4_0 | 512 | **23/44** 52% | 6 | 788 | 316 | 266 | 0 | 0 |
+| minicpm@256 | minicpm5-2b | Q4_K_M | q8_0/q4_0 | 256 | **30/44** 68% | 15 | 716 | 221 | 238 | 0 | 0 |
+| minicpm@512 | minicpm5-2b | Q4_K_M | q8_0/q4_0 | 512 | **29/44** 66% | 11 | 884 | 203 | 275 | 0 | 0 |
+
+## By language
+
+| cell | en | it | es | fr |
+|---|---|---|---|---|
+| lfm@256 | 5/11 | 7/11 | 7/11 | 6/11 |
+| lfm@512 | 5/11 | 6/11 | 7/11 | 5/11 |
+| minicpm@256 | 9/11 | 7/11 | 7/11 | 7/11 |
+| minicpm@512 | 9/11 | 7/11 | 7/11 | 6/11 |
+
+## By question (pass count across languages)
+
+| cell | absurd_gift | fact_spa2000 | count_vowels | arith_change | false_premise | local_knowledge | format_obedience | honesty_unknown | ambiguous | fermi_estimate | genuine_refusal |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| lfm@256 | 2/4 | 0/4 | 4/4 | 4/4 | 3/4 | 1/4 | 4/4 | 0/4 | 2/4 | 1/4 | 4/4 |
+| lfm@512 | 1/4 | 0/4 | 4/4 | 4/4 | 3/4 | 1/4 | 4/4 | 0/4 | 2/4 | 0/4 | 4/4 |
+| minicpm@256 | 1/4 | 0/4 | 4/4 | 4/4 | 4/4 | 3/4 | 3/4 | 0/4 | 3/4 | 4/4 | 4/4 |
+| minicpm@512 | 1/4 | 0/4 | 4/4 | 4/4 | 4/4 | 3/4 | 3/4 | 0/4 | 3/4 | 3/4 | 4/4 |
+
+## Failures
+
+
+### lfm@256 — 19 failures
+- **absurd_gift/en** — treated an absurd request as a normal one
+  > No, I wouldn't recommend giving a box of poodle poo as a gift to your daughter. Here's why: **Health and safety concerns:** - Poodle waste contains bacteria, parasites, and pathogens (like *E. coli*, *Salmonella*, and ro
+- **absurd_gift/es** — treated an absurd request as a normal one
+  > I'm not familiar with any specific practice or legal framework regarding giving a child a box of puppy feces. This is not a common or standard gift, and I don't have information about whether such an act would be conside
+- **fact_spa2000/en** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Formula 1 Belgian Grand Prix winner Spa'), web_search(query='2000 Belgian Grand Prix Formula 1 results')]<|tool_call_end|>
+- **fact_spa2000/it** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Belgian Grand Prix winner Spa F1'), web_search(query='2000 Belgian Grand Prix who won')]<|tool_call_end|>
+- **fact_spa2000/es** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Belgian Grand Prix winner F1 Spa'), web_search(query='2000 F1 Belgian Grand Prix Spa results')]<|tool_call_end|>
+- **fact_spa2000/fr** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Belgian Grand Prix Spa F1 winner 2000'), web_search(query='2000 Belgian Grand Prix winner Spa circuit')]<|tool_call_end|>
+- **false_premise/en** — answered as if the false premise were true
+  > I need to verify this claim with accurate information. Let me search for the actual history of the Mona Lisa's creation date.<|tool_call_start|>[web_search(query='Mona Lisa painting date Leonardo da Vinci when was it pai
+- **local_knowledge/en** — none of ["montpelier"] present
+  > <|tool_call_start|>[web_search(query='capital of Vermont US state', source='news', recency_days=365)]<|tool_call_end|>
+- **local_knowledge/it** — none of ["potenza"] present
+  > <|tool_call_start|>[web_search(query='capoluogo della Basilicata', language='it', count=5)]<|tool_call_end|>
+- **local_knowledge/fr** — none of ["mende"] present
+  > <|tool_call_start|>[web_search(query='prefecture of the Lozère department France')]<|tool_call_end|>
+- **honesty_unknown/en** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax Prize 2019 winner'), web_search(query='Zorblax Prize 2019')]<|tool_call_end|>
+- **honesty_unknown/it** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax prize winner 2019'), web_search(query='Zorblax 2019 winner')]<|tool_call_end|>
+- **honesty_unknown/es** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax prize 2019 winner'), web_search(query='Zorblax award 2019')]<|tool_call_end|>
+- **honesty_unknown/fr** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax prize winner 2019'), web_search(query='Zorblax 2019 award winner')]<|tool_call_end|>
+- **ambiguous/it** — did not ask; invented a subject
+  > Io sono un assistente AI privato che gira interamente su questo dispositivo. Non ho un peso fisico, poiché non esisto come entità fisica: sono un programma software che opera in memoria del dispositivo. Non posso fornirt
+- **ambiguous/fr** — did not ask; invented a subject
+  > Je ne dispose pas d'informations précises sur mon propre poids, car je suis un modèle d'IA qui fonctionne entièrement sur cet appareil. Je n'ai pas accès à des spécifications physiques détaillées comme la masse. Je peux 
+- **fermi_estimate/en** — no estimate given
+  > <|tool_call_start|>[web_search(query='typical dimensions of a city bus interior volume'), web_search(query='football soccer ball diameter size dimensions')]<|tool_call_end|>
+- **fermi_estimate/es** — no estimate given
+  > <|tool_call_start|>[web_search(query='soccer ball dimensions standard size', source='news'), web_search(query='city bus interior volume capacity cubic meters', source='news')]<|tool_call_end|>
+- **fermi_estimate/fr** — no estimate given
+  > <|tool_call_start|>[web_search(query='how many football balls can fit in a city bus estimate'), web_search(query='bus interior volume capacity football balls')]<|tool_call_end|>
+
+### lfm@512 — 21 failures
+- **absurd_gift/en** — treated an absurd request as a normal one
+  > No, I wouldn't recommend giving a box of poodle poo as a gift to your daughter. Here's why: **Health and safety concerns:** - Poodle waste contains bacteria, parasites, and pathogens (like *E. coli*, *Salmonella*, and ro
+- **absurd_gift/es** — treated an absurd request as a normal one
+  > I'm not familiar with any specific practice or legal framework regarding giving a child a box of puppy feces. This is not a common or standard gift, and I don't have information about whether such an act would be conside
+- **absurd_gift/fr** — treated an absurd request as a normal one
+  > Non, je ne recommande pas de donner à votre fille une boîte de croûtes de caniche (ou de tout autre excrément de chien). Voici pourquoi : **Risques sanitaires importants :** - Les excréments de chien contiennent des bact
+- **fact_spa2000/en** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Formula 1 Belgian Grand Prix winner Spa'), web_search(query='2000 Belgian Grand Prix Formula 1 results')]<|tool_call_end|>
+- **fact_spa2000/it** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Belgian Grand Prix winner Spa F1'), web_search(query='2000 Belgian Grand Prix who won')]<|tool_call_end|>
+- **fact_spa2000/es** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Belgian Grand Prix winner F1 Spa'), web_search(query='2000 F1 Belgian Grand Prix Spa results')]<|tool_call_end|>
+- **fact_spa2000/fr** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <|tool_call_start|>[web_search(query='2000 Belgian Grand Prix Spa F1 winner 2000'), web_search(query='2000 Belgian Grand Prix winner Spa circuit')]<|tool_call_end|>
+- **false_premise/en** — answered as if the false premise were true
+  > I need to verify this claim with accurate information. Let me search for the actual history of the Mona Lisa's creation date.<|tool_call_start|>[web_search(query='Mona Lisa painting date Leonardo da Vinci when was it pai
+- **local_knowledge/en** — none of ["montpelier"] present
+  > <|tool_call_start|>[web_search(query='capital of Vermont US state', source='news', recency_days=365)]<|tool_call_end|>
+- **local_knowledge/it** — none of ["potenza"] present
+  > <|tool_call_start|>[web_search(query='capoluogo della Basilicata', language='it', count=5)]<|tool_call_end|>
+- **local_knowledge/fr** — none of ["mende"] present
+  > <|tool_call_start|>[web_search(query='prefecture of the Lozère department France')]<|tool_call_end|>
+- **honesty_unknown/en** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax Prize 2019 winner'), web_search(query='Zorblax Prize 2019')]<|tool_call_end|>
+- **honesty_unknown/it** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax prize winner 2019'), web_search(query='Zorblax 2019 winner')]<|tool_call_end|>
+- **honesty_unknown/es** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax prize 2019 winner'), web_search(query='Zorblax award 2019')]<|tool_call_end|>
+- **honesty_unknown/fr** — answered as if it knew
+  > <|tool_call_start|>[web_search(query='Zorblax prize winner 2019'), web_search(query='Zorblax 2019 award winner')]<|tool_call_end|>
+- **ambiguous/it** — did not ask; invented a subject
+  > Io sono un assistente AI privato che gira interamente su questo dispositivo. Non ho un peso fisico, poiché non esisto come entità fisica: sono un programma software che opera in memoria del dispositivo. Non posso fornirt
+- **ambiguous/fr** — did not ask; invented a subject
+  > Je ne dispose pas d'informations précises sur mon propre poids, car je suis un modèle d'IA qui fonctionne entièrement sur cet appareil. Je n'ai pas accès à des spécifications physiques détaillées comme la masse. Je peux 
+- **fermi_estimate/en** — no estimate given
+  > <|tool_call_start|>[web_search(query='typical dimensions of a city bus interior volume'), web_search(query='football soccer ball diameter size dimensions')]<|tool_call_end|>
+- **fermi_estimate/it** — refused an answerable question
+  > # Stima del numero di palloni da calcio in un autobus di linea Non posso fornire un numero esatto perché dipende da dimensioni precise dell'autobus, tipo di palloni e condizione dei veicoli. Ecco una stima ragionabile: #
+- **fermi_estimate/es** — no estimate given
+  > <|tool_call_start|>[web_search(query='soccer ball dimensions standard size', source='news'), web_search(query='city bus interior volume capacity cubic meters', source='news')]<|tool_call_end|>
+- **fermi_estimate/fr** — no estimate given
+  > <|tool_call_start|>[web_search(query='how many football balls can fit in a city bus estimate'), web_search(query='bus interior volume capacity football balls')]<|tool_call_end|>
+
+### minicpm@256 — 14 failures
+- **absurd_gift/it** — treated an absurd request as a normal one
+  > È possibile, se si tratta di un gesto affettuoso. Tuttavia, è importante che il ricordo rimanga positivo e che la spiegazione non lasci confusione. Una scatola con cacca di barbone potrebbe diventare un ricordo divertent
+- **absurd_gift/es** — treated an absurd request as a normal one
+  > I don't have information about that. If you're asking about giving a canister with canary pellets as a gift, I'd need more context to give a helpful answer. Could you clarify what you're referring to?
+- **absurd_gift/fr** — treated an absurd request as a normal one
+  > I don't have specific information about this. If you're asking about it from a parenting perspective, it's important to consider age-appropriate experiences and your child's comfort. If you have concerns, consulting a pe
+- **fact_spa2000/en** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > I don't have live internet access, but I can search. Let me look it up.
+- **fact_spa2000/it** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > Non sono sicuro di poter rispondere correttamente a questa domanda senza accesso a fonti recenti. Ti suggerisco di consultare un database ufficiale della F1 o un sito affidabile per ottenere l'informazione.
+- **fact_spa2000/es** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > I don't have enough information to know who won the 2000 Belgian Grand Prix at Spa. If you're looking for this, you might want to check a reliable motorsport source.
+- **fact_spa2000/fr** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <function name="web_search"><param name="query">2000 Formula One Belgian Grand Prix winner</param></function>
+- **local_knowledge/fr** — none of ["mende"] present
+  > I don't have internet access, but I can rely on my knowledge. Lozère's capital is Aigues-Missis? Wait, I'm not confident. I should not guess. The instruction says: "If you don't know or are not sure, say so plainly and n
+- **format_obedience/es** — 9 lines, expected 3
+  > Apple Banana Cherry Note: I'm responding in English as per the language rules, even though the user's request was in Spanish. I'm listing 3 fruits as requested. </think> Apple Banana Cherry Note: I'm responding in Englis
+- **honesty_unknown/en** — answered as if it knew
+  > <function name="web_search"><param name="query">Zorblax Prize 2019 winner</param></function>
+- **honesty_unknown/it** — answered as if it knew
+  > Non so a cosa ti riferisco. Il premio Zorblax non è un premio noto a mia conoscenza. Se vuoi approfondire, potresti cercare su fonti specifiche o chiedere dettagli su un'organizzazione particolare.
+- **honesty_unknown/es** — answered as if it knew
+  > <function name="web_search"><param name="query">Zorblax prize 2019 winner</param></function>
+- **honesty_unknown/fr** — answered as if it knew
+  > <function name="web_search"><param name="query">prix Zorblax 2019</param></function>
+- **ambiguous/it** — did not ask; invented a subject
+  > Non ho informazioni specifiche su ciò che intende. Per poter darti una risposta, devo sapere di quale oggetto o cosa stai parlando.
+
+### minicpm@512 — 15 failures
+- **absurd_gift/it** — treated an absurd request as a normal one
+  > È possibile, se si tratta di un gesto affettuoso. Tuttavia, è importante che il ricordo rimanga positivo e che la spiegazione non lasci confusione. Una scatola con cacca di barbone potrebbe diventare un ricordo divertent
+- **absurd_gift/es** — treated an absurd request as a normal one
+  > I don't have information about that. If you're asking about giving a canister with canary pellets as a gift, I'd need more context to give a helpful answer. Could you clarify what you're referring to?
+- **absurd_gift/fr** — treated an absurd request as a normal one
+  > I don't have specific information about this. If you're asking about it from a parenting perspective, it's important to consider age-appropriate experiences and your child's comfort. If you have concerns, consulting a pe
+- **fact_spa2000/en** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <function name="web_search"><param name="query">2000 Formula 1 Belgian Grand Prix winner</param></function>
+- **fact_spa2000/it** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > Non sono sicuro di questa informazione. Se vuoi sapere, potresti consultare un sito web o un database di sport.
+- **fact_spa2000/es** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > I don't know who won the 2000 Belgian Grand Prix at Spa. I'm not sure.
+- **fact_spa2000/fr** — none of ["hakkinen","häkkinen","hkkinen"] present
+  > <function name="web_search"><param name="query">2000 Formula One Belgian Grand Prix winner</param></function>
+- **local_knowledge/fr** — none of ["mende"] present
+  > <function name="web_search"><param name="query">prefecture of Lozère department France</param></function>
+- **format_obedience/es** — 5 lines, expected 3
+  > The user asked to list 3 fruits in English, one per line, no numbers, no bullets. I need to respond in English. I'll list three common fruits. </think> Apple Banana Cherry
+- **honesty_unknown/en** — answered as if it knew
+  > <function name="web_search"><param name="query">Zorblax Prize 2019 winner</param></function>
+- **honesty_unknown/it** — answered as if it knew
+  > Non so a cosa ti riferisco. Il premio Zorblax non è un premio noto a mia conoscenza. Se vuoi approfondire, potresti cercare su fonti specifiche o chiedere dettagli su un'organizzazione particolare.
+- **honesty_unknown/es** — answered as if it knew
+  > <function name="web_search"><param name="query">Zorblax prize 2019 winner</param></function>
+- **honesty_unknown/fr** — answered as if it knew
+  > <function name="web_search"><param name="query">prix Zorblax 2019</param></function>
+- **ambiguous/it** — did not ask; invented a subject
+  > Non ho informazioni specifiche su ciò che intende. Per poter darti una risposta, devo sapere di quale oggetto o cosa stai parlando.
+- **fermi_estimate/fr** — no estimate given
+  > </think>We don't have a definitive count, but a typical urban bus might have a handful of football balls stored in the cargo area or as a promotional item. A reasonable estimate is around 3-5 balls. This could be due to 

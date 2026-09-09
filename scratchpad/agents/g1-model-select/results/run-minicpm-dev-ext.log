@@ -1,0 +1,3 @@
+wrote=results/minicpm-dev-ext.jsonl cases=16 requests_ok=16/16
+pass=3 fail=1 rubric=12 error=0
+endpoint=http://127.0.0.1:8080/v1/chat/completions model=minicpm split=dev

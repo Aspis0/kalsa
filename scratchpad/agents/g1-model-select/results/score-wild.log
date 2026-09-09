@@ -1,0 +1,30 @@
+cases=60
+model	category	lang	split	pass_rate	pass	fail	rubric	error
+lfm-dev	absurd	en	wild	0.750	3	1	2	0
+lfm-dev	absurd	it	wild	0.500	2	2	2	0
+lfm-dev	multilingual	de	wild	1.000	1	0	2	0
+lfm-dev	multilingual	es	wild	1.000	1	0	2	0
+lfm-dev	multilingual	fr	wild	1.000	1	0	2	0
+lfm-dev	multilingual	ja	wild	1.000	1	0	2	0
+lfm-dev	multilingual	pt	wild	1.000	1	0	2	0
+lfm-dev	multilingual	zh	wild	1.000	1	0	2	0
+minicpm-dev	absurd	en	wild	0.500	2	2	2	0
+minicpm-dev	absurd	it	wild	0.000	0	4	2	0
+minicpm-dev	multilingual	de	wild	1.000	1	0	2	0
+minicpm-dev	multilingual	es	wild	1.000	1	0	2	0
+minicpm-dev	multilingual	fr	wild	1.000	1	0	2	0
+minicpm-dev	multilingual	ja	wild	1.000	1	0	2	0
+minicpm-dev	multilingual	pt	wild	0.000	0	1	2	0
+minicpm-dev	multilingual	zh	wild	0.000	0	1	2	0
+failures
+lfm-dev	W20	FAIL	check mismatch
+lfm-dev	W24	FAIL	check mismatch
+lfm-dev	W25	FAIL	check mismatch
+minicpm-dev	W10	FAIL	check mismatch
+minicpm-dev	W14	FAIL	check mismatch
+minicpm-dev	W19	FAIL	check mismatch
+minicpm-dev	W20	FAIL	check mismatch
+minicpm-dev	W23	FAIL	check mismatch
+minicpm-dev	W24	FAIL	check mismatch
+minicpm-dev	W25	FAIL	check mismatch
+minicpm-dev	W28	FAIL	check mismatch

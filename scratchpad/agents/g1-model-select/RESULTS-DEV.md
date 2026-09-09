@@ -53,6 +53,14 @@ LFM: C14 — emitted unsupported textual `web_search` markup instead of the nume
 
 MiniCPM5: C14 — returned a reasoning marker and duplicate `15` instead of the required number; I06 — returned only `- [ ]`; I11 — returned “1 ore” instead of singular “1 ora”.
 
+| model | case | category | lang | failed check | answer excerpt |
+|---|---|---|---|---|---|
+| lfm | C14 | conversation | en | exact / mismatch | `<|tool_call_start|>[web_search(query='pasta cooking time 9 minutes serve in 15 minutes when to start cooking', source='n` |
+| lfm | I11 | instructions | it | exact / mismatch | `1 ore e 30 minuti` |
+| minicpm | C14 | conversation | en | exact / mismatch | `15` |
+| minicpm | I06 | instructions | en | regex / mismatch | `- [ ]` |
+| minicpm | I11 | instructions | it | exact / mismatch | `1 ore e 30 minuti` |
+
 ## Tools and performance
 
 Both models returned structured `tool_calls` for all 12 dev tool cases; neither returned a tool call as ordinary/XML text. Tool cases were checked across every returned call and against required arguments. No post-tool execution was performed. The schemas are intentionally invented offline schemas because the product `web_search` cannot be simulated offline; this is a declared deviation.
@@ -70,3 +78,23 @@ HTTP errors: 0. Timeouts: 0. Runner `ERROR` rows: 0 for both models.
 - The runner uses the exact locale-specific base `systemPrompt` files selected per case language. Tool cases receive that same base prompt plus their invented OpenAI function schemas; the product’s tools variant is not hand-built.
 - MiniCPM5 used the requested app-mirroring `q8_0`/`q4_0` KV-cache flags; no model-specific KV-cache tuning was introduced.
 - No real external tools or network calls were made by the runner; it only calls the local llama-server endpoint. Open-ended cases remain `RUBRIC` for the blind pass.
+- `run_wild.sh` was minimally changed so stage 1 uses the dev server flags on port 8081; `run_corpus.py` now maps only `it` to Italian and every other locale to English, records `system_lang`, and supports the written extended-ID selection.
+
+## Wild / bake-off / extended
+
+Wild deterministic tallies (`PASS/(PASS+FAIL)`, rubric excluded): LFM multilingual 6/6, absurd en 3/4 and it 2/4; MiniCPM5 multilingual 4/6 (de/es/fr/ja 1/1, pt/zh 0/1), absurd en 2/4 and it 0/4. Per-language wild rows are in `results/score-wild.log`; bake-off detail is in `results/bakeoff-report.log`.
+
+Executed commands: `bash run_wild.sh lfm-dev samplers/lfm.json` rc=0; `bash run_wild.sh minicpm-dev samplers/minicpm.json` rc=0. Extended commands used the same one-server-at-a-time flags and runner: `python3 run_corpus.py --base-url http://127.0.0.1:8080 --model-label lfm --split dev --ids-file extended-ids.txt --sampler samplers/lfm-extended.json --out results/lfm-dev-ext.jsonl` rc=0; the corresponding MiniCPM5 command with `--model-label minicpm`, `samplers/minicpm-extended.json`, and `results/minicpm-dev-ext.jsonl` rc=0. `score.py` rc=0 for both later blocks.
+
+| bake-off cell | overall | en | it | es | fr |
+|---|---:|---:|---:|---:|---:|
+| lfm@256 | 25/44 | 5/11 | 7/11 | 7/11 | 6/11 |
+| lfm@512 | 23/44 | 5/11 | 6/11 | 7/11 | 5/11 |
+| minicpm@256 | 30/44 | 9/11 | 7/11 | 7/11 | 7/11 |
+| minicpm@512 | 29/44 | 9/11 | 7/11 | 7/11 | 6/11 |
+
+Bake-off question-block counts, in order `absurd_gift, fact_spa2000, count_vowels, arith_change, false_premise, local_knowledge, format_obedience, honesty_unknown, ambiguous, fermi_estimate, genuine_refusal`: lfm@256=`2/4,0/4,4/4,4/4,3/4,1/4,4/4,0/4,2/4,1/4,4/4`; lfm@512=`1/4,0/4,4/4,4/4,3/4,1/4,4/4,0/4,2/4,0/4,4/4`; minicpm@256=`1/4,0/4,4/4,4/4,4/4,3/4,3/4,0/4,3/4,4/4,4/4`; minicpm@512=`1/4,0/4,4/4,4/4,4/4,3/4,3/4,0/4,3/4,3/4,4/4`.
+
+Extended set: `C07 C08 C09 C10 C11 C12 C15 I06 I11 I13 I14 M01 M05 M06 M09 C14`. Both models: 3/4 deterministic, 12 rubric, 0 errors; per language EN 2/2 and IT 1/2. Extended deterministic failure: I11 for both.
+
+Blind judge still needed for 12 dev rubric rows, 16 wild rubric rows, and 44 short-budget bake-off rows; the pack is 72 rows in `results/judge-pack.jsonl` and `results/judge-pack.md`, with model order only in `results/judge-key.json`. The 12 extended rubric answers are not mixed into that pack and remain for a separate budget comparison.

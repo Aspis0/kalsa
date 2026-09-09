@@ -2,11 +2,8 @@
 set -euo pipefail
 
 # Usage: ./run_wild.sh <model-label> <sampler-file>
-# The first stage uses the same llama-server shape evidenced by the G1 logs:
-# four 8192-token slots (total -c 32768), localhost, and no web UI.
-# run_corpus.py currently maps system prompts only for en and it; the requested
-# wild corpus intentionally contains es/fr/de/pt/zh/ja and will expose that
-# existing limitation until the runner gains a non-IT fallback.
+# The first stage uses the same llama-server flags as the G1 dev pass, on the
+# dedicated wild port. Non-Italian locales use the English system prompt.
 # system-prompt-en.txt is the declared prompt for every non-IT wild language.
 
 G1_ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -66,7 +63,10 @@ stop_wild_server() {
 trap 'stop_wild_server; rm -f "$WILD_LOG"' EXIT
 
 cd "$G1_ROOT"
-"$SERVER_BIN" -m "$MODEL_PATH" --port 8081 --host 127.0.0.1 -c 32768 -np 4 --no-webui > /dev/null 2>"$WILD_LOG" &
+"$SERVER_BIN" -m "$MODEL_PATH" --port 8081 --host 127.0.0.1 \
+  -c 8192 -b 512 -ub 256 -t 8 -ctk q8_0 -ctv q4_0 -fa auto \
+  --jinja --reasoning on --reasoning-format deepseek --reasoning-preserve --mlock \
+  > /dev/null 2>"$WILD_LOG" &
 WILD_PID=$!
 
 healthy=0

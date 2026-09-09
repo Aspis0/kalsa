@@ -1,0 +1,17 @@
+cases=32
+model	category	lang	split	pass_rate	pass	fail	rubric	error
+lfm	conversation	en	dev	1.000	1	0	3	0
+lfm	conversation	it	dev	n/a	0	0	4	0
+lfm	instructions	en	dev	1.000	1	0	1	0
+lfm	instructions	it	dev	0.000	0	1	1	0
+lfm	memory	en	dev	n/a	0	0	2	0
+lfm	memory	it	dev	1.000	1	0	1	0
+minicpm	conversation	en	dev	1.000	1	0	3	0
+minicpm	conversation	it	dev	n/a	0	0	4	0
+minicpm	instructions	en	dev	1.000	1	0	1	0
+minicpm	instructions	it	dev	0.000	0	1	1	0
+minicpm	memory	en	dev	n/a	0	0	2	0
+minicpm	memory	it	dev	1.000	1	0	1	0
+failures
+lfm	I11	FAIL	check mismatch
+minicpm	I11	FAIL	check mismatch

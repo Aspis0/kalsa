@@ -13,6 +13,11 @@ def response(content="", calls=None):
 
 
 class RunnerUnitTests(unittest.TestCase):
+    def test_prompt_language_fallback(self):
+        self.assertEqual(run_corpus.prompt_language("it"), "it")
+        for lang in ("es", "fr", "de", "pt", "zh", "ja", "en"):
+            self.assertEqual(run_corpus.prompt_language(lang), "en")
+
     def test_reasoning_markers_are_removed(self):
         self.assertEqual(run_corpus.strip_reasoning("<think>hidden</think>4"), "4")
         self.assertEqual(run_corpus.strip_reasoning("[Start thinking]hidden[End thinking] 4"), "4")

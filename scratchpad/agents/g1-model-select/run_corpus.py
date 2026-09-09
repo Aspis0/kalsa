@@ -35,6 +35,10 @@ def endpoint(base_url):
     return base + "/v1/chat/completions"
 
 
+def prompt_language(lang):
+    return "it" if lang == "it" else "en"
+
+
 def post_json(url, payload, timeout):
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     request = Request(url, data=body, headers={"Content-Type": "application/json"})
@@ -68,7 +72,8 @@ def sampler_payload(sampler):
 
 
 def run_case(case, args, sampler, prompts, url):
-    messages = [{"role": "system", "content": prompts[case["lang"]]}, *case["turns"]]
+    system_lang = prompt_language(case["lang"])
+    messages = [{"role": "system", "content": prompts[system_lang]}, *case["turns"]]
     payload = {"model": args.model_label, "messages": messages}
     payload.update(sampler)
     if case.get("tools"):
@@ -83,6 +88,7 @@ def run_case(case, args, sampler, prompts, url):
         "lang": case["lang"],
         "category": case["category"],
         "split": case["split"],
+        "system_lang": system_lang,
         "raw_response": response,
         "assistant_text_raw": raw_text_from(response),
         "assistant_text": text_from(response),
@@ -97,7 +103,7 @@ def run_case(case, args, sampler, prompts, url):
         "sampler_file": os.path.abspath(args.sampler),
         "thinking_budget_tokens": sampler.get("thinking_budget_tokens"),
         "chat_template_kwargs": sampler.get("chat_template_kwargs"),
-        "system_prompt_file": os.path.abspath(args.system_prompt_files[case["lang"]]),
+        "system_prompt_file": os.path.abspath(args.system_prompt_files[system_lang]),
     }
     if error:
         result["check"] = {"status": "ERROR", "detail": error}
@@ -119,6 +125,7 @@ def main():
     parser.add_argument("--timeout", type=float, default=300)
     parser.add_argument("--retry-delay", type=float, default=5)
     parser.add_argument("--limit", type=int, default=0)
+    parser.add_argument("--ids-file")
     args = parser.parse_args()
     with open(args.sampler, encoding="utf-8") as handle:
         sampler = sampler_payload(json.load(handle))
@@ -129,7 +136,13 @@ def main():
             prompts[lang] = handle.read().rstrip("\n")
         if not prompts[lang]:
             raise ValueError(f"system prompt file is empty: {path}")
+    selected_ids = None
+    if args.ids_file:
+        with open(args.ids_file, encoding="utf-8") as handle:
+            selected_ids = {line.strip() for line in handle if line.strip()}
     cases = load_cases(args.corpus, args.split, args.limit)
+    if selected_ids is not None:
+        cases = [case for case in cases if case["id"] in selected_ids]
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
     url = endpoint(args.base_url)
     ok = 0
