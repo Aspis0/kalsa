@@ -22,6 +22,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~08:50 EDT — GIUDIZIO CIECO v1 + FIX LINGUA SU MAIN (f77ea7b)**: due giudici indipendenti (deepseek A,
+  mimo B) sblindati con `unblind.py`: A = MiniCPM5 29 / LFM 25 / pari 18, B = LFM 29 / MiniCPM5 27 / pari 16; accordo
+  60/72, 4 verdetti opposti. Senza il blocco multilingue: MiniCPM5 25 vs LFM 18-20. Per categoria concordano:
+  MiniCPM5 conversazione/fatti/stime/assurdi, LFM sicurezza/formati/assurdi-innocui. **Due artefatti di harness in
+  direzioni opposte**: (1) prompt spedito impone la lingua del locale → penalizza MiniCPM5 (obbedisce); (2) il bake-off
+  non offre tool mentre il prompt li nomina → LFM emette `<|tool_call_start|>[web_search…]` grezzo in 15/44 e prende
+  1 dai giudici (in-app la chiamata è instradata); MiniCPM5 4/44. Nessun verdetto G1 da v1. **Fix prompt su main
+  f77ea7b** (rule (a): "nella lingua in cui scrive l'utente, fallback locale", systemPrompt + WithSearch + blocco
+  operativo, en+it; tsc 0, jest mirati 0; i `.kvs` vecchi restano validi: promptEnvHash = locale, il motore
+  ri-prefilla solo il suffisso). **Harness morto trovato**: `scripts/memoryFactsTailHarness.mjs` chiama export
+  inesistenti (`sanitizeFactForPrompt`, `selectPromptFacts`) → 7 FAIL preesistenti, non è in CI; da sistemare o
+  cancellare. **v2 in corso** (corpus agent): wild + bake-off con prompt v2 e i 7 tool default dell'app con executor
+  stub, judge-pack-v2. **APK**: 34349153745 (7836db7, MiniCPM5) in build; 34353143627 (f77ea7b, + fix lingua) in coda
+  — sui telefoni va la seconda. Lezione in memoria `kalsa-measure-the-shipped-config` (addendum).
 - **9/09 ~08:40 EDT — G1 BLOCCHI COMPLETI (commit moe-exp) + DIFETTO DI PRODOTTO NEL PROMPT**: wild deterministico
   LFM 11/14 vs MiniCPM5 6/14; bake-off 44 domande dell'owner MiniCPM5 30/44 vs LFM 25/44 (@256; @512 29 vs 23; MiniCPM
   vince fermi 4/4 vs 1/4 e local_knowledge 3/4 vs 1/4, LFM vince absurd_gift e format); estesa 3/4 entrambi (I11).
