@@ -25,6 +25,17 @@ export type AssembledStaticPrefix = {
   toolCount: number;
 };
 
+export type PrewarmCompletionResult = {
+  error?: unknown;
+  interrupted?: boolean;
+  tokens_predicted?: number;
+  tokens_evaluated?: number;
+  tokens_cached?: number;
+  timings?: { prompt_ms?: number; prompt_n?: number };
+};
+
+export type PrewarmResultClass = "failed" | "skip" | "generated" | "success";
+
 /** Same djb2 as sessionPersistence.historyHash (UTF-16 code units). */
 export function djb2(text: string): string {
   let h = 5381 >>> 0;
@@ -90,6 +101,20 @@ export function shouldSkipStaticPrefixPrewarm(
   prefixHash: string,
 ): boolean {
   return prewarmPrefixHash === prefixHash;
+}
+
+/** Classify a zero-token completion from the native prompt/KV counters. */
+export function classifyPrewarmResult(
+  result: PrewarmCompletionResult | null | undefined,
+): PrewarmResultClass {
+  const nativeError = result?.error;
+  if (nativeError != null && nativeError !== "") return "failed";
+  if (result?.interrupted) return "skip";
+  if ((result?.tokens_predicted ?? 0) > 0) return "generated";
+
+  const tokensEvaluated = result?.tokens_evaluated ?? 0;
+  const tokensCached = result?.tokens_cached ?? 0;
+  return tokensEvaluated > 0 && tokensCached >= tokensEvaluated ? "success" : "failed";
 }
 
 /**

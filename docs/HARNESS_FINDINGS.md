@@ -5249,16 +5249,25 @@ undefined, merged into the draft once, then hydration flips the id and `AiChatPa
 could not fix that and was removed; the URL is now parked until `conversationsReady` and drained through the same
 dedup path. On main@5707cfe: cold VIEW PASS, cold SEND via the system resolver PASS.
 
-### 7.44 MEASURED 2026-09-09: MiniCPM5-2B's prewarm on the S23 ingests 2112 tokens one at a time — cause open
+### 7.44 MECHANISM 2026-09-09: `promptN:1 / promptMs:0` on a dense model is a perf-accounting artefact — the prewarm succeeded and the app threw it away
 
-Opt-in dev entry `dev-minicpm5-2b` (Q4_K_M, 7836db7). `KALSA_PREWARM start → skip eval-failed` after 137.9 s (and
-116.1 s in a second run) with `promptMs:0, promptN:1, tokensEvaluated:2112`; LFM logs `done` in 40.2 s for 1919
-tokens. `eval-failed` is `promptMs <= 0` (`LlamaService.ts:811`); `promptN:1` comes from `llama-context.cpp:655-673`,
-which books batch==1 decodes as eval, not prompt — the prompt was decoded token by token (138 s ≈ 2112 × 65 ms).
-Excluded on source: the template (`enable_thinking` only matters with `add_generation_prompt`, which the prewarm
-sets false), the state-checkpoint splitting (recurrent/hybrid only, `rn-completion.cpp:150`), `n_batch` (fixed 512).
-Decode on the same phone: MiniCPM5 6.5-6.6 vs LFM 10.4-11.7 tok/s — that part is real. The runner's logcat
-whitelist dropped every native perf line; a full-logcat prewarm on the Jelly is in flight. Do not read the real
+Opt-in dev entry `dev-minicpm5-2b` (Q4_K_M, 7836db7). `KALSA_PREWARM start → skip eval-failed` with `promptMs:0,
+promptN:1, tokensEvaluated:2112` after 137.9 s on the S23 and 223.5 s on the Jelly (full logcat, skin 47 °C); LFM
+logs `done` in 40.2 s / 115.5 s. The morning reading of this section — "ingests 2112 tokens one at a time" — was
+**wrong**: the next turn on the Jelly reused the prefix (`KALSA_KVPREFIX n_common=2109`), so the KV was computed in
+full. The chain, all at fork pin 67c73d26c: `llama_context::decode()` never synchronises (`llama-context.cpp:2021`,
+the call is commented out) and queued tokens are folded into `n_p_eval/t_p_eval_us` only inside `synchronize()`
+(`:664-682`); `perf_get_data()` is `const` and does not sync (`:3150`, and `n_p_eval = std::max(1, …)` at `:3157` is
+where the `1` comes from); llama.rn reads it as-is (`jsi/JSICompletion.h:205`); with `n_predict: 0` the completion
+returns before any `llama_get_logits*` (`rn-completion.cpp:1203`), so nothing ever syncs. LFM2.5 and Qwen3.5 sync by
+accident — the state-checkpoint capture calls `llama_state_seq_get_data_ext`, which does `ctx->synchronize()` — and
+the checkpoint is enabled for recurrent/hybrid models only (`rn-completion.cpp:146-152`). Every **dense** model
+therefore has had its prewarm marked failed (`evalFailed = … || promptMs <= 0`, `LlamaService.ts:811`),
+`prewarmPrefixHash` stayed null and the next trigger re-ran the whole multi-minute prefill. Fix: the app criterion no
+longer reads `prompt_ms` (this commit); fork follow-up: `llama_synchronize` before `llama_perf_context` in
+`JSICompletion.h` so `n_predict=0` timings are real. What stays real: the wall times — MiniCPM5 9.4 tok/s vs LFM
+15.9 tok/s prefill on the Jelly (~15 vs ~48 on the S23), decode 6.5 vs 10.4-11.7 on the S23 — and the open question
+whether the Q4_K repack path (`q4_K_8x4`) is the reason, which the G1 device sweep will answer. Do not read the real
 turn's `promptMs 3.5 s` as a 619 tok/s prefill: it reused ~2200 cached tokens.
 
 ### 7.45 METHOD 2026-09-09: three harness artefacts, in opposite directions, would have chosen the model
@@ -5278,7 +5287,7 @@ never shown, unblinded by script (`unblind.py`).
 | date | change |
 |---|---|
 | 2026-09-09 | **§7.45: three harness artefacts in opposite directions — forced-locale prompt, no tool schemas, 2-round stub — would have chosen the model; only a harness that mirrors prompt, schemas and tool-loop semantics counts.** |
-| 2026-09-09 | **§7.44: MiniCPM5's prewarm on the S23 decodes 2112 tokens one at a time (138 s, promptN=1); template, checkpoint splitting and n_batch excluded on source; full-logcat measurement on the Jelly in flight.** Decode 6.5 vs 10.4-11.7 tok/s is real. |
+| 2026-09-09 | **§7.44 corrected: `promptN=1/promptMs=0` is a perf-accounting artefact — `decode()` never syncs, `perf_get_data()` never syncs, `n_predict=0` never fetches logits; only hybrid models sync via the state checkpoint. The Jelly turn reused the prefix (`n_common=2109`), so dense-model prewarms were succeeding and being discarded by `promptMs <= 0`.** Wall times stand: MiniCPM5 9.4 vs LFM 15.9 tok/s prefill on the Jelly. Fix in the app; fork follow-up in `JSICompletion.h`. |
 | 2026-09-09 | **§7.43: a cold-start share was wiped by conversation hydration (`setDraft("")` on the id flip); fixed by parking the URL until `conversationsReady` (5707cfe); the retry-loop first draft was refuted by audit.** |
 | 2026-09-09 | **§7.42: document chat 1/5 → 7/7 on the Jelly once the 5-page text cap, the exact-id selection and the doubled-prefix SEND filters were fixed (5707cfe); 2.8-3.7 tok/s and 2-7 min per answer remain.** |
 | 2026-09-09 | **§7.41: the restore is real in the shipping configuration on the S23 — 37.9 s cold, 562 ms after a relaunch, three of §7.30's four defects gone (n=1, stopped by the thermal gate).** |
