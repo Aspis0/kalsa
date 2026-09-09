@@ -2046,6 +2046,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return raw;
         },
         getCtxTokens: () => chatEngineCtxRef.current,
+        getModelId: () => getActiveModelId(),
         getIndexFor: (docId: string) =>
           docIndexByIdRef.current.get(docId) ?? null,
         setIndexFor: (docId: string, index: DocRetrieverIndex) => {
