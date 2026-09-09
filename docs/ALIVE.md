@@ -3924,3 +3924,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Per MiniCPM5 resta solo il post-training (fine tuning, Apache 2.0), che l'owner ha messo dopo G1. Sui telefoni:
   sweep S23 in corso; sul Jelly il prefill a pari temperatura è alla pari (17,8 vs 15,9 tok/s), decode 4,5 vs 3,1-3,7.
 
+- **9/09 ~16:50 EDT — SWEEP S23 FERMATO DA ME: 11 `send_failed` di fila dopo C01.** `device/s23/lfm.out.jsonl`: C01 ok
+  (15:03), poi C02…I05 tutti `send_failed` a ~8 min l'uno (timeout), evidenza in `device-share-send-out/case-*` senza
+  `turn0.ev`: l'invio non è mai arrivato all'app, che era viva (pid 16425, 37 %, 40,8 °C). Il loop di monitoraggio
+  dell'agente deepseek 100fe465 controllava solo che il processo del runner fosse vivo, non che le righe fossero `ok`
+  → tre ore di telefono perse. Runner ucciso (pid 42506), agente cancellato e rilanciato in sola diagnosi (script di
+  invio, logcat attorno all'ultimo caso, stato schermo/keyguard, un probe manuale). Lezione da scrivere nel runner:
+  il watchdog deve guardare l'ultima riga scritta, e fermarsi al terzo `send_failed` consecutivo.
+
