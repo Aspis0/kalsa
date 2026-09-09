@@ -75,3 +75,26 @@ device owner and screen capture allowed; Secure Folder is installed but no activ
 Knox restriction was found. Harness fallback: retry dump after focus/idle, then
 use `dumpsys window/activity`; `adb exec-out screencap -a -p` also produced a
 usable PNG when the normal dump path signalled 36.
+
+## Root cause and source fix — corrected after the hostile audit (deepseek e7e0feb8, 2026-09-09)
+
+- `app.config.js` intent filters: CONFIRMED correct. `@expo/config-plugins` prefixes `android.intent.action.` /
+  `android.intent.category.` itself (`IntentFilters.js:54-55, :77`), so the old already-qualified names rendered as
+  `android.intent.action.android.intent.action.SEND`. Fixed to `SEND` / `SEND_MULTIPLE` / `DEFAULT`; the VIEW
+  `kalsa://` filter is not generated and is unchanged. The generated manifest under `android/` is git-ignored: the
+  fix lands only in a CI build. The installed APK on the S23 still carries the broken filter, which explains every
+  SEND-from-another-app failure.
+- Cold-start loss (VIEW and SEND alike): CONFIRMED downstream, not at `getInitialURL`. `AppShell.tsx:5709` passes
+  `conversationId={conversationsReady ? conversations.activeId : undefined}`; the share URL is applied while the id
+  is still undefined → `setSharePrefill` → `AiChatPage.tsx:1825-1828` merges it into the draft once → hydration flips
+  the id (`AppShell.tsx:987`) → the conversation-load effect (`AiChatPage.tsx:1053`, deps `[conversationId]`) runs
+  `setDraft("")` at `:1017` → the prefill effect's deps have not changed → no re-merge. Warm/foreground survive
+  because the id never flips. RN's `IntentModule.kt` already defers `getInitialURL` until the activity resumes, so a
+  "bridge race" retry loop (first version of the patch) was REFUTED and removed.
+- Fix (AppShell only): keep the `url` listener registered before the single `getInitialURL` read; when a URL arrives
+  and `!conversationsReady`, park it in `pendingShareUrlRef`; an effect on `conversationsReady` drains it through
+  the same `consume` (URL-level dedup set unchanged). `AiChatPage` untouched. tsc rc=0. No unit-test seam exists for
+  the share path. Needs a CI APK to re-test the two cold cases on the S23.
+- Minor, open: an apply failure (e.g. PDF import busy) is never retried because the URL is already in the dedup set.
+- Harness: `uiautomator dump` on this One UI build intermittently dies with rc=164 (signal 36); a focused retry,
+  `dumpsys window`/`dumpsys activity top`, and `screencap -a -p` are usable alternatives.
