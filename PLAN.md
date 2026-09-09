@@ -22,6 +22,20 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~12:30 EDT — PREWARM MiniCPM5 SULL'S23: ANOMALIA REALE, CAUSA NON ANCORA TROVATA** (recon deepseek 0399b4e5
+  sui log del dry run + lettura mia del sorgente): `KALSA_PREWARM start → skip eval-failed` dopo **138 s** (e 116 s
+  nell'altro run) con `promptMs:0, promptN:1, tokensEvaluated:2112`; LFM `done` in 40 s (1919 token, 48 tok/s =
+  coerente col seed a freddo del protocollo restore). `eval-failed` = `promptMs <= 0` (LlamaService:811); promptN=1
+  viene da `llama-context.cpp:655-673`: le decode con batch==1 sono contabilizzate come eval, non come prompt →
+  **i 2112 token sono stati processati un token alla volta** (138 s ≈ 2112 × 65 ms). Escluso: il template
+  (`enable_thinking` è letto solo con add_generation_prompt, che il prewarm mette a false); il frazionamento a
+  checkpoint di stato (solo modelli ricorrenti/ibridi, `rn-completion.cpp:150`); `n_batch` (fisso 512,
+  LlamaService:1456). ATTENZIONE: la conclusione del recon "prefill reale MiniCPM5 619 tok/s" è una lettura
+  sbagliata (il turno vero riusava ~2200 token di KV: 3,5 s è prefill incrementale). Il runner filtra il logcat
+  con una whitelist (`run_device_subset.sh:347`) → nessuna riga nativa (perf, reusing, repack) disponibile.
+  **Prossima misura decisiva sul Jelly** (libero): prewarm dei due modelli con logcat COMPLETO (perf "prompt eval
+  time", n_p_eval, KALSA_GOVERNOR/KVPREFIX), poi un turno vero a KV vuota. Decode MiniCPM5 6,5 vs LFM 10,4-11,7
+  tok/s sull'S23 resta un dato vero.
 - **9/09 ~12:15 EDT — JELLY DOCUMENT CHAT: 7/7 PASS SU main@5707cfe (era 1/5)** (`product-suite/JELLY-DOCCHAT-2026-09-09.md`
   §v2, Luna e1b923b9, stesse domande e stesso protocollo): il PDF da 40 pagine ora ha pageCount=40/processed=40,
   estimatedTokens 26 655 → strategia `hybrid` (retrieval), i tre fatti sepolti (p.3/17/31) trovati con la pagina
