@@ -1,0 +1,49 @@
+
+
+Loading model... |-\|/-\|/-\|/-\|/- 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b10081-67c73d26c
+model      : /Users/marco/kalsa-qdc/models/MiniCPM5-2B-Q4_K_M.gguf
+ftype      : Q4_K - Medium
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Spiega in tre frasi cosa fa un governor termico su un telefono.
+
+[Start thinking]
+
+We need to explain what a thermal governor does on a phone in three sentences. The user asked in Italian: "Spiega in tre frasi cosa fa un governor termico su un telefono." So we need to respond in Italian, in three sentences.
+
+First, I need to make sure that I'm answering correctly. A thermal governor on a phone is likely a feature that manages the temperature of the phone's components, like the battery or processor, to prevent overheating. I need to explain that in three sentences.
+
+Let's structure the answer:
+
+1. First sentence: Introduce what a thermal governor is.
+2. Second sentence: Explain its function.
+3. Third sentence: Conclude or mention its importance.
+
+I need to make sure that I keep it concise and clear.
+[End thinking]
+
+Un governor termico sul telefono regola la temperatura dei componenti per evitare il calore eccessivo. Funziona monitorando la temperatura e riducendo l'uso di energia quando è necessario. Questo aiuta a mantenere il telefono più affidabile e a prolungare la durata della batteria.
+
+[ Prompt: 259.1 t/s | Generation: 55.1 t/s ]
+
+
+Exiting...

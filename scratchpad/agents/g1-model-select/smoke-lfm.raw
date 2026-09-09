@@ -1,0 +1,46 @@
+
+
+Loading model... |-\|/-\|/-\|/-\| 
+
+▄▄ ▄▄
+██ ██
+██ ██  ▀▀█▄ ███▄███▄  ▀▀█▄    ▄████ ████▄ ████▄
+██ ██ ▄█▀██ ██ ██ ██ ▄█▀██    ██    ██ ██ ██ ██
+██ ██ ▀█▄██ ██ ██ ██ ▀█▄██ ██ ▀████ ████▀ ████▀
+                                    ██    ██
+                                    ▀▀    ▀▀
+
+build      : b10081-67c73d26c
+model      : /Users/marco/kalsa-qdc/models/LFM2.5-2.6B-QAD-Q4_0.gguf
+ftype      : Q4_0
+modalities : text
+
+available commands:
+  /exit or Ctrl+C     stop or exit
+  /regen              regenerate the last response
+  /clear              clear the chat history
+  /read <file>        add a text file
+  /glob <pattern>     add text files using globbing pattern
+
+
+
+> Spiega in tre frasi cosa fa un governor termico su un telefono.
+
+[Start thinking]
+
+*   Topic: What a thermal governor (thermal governor) does on a phone.
+*   Constraint: Explain it in exactly three sentences.
+*   Language: Italian.
+
+    *   What is a thermal governor? It's a control mechanism that manages the CPU's clock speed based on temperature.
+    *   How does it work? When the phone gets too hot, it slows down the CPU (throttling) to prevent overheating.
+    *   Why? To protect hardware and maintain performance stability.
+
+    *   *Sentence 1 (Definition/Function):* Un governor termico regola la velocità del processore in base alla temperatura del telefono. (A thermal governor regulates the processor speed based on the phone's temperature.)
+    *   *Sentence 2 (Mechanism):* Quando la temperatura supera una certa soglia, il sistema rallenta il processore per evitare il surriscaldamento. (When the temperature exceeds a certain threshold, the system slows down the processor to avoid overheating.)
+    *   *Sentence 3 (Purpose/Result):* Questo processo garantisce che il dispositivo rimanga stabile e protetto dal calore, mantenendo un funzionamento fluido. (This process ensures the
+
+[ Prompt: 179.8 t/s | Generation: 56.6 t/s ]
+
+
+Exiting...
