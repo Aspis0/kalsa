@@ -1,0 +1,3 @@
+wrote=results/wild-v2d/minicpm-q8@nobudget.jsonl rows=16 errors=0 budget=nobudget
+wrote=results/bakeoff-v2d/minicpm-q8@nobudget.jsonl rows=44 errors=0 budget=nobudget
+v2d complete model=minicpm-q8 budget=nobudget

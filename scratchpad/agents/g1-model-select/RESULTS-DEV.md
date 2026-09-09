@@ -195,6 +195,14 @@ Phone cost at 6.5 tok/s S23 / 4.5 tok/s Jelly: 1024 median/p90 `24.23/110.32 s` 
 
 Outputs: `results/wild-v2c/`, `results/bakeoff-v2c/`; scores: `results/score-v2c-1024.txt`, `results/score-v2c-nobudget.txt`; blind packs and fresh keys: `results/judge-pack-v2c-1024.jsonl` + `results/judge-key-v2c-1024.json`, and `results/judge-pack-v2c-nobudget.jsonl` + `results/judge-key-v2c-nobudget.json`. No blind judging was performed.
 
+## v2d: MiniCPM5 Q8_0 quantisation control
+
+Model: `/Users/marco/kalsa-qdc/models/MiniCPM5-2B-Q8_0.gguf`; SHA-256 `c5415f8989bf88a8288f1b55a3cc371af53c07b0faa220a63bd7a990cfaba078`. Same v2c nobudget setup: `thinking_budget_tokens` omitted, v2 prompt snapshots, seven default tools, app loop, sampler, server flags, and 60 judged rows. Q8 deterministic bake-off score is `31/44 (70%)`, versus Q4_K_M v2c nobudget `33/44 (75%)`; by language Q8 `en 10/11, it 8/11, es 8/11, fr 5/11`, versus Q4 `en 9/11, it/es/fr 8/11`. Wild `16` rows are rubric-only.
+
+Token distributions, computed as total `timings.predicted_n` minus exact `/tokenize` visible-answer tokens: Q8 median/p90/max `156.5/528.0/1540`; Q4_K_M v2c nobudget `186.5/717.1/3751`. Q8 model-visible empty answers `0/60`, bare `>` `0/60`; median wall time `8742 ms`. No blind judging was performed.
+
+Q8 outputs: `results/wild-v2d/minicpm-q8@nobudget.jsonl` and `results/bakeoff-v2d/minicpm-q8@nobudget.jsonl`; score `results/score-v2d-q8-nobudget.txt`; blind pack `results/judge-pack-v2d-q8.jsonl`; fresh key `results/judge-key-v2d-q8.json`. Runner completed rc=0, scoring rc=0, pack/validation rc=0, and the server was stopped.
+
 ## v2c blind judging (2026-09-09 ~17:30 EDT)
 
 Two packs, 60 rows each, fresh per-row A/B (`results/judge-key-v2c-{1024,nobudget}.json`), MiniCPM5 v2c vs LFM v2b-merged. Unblinded by the orchestrator. Judge files: `judge-A-deepseek-v2c-*.jsonl`, `judge-B-mimo-v2c-*.jsonl`.
@@ -207,3 +215,14 @@ Two packs, 60 rows each, fresh per-row A/B (`results/judge-key-v2c-{1024,nobudge
 | MiniCPM5 unbounded vs LFM | mimo | 24 | 15 | 21 | 3.62 | 3.30 | 16/9/19 | 8/6/2 |
 
 Judge agreement on the winner: 43/60 (1024), 38/60 (unbounded). Compared with v2b-merged (LFM 34/13/13 and 30/15/15 at budget 256/512), lifting MiniCPM5's thinking budget moves it by two to four rows, all on the wild block; the bake-off gap (fabricated facts, language drift) does not move. The budget hypothesis is REFUTED as the cause of the loss. Failure classes named by both judges on the MiniCPM5 side: confabulated places/dates/names (Lirinda, Vichy, Mairzac, "Sahara Solar", Villeneuve, invented fruit varieties), answers in English or garbled to non-English prompts, a Chinese character leak in a Spanish answer, one counting error. Next cell (v2d): same at Q8_0 to separate quantisation from model behaviour.
+
+## v2d final appended record
+
+MiniCPM5 Q8_0: `/Users/marco/kalsa-qdc/models/MiniCPM5-2B-Q8_0.gguf`; SHA-256 `c5415f8989bf88a8288f1b55a3cc371af53c07b0faa220a63bd7a990cfaba078`. Nobudget omitted `thinking_budget_tokens`, with the v2c prompt/tools/app-loop/sampler/server setup, over 60 rows.
+
+| cell | bake-off deterministic | en | it | es | fr | wild |
+|---|---:|---:|---:|---:|---:|---:|
+| Q8_0 nobudget | 31/44 (70%) | 10/11 | 8/11 | 8/11 | 5/11 | 16 rubric |
+| Q4_K_M v2c nobudget | 33/44 (75%) | 9/11 | 8/11 | 8/11 | 8/11 | 16 rubric |
+
+Reasoning tokens (total `timings.predicted_n` minus exact `/tokenize` visible tokens): Q8 median/p90/max `156.5/528.0/1540`; Q4 v2c `186.5/717.1/3751`. Q8 empty/bare-`>` model answers `0/60` and `0/60`; median wall `8742 ms`. Outputs: `results/wild-v2d/`, `results/bakeoff-v2d/`; score `results/score-v2d-q8-nobudget.txt`; blind pack/key `results/judge-pack-v2d-q8.jsonl` and `results/judge-key-v2d-q8.json`. No judging; run/score/pack/validation rc=0; server stopped.
