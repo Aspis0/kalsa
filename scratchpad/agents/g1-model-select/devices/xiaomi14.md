@@ -14,7 +14,7 @@ Read live with `adb -s 192.168.1.193:5555 shell` (G0 of PROPOSTA §11/§12; "RAM
 | Storage | /data 482 G total, 300 G free (38 % used); `/data/local/tmp` holds 10 GB of Aug-campaign GGUFs (Marco-Mini KEXP q8_0 6.5 GB, OLMoE Q4_0 3.9 GB) |
 | Battery at read | 98 %, 37.8 °C, **AC powered (Quick charge)**, thermal status 0 |
 | Screen timeout / stay-on | 600 000 ms / stay_on_while_plugged_in = 0 |
-| Kalsa installed | `com.kalsa.app` versionName 0.1.0 versionCode 1, installed **2026-08-14**, minSdk 35 targetSdk 36, **NOT debuggable** (`run-as: package not debuggable`) — superseded; install the CI debuggable APK from main 332aeed (run 34336007950) before any test |
+| Kalsa installed | **main @332aeed debuggable** (CI run 34336007950, artifact `kalsa-apk-arm64-v8a-debuggable-332aeed…/app-release.apk`, 142 869 606 B, sha256 `67fff2d7ee0ab7694d1511e0ba0037795057881d42171ccea39b01b212a5eab8`), installed 2026-09-09 06:24 with `adb install -r` over the 14/08 build; `flags=[ DEBUGGABLE …]`, minSdk 33, `run-as` OK. App model dir had qwen3.5-2b (1.28 GB), qwen3.5-4b + mmproj (3.5 GB), whisper-tiny; LFM2.5-2.6B-QAD-Q4_0 pushed via run-as on 9/09 06:25: 1 593 894 944 B, sha256 on device `a247afd6…b40b03` == Mac file == ALIVE 60 ship sha |
 | adb | USB serial `625689a2`; switched to `adb tcpip 5555`, reachable at **192.168.1.193:5555** (LAN name `xiaomi-14.lan`). TCP mode does not survive a reboot: re-run `adb tcpip 5555` over USB after one |
 
 Notes for the campaign:
