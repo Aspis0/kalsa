@@ -35,7 +35,8 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
   `kalsa.bench.devmodels`, 6 conflitti risolti HEAD-first, una classe duplicata rimossa); typecheck 0,
   jest mirati 12/12 e 59/59. NON mergiati, archiviati come tag `archive/*` (17, pushati): `bench/fault-inject-apk`
   (pin guasto THROWAWAY; i suoi fix di banco erano già su main in altra forma), `chore/engine-pin-12f6d9b6d`
-  (pin di lignaggio diverso: i 3 pick upstream #53 vanno portati nel ramo fork che l'app pinna, task aperto),
+  (pin superato: i 3 pick upstream #53 erano GIÀ nel lignaggio pinnato — merge-base(67c73d26c, 12f6d9b6d) = 12f6d9b6d;
+  il `main` del fork è stato portato in fast-forward a 67c73d26c il 9/09, tag `archive/fork-main-2026-09-09` sul vecchio tip),
   `chore/repo-reorg*`, `bench/kvtranscript-probe`, `bench/jelly-minsdk33*` (main ha già minSdk 33 dal 22/08).
   Tutti i rami locali e remoti cancellati, 7 worktree rimossi (log agenti 4-5/09 spostati in
   `_kalsa_archive/wt-governor-logs-2026-09-05`). `node_modules/llama.rn` reinstallato pulito (la patch
