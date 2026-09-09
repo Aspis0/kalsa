@@ -398,7 +398,7 @@ index 080bc20..8014f35 100644
  
      bool single_turn       = false; // single turn chat conversation
 diff --git a/node_modules/llama.rn/cpp/jsi/JSICompletion.h b/node_modules/llama.rn/cpp/jsi/JSICompletion.h
-index f9e3e09..c4ce9f9 100644
+index f9e3e09..7653a72 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSICompletion.h
 +++ b/node_modules/llama.rn/cpp/jsi/JSICompletion.h
 @@ -49,7 +49,7 @@ namespace rnllama_jsi {
@@ -438,8 +438,7 @@ index f9e3e09..c4ce9f9 100644
              : "";
          if (tokStr.empty()) tokStr = "<UNKNOWN>";
          res.setProperty(runtime, "tok_str", jsi::String::createFromUtf8(runtime, tokStr));
-@@ -94,4 +94,16 @@ namespace rnllama_jsi {
-     inline jsi::Object createTokenResult(jsi::Runtime& runtime, rnllama::llama_rn_context* ctx, const rnllama::completion_token_output& token) {
+@@ -95,6 +95,18 @@ namespace rnllama_jsi {
          jsi::Object res(runtime);
          res.setProperty(runtime, "token", jsi::String::createFromUtf8(runtime, token.text));
  
@@ -455,7 +454,10 @@ index f9e3e09..c4ce9f9 100644
 +            }
 +            res.setProperty(runtime, "raw_probs", rawProbs);
 +        }
-@@ -137,7 +137,7 @@ namespace rnllama_jsi {
+         if (!token.probs.empty()) {
+             jsi::Array probs(runtime, token.probs.size());
+             for (size_t i = 0; i < token.probs.size(); i++) {
+@@ -137,7 +149,7 @@ namespace rnllama_jsi {
          if (ctx->completion == nullptr) {
              throw std::runtime_error("RNLLAMA_NULL_COMPLETION");
          }
@@ -464,7 +466,7 @@ index f9e3e09..c4ce9f9 100644
              throw std::runtime_error("RNLLAMA_NULL_LLAMA_CONTEXT");
          }
  
-@@ -161,6 +161,14 @@ namespace rnllama_jsi {
+@@ -161,6 +173,14 @@ namespace rnllama_jsi {
              "completion_probabilities",
              createCompletionProbabilities(runtime, ctx, ctx->completion->generated_token_probs)
          );
@@ -479,11 +481,14 @@ index f9e3e09..c4ce9f9 100644
          res.setProperty(runtime, "tokens_predicted", (double)ctx->completion->num_tokens_predicted);
          res.setProperty(runtime, "tokens_evaluated", (double)ctx->completion->num_prompt_tokens);
          res.setProperty(runtime, "draft_tokens", (double)ctx->completion->num_draft_tokens);
-@@ -182,14 +190,22 @@ namespace rnllama_jsi {
+@@ -182,14 +202,25 @@ namespace rnllama_jsi {
              res.setProperty(runtime, "audio_tokens", audioTokens);
          }
  
 -        const auto timings = llama_perf_context(ctx->ctx);
++        // Perf counters are folded in only on synchronize.
++        // A zero-token completion never fetches logits.
++        llama_synchronize(ctx->active_ctx());
 +        const auto timings = llama_perf_context(ctx->active_ctx());
 +        const auto governor_stats = ctx->governorStats();
 +        const bool governor_prefill = ctx->hasGovernor() && governor_stats.prefill_n > 0;
