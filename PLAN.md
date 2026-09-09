@@ -22,6 +22,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~10:40 EDT — GIUDICE B v2 SBLINDATO + TERZO ARTEFATTO (contro LFM)**: mimo v2 = MiniCPM5 24 / LFM 23 /
+  pari 13, media 3,17 vs 2,77; senza multilingue MiniCPM5 20 / LFM 16 / pari 12; multilingue LFM 7 / MiniCPM5 4.
+  Ma **14 risposte finali LFM su 60 sono VUOTE** (tutte bake-off: fact_spa2000, honesty_unknown, fermi, local_knowledge,
+  false_premise): LFM richiama web_search 3-6 volte dopo lo stub "offline" e lo stub v2 si ferma a 2 round con
+  finish=tool_calls. **L'app non fa così**: `MAX_TOOL_ROUNDS=3` (LlamaService:478), ultimo round text-only con
+  `tool_choice:"none"` (:3204), stessa chiave fallita due volte → sintesi forzata (:495/:3416), round esauriti → una
+  completion text-only extra (:3548) poi messaggio di fallback (:3652). → **v2b** in corso: solo le righe finite in
+  tool_calls/vuote, rieseguite con la semantica esatta dell'app, stessa mappatura A/B così i giudizi sulle altre
+  righe restano validi. Lezione (già in memoria): ogni harness deve replicare il loop tool dell'app, non solo
+  offrire gli schemi. Segnale che resta vero per l'utente: LFM insiste sui tool offline, MiniCPM5 ripiega da solo.
 - **9/09 ~10:10 EDT — G1 v2 (prompt corretto + 7 tool dell'app con stub offline), committato**: wild det. LFM 11/14
   → 11/14, MiniCPM5 6/14 → 9/14; bake-off @256 LFM 25 → 25, MiniCPM5 30 → 32; @512 LFM 23 → 20, MiniCPM5 29 → 33.
   Sintassi tool grezza nelle risposte finali: 0 per entrambi (artefatto v1 chiuso). **Propensione ai tool**: LFM
