@@ -3973,3 +3973,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   modelli densi, budget di prefill per i documenti, riapertura calda dopo un turno con tool, lingua della risposta sui
   documenti. Prossimo: sweep G1 notturno sul Jelly col runner corretto.
 
+- **9/09 ~19:05 EDT — S23 BRACCIO LFM COMPLETATO COL RUNNER CORRETTO; SWEEP NOTTURNO JELLY LANCIATO.** `s23/lfm.out.jsonl`:
+  22 righe, 21 `ok` + 1 `reply_timeout` (C04 doppia, il runner tiene la più recente), ~3,5 min a caso, telefono a
+  40-42 °C in carica lenta (42 % stabile). Il runner ha il watchdog a riga 592 (esce al terzo fallimento consecutivo).
+  Braccio MiniCPM5 in coda dopo il raffreddamento da protocollo (deepseek 100fe465). Jelly: nuovo agente deepseek
+  d680d546, APK 4b29466 (l'S23 gira 5707cfe: differenza dichiarata nell'header — prewarm, budget documenti, cue di
+  lingua; stesso prompt e tool loop), 24 × LFM poi 24 × MiniCPM5, gate termico del protocollo, monitoraggio per righe,
+  probe >48 caratteri prima del braccio. Stima 12-16 h → SCORE.md domani mattina.
+
