@@ -1,0 +1,17 @@
+09-09 18:51:15.179 20132 20155 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 18:51:19.613 20132 20155 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":51,"ok":true,"tokens":2920}
+09-09 18:51:19.625 20132 20155 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 18:52:06.213 20132 20155 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":87,"ok":true,"estimatedBytes":20512304.21875,"usedTokens":2920,"tokens":2920,"hash":"3006763915","messageCount":6}
+09-09 18:53:07.310 20132 20155 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 18:53:07.324 20132 20155 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 18:53:10.174 20132 20155 I ReactNativeJS: KALSA_DOC_STRATEGY {"strategy":"retrieve","estTokens":26655,"ctx":16384,"budgetTokens":800,"tokPerSec":null}
+09-09 18:53:13.041 20132 20244 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=0 text_tokens=13 n_common=0 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2cb0f0
+09-09 18:53:13.145 20132 20239 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=2920 text_tokens=2333 n_common=1829 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d27a970
+09-09 18:55:37.259 20132 20155 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2700,"tokensEvaluated":2333,"tokensPredicted":366,"draftTokens":0,"draftAccepted":0,"promptMs":87836.497,"predictedMs":56120.403,"predictedPerSecond":6.521692297897434,"contextFull":false,"interrupted":false,"tool":"document_chat","strategy":"hybrid","ciswireFlags":4}
+09-09 18:55:37.289 20132 20155 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":3,"ok":false,"estimatedBytes":176947200,"usedTokens":2700,"reason":"kv_prefix_unavailable"}
+09-09 18:58:02.776 20132 20155 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 18:58:05.357 20132 20155 I ReactNativeJS: KALSA_DOC_STRATEGY {"strategy":"retrieve","estTokens":26655,"ctx":16384,"budgetTokens":531,"tokPerSec":26.560713139550636}
+09-09 18:58:06.022 20132 20242 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=13 text_tokens=13 n_common=3 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2cb0f0
+09-09 18:58:06.080 20132 20243 W RNLlama : loadPrompt:471 KALSA_KVPREFIX embd=2700 text_tokens=2246 n_common=1829 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d27a970
+09-09 18:59:12.010 20132 20155 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":2570,"tokensEvaluated":2246,"tokensPredicted":323,"draftTokens":0,"draftAccepted":0,"promptMs":17809.670000000002,"predictedMs":47968.93,"predictedPerSecond":6.733525221429788,"contextFull":false,"interrupted":false,"tool":"document_chat","strategy":"hybrid","ciswireFlags":4}
+09-09 18:59:12.030 20132 20155 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":168427520,"usedTokens":2570,"reason":"kv_not_reproducible"}
