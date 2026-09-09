@@ -98,3 +98,12 @@ usable PNG when the normal dump path signalled 36.
 - Minor, open: an apply failure (e.g. PDF import busy) is never retried because the URL is already in the dedup set.
 - Harness: `uiautomator dump` on this One UI build intermittently dies with rc=164 (signal 36); a focused retry,
   `dumpsys window`/`dumpsys activity top`, and `screencap -a -p` are usable alternatives.
+
+## Re-test on main@5707cfe
+APK SHA-256 matched `cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45`; installed base APK matched. Package dump quoted `Action: "android.intent.action.SEND"`, `Category: "android.intent.category.DEFAULT"`, and correct `StaticType` values for `text/plain`/`application/pdf` (also SEND_MULTIPLE).
+| Test | Result | Evidence |
+| Cold VIEW | PASS; composer shows `CASE_COLD_VIEW_V2_20260909_A` | `/tmp/kalsa-s23-v2-cold-view-wake.png`, `/tmp/kalsa-s23-v2-cold-view-am.txt`, `/tmp/kalsa-s23-v2-cold-view.log` |
+| Cold SEND resolver | PASS; ResolverActivity showed Kalsa tile, “Just once” selected, composer shows `CASE_COLD_SEND_V2_20260909_RESOLVER` | `/tmp/kalsa-s23-v2-cold-send-resolver-selected.png`, `/tmp/kalsa-s23-v2-cold-send-resolver-selected-window.txt`, `/tmp/kalsa-s23-v2-cold-send-resolver-selected.log` |
+| Cold SEND explicit `-n` | COLD MainActivity reached; screenshot/UI dump both hit One UI Signal 36, so no separate visual positive | `/tmp/kalsa-s23-v2-cold-send-explicit-am.txt`, `/tmp/kalsa-s23-v2-cold-send-explicit.log`, `/tmp/kalsa-s23-v2-cold-send-explicit-uiauto.txt` |
+| SEND `application/pdf` resolver | FAIL import: Kalsa received `clip={application/pdf {U(file)}}`, but selected UI dump has empty composer/“Documento in libreria” button and no imported document; RKStorage has no document/library key or PDF marker | `/tmp/kalsa-s23-v2-pdf-selected2.xml`, `/tmp/kalsa-s23-v2-pdf-selected2.log`, `/tmp/kalsa-s23-v2-RKStorage` |
+PDF source was one page and remains intentionally at `/sdcard/Download/kalsa-share-v2-20260909.pdf`; no phone files were deleted. Read-only RKStorage confirmed `kalsa.model.id=lfm2.5-2.6b` and `kalsa.bench.devmodels=1`. Kalsa was force-stopped at end and the screen turned off.
