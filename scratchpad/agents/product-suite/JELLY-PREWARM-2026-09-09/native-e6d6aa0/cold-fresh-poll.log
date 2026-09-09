@@ -1,0 +1,5 @@
+15:55:08 elapsed=0s last=
+15:55:38 elapsed=30s last=09-09 15:55:17.581  9091  9113 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+15:56:08 elapsed=60s last=09-09 15:55:17.581  9091  9113 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+15:56:38 elapsed=90s last=09-09 15:55:17.581  9091  9113 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+15:57:08 elapsed=120s last=09-09 15:55:17.581  9091  9113 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'

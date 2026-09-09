@@ -1,0 +1,5 @@
+logcat_pid=83883
+launch_rc=0
+terminal_seen=1
+terminal_poll_elapsed_s=130
+capture_stopped=1

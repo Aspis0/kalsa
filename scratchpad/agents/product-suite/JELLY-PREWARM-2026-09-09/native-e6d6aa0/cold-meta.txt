@@ -1,0 +1,6 @@
+logcat_pid=81468
+launch_start_epoch=1788983399
+launch_rc=0
+terminal_seen=1
+terminal_poll_elapsed_s=10
+capture_stopped=1

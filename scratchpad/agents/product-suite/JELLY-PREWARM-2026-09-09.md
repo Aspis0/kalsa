@@ -58,3 +58,14 @@ Verdict: PASS — e168b4a correctly reports MiniCPM5 prewarm `done` despite diag
 ### Parent note on the 14:29:37 second start (orchestrator)
 
 Same PID 4246, so no app restart: at `14:29:36.7` the engine was re-created in-process (`sched_reserve`, `attach_threadpool`, `KALSA_SESSION load … no_file`), which is what the harness's wrong-shell share attempt did to the activity. A model reload nulls `prewarmPrefixHash` by design (`LlamaService.ts:690-691`), so that prewarm is expected, not a regression. The prescribed transition (HOME → foreground → new chat) produced no second start. Verdict PASS stands.
+
+## Native sync on e6d6aa0
+
+- APK SHA-256 verified: `9a1bacd086d6abcac448f213a3f017212f97ac95e86fd23343efb64495aa504f`; MiniCPM5 and `kalsa.bench.devmodels=1` selected. The first relaunch saw persisted-chat `skip/kv_holds_chat`; a drawer-created empty conversation (`hasMessages:false`) was used for the authoritative cold run. Full captures/reply are under `JELLY-PREWARM-2026-09-09/native-e6d6aa0/`.
+- Cold lines: `09-09 15:55:17.581 ... 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'`; `09-09 15:57:16.275 ... 'KALSA_PREWARM', '{"op":"done","promptMs":118648.554,"promptN":2112,"hash":"3586270056"}'`.
+- Cold wall `118.694 s`; `promptMs=118648.554 ms` (45.446 ms below wall); `promptN=2112`; implied prefill **17.8005 tok/s**. Native context remained `n_batch=512`, `n_ubatch=256`, threadpool `n_threads=2,n_threads_batch=8`, variant `rnllama_jni_v8_2_dotprod`.
+- Warm handoff also queued a second prewarm: `09-09 15:59:07.988 ... 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'`; `09-09 16:01:42.117 ... 'KALSA_PREWARM', '{"op":"done","promptMs":154080.476,"promptN":2112,"hash":"3586270056"}'`.
+- Warm turn: `09-09 16:01:42.198 ... KALSA_KVPREFIX embd=2112 text_tokens=2122 n_common=2109`; `09-09 16:02:12.922 ... KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2230,"tokensEvaluated":2122,"tokensPredicted":107,"draftTokens":0,"draftAccepted":0,"promptMs":2562.462,"predictedMs":27891.589999999997,"predictedPerSecond":3.8362818326240995,"contextFull":false,"interrupted":false,"ciswireFlags":4}`. Turn `promptN` was not emitted; reply is in `native-e6d6aa0/turn/reply-verbatim.txt`.
+- Final state: `kalsa.model.id|lfm2.5-2.6b`, `kalsa.bench.devmodels|1`, app stopped, battery 100%/35°C, thermal status 0, keep-awake restored; model files untouched.
+
+Verdict: PASS for native sync — MiniCPM5 now reports real `promptMs≈wall` and `promptN=2112`; PARTIAL for the share handoff because it still re-creates the engine and repeats the prewarm before the warm turn.

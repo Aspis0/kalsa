@@ -3882,3 +3882,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   con `prompt_n/prompt_ms` (mai `tokens_evaluated`: con il riuso del prefisso gonfierebbe la stima di ~60×).
   Nativo: `e6d6aa0` (sync prima dei contatori) passato da CI, installato sul Jelly, misura in corso.
 
+- **9/09 ~16:40 EDT — TIMING NATIVI VERI SUL JELLY (APK e6d6aa0), E IL "GAP DI PREFILL" SUL JELLY ERA TERMICO** (Luna
+  e1b923b9, `product-suite/JELLY-PREWARM-2026-09-09.md` §Native sync). Prewarm MiniCPM5 a freddo, 29 °C:
+  `promptMs=118648.554`, `promptN=2112`, wall 118,694 s → contatori a 45 ms dal wall, **17,8 tok/s** di prefill. Il
+  9,4 tok/s di stamattina era la stessa misura a 47 °C di skin: sul Jelly a pari temperatura MiniCPM5 (17,8) non è più
+  lento di LFM (15,9). Il gap 15 vs 48 sull'S23 resta da rimisurare a temperatura controllata (sweep in corso, telefono
+  a 40 °C in carica). Turno caldo: `n_common=2109`, `promptMs=2562` per 13 token incrementali (costo fisso del primo
+  token, non una velocità). Residuo dell'harness: lo share deep link ricrea il motore e rifà il prewarm prima del turno
+  → segnato PARTIAL dall'agente, non è un difetto dell'app. Da oggi il campione di prefill del prewarm entra nell'EMA
+  (`recordPrefillSample`, a36074e), quindi il budget del document chat sul Jelly parte da ~350 token invece del
+  fallback 800.
+

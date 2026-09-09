@@ -1,0 +1,1 @@
+[{"id":"u-140529983","role":"user","text":"Ciao, chi sei?","createdAt":1788983940912},{"id":"a-140529984","role":"assistant","text":"The","createdAt":1788983940912,"interrupted":true}]
