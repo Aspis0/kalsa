@@ -22,6 +22,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~11:10 EDT — RUNNER DEVICE G1 PRONTO, DRY RUN S23 4/4 PASS** (`g1-model-select/device/`, deepseek
+  100fe465, committato): 24 casi dev (7 conv, 11 istruzioni, 2 tool offline, 4 memoria; 12 IT/12 EN; scarto
+  dichiarato: il corpus ha tool `weather.*`/`calendar.*`/`web.search` che l'APK non ha, solo T09/T11 sono offline),
+  `run_device_subset.sh` con cambio modello via prefs, conversazione nuova per caso, fine turno = testo stabile ×2 +
+  20 s di logcat quieto, watchdog termico; `score_device.py`; `PROTOCOL.md` (S23 ~4-5 h per sweep 24×2, Jelly 12-16 h
+  a blocchi). **Primi numeri device (S23, CPU, prefisso ~2000 token in cache)**: decode LFM 9,5-10,4 tok/s vs
+  MiniCPM5 6,5-6,6; promptMs LFM 3,4-3,6 s vs MiniCPM5 2,8-6,8 s. **MiniCPM5 prewarm ~2,5 min senza mai loggare
+  `KALSA_PREWARM done`** (la completion n_predict=0 non riporta timings → "skip eval-failed"; KV comunque
+  popolata) contro ~38 s di LFM: Q4_K_M senza repack ARM vs QAD-Q4_0 repack → da confrontare con un MiniCPM5 Q4_0
+  se il repo ufficiale lo offre (controllo in corso). Difetto UI MiniCPM5: nel turno tool la risposta contiene
+  anche l'eco testuale `<function>` oltre alla chiamata strutturata. LFM chiama device_calc anche per "2+2".
+  Prossimo: install 5707cfe + re-test share cold-start su S23 (Luna ad050d23), poi sweep 24×2 sull'S23.
 - **9/09 ~10:50 EDT — main@5707cfe: FIX DOCUMENTI + SHARE (18 file, due audit ostili deepseek+mimo → SHIP)**:
   estrazione testo PDF con cap proprio (200 pagine / 1,5 M unità UTF-16, applicato dentro la WebView e lato RN;
   vision resta 5), pagina densa tronca solo se stessa, troncamento persistito e visibile "(N/M)" + "first N of M
