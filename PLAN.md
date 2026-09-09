@@ -22,6 +22,18 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~10:50 EDT — main@5707cfe: FIX DOCUMENTI + SHARE (18 file, due audit ostili deepseek+mimo → SHIP)**:
+  estrazione testo PDF con cap proprio (200 pagine / 1,5 M unità UTF-16, applicato dentro la WebView e lato RN;
+  vision resta 5), pagina densa tronca solo se stessa, troncamento persistito e visibile "(N/M)" + "first N of M
+  pages" nel tool, documenti grandi → retrieval (test fino a pagina 31); timeout totale = vincolo UX 180 s con
+  testo PARZIALE restituito (deepseek aveva messo 100 minuti: corretto); selezione documento tollerante (id →
+  nome/titolo/stem → unico documento con riga "id non trovato" → allegato solo senza id → errore con elenco);
+  filtri SEND/SEND_MULTIPLE/DEFAULT corretti in app.config.js (il plugin Expo prefissa da solo); cold-start share
+  parcheggiato fino a `conversationsReady`; `extractionScope.ts` al posto di 4 copie. tsc 0, jest 33/33, 6 harness 0.
+  **APK debuggabile in build: run 34363702891** → da installare su S23/Jelly e ripetere i 5 scenari del document
+  chat sul Jelly + i 2 casi cold-start share sull'S23. Canali: Luna ha esaurito la quota ~10:00 (tre agenti morti),
+  owner: "usa coder bench (deepseek) intanto, se no aspetti" → round 2 documenti e runner device su deepseek;
+  v2b ripresa sul vecchio agente Luna alla riapertura (un doppione creato per errore è stato ucciso subito).
 - **9/09 ~10:55 EDT — GIUDICI v2 ENTRAMBI SBLINDATI (committati)**: A deepseek = LFM 25 / MiniCPM5 22 / pari 13;
   B mimo = MiniCPM5 24 / LFM 23 / pari 13; accordo 43/60. **Escludendo le 14 righe con finale LFM vuoto (artefatto
   round-cap, in rifacimento v2b)**: A = LFM 25 / MiniCPM5 11 / pari 10; B = LFM 21 / MiniCPM5 15 / pari 10. Quindi
