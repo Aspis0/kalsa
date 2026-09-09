@@ -22,6 +22,12 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~07:00 EDT — TRE TELEFONI OPERATIVI, tutti su main@332aeed debuggable con LFM di spedizione (sha a247afd6…)
+  verificato sul device e smoke di avvio pulito**: Xiaomi 14 192.168.1.193:5555 (V75, nessun eager-load), S23
+  192.168.1.152:5555 (V73, eager-load di qwen3.5-4b a 4 GB RSS per prefs di banco di agosto → azzerare prima di
+  misurare; /data al 92 %), Jelly Star 192.168.1.82:5555 (G99, Android 13, eager-load lfm2.5-2.6b `fits`, 2,27 GB RSS).
+  Schede in `scratchpad/agents/g1-model-select/devices/`. QDC non necessario per M1 (8 Elite senza minuti); Samsung
+  RTL più avanti per la compatibilità. Owner ha ripreso lo Xiaomi in mano dalle ~06:40.
 - **9/09 ~06:40 EDT — G0 a che punto è (cella `scratchpad/agents/g1-model-select/`, tutto committato):**
   (a) **Xiaomi 14 operativo**: wireless adb 192.168.1.193:5555 (dopo 1 h persa sul gate macOS "consenti accessori"),
   manifest `devices/xiaomi14.md`, APK **main@332aeed debuggable** installata (sha 67fff2d7…), LFM2.5-2.6B-QAD-Q4_0
