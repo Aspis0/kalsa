@@ -22,6 +22,11 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~11:55 EDT — OWNER: "il quant giusto possiamo farlo noi, e magari dopo un fine tune sui casi dove sbaglia /
+  tool call (Apache 2.0, possiamo farlo nostro)"** → linea di lavoro registrata: (1) prima chiudere il dubbio prewarm
+  S23; (2) quant con imatrix dal F16 sul Mac quando la v2b libera la CPU (Q4_K_M e Q4_0 + imatrix, PPL vs ufficiali);
+  (3) dopo G1, solo se vince MiniCPM5: LoRA/SFT sulle classi di errore misurate (deriva es/ja, eco XML nel testo,
+  rifiuti), Runpod, corpus G1 come eval con i 20 riservati sigillati. Pesa nel tie-break di licenza di §9.
 - **9/09 ~11:50 EDT — MiniCPM5 Q4_0 costruito dal F16 (`MINICPM5-Q4_0.md`)**: PPL Q8_0 22,34 / Q4_K_M 23,55 (+5 %) /
   Q4_0 26,19 (+17 %): il Q4_0 NON è un QAD come quello di LFM, costa qualità. E il quant non è la leva del prefill:
   l'overlay ripacchetta anche Q4_K su ARM (`repack.cpp:5130` → `q4_K_8x8_q8_K` con NEON+i8mm, che l'S23 ha).
