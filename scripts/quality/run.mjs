@@ -18,8 +18,8 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = path.resolve(import.meta.dirname, "../..");
-const SERVER = "/opt/homebrew/bin/llama-server";
-const PORT = 8177;
+const SERVER = process.env.KALSA_LLAMA_SERVER ?? "/opt/homebrew/bin/llama-server";
+const PORT = Number(process.env.KALSA_QUALITY_PORT ?? 8177);
 const BASE = `http://127.0.0.1:${PORT}`;
 
 const args = process.argv.slice(2);
