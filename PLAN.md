@@ -22,6 +22,16 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~09:00 EDT — S23: IL RESTORE FUNZIONA IN CONFIG DI SPEDIZIONE (n=1, thinking ON, LFM, main@332aeed)**
+  (`session-contract/S23-RESTORE-2026-09-09.md`, Luna 6c0dfc7f): seed a freddo 37,9 s per 1811 token; dopo
+  force-stop + riapertura `KALSA_KVRESUME resumable=1`, `KALSA_SESSION load ok tokens=2051` in 36 ms, `KALSA_KVDIAG
+  n_past=2051`, turno di continuazione **prefill 562 ms** (evaluated 2075, cached 2314), decode 7,4 tok/s, `.kvs`
+  15,8 MB vs stima 16,0 MB, UN solo save. Dei quattro difetti di §7.30: n_past=0 FIXED, disk gate 12,7× FIXED
+  (1,01×), doppio save FIXED, `KALSA_PREWARM match:false` ancora presente ma con `reason:"kv_holds_chat"` →
+  diagnostica cosmetica, non un miss. Cicli 2-4 non fatti: **thermal status 3 a 42,7 °C** (telefono scollegato,
+  wireless) → fermato al gate. Buchi di harness confermati: `uiautomator dump` sull'S23 muore (rc=164, segnale 36);
+  il deep link `kalsa://share` non riempie il draft React su questa build → il turno è stato inviato dai controlli
+  visibili; prefs di banco di agosto rimosse (era su qwen3.5-2b, norepack=1), snapshot in `artifacts/`.
 - **9/09 ~08:50 EDT — GIUDIZIO CIECO v1 + FIX LINGUA SU MAIN (f77ea7b)**: due giudici indipendenti (deepseek A,
   mimo B) sblindati con `unblind.py`: A = MiniCPM5 29 / LFM 25 / pari 18, B = LFM 29 / MiniCPM5 27 / pari 16; accordo
   60/72, 4 verdetti opposti. Senza il blocco multilingue: MiniCPM5 25 vs LFM 18-20. Per categoria concordano:

@@ -1,0 +1,6 @@
+kalsa.bench.format	none
+kalsa.bench.norepack	1
+kalsa.bench.thinking	default
+kalsa.bench.toolchoice	auto
+kalsa.bench.toolgate	1
+kalsa.model.id	qwen3.5-2b

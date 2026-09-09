@@ -1,0 +1,874 @@
+--------- beginning of main
+09-09 08:35:43.086 I/libc    ( 8476): logcat: received profiling signal with si_value: 1
+09-09 08:35:43.115 D/vendor.samsung.hardware.thermal@1.0-service( 1804): timer callback!
+09-09 08:35:43.144 D/vendor.samsung.hardware.thermal@1.0-service( 1804): frontset.size = 0
+--------- beginning of system
+09-09 08:35:43.148 I/SDHMS:x ( 5609): SIOP:: AP:449 BAT:383 USB:348 CHG:406 PA:401 CP:410 WIFI:413 CF:393 BLK:0 SUBBAT:0 SKIN:379 SKINF:376 SKINB:379 LRP:379 LRP2:379 LRF2:376 LRB2:379 AP2:379 CHG2:375 WIFI2:379 UANT2:376 RCV2:379 SPK2:347 FCAM:348 UPSPK:394 DNSPK:348 VAP02:451 VWIFI:415 AMB:357 AMB2:283 AVGCUR:-600 POWER:-2333
+09-09 08:35:43.148 D/M0      ( 5609): broadcastCheckSiopLvIntent:: curLevel = 0
+09-09 08:35:43.182 D/SemWifiP2pGoPowerSave( 2434): GopsReceiver : received : com.samsung.intent.action.CHECK_SIOP_LEVEL
+09-09 08:35:43.182 I/SemWifiP2pGoPowerSave( 2434): siop_level = 0
+09-09 08:35:43.185 I/RefreshRateSelector( 1871): Can't find idle refresh rate by policy with the same mode group as the current mode {id=0, hwcId=0, resolution=1080x2340, vsyncRate=120.00 Hz, dpi=428.62x424.54, group=1080, vrrConfig=N/A, supportedHdrTypes=INVALID} (idle : 24 fps)
+09-09 08:35:43.185 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=60.00 Hz, modePtr={id=2, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:43.185 I/sensors-hal( 1701): set_config:65, no need to adjust sample_period_ns due to reporting_mode = 2
+09-09 08:35:43.185 I/sensors-hal( 1701): batch:369, android.sensor.light/51, period=200000000, max_latency=0 request completed
+09-09 08:35:43.185 I/sensors-hal( 1701): activate:285, android.sensor.light/51 en=1
+09-09 08:35:43.185 I/sensors-hal( 1701): acquire_ssc_interface:114, acquire_ssc_interface with sensor_id 32 , conn_type 0 
+09-09 08:35:43.185 I/sensors-hal( 1701): acquire_ssc_interface:120, returning _shared_instance[SHARED_ON_CHANGE_NO_WAKEUP].conn - non-wakeup
+09-09 08:35:43.185 I/sensors-hal( 1701): acquire_shared_instance:148, re-use existing connection for type 0 
+09-09 08:35:43.185 I/sensors-hal( 1701): register_cb:305, register_cb start this=0xb400006ffa7b7a00x
+09-09 08:35:43.185 I/sensors-hal( 1701): register_cb:321, register_cb End with succes
+09-09 08:35:43.185 I/sensors-hal( 1701): send_sensor_config_request:658, dt=ambient_light: convert sample_period=200000000 to batch_period=200000
+09-09 08:35:43.185 I/sensors-hal( 1701): send_sync_sensor_request:521, send sync request
+09-09 08:35:43.185 I/sensors-hal( 1701): send_sync_sensor_request:531, send_sync_sensor_request before send_request for ambient_light with SUID low=3046173514946711665 high=5158289438331071126
+09-09 08:35:43.185 I/sensors-hal( 1701): send_request:330, send_request start this=0xb400006ffa7b7a00x 
+09-09 08:35:43.186 I/sensors-hal( 1701): send_request:415, send_request completed, this=0xb400006ffa7b7a00x
+09-09 08:35:43.186 I/sensors-hal( 1701): send_sync_sensor_request:552, wait for notification of response
+09-09 08:35:43.186 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:43.186 I/SurfaceFlinger( 1871): Idle - choose 60.00 Hz
+09-09 08:35:43.186 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 2
+09-09 08:35:43.187 I/sensors-hal( 1701): ssc_conn_resp_cb:941, resp_value = 0 for ambient_light 
+09-09 08:35:43.187 I/sensors-hal( 1701): handle_resp_cb:517, handle_resp_cb Ended this=0xb400006ffa7b7a00x
+09-09 08:35:43.187 I/sensors-hal( 1701): send_sync_sensor_request:558, takes 1 ms to receive the response with 0
+09-09 08:35:43.187 I/sensors-hal( 1701): activate:303, android.sensor.light/51 en=1 completed
+09-09 08:35:43.187 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:43.187 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:43.187 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:43.187 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:3 1080x2340x60xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:43.187 D/SensorManager( 5609): registerListener :: 51, STK33911 Light  Non-wakeup, 200000, 0, com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@981b87d
+09-09 08:35:43.187 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:43.187 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 2
+09-09 08:35:43.188 D/SensorsFlicker( 1701): Als_common::setDelay, handle : 1 time : 10000000ns
+09-09 08:35:43.189 D/SensorsFlicker( 1701): Als_common::enable, handle : 1, mode : 1, en : 1
+09-09 08:35:43.189 D/SensorsFlicker( 1701): Als_common::sendCommand, send enable command
+09-09 08:35:43.193 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:43.193 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 60
+09-09 08:35:43.217 D/WifiStaIfaceHidlImpl( 2434): getCachedScanData is not implemented by HIDL
+09-09 08:35:43.221 D/SemWifiUsabilityStatsMonitor( 2434): onWifiUsabilityStats - seqNum 1808, isSameBssidAndFreq true
+09-09 08:35:43.242 D/SensorManager( 5609): registerListener :: 16777217, TSL2585 Rear ALS, 200000, 0, com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@b765f79
+09-09 08:35:43.243 D/SemContextService( 2434): lock : registerCallback
+09-09 08:35:43.243 W/CAE     ( 2434): registerCallback(ContextAwareService.java:188) - [regi 01] Mutex is locked for TEST_FLAT_MOTION
+09-09 08:35:43.244 W/CAE     ( 2434): registerCallback(ContextAwareService.java:195) - [regi 04]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@d3e0825
+09-09 08:35:43.244 W/CAE     ( 2434): getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@d3e0825
+09-09 08:35:43.244 W/CAE     ( 2434): getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c
+09-09 08:35:43.244 V/CAE     ( 2434): start(ContextProvider.java:128)
+09-09 08:35:43.244 V/CAE     ( 2434): clear(TestFlatMotionRunner.java:126)
+09-09 08:35:43.244 V/CAE     ( 2434): enable(TestFlatMotionRunner.java:102)
+09-09 08:35:43.245 D/SensorService( 2434): setSContextDataLocked ints length 2 , byte length 4
+09-09 08:35:43.245 D/SensorService( 2434): setSContextDataLocked 17b1
+09-09 08:35:43.245 I/sensors-hal( 1701): inject_sensor_data:413, handle 1501 send inject
+09-09 08:35:43.245 I/sensors-hal( 1701): sendContextData:286, sensor hal 4, (0xb1, 0x17, 0x0, 0x0)
+09-09 08:35:43.245 I/sensors-hal( 1701): sendContextData:345, enable:177, handle:8, algo:25231360
+09-09 08:35:43.245 I/sensors-hal( 1701): is_restrict_mode:143, mode:normal
+09-09 08:35:43.245 I/sensors-hal( 1701): sendContextData:108, device_position 4
+09-09 08:35:43.245 I/sensors-hal( 1701): acquire_ssc_interface:114, acquire_ssc_interface with sensor_id 48 , conn_type 2 
+09-09 08:35:43.245 I/sensors-hal( 1701): acquire_ssc_interface:124, returning _shared_instance[SHARED_SENSORHUBS].conn
+09-09 08:35:43.245 I/sensors-hal( 1701): acquire_shared_instance:148, re-use existing connection for type 2 
+09-09 08:35:43.245 I/sensors-hal( 1701): register_cb:305, register_cb start this=0xb400006ffa65ba00x
+09-09 08:35:43.246 I/sensors-hal( 1701): register_cb:321, register_cb End with succes
+09-09 08:35:43.246 I/sensors-hal( 1701): create_sensor_config_request:48, device_position create_sensor_config_request
+09-09 08:35:43.246 I/sensors-hal( 1701): send_sensor_config_request:658, dt=device_position: convert sample_period=0 to batch_period=0
+09-09 08:35:43.246 I/sensors-hal( 1701): send_sync_sensor_request:521, send sync request
+09-09 08:35:43.246 I/sensors-hal( 1701): send_sync_sensor_request:531, send_sync_sensor_request before send_request for device_position with SUID low=11077485164857655296 high=1320970896291267344
+09-09 08:35:43.246 I/sensors-hal( 1701): send_request:330, send_request start this=0xb400006ffa65ba00x 
+09-09 08:35:43.246 I/sensors-hal( 1701): send_request:415, send_request completed, this=0xb400006ffa65ba00x
+09-09 08:35:43.246 I/sensors-hal( 1701): send_sync_sensor_request:552, wait for notification of response
+09-09 08:35:43.247 I/sensors-hal( 1701): ssc_conn_resp_cb:941, resp_value = 0 for device_position 
+09-09 08:35:43.247 I/sensors-hal( 1701): handle_resp_cb:517, handle_resp_cb Ended this=0xb400006ffa65ba00x
+09-09 08:35:43.247 I/sensors-hal( 1701): send_sync_sensor_request:558, takes 1 ms to receive the response with 0
+09-09 08:35:43.247 D/CAE     ( 2434): getFaultDetectionResult(TestFlatMotionRunner.java:139) - true
+09-09 08:35:43.247 I/CAE     ( 2434): notifyCmdProcessResultObserver(ContextProvider.java:627) - CheckResult = 0, Cause = Success
+09-09 08:35:43.251 D/CAE     ( 2434): doCommendProcess(ContextAwareService.java:396) - complete notify the operation result.
+09-09 08:35:43.251 I/CAE     ( 2434): displayUsedCountForService(ContextAwareService.java:460) - totalCnt = 1, serviceCount = 1, subCollectionCount = 0
+09-09 08:35:43.252 D/CAE     ( 2434): showListenerList(ContextAwareService.java:325) - ===== Context Aware Service List =====
+09-09 08:35:43.252 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : ACTIVITY_TRACKER_INTERRUPT(1)
+09-09 08:35:43.252 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : ACTIVITY_TRACKER_CURRENT_INFO(1)
+09-09 08:35:43.252 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : SLOCATION_RUNNER(1)
+09-09 08:35:43.252 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : CH_LOC_TRIGGER(1)
+09-09 08:35:43.252 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : FREE_FALL_DETECTION(1)
+09-09 08:35:43.252 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : TEST_FLAT_MOTION(1)
+09-09 08:35:43.252 W/CAE     ( 2434): registerCallback(ContextAwareService.java:209) - [regi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-09 08:35:43.252 E/SemContext.CaeProvider( 2434): setAttribute() : attribute is null!
+09-09 08:35:43.252 D/SemContextService( 2434): 	.registerCallback : 5, client= com.sec.android.sdhms
+09-09 08:35:43.253 D/SemContextService( 2434): unlock : registerCallback
+09-09 08:35:43.253 D/SemContextManager( 5609):   .registerListener : listener = com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSemContext$1@313b4be, service=Device Position
+09-09 08:35:43.254 E/SensorService( 2434): BigData:Pakage) 5 already enabled. 
+09-09 08:35:43.254 D/SensorManager( 5609): registerListener :: 51, STK33911 Light  Non-wakeup, 200000, 0, com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@96a091f
+09-09 08:35:43.255 D/SensorManager( 5609): registerListener :: 16777217, TSL2585 Rear ALS, 200000, 0, com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@de7846c
+09-09 08:35:43.256 I/M0      ( 5609): limitCPUFreq:: freq = 2726400
+09-09 08:35:43.256 I/SemDvfsHyPerManager( 5609): acquire hyper - SIOP_ARM_MAX/5609@3, type = 301993986
+09-09 08:35:43.256 I/HYPER-HAL( 1720): [RequestManager.cpp]acquire(): Acquired ID : 15750081  [5609 / 3]    HINT :      list : [CPUMaxFreq / 2726400] 
+09-09 08:35:43.262 I/sensors-hal( 1701): ssc_conn_event_cb:869, SCHED_FIFO(10) for qmi_cbk
+09-09 08:35:43.262 I/sensors-hal( 1701): handle_sns_std_sensor_event:137, [SSC_LIGHT] A: 13(13),m:13,c:205,b:1,c0:608,l:13,r:82,bl:100,j:10
+09-09 08:35:43.285 I/libc    ( 8480): logcat: received profiling signal with si_value: 1
+09-09 08:35:43.372 D/SensorsFlicker( 1701): Als_common::setDelay, handle : 1 time : 10000000ns
+09-09 08:35:43.372 D/SensorManager( 5609): unregisterListener :: com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@b765f79
+09-09 08:35:43.373 D/SensorsFlicker( 1701): Als_common::enable, handle : 1, mode : 1, en : 0
+09-09 08:35:43.373 D/SensorsFlicker( 1701): Als_common::sendCommand, send disable command
+09-09 08:35:43.377 D/SensorManager( 5609): unregisterListener :: com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@de7846c
+09-09 08:35:43.430 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:43.436 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:43.436 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:43.437 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:43.438 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:43.438 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:43.438 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:43.438 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:43.439 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 2 to 0
+09-09 08:35:43.443 I/VSyncReactor( 1871): Current= 60, Period= 120, hwcPeriod= 120
+09-09 08:35:43.451 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:43.501 I/sensors-hal( 1701): ssc_conn_event_cb:869, SCHED_FIFO(10) for qmi_cbk
+09-09 08:35:43.501 I/sensors-hal( 1701): ssc_conn_event_cb:901, event[0] sensor:device_position  Wakeup, msg_id=1025, ts=129826628102
+09-09 08:35:43.501 I/sensors-hal( 1701): handle_sns_client_event:78, device_position_event: msgid:1025
+09-09 08:35:43.501 I/sensors-hal( 1701): handle_sns_client_event:97, device_position_event: 1
+09-09 08:35:43.504 D/CAE     ( 2434): onGetSensorHubData(SensorHubParserProvider.java:92) - onGetSensorHubData Event [event buffer len :4], AP_WAKEUP
+09-09 08:35:43.505 I/CAE     ( 2434): parse(SensorHubParserProvider.java:188) - buffer size = 4
+09-09 08:35:43.505 I/CAE     ( 2434): parse(SensorHubParserProvider.java:199) - 1, 1, 23, 1,
+09-09 08:35:43.505 D/CAE     ( 2434): display(ContextProvider.java:375) - ================= TEST_FLAT_MOTION =================
+09-09 08:35:43.506 I/CAE     ( 2434): display(ContextProvider.java:391) - Action=[1]
+09-09 08:35:43.507 D/SemContextService( 2434): Service.updateContext() : service = Device Position
+09-09 08:35:43.508 D/SemContextManager( 5609): onSemContextChanged() : event = Device Position
+09-09 08:35:43.508 D/SemContextService( 2434): lock : unregisterCallback
+09-09 08:35:43.508 D/SemContextService( 2434): Service.removeListenerLocked() : listener = com.samsung.android.hardware.context.SemContextService$Listener@37b792a, service = Device Position, used = 0
+09-09 08:35:43.509 W/CAE     ( 2434): unregisterCallback(ContextAwareService.java:230) - [unregi 01] Mutex is locked for TEST_FLAT_MOTION
+09-09 08:35:43.509 W/CAE     ( 2434): getListener(ListenerListManager.java:127) - [getListener1]  com.samsung.android.contextaware.ContextAwareManager$CaListenerDelegate@d3e0825
+09-09 08:35:43.509 W/CAE     ( 2434): getListener(ListenerListManager.java:128) - [getListener2]  com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c
+09-09 08:35:43.510 V/CAE     ( 2434): stop(ContextProvider.java:155)
+09-09 08:35:43.510 V/CAE     ( 2434): clear(TestFlatMotionRunner.java:126)
+09-09 08:35:43.511 V/CAE     ( 2434): disable(TestFlatMotionRunner.java:115)
+09-09 08:35:43.511 D/SensorService( 2434): setSContextDataLocked ints length 2 , byte length 4
+09-09 08:35:43.511 D/SensorService( 2434): setSContextDataLocked 17b2
+09-09 08:35:43.511 I/sensors-hal( 1701): inject_sensor_data:413, handle 1501 send inject
+09-09 08:35:43.512 I/sensors-hal( 1701): sendContextData:286, sensor hal 4, (0xb2, 0x17, 0x0, 0x0)
+09-09 08:35:43.512 I/sensors-hal( 1701): sendContextData:345, enable:178, handle:8, algo:25231616
+09-09 08:35:43.512 I/sensors-hal( 1701): sendContextData:108, device_position 4
+09-09 08:35:43.512 I/sensors-hal( 1701): send_sync_sensor_request:521, send sync request
+09-09 08:35:43.512 I/sensors-hal( 1701): send_sync_sensor_request:531, send_sync_sensor_request before send_request for device_position with SUID low=11077485164857655296 high=1320970896291267344
+09-09 08:35:43.512 I/sensors-hal( 1701): send_request:330, send_request start this=0xb400006ffa65ba00x 
+09-09 08:35:43.512 I/sensors-hal( 1701): send_request:415, send_request completed, this=0xb400006ffa65ba00x
+09-09 08:35:43.512 I/sensors-hal( 1701): send_sync_sensor_request:552, wait for notification of response
+09-09 08:35:43.513 I/sensors-hal( 1701): ssc_conn_resp_cb:941, resp_value = 0 for device_position 
+09-09 08:35:43.513 I/sensors-hal( 1701): handle_resp_cb:517, handle_resp_cb Ended this=0xb400006ffa65ba00x
+09-09 08:35:43.513 I/sensors-hal( 1701): send_sync_sensor_request:558, takes 1 ms to receive the response with 0
+09-09 08:35:43.514 D/CAE     ( 2434): getFaultDetectionResult(TestFlatMotionRunner.java:139) - true
+09-09 08:35:43.514 I/CAE     ( 2434): notifyCmdProcessResultObserver(ContextProvider.java:627) - CheckResult = 0, Cause = Success
+09-09 08:35:43.514 D/CAE     ( 2434): doCommendProcess(ContextAwareService.java:396) - complete notify the operation result.
+09-09 08:35:43.515 I/CAE     ( 2434): displayUsedCountForService(ContextAwareService.java:460) - totalCnt = 0, serviceCount = 0, subCollectionCount = 0
+09-09 08:35:43.515 D/CAE     ( 2434): showListenerList(ContextAwareService.java:325) - ===== Context Aware Service List =====
+09-09 08:35:43.515 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : ACTIVITY_TRACKER_INTERRUPT(1)
+09-09 08:35:43.515 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : ACTIVITY_TRACKER_CURRENT_INFO(1)
+09-09 08:35:43.516 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : SLOCATION_RUNNER(1)
+09-09 08:35:43.516 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : CH_LOC_TRIGGER(1)
+09-09 08:35:43.516 I/CAE     ( 2434): showListenerList(ContextAwareService.java:334) - Listener : com.samsung.android.contextaware.manager.ContextAwareService$Listener@27d41c, Service : FREE_FALL_DETECTION(1)
+09-09 08:35:43.516 W/CAE     ( 2434): unregisterCallback(ContextAwareService.java:251) - [unregi 02] Mutex is unlocked for TEST_FLAT_MOTION
+09-09 08:35:43.516 D/SemContextService( 2434): 	.unregisterCallback : 5, client= com.sec.android.sdhms
+09-09 08:35:43.516 D/SemContextService( 2434): unlock : unregisterCallback
+09-09 08:35:43.517 D/SemContextManager( 5609):   .unregisterListener : listener = com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSemContext$1@313b4be, service=Service All
+09-09 08:35:43.569 I/HqmInfo::HqmManagerService( 2434): MSG_TYPE:MSG_TYPE_PROCESS_LOG_BY_HQM
+09-09 08:35:43.572 D/ActivityManager( 2434): sync unfroze 2630 com.samsung.android.dqagent for 3
+09-09 08:35:43.595 D/DQA     ( 2630): [c]Receive log OK : [Overheat, SSRM]
+09-09 08:35:43.657 D/io_stats( 1140): !@   8,0 r 656394 33974209 w 143391 3787752 d 4821 2882856 f 13804 23073 iot 285376 0 th 0 0 0 pt 0 inp 0 0 5910.667
+09-09 08:35:43.686 I/RefreshRateSelector( 1871): Can't find idle refresh rate by policy with the same mode group as the current mode {id=0, hwcId=0, resolution=1080x2340, vsyncRate=120.00 Hz, dpi=428.62x424.54, group=1080, vrrConfig=N/A, supportedHdrTypes=INVALID} (idle : 24 fps)
+09-09 08:35:43.686 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=60.00 Hz, modePtr={id=2, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:43.694 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 120
+09-09 08:35:43.695 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:43.695 I/SurfaceFlinger( 1871): Idle - choose 60.00 Hz
+09-09 08:35:43.696 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 2
+09-09 08:35:43.697 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:43.697 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:43.697 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:43.697 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:3 1080x2340x60xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:43.697 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:43.697 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 2
+09-09 08:35:43.702 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:43.702 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 60
+09-09 08:35:43.882 E/HeatmapThread( 1842): ECT Thread time in milliseconds: 1788957343
+09-09 08:35:43.885 D/HeatmapThread( 1842): !@ batteryplugType : 0
+09-09 08:35:43.886 D/HeatmapThread( 1842): !@ batteryLevel : 62  batteryTemperature : 383 
+09-09 08:35:43.886 D/HeatmapThread( 1842): !@ Heatmap currtime: 29815955
+09-09 08:35:43.886 D/HeatmapThread( 1842): !@ Heatmap prevtime: 29815933
+09-09 08:35:43.886 D/HeatmapThread( 1842): !@ Heatmap plugstarttime: 35791394
+09-09 08:35:43.886 D/HeatmapThread( 1842): !@ Heatmap prevv_dsoh_update_time: 29815843
+09-09 08:35:43.886 E/HeatmapThread( 1842): !@ CAM New BSOH: 100
+09-09 08:35:43.931 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:43.937 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:43.937 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:43.937 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:43.938 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:43.938 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:43.938 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:43.938 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:43.939 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 2 to 0
+09-09 08:35:43.944 I/VSyncReactor( 1871): Current= 60, Period= 120, hwcPeriod= 120
+09-09 08:35:43.952 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:44.032 W/dumpsys ( 8491): Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: battery
+09-09 08:35:44.034 D/[SS][BattInfo]BattInfoManager( 2434): [getIcAuthenticationResults]IcAuthenticationResults:[false]
+09-09 08:35:44.035 D/[SS]BattUtils( 2434): [readNode]path:/efs/FactoryApp/batt_beginning_date ,value:20230620
+09-09 08:35:44.035 D/[SS]BattUtils( 2434): [readNode]path:/efs/FactoryApp/asoc ,value:93
+09-09 08:35:44.036 D/[SS]BattUtils( 2434): [isExist]path:/efs/FactoryApp/batt_hist ,result:false
+09-09 08:35:44.037 D/[SS]BattUtils( 2434): [readNode]path:/efs/FactoryApp/batt_discharge_level ,value:25645
+09-09 08:35:44.038 D/[SS]BattUtils( 2434): [readNode]path:/efs/FactoryApp/bsoh ,value:100.00
+09-09 08:35:44.039 I/BinderCallsStats( 2434): This is dumpsys command...from (uid: 2000) We will not add it into HashMap
+09-09 08:35:44.104 W/dumpsys ( 8494): Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: thermalservice
+09-09 08:35:44.107 E/ThermalManagerService$ThermalHalWrapper( 2434): Couldn't get cooling device because of HAL error: no cooling device for cooling type 0
+09-09 08:35:44.108 E/ThermalManagerService$ThermalHalWrapper( 2434): Couldn't get temperature thresholds because of HAL error: no threshold data for temperature type 0
+09-09 08:35:44.109 I/BinderCallsStats( 2434): This is dumpsys command...from (uid: 2000) We will not add it into HashMap
+09-09 08:35:44.116 I/NearbyMediums( 5008): No BLE Fast/GATT advertisements found in the latest cycle.
+09-09 08:35:44.116 I/NearbyMediums( 5008): Current Tracked Scanning Clients are : {NearbyConnections.EnvironmentMonitor, NearbySharing}
+09-09 08:35:44.187 I/RefreshRateSelector( 1871): Can't find idle refresh rate by policy with the same mode group as the current mode {id=0, hwcId=0, resolution=1080x2340, vsyncRate=120.00 Hz, dpi=428.62x424.54, group=1080, vrrConfig=N/A, supportedHdrTypes=INVALID} (idle : 24 fps)
+09-09 08:35:44.187 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=60.00 Hz, modePtr={id=2, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:44.195 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 120
+09-09 08:35:44.196 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:44.196 I/SurfaceFlinger( 1871): Idle - choose 60.00 Hz
+09-09 08:35:44.197 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 2
+09-09 08:35:44.198 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:44.198 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:44.198 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:44.198 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:3 1080x2340x60xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:44.199 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:44.199 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 2
+09-09 08:35:44.202 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:44.203 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 60
+09-09 08:35:44.431 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:44.437 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:44.437 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:44.437 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:44.437 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:44.437 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:44.437 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:44.437 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:44.437 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 2 to 0
+09-09 08:35:44.445 I/VSyncReactor( 1871): Current= 60, Period= 120, hwcPeriod= 120
+09-09 08:35:44.453 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:44.687 I/RefreshRateSelector( 1871): Can't find idle refresh rate by policy with the same mode group as the current mode {id=0, hwcId=0, resolution=1080x2340, vsyncRate=120.00 Hz, dpi=428.62x424.54, group=1080, vrrConfig=N/A, supportedHdrTypes=INVALID} (idle : 24 fps)
+09-09 08:35:44.687 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=60.00 Hz, modePtr={id=2, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:44.695 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 120
+09-09 08:35:44.696 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:44.696 I/SurfaceFlinger( 1871): Idle - choose 60.00 Hz
+09-09 08:35:44.697 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 2
+09-09 08:35:44.698 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:44.698 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:44.698 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:44.698 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:3 1080x2340x60xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:44.698 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:44.698 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 2
+09-09 08:35:44.703 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:44.704 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 60
+09-09 08:35:44.882 E/HeatmapThread( 1842): ECT Thread time in milliseconds: 1788957344
+09-09 08:35:44.885 D/HeatmapThread( 1842): !@ batteryplugType : 0
+09-09 08:35:44.885 D/HeatmapThread( 1842): !@ batteryLevel : 62  batteryTemperature : 383 
+09-09 08:35:44.885 D/HeatmapThread( 1842): !@ Heatmap currtime: 29815955
+09-09 08:35:44.885 D/HeatmapThread( 1842): !@ Heatmap prevtime: 29815933
+09-09 08:35:44.885 D/HeatmapThread( 1842): !@ Heatmap plugstarttime: 35791394
+09-09 08:35:44.885 D/HeatmapThread( 1842): !@ Heatmap prevv_dsoh_update_time: 29815843
+09-09 08:35:44.886 E/HeatmapThread( 1842): !@ CAM New BSOH: 100
+09-09 08:35:44.933 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:44.938 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:44.938 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:44.939 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:44.939 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:44.940 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:44.940 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:44.940 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:44.940 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 2 to 0
+09-09 08:35:44.945 I/VSyncReactor( 1871): Current= 60, Period= 120, hwcPeriod= 120
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage(): Output of /proc/2193/stat/ : 2193 (shsusrd0) S 1 2193 0 0 -1 1077936384 1263 0 147 0 31 127 0 0 20 0 7 0 910 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 0 0 0 17 4 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.948 I/shsusrd ( 2193): 
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage(): utime 31 stime 127 cpu_time_last 158
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage(): user time = 31 | system time = 127 | total = 158 | cpu_time_delta = 0, clk_tck 100
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage(): time_cur 1788957344 time_last 1788957334
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage(): shsusrd is using 0 pct of CPU - time_delta 10
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage(): shsusrd usage 0
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): time_delta for combined : 10 time_cur 1788957344 time_last_combined 1788957334
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2193/stat: 2193 (shsusrd0) S 1 2193 0 0 -1 1077936384 1197 0 19 0 1 0 0 0 20 0 7 0 910 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 1 0 0 17 4 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.948 I/shsusrd ( 2193): 
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2193 utime 1 stime 0 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2205/stat: 2205 (shsusrd9) S 1 2193 0 0 -1 4194368 8 0 0 0 0 8 0 0 20 0 7 0 914 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 1 0 0 -1 2 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.948 I/shsusrd ( 2193): 
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2205 utime 0 stime 8 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2206/stat: 2206 (shsusrd2) S 1 2193 0 0 -1 4194368 4 0 0 0 0 8 0 0 20 0 7 0 914 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 1 0 0 -1 2 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.948 I/shsusrd ( 2193): 
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2206 utime 0 stime 8 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2207/stat: 2207 (shsusrd13) S 1 2193 0 0 -1 1077936192 1 0 0 0 0 0 0 0 20 0 7 0 914 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 1 0 0 -1 6 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.948 I/shsusrd ( 2193): 
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2207 utime 0 stime 0 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2208/stat: 2208 (shsusrd42) R 1 2193 0 0 -1 4194368 47 0 127 0 28 94 0 0 20 0 7 0 914 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 0 0 0 -1 1 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.948 I/shsusrd ( 2193): 
+09-09 08:35:44.948 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2208 utime 28 stime 94 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2209/stat: 2209 (shsusrd4) S 1 2193 0 0 -1 4194368 0 0 0 0 1 5 0 0 20 0 7 0 914 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 1 0 0 -1 0 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.949 I/shsusrd ( 2193): 
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2209 utime 1 stime 5 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Output of /proc/2193/task/2210/stat: 2210 (shsusrd14) S 1 2193 0 0 -1 4194368 6 0 1 0 1 7 0 0 20 0 7 0 914 2380120064 568 18446744073709551615 374029967360 374030225816 549381729744 0 0 0 0 0 1073794810 1 0 0 -1 2 0 0 0 0 0 374030248896 374030249832 374377373696 549381732535 549381732578 549381732578 549381738461 0
+09-09 08:35:44.949 I/shsusrd ( 2193): 
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): tid 2210 utime 1 stime 7 time_delta 10 clk_tck 100, usage 0
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Combined CPU usage: total_utime 31 total_stime 122 total_cpu_time_seconds 0.00, clk_tck 100
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Combined shsusrd usage 0
+09-09 08:35:44.949 I/shsusrd ( 2193): shsusr_check_cpu_usage_combined(): Combined shsusrd usage FINAL 0
+09-09 08:35:44.954 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:45.024 D/SatelliteController( 3942): isInCarrierRoamingNbIotNtn: satellite is disabled
+09-09 08:35:45.188 I/RefreshRateSelector( 1871): Can't find idle refresh rate by policy with the same mode group as the current mode {id=0, hwcId=0, resolution=1080x2340, vsyncRate=120.00 Hz, dpi=428.62x424.54, group=1080, vrrConfig=N/A, supportedHdrTypes=INVALID} (idle : 24 fps)
+09-09 08:35:45.188 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=60.00 Hz, modePtr={id=2, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:45.189 I/sensors-hal( 1701): set_config:65, no need to adjust sample_period_ns due to reporting_mode = 2
+09-09 08:35:45.189 I/sensors-hal( 1701): batch:369, android.sensor.light/51, period=200000000, max_latency=0 request completed
+09-09 08:35:45.190 D/SensorManager( 5609): unregisterListener :: com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@981b87d
+09-09 08:35:45.190 E/SensorService( 2434): BigData:Pakage) 5 already disabled. 
+09-09 08:35:45.191 I/sensors-hal( 1701): activate:285, android.sensor.light/51 en=0
+09-09 08:35:45.191 I/sensors-hal( 1701): send_sync_sensor_request:521, send sync request
+09-09 08:35:45.191 I/sensors-hal( 1701): send_sync_sensor_request:531, send_sync_sensor_request before send_request for ambient_light with SUID low=3046173514946711665 high=5158289438331071126
+09-09 08:35:45.191 I/sensors-hal( 1701): send_request:330, send_request start this=0xb400006ffa7b7a00x 
+09-09 08:35:45.191 I/sensors-hal( 1701): send_request:415, send_request completed, this=0xb400006ffa7b7a00x
+09-09 08:35:45.191 I/sensors-hal( 1701): send_sync_sensor_request:552, wait for notification of response
+09-09 08:35:45.192 I/sensors-hal( 1701): ssc_conn_resp_cb:941, resp_value = 0 for ambient_light 
+09-09 08:35:45.192 I/sensors-hal( 1701): handle_resp_cb:517, handle_resp_cb Ended this=0xb400006ffa7b7a00x
+09-09 08:35:45.193 I/sensors-hal( 1701): send_sync_sensor_request:558, takes 1 ms to receive the response with 0
+09-09 08:35:45.193 I/sensors-hal( 1701): activate:303, android.sensor.light/51 en=0 completed
+09-09 08:35:45.193 D/SensorManager( 5609): unregisterListener :: com.sec.android.sdhms.thermal.overheatcontrol.OverheatSensorChecker$TypeSensorManager$1@96a091f
+09-09 08:35:45.196 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 120
+09-09 08:35:45.196 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:45.197 I/SurfaceFlinger( 1871): Idle - choose 60.00 Hz
+09-09 08:35:45.197 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 2
+09-09 08:35:45.198 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:45.198 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:45.198 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:45.198 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:3 1080x2340x60xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:45.199 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:45.199 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 2
+09-09 08:35:45.204 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:45.204 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 60
+09-09 08:35:45.288 D/InputDispatcher( 2434): Inject key (8510/2000): action=0, f=0x0, d=-1, time=5912297000000
+09-09 08:35:45.288 D/PhoneWindowManager( 2434): interceptKeyTq keycode=4 interactive=true keyguardActive=false policyFlags=2b000000
+09-09 08:35:45.288 D/SingleKeyGesture( 2434): interceptKeyDown, info : KeyCode=KEYCODE_UNKNOWN, size=0
+09-09 08:35:45.288 D/PhoneWindowManagerExt( 2434): interceptKeyTq code=4 down=true repeatCount=0 displayId=-1 interactive=true powerCombination=false
+09-09 08:35:45.288 D/PhoneWindowManager( 2434): interceptKeyTq interceptKeyResult=4
+09-09 08:35:45.289 D/PowerManagerService( 2434): [api] userActivityFromNative : button displayId=0 eventTime=5912297
+09-09 08:35:45.290 D/PhoneWindowManager( 2434): interceptKeyTi keyCode=4 action=0 repeatCount=0 keyguardOn=false canceled=false
+09-09 08:35:45.290 D/PhoneWindowManagerExt( 2434): interceptKeyTi code=4 down=true repeatCount=0 displayId=-1 interactive=true
+09-09 08:35:45.291 I/InputDispatcher( 2434): Delivering key to (31800): B action: 0x0 (0), f=0x0, m=0x0, d=0, 'c4c8e85'
+09-09 08:35:45.291 I/SemDvfsHyPerManager( 5609): acquire hyper - TATouchBoost/5609@29, type = -999
+09-09 08:35:45.291 I/SemDvfsHyPerManager( 5609): acquire hyper - TA_TOUCH_SHARE/5609@30, type = -999
+09-09 08:35:45.292 I/HYPER-HAL( 1720): [RequestManager.cpp]acquire(): Acquired ID : 15896370  [5609 / 29]    HINT :      list : [TABoost / 1] [TIMEOUT / 1500] 
+09-09 08:35:45.292 I/HYPER-HAL( 1720): [RequestManager.cpp]acquire(): Acquired ID : 15902010  [5609 / 30]    HINT : TA_TOUCH_SHARE    list : [TIMEOUT / 1500] 
+09-09 08:35:45.292 I/HBD     ( 6770): b skip onKeyDown as physical keyboard not connected 
+09-09 08:35:45.293 I/HBD     ( 6770): HoneyBoardService onKeyDown r:0645a9c2 consumed:false 1 
+09-09 08:35:45.293 I/HBD     ( 6770): d onUpdateEditorToolType was called with unKnown motion event. 
+09-09 08:35:45.293 I/InputMethodService( 6770): handleBack: mShowInputRequested=true, doIt=false
+09-09 08:35:45.293 I/VRI[MainActivity]@8a5ddf(31800): The input has been finished in ImeInputStage.
+09-09 08:35:45.293 D/InputDispatcher( 2434): Inject key (8510/2000): action=1, f=0x0, d=-1, time=5912303000000
+09-09 08:35:45.294 D/PhoneWindowManager( 2434): interceptKeyTq keycode=4 interactive=true keyguardActive=false policyFlags=2b000000
+09-09 08:35:45.294 D/PhoneWindowManagerExt( 2434): interceptKeyTq code=4 down=false repeatCount=0 displayId=-1 interactive=true powerCombination=false
+09-09 08:35:45.294 D/PhoneWindowManager( 2434): interceptKeyTq interceptKeyResult=4
+09-09 08:35:45.294 D/PhoneWindowManager( 2434): handleKeyGestureEvent, type=1003 keyguardOn=false displayId=0
+09-09 08:35:45.294 D/PhoneWindowManager( 2434): interceptKeyTi keyCode=4 action=1 repeatCount=0 keyguardOn=false canceled=false
+09-09 08:35:45.295 D/PhoneWindowManagerExt( 2434): interceptKeyTi code=4 down=false repeatCount=0 displayId=-1 interactive=true
+09-09 08:35:45.295 I/InputDispatcher( 2434): Delivering key to (31800): B action: 0x1 (0), f=0x0, m=0x0, d=0, 'c4c8e85'
+09-09 08:35:45.295 I/HBD     ( 6770): HoneyBoardService onKeyUp r:61f159a6 consumed:false 0 
+09-09 08:35:45.295 I/InputMethodService( 6770): handleBack: mShowInputRequested=true, doIt=true
+09-09 08:35:45.296 I/ImeTracker( 6770): com.samsung.android.honeyboard:1e84d9b1: onRequestHide at ORIGIN_IME reason HIDE_SOFT_INPUT_BY_BACK_KEY fromUser true
+09-09 08:35:45.298 I/VRI[MainActivity]@8a5ddf(31800): The input has been finished in ImeInputStage.
+09-09 08:35:45.298 I/InputMethodManager(31800): handleMessage: setImeVisibility visible=false
+09-09 08:35:45.298 D/InsetsController(31800): hide(ime(), fromIme=false)
+09-09 08:35:45.298 W/WindowOnBackDispatcher(31800): sendCancelIfRunning: isInProgress=false callback=android.view.ImeBackAnimationController@93f80b4
+09-09 08:35:45.298 D/BackgroundInstallControlService( 2434): Package event received: 0
+09-09 08:35:45.299 D/SSS:AugmentedAutofillService( 5434): AugmentedAutofillService: Constructor
+09-09 08:35:45.299 D/InsetsController(31800): Setting requestedVisibleTypes to -9 (was -1)
+09-09 08:35:45.299 D/SSS:AugmentedAutofillService( 5434): AugmentedAutofillService: onCreate()
+09-09 08:35:45.299 I/InsetsController(31800): setRequestedVisibleTypes: visible=false, mask=ime, host=com.kalsa.app/com.kalsa.app.MainActivity, from=android.view.InsetsController.controlAnimationUnchecked:1604 android.view.InsetsController.applyAnimation:2416 android.view.InsetsController.applyAnimation:2343 android.view.InsetsController.hide:1540 android.view.inputmethod.InputMethodManager$H.handleMessage:1569 android.os.Handler.dispatchMessage:110 android.os.Looper.loopOnce:273 android.os.Looper.loop:363 android.app.ActivityThread.main:10060 java.lang.reflect.Method.invoke:-2 
+09-09 08:35:45.299 D/CoreBackPreview( 2434): Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@f84953d, mPriority=0, mIsAnimationCallback=false, mOverrideBehavior=0}
+09-09 08:35:45.299 I/InsetsController(31800): controlAnimationUncheckedInner: Added types=ime, animType=1, host=com.kalsa.app/com.kalsa.app.MainActivity, from=android.view.InsetsController.controlAnimationUnchecked:1608 android.view.InsetsController.applyAnimation:2416 android.view.InsetsController.applyAnimation:2343 
+09-09 08:35:45.299 I/InputMethodManager(31800): handleMessage: setImeVisibility visible=false
+09-09 08:35:45.299 D/InsetsController(31800): hide(ime(), fromIme=false)
+09-09 08:35:45.299 I/ImeTracker(31800): com.samsung.android.honeyboard:1e84d9b1: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+09-09 08:35:45.300 I/SSS:AugmentedAutofillService( 5434): AugmentedAutofillService: onConnected()
+09-09 08:35:45.300 D/SSS:AugmentedAutofillService( 5434): initAugmentedAutofillAllowList()
+09-09 08:35:45.303 D/SSS:AutoFillManagerHelper( 5434): isAutofillEnabled:true
+09-09 08:35:45.304 D/SSS:PolicyManager( 5434): getAllowlist(): cached policy available - skipping DataSource retrieval
+09-09 08:35:45.305 I/BLASTBufferQueue_Java(31800): update, w= 1080 h= 2340 mName = VRI[MainActivity]@8a5ddf mNativeObject= 0xb400007b51cad000 sc.mNativeObject= 0xb400007b8bcdee40 format= -1 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:3574 android.view.ViewRootImpl.relayoutWindow:11685 android.view.ViewRootImpl.performTraversals:4804 android.view.ViewRootImpl.doTraversal:3924 android.view.ViewRootImpl$TraversalRunnable.run:12903 android.view.Choreographer$CallbackRecord.run:1901 
+09-09 08:35:45.305 I/WindowManager( 2434): Relayout Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}: viewVisibility=0 req=1080x2340 ty=1 d0
+09-09 08:35:45.305 I/VRI[MainActivity]@8a5ddf(31800): Relayout returned: old=(0,0,1080,2340) new=(0,0,1080,2340) relayoutAsync=true req=(1080,2340)0 dur=0 res=0x0 s={true 0xb400007b51e89900} ch=false seqId=0
+09-09 08:35:45.305 D/SSS:ExpressionHintsManager( 5434): parseExpressionToPostfix -- [[otp, sms, or, code, zip, pin, or, postal, or, not, and, or, auth, or, onetime, or, verify, or, verification, or, pin, code, not, and, or, 인증, or, 승인, or, 코드, 핀, not, and, or, 숫자, 6자리, and, or, one, time, and, password, and, or, sfa, or, mfa, or, single, factor, and, authentication, and, or, multiple, factor, and, authentication, and, or, 一次性密码, or, 验证码, or, 确认针, or, 确认码, or, 密码重置码, or, 识别密码, or, 识别码, or], [mail, voicemail, not, and, 이메일, or], [address, residence, or, location, button, not, and, or, navigation, container, view, or, not, and, or, destination, or, where, to, and, or, pickup, start, or, point, and, or, 주소, or, 거주, or, 위치, or], [phone, phonetic, not, and, mobile, or, telephone, or, telno, or, recipient, name, mail, or, count, or, container, or, button, or, layout, or, not, and, or, 받는사람, 이름, 이메일, or, not, and, or, 핸드폰, or, 이동하는, or, 전화, or, 전화번호, or], [url, website, or, webpage, or, link, or], [upi, vpa, or]]
+09-09 08:35:45.305 D/SSS:ExpressionHintsManager( 5434): Updating hint expressions
+09-09 08:35:45.306 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.307 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.308 I/WindowManager( 2434): Relayout hash=c4c8e85, pid=0, syncId=-1: mAttrs={(0,0)(fillxfill) sim={adjust=resize forwardNavigation} layoutInDisplayCutoutMode=always ty=BASE_APPLICATION wanim=0x1030317 preferredRefreshRate=120.00001 preferredDisplayMode=1
+09-09 08:35:45.308 I/WindowManager( 2434):   fl=81810100
+09-09 08:35:45.308 I/WindowManager( 2434):   pfl=10008840
+09-09 08:35:45.308 I/WindowManager( 2434):   apr=18
+09-09 08:35:45.308 I/WindowManager( 2434):   bhv=2
+09-09 08:35:45.308 I/WindowManager( 2434):   fitSides=0
+09-09 08:35:45.308 I/WindowManager( 2434):   frameRateBoostOnTouch=true
+09-09 08:35:45.308 I/WindowManager( 2434):   dvrrWindowFrameRateHint=true naviIconColor=0}
+09-09 08:35:45.309 I/VRI[MainActivity]@8a5ddf(31800): registerCallbackForPendingTransactions
+09-09 08:35:45.309 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abd5e980 mBlastBufferQueue=0xb400007b51cad000 fn= 1460 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.309 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abd5eb00 mBlastBufferQueue=0xb400007b51cad000 fn= 1460 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.ViewRootImpl$10.onFrameDraw:6536 android.view.ViewRootImpl$4.onFrameDraw:2489 android.view.ThreadedRenderer$1.onFrameDraw:718 
+09-09 08:35:45.311 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:45.313 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:45.313 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:45.313 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:45.314 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:45.314 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:45.314 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:45.314 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:45.315 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 2 to 0
+09-09 08:35:45.321 I/VSyncReactor( 1871): Current= 60, Period= 120, hwcPeriod= 120
+09-09 08:35:45.329 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:45.332 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abd5ec80 mBlastBufferQueue=0xb400007b51cad000 fn= 1461 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.344 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007b4ebb8980 mBlastBufferQueue=0xb400007b51cad000 fn= 1462 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.349 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8a00 mBlastBufferQueue=0xb400007b51cad000 fn= 1463 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.358 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8d00 mBlastBufferQueue=0xb400007b51cad000 fn= 1464 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.366 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007af6033a80 mBlastBufferQueue=0xb400007b51cad000 fn= 1465 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.375 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8880 mBlastBufferQueue=0xb400007b51cad000 fn= 1466 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.382 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8b80 mBlastBufferQueue=0xb400007b51cad000 fn= 1467 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.395 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8e80 mBlastBufferQueue=0xb400007b51cad000 fn= 1468 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.399 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abddfa80 mBlastBufferQueue=0xb400007b51cad000 fn= 1469 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.407 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8700 mBlastBufferQueue=0xb400007b51cad000 fn= 1470 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.416 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abddfc00 mBlastBufferQueue=0xb400007b51cad000 fn= 1471 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.428 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abddfd80 mBlastBufferQueue=0xb400007b51cad000 fn= 1472 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.433 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007ac92fd580 mBlastBufferQueue=0xb400007b51cad000 fn= 1473 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.441 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abd5f880 mBlastBufferQueue=0xb400007b51cad000 fn= 1474 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.449 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab7c6d00 mBlastBufferQueue=0xb400007b51cad000 fn= 1475 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.458 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8280 mBlastBufferQueue=0xb400007b51cad000 fn= 1476 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.467 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078aba76000 mBlastBufferQueue=0xb400007b51cad000 fn= 1477 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.475 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078aba76180 mBlastBufferQueue=0xb400007b51cad000 fn= 1478 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.488 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078aba76300 mBlastBufferQueue=0xb400007b51cad000 fn= 1479 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.491 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007b4ebb8980 mBlastBufferQueue=0xb400007b51cad000 fn= 1480 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.500 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007b487dc000 mBlastBufferQueue=0xb400007b51cad000 fn= 1481 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.508 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007af6033a80 mBlastBufferQueue=0xb400007b51cad000 fn= 1482 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.516 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8880 mBlastBufferQueue=0xb400007b51cad000 fn= 1483 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.525 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8a00 mBlastBufferQueue=0xb400007b51cad000 fn= 1484 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.533 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8b80 mBlastBufferQueue=0xb400007b51cad000 fn= 1485 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.539 V/InputMethodManagerService( 2434): IME window vis: 3 active: 1 visible: 2 displayId: 0
+09-09 08:35:45.539 D/InputMethodManagerService( 2434): isImeSwitcherDisabledPackage : false
+09-09 08:35:45.540 I/HBD     ( 6770): MultiModalSwitcher onAppPrivateCommand needsToShowImeSwitcher : false 
+09-09 08:35:45.540 I/HBD     ( 6770): c HoneyVoice setNavigationBarShortcut null
+09-09 08:35:45.541 D/NavigationBarControllerImpl( 3968): setNavigationBarShortcut requestClass : com.samsung.android.honeyboard, remoteViews : null, position : 0, priority : 12
+09-09 08:35:45.542 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8d00 mBlastBufferQueue=0xb400007b51cad000 fn= 1486 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.542 D/RemoteViewPack( 3968): OnSetRemoteView RemoteViewShortcut(requestClass=com.samsung.android.honeyboard, remoteViews=null, position=0, priority=12)
+09-09 08:35:45.542 D/NavBarStateManager( 3968): NavBarStates(0) isGameMode: false
+09-09 08:35:45.543 D/NavigationBar( 3968): setImeWindowStatus displayId=0 vis=1 backDisposition=0 showImeSwitcher=false isImeVisible=false
+09-09 08:35:45.543 D/Navbar.Store( 3968): handleEvent(0) OnNavBarIconHintChanged(iconHint=0) [Module] NavigationBar
+09-09 08:35:45.543 D/Navbar.Store( 3968): --[Band]SETUPWIZARD_PACK_SET_NAVBAR_ICON_HINT
+09-09 08:35:45.543 D/Navbar.Store( 3968): --[Band]VIS_PACK_REEVAULATE_NAVBAR
+09-09 08:35:45.543 D/Navbar.Store( 3968): ----apply(0) NavBarStoreAction$ReevaluateNavBar
+09-09 08:35:45.544 D/NavBarView( 3968): disableBack=false (isBackDismissIme=false, handlingGestures=false, disabledFlagBack=false, isBottomGesture=false, isImeRenderingNavButtons=false)
+09-09 08:35:45.545 D/HoneySpace.TISBinder( 4501): onActiveNavBarRegionChanges: Not yet implemented
+09-09 08:35:45.545 D/Navbar.Store( 3968): handleEvent(0) OnUpdateSysUiStateFlag(noArguments=true) [Module] SamsungNavigationBarView
+09-09 08:35:45.545 D/Navbar.Store( 3968): --[Band]GESTURE_PACK_UPDATE_SYSTEMUI_STATE_FLAG
+09-09 08:35:45.545 D/Navbar.Store( 3968): --[Band] (afterAction) GESTURE_PACK_UPDATE_SYSTEMUI_STATE_FLAG
+09-09 08:35:45.546 D/HoneySpace.OverviewEventTracker( 4501): invokeEvent() called with: event = SystemUiStateChanged(stateFlags=268435456)
+09-09 08:35:45.547 D/NavBarStateManager( 3968): NavBarStates(0) canUseNavBarBackgroundFrame: false
+09-09 08:35:45.547 D/HoneySpace.TISBinder( 4501): onActiveNavBarRegionChanges: Not yet implemented
+09-09 08:35:45.547 I/HoneySpace.SystemUiRepository( 4501): systemUiFlags: awake
+09-09 08:35:45.550 I/HoneySpace.TaskbarEventTracker( 4501): invokeEvent() called with: event = SystemUiStateChanged(stateFlags=268435456)
+09-09 08:35:45.551 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8e80 mBlastBufferQueue=0xb400007b51cad000 fn= 1487 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.559 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abd5ec80 mBlastBufferQueue=0xb400007b51cad000 fn= 1488 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.566 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007ac92fd580 mBlastBufferQueue=0xb400007b51cad000 fn= 1489 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.574 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab7c6d00 mBlastBufferQueue=0xb400007b51cad000 fn= 1490 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.583 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8280 mBlastBufferQueue=0xb400007b51cad000 fn= 1491 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.591 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078ab9e8700 mBlastBufferQueue=0xb400007b51cad000 fn= 1492 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.600 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abd5f880 mBlastBufferQueue=0xb400007b51cad000 fn= 1493 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.609 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abddfa80 mBlastBufferQueue=0xb400007b51cad000 fn= 1494 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.616 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abddfc00 mBlastBufferQueue=0xb400007b51cad000 fn= 1495 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.625 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb4000078abddfd80 mBlastBufferQueue=0xb400007b51cad000 fn= 1496 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.630 I/InsetsController(31800): cancelAnimation: types=ime, animType=1, host=com.kalsa.app/com.kalsa.app.MainActivity, from=android.view.InsetsController.notifyFinished:2006 android.view.InsetsAnimationControlImpl.applyChangeInsets:335 android.view.InsetsController.lambda$new$3:957 
+09-09 08:35:45.632 I/InputMethodService( 6770): scheduleImeSurfaceRemoval: canceled, mShowInputRequested=true, mWindowVisible=true, IsmWindowNull=false, IsmImeSurfaceRemoverRunnableNotNull=false
+09-09 08:35:45.632 D/InsetsSourceProvider( 2434): updateVisibility: serverVisible=true, clientVisible=false, source=InsetsSource: {3 mType=ime mFrame=[0,1314][1080,2340] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, controlTarget=Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}, from=com.android.server.wm.ImeInsetsSourceProvider.updateVisibility:7 com.android.server.wm.InsetsSourceProvider.setClientVisible:8 com.android.server.wm.ImeInsetsSourceProvider.setClientVisible:17 com.android.server.wm.InsetsSourceProvider.updateClientVisibility:20 com.android.server.wm.ImeInsetsSourceProvider.updateClientVisibility:142 com.android.server.wm.InsetsStateController.onRequestedVisibleTypesChanged:44 com.android.server.wm.InsetsPolicy.onRequestedVisibleTypesChanged:3 com.android.server.wm.Session.updateRequestedVisibleTypes:37 android.view.IWindowSession$Stub.onTransact:1188 com.android.server.wm.Session.onTransact:1 
+09-09 08:35:45.633 I/ImeTracker( 2434): system_server:3b642b46: onRequestHide at ORIGIN_SERVER reason IME_REQUESTED_CHANGED_LISTENER fromUser false
+09-09 08:35:45.633 I/VRI[MainActivity]@8a5ddf(31800): mWNT: t=0xb400007b4ebb8980 mBlastBufferQueue=0xb400007b51cad000 fn= 1497 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.SyncRtSurfaceTransactionApplier.applyTransaction:100 android.view.SyncRtSurfaceTransactionApplier.lambda$scheduleApply$0:73 android.view.SyncRtSurfaceTransactionApplier.$r8$lambda$afI4fXg3U3-nBZQEDQMiNy-B06s:0 
+09-09 08:35:45.634 I/WindowManager( 2434): Cancelling animation restarting=true, leash=Surface(name=Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation)/@0x59da329
+09-09 08:35:45.634 I/WindowManager( 2434): Reparenting to original parent: Surface(name=WindowToken{ee9233b type=2019 android.os.BinderProxy@235cd35})/@0x362ae33, destroy=false, surface=Surface(name=ca22a58 NavigationBar0)/@0x52a31a2
+09-09 08:35:45.635 I/WindowManager( 2434): Reparenting to leash, surface=Surface(name=ca22a58 NavigationBar0)/@0x52a31a2, leashParent=Surface(name=WindowToken{ee9233b type=2019 android.os.BinderProxy@235cd35})/@0x362ae33
+09-09 08:35:45.635 I/SurfaceFlinger( 1871): id=605 createSurf, flag=24000, Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#605
+09-09 08:35:45.636 D/WindowManager( 2434): makeSurface duration=1 leash=Surface(name=Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation)/@0xe66d48a
+09-09 08:35:45.636 D/InsetsSourceProvider( 2434): updateControlForTarget: control=InsetsSourceControl: {47e40001 mType=navigationBars initiallyVisible mSurfacePosition=Point(0, 2196) mInsetsHint=Insets{left=0, top=0, right=0, bottom=144}}, target=Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}, from=com.android.server.wm.InsetsStateController.onControlTargetChanged:83 com.android.server.wm.InsetsPolicy.updateBarControlTarget:225 com.android.server.wm.DisplayPolicy.updateSystemBarAttributes:262 com.android.server.wm.InsetsStateController.onRequestedVisibleTypesChanged:86 com.android.server.wm.InsetsPolicy.onRequestedVisibleTypesChanged:3 
+09-09 08:35:45.637 D/WindowManager( 2434): updateSystemBarAttributes: displayId=0, focusedCanBeNavColorWin=false, win=Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}, navColorWin=Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}, caller=com.android.server.wm.InsetsStateController.onRequestedVisibleTypesChanged:86 com.android.server.wm.InsetsPolicy.onRequestedVisibleTypesChanged:3 com.android.server.wm.Session.updateRequestedVisibleTypes:37 
+09-09 08:35:45.637 D/WindowManager( 2434): updateSystemBarAttributes, bhv=2, apr=24, statusBarAprRegions=[AppearanceRegion{LIGHT_STATUS_BARS bounds=[0,0][1080,2340]}], requestedVisibilities=-9
+09-09 08:35:45.638 I/SurfaceFlinger( 1871): [Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#605] attach to parent LayerHierarchy{RequestedLayerState{WindowToken{ee9233b type=2019 android.os.BinderProxy@235cd35}#89 parentId=34} 2 children}
+09-09 08:35:45.639 V/InputMethodManagerService( 2434): Client requesting input be hidden
+09-09 08:35:45.639 V/InputMethodManagerService( 2434): setWindowStateInner, windowToken=android.os.BinderProxy@19cf7fc, state=ImeTargetWindowState{ imeToken android.os.Binder@346bafb imeFocusChanged true hasEditorFocused true requestedImeVisible false imeDisplayId 0 softInputModeState STATE_UNSPECIFIED|ADJUST_RESIZE|IS_FORWARD_NAVIGATION isStartInputByGainFocus true}
+09-09 08:35:45.639 V/InputMethodManagerService( 2434): Calling com.android.server.inputmethod.IInputMethodInvoker@e67ae38.hideSoftInput(0, android.os.BinderProxy@19cf7fc, null) for reason: HIDE_SOFT_INPUT
+09-09 08:35:45.640 I/InputMethod( 6770): hideSoftInput(): flags=0
+09-09 08:35:45.640 I/HBD     ( 6770): HoneyBoardService onFinishInputView finishingInput= false
+09-09 08:35:45.641 I/ActivityManager( 2434): Changes in 10202 5 to 7, 255 to 128
+09-09 08:35:45.641 I/HBD     ( 6770): a [UpdatePolicy] [post] a: 3 cl: 65537 kit: [0/0] vt: 0 ir: 1 
+09-09 08:35:45.641 I/HBD     ( 6770): e processFinishInputView 
+09-09 08:35:45.641 I/HBD     ( 6770): f [SKE_REPLACEMENT] saveRevokedListToFile
+09-09 08:35:45.641 I/HBD     ( 6770): w [SKE_LM] learnInDynamicModel,  true
+09-09 08:35:45.642 I/CameraService( 2201): onUidStateChanged: uid=10202, procState is changed. (5 -> 7)
+09-09 08:35:45.643 I/HBD     ( 6770): b stopRunningTimers 
+09-09 08:35:45.643 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.643 I/HBD     ( 6770): b [PF_EN] saveUserData() 0 
+09-09 08:35:45.643 I/HBD     ( 6770): F EBD reset pbc:0 pdc:0 
+09-09 08:35:45.644 I/HBD     ( 6770): z [WPM] sessionTime:285376 wordCount:0 pausedTime:285376 wpm:0 
+09-09 08:35:45.644 I/HBD     ( 6770): t historic wpmWordCount:2 wpmSessionTime:559027 wpmPauseTime:556414 wpm:45 
+09-09 08:35:45.644 I/HBD     ( 6770): t historic(rounded) wpmWordCount:2 wpmSessionTime:559027 wpmPauseTime:556414 wpm:45 
+09-09 08:35:45.644 I/HBD     ( 6770): e unbindCurrentHoneyBoard : text_board 
+09-09 08:35:45.644 I/HBD     ( 6770): b onUnbind 
+09-09 08:35:45.644 I/HBD     ( 6770): e expression state[false], searchState[0] 
+09-09 08:35:45.644 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.645 I/HBD     ( 6770): w [SKE_LM] learnInDynamicModel,  true
+09-09 08:35:45.645 I/HBD     ( 6770): a clear BaseLanguageRepo 
+09-09 08:35:45.645 I/HBD     ( 6770): MultiModalSwitcher onFinishInputView 
+09-09 08:35:45.645 I/HBD     ( 6770): w [SKE_LM] saveDynamicModel,  false ,  true
+09-09 08:35:45.645 I/HBD     ( 6770): HoneyBoardService [PF_CL][onFinishInputView]  5 ms 
+09-09 08:35:45.645 I/HBD     ( 6770): d showInputView requested current = true, applyNow = false 
+09-09 08:35:45.645 I/HBD     ( 6770): HoneyBoardService onWindowHidden 
+09-09 08:35:45.645 I/HBD     ( 6770): HoneyBoardService [PF_CL][onWindowHidden]  0 ms 
+09-09 08:35:45.645 D/InputMethodService( 6770): unregisterCompatOnBackInvokedCallback : android.inputmethodservice.InputMethodService$$ExternalSyntheticLambda2@3db51c4
+09-09 08:35:45.646 D/InputMethodService( 6770): sendBroadcastImeShownState: isInputViewShown=false candidatesVisibility=4
+09-09 08:35:45.646 I/HBD     ( 6770): a [HBIC] requestCursorUpdates 0 
+09-09 08:35:45.646 I/SurfaceFlinger( 1871): RequestedLayer [Surface(name=453b090 InputMethod)/@0[...]mation-leash of insets_animation#602] hidden!! flag  from(0) --> to(1)
+09-09 08:35:45.646 D/WindowManagerShell( 3968): onKeepClearAreasChanged: restricted={}, unrestricted={}
+09-09 08:35:45.647 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.647 I/VRI[CocktailBarService]@8b30d72( 4501): handleResized, frames=ClientWindowFrames{frame=[1013,438][1080,780] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:45.647 V/InputMethodManagerService( 2434): IME window vis: 0 active: 0 visible: 0 displayId: 0
+09-09 08:35:45.647 D/InputMethodManagerService( 2434): isImeSwitcherDisabledPackage : false
+09-09 08:35:45.647 I/InputMethodManagerService( 2434): setImeWindowStatus: vis=0, backDisposition=0
+09-09 08:35:45.647 I/VRI[StatusBar]@f5e4e35( 3968): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,81] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:45.647 I/VRI[NavigationBar0]@42f4a8b( 3968): handleResized, frames=ClientWindowFrames{frame=[0,2196][1080,2340] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:45.648 I/HBD     ( 6770): b requestCursorUpdates(0),  2
+09-09 08:35:45.648 D/SurfaceFlinger( 1871): Display 4630947059332006275 HWC layers:
+09-09 08:35:45.648 D/SurfaceFlinger( 1871):        DEVICE |          136579960012800 | 00002102 | RGBA_8888    |    0.0    0.0 1080.0 2340.0 |    0    0 1080 2340 | com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 (1497)
+09-09 08:35:45.648 D/SurfaceFlinger( 1871):        DEVICE |           17042430230567 | 00002100 | RGBA_8888    |    0.0    0.0 1080.0   81.0 |    0    0 1080   81 | StatusBar$_3968#101 (1566)
+09-09 08:35:45.648 D/SurfaceFlinger( 1871):        DEVICE |           19331647799334 | 00002100 | RGBA_8888    |    0.0    0.0   67.0  342.0 | 1013  438 1080  780 | com.sec.android.app.launcher/com.sam[...]nel.app.CocktailBarService$_4501#331 (3)
+09-09 08:35:45.648 D/SurfaceFlinger( 1871):        DEVICE |           17042430230540 | 00002100 | RGBA_8888    |    0.0    0.0 1080.0  144.0 |    0 2196 1080 2340 | NavigationBar0$_3968#100 (322)
+09-09 08:35:45.648 D/SurfaceFlinger( 1871): 
+09-09 08:35:45.648 D/InputMethodService( 6770): sendInputViewShownStateSSRM(): false
+09-09 08:35:45.648 I/InsetsController(31800): onStateChanged: host=com.kalsa.app/com.kalsa.app.MainActivity, from=android.view.ViewRootImpl.onInsetsStateChanged:3026, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2340), mDisplayCutout=DisplayCutout{insets=Rect(0, 81 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 81), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={3.0} cutoutSpec={M 0,0 H -9.333333333333333‬ V 27 H 9.333333333333333‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=108, center=Point(108, 108)}, RoundedCorner{position=TopRight, radius=108, center=Point(972, 108)}, RoundedCorner{position=BottomRight, radius=108, center=Point(972, 2232)}, RoundedCorner{position=BottomLeft, radius=108, center=Point(108, 2232)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2340), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 81) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {3 mType=ime mFrame=[0,1314][1080,2340] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0000 mType=statusBars mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0005 mType=mandatorySystemGestures mFrame=[0,0][1080,117] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0006 mType=tappableElement mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {47e40001 mType=navigationBars mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {47e40005 mType=mandatorySystemGestures mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40006 mType=tappableElement mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null} }
+09-09 08:35:45.648 I/VRI[MainActivity]@8a5ddf(31800): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2340] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:45.649 I/InputMethodService( 6770): scheduleImeSurfaceRemoval: removeImeSurface is posted.
+09-09 08:35:45.649 I/ImeTracker( 6770): system_server:3b642b46: onHidden
+09-09 08:35:45.650 I/WindowManager( 2434): Relayout Window{453b090 u0 InputMethod}: viewVisibility=0 req=1080x2259 ty=2011 d0
+09-09 08:35:45.650 I/BLASTBufferQueue_Java( 6770): update, w= 1080 h= 2259 mName = VRI[InputMethod]@706e302 mNativeObject= 0xb400007a352b4000 sc.mNativeObject= 0xb400007a34f25580 format= -2 caller= android.view.ViewRootImpl.updateBlastSurfaceIfNeeded:3574 android.view.ViewRootImpl.relayoutWindow:11685 android.view.ViewRootImpl.performTraversals:4804 android.view.ViewRootImpl.doTraversal:3924 android.view.ViewRootImpl$TraversalRunnable.run:12903 android.view.Choreographer$CallbackRecord.run:1901 
+09-09 08:35:45.650 I/VRI[InputMethod]@706e302( 6770): Relayout returned: old=(0,81,1080,2340) new=(0,81,1080,2340) relayoutAsync=true req=(1080,2259)0 dur=0 res=0x0 s={true 0xb400007ae6023900} ch=false seqId=0
+09-09 08:35:45.650 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.650 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.650 I/VRI[InputMethod]@706e302( 6770): registerCallbackForPendingTransactions
+09-09 08:35:45.651 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.651 I/WindowManager( 2434): Relayout hash=453b090, pid=0, syncId=-1: mAttrs={(0,0)(fillxfill) gr=BOTTOM CENTER_VERTICAL sim={adjust=pan} ty=INPUT_METHOD fmt=TRANSPARENT wanim=0x7f1401fc preferredMinDisplayRefreshRate=60.0 receive insets ignoring z-order
+09-09 08:35:45.651 I/WindowManager( 2434):   fl=81800108
+09-09 08:35:45.651 I/WindowManager( 2434):   pfl=14000000
+09-09 08:35:45.651 I/WindowManager( 2434):   vsysui=10
+09-09 08:35:45.651 I/WindowManager( 2434):   apr=10
+09-09 08:35:45.651 I/WindowManager( 2434):   bhv=1
+09-09 08:35:45.651 I/WindowManager( 2434):   fitTypes=3
+09-09 08:35:45.651 I/WindowManager( 2434):   fitSides=7
+09-09 08:35:45.651 I/WindowManager( 2434):   fitIgnoreVis
+09-09 08:35:45.651 I/WindowManager( 2434):   frameRateBoostOnTouch=true
+09-09 08:35:45.651 I/WindowManager( 2434):   dvrrWindowFrameRateHint=true
+09-09 08:35:45.651 I/WindowManager( 2434):  dimAmount=0.18 dimDuration=150 naviIconColor=0}
+09-09 08:35:45.651 D/FlexPanelStartController( 3968): not support state, mMwEnabled=true, mIsTableMode=false, mDesktopMode=false, mFlexModePanelEnabled=true, mIsImeShowing=false, mIsQuickPanelShowing=false, mIsTaskBarAppsEnabled=false, mIsGlobalActionVisible=false, mOnRecentsAnimation=false, isSupportRotation=true, mIsKeyguardVisible=false
+09-09 08:35:45.651 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.651 D/NavigationBar( 3968): setImeWindowStatus displayId=0 vis=0 backDisposition=0 showImeSwitcher=false isImeVisible=false
+09-09 08:35:45.651 D/WindowManager( 2434): setInsetsWindow Window{453b090 u0 InputMethod}, contentInsets=Rect(0, 1233 - 0, 0) -> Rect(0, 1233 - 0, 0), visibleInsets=Rect(0, 1233 - 0, 0) -> Rect(0, 1233 - 0, 0), touchableRegion=SkRegion((0,1233,1080,2115)) -> SkRegion((0,1233,1080,2115)), touchableInsets 3 -> 3
+09-09 08:35:45.651 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.652 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:45.653 D/NavigationBarControllerImpl( 3968): setNavigationBarShortcut requestClass : com.android.wm.shell.controlpanel.activity.FlexPanelActivity, remoteViews : null, position : 0, priority : 11
+09-09 08:35:45.653 D/RemoteViewPack( 3968): OnSetRemoteView RemoteViewShortcut(requestClass=com.android.wm.shell.controlpanel.activity.FlexPanelActivity, remoteViews=null, position=0, priority=11)
+09-09 08:35:45.653 I/VRI[InputMethod]@706e302( 6770): mWNT: t=0xb400007a3b705800 mBlastBufferQueue=0xb400007a352b4000 fn= 5 HdrRenderState mRenderHdrSdrRatio=1.0 caller= android.view.ViewRootImpl$10.onFrameDraw:6536 android.view.ViewRootImpl$4.onFrameDraw:2489 android.view.ThreadedRenderer$1.onFrameDraw:718 
+09-09 08:35:45.653 D/NavBarStateManager( 3968): NavBarStates(0) isGameMode: false
+09-09 08:35:45.653 I/HBD     ( 6770): HoneyBoardService onTrimMemory 20
+09-09 08:35:45.653 I/HBD     ( 6770): CandidateExpandButtonViewModel Init expand button state by global layout listener 
+09-09 08:35:45.653 I/HBD     ( 6770): MultiModalSwitcher onAppPrivateCommand needsToShowImeSwitcher : false 
+09-09 08:35:45.655 D/HoneySpace.TISBinder( 4501): onActiveNavBarRegionChanges: Not yet implemented
+09-09 08:35:45.655 D/HWUI    ( 6770): CacheManager::trimMemory(20)
+09-09 08:35:45.658 D/io_stats( 1140): !@   8,0 r 656395 33974269 w 143391 3787752 d 4821 2882856 f 13804 23073 iot 285384 0 th 0 0 0 pt 0 inp 0 0 5912.667
+09-09 08:35:45.658 D/io_stats( 1140): !@ Read_top(KB): roid.honeyboard(6770) 60 android.dqagent(2630) 20
+09-09 08:35:45.658 D/io_stats( 1140): !@ Write_top(KB): f2fs_ckpt-254:6(1388) 48 android.dqagent(2630) 16 init(1) 16
+09-09 08:35:45.663 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{ca22a58 NavigationBar0#90 parentId=605} 1 children}] reparent to LayerHierarchy{RequestedLayerState{Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#605 parentId=89} 1 children}
+09-09 08:35:45.663 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#604} no children}] reparent to OffscreenRoot
+09-09 08:35:45.663 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#604} no children}] RelativeParent to null
+09-09 08:35:45.665 I/ImeTracker( 2434): system_server:f93a0da8: onRequestShow at ORIGIN_SERVER reason CONTROLS_CHANGED fromUser false
+09-09 08:35:45.666 I/InsetsSourceConsumer(31800): applyRequestedVisibilityToControl: visible=true, type=navigationBars, host=com.kalsa.app/com.kalsa.app.MainActivity
+09-09 08:35:45.667 I/ImeTracker(31800): system_server:f93a0da8: onCancelled at PHASE_CLIENT_ON_CONTROLS_CHANGED
+09-09 08:35:45.667 I/InsetsController( 2434): onStateChanged: host=PermanentControlTarget, from=com.android.server.wm.InsetsPolicy$ControlTarget.run:18, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2340), mDisplayCutout=DisplayCutout{insets=Rect(0, 81 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 81), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={3.0} cutoutSpec={M 0,0 H -9.333333333333333‬ V 27 H 9.333333333333333‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=108, center=Point(108, 108)}, RoundedCorner{position=TopRight, radius=108, center=Point(972, 108)}, RoundedCorner{position=BottomRight, radius=108, center=Point(972, 2232)}, RoundedCorner{position=BottomLeft, radius=108, center=Point(108, 2232)}]}  mRoundedCornerFrame=Rect(0, 0 - 0, 0), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 81) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {3 mType=ime mFrame=[0,1314][1080,2340] mVisible=false mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0000 mType=statusBars mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0005 mType=mandatorySystemGestures mFrame=[0,0][1080,117] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0006 mType=tappableElement mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {47e40001 mType=navigationBars mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {47e40005 mType=mandatorySystemGestures mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40006 mType=tappableElement mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null} }
+09-09 08:35:45.667 I/SurfaceFlinger( 1871): id=604 Removed Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#604 (134)
+09-09 08:35:45.671 I/SurfaceFlinger( 1871): destroyed Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#604 form LifecycleManager
+09-09 08:35:45.671 I/SurfaceFlinger( 1871): id=604 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#604 !handle})
+09-09 08:35:45.672 I/Layer   ( 1871): id=604 Destroyed Surface(name=ca22a58 NavigationBar0)/@0x52a31a2 - animation-leash of insets_animation#604
+09-09 08:35:45.681 I/HBD     ( 6770): w [SKE_LM] writeDynamicModel
+09-09 08:35:45.882 E/HeatmapThread( 1842): ECT Thread time in milliseconds: 1788957345
+09-09 08:35:45.885 D/HeatmapThread( 1842): !@ batteryplugType : 0
+09-09 08:35:45.885 D/HeatmapThread( 1842): !@ batteryLevel : 62  batteryTemperature : 383 
+09-09 08:35:45.885 D/HeatmapThread( 1842): !@ Heatmap currtime: 29815955
+09-09 08:35:45.885 D/HeatmapThread( 1842): !@ Heatmap prevtime: 29815933
+09-09 08:35:45.885 D/HeatmapThread( 1842): !@ Heatmap plugstarttime: 35791394
+09-09 08:35:45.885 D/HeatmapThread( 1842): !@ Heatmap prevv_dsoh_update_time: 29815843
+09-09 08:35:45.885 E/HeatmapThread( 1842): !@Entered the read from path function
+09-09 08:35:45.885 E/HeatmapThread( 1842): !@Read Extended_heatmap from efs is: 23122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 888 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 651 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 662 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 703 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 665 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 695 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 847 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 874 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 974 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 795 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3256 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4044 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13674 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 8101 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7568 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7405 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5438 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1703 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1117 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 645 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 79 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 146 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 122 0 0 0 0 0 0 0 0 0 0 0
+09-09 08:35:45.886 E/HeatmapThread( 1842): !@Write Extended Heatmap to efs is: 23122 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 888 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 651 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 662 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 703 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 665 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 695 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 847 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 874 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 974 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 795 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 3256 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 4044 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 13674 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 8102 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7568 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 7405 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 5438 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1703 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1117 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 722 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 645 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 79 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 115 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 146 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 122 0 0 0 0 0 0 0 0 0 0 0 
+09-09 08:35:45.886 E/HeatmapThread( 1842): !@ CAM New BSOH: 100
+09-09 08:35:45.918 I/RefreshRateSelector( 1871): Can't find idle refresh rate by policy with the same mode group as the current mode {id=0, hwcId=0, resolution=1080x2340, vsyncRate=120.00 Hz, dpi=428.62x424.54, group=1080, vrrConfig=N/A, supportedHdrTypes=INVALID} (idle : 24 fps)
+09-09 08:35:45.918 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=60.00 Hz, modePtr={id=2, vsyncRate=60.00 Hz, peakRefreshRate=60.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:45.921 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:45.922 I/VSyncReactor( 1871): Current= 120, Period= 60, hwcPeriod= 120
+09-09 08:35:45.922 I/SDHMS:LOAD( 5609): type: LoadsFreqs, value: 5:0:0:2626944:2726400:2592000:2358144:2457600:2323200:220:220:220
+09-09 08:35:45.956 I/HoneySpace.EdgePanel.KeyboardVisibleObserver( 4501): updateSipStatus: 0 1 0 1026
+09-09 08:35:45.956 I/HoneySpace.EdgePanel.EdgeVisibilityRepository( 4501): updateStateAction: 0x200000 false true
+09-09 08:35:45.956 I/HoneySpace.EdgePanel.EdgeVisibilityRepository( 4501): updateState: 0x1
+09-09 08:35:45.957 I/HoneySpace.EdgePanel.EdgeVisibilityRepository( 4501): getComputedTrayVisible : keyguardState = 1
+09-09 08:35:45.957 I/HoneySpace.EdgePanel.EdgeVisibilityRepository( 4501): updateTrayVisible: State = 0x1, visible = true, current containerState = 0, specificMode = 0
+09-09 08:35:45.957 I/HoneySpace.EdgePanel.EdgeVisibilityRepository( 4501): Same container state 0
+09-09 08:35:46.006 D/HWUI    ( 6770): CacheManager::trimMemory(20)
+09-09 08:35:46.006 I/WindowManager( 2434): Relayout Window{453b090 u0 InputMethod}: viewVisibility=8 req=1080x2259 ty=2011 d0
+09-09 08:35:46.007 E/WindowManager( 2434): win=Window{453b090 u0 InputMethod} destroySurfaces: appStopped=true cleanupOnResume=false win.mWindowRemovalAllowed=false win.mRemoveOnExit=false win.mViewVisibility=8 caller=com.android.server.wm.WindowManagerService.tryStartExitingAnimation:134 com.android.server.wm.WindowManagerService.relayoutWindow:1138 com.android.server.wm.Session.relayout:27 android.view.IWindowSession$Stub.onTransact:829 com.android.server.wm.Session.onTransact:1 android.os.Binder.execTransactInternal:1457 android.os.Binder.execTransact:1401 
+09-09 08:35:46.007 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.007 I/WindowManager( 2434): Cancelling animation restarting=true, leash=Surface(name=Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation)/@0xa87ad5f
+09-09 08:35:46.008 I/WindowManager( 2434): Reparenting to original parent: Surface(name=WindowToken{ec4cdaf type=2011 android.os.Binder@e63718e})/@0xe027408, destroy=false, surface=Surface(name=453b090 InputMethod)/@0xdbac5ab
+09-09 08:35:46.008 I/WindowManager( 2434): Reparenting to leash, surface=Surface(name=453b090 InputMethod)/@0xdbac5ab, leashParent=Surface(name=WindowToken{ec4cdaf type=2011 android.os.Binder@e63718e})/@0xe027408
+09-09 08:35:46.008 I/SurfaceFlinger( 1871): id=606 createSurf, flag=24004, Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#606
+09-09 08:35:46.008 D/WindowManager( 2434): makeSurface duration=1 leash=Surface(name=Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation)/@0x5cb8e73
+09-09 08:35:46.008 D/InsetsSourceProvider( 2434): updateControlForTarget: control=InsetsSourceControl: {3 mType=ime mSurfacePosition=Point(0, 81) mInsetsHint=Insets{left=0, top=0, right=0, bottom=1026}}, target=Window{c4c8e85 u0 com.kalsa.app/com.kalsa.app.MainActivity}, from=com.android.server.wm.ImeInsetsSourceProvider.updateControlForTarget:17 com.android.server.wm.ImeInsetsSourceProvider.setServerVisible:68 com.android.server.wm.InsetsSourceProvider.onPostLayout:30 com.android.server.wm.ImeInsetsSourceProvider.onPostLayout:3 com.android.server.wm.InsetsStateController.onPostLayout:26 
+09-09 08:35:46.008 I/ImeTracker( 2434): system_server:864b4fd9: onRequestHide at ORIGIN_SERVER reason IME_REQUESTED_CHANGED_LISTENER fromUser false
+09-09 08:35:46.009 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.009 V/InputMethodManagerService( 2434): Client requesting input be hidden
+09-09 08:35:46.009 D/SurfaceControl( 2434): restrictHighRefreshRate, enabled=false
+09-09 08:35:46.009 I/SurfaceFlinger( 1871): HRR : 0
+09-09 08:35:46.009 V/InputMethodManagerService( 2434): setWindowStateInner, windowToken=android.os.BinderProxy@19cf7fc, state=ImeTargetWindowState{ imeToken android.os.Binder@2d0b1a9 imeFocusChanged true hasEditorFocused true requestedImeVisible false imeDisplayId 0 softInputModeState STATE_UNSPECIFIED|ADJUST_RESIZE|IS_FORWARD_NAVIGATION isStartInputByGainFocus true}
+09-09 08:35:46.009 I/ImeTracker( 2434): system_server:864b4fd9: onCancelled at PHASE_SERVER_SHOULD_HIDE
+09-09 08:35:46.009 V/InputMethodManagerService( 2434): hideCurrentInputLocked : canceled, shouldHideSoftInput=false, mInputShown=false, mImeWindowVis=0
+09-09 08:35:46.010 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.011 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.011 I/InsetsController(31800): onStateChanged: host=com.kalsa.app/com.kalsa.app.MainActivity, from=android.view.ViewRootImpl.onInsetsStateChanged:3026, state=InsetsState: {mDisplayFrame=Rect(0, 0 - 1080, 2340), mDisplayCutout=DisplayCutout{insets=Rect(0, 81 - 0, 0) waterfall=Insets{left=0, top=0, right=0, bottom=0} boundingRect={Bounds=[Rect(0, 0 - 0, 0), Rect(512, 0 - 568, 81), Rect(0, 0 - 0, 0), Rect(0, 0 - 0, 0)]} cutoutPathParserInfo={CutoutPathParserInfo{displayWidth=1080 displayHeight=2340 physicalDisplayWidth=1080 physicalDisplayHeight=2340 density={3.0} cutoutSpec={M 0,0 H -9.333333333333333‬ V 27 H 9.333333333333333‬ V 0 H 0 Z @dp} rotation={0} scale={1.0} physicalPixelDisplaySizeRatio={1.0}}} sideOverrides={}}, mRoundedCorners=RoundedCorners{[RoundedCorner{position=TopLeft, radius=108, center=Point(108, 108)}, RoundedCorner{position=TopRight, radius=108, center=Point(972, 108)}, RoundedCorner{position=BottomRight, radius=108, center=Point(972, 2232)}, RoundedCorner{position=BottomLeft, radius=108, center=Point(108, 2232)}]}  mRoundedCornerFrame=Rect(0, 0 - 1080, 2340), mPrivacyIndicatorBounds=PrivacyIndicatorBounds {static bounds=Rect(948, 0 - 1080, 81) rotation=0}, mDisplayShape=DisplayShape{ spec=-311912193 displayWidth=1080 displayHeight=2340 physicalPixelDisplaySizeRatio=1.0 rotation=0 offsetX=0 offsetY=0 scale=1.0}, mSources= { InsetsSource: {3 mType=ime mFrame=[0,0][0,0] mVisible=false mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {27 mType=displayCutout mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0000 mType=statusBars mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0005 mType=mandatorySystemGestures mFrame=[0,0][1080,117] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {286c0006 mType=tappableElement mFrame=[0,0][1080,81] mVisible=true mFlags= mSideHint=TOP mBoundingRects=null}, InsetsSource: {47e40001 mType=navigationBars mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40004 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null}, InsetsSource: {47e40005 mType=mandatorySystemGestures mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40006 mType=tappableElement mFrame=[0,2196][1080,2340] mVisible=true mFlags= mSideHint=BOTTOM mBoundingRects=null}, InsetsSource: {47e40024 mType=systemGestures mFrame=[0,0][0,0] mVisible=true mFlags= mSideHint=NONE mBoundingRects=null} }
+09-09 08:35:46.011 I/VRI[MainActivity]@8a5ddf(31800): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,2340] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:46.011 I/WindowManager( 2434): Relayout hash=453b090, pid=6770, syncId=-1: mAttrs={(0,0)(fillxfill) gr=BOTTOM CENTER_VERTICAL sim={adjust=pan} ty=INPUT_METHOD fmt=TRANSPARENT wanim=0x7f1401fc preferredMinDisplayRefreshRate=60.0 receive insets ignoring z-order
+09-09 08:35:46.011 I/WindowManager( 2434):   fl=81800108
+09-09 08:35:46.011 I/WindowManager( 2434):   pfl=14000000
+09-09 08:35:46.011 I/WindowManager( 2434):   vsysui=10
+09-09 08:35:46.011 I/WindowManager( 2434):   apr=10
+09-09 08:35:46.011 I/WindowManager( 2434):   bhv=1
+09-09 08:35:46.011 I/WindowManager( 2434):   fitTypes=3
+09-09 08:35:46.011 I/WindowManager( 2434):   fitSides=7
+09-09 08:35:46.011 I/WindowManager( 2434):   fitIgnoreVis
+09-09 08:35:46.011 I/WindowManager( 2434):   frameRateBoostOnTouch=true
+09-09 08:35:46.011 I/WindowManager( 2434):   dvrrWindowFrameRateHint=true
+09-09 08:35:46.011 I/WindowManager( 2434):  dimAmount=0.18 dimDuration=150 naviIconColor=0}
+09-09 08:35:46.012 I/VRI[StatusBar]@f5e4e35( 3968): handleResized, frames=ClientWindowFrames{frame=[0,0][1080,81] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:46.012 I/VRI[NavigationBar0]@42f4a8b( 3968): handleResized, frames=ClientWindowFrames{frame=[0,2196][1080,2340] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434): Schedule to change allowedModes=baseModeId=1 allowGroupSwitching=false primary=physical: (10.0 120.0) render:  (0.0 120.0) appRequest=physical: (10.0 120.0) render:  (0.0 120.0) idleScreenRefreshRateConfig=null, mDisplayToken=android.os.BinderProxy@b96b74d
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):     -1:
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):       PRIORITY_REFRESH_RATE_MODE -> CombinedVote{ mVotes=[PhysicalVote{ RefreshRateVote{  mMinRefreshRate=10.0, mMaxRefreshRate=120.0 } }, DisableRefreshRateSwitchingVote{ mDisableRefreshRateSwitching=false }] }
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):     0:
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):       PRIORITY_USER_SETTING_PEAK_RENDER_FRAME_RATE -> RenderVote{ RefreshRateVote{  mMinRefreshRate=0.0, mMaxRefreshRate=120.0 } }
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):       PRIORITY_USER_SETTING_PEAK_REFRESH_RATE -> CombinedVote{ mVotes=[PhysicalVote{ RefreshRateVote{  mMinRefreshRate=0.0, mMaxRefreshRate=120.0 } }, DisableRefreshRateSwitchingVote{ mDisableRefreshRateSwitching=false }] }
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):       PRIORITY_APP_REQUEST_SIZE -> SizeVote{ mWidth=1080, mHeight=2340, mMinWidth=1080, mMinHeight=2340 }
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):       PRIORITY_APP_REQUEST_BASE_MODE_REFRESH_RATE -> BaseModeRefreshRateVote{ mAppRequestBaseModeRefreshRate=120.00001 }
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):       PRIORITY_USER_SETTING_MIN_RENDER_FRAME_RATE -> RenderVote{ RefreshRateVote{  mMinRefreshRate=0.0, mMaxRefreshRate=Infinity } }
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434): 
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):  mModeSwitchingType: SWITCHING_TYPE_WITHIN_GROUPS mAlwaysRespectAppRequest: false
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):  Current Mode mReportedRefreshRateMode(toSurfaceFlinger)=REFRESH_RATE_MODE_PASSIVE, mRefreshRateMode(fromSettings)=REFRESH_RATE_MODE_SEAMLESS
+09-09 08:35:46.012 I/RefreshRateModeManager( 2434):  BrightnessState mPassive=true, PassiveModeToken=false, mBrightness=1, mAmbientLux=6.0
+09-09 08:35:46.012 I/VRI[InputMethod]@706e302( 6770): Relayout returned: old=(0,81,1080,2340) new=(0,81,1080,2340) relayoutAsync=false req=(1080,2259)8 dur=6 res=0x2 s={false 0x0} ch=true seqId=0
+09-09 08:35:46.012 I/VRI[CocktailBarService]@8b30d72( 4501): handleResized, frames=ClientWindowFrames{frame=[1013,438][1080,780] display=[0,0][1080,2340] parentFrame=[0,0][0,0]} displayId=0 dragResizing=false compatScale=1.0 frameChanged=false attachedFrameChanged=false configChanged=false displayChanged=false compatScaleChanged=false dragResizingChanged=false
+09-09 08:35:46.012 D/VRI[InputMethod]@706e302( 6770): Not drawing due to not visible. Reason=View.GONE
+09-09 08:35:46.013 D/WindowManager( 2434): setInsetsWindow Window{453b090 u0 InputMethod}, contentInsets=Rect(0, 1233 - 0, 0) -> Rect(0, 1233 - 0, 0), visibleInsets=Rect(0, 1233 - 0, 0) -> Rect(0, 1233 - 0, 0), touchableRegion=SkRegion((0,1233,1080,2115)) -> SkRegion((0,1233,1080,2115)), touchableInsets 3 -> 3
+09-09 08:35:46.013 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.013 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.013 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{InputMethod$_6770#603} no children}] reparent to OffscreenRoot
+09-09 08:35:46.013 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{InputMethod$_6770#603} no children}] RelativeParent to null
+09-09 08:35:46.013 I/SurfaceFlinger( 1871): [Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#606] attach to parent LayerHierarchy{RequestedLayerState{WindowToken{ec4cdaf type=2011 android.os.Binder@e63718e}#116 parentId=15} 2 children}
+09-09 08:35:46.015 I/SurfaceFlinger( 1871): id=603 Removed InputMethod$_6770#603 (134)
+09-09 08:35:46.015 D/LocalDisplayAdapter( 2434): setDesiredDisplayModeSpecsAsync(4630947059332006275) : defaultMode=0 allowGroupSwitching=false primaryRanges=physical: (10.0 120.0) render:  (0.0 120.0) appRequestRanges=physical: (10.0 120.0) render:  (0.0 120.0) idleScreenRefreshRate=null
+09-09 08:35:46.015 I/SurfaceComposerClient( 2434): setDesiredDisplayModeSpecs DisplayModeSpecs{defaultMode: 0, allowGroupSwitching: false, primaryRanges: RefreshRateRanges{physical: RefreshRateRange{min: 10.000000, max: 120.000000}, render: RefreshRateRange{min: 0.000000, max: 120.000000}}, appRequestRanges: RefreshRateRanges{physical: RefreshRateRange{min: 10.000000, max: 120.000000}, render: RefreshRateRange{min: 0.000000, max: 120.000000}}, idleScreenRefreshRateConfig: (null)}
+09-09 08:35:46.016 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.017 I/RefreshRateSelector( 1871): Display 4630947059332006275 policy changed
+09-09 08:35:46.017 I/RefreshRateSelector( 1871): Previous: {defaultModeId=0, allowGroupSwitching=false, primaryRanges={physical=[60.00 Hz, 120.00 Hz], render=[60.00 Hz, 120.00 Hz]}, appRequestRanges={physical=[60.00 Hz, 120.00 Hz], render=[60.00 Hz, 120.00 Hz]} idleScreenConfig=nullptr}
+09-09 08:35:46.017 I/RefreshRateSelector( 1871): Current:  DisplayManagerPolicy{defaultModeId=0, allowGroupSwitching=false, primaryRanges={physical=[10.00 Hz, 120.00 Hz], render=[0.00 Hz, 120.00 Hz]}, appRequestRanges={physical=[10.00 Hz, 120.00 Hz], render=[0.00 Hz, 120.00 Hz]} idleScreenConfig=nullptr}
+09-09 08:35:46.017 I/RefreshRateSelector( 1871): 1140 mode changes were performed under the previous policy
+09-09 08:35:46.017 I/SurfaceFlinger( 1871): [4630947059332006275] Setting desired display mode specs: {defaultModeId=0, allowGroupSwitching=false, primaryRanges={physical=[10.00 Hz, 120.00 Hz], render=[0.00 Hz, 120.00 Hz]}, appRequestRanges={physical=[10.00 Hz, 120.00 Hz], render=[0.00 Hz, 120.00 Hz]} idleScreenConfig=nullptr}
+09-09 08:35:46.017 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:46.019 I/DisplayDeviceRepository( 2434): Display device changed render timings: "Built-in Screen", renderFrameRate=120.00001, presentationDeadlineNanos=9233333, appVsyncOffsetNanos=8333333, frameRateOverrides=[]
+09-09 08:35:46.020 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.022 I/SurfaceFlinger( 1871): RequestedLayer [Surface(name=453b090 InputMethod)/@0[...]mation-leash of insets_animation#606] hidden!! flag  from(1) --> to(0)
+09-09 08:35:46.022 E/SurfaceFlinger( 1871): alpha changed 1.000 -> 0.000 - Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#606
+09-09 08:35:46.022 I/SurfaceFlinger( 1871): destroyed InputMethod$_6770#603 form LifecycleManager
+09-09 08:35:46.022 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{453b090 InputMethod#118 parentId=606} no children}] reparent to LayerHierarchy{RequestedLayerState{Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#606 parentId=116} 1 children}
+09-09 08:35:46.022 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#602} no children}] reparent to OffscreenRoot
+09-09 08:35:46.022 I/SurfaceFlinger( 1871): [LayerHierarchy{RequestedLayerState{Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#602} no children}] RelativeParent to null
+09-09 08:35:46.022 I/SurfaceFlinger( 1871): id=603 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{InputMethod$_6770#603 !handle})
+09-09 08:35:46.022 I/Layer   ( 1871): id=603 Destroyed InputMethod$_6770#603
+09-09 08:35:46.024 I/DisplayDeviceRepository( 2434): Display device changed render timings: "Built-in Screen", renderFrameRate=120.00001, presentationDeadlineNanos=9233333, appVsyncOffsetNanos=8333333, frameRateOverrides=[{uid=10347 frameRateHz=120.00001}]
+09-09 08:35:46.025 I/SurfaceFlinger( 1871): id=602 Removed Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#602 (133)
+09-09 08:35:46.026 D/SurfaceComposerClient( 2434): setCornerRadius ## c4c8e85 com.kalsa.app/com.kalsa.app.MainActivity#575 cornerRadius=0.000000
+09-09 08:35:46.030 I/SurfaceFlinger( 1871): destroyed Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#602 form LifecycleManager
+09-09 08:35:46.030 I/SurfaceFlinger( 1871): id=602 onLayerDestroyed from LayerHierarchyBuilder(RequestedLayerState{Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#602 !handle})
+09-09 08:35:46.031 I/Layer   ( 1871): id=602 Destroyed Surface(name=453b090 InputMethod)/@0xdbac5ab - animation-leash of insets_animation#602
+09-09 08:35:46.148 D/SGM:GameManager( 2434): identifyForegroundApp. com.kalsa.app, mCurrentUserId: 0, callerUserId: 0
+09-09 08:35:46.148 D/SGM:SemGameManager( 2434): isForegroundGame(), ret=false
+09-09 08:35:46.149 I/InputMethodService( 6770): removeImeSurface
+09-09 08:35:46.149 I/InputMethodService( 6770): cancelImeSurfaceRemoval: removeCallbacks
+09-09 08:35:46.149 I/SemInputMotionHelper( 2434): setMotionControl: ALL: 12, client=com.samsung.android.hardware.secinputdev.SemInputDeviceManager, ret=-1
+09-09 08:35:46.149 D/SemInputDeviceManager( 2434): setProperty: (0) CMD,GRIP_DATA,1,45,7,15,702,15,2340
+09-09 08:35:46.149 D/SemInputDeviceManager( 2434): setProperty: (100) CMD,SIP,0
+09-09 08:35:46.150 D/TspStateManager( 2434): wrote command: cmd=1,45,7,15,702,15,2340, type=1
+09-09 08:35:46.150 I/SemInputCommandService( 2434): setPropertyAllTouch: SIP,0 retDefault=1 retExtra=-2
+09-09 08:35:46.150 D/TspStateManager( 2434): wrote command: cmd=0, type=5
+09-09 08:35:46.150 D/SemInputDevice:TSP( 2434): SetPropertyTask: CMD,set_sip_mode,0 [09-09 08:35:46.149]
+09-09 08:35:46.152 V/FileReal( 1803): Write:170, /sys/class/sec/tsp/cmd, set_sip_mode,0
+09-09 08:35:46.152 I/sysinput:Touch( 1803): writeInformation:249, OK
+09-09 08:35:46.153 D/SysinputHAL_V1_3(V1_2)( 2434): runTspCmdNoRead(TSP(1)): set_sip_mode,0 ret=0
+09-09 08:35:46.153 D/SemInputDevice:TSP( 2434): SetPropertyTask: CMD,set_grip_data,1,45,7,15,702,15,2340 [09-09 08:35:46.149]
+09-09 08:35:46.153 V/FileReal( 1803): Write:170, /sys/class/sec/tsp/cmd, set_grip_data,1,45,7,15,702,15,2340
+09-09 08:35:46.153 I/sysinput:Touch( 1803): writeInformation:249, OK
+09-09 08:35:46.154 D/SysinputHAL_V1_3(V1_2)( 2434): runTspCmdNoRead(TSP(1)): set_grip_data,1,45,7,15,702,15,2340 ret=0
+09-09 08:35:46.229 D/WifiStaIfaceHidlImpl( 2434): getCachedScanData is not implemented by HIDL
+09-09 08:35:46.233 D/SemWifiUsabilityStatsMonitor( 2434): onWifiUsabilityStats - seqNum 1809, isSameBssidAndFreq true
+09-09 08:35:46.235 I/SemWifiLinkQualityMonitor( 2434): Link stat: 2702 / 299 / 1.16 (210) / 1200 / -43.0 || 100.0 : 1200.00 / 0.5 : 0.86 / 0.55 : 0.11 / G (G) || 5f8365025220: 0.088 / 91.298 / N || N N / 0 0 / Y 2.0 / Y X 0 / 5913243 0 || Invalid
+09-09 08:35:46.281 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=24.00 Hz, modePtr={id=5, vsyncRate=24.00 Hz, peakRefreshRate=24.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:46.289 I/LayerHistory( 1871): NavigationBar0$_3968#100 Max (can't resolve refresh rate)
+09-09 08:35:46.289 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:46.289 I/SurfaceFlinger( 1871): Idle - choose 24.00 Hz
+09-09 08:35:46.290 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 8
+09-09 08:35:46.290 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 120
+09-09 08:35:46.290 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:46.291 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:46.291 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:46.291 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:9 1080x2340x24xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:46.291 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:46.291 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 8
+09-09 08:35:46.298 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:46.298 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 24
+09-09 08:35:46.434 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:46.464 I/LayerHistory( 1871): NavigationBar0$_3968#100 Max (can't resolve refresh rate)
+09-09 08:35:46.465 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:46.465 I/SurfaceFlinger( 1871): Weight ignores NavigationBar0$_3968#100 (type=Max, weight=0.06, seamlessness=Default) 0.00 Hz's 120.00 Hz
+09-09 08:35:46.465 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:46.465 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:46.467 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:46.467 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:46.467 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:46.467 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:46.467 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 8 to 0
+09-09 08:35:46.472 I/VSyncReactor( 1871): Current= 24, Period= 120, hwcPeriod= 120
+09-09 08:35:46.505 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:46.714 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=24.00 Hz, modePtr={id=5, vsyncRate=24.00 Hz, peakRefreshRate=24.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:46.723 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 120
+09-09 08:35:46.723 I/LayerHistory( 1871): NavigationBar0$_3968#100 Max (can't resolve refresh rate)
+09-09 08:35:46.723 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:46.723 I/SurfaceFlinger( 1871): Idle - choose 24.00 Hz
+09-09 08:35:46.724 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 8
+09-09 08:35:46.725 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:46.725 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:46.725 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:46.725 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:9 1080x2340x24xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:46.726 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:46.726 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 8
+09-09 08:35:46.730 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:46.731 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 24
+09-09 08:35:46.793 I/HYPER-HAL( 1720): [RequestManager.cpp]releaseLocked(): Released ID : 15896370
+09-09 08:35:46.793 I/HYPER-HAL( 1720): [RequestManager.cpp]releaseLocked(): Released ID : 15902010
+09-09 08:35:46.882 E/HeatmapThread( 1842): ECT Thread time in milliseconds: 1788957346
+09-09 08:35:46.885 D/HeatmapThread( 1842): !@ batteryplugType : 0
+09-09 08:35:46.885 D/HeatmapThread( 1842): !@ batteryLevel : 62  batteryTemperature : 383 
+09-09 08:35:46.885 D/HeatmapThread( 1842): !@ Heatmap currtime: 29815955
+09-09 08:35:46.885 D/HeatmapThread( 1842): !@ Heatmap prevtime: 29815933
+09-09 08:35:46.885 D/HeatmapThread( 1842): !@ Heatmap plugstarttime: 35791394
+09-09 08:35:46.885 D/HeatmapThread( 1842): !@ Heatmap prevv_dsoh_update_time: 29815843
+09-09 08:35:46.886 E/HeatmapThread( 1842): !@ CAM New BSOH: 100
+09-09 08:35:46.951 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:46.982 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:46.982 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:46.983 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:46.984 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:46.984 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:46.984 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:46.985 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:46.985 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 8 to 0
+09-09 08:35:46.989 I/VSyncReactor( 1871): Current= 24, Period= 120, hwcPeriod= 120
+09-09 08:35:47.023 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:47.232 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=24.00 Hz, modePtr={id=5, vsyncRate=24.00 Hz, peakRefreshRate=24.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:47.240 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:47.240 I/SurfaceFlinger( 1871): Idle - choose 24.00 Hz
+09-09 08:35:47.241 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 8
+09-09 08:35:47.241 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 120
+09-09 08:35:47.242 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:47.242 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:47.242 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:47.242 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:9 1080x2340x24xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:47.242 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:47.242 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 8
+09-09 08:35:47.248 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:47.248 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 24
+09-09 08:35:47.273 I/SemWifiServiceDetector( 2434): NSD results: [0, 1, 2, 0, 0, 1, 2, 0, 0] Traff. type 1 Thr 15
+09-09 08:35:47.426 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:47.457 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:47.457 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:47.458 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:47.459 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:47.459 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:47.459 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:47.459 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:47.459 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 8 to 0
+09-09 08:35:47.465 I/VSyncReactor( 1871): Current= 24, Period= 120, hwcPeriod= 120
+09-09 08:35:47.498 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:47.602 I/wpa_supplicant( 5378): Heartbeat 666
+09-09 08:35:47.659 D/io_stats( 1140): !@   8,0 r 656404 33974305 w 143584 3788576 d 4821 2882856 f 13809 23091 iot 285420 0 th 0 0 0 pt 0 inp 0 0 5914.668
+09-09 08:35:47.707 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=24.00 Hz, modePtr={id=5, vsyncRate=24.00 Hz, peakRefreshRate=24.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:47.715 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 120
+09-09 08:35:47.716 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:47.716 I/SurfaceFlinger( 1871): Idle - choose 24.00 Hz
+09-09 08:35:47.717 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 8
+09-09 08:35:47.719 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:47.719 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:47.719 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:47.719 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:9 1080x2340x24xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:47.719 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:47.719 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 8
+09-09 08:35:47.723 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:47.724 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 24
+09-09 08:35:47.882 E/HeatmapThread( 1842): ECT Thread time in milliseconds: 1788957347
+09-09 08:35:47.885 D/HeatmapThread( 1842): !@ batteryplugType : 0
+09-09 08:35:47.885 D/HeatmapThread( 1842): !@ batteryLevel : 62  batteryTemperature : 383 
+09-09 08:35:47.885 D/HeatmapThread( 1842): !@ Heatmap currtime: 29815955
+09-09 08:35:47.885 D/HeatmapThread( 1842): !@ Heatmap prevtime: 29815933
+09-09 08:35:47.885 D/HeatmapThread( 1842): !@ Heatmap plugstarttime: 35791394
+09-09 08:35:47.886 D/HeatmapThread( 1842): !@ Heatmap prevv_dsoh_update_time: 29815843
+09-09 08:35:47.886 E/HeatmapThread( 1842): !@ CAM New BSOH: 100
+09-09 08:35:47.929 I/vendor.qti.bluetooth@1.1-ibs_handler( 1693): ProcessIbsCmd: Received IBS_WAKE_IND: 0xFD
+09-09 08:35:47.929 D/vendor.qti.bluetooth@1.1-ibs_handler( 1693): SerialClockVote: vote for UART CLK ON
+09-09 08:35:47.930 D/vendor.qti.bluetooth@1.1-wake_lock( 1693): Acquire wakelock is acquired 
+09-09 08:35:47.930 I/vendor.qti.bluetooth@1.1-ibs_handler( 1693): ProcessIbsCmd: Writing IBS_WAKE_ACK
+09-09 08:35:47.944 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:47.975 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:47.975 I/SurfaceFlinger( 1871): scored - choose 120.00 Hz
+09-09 08:35:47.975 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 0
+09-09 08:35:47.977 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:47.977 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:47.977 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:0 1080x2340x120xcmdHS, hs_mode(3), found_mode(0)
+09-09 08:35:47.977 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:47.977 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 8 to 0
+09-09 08:35:47.980 I/vendor.qti.bluetooth@1.1-ibs_handler( 1693): ProcessIbsCmd: Received IBS_SLEEP_IND: 0xFE
+09-09 08:35:47.980 D/vendor.qti.bluetooth@1.1-ibs_handler( 1693): SerialClockVote: vote for UART CLK OFF
+09-09 08:35:47.982 I/VSyncReactor( 1871): Current= 24, Period= 120, hwcPeriod= 120
+09-09 08:35:48.016 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:48.131 D/vendor.qti.bluetooth@1.1-wake_lock( 1693): Release wakelock is released 
+09-09 08:35:48.225 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=24.00 Hz, modePtr={id=5, vsyncRate=24.00 Hz, peakRefreshRate=24.00 Hz}}, emitEvent=false, force=false}
+09-09 08:35:48.233 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 120
+09-09 08:35:48.233 I/LayerHistory( 1871): com.kalsa.app/com.kalsa.app.MainActivity$_31800#576 voted ExplicitExact (120.00 Hz)
+09-09 08:35:48.233 I/SurfaceFlinger( 1871): Idle - choose 24.00 Hz
+09-09 08:35:48.234 I/HWComposer( 1871): [4630947059332006275] ActiveConfigToHWC, ID : 8
+09-09 08:35:48.235 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] check hs_mode 3
+09-09 08:35:48.235 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:48.235 W/SDM     ( 1792): HWDeviceDRM::GetSupportedBitClkRate: Requested rate not supported: 951080000
+09-09 08:35:48.235 I/SDM     ( 1792): HWDeviceDRM::SetDisplaySwitchMode: [DispConfigs] Set mode index:9 1080x2340x24xcmdPHS, hs_mode(3), found_mode(1)
+09-09 08:35:48.235 I/SDM     ( 1792): HWDeviceDRM::UpdateMixerAttributes: Mixer WxH 1080x2340-1 for Peripheral
+09-09 08:35:48.235 I/SDM     ( 1792): HWCDisplay::SubmitDisplayConfig: Active configuration changed from config 0 to 8
+09-09 08:35:48.240 I/SurfaceFlinger( 1871): finalizeDisplayModeChange 4630947059332006275
+09-09 08:35:48.241 I/VSyncReactor( 1871): Current= 120, Period= 24, hwcPeriod= 24
+09-09 08:35:48.414 D/InputDispatcher( 2434): Inject motion (8543/2000): action=0x0, time=5915424000000, f=0x0, d=0 dsdx=1.000000 dtdx=0.000000
+09-09 08:35:48.419 I/InputDispatcher( 2434): Delivering touch to (3968): action: 0x4, f=0x0, d=0, 'ca22a58', t=1 
+09-09 08:35:48.419 I/InputDispatcher( 2434): Delivering touch to (31800): action: 0x0, f=0x0, d=0, 'c4c8e85', t=1 
+09-09 08:35:48.419 I/VRI[MainActivity]@8a5ddf(31800): ViewPostIme pointer 0
+09-09 08:35:48.419 D/PowerManagerService( 2434): [api] userActivityFromNative : touch displayId=0 eventTime=5915424
+09-09 08:35:48.420 D/PowerManagerService( 2434): UserActivityStateListenerState: 1
+09-09 08:35:48.420 D/DisplayModeController( 1871): setDesiredMode 4630947059332006275 {mode={fps=120.00 Hz, modePtr={id=0, vsyncRate=120.00 Hz, peakRefreshRate=120.00 Hz}}, emitEvent=true, force=false}
+09-09 08:35:48.421 I/VRI[MainActivity]@8a5ddf(31800): call setFrameRateCategory for touch hint category=high hint, reason=touch, vri=VRI[MainActivity]@8a5ddf
+09-09 08:35:48.422 I/SemDvfsHyPerManager( 5609): acquire hyper - TATouchBoost/5609@29, type = -999
+09-09 08:35:48.423 I/SemDvfsHyPerManager( 5609): acquire hyper - TA_TOUCH_SHARE/5609@30, type = -999
+09-09 08:35:48.423 I/HYPER-HAL( 1720): [RequestManager.cpp]acquire(): Acquired ID : 15896370  [5609 / 29]    HINT :      list : [TABoost / 1] [TIMEOUT / 1500] 
+09-09 08:35:48.421 I/GestureDetector( 2434): obtain mCurrentDownEvent. id: -310535654 caller: com.android.server.wm.SystemGesturesPointerEventListener.onPointerEvent:17 com.android.server.wm.PointerEventDispatcher.onInputEvent:51 android.view.InputEventReceiver.dispatchInputEvent:392 
+09-09 08:35:48.424 I/HYPER-HAL( 1720): [RequestManager.cpp]acquire(): Acquired ID : 15902010  [5609 / 30]    HINT : TA_TOUCH_SHARE    list : [TIMEOUT / 1500] 
+09-09 08:35:48.424 I/GestureDetector( 2434): obtain mCurrentDownEvent. id: -310535654 caller: com.android.server.wm.SystemPerformancePointerEventListener.onPointerEvent:13 com.android.server.wm.PointerEventDispatcher.onInputEvent:51 android.view.InputEventReceiver.dispatchInputEvent:392 
+09-09 08:35:48.424 D/InputDispatcher( 2434): Inject motion (8543/2000): action=0x1, time=5915424000000, f=0x0, d=0 dsdx=1.000000 dtdx=0.000000
+09-09 08:35:48.425 I/InputDispatcher( 2434): Delivering touch to (31800): action: 0x1, f=0x0, d=0, 'c4c8e85', t=1 
+09-09 08:35:48.425 I/VRI[MainActivity]@8a5ddf(31800): ViewPostIme pointer 1
+09-09 08:35:48.425 I/GestureDetector( 2434): obtain mCurrentMotionEventRaw. action: 1 id: -611999646
+09-09 08:35:48.425 I/GestureDetector( 2434): obtain mCurrentMotionEventRaw. action: 1 id: -611999646
