@@ -245,6 +245,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
         "Liquid AI hybrid model. Always-on reasoning, text only (no images). ~1.7 GB download.",
       ramBadge: "Under 6 GB RAM",
     },
+    minicpm5: {
+      description:
+        "Experimental OpenBMB model. Always-on reasoning, text only (no images). ~1.6 GB download.",
+    },
     dev: {
       description: "Developer sideload model. Store download is disabled until the artifact is published.",
     },
@@ -433,6 +437,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     stalled: "Download stalled — check your connection. Retry: it will resume where it left off.",
     failed: "Download failed",
     incompleteBytes: "Download incomplete ({got} != {expected} bytes)",
+    integrityMismatch: "Downloaded file failed its integrity check — retry.",
     keepOpenHint:
       "Keep Kalsa open while downloading. On Xiaomi/MIUI also disable battery optimization for Kalsa.",
   },

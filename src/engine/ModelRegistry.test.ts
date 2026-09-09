@@ -1,5 +1,6 @@
 import { MODEL_REGISTRY, getDefaultModel } from "./ModelRegistry";
 import { recommendedModelId, type RamTier } from "./contextProfile";
+import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
 
 const RAM_TIERS: RamTier[] = ["low", "mid", "high"];
 
@@ -30,5 +31,27 @@ describe("MODEL_REGISTRY catalog invariants", () => {
     expect(
       recommendedModelId("low", [{ ...lowModel!, listed: false }]),
     ).toBeNull();
+  });
+
+  it("declares MiniCPM5 as a dense, upstream-pinned experimental model", () => {
+    const model = DEV_MODEL_REGISTRY.find((entry) => entry.id === "dev-minicpm5-2b");
+    expect(model).toMatchObject({
+      hfRepo: "openbmb/MiniCPM5-2B-GGUF",
+      revision: "d00c954e5f9a0f2605468f24703ffa7e5cb0c492",
+      file: "MiniCPM5-2B-Q4_K_M.gguf",
+      sizeBytes: 1_561_318_368,
+      sha256: "ec2d5801640099e97d8d7e8003ad4d81f336e757811f03a26173dddf386602fd",
+      contextLength: 131072,
+      engineCtx: 8192,
+      kvCache: { k: "q8_0", v: "q4_0" },
+      kvBytesPerToken: 17472,
+      thinking: { short: 256, extended: 512 },
+      sizeClass: "2B",
+      minRamTier: "low",
+    });
+    expect(model?.hybrid).toBeUndefined();
+    expect(model?.kvUnified).toBeUndefined();
+    expect(model?.mmproj).toBeUndefined();
+    expect(model?.preserveThinking).toBeUndefined();
   });
 });
