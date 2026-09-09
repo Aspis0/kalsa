@@ -22,6 +22,13 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~16:00 EDT — OWNER: i budget di thinking 256/512 furono tarati sul vecchio Qwen, mai su LFM né su
+  MiniCPM5 → non sono un vincolo di prodotto, sono un'eredità.** Quindi la cella v2c (MiniCPM5 a budget 1024 e
+  libero, stesse 60 righe, token di ragionamento contati e costo in secondi su S23/Jelly) è la misura giusta per
+  G1, non un contro-esperimento. Rimandata di un'ora su richiesta dell'owner (rumore del Mac): agente 131645cd
+  cancellato prima che il server partisse, nessun artefatto scritto. Lo sweep S23 continua (lavoro sul telefono).
+  Nota per la decisione: il budget va scelto per modello sui dati, con il vincolo umano dell'attesa alla prima
+  parola, non ereditato.
 - **9/09 ~15:40 EDT — G1 MAC, GIUDIZIO CIECO v2b UNITO A v2: IL QUADRO SI RIBALTA VERSO LFM** (giudici deepseek
   5b79eee5 e mimo 020b69f0, 18/18 righe ciascuno, unblind mio con `judge-key-v2b.json` = `judge-key-v2.json` sulle 18).
   A v2 i due giudici davano parità (25/22/13 e 23/24/13) perché 14 finali LFM erano vuoti per il tetto a 2 round
