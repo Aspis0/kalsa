@@ -89,6 +89,11 @@ export type DecideDocStrategyInput = {
   docCount: number;
   estimatedTokens: number | null;
   ctxTokens: number;
+  /**
+   * Optional hard cap on full_context prompt tokens (prefill budget from
+   * measured prefill speed). Absent → legacy rule (est < 0.5 × ctxTokens).
+   */
+  prefillBudgetTokens?: number;
 };
 
 /** AsyncStorage key for the library document list. */
@@ -303,7 +308,8 @@ export function shouldUseVisionFallback(doc: {
 /**
  * Hybrid routing for a single document query:
  * - no text layer (docCount 0) → vision_fallback
- * - small docs (estimatedTokens < 0.5 × ctxTokens) → full_context
+ * - small docs (estimatedTokens < 0.5 × ctxTokens, and ≤ prefill budget
+ *   when one is provided) → full_context
  * - otherwise → retrieve
  *
  * When estimatedTokens is null, treat as large (retrieve) if text exists —
@@ -325,13 +331,18 @@ export function decideDocStrategy(input: DecideDocStrategyInput): DocStrategy {
     input.ctxTokens > 0
       ? input.ctxTokens
       : 0;
+  const budget = input?.prefillBudgetTokens;
+  const hasBudget =
+    typeof budget === "number" && Number.isFinite(budget) && budget > 0;
+
   const est = input?.estimatedTokens;
   if (
     typeof est === "number" &&
     Number.isFinite(est) &&
     est >= 0 &&
     ctx > 0 &&
-    est < 0.5 * ctx
+    est < 0.5 * ctx &&
+    (!hasBudget || est <= budget)
   ) {
     return "full_context";
   }

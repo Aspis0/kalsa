@@ -35,6 +35,7 @@ import {
   isAnyActive,
   __resetDocOpGateForTests,
 } from "./docOpGate";
+import { getPrefillTokPerSec, prefillBudgetTokens } from "../engine/prefillSpeed";
 import {
   rrfFuse,
   type SemanticVectorIndex,
@@ -85,6 +86,17 @@ export const DOCUMENT_CHAT_RETRIEVAL_BUDGET_CHARS = 1800;
 
 /** Soft cap for full-context injection (chars). */
 export const DOCUMENT_CHAT_FULL_CONTEXT_MAX_CHARS = 48_000;
+
+/**
+ * Longest first-word (prefill) wait the user should endure before
+ * document_chat falls back to retrieval.
+ */
+export const MAX_FIRST_WORD_WAIT_MS = 20_000;
+/**
+ * Tokens assumed per prefill while no in-process throughput sample exists.
+ * Lives only until the first real sample (the prewarm's full prefill).
+ */
+export const PREFILL_BUDGET_FALLBACK_TOKENS = 800;
 
 /**
  * Vision-fallback marker the app can detect and route into the existing
@@ -149,6 +161,8 @@ export type DocumentChatHost = {
   ): Promise<PdfRetrievalDocsResult>;
   readTxt(doc: LibraryDoc, opts?: { signal?: AbortSignal }): Promise<string>;
   getCtxTokens(): number;
+  /** Optional: active chat model id, for the prefill-speed budget. */
+  getModelId?(): string | null;
   /** Cached BM25 index for a library doc id; null when not built yet. */
   getIndexFor(docId: string): DocRetrieverIndex | null;
   /** Optional: store a freshly built BM25 index so later queries reuse it. */
@@ -481,6 +495,17 @@ async function runStrategy(
   const ctxTokens =
     typeof host.getCtxTokens === "function" ? host.getCtxTokens() : 0;
 
+  // Prefill-speed budget: full_context only if the measured prefill keeps
+  // the first-word wait under MAX_FIRST_WORD_WAIT_MS (fallback until a
+  // sample exists).
+  const modelId = typeof host.getModelId === "function" ? host.getModelId() ?? "" : "";
+  const tokPerSec = getPrefillTokPerSec(modelId);
+  const budgetTokens = prefillBudgetTokens(
+    modelId,
+    MAX_FIRST_WORD_WAIT_MS,
+    PREFILL_BUDGET_FALLBACK_TOKENS,
+  );
+
   // Prefer stored estimate; may refine after load for full_context path.
   let estimatedTokens =
     typeof doc.estimatedTokens === "number" && Number.isFinite(doc.estimatedTokens)
@@ -512,6 +537,7 @@ async function runStrategy(
     docCount: doc.docCount,
     estimatedTokens,
     ctxTokens,
+    prefillBudgetTokens: budgetTokens,
   });
 
   if (strategy === "vision_fallback") {
@@ -579,7 +605,20 @@ async function runStrategy(
     docCount: loaded.docCount,
     estimatedTokens,
     ctxTokens,
+    prefillBudgetTokens: budgetTokens,
   });
+
+  // One provable line per decision: a device run can check that a
+  // full_context strategy never exceeded the prefill budget.
+  console.log(
+    `KALSA_DOC_STRATEGY ${JSON.stringify({
+      strategy,
+      estTokens: estimatedTokens,
+      ctx: ctxTokens,
+      budgetTokens,
+      tokPerSec,
+    })}`,
+  );
 
   if (strategy === "full_context") {
     return formatFullContext(doc, loaded, locale);
