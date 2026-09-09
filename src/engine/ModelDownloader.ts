@@ -13,6 +13,7 @@ import { resolveModelArtifact } from "./modelHost";
  * - progresso reale (throttled) e resume per FILE (savable()/AsyncStorage)
  * - abort pulito per fase (pauseAsync → stato salvato → niente init su file parziale)
  * - validazione dimensione ESATTA per ogni file
+ * - verifica SHA-256 per gli artefatti che dichiarano un digest nel catalogo
  */
 
 const MODELS_DIR = `${FileSystem.documentDirectory ?? ""}models/`;
@@ -53,9 +54,44 @@ class UnpublishedArtifactError extends Error {
   }
 }
 
+export class Sha256VerificationUnavailableError extends Error {
+  constructor() {
+    super("SHA-256 verification unavailable");
+    this.name = "Sha256VerificationUnavailableError";
+  }
+}
+
+export class InvalidSha256DigestError extends Error {
+  constructor() {
+    super("SHA-256 verifier returned an invalid digest");
+    this.name = "InvalidSha256DigestError";
+  }
+}
+
+class IntegrityMismatchError extends Error {
+  constructor() {
+    super("SHA-256 integrity mismatch");
+    this.name = "IntegrityMismatchError";
+  }
+}
+
+const SHA256_MARKER_SUFFIX = ".sha256-ok";
+
 export function modelLocalPath(model: ModelInfo, file: string): string {
   // Directory per modello: niente collisioni tra revisioni/condivisione mmproj.
   return `${MODELS_DIR}${model.id}/${file}`;
+}
+
+export function fileSpecFor(model: ModelInfo): ModelFileSpec {
+  return {
+    file: model.file,
+    sizeBytes: model.sizeBytes,
+    ...(model.sha256 ? { sha256: model.sha256 } : {}),
+  };
+}
+
+export function sha256MarkerPath(target: string): string {
+  return `${target}${SHA256_MARKER_SUFFIX}`;
 }
 
 export function hfFileUrl(model: ModelInfo, file: string, spec?: ModelFileSpec): string {
@@ -78,10 +114,56 @@ export async function isFileComplete(target: string, sizeBytes: number): Promise
   return info.exists && (info.size ?? 0) === sizeBytes;
 }
 
+export async function hasValidSha256Marker(target: string, expected?: string): Promise<boolean> {
+  if (!expected) return true;
+  const marker = sha256MarkerPath(target);
+  const info = await FileSystem.getInfoAsync(marker);
+  if (!info.exists) return false;
+  try {
+    const contents = await FileSystem.readAsStringAsync(marker);
+    return contents.trim().toLowerCase() === expected.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
+export async function fileMatchesSha256(target: string, expected?: string): Promise<boolean> {
+  if (!expected) return true;
+  if (!/^[0-9a-f]{64}$/i.test(expected)) {
+    console.warn("[download] catalog contains an invalid SHA-256 digest", expected);
+    throw new InvalidSha256DigestError();
+  }
+  let actual: string;
+  try {
+    // expo-file-system has no streaming digest; RNFS hashes Android in 10 KB chunks.
+    // iOS reads the whole file, which is acceptable because Android is the target here.
+    const { hash } = await import("react-native-fs");
+    actual = await hash(target, "sha256");
+  } catch (error) {
+    console.warn("[download] SHA-256 verification unavailable", error);
+    throw new Sha256VerificationUnavailableError();
+  }
+  if (typeof actual !== "string" || !/^[0-9a-f]{64}$/i.test(actual)) {
+    console.warn("[download] SHA-256 verifier returned an invalid digest", actual);
+    throw new InvalidSha256DigestError();
+  }
+  return actual.toLowerCase() === expected.toLowerCase();
+}
+
+export async function isVerifiedFile(target: string, file: ModelFileSpec): Promise<boolean> {
+  return (await isFileComplete(target, file.sizeBytes)) &&
+    (await hasValidSha256Marker(target, file.sha256));
+}
+
+export async function writeSha256Marker(target: string, expected?: string): Promise<void> {
+  if (!expected) return;
+  await FileSystem.writeAsStringAsync(sha256MarkerPath(target), expected.toLowerCase());
+}
+
 export async function isModelBundleDownloaded(model: ModelInfo): Promise<boolean> {
-  if (!(await isFileComplete(modelLocalPath(model, model.file), model.sizeBytes))) return false;
+  if (!(await verifyFileForPresence(model, fileSpecFor(model)))) return false;
   if (model.mmproj) {
-    return isFileComplete(modelLocalPath(model, model.mmproj.file), model.mmproj.sizeBytes);
+    return verifyFileForPresence(model, model.mmproj);
   }
   return true;
 }
@@ -90,6 +172,74 @@ function resumeKeyFor(model: ModelInfo, file: string, spec?: ModelFileSpec): str
   // Revision-aware: un resume di una revisione diversa non deve essere riusato.
   const revision = spec?.revision ?? model.revision;
   return `${RESUME_KEY_PREFIX}${model.id}.${revision}.${file}`;
+}
+
+async function discardDownloadedFile(
+  target: string,
+  resumeKey: string,
+  expectedSha256?: string,
+): Promise<void> {
+  await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
+  await FileSystem.deleteAsync(target, { idempotent: true }).catch(() => undefined);
+  if (expectedSha256) {
+    await FileSystem.deleteAsync(sha256MarkerPath(target), { idempotent: true }).catch(() => undefined);
+  }
+}
+
+type CompleteFileVerification = "verified" | "mismatch" | "aborted";
+
+async function verifyCompleteFile(
+  target: string,
+  file: ModelFileSpec,
+  signal?: AbortSignal,
+): Promise<CompleteFileVerification> {
+  if (signal?.aborted) return "aborted";
+  if (!file.sha256 || (await hasValidSha256Marker(target, file.sha256))) return "verified";
+  if (!(await fileMatchesSha256(target, file.sha256))) return "mismatch";
+  if (signal?.aborted) return "aborted";
+  await writeSha256Marker(target, file.sha256);
+  return signal?.aborted ? "aborted" : "verified";
+}
+
+async function verifyFileForPresence(model: ModelInfo, file: ModelFileSpec): Promise<boolean> {
+  const target = modelLocalPath(model, file.file);
+  if (!(await isFileComplete(target, file.sizeBytes))) return false;
+  try {
+    const verification = await verifyCompleteFile(target, file);
+    if (verification === "mismatch") {
+      await discardDownloadedFile(target, resumeKeyFor(model, file.file, file), file.sha256);
+      return false;
+    }
+    return verification === "verified";
+  } catch {
+    return false;
+  }
+}
+
+export async function finalizeDownloadedFile(
+  target: string,
+  file: ModelFileSpec,
+  resumeKey: string,
+  options: Pick<DownloadOptions, "locale" | "signal">,
+): Promise<DownloadOutcome> {
+  const strings = getStrings(options.locale);
+  try {
+    const verification = await verifyCompleteFile(target, file, options.signal);
+    if (verification === "aborted") return { status: "aborted" };
+    if (verification === "mismatch") {
+      throw new IntegrityMismatchError();
+    }
+  } catch (error) {
+    if (options.signal?.aborted) return { status: "aborted" };
+    if (error instanceof IntegrityMismatchError) {
+      await discardDownloadedFile(target, resumeKey, file.sha256);
+      throw new Error(strings.download.integrityMismatch);
+    }
+    throw error;
+  }
+  if (options.signal?.aborted) return { status: "aborted" };
+  await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
+  return { status: "done", uri: target };
 }
 
 const PROGRESS_THROTTLE_MS = 200;
@@ -113,6 +263,9 @@ export function friendlyNetworkError(
   const message = error instanceof Error ? error.message : String(error);
   if (error instanceof UnpublishedArtifactError) {
     return new Error(strings.errors.artifactUnpublished.replace("{artifact}", error.artifact));
+  }
+  if (error instanceof Sha256VerificationUnavailableError || error instanceof InvalidSha256DigestError) {
+    return error;
   }
   const unpublishedPrefix = strings.errors.artifactUnpublished.split("{artifact}")[0];
   if (message.startsWith(unpublishedPrefix)) {
@@ -138,6 +291,7 @@ export function friendlyNetworkError(
     strings.errors.modelNotLoaded,
     strings.download.failed,
     strings.download.stalled,
+    strings.download.integrityMismatch,
   ]);
   if (known.has(message) || message.startsWith(strings.download.incompleteBytes.split("(")[0])) {
     return error instanceof Error ? error : new Error(message);
@@ -162,15 +316,23 @@ async function downloadFile(
   const target = modelLocalPath(model, file.file);
   const resumeKey = resumeKeyFor(model, file.file, file);
 
-  // Complete file: never re-download or touch stale resume data.
-  if (await isFileComplete(target, file.sizeBytes)) {
-    await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
-    onProgress({
-      bytesReceived: file.sizeBytes,
-      bytesTotal: file.sizeBytes,
-      progress: 1,
-    });
-    return { status: "done", uri: target };
+  // Complete and sidecar-verified file: never re-download or touch stale resume data.
+  const complete = await isFileComplete(target, file.sizeBytes);
+  if (complete) {
+    const verification = await verifyCompleteFile(target, file, options.signal);
+    if (verification === "aborted") return { status: "aborted" };
+    if (verification === "verified") {
+      await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
+      onProgress({
+        bytesReceived: file.sizeBytes,
+        bytesTotal: file.sizeBytes,
+        progress: 1,
+      });
+      return { status: "done", uri: target };
+    }
+    await discardDownloadedFile(target, resumeKey, file.sha256);
+  } else if (file.sha256) {
+    await FileSystem.deleteAsync(sha256MarkerPath(target), { idempotent: true }).catch(() => undefined);
   }
 
   let saved = await AsyncStorage.getItem(resumeKey)
@@ -351,8 +513,7 @@ async function downloadFile(
     // lo stesso resume corrotto e ricomincia il loop "100% → incomplete".
     const info = await FileSystem.getInfoAsync(target);
     if (!info.exists || (info.size ?? 0) !== file.sizeBytes) {
-      await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
-      await FileSystem.deleteAsync(target, { idempotent: true }).catch(() => undefined);
+      await discardDownloadedFile(target, resumeKey, file.sha256);
       throw new Error(
         strings.download.incompleteBytes
           .replace("{got}", String(info.exists ? (info.size ?? 0) : 0))
@@ -360,8 +521,8 @@ async function downloadFile(
       );
     }
 
-    await AsyncStorage.removeItem(resumeKey).catch(() => undefined);
-    return { status: "done", uri: result.uri };
+    const finalized = await finalizeDownloadedFile(target, file, resumeKey, options);
+    return finalized.status === "done" ? { status: "done", uri: result.uri } : finalized;
   } finally {
     clearInterval(stallTimer);
     options.signal?.removeEventListener("abort", onAbort);
@@ -415,11 +576,16 @@ export async function downloadModelBundle(
     });
   };
 
-  const modelOutcome = await downloadFile(model, { file: model.file, sizeBytes: model.sizeBytes }, options, (p) => {
-    modelBytes = p.bytesReceived;
-    emitBundle();
-    options.onProgress?.(p);
-  });
+  const modelOutcome = await downloadFile(
+    model,
+    fileSpecFor(model),
+    options,
+    (p) => {
+      modelBytes = p.bytesReceived;
+      emitBundle();
+      options.onProgress?.(p);
+    },
+  );
 
   if (modelOutcome.status === "aborted" || !model.mmproj) {
     return { model: modelOutcome };
@@ -438,12 +604,15 @@ export async function deleteModelFiles(model: ModelInfo): Promise<void> {
   // downloadFile): per il mmproj questo è model.mmproj (revision propria,
   // spesso diversa da model.revision), non il fallback su model.revision.
   const entries: Array<{ file: string; spec?: ModelFileSpec }> = [
-    { file: model.file },
+    { file: model.file, spec: fileSpecFor(model) },
     ...(model.mmproj ? [{ file: model.mmproj.file, spec: model.mmproj }] : []),
   ];
   for (const { file, spec } of entries) {
-    await FileSystem.deleteAsync(modelLocalPath(model, file), { idempotent: true }).catch(() => undefined);
-    await AsyncStorage.removeItem(resumeKeyFor(model, file, spec)).catch(() => undefined);
+    await discardDownloadedFile(
+      modelLocalPath(model, file),
+      resumeKeyFor(model, file, spec),
+      spec?.sha256,
+    );
   }
 }
 

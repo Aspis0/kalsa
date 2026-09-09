@@ -22,6 +22,8 @@ import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
 export type ModelFileSpec = {
   file: string;
   sizeBytes: number;
+  /** Optional SHA-256 digest checked for complete local files. */
+  sha256?: string;
   /** Repo/revision del file (default: quelli del modello). */
   hfRepo?: string;
   revision?: string;
@@ -48,6 +50,7 @@ export type ModelInfo = {
   revision: string;
   file: string;
   sizeBytes: number;
+  sha256?: string;
   /** Hugging Face repo name in KALSA_HF_ORG for artifacts we publish. */
   hfArtifactRepo?: string;
   /** Proiettore multimodale (vision) — assente = modello text-only. */

@@ -240,6 +240,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
         "Modello ibrido Liquid AI. Ragionamento sempre attivo, solo testo (niente immagini). Download ~1,7 GB.",
       ramBadge: "Meno di 6 GB di RAM",
     },
+    minicpm5: {
+      description:
+        "Modello sperimentale OpenBMB. Ragionamento sempre attivo, solo testo (niente immagini). Download ~1,6 GB.",
+    },
     dev: {
       description: "Modello sideload per sviluppo. Il download dallo store è disabilitato finché l'artifact non sarà pubblicato.",
     },
@@ -429,6 +433,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
       "Download bloccato — controlla la connessione. Riprova: riprenderà da dove era.",
     failed: "Download non riuscito",
     incompleteBytes: "Download incompleto ({got} != {expected} byte)",
+    integrityMismatch: "Il file scaricato non ha superato il controllo di integrità — riprova.",
     keepOpenHint:
       "Tieni Kalsa aperta durante il download. Su Xiaomi/MIUI disattiva anche l'ottimizzazione batteria per Kalsa.",
   },
