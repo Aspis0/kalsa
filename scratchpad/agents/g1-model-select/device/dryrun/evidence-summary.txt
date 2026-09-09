@@ -1,0 +1,6 @@
+file | id | model | case | turn | promptMs | tok/s | cached | tools | gguf | th | battC | bat% | rss_kB
+------------------------------------------------------------------------------------------------------------------------
+s23-lfm-t09.out.jsonl | T09-en | lfm2.5-2.6b | ok | ok | 3556.1 | 10.44 | 2030 | device_calc | LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest)) | 2 | 39.8 | 20 | 3159184 kB
+s23-lfm.out.jsonl | C01 | lfm2.5-2.6b | ok | ok | 3360.5 | 9.53 | 2026 | device_calc | n/a (early dry cell, pre-engine-evidence) | 2 | 39.2 | 29 | 3234300 kB
+s23-minicpm-t09.out.jsonl | T09-en | dev-minicpm5-2b | ok | ok | 6821.1 | 6.51 | 2255 | device_calc | MiniCPM5-2B-Q4_K_M.gguf (version GGUF V3 (latest)) | 2 | 41.1 | 17 | 2988932 kB
+s23-minicpm.out.jsonl | C01 | dev-minicpm5-2b | ok | ok | 2810.5 | 6.59 | 2180 | - | n/a (early dry cell, pre-engine-evidence) | 2 | 39.7 | 23 | 3003016 kB

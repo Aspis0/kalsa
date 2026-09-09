@@ -1,0 +1,1 @@
+[{"id":"u-137973195","role":"user","text":"Quanto fa 2 + 2? Rispondi solo con il numero.","createdAt":1788966085516},{"id":"a-137973196","role":"assistant","text":"4","createdAt":1788966085516,"modelEmittedText":"<think>\nL'utente chiede solo il risultato di 2 + 2. Devo rispondere solo con il numero, come richiesto. Quindi rispondo con \"4\".\n</think>\n\n4"}]

@@ -1,0 +1,26 @@
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=dryrun/s23-minicpm-t09.out.jsonl reply_timeout=480
+[ci] keep-awake: saved screen_off_timeout=900000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: skipped (Termux missing — not fatal)
+[ci] === case T09-en (tools/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] model change: kalsa.model.id -> dev-minicpm5-2b
+[ci] model pref: kalsa.model.id=dev-minicpm5-2b (verified by read-back)
+[ci] conversation: conv-g1-t09-en-1788966650
+[ci] ready after 245s (UI label fallback; engine idle marker never seen)
+[ci]   turn 1/1: Use the calculator tool with expression='18 / 3'. I want a tool call, 
+[ci] share-send attempt 1/3: Use the calculator tool with expression='18 / 3'. I want a tool call, not the result written directly.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] node 'Tap to reload' NOT FOUND
+[ci] node 'Tocca per ricaricare' NOT FOUND
+[ci] reload: label found in dump but tap_node missed
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share-send: submitted prev=0 count=0
+[ci] reply settled after 165s (stable x2, quiet 20s, telemetry clean)
+[ci] case T09-en done (rows appended to dryrun/s23-minicpm-t09.out.jsonl)
+[ci] run complete: 1 cases -> dryrun/s23-minicpm-t09.out.jsonl
+[ci] keep-awake: restored screen_off_timeout=900000 (was 86400000)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
