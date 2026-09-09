@@ -182,6 +182,7 @@ import {
 } from "./memoryFactsTail";
 import {
   assembleStaticPrefix,
+  classifyPrewarmResult,
   computePrewarmPrefixHash,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
@@ -790,27 +791,27 @@ export async function queueStaticPrefixPrewarm(
         logPrewarm({ op: "skip", reason: "stale" });
         return;
       }
-      if (result?.interrupted) {
-        logPrewarm({ op: "skip", reason: "interrupted" });
-        return;
-      }
-      const predicted =
-        typeof result?.tokens_predicted === "number" ? result.tokens_predicted : 0;
-      if (predicted > 0) {
-        logPrewarm({ op: "skip", reason: "generated" });
-        return;
-      }
       const nativeResult = result as typeof result & { error?: unknown };
       const nativeError = nativeResult?.error;
       const tokensEvaluated =
         typeof result?.tokens_evaluated === "number" ? result.tokens_evaluated : 0;
+      const tokensCached =
+        typeof result?.tokens_cached === "number" ? result.tokens_cached : 0;
+      // Diagnostic only: llama.rn/cpp/jsi/JSICompletion.h reads perf before dense decode syncs.
       const promptMs =
         typeof result?.timings?.prompt_ms === "number" ? result.timings.prompt_ms : -1;
       const promptN =
         typeof result?.timings?.prompt_n === "number" ? result.timings.prompt_n : 0;
-      const evalFailed =
-        (nativeError != null && nativeError !== "") || tokensEvaluated <= 0 || promptMs <= 0;
-      if (evalFailed) {
+      const resultClass = classifyPrewarmResult(nativeResult);
+      if (resultClass === "skip") {
+        logPrewarm({ op: "skip", reason: "interrupted", promptMs, promptN });
+        return;
+      }
+      if (resultClass === "generated") {
+        logPrewarm({ op: "skip", reason: "generated", promptMs, promptN });
+        return;
+      }
+      if (resultClass === "failed") {
         logPrewarm({
           op: "skip",
           reason: "eval-failed",
@@ -818,12 +819,13 @@ export async function queueStaticPrefixPrewarm(
           promptMs,
           promptN,
           tokensEvaluated,
+          tokensCached,
           ...(nativeError != null ? { err: String(nativeError).slice(0, 160) } : {}),
         });
         return;
       }
       prewarmPrefixHash = prefix.hash;
-      logPrewarm({ op: "done", promptMs, hash: prefix.hash });
+      logPrewarm({ op: "done", promptMs, promptN, hash: prefix.hash });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
       const reason = /n_predict/i.test(msg)
