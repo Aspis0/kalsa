@@ -1,0 +1,6 @@
+wrote=results/wild-v2/minicpm.jsonl cases=30 requests_ok=30/30
+pass=9 fail=5 rubric=16 error=0
+endpoint=http://127.0.0.1:8083/v1/chat/completions model=minicpm split=all
+wrote=results/bakeoff-v2/minicpm@256.jsonl cell=minicpm@256 rows=44 errors=0
+wrote=results/bakeoff-v2/minicpm@512.jsonl cell=minicpm@512 rows=44 errors=0
+v2 complete model=minicpm wild=results/wild-v2/minicpm.jsonl cells=minicpm@256 minicpm@512

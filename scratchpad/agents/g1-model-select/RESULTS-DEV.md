@@ -98,3 +98,21 @@ Bake-off question-block counts, in order `absurd_gift, fact_spa2000, count_vowel
 Extended set: `C07 C08 C09 C10 C11 C12 C15 I06 I11 I13 I14 M01 M05 M06 M09 C14`. Both models: 3/4 deterministic, 12 rubric, 0 errors; per language EN 2/2 and IT 1/2. Extended deterministic failure: I11 for both.
 
 Blind judge still needed for 12 dev rubric rows, 16 wild rubric rows, and 44 short-budget bake-off rows; the pack is 72 rows in `results/judge-pack.jsonl` and `results/judge-pack.md`, with model order only in `results/judge-key.json`. The 12 extended rubric answers are not mixed into that pack and remain for a separate budget comparison.
+
+## v2: app prompt and default tools
+
+The v2 snapshots are exactly one line each: `system-prompt-en.v2.txt` contains “in the language the user writes in”; `system-prompt-it.v2.txt` contains “nella lingua in cui scrive l'utente”. `tools-app-default.json` has the seven default-on `TOOL_ENTRIES` from `toolRegistry.ts:85-142` and the exact definitions named in `export_tools_app_default.mjs`; every wild and bake-off request sent `tools` plus `tool_choice: "auto"`. Tool execution stayed offline: web tools return the canned unavailable message, device_calc uses the safe arithmetic evaluator, and the other five tools use the requested canned results. v1 scripts/results were not modified.
+
+Commands: `bash run_v2.sh lfm samplers/lfm.json` rc=0; `bash run_v2.sh minicpm samplers/minicpm.json` rc=0. `python3 score.py results/wild-v2/lfm.jsonl results/wild-v2/minicpm.jsonl` rc=0; `node /Users/marco/Projects/kalsa/scripts/quality/report.mjs --out "$PWD/results/bakeoff-v2"` rc=0; `python3 make_judge_pack_v2.py` rc=0. The v2 bake-off kept matrix-g1's same models, KV layout, prompts, cells, sampling defaults, and score.mjs/report.mjs; only the locale snapshots, seven schemas, tool loop, and final-answer source changed.
+
+| block | v1 LFM | v2 LFM | v1 MiniCPM5 | v2 MiniCPM5 |
+|---|---:|---:|---:|---:|
+| wild deterministic | 11/14 | 11/14 | 6/14 | 9/14 |
+| bake-off @256 | 25/44 | 25/44 | 30/44 | 32/44 |
+| bake-off @512 | 23/44 | 20/44 | 29/44 | 33/44 |
+
+Wild v2 by language: LFM multilingual `6/6`, absurd EN `3/4`, IT `2/4`; MiniCPM5 multilingual `6/6`, absurd EN `3/4`, IT `0/4`. Bake-off v2 by language: LFM @256 `7/11,7/11,6/11,5/11` and @512 `6/11,4/11,5/11,5/11`; MiniCPM5 @256 `9/11,8/11,8/11,7/11` and @512 `9/11,8/11,10/11,6/11` (EN, IT, ES, FR).
+
+Tool rounds / rows with a tool call / final raw syntax: LFM wild `19/15/0`, @256 `53/30/0`, @512 `50/29/0`; MiniCPM5 wild `2/2/0`, @256 `27/19/0`, @512 `24/18/0`. Across all 118 v2 rows per model, final answers containing raw tool syntax: LFM `0`, MiniCPM5 `0`; HTTP/timeouts/errors: `0`.
+
+The v2 blind pack has 60 rows (16 wild rubric + 44 open bake-off @256), with fresh per-row A/B randomization and mapping only in `results/judge-key-v2.json`: `results/judge-pack-v2.jsonl` and `results/judge-pack-v2.md`. The 12 dev rubric rows remain exclusively in the untouched v1 pack.

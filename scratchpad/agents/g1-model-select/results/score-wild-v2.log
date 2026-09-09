@@ -1,0 +1,27 @@
+cases=60
+model	category	lang	split	pass_rate	pass	fail	rubric	error
+lfm	absurd	en	wild	0.750	3	1	2	0
+lfm	absurd	it	wild	0.500	2	2	2	0
+lfm	multilingual	de	wild	1.000	1	0	2	0
+lfm	multilingual	es	wild	1.000	1	0	2	0
+lfm	multilingual	fr	wild	1.000	1	0	2	0
+lfm	multilingual	ja	wild	1.000	1	0	2	0
+lfm	multilingual	pt	wild	1.000	1	0	2	0
+lfm	multilingual	zh	wild	1.000	1	0	2	0
+minicpm	absurd	en	wild	0.750	3	1	2	0
+minicpm	absurd	it	wild	0.000	0	4	2	0
+minicpm	multilingual	de	wild	1.000	1	0	2	0
+minicpm	multilingual	es	wild	1.000	1	0	2	0
+minicpm	multilingual	fr	wild	1.000	1	0	2	0
+minicpm	multilingual	ja	wild	1.000	1	0	2	0
+minicpm	multilingual	pt	wild	1.000	1	0	2	0
+minicpm	multilingual	zh	wild	1.000	1	0	2	0
+failures
+lfm	W19	FAIL	check mismatch
+lfm	W20	FAIL	check mismatch
+lfm	W25	FAIL	check mismatch
+minicpm	W19	FAIL	check mismatch
+minicpm	W20	FAIL	check mismatch
+minicpm	W23	FAIL	check mismatch
+minicpm	W24	FAIL	check mismatch
+minicpm	W29	FAIL	check mismatch

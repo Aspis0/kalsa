@@ -1,0 +1,6 @@
+wrote=results/wild-v2/lfm.jsonl cases=30 requests_ok=30/30
+pass=11 fail=3 rubric=16 error=0
+endpoint=http://127.0.0.1:8083/v1/chat/completions model=lfm split=all
+wrote=results/bakeoff-v2/lfm@256.jsonl cell=lfm@256 rows=44 errors=0
+wrote=results/bakeoff-v2/lfm@512.jsonl cell=lfm@512 rows=44 errors=0
+v2 complete model=lfm wild=results/wild-v2/lfm.jsonl cells=lfm@256 lfm@512

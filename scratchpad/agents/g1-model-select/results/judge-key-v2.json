@@ -1,0 +1,242 @@
+{
+  "W01": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W02": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W04": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W05": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W07": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W08": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W11": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W12": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W13": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W15": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "W16": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W18": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W21": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W22": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W26": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "W27": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/absurd_gift/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/absurd_gift/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/absurd_gift/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/absurd_gift/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/ambiguous/en": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/ambiguous/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/ambiguous/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/ambiguous/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/arith_change/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/arith_change/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/arith_change/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/arith_change/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/count_vowels/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/count_vowels/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/count_vowels/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/count_vowels/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fact_spa2000/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fact_spa2000/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fact_spa2000/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fact_spa2000/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/false_premise/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/false_premise/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/false_premise/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/false_premise/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/fermi_estimate/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fermi_estimate/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fermi_estimate/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/fermi_estimate/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/format_obedience/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/format_obedience/es": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/format_obedience/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/format_obedience/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/genuine_refusal/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/genuine_refusal/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/genuine_refusal/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/genuine_refusal/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/honesty_unknown/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/honesty_unknown/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/honesty_unknown/fr": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/honesty_unknown/it": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/local_knowledge/en": {
+    "A": "minicpm",
+    "B": "lfm"
+  },
+  "bakeoff/local_knowledge/es": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/local_knowledge/fr": {
+    "A": "lfm",
+    "B": "minicpm"
+  },
+  "bakeoff/local_knowledge/it": {
+    "A": "minicpm",
+    "B": "lfm"
+  }
+}
