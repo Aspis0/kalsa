@@ -22,6 +22,15 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~10:10 EDT — G1 v2 (prompt corretto + 7 tool dell'app con stub offline), committato**: wild det. LFM 11/14
+  → 11/14, MiniCPM5 6/14 → 9/14; bake-off @256 LFM 25 → 25, MiniCPM5 30 → 32; @512 LFM 23 → 20, MiniCPM5 29 → 33.
+  Sintassi tool grezza nelle risposte finali: 0 per entrambi (artefatto v1 chiuso). **Propensione ai tool**: LFM
+  chiama tool in 30/44 righe bake-off (web_search anche offline, 53 round), MiniCPM5 in 19/44 (27 round); con lo
+  stub "offline" conta come il modello ripiega. **Deriva di lingua residua col prompt nuovo** (euristica mia sul
+  wild-v2): MiniCPM5 3/9 prompt es/ja ancora in inglese (W01, W02 es; W16 ja), LFM 0/9 (1 caso it→en su un assurdo).
+  È un segnale vero sul modello, non più sul prompt. Giudizio cieco v2 (60 righe, A/B ri-randomizzati, chiave
+  `judge-key-v2.json`) in corso con gli stessi due giudici. `tools-app-default.json` = schemi esatti dei 7 tool
+  default dell'app, riusabile per ogni harness futuro.
 - **9/09 ~09:20 EDT — JELLY: DOCUMENT CHAT 1/5 (LFM spedito, main@332aeed)** (`product-suite/JELLY-DOCCHAT-2026-09-09.md`,
   Luna e1b923b9; PDF piccolo 1 pagina/5 fatti, PDF grande 40 pagine/3 fatti sepolti): PASS solo "due fatti dal
   piccolo" (full_context, 199 s a completare, 4,2 tok/s). FAIL: fatto assente (errore "Documento non trovato
