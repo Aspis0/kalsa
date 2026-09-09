@@ -25,7 +25,7 @@ function isContext(
 }
 
 /**
- * Build the operative instruction block in the settings language.
+ * Build the operative instruction block with the locale's fallback language.
  * @param locale Settings locale ("en" | "it")
  * @param summaryOrCtx Legacy `summary: string | null`, or `{ digest, summary }`
  */
