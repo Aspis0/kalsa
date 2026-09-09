@@ -22,6 +22,28 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~06:40 EDT — G0 a che punto è (cella `scratchpad/agents/g1-model-select/`, tutto committato):**
+  (a) **Xiaomi 14 operativo**: wireless adb 192.168.1.193:5555 (dopo 1 h persa sul gate macOS "consenti accessori"),
+  manifest `devices/xiaomi14.md`, APK **main@332aeed debuggable** installata (sha 67fff2d7…), LFM2.5-2.6B-QAD-Q4_0
+  nella dir dell'app con sha verificata sul device (a247afd6…), smoke di avvio OK (834 ms, vivo a 25 s, 254 MB RSS,
+  zero FATAL). Il telefono ha ancora Qwen 2B/4B+mmproj e 10 GB di GGUF di agosto in /data/local/tmp. S23 e Jelly: domani.
+  (b) **Kit G1 su Mac pronto e verificato**: MiniCPM5-2B Q4_K_M ufficiale (rev d00c954e, sha ec2d5801…), inventario
+  gguf-py dei 4 candidati (MiniCPM5 = Q4_K 253 / Q6_K 43, tool call in **XML** `<function name=…><param>`, EOT
+  `<|im_end|>` senza eot_token_id), fork 67c73d26c buildato CPU-only (`~/kalsa-mac/build-kalsallama-67c73d26c/bin`),
+  smoke IT con thinking acceso: LFM 179,8/56,6 t/s, MiniCPM5 259,1/55,1 t/s (M-series, indicativi).
+  (c) **Config spedita dall'app** (`APP-SHIPPED-CONFIG.md`, valori del catalogo confermati dall'audit; io ho verificato
+  a mano il payload del turno utente `LlamaService.ts:3235-3245` + `thinkingBudgets.ts:55-77`): temp 0,7 / top_k 40 /
+  top_p 0,95, n_predict ≥ 1024, thinking sempre ON con `thinking_budget_tokens` 256 (esteso 512), `preserve_thinking`
+  per LFM, prompt di sistema **per locale** (`it.ts:1042`, `en.ts:1082`), n_ctx 8192 (16384 se RAM ≥ 7,5 GB), KV
+  q8_0/q4_0, ubatch 256, mmap+repack. Il server del fork accetta la stessa chiave `thinking_budget_tokens`.
+  Trovate due chiamate con `enable_thinking:false` fuori dal turno utente (prewarm del prefisso :783 e estrazione
+  memoria :3888): il prewarm renderizza il template senza thinking → **possibile miss del prefisso** da misurare in §3.
+  (d) **Corpus 80 casi + runner: BOCCIATO all'audit** (deepseek, `CORPUS.AUDIT.md`, 8 difetti confermati: prompt
+  inglese su 40 casi IT, reasoning non strippato prima dei check, crash su connection reset, memoria a 1 turno,
+  check fragili su ~25 casi, leakage C15/C16, tool check solo su calls[0]). Riscrittura + passata dev in corso
+  (Luna 131645cd). Lezione: mimo muore a metà report → audit lunghi a deepseek.
+  (e) **Fork**: `main` = pin app 67c73d26c (ff), i 3 pick upstream erano già dentro. **CI**: E2E emulatore sul merge
+  ancora in corso (34335570917). **Non fatto**: quote QDC/RTL live (2FA), S23/Jelly, prova Gallery.
 - **9/09 notte — OWNER TORNATO, PIVOT SUL PIANO PRATICO `kalsa/docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`**
   (criterio: una conversazione intera che funziona nell'APK; G0 il 9/09, G1 scelta LFM2.5-2.6B vs MiniCPM5-2B
   il 15/09, M1 il 9/10). ALIVE e PLAN restano in uso; il diario è qui. Owner: "stiamo rallentando facendo
