@@ -22,6 +22,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~08:10 EDT — MiniCPM5 NELL'APP: main@7836db7** (`dev-minicpm5-2b`, opt-in via `/bench devmodels on`;
+  Luna 80b2da28, audit deepseek 2ca5328c in due round → SHIP). Nessuna modifica al motore: il parser MiniCPM5 è
+  già nel fork/overlay. Aggiunto `ModelInfo.sha256` opzionale: verifica UNA volta dopo il download o lazy per un
+  file caricato via adb, poi sidecar `.sha256-ok` → avvio senza hash (l'auditor aveva beccato l'hash da 1,5 GB a
+  ogni boot, F3). Il claim "hash RNFS su Android mai uguale" (F1) era FALSO: `%02x` su un `Byte` negativo in Java
+  stampa due cifre (Formatter aggiunge 2^8); guardia aggiunta comunque (digest ≠ 64 hex → errore, mai delete).
+  tsc 0, jest 17/17 rifatti a mano. **APK debuggabile arm64 in build: run 34349153745.** Path atteso sul telefono:
+  `files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf` (+ marker lazy al primo check).
+  **Corpus dev rigenerato e committato (d1314fc4)**: 48 casi deterministici/modello, LFM 2 FAIL, MiniCPM5 3 FAIL,
+  stesso FAIL in conversazione EN → parità; decidono rubrica cieca (12), wild (30), bake-off 44, estesa 512 — in
+  corso sul corpus agent con fallback lingua en nel runner e pacchetto anonimo A/B `results/judge-pack.jsonl`.
 - **9/09 ~08:00 EDT — §3 RICOGNIZIONE SESSIONE FATTA (deepseek, verificata a campione; report
   `scratchpad/agents/session-contract/RECON-MAIN-332aeed.md`)**: save/restore esistono e sono ben protetti sul
   percorso CPU (hash del prefisso, meta sidecar, guardia `resumable` contro il falso-warm dell'issue upstream 25913,
