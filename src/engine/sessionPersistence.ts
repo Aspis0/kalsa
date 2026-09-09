@@ -29,6 +29,8 @@ export type SessionMeta = {
   historyHash: string;
   /** Length of the messages array that produced historyHash. Enables prefix restore. */
   historyMessageCount?: number;
+  /** The file intentionally preserves the prefix before one tool-backed turn. */
+  divergesAtLastExchange?: boolean;
   /**
    * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools, tools, blockFormat}).
    * When MEMORY_FACTS_ON_USER_TAIL, callers must pass [] for facts so a new
@@ -173,17 +175,25 @@ export function computeHistoryHashFromMessages(messages: unknown): string {
  *
  * After a matching prefix, every suffix message must be role "user" (pending
  * input the model has not answered). An assistant/tool/miniapp suffix means a
- * full turn completed after the KV was saved (e.g. shouldSaveSession skipped a
- * non-reproducible tool turn while AsyncStorage still wrote the reply) — reject
- * with stale_kv_completed_turn so we cold-start instead of loading a KV that
- * never saw that turn.
+ * full turn completed after the KV was saved — reject with
+ * stale_kv_completed_turn so we do not load a KV that never saw that turn.
+ *
+ * The one explicit exception is a marked tool-prefix save. Its file is the
+ * good prefix from before the tool turn, so exactly one [user, assistant]
+ * suffix is known to be the omitted completed exchange. More than one
+ * completed exchange remains rejected; otherwise an arbitrarily stale KV
+ * could be presented as warm.
  *
  * AppState-background save + buildPersistableMessages: a still-streaming reply
  * is dropped from the meta count/hash but may already sit in native KV. The
  * suffix rule then rejects (suffix holds that assistant message) — safe direction.
  */
 export function sessionHistoryPrefixAccepts(
-  saved: { historyHash?: unknown; historyMessageCount?: unknown } | null | undefined,
+  saved: {
+    historyHash?: unknown;
+    historyMessageCount?: unknown;
+    divergesAtLastExchange?: unknown;
+  } | null | undefined,
   currentMessages: unknown,
 ): { accept: true } | { accept: false; reason: string } {
   if (saved == null) return { accept: false, reason: "historyHash" };
@@ -217,18 +227,38 @@ export function sessionHistoryPrefixAccepts(
   if (computeHistoryHashFromMessages(prefix) !== hash) {
     return { accept: false, reason: "historyHash" };
   }
+  if (
+    saved.divergesAtLastExchange === true &&
+    currentMessages.length === count + 2 &&
+    messageRole(currentMessages[count]) === "user" &&
+    messageRole(currentMessages[count + 1]) === "assistant"
+  ) {
+    // buildPersistableMessages persists interrupted partial assistants with
+    // `interrupted: true`; that exchange is not a completed tool synthesis.
+    if (!messageInterrupted(currentMessages[count + 1])) return { accept: true };
+  }
   // Prefix matches. Accept only if the suffix is pending user input (or empty).
   for (let i = count; i < currentMessages.length; i++) {
-    const msg = currentMessages[i];
-    const role =
-      msg != null && typeof msg === "object" && "role" in msg
-        ? (msg as { role?: unknown }).role
-        : undefined;
-    if (role !== "user") {
+    if (messageRole(currentMessages[i]) !== "user") {
       return { accept: false, reason: "stale_kv_completed_turn" };
     }
   }
   return { accept: true };
+}
+
+function messageRole(message: unknown): unknown {
+  return message != null && typeof message === "object" && "role" in message
+    ? (message as { role?: unknown }).role
+    : undefined;
+}
+
+function messageInterrupted(message: unknown): boolean {
+  return (
+    message != null &&
+    typeof message === "object" &&
+    "interrupted" in message &&
+    (message as { interrupted?: unknown }).interrupted === true
+  );
 }
 
 /** Boot messages from AsyncStorage. Best-effort; never throws; [] on failure. */
@@ -519,22 +549,28 @@ export async function readPersistedHistoryLength(): Promise<number | null> {
  * Ordering matches saveEngineSession's early returns so CI can grep the same
  * reason strings. Disk headroom stays async and is checked after this gate.
  *
- * CI run 31303432531: a web_search turn left native KV at 2084 tokens while
- * re-rendered history only reproduced the prefix through 1184 (tool results
- * never persist). Hybrid/recurrent models cannot roll KV back, so restore is
- * useless — skip save when the turn made KV non-reproducible instead of
- * writing a poisoned session.
+ * A tool turn leaves native KV ahead of the rendered history because tool
+ * messages never persist. The safe save action is therefore to keep the
+ * existing prefix file and mark it for one completed suffix exchange. The
+ * caller must not write the divergent live KV; hybrid/recurrent models may
+ * otherwise lack a pre-divergence checkpoint and clear the cache on restore.
  */
 export function shouldSaveSession(args: {
   hasContext: boolean;
   disposing: boolean;
   kvHoldsChatSession: boolean;
   kvReproducible: boolean;
-}): { save: boolean; reason?: string } {
+  kvDivergesAtLastExchange?: boolean;
+}): { save: boolean; reason?: string; preservePrefix?: boolean } {
   if (!args.hasContext) return { save: false, reason: "no_context" };
   if (args.disposing) return { save: false, reason: "disposing" };
   if (!args.kvHoldsChatSession) return { save: false, reason: "kv_not_chat" };
-  if (!args.kvReproducible) return { save: false, reason: "kv_not_reproducible" };
+  if (!args.kvReproducible) {
+    if (args.kvDivergesAtLastExchange === true) {
+      return { save: true, preservePrefix: true };
+    }
+    return { save: false, reason: "kv_not_reproducible" };
+  }
   return { save: true };
 }
 
@@ -591,6 +627,9 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
     ) {
       meta.historyMessageCount = parsed.historyMessageCount;
     }
+    if (parsed.divergesAtLastExchange === true) {
+      meta.divergesAtLastExchange = true;
+    }
     if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
     return meta;
   } catch {
@@ -606,6 +645,18 @@ export async function writeSessionMeta(stem: string, meta: SessionMeta): Promise
   } catch {
     return false;
   }
+}
+
+/** Mark an existing good prefix as safe for one completed tool exchange. */
+export async function markSessionDivergesAtLastExchange(stem: string): Promise<boolean> {
+  if (!stem || !(await sessionFileExists(stem))) return false;
+  const meta = await readSessionMeta(stem);
+  if (!meta || meta.historyMessageCount === undefined) return false;
+  return writeSessionMeta(stem, {
+    ...meta,
+    divergesAtLastExchange: true,
+    savedAt: Date.now(),
+  });
 }
 
 /**

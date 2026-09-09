@@ -107,6 +107,7 @@ import {
   type ToolAttributionSnapshot,
   type ToolRetrievalStrategy,
 } from "./turnTelemetry";
+import { recordPrefillSample } from "./prefillSpeed";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
@@ -117,6 +118,7 @@ import {
   getSessionConversationId,
   hasEnoughDiskForSession,
   isSameSessionSave,
+  markSessionDivergesAtLastExchange,
   promoteSessionBak,
   readBootMessages,
   readPersistedHistoryLength,
@@ -258,13 +260,12 @@ let lastChatNPast: number | undefined;
  */
 let chatKvDiskCurrent = false;
 let lastSuccessfulSessionSave: SessionSaveFingerprint | null = null;
+let kvPrefixUnavailableLoggedKey: string | null = null;
 /**
  * Whether the native KV can be reproduced by re-rendering persisted history.
- * Sticky `reproducible` + per-turn `turnInjected`; all transitions go through
- * nextKvReproState (the clean_completion-after-tools invariant lives there).
- * When reproducible is false, saveEngineSession skips so the previous good
- * .kvs survives. Think-block strip is the same class of divergence but is
- * not detected here.
+ * `divergesAtLastExchange` is the safe tool-turn exception: saveEngineSession
+ * preserves the prior good .kvs and marks its meta; it never serializes the
+ * divergent live tool KV. Think-block strip remains a hard refusal.
  */
 let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
 /**
@@ -825,6 +826,12 @@ export async function queueStaticPrefixPrewarm(
         return;
       }
       prewarmPrefixHash = prefix.hash;
+      // Feed the measured static-prefix prefill into the model EMA.
+      recordPrefillSample(
+        activeModelId ?? "",
+        result.timings?.prompt_n ?? 0,
+        result.timings?.prompt_ms ?? -1,
+      );
       logPrewarm({ op: "done", promptMs, promptN, hash: prefix.hash });
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error ?? "");
@@ -923,6 +930,8 @@ function emitTurnTelemetry(
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
+    const promptN =
+      (result.timings as { prompt_n?: number } | null | undefined)?.prompt_n ?? 0;
     // Omitted when null so the JSON stays backward-compatible for rounds that
     // never ran a successful tool.
     if (attribution?.tool != null) r.tool = attribution.tool;
@@ -930,6 +939,8 @@ function emitTurnTelemetry(
     if (ciswireFlags !== undefined) r.ciswireFlags = ciswireFlags;
     console.log(formatTelemetryLine(turnId, r));
     if (model != null) {
+      // Feed prompt_n, not tokens_evaluated, so cache hits do not inflate speed.
+      recordPrefillSample(model.id, promptN, result.timings?.prompt_ms ?? -1);
       onDecodeSample?.(model, {
         predictedPerSecond: r.predictedPerSecond,
         tokensPredicted: r.tokensPredicted,
@@ -2099,11 +2110,15 @@ export async function saveEngineSession(
     });
     let bytesPerToken: number | null = null;
     let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
-    const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
+    const log = (
+      ok: boolean,
+      extra?: Record<string, number | boolean | string>,
+      op = "save",
+    ) => {
       try {
         console.log(
           `KALSA_SESSION ${JSON.stringify({
-            op: "save",
+            op,
             ms: Date.now() - t0,
             ok,
             estimatedBytes,
@@ -2118,14 +2133,15 @@ export async function saveEngineSession(
     let tmpPath = "";
     try {
       // Sync gates only — early return BEFORE any tmp/backup manipulation so a
-      // skipped save (e.g. kv_not_reproducible after a tool turn) leaves the
-      // previous good .kvs + meta intact for a later warm restore.
+      // refused save leaves the previous good .kvs + meta intact. The marked
+      // tool-prefix path above also avoids all native overwrite operations.
       const ctx = context;
       const gate = shouldSaveSession({
         hasContext: Boolean(ctx && activeModelId === modelId),
         disposing,
         kvHoldsChatSession,
         kvReproducible: kvReproState.reproducible,
+        kvDivergesAtLastExchange: kvReproState.divergesAtLastExchange,
       });
       if (!gate.save) {
         log(false, { reason: gate.reason ?? "no_context" });
@@ -2140,6 +2156,23 @@ export async function saveEngineSession(
       if (!stem) {
         log(false, { reason: "no_session_key" });
         return false;
+      }
+      if (gate.preservePrefix) {
+        // Never save the live KV after tools: on LFM2.5/hybrid, the next
+        // prompt cannot use partial seq_rm and a restored full-tool KV has no
+        // guaranteed checkpoint at the pre-divergence boundary. Keep the
+        // previous good prefix instead; its exact native state is resumable.
+        const marked = await markSessionDivergesAtLastExchange(stem);
+        if (!marked) {
+          const logKey = conversationId ?? stem;
+          if (kvPrefixUnavailableLoggedKey !== logKey) {
+            kvPrefixUnavailableLoggedKey = logKey;
+            log(false, { reason: "kv_prefix_unavailable" }, "mark_prefix");
+          }
+          return false;
+        }
+        log(true, { reason: "last_exchange_prefix" }, "mark_prefix");
+        return true;
       }
       const diskInput = await sessionDiskGateInput(modelId);
       const diskCalibration = diskInput.calibration;
