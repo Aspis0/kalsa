@@ -7,6 +7,7 @@
  *   /bench format <none|system-end|user-prefix|user-note>
  *   /bench speculative <none|mtp|clear>
  *   /bench engine <gpu=N,threads=N,threadsPrefill=N,ubatch=N|moe=on,...|clear>
+ *   /bench devmodels <on|off>
  *   /bench show
  * Prefer the slash-free form on Windows Git Bash (adb mangles leading `/`):
  *   bench:thinking default
@@ -28,8 +29,10 @@
  * - kalsa.bench.toolchoice: "auto" | "required" | "none" (CI A/B only)
  * - kalsa.bench.toolgate:   "1" (default) | "0" (CI A/B only)
  * - kalsa.bench.norepack:   "1" disables weight repacking (CI A/B only)
+ * - kalsa.bench.devmodels: "1" | "on" (DEV catalog; restart after changing)
  *
- * No in-memory cache: one fresh read per turn (best-effort).
+ * The app boot reads this once. Read failures reject so the boot path can
+ * explicitly choose the production catalog and still render the app.
  */
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -59,6 +62,7 @@ export const BENCH_RANKING_KEY = "kalsa.bench.ranking";
 export const BENCH_DIGESTCADENCE_KEY = "kalsa.bench.digestcadence";
 /** "1" disables weight repacking (no_extra_bufts). Absent / other → production. */
 export const BENCH_NOREPACK_KEY = "kalsa.bench.norepack";
+export const BENCH_DEVMODELS_KEY = "kalsa.bench.devmodels";
 
 export type ThinkingMode = "default" | "budget256" | "budget512";
 export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
@@ -70,6 +74,23 @@ export type BlockFormat = "none" | "system-end" | "user-prefix" | "user-note";
  */
 export type ToolChoiceMode = "auto" | "required" | "none";
 export type CompletionToolChoice = "auto" | "required" | "none";
+
+/** DEV catalog is opt-in; every value except "1" and "on" is disabled. */
+export async function getDevModelsEnabled(): Promise<boolean> {
+  const raw = await AsyncStorage.getItem(BENCH_DEVMODELS_KEY);
+  return raw === "1" || raw === "on";
+}
+
+/** Persist the DEV catalog switch for the next app restart. */
+export async function setDevModelsEnabled(mode: string): Promise<boolean> {
+  if (mode !== "on" && mode !== "off") return false;
+  try {
+    await AsyncStorage.setItem(BENCH_DEVMODELS_KEY, mode === "on" ? "1" : "0");
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 export type SpeculativeOverride = {
   /** "none" disables speculation entirely — the plain-decode baseline arm. */
@@ -791,7 +812,7 @@ export async function formatBenchStatus(): Promise<string> {
 }
 
 const BENCH_USAGE =
-  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
+  "bench usage: /bench thinking <default|budget256|budget512> | bench:thinking <default|budget256|budget512> | /bench format <…> | bench:format <…> | /bench devmodels <on|off> | bench:devmodels <on|off> | /bench speculative <none|mtp|clear> | bench:speculative <none|mtp|clear> | /bench engine <gpu=N[,threads=N][,threadsPrefill=N][,ubatch=N][,moe=on|off][,cacheMb=N][,ioThreads=N][,overlap=on|off][,dense=mmap|warm|anon|ahwb|anon-gpu]|clear> | bench:engine <…> | /bench show | bench:show";
 
 /** True when text is a bench debug command (`/bench …` or slash-free `bench:…`). */
 export function isBenchCommand(text: string): boolean {
@@ -852,6 +873,13 @@ export async function tryHandleBenchCommand(text: string): Promise<string | null
     const ok = await setBlockFormat(arg);
     if (!ok) return "bench: failed to write format";
     return formatBenchStatus();
+  }
+
+  if (sub === "devmodels") {
+    if (arg !== "on" && arg !== "off") return `bench: invalid devmodels mode "${arg}". ${BENCH_USAGE}`;
+    const ok = await setDevModelsEnabled(arg);
+    if (!ok) return "bench: failed to write devmodels mode";
+    return `bench: devmodels=${arg} (force-stop + relaunch to apply)`;
   }
 
   if (sub === "speculative") {

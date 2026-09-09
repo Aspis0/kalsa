@@ -240,6 +240,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
         "Modello ibrido Liquid AI. Ragionamento sempre attivo, solo testo (niente immagini). Download ~1,7 GB.",
       ramBadge: "Meno di 6 GB di RAM",
     },
+    dev: {
+      description: "Modello sideload per sviluppo. Il download dallo store è disabilitato finché l'artifact non sarà pubblicato.",
+    },
     whisperTiny: {
       description:
         "Riconoscimento vocale sul dispositivo (multilingua, tiny). ~75 MB. Usato solo per la dettatura vocale.",

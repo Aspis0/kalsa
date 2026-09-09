@@ -17,6 +17,7 @@
 import type { RamTier } from "./contextProfile";
 import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
+import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
 
 export type ModelFileSpec = {
   file: string;
@@ -244,6 +245,19 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     recommendForTiers: ["low", "mid"],
   },
 ];
+
+let devModelsAdded = false;
+
+/** Append/remove the opt-in catalog while keeping existing sync consumers intact. */
+export function configureModelRegistry(devModelsEnabled: boolean): void {
+  if (devModelsEnabled === devModelsAdded) return;
+  if (devModelsEnabled) {
+    MODEL_REGISTRY.push(...DEV_MODEL_REGISTRY);
+  } else {
+    MODEL_REGISTRY.splice(-DEV_MODEL_REGISTRY.length, DEV_MODEL_REGISTRY.length);
+  }
+  devModelsAdded = devModelsEnabled;
+}
 
 /**
  * On-device ASR (whisper.cpp tiny, multilingual).
