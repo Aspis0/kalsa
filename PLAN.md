@@ -22,6 +22,21 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~07:30 EDT — L'APP NON ASPETTA G1 (owner: "aspettare il confronto serve a decidere il modello, ma l'app in sé no")**:
+  partono in parallelo i lavori del piano chat che non dipendono dal modello scelto, tutti via Paseo:
+  (1) **voce dev-catalog MiniCPM5-2B Q4_K_M nell'app** (Luna 80b2da28; riga "10–11 set" della timeline §12; il fork al
+  pin 67c73d26c e l'overlay `node_modules/llama.rn/cpp/common/chat.cpp` hanno GIÀ il parser specializzato MiniCPM5,
+  `<think>` + tool call XML, verificato a mano: 5 occorrenze); (2) **ricognizione §3 contratto di sessione** su main
+  (deepseek 4a1da067: save/restore, identità, token riusati osservabili, stato ricorrente LFM vs issue upstream 25913,
+  prefisso prewarm senza thinking, stop/edit/regen, job accessori); (3) **prep confronto concorrenti §10** (Luna
+  f22bd8b9: APK Gallery + LiteRT MiniCPM5 scaricati con sha in `~/kalsa-qdc/competitors/`, protocollo device, note
+  Noema → `scratchpad/agents/competitors/PREP-2026-09-09.md`); (4) **inventario feature chat vs gap competitor**
+  (mimo 80edb3d8, report ≤110 righe: edit/regen, stop, documenti/retrieval, tool, memoria, voce, vision, auto-release,
+  ctx pieno, /bench, persistenza, harness E2E). **CI E2E emulatore sul merge: PASS** (run 34335570917, main 9e90f99).
+  **Wild block pronto e verificato** (`corpus/wild.jsonl` 30 casi: es/fr/de/pt/zh/ja ×3 + 12 assurdi en/it,
+  `validate_wild.py` rc=0, zero overlap con gli 80): NON ancora eseguito perché `run_corpus.py:71` indicizza il prompt
+  di sistema con `case["lang"]` e conosce solo en/it → serve il fallback en (come farebbe l'app con locale ≠ it);
+  la fix va all'agente corpus 131645cd (proprietario del runner) appena finisce la rigenerazione dev.
 - **9/09 ~07:00 EDT — TRE TELEFONI OPERATIVI, tutti su main@332aeed debuggable con LFM di spedizione (sha a247afd6…)
   verificato sul device e smoke di avvio pulito**: Xiaomi 14 192.168.1.193:5555 (V75, nessun eager-load), S23
   192.168.1.152:5555 (V73, eager-load di qwen3.5-4b a 4 GB RSS per prefs di banco di agosto → azzerare prima di
