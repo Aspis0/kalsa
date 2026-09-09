@@ -3955,3 +3955,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   logga timing reali. Nota di misura: LFM prefill 34 tok/s a 30 °C contro 15,9 misurato a caldo stamattina → ogni
   numero di prefill sul Jelly va letto con la temperatura accanto.
 
+- **9/09 ~18:15 EDT — FIX LINGUA NEL DOCUMENT CHAT COMMITTATO** (deepseek 72ebe055, audit mimo a4f2664c). Il risultato
+  del tool documento finisce con una riga di istruzione: "Answer in the language of the user's question (if unclear,
+  <locale>). Quote passages in their original language." — la lingua della domanda resta primaria, il locale è solo il
+  tie-break, coerente con la regola (a) di f77ea7b. Il cue è riservato dentro il budget del corpo del tool (LlamaService
+  taglia a ~2319 caratteri dalla coda): l'audit ha trovato che con ≥15 passaggi corti il percorso retrieval sforava e il
+  cue sarebbe stato tagliato → ora entrambi i percorsi calcolano `maxBody` e troncano il corpo, mai il cue. Sull'`interrupted`
+  dei documenti: non è un timeout dell'app, è lo stop del composer (l'harness ha interrotto il turno); il tool ha 190 s
+  ma la generazione continua. Nulla da toccare. APK in CI per la verifica sul Jelly (domanda italiana su manuale inglese).
+  Debito annotato: `documentChatTool.ts` è a 1566 righe.
+
