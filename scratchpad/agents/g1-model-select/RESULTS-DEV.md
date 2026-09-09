@@ -116,3 +116,54 @@ Wild v2 by language: LFM multilingual `6/6`, absurd EN `3/4`, IT `2/4`; MiniCPM5
 Tool rounds / rows with a tool call / final raw syntax: LFM wild `19/15/0`, @256 `53/30/0`, @512 `50/29/0`; MiniCPM5 wild `2/2/0`, @256 `27/19/0`, @512 `24/18/0`. Across all 118 v2 rows per model, final answers containing raw tool syntax: LFM `0`, MiniCPM5 `0`; HTTP/timeouts/errors: `0`.
 
 The v2 blind pack has 60 rows (16 wild rubric + 44 open bake-off @256), with fresh per-row A/B randomization and mapping only in `results/judge-key-v2.json`: `results/judge-pack-v2.jsonl` and `results/judge-pack-v2.md`. The 12 dev rubric rows remain exclusively in the untouched v1 pack.
+
+## v2b: app tool-loop repair
+
+Selection was literal: original final `finish_reason == "tool_calls"` OR empty content. Affected rows: LFM wild `1`, @256 `18`, @512 `19`; MiniCPM5 wild `0`, @256 `1`, @512 `0`. The known 14 empty LFM @256 judge-pack rows are included; the extra selected rows are non-empty finals that still ended with `tool_calls`. v2b used three loop rounds, round index 2 text-only (`tool_choice: "none"`, no `tools`), repeated failed-key and two-successful-search text-only guards, and one extra text-only fallback completion after exhaustion.
+
+| block | v1 LFM | v2 LFM | v2b LFM | v1 MiniCPM5 | v2 MiniCPM5 | v2b MiniCPM5 |
+|---|---:|---:|---:|---:|---:|---:|
+| wild deterministic | 11/14 | 11/14 | 11/14 | 6/14 | 9/14 | 9/14 |
+| bake-off @256 | 25/44 | 25/44 | 34/44 | 30/44 | 32/44 | 32/44 |
+| bake-off @512 | 23/44 | 20/44 | 34/44 | 29/44 | 33/44 | 33/44 |
+
+v2b tool-call rounds (selected rows): LFM wild `1`, @256 `38`, @512 `36`; MiniCPM5 wild `0`, @256 `2`, @512 `0`. Tool-call counts by round (tuple is round 0, 1, 2, fallback): LFM wild `{(1,0):1}`; @256 `{(1,1,0):13,(1,1,1):2,(2,0):1,(2,2,0):1,(2,2,1):1}`; @512 `{(1,1,0):14,(2,2,0):3,(2,0):1,(1,0):1}`; MiniCPM5 @256 `{(1,1,0):1}`. Still-empty finals after v2b: LFM `0/38`, MiniCPM5 `0/1`.
+
+Commands completed: `bash run_v2b.sh lfm samplers/lfm.json` rc=0; `bash run_v2b.sh minicpm samplers/minicpm.json` rc=0; `python3 score_v2b.py` rc=0; `python3 make_judge_pack_v2b.py` rc=0. The affected-only pack has 18 rows, preserves the exact v2 A/B mapping, and uses original v2 answers for the unselected model side; mapping subset is in `results/judge-key-v2b.json`.
+
+## v2b corrected visible-answer pass
+
+The first v2b subsection above predates the final-answer cleanup. This append-only correction supersedes its stale v2b tallies: the app-style loop now removes raw tool syntax from the visible answer and uses the app fallback after the extra text-only completion. v2 files were not modified.
+
+| block | LFM v1 | LFM v2 | LFM v2b | MiniCPM5 v1 | MiniCPM5 v2 | MiniCPM5 v2b |
+|---|---:|---:|---:|---:|---:|---:|
+| wild | 11/14 | 11/14 | 11/14 | 6/14 | 9/14 | 9/14 |
+| bake-off @256 | 25/44 | 25/44 | 33/44 | 30/44 | 32/44 | 32/44 |
+| bake-off @512 | 23/44 | 20/44 | 34/44 | 29/44 | 33/44 | 33/44 |
+
+Affected rows rerun: LFM wild 1, @256 18, @512 19; MiniCPM5 wild 0, @256 1, @512 0. Still-empty finals: LFM 0/38, MiniCPM5 0/1. Selected-row finals containing raw tool syntax: 0 for both models.
+
+Corrected tool-call distributions (calls per response round, including fallback where present): LFM wild `{(2,0):1}`; @256 `{(2,2,0):1,(1,1,0):13,(2,0):1,(2,2,1,1):1,(1,1,1,1):1,(1,1,1,0):1}`; @512 `{(1,1,0):14,(2,2,0):3,(1,0):1,(2,0):1}`. MiniCPM5 @256 `{(1,1,0):1}`; no selected rows in the other blocks. The 18-row `results/judge-pack-v2b.jsonl` keeps the v2 A/B mapping via `results/judge-key-v2b.json`.
+
+Corrected commands: `bash run_v2b.sh lfm samplers/lfm.json` rc=0; `bash run_v2b.sh minicpm samplers/minicpm.json` rc=0; `python3 score_v2b.py` rc=0; `python3 make_judge_pack_v2b.py` rc=0; final pack/output validation rc=0.
+
+## v2b blind judging, merged into v2 (2026-09-09 ~15:40 EDT)
+
+The 18 affected rows (`results/judge-pack-v2b.jsonl`, same per-row A/B mapping as v2 — `judge-key-v2b.json` agrees with `judge-key-v2.json` on all 18) were re-judged fresh by the same two judges (`judge-A-deepseek-v2b.jsonl`, `judge-B-mimo-v2b.jsonl`, 18/18 each). Unblinded by the orchestrator; the 18 v2b verdicts replace the v2 verdicts for those rows, the other 42 rows keep their v2 verdicts.
+
+| judge | rows | LFM wins | MiniCPM5 wins | tie | mean LFM | mean MiniCPM5 |
+|---|---|---|---|---|---|---|
+| deepseek, v2 (60) | 60 | 25 | 22 | 13 | 2.78 | 3.13 |
+| deepseek, the 18 rows at v2 | 18 | 0 | 15 | 3 | 0.39 | 2.83 |
+| deepseek, the 18 rows at v2b | 18 | 9 | 6 | 3 | 3.00 | 3.00 |
+| **deepseek, v2 merged with v2b** | 60 | **34** | **13** | 13 | 3.57 | 3.18 |
+| mimo, v2 (60) | 60 | 23 | 24 | 13 | 2.77 | 3.17 |
+| mimo, the 18 rows at v2 | 18 | 2 | 13 | 3 | 0.39 | 3.06 |
+| mimo, the 18 rows at v2b | 18 | 9 | 4 | 5 | 3.56 | 3.22 |
+| **mimo, v2 merged with v2b** | 60 | **30** | **15** | 15 | 3.72 | 3.22 |
+
+Per block, merged: bakeoff (44) deepseek 23/8/13, mimo 23/7/14; wild (16) deepseek 11/5/0, mimo 8/7/1.
+
+Caveats, all real: the 18 rows were judged in a separate session from the other 42 (a session effect is possible; both judges move the same way); 17 of the 18 are LFM-side repairs, so the flip measures what the harness round-cap had been costing LFM, not new MiniCPM5 weakness; wild rows are single-language and few.
+
+Artefact still in the pack, MiniCPM5 side: `bakeoff/fact_spa2000/fr` and `bakeoff/honesty_unknown/en` at `@256` have a bare `>` as the whole answer (`results/bakeoff-v2/minicpm@256.jsonl`, `finish=stop`, `predicted_n=258`, reasoning present): the 256-token thinking budget cut the reasoning and the forced close left `>` as content. 2/44 at `@256`, 0/44 at `@512`, 0 for LFM. This is a product risk for MiniCPM5 on the app's short budget (256), and a budget-enforcement/parser question for the fork, not a judging error.

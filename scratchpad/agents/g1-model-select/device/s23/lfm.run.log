@@ -1,0 +1,6 @@
+# full run header 2026-09-09
+# phone SM-S911U (S23) 192.168.1.152:5555 wireless adb
+# apk com.kalsa.app 0.1.0 sha256 cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45 (main@5707cfe, pm path pull + host shasum)
+# harness kalsa@5707cfe; models lfm2.5-2.6b + dev-minicpm5-2b (Q4_K_M 1561318368 B); prefs model.id=lfm2.5-2.6b devmodels=1
+# protocol: model blocks (24 x lfm, then 24 x dev-minicpm5-2b), PROTOCOL.md
+Wed Sep  9 11:40:11 EDT 2026

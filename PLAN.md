@@ -22,6 +22,17 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~15:40 EDT — G1 MAC, GIUDIZIO CIECO v2b UNITO A v2: IL QUADRO SI RIBALTA VERSO LFM** (giudici deepseek
+  5b79eee5 e mimo 020b69f0, 18/18 righe ciascuno, unblind mio con `judge-key-v2b.json` = `judge-key-v2.json` sulle 18).
+  A v2 i due giudici davano parità (25/22/13 e 23/24/13) perché 14 finali LFM erano vuoti per il tetto a 2 round
+  dello stub. Con la semantica dell'app (3 round, ultimo text-only, fallback) le 18 righe passano da LFM 0-2 vittorie
+  a 9, e il totale a 60 righe diventa **deepseek LFM 34 / MiniCPM5 13 / pari 13, mimo 30 / 15 / 15** (medie 3,57 vs
+  3,18 e 3,72 vs 3,22). Cautele scritte in `RESULTS-DEV.md`: sessione di giudizio separata per le 18; 17/18 sono
+  riparazioni lato LFM, quindi misura il costo che l'harness infliggeva a LFM, non una debolezza nuova di MiniCPM5.
+  Artefatto trovato nel pack: MiniCPM5 `@256` ha 2/44 risposte che sono solo `>` (`predicted_n=258`, il budget di
+  thinking 256 taglia il ragionamento e la chiusura forzata lascia `>`), 0/44 a `@512`, 0 per LFM → rischio prodotto
+  sul budget corto dell'app se MiniCPM5 vincesse, e domanda per il fork (enforcement del budget / parser).
+  Patch nativa dei timing: `e6d6aa0` su main (sync prima di `llama_perf_context`), APK in CI run 34393538176.
 - **9/09 ~15:00 EDT — FIX PREWARM VERIFICATO SUL JELLY (APK e168b4a, sha 3e59781e…): PASS** (Luna e1b923b9,
   `JELLY-PREWARM-2026-09-09.md` §Re-measure). MiniCPM5 a freddo: `op=start 14:24:10.063 → op=done 14:26:06.523`
   = 116,5 s (2112 token, 29 °C di partenza contro i 223 s a 47 °C della mattina), `promptMs=0/promptN=1` restano

@@ -103,6 +103,8 @@ device_state_snapshot() {
     printf 'battery_deci=%s\n' "$(device_battery_temp_deci)"
     printf 'battery_c=%s\n' "$(device_battery_temp_c)"
     printf 'battery_level=%s\n' "$(device_battery_level)"
+    adb shell dumpsys battery </dev/null 2>/dev/null | tr -d '\r' \
+      | awk '/^[[:space:]]*(AC powered|USB powered|status):/ {gsub(/[[:space:]]+/, " "); print}'
   } > "$outfile"
 }
 
@@ -183,7 +185,7 @@ wait_ready() {
   # mid-job and the turn dies with the "model changed or removed" bubble.
   while [ "$t" -lt "$READY_TIMEOUT" ]; do
     if adb logcat -d </dev/null 2>/dev/null \
-      | grep -qE 'KALSA_PREWARM \{"op":"done"\}|KALSA_PREWARM \{"op":"skip","reason":"eval-failed"'; then
+      | grep -qE 'KALSA_PREWARM.{0,24}"op":"(done|skip)"'; then
       log "ready after ${t}s (KALSA_PREWARM idle marker)"
       return 0
     fi
@@ -284,6 +286,121 @@ EOF
   return 1
 }
 
+# ── new-APK share semantics (APK main@5707cfe) ──────────────────────────
+# Measured on the S23 2026-09-09: with the docs/share fixes the kalsa://share
+# deep link APPENDS to the composer draft (it used to replace), and the draft
+# SURVIVES a submitted turn. Consequences:
+#   * a retry share duplicates the text ("Q\n\nQ") — the model then sees junk;
+#   * turn N+1 in a multi-turn case must not share into turn N's residue.
+# The old device_share_send() (kalsa repo) assumes replace-and-clear, so the
+# runner overrides it: composer must be EMPTY before the share, must equal the
+# needle exactly after, and the verdict tolerates the ~50-60 s the share cycle
+# takes (backgrounding -> re-init -> re-prewarm -> generation start) before
+# either the composer clears or the assistant count grows.
+device_app_relaunch() {  # fresh process = fresh draft; conversation reopens from the index
+  log "share: relaunching app to reset composer state"
+  adb shell am force-stop com.kalsa.app </dev/null >/dev/null 2>&1
+  sleep 3
+  adb logcat -c </dev/null >/dev/null 2>&1 || true
+  adb shell am start -n "$ACTIVITY" </dev/null >/dev/null 2>&1
+  wait_ready || { log "share: not ready after relaunch"; return 1; }
+}
+
+device_composer_state() {  # prints EMPTY|TEXT|<dump-failed>; no adb retry storm
+  local ui t
+  ui=$(device_dump_ui_retry 2>/dev/null || true)
+  [ -n "$ui" ] || { printf 'dump-failed\n'; return 1; }
+  t=$(device_composer_from_ui "$ui")
+  if [ -z "$t" ]; then printf 'EMPTY\n'; else printf 'TEXT:%s\n' "$t"; fi
+}
+
+# device_share_send <text> — override; see header comment. Returns 0 only when
+# the message provably left the composer (composer empty) or the conversation
+# gained an assistant row (count grew). Never waits for the reply.
+device_share_send() {
+  local msg="$1" needle nonce i rel state prev count t
+  [ -n "${msg//[[:space:]]/}" ] || { log "share: empty text"; return 1; }
+  mkdir -p "$OUT"
+  device_collapse_shade
+  device_tap_reload_if_needed || true
+  prev=$(device_history_assistant_count)
+  case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
+  needle=$(printf '%s' "$msg" | awk '{s=$0} END {if (length(s)>48) print substr(s,1,48); else print s}')
+
+  # 1) composer must start empty (a fresh launch left residues for turn 2+).
+  for rel in 1 2; do
+    state=$(device_composer_state)
+    case "$state" in
+      EMPTY) break ;;
+      TEXT:*) log "share: composer not empty before share (${state#TEXT:}...) -> relaunch $rel/2"
+              device_app_relaunch || return 1 ;;
+      *) log "share: composer probe failed pre-share -> relaunch $rel/2"
+         device_app_relaunch || return 1 ;;
+    esac
+    [ "$rel" -eq 2 ] && { log "share: composer never empty"; return 1; }
+  done
+
+  # 2) share ONCE; land = composer holds exactly the needle (append vs replace
+  #    makes substring checks unsafe: "Q\nQ" contains the needle).
+  for i in 1 2 3; do
+    nonce="${i}_$(date +%s)"
+    device_share_intent "$msg" "$nonce" || { log "share: am start failed"; continue; }
+    local t=0 landed=""
+    while [ "$t" -lt 24 ]; do
+      landed=$(device_composer_state)
+      case "$landed" in
+        "TEXT:$needle") break ;;
+        EMPTY) log "share: composer empty right after share (intent swallowed?) attempt $i"; : ;;
+        TEXT:*) log "share: composer mismatch after share (${landed#TEXT:}...) attempt $i"; : ;;
+        *) : ;;
+      esac
+      sleep 3
+      t=$((t + 3))
+    done
+    if [ "$landed" = "TEXT:$needle" ]; then
+      log "share: text landed alone in composer (attempt $i)"
+      break
+    fi
+    log "share: precise landing failed (attempt $i) -> relaunch + reshare"
+    device_app_relaunch || return 1
+  done
+  [ "$landed" = "TEXT:$needle" ] || { log "share: text never landed cleanly"; return 1; }
+
+  # 3) tap Invia once (label; content-desc on this APK). Re-dump before any
+  #    retry: the tap may have gone through but the dump flaked.
+  local sent=0
+  for i in 1 2 3; do
+    if ! tap_node "Send" && ! tap_node "Invia"; then
+      log "share: Send node not found after $i tries"
+      sleep 2
+      continue
+    fi
+    sent=1
+    break
+  done
+  [ "$sent" -eq 1 ] || { log "share: Send node never found"; return 1; }
+
+  # 4) verdict: warrant up to 120 s for the share cycle (background-foreground,
+  #    re-init, re-prewarm ~50 s, generation start) then composer-empty or
+  #    count growth. Dump failures are tolerated (retry next poll).
+  t=0
+  while [ "$t" -lt 120 ]; do
+    count=$(device_history_assistant_count)
+    case "$count" in ''|*[!0-9]*) count=0 ;; esac
+    [ "$count" -gt "$prev" ] && { log "share: submitted prev=$prev count=$count (count grew)"; return 0; }
+    state=$(device_composer_state)
+    case "$state" in
+      EMPTY) log "share: submitted (composer empty, prev=$prev)"; return 0 ;;
+      TEXT:*) : ;;  # still holding — share cycle in flight
+      *) : ;;       # dump flaked — keep polling
+    esac
+    sleep 5
+    t=$((t + 5))
+  done
+  log "share: message never left the composer (120 s, prev=$prev)"
+  return 1
+}
+
 # ── case body ─────────────────────────────────────────────────────────────
 run_case() {
   local case_id="$1" lang="$2" category="$3" turns_json="$4"
@@ -380,6 +497,12 @@ main() {
     lang=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["lang"])' "$line")
     category=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["category"])' "$line")
     turns=$(python3 -c 'import json,sys; c=json.loads(sys.argv[1]); print(json.dumps([t["content"] for t in c["turns"] if t["role"]=="user"], ensure_ascii=False))' "$line")
+    if [ -s "$OUT_JSONL" ]; then
+      if grep -oE '"id": *"[^"]+"' "$OUT_JSONL" | sed -E 's/"id": *"([^"]+)"/\1/' | sort -u | grep -qxF "$case_id"; then
+        log "skip $case_id (already recorded in $OUT_JSONL)"
+        continue
+      fi
+    fi
     n=$((n + 1))
     run_case "$case_id" "$lang" "$category" "$turns"
   done < "$CASES_FILE"

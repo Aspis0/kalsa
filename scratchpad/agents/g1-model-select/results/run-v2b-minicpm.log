@@ -1,0 +1,2 @@
+wrote=results/bakeoff-v2b/minicpm@256.jsonl cell=minicpm@256 selected=1 errors=0
+v2b complete model=minicpm wild=results/wild-v2b/minicpm.jsonl

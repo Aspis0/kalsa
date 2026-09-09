@@ -523,11 +523,12 @@ Plan: `kalsa/docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`. Detail and eviden
 |---|---|---|---|
 | **G1 Mac, dev corpus** | 48 deterministic cases per model, shipped prompt/sampler/budget, fork 67c73d26c CPU | LFM 2 FAIL, MiniCPM5 3 FAIL (same conversation-EN fail) | rubric cases judged separately |
 | **G1 Mac, blind judges v2** | 60 open rows, two independent judges (deepseek, mimo), A/B randomised per row, key never shown | A: LFM 25 / MiniCPM5 22 / tie 13; B: 23 / 24 / 13; agreement 43/60 | 14 LFM finals empty by a harness round-cap (v2b re-run in flight) |
+| **G1 Mac, blind judges v2 + v2b (app tool-loop semantics)** | the 18 rows the round-cap had emptied, re-judged fresh by both judges, merged into v2 | **A: LFM 34 / MiniCPM5 13 / tie 13; B: 30 / 15 / 15** (means 3.57 vs 3.18, 3.72 vs 3.22) | 18 rows judged in a separate session; 17/18 are LFM-side repairs; MiniCPM5 `@256` has 2/44 bare-`>` answers from the thinking-budget cut |
 | **G1 Mac, harness artefacts** | three, in opposite directions | prompt forced locale language (hurt MiniCPM5, fixed on main f77ea7b); no tool schemas offered (hurt LFM: raw tool syntax 15/44); 2-round cap without forced synthesis (hurt LFM: 14/60 empty) | only v2b counts for G1 |
 | **G1 Mac, language drift with the fixed prompt** | wild block, es/fr/de/pt/zh/ja + it/en | MiniCPM5 3/9 non-en/it prompts answered in English (W01, W02 es; W16 ja); LFM 0/9 | heuristic language detector |
 | **MiniCPM5 quants (Mac)** | PPL on one text, fork llama-perplexity | Q8_0 22.34 · Q4_K_M 23.55 · **Q4_K_M-imx 23.36** · Q4_0 26.19 · Q4_0-imx 24.64 | one text, one ctx; calibration disjoint from the G1 corpus |
 | **S23 restore, shipping config** | LFM, thinking ON, main@332aeed, force-stop → relaunch → turn | cold seed 37.9 s / 1811 tok; restore load 36 ms, n_past 2051, continuation prefill **562 ms**; one save per turn; disk estimate 1.01× | **n=1** (thermal status 3 at 42.7 °C stopped cycles 2-4, unplugged) |
-| **S23 dry run, both models** | G1 device runner, 2 cases × 2 models, ~2000-token cached prefix | decode LFM 9.5-10.4 vs MiniCPM5 6.5-6.6 tok/s; LFM prewarm 40 s / 1919 tok; MiniCPM5 prewarm **138 s / 2112 tok, promptN=1** (single-token ingest, cause open) | 4 cells; runner filtered native logs |
+| **S23 dry run, both models** | G1 device runner, 2 cases × 2 models, ~2000-token cached prefix | decode LFM 9.5-10.4 vs MiniCPM5 6.5-6.6 tok/s; LFM prewarm 40 s / 1919 tok; MiniCPM5 prewarm **138 s / 2112 tok** (`promptN=1` was a perf-accounting artefact, fixed e168b4a; real prefill ~15 vs ~48 tok/sgest, cause open) | 4 cells; runner filtered native logs |
 | **Jelly document chat, shipped LFM** | 5 scenarios, 1-page + 40-page PDFs, same questions before/after | main@332aeed **1/5** → main@5707cfe **7/7** (retrieval reached p.3/17/31 with page cited) | 2.8-3.7 tok/s, 119-417 s per answer, thermal status 3 constant |
 | **S23 share intents** | 3 states × 2 intents | cold VIEW and cold SEND-text: FAIL on 332aeed → **PASS on 5707cfe**; SEND pdf from adb denied by MediaProvider (harness limit, needs a real app share) | uiautomator dump dies intermittently on One UI (rc=164) |
 
@@ -537,6 +538,6 @@ conversation hydration, 100-minute extraction timeout → 180 s with partial tex
 `dev-minicpm5-2b` with one-time sha256 verification (7836db7).
 
 Open, with numbers attached: tool turns make the session unsaveable → cold reopen after a tool/document chat
-(`session-contract/TOOL-ROUND-RECON.md`, three fix shapes); MiniCPM5 single-token prewarm on the S23 (Jelly
-measurement in flight); `decideDocStrategy` sends up to half the context to full_context regardless of the phone's
+(`session-contract/TOOL-ROUND-RECON.md`, three fix shapes); MiniCPM5 prefill 3× slower than LFM on the S23 and 1.7× on the Jelly (repack path
+question, the prewarm "single-token" reading was an accounting artefact, fixed e168b4a and verified on the Jelly); `decideDocStrategy` sends up to half the context to full_context regardless of the phone's
 prefill budget (minutes on the Jelly); background embedding reached 707 chunks without a `done` line.

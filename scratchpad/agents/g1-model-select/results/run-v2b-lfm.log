@@ -1,0 +1,4 @@
+wrote=results/wild-v2b/lfm.jsonl selected=1 errors=0
+wrote=results/bakeoff-v2b/lfm@256.jsonl cell=lfm@256 selected=18 errors=0
+wrote=results/bakeoff-v2b/lfm@512.jsonl cell=lfm@512 selected=19 errors=0
+v2b complete model=lfm wild=results/wild-v2b/lfm.jsonl

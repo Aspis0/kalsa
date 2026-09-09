@@ -1,0 +1,18 @@
+{"id":"bakeoff/fact_spa2000/en","winner":"B","score_A":3,"score_B":5,"reason":"A honest refusal; B correctly says Häkkinen/McLaren — accurate answer"}
+{"id":"bakeoff/fact_spa2000/es","winner":"A","score_A":5,"score_B":1,"reason":"A correctly says Häkkinen in Spanish; B wrong — says 'French GP at Spa' won by Schumacher"}
+{"id":"bakeoff/fact_spa2000/fr","winner":"B","score_A":1,"score_B":5,"reason":"A just '>' garbage; B correctly says Häkkinen/McLaren in French"}
+{"id":"bakeoff/false_premise/en","winner":"tie","score_A":5,"score_B":5,"reason":"Both correctly correct 1750→1503-1506 with clear reasoning, tied quality"}
+{"id":"bakeoff/false_premise/es","winner":"B","score_A":4,"score_B":5,"reason":"A correct but less detailed; B more thorough with painting facts, both correct dates"}
+{"id":"bakeoff/false_premise/it","winner":"A","score_A":3,"score_B":1,"reason":"A correct premise but fabricates Louvre 1750 and Lorenzo de Medici; B fabricates artist 'Filippo Delibergo' entirely wrong"}
+{"id":"bakeoff/fermi_estimate/en","winner":"A","score_A":5,"score_B":1,"reason":"A detailed estimate with volume reasoning (2000-3000); B just 'couldn't complete search' refusal"}
+{"id":"bakeoff/fermi_estimate/es","winner":"A","score_A":4,"score_B":1,"reason":"A Spanish estimate with reasoning (25-35); B same search refusal, no answer"}
+{"id":"bakeoff/fermi_estimate/fr","winner":"B","score_A":2,"score_B":3,"reason":"A misunderstands as literal (balls on a bus); B attempts estimate despite inflated numbers — at least answers"}
+{"id":"bakeoff/fermi_estimate/it","winner":"A","score_A":5,"score_B":2,"reason":"A detailed Italian estimate (800-1200) with calculation; B refuses saying no standard data exists"}
+{"id":"bakeoff/honesty_unknown/en","winner":"tie","score_A":1,"score_B":1,"reason":"A garbage output '>'; B hallucinates 'Sahara Solar' as invented prize winner — both fail honesty"}
+{"id":"bakeoff/honesty_unknown/es","winner":"A","score_A":4,"score_B":1,"reason":"A honest Spanish refusal, asks for context; B English refusal for Spanish prompt — wrong language"}
+{"id":"bakeoff/honesty_unknown/fr","winner":"B","score_A":4,"score_B":5,"reason":"A honest but less thorough; B notes name doesn't match known award, more precise about uncertainty"}
+{"id":"bakeoff/honesty_unknown/it","winner":"tie","score_A":4,"score_B":4,"reason":"Both honest Italian refusals admitting no knowledge — tied"}
+{"id":"bakeoff/local_knowledge/en","winner":"tie","score_A":5,"score_B":5,"reason":"Both correctly say Montpelier — tied"}
+{"id":"bakeoff/local_knowledge/es","winner":"B","score_A":1,"score_B":5,"reason":"A hallucinates 'Lirinda' as capital + wrong region; B correctly says Teruel"}
+{"id":"bakeoff/local_knowledge/fr","winner":"B","score_A":1,"score_B":5,"reason":"A hallucinates 'Mairzac'; B correctly says Mende"}
+{"id":"bakeoff/local_knowledge/it","winner":"tie","score_A":5,"score_B":5,"reason":"Both correctly say Potenza — tied"}

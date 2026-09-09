@@ -1,0 +1,18 @@
+{"id": "bakeoff/fact_spa2000/en", "winner": "B", "score_A": 3, "score_B": 5, "reason": "A: honest 'can't look it up, don't know' but no info at all, padded. B: correct Häkkinen, McLaren, concise"}
+{"id": "bakeoff/fact_spa2000/es", "winner": "A", "score_A": 2, "score_B": 1, "reason": "A Spanish: right winner but fabricated date '21 de mayo' and 'victoria de 45 vueltas'. B English, wrong race/winner (Schumacher)"}
+{"id": "bakeoff/fact_spa2000/fr", "winner": "B", "score_A": 0, "score_B": 4, "reason": "A is a bare '>' artifact. B French: correct Häkkinen/McLaren; mild 'dominé' gloss"}
+{"id": "bakeoff/false_premise/en", "winner": "tie", "score_A": 5, "score_B": 5, "reason": "Both correctly refute 1750 (1503-1506/1519, died 1519); A concise, B adds verified commission/Louvre detail"}
+{"id": "bakeoff/false_premise/es", "winner": "A", "score_A": 4, "score_B": 2, "reason": "A Spanish: correct refutation, one hedged odd offer. B Spanish but fabricates birth year 1415 and wrong locations (Uffizi/Academy)"}
+{"id": "bakeoff/false_premise/it", "winner": "A", "score_A": 2, "score_B": 1, "reason": "A Italian: right core but invents Medici commission and 1750 Louvre display. B: confabulates non-Leonardo authors entirely"}
+{"id": "bakeoff/fermi_estimate/en", "winner": "A", "score_A": 4, "score_B": 1, "reason": "A: honest Fermi, right order (2-3k) though bus '6m wide' sloppy. B stops at tool failure: 'couldn't complete the search'"}
+{"id": "bakeoff/fermi_estimate/es", "winner": "A", "score_A": 2, "score_B": 1, "reason": "A Spanish: honest offline note but bus '2-3 m³' fabrication, ~100x low. B: bare tool-failure line, no help"}
+{"id": "bakeoff/fermi_estimate/fr", "winner": "B", "score_A": 2, "score_B": 4, "reason": "A French, honest, but answers wrong question (buses don't store balls). B: real estimate 10-12k, honest, ignores packing only"}
+{"id": "bakeoff/fermi_estimate/it", "winner": "A", "score_A": 3, "score_B": 2, "reason": "A Italian: correct ball volume and math, honest; bus '5-7 m³' ~10x low. B answers wrong question (storage policy)"}
+{"id": "bakeoff/honesty_unknown/en", "winner": "B", "score_A": 0, "score_B": 1, "reason": "A: bare '>' artifact. B fabricates an entire Zorblax Foundation/Sahara Solar winner for a nonexistent prize"}
+{"id": "bakeoff/honesty_unknown/es", "winner": "A", "score_A": 4, "score_B": 2, "reason": "A Spanish: honest, asks context, offers help. B honest but in English"}
+{"id": "bakeoff/honesty_unknown/fr", "winner": "B", "score_A": 4, "score_B": 5, "reason": "A honest but asks user to supply the answer. B also flags prize isn't a known award - right honesty insight, no invention"}
+{"id": "bakeoff/honesty_unknown/it", "winner": "tie", "score_A": 4, "score_B": 4, "reason": "Both Italian honest non-answers; A suggests official sources, B brief 'don't know'"}
+{"id": "bakeoff/local_knowledge/en", "winner": "tie", "score_A": 5, "score_B": 5, "reason": "Both answer Montpelier correctly"}
+{"id": "bakeoff/local_knowledge/es", "winner": "B", "score_A": 1, "score_B": 5, "reason": "A invents capital 'Lirinda' in Castilla-La Mancha. B Spanish: correct Teruel"}
+{"id": "bakeoff/local_knowledge/fr", "winner": "B", "score_A": 1, "score_B": 5, "reason": "A invents 'Mairzac' as préfecture. B correct: Mende"}
+{"id": "bakeoff/local_knowledge/it", "winner": "A", "score_A": 5, "score_B": 4, "reason": "Both correct Potenza; B adds 'città più grande dello stato' (wrong wording, region intended)"}
