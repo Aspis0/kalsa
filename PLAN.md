@@ -12,7 +12,7 @@
 
 ---
 
-# ⭐ STATO CORRENTE — vista compatta (2026-09-07 16:10, PIVOT PRODOTTO)
+# ⭐ STATO CORRENTE — vista compatta (2026-09-09 notte, PIVOT PIANO PRATICO)
 
 ## Il goal (owner, ripetuto 4/09)
 Kernel che usa NPU, GPU e CPU **per fase** a seconda di temperatura, batteria e
@@ -22,6 +22,30 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 notte — OWNER TORNATO, PIVOT SUL PIANO PRATICO `kalsa/docs/PROPOSTA-OTTIMIZZAZIONE-CHAT-2026-09-08.md`**
+  (criterio: una conversazione intera che funziona nell'APK; G0 il 9/09, G1 scelta LFM2.5-2.6B vs MiniCPM5-2B
+  il 15/09, M1 il 9/10). ALIVE e PLAN restano in uso; il diario è qui. Owner: "stiamo rallentando facendo
+  migliaia di test per il prefill" → le code di prefill (q4_K in-app, 732/735/8 Elite, residuo 5×) sono FERME.
+  **Correzione a verbale: "V75 acceso" era FALSO** — `V75:true` è una riga di tabella, il governor parte solo
+  con `kalsa.governor.enabled=1` in AsyncStorage, che nessun file dell'app scrive (solo il driver QDC):
+  installazione pulita = CPU-only ovunque. Presente ≠ abilitato ≠ eseguito (PROPOSTA §14).
+  **Repo app ripulito (decisione owner "si mergia tutto, si lavora solo su main")**: `main` @9e90f99 =
+  fast-forward di `feat/governor-ux` (governor v0.3 + UX + pin fork 67c73d26c) + merge `lot-a/chat-ui`
+  (7 commit UX, 2 conflitti risolti keep-both) + merge `bench-dev-models` (catalogo GGUF dev opt-in,
+  `kalsa.bench.devmodels`, 6 conflitti risolti HEAD-first, una classe duplicata rimossa); typecheck 0,
+  jest mirati 12/12 e 59/59. NON mergiati, archiviati come tag `archive/*` (17, pushati): `bench/fault-inject-apk`
+  (pin guasto THROWAWAY; i suoi fix di banco erano già su main in altra forma), `chore/engine-pin-12f6d9b6d`
+  (pin di lignaggio diverso: i 3 pick upstream #53 vanno portati nel ramo fork che l'app pinna, task aperto),
+  `chore/repo-reorg*`, `bench/kvtranscript-probe`, `bench/jelly-minsdk33*` (main ha già minSdk 33 dal 22/08).
+  Tutti i rami locali e remoti cancellati, 7 worktree rimossi (log agenti 4-5/09 spostati in
+  `_kalsa_archive/wt-governor-logs-2026-09-05`). `node_modules/llama.rn` reinstallato pulito (la patch
+  governor non si applicava sopra lo stato del vecchio ramo).
+  **Telefoni**: Xiaomi 14 in LAN (192.168.1.193) ma debug wireless SPENTO (5555 rifiutata, niente mDNS):
+  serve un tocco sul telefono o USB domani; S23 e Jelly domani. Nessun manifest device ancora.
+  **G0 in volo (Paseo)**: kit MiniCPM5 + build fork 67c73d26c CPU-only su Mac (Luna 37bd9e6c), corpus 80
+  casi + runner (Luna 131645cd), recon config spedita dall'app (deepseek 10d2cc82) →
+  `scratchpad/agents/g1-model-select/`. Il confronto qualità si fa su macOS con le stesse quant del telefono
+  (come si faceva su PC), i telefoni servono per tempi/memoria/termica.
 - **7/09 sera — la campagna kernel è CHIUSA sulla causa; la fase nuova è il governor nell'app (ALIVE 56-59).**
   Cinque assi refutati **per misura** (attenzione, flag del compilatore, accumulatore f16, dequantizzazione,
   precisione dell'operando in memoria): **l'unica cosa che muove la divergenza è la moltiplicazione in f16**, di 95,8×.
