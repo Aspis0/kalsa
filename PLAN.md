@@ -22,6 +22,14 @@ che è già misurato/deciso/implementato: `docs/GOVERNOR-STATE-2026-09-04.md`
 (116 righe, citazioni file:riga verificate dall'orchestratore).
 
 ## Dove siamo (fatti, non opinioni)
+- **9/09 ~14:40 EDT — FIX PREWARM COMMITTATO: `e168b4a` su main** (Luna 53f7ade9, audit mimo 9f763325: 0 rilievi
+  bloccanti, criterio CONFERMATO su decode fallita / interrupt / prefisso pieno / context full). Criterio nuovo in
+  `src/engine/prefixPrewarm.ts::classifyPrewarmResult`: nessun errore nativo, non interrotto, zero token generati,
+  `tokens_evaluated > 0 && tokens_cached >= tokens_evaluated` (`n_past` avanza solo dopo una decode riuscita,
+  `rn-completion.cpp:1143-1157`); `promptMs/promptN` restano nel log come diagnostica. 6 test, tsc pulito.
+  Nota dell'audit: `result.error` non viene mai valorizzato sul percorso diretto `engine.completion()` (solo su
+  quello a coda), il guard resta per difesa. APK debuggable arm64 in CI (run 34384060378); poi ri-misura del prewarm
+  MiniCPM5 sul Jelly con logcat completo, attesa `op=done`.
 - **9/09 ~14:00 EDT — PREWARM MiniCPM5: LA CAUSA È TROVATA, E LA LETTURA DELLE 12:30 ERA SBAGLIATA** (misura Jelly a
   logcat completo, Luna e1b923b9, `product-suite/JELLY-PREWARM-2026-09-09.md` + verifica mia sul sorgente, righe
   citate nel report). Non è ingest a token singoli: è un **artefatto di contabilità dei contatori perf**. Catena:
