@@ -66,6 +66,7 @@ import {
   getEmbeddingModelStatus,
   listDocumentChunksForEmbed,
   planChunksToEmbed,
+  shouldLogEmbedProgress,
   releaseEmbedder,
   markEmbedderHung,
   isEmbedderHung,
@@ -1818,6 +1819,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         existing.add(embedChunkKey(chunk.chunkId, chunk.contentHash));
         embeddedCount += 1;
+
+        // Deterministic progress telemetry: every 50th chunk and the final
+        // planned chunk. Pure predicate keeps interval/final single-fire
+        // semantics; terminal `[embed] done` logging is unchanged.
+        if (shouldLogEmbedProgress(embeddedCount, toEmbed.length)) {
+          // eslint-disable-next-line no-console
+          console.log(
+            `[embed] progress {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"total":${toEmbed.length}}`,
+          );
+        }
 
         // ── FIX A: semantic-map ownership at commit ─────────────────────────
         // Invariant: the READ latch blocks concurrent delete, but ownership

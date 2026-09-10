@@ -1,6 +1,7 @@
 /**
  * Harness for pure helpers in src/engine/embeddingPure.ts
- * (hash, prefixes, degrade gate, planChunksToEmbed, listDocumentChunksForEmbed).
+ * (hash, prefixes, degrade gate, planChunksToEmbed, listDocumentChunksForEmbed,
+ * shouldLogEmbedProgress).
  *
  * Compile-from-disk pattern. llama.rn / ModelDownloader paths are OUT of scope.
  * Exit 1 on fail. ≥8 cases.
@@ -78,6 +79,7 @@ async function main() {
     applyEmbedPrefix,
     listDocumentChunksForEmbed,
     planChunksToEmbed,
+    shouldLogEmbedProgress,
   } = mod;
 
   let passed = 0;
@@ -265,6 +267,33 @@ async function main() {
       );
       assert(typeof c.text === "string" && c.text.length > 0, "empty text");
     }
+  });
+
+  // 10b. shouldLogEmbedProgress — interval + final, no duplicate at boundary
+  check("shouldLogEmbedProgress fires at 50-multiples and final, once each", () => {
+    assert(shouldLogEmbedProgress(50, 707) === true, "50/707 must log");
+    assert(shouldLogEmbedProgress(51, 707) === false, "51/707 must not log");
+    assert(shouldLogEmbedProgress(701, 707) === false, "701/707 must not log");
+    assert(shouldLogEmbedProgress(707, 707) === true, "final 707/707 must log");
+    assert(shouldLogEmbedProgress(30, 30) === true, "final short job must log");
+    assert(shouldLogEmbedProgress(0, 707) === false, "zero must not log");
+    assert(shouldLogEmbedProgress(1.5, 10) === false, "non-integer must not log");
+    const hits = [];
+    for (let embedded = 1; embedded <= 250; embedded += 1) {
+      if (shouldLogEmbedProgress(embedded, 250)) hits.push(embedded);
+    }
+    assert(
+      JSON.stringify(hits) === JSON.stringify([50, 100, 150, 200, 250]),
+      `expected [50,100,150,200,250], got [${hits.join(",")}]`,
+    );
+    const boundary = [];
+    for (let embedded = 1; embedded <= 100; embedded += 1) {
+      if (shouldLogEmbedProgress(embedded, 100)) boundary.push(embedded);
+    }
+    assert(
+      JSON.stringify(boundary) === JSON.stringify([50, 100]),
+      `final boundary must not duplicate: [${boundary.join(",")}]`,
+    );
   });
 
   // 11. empty / bad inputs

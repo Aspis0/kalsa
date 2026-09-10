@@ -54,6 +54,7 @@ import {
   listDocumentChunksForEmbed,
   planChunksToEmbed,
   shouldDegradeToBm25Only,
+  shouldLogEmbedProgress,
 } from "./embeddingPure";
 
 // Re-export pure surface so app callers can import from EmbeddingService alone.
@@ -64,6 +65,7 @@ export {
   listDocumentChunksForEmbed,
   planChunksToEmbed,
   shouldDegradeToBm25Only,
+  shouldLogEmbedProgress,
 };
 export type { EmbeddableChunk };
 
