@@ -45,6 +45,7 @@ import {
   Languages,
   Menu,
   MoreHorizontal,
+  RefreshCw,
   Scale,
   Search,
   Sparkles,
@@ -89,6 +90,7 @@ import {
   sendClaimRef,
   sendingInFlightRef,
 } from "../engine/regenState";
+import { canRegen, editedFlagForResend, findRegenTarget } from "./regenTarget";
 import { decidePreSendFit } from "../engine/deviceProfile";
 import { resolveAdmissionModel } from "../engine/admissionModel";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
@@ -3073,8 +3075,10 @@ export function AiChatPage({
   }, [onNewConversation, persistActiveMessages, setVoicePhase]);
 
   /**
-   * Edit a user message then generate from that point.
-   * Atomic splice (edited flag) + truncate + handleSend(newText).
+   * Truncate at a user message then generate from that point.
+   * Atomic splice + truncate + handleSend(newText). Two callers share it:
+   * Edit → Save (text changed, badge on) and Regenerate (text unchanged,
+   * `{ edited: false }` so the bubble carries no edited badge).
    *
    * Generation-gated body (round-4): after every await and before each
    * setMessages (truncate / stamp / rollback), abort if generation moved.
@@ -3083,7 +3087,9 @@ export function AiChatPage({
     async (
       targetMsgId: string,
       newText: string,
+      opts?: { edited?: boolean },
     ): Promise<{ ok: true } | { ok: false; reasonKey: string }> => {
+      const editedFlag = editedFlagForResend(opts);
       const trimmed = newText.trim();
       if (
         regenInFlightRef.current ||
@@ -3153,11 +3159,11 @@ export function AiChatPage({
           }
           return { ok: false, reasonKey: "chat.regenFailed" };
         }
-        // handleSend appends the user bubble with edited:true at creation so
-        // a live stream cannot be patched mid-flight (and the badge is on
-        // the bubble from the first paint).
+        // handleSend appends the user bubble with the edited flag at creation
+        // so a live stream cannot be patched mid-flight (and the badge is on
+        // the bubble from the first paint). Regenerate passes edited:false.
         const sendResult = await handleSendTracked(trimmed, target.attachments, {
-          edited: true,
+          edited: editedFlag,
         });
         // clearChat during handleSend: do not rollback into the new chat.
         if (regenGenerationRef.current !== myGeneration) {
@@ -4203,6 +4209,26 @@ export function AiChatPage({
                     onPress={() => {
                       setEditingMessage({ id: messageMenu.id, draft: messageMenu.text });
                       setMessageMenu(null);
+                    }}
+                    colors={colors}
+                  />
+                ) : null}
+                {canRegen(messageMenu.role, sending) ? (
+                  <AttachSheetRow
+                    icon={<RefreshCw size={18} color={colors.ink} />}
+                    label={t("chat.regen")}
+                    testID="message-action-regen"
+                    onPress={() => {
+                      const target = findRegenTarget(messagesRef.current, messageMenu.id);
+                      setMessageMenu(null);
+                      if (!target) {
+                        showVoiceNote(t("chat.regenFailed"));
+                        return;
+                      }
+                      void editMessage(target.id, target.text, { edited: false }).then((res) => {
+                        if (!mountedRef.current) return;
+                        if (!res.ok) showVoiceNote(t(res.reasonKey as any));
+                      });
                     }}
                     colors={colors}
                   />

@@ -509,6 +509,7 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     a11ySend: "Send",
     more: "More",
     edit: "Edit",
+    regen: "Regenerate",
     regenBusy: "Already regenerating",
     unloaded: "Unloaded due to memory pressure",
     lazyReload: "Tap to reload",
