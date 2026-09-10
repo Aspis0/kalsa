@@ -57,4 +57,29 @@ describe("createBackgroundGrace", () => {
     jest.runAllTimers();
     expect(run).not.toHaveBeenCalled();
   });
+
+  test("supports an injected handle type", () => {
+    type FakeHandle = { token: string };
+    let pendingRun: (() => void) | null = null;
+    const handle: FakeHandle = { token: "native-1" };
+    const grace = createBackgroundGrace<FakeHandle>({
+      graceMs: 1000,
+      setTimeout: (run) => {
+        pendingRun = run;
+        return handle;
+      },
+      clearTimeout: (value) => {
+        expect(value).toBe(handle);
+        pendingRun = null;
+      },
+    });
+    const run = jest.fn();
+
+    grace.onBackground(run);
+    expect(pendingRun).not.toBeNull();
+    pendingRun!();
+
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(grace.isPending()).toBe(false);
+  });
 });

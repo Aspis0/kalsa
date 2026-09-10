@@ -1,0 +1,10 @@
+{
+  "name": "kalsa-lifecycle",
+  "version": "0.1.0",
+  "description": "Kalsa Android lifecycle timer and memory-pressure bridge.",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "peerDependencies": {
+    "expo-modules-core": "*"
+  }
+}

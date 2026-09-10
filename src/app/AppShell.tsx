@@ -200,7 +200,12 @@ import {
 } from "../engine/ttftFlags";
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { createBackgroundGrace } from "./backgroundGrace";
+import { createBackgroundTimer } from "./backgroundTimer";
 import { backgroundDiscardPlan } from "./backgroundDiscardPlan";
+import {
+  addTrimMemoryListener,
+  TRIM_MEMORY_BACKGROUND,
+} from "../../modules/kalsa-lifecycle/src";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { loadNotesIndex, readNote, saveNote } from "../notes/NotesStore";
 import {
@@ -2818,10 +2823,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Foreground -> evaluateModelFit; only allow lazy restore when fits|tight. Never auto-load.
   useEffect(() => {
     let disposed = false;
+    const backgroundTimer = createBackgroundTimer();
+    console.info(
+      "background.grace",
+      JSON.stringify({ timer: backgroundTimer.source }),
+    );
     const backgroundGrace = createBackgroundGrace({
       graceMs: BACKGROUND_DISPOSE_GRACE_MS,
-      setTimeout,
-      clearTimeout,
+      setTimeout: backgroundTimer.setTimeout,
+      clearTimeout: backgroundTimer.clearTimeout,
     });
     type BackgroundDiscard = {
       genAtEntry: number | null;
@@ -2838,7 +2848,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       discardInFlightRef.current = false;
       discardGenerationRef.current += 1;
     };
-    const requestDeferredDispose = (discard: BackgroundDiscard) => {
+    const requestDeferredDispose = (
+      discard: BackgroundDiscard,
+      trimLevel?: number,
+    ) => {
       if (discard.finished || discard.disposeRequested) return;
       discard.disposeRequested = true;
       void (async () => {
@@ -2857,7 +2870,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
           const plan = backgroundDiscardPlan({
             state:
-              AppState.currentState === "background"
+              (AppState.currentState === "background" ||
+                (trimLevel !== undefined && AppState.currentState !== "active"))
                 ? "background_expired"
                 : AppState.currentState,
             pendingGrace: false,
@@ -2891,10 +2905,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 setMemoryBannerKey("chat.unloaded");
                 console.info(
                   "model.unload",
-                  JSON.stringify({
-                    reason: "background",
-                    graceMs: BACKGROUND_DISPOSE_GRACE_MS,
-                  }),
+                  JSON.stringify(
+                    trimLevel === undefined
+                      ? {
+                          reason: "background",
+                          graceMs: BACKGROUND_DISPOSE_GRACE_MS,
+                        }
+                      : { reason: "trim", level: trimLevel },
+                  ),
                 );
               }
             } catch {
@@ -3138,8 +3156,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
       },
     });
+    const trimMemorySubscription = addTrimMemoryListener((level) => {
+      if (
+        disposed ||
+        level < TRIM_MEMORY_BACKGROUND ||
+        AppState.currentState === "active" ||
+        !backgroundGrace.isPending()
+      ) {
+        return;
+      }
+      const discard = pendingBackgroundDiscard;
+      if (!discard) return;
+      if (backgroundGrace.cancel()) {
+        console.info(
+          "background.grace",
+          JSON.stringify({ cancelled: true, reason: "trim", level }),
+        );
+      }
+      requestDeferredDispose(discard, level);
+    });
     return () => {
       disposed = true;
+      trimMemorySubscription?.remove();
       cancelBackgroundGrace();
       handle.stop();
     };
