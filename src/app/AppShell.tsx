@@ -382,6 +382,12 @@ const DOWNLOAD_PROGRESS_NOTIFICATION_ID = "kalsa-model-download-progress";
 /** Never post a notification update more than once per this window. */
 const DOWNLOAD_NOTIFY_THROTTLE_MS = 2_000;
 const SEARCH_DEBOUNCE_MS = 180;
+/**
+ * Model-switch engine dispose must be bounded: when handleStop's abort does not
+ * settle the in-flight native completion, the unbounded native-op FIFO would
+ * hang dispose forever and pin the UI on "checking". Refuse after this deadline.
+ */
+const MODEL_SWITCH_DISPOSE_TIMEOUT_MS = 5_000;
 
 /**
  * Untranslated on-device diagnostic string from a thrown value.
@@ -3954,13 +3960,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Epoch checks discard any delayed writes after the engine is gone.
       void (async () => {
         if (memoryExtractRef.current) {
+          let memoryExtractTimer: ReturnType<typeof setTimeout> | undefined;
           try {
             await Promise.race([
               memoryExtractRef.current,
-              new Promise<void>((resolve) => setTimeout(resolve, 3000)),
+              new Promise<void>((resolve) => {
+                memoryExtractTimer = setTimeout(resolve, 3000);
+              }),
             ]);
           } catch {
             // ignore
+          } finally {
+            // Keep the 3s bound, but never leak the timer when extraction wins.
+            if (memoryExtractTimer !== undefined) clearTimeout(memoryExtractTimer);
           }
           memoryExtractRef.current = null;
         }
@@ -3982,7 +3994,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
           // FIX 1 / round 7: dispose inside runNativeOp so chat release cannot
           // overlap an in-flight embed op (never-overlap invariant).
-          await runNativeOp(() => disposeEngine());
+          // Bounded: a hung native completion (the case handleStop's 3s watchdog
+          // recovers from) must not hold the FIFO forever and leave the UI stuck
+          // on "checking". Emptiness check + enqueue are atomic; on timeout we
+          // refuse WITHOUT enqueueing behind the possibly-hung op.
+          const disposeResult = await runNativeOpBounded(
+            () => disposeEngine(),
+            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+          );
+          if (!disposeResult.ok) {
+            console.warn(
+              `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
+            );
+            setModelState("error");
+            setModelErrorKind("engine");
+            setModelError(t("errors.engineDisposeTimeout"));
+            setModelErrorDetail(null);
+          }
         } catch {
           // ignore
         } finally {
@@ -3992,7 +4020,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
       })();
     },
-    [modelIndex, modelState],
+    [modelIndex, modelState, t],
   );
 
   /** Settings: select by model id (same storage key + engine dispose path). */
@@ -4007,12 +4035,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           void (async () => {
             try {
               const t0 = Date.now();
-              while (sendClaimRef.current && Date.now() - t0 < 5000) {
+              // Wait for the pre-await claim AND any in-flight native send to
+              // clear: the watchdog frees the claim first, but the native
+              // completion can lag past it.
+              while (
+                (sendClaimRef.current || sendingInFlightRef.current) &&
+                Date.now() - t0 < 5000
+              ) {
                 await new Promise((r) => setTimeout(r, 50));
               }
-              // Timed out still claimed: drop queue so a late dispose cannot
-              // land mid-stream without a fresh user action.
-              if (sendClaimRef.current) {
+              // Timed out still claimed/in-flight: drop queue so a late dispose
+              // cannot land mid-stream without a fresh user action.
+              if (sendClaimRef.current || sendingInFlightRef.current) {
                 drainPendingModelSwitch();
                 return;
               }
