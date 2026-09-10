@@ -3981,3 +3981,68 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   lingua; stesso prompt e tool loop), 24 × LFM poi 24 × MiniCPM5, gate termico del protocollo, monitoraggio per righe,
   probe >48 caratteri prima del braccio. Stima 12-16 h → SCORE.md domani mattina.
 
+
+- **9/09 sera (21:00–22:45) — tre telefoni in sweep, S23 rivela un bug prestazionale, canale opencode-go finito.**
+  (1) **S23**: owner scollega il telefono alle 21:15 (52 %, 37 °C). Il supervisore deepseek `s23/supervisor.sh`
+  rilanciava il braccio MiniCPM5 a ogni giro (tre runner concorrenti 21:13/21:15/21:17): ucciso, log tenuto in
+  `s23/minicpm.run.contaminated-3runners-2113.log`, un runner solo rilanciato a mano 21:20. `lfm.out.jsonl` S23 =
+  33 righe / 24 id (9 rilanci ok): lo score prende la prima riga ok per id. Braccio MiniCPM5 fermato dal watchdog
+  dopo 5 casi: C01 ok 410 s, C02 ok 537 s (decode 6,9 tok/s), C03/C04 banner `turnInterrupted` (motore smontato a
+  metà turno), C05 `reply_timeout` 480 s con prewarm 2112 token in 286 s (7,4 tok/s) e **15 token in 260 s (0,06
+  tok/s)**, `failed to mlock 375 MB: Out of memory`, swap 2 GB/4 GB usati, `traced`+`traced_perf` attivi (431 MB).
+  Batteria 52 % → 28 % in 65 min per 5 domande: **l'owner lo classifica bug prestazionale da risolvere** (PLAN
+  "Aperti", prima voce). APK S23 ancora 5707cfe. Rifare domani a telefono carico e freddo, timeout 900 s, memoria
+  campionata per turno. (2) **Jelly**: LFM 20/24 ok; M02 `send_failed` al turno 4 (turno 3 "settled" dopo 25 s a
+  stato termico 3, poi nessun nodo Send: ipotesi falso settle del runner, non bug app); M03 `NOT ready after 600 s`
+  a telefono caldo. Luna e1b923b9 riprende alle 22:40 con i 4 casi mancanti (M02, M03, T09, T11) poi MiniCPM5
+  completo, stop solo dopo 3 non-ok consecutivi. (3) **Xiaomi 14** (owner lo concede 21:15): adb TLS
+  `192.168.1.193:35049` (porta da mDNS, la 5555 è chiusa), APK 4b29466 con `install -r` (dati tenuti), MiniCPM5
+  Q4_K_M spinto (sha ec2d5801…), 80 % scarico, 32 °C. Sweep di Luna 67865c00 (`xiaomi/supervise_g1.sh`, floor
+  30 %): 21 righe LFM ok in 53 min (~2,5 min/caso, 97 s il C01), 40 °C a 66 %. (4) **Mac**: runner committato
+  c24d4e5d; split di `documentChatTool.ts` 1566 → 15 moduli + entry 38 righe (Luna 54bc9812, tsc 0, 45 test) in
+  audit su GLM 5.3 (openrouter); ricognizione embedding senza `done` (mimo, file completo prima del 429): tutte le
+  uscite chiamano `logEmbedDone` tranne il `catch` esterno `AppShell.tsx:1891` che logga solo `skip: job
+  exception` → verdetto buco di log (finestra di cattura), fix difensivo minimo in corso; analisi budget di
+  thinking sui dati passata a Luna 131645cd. (5) **Canale**: opencode-go (deepseek, mimo, omen) quota mensile
+  finita ~22:30, reset ~15/09; i 400 "senza body" di prima erano già la quota. Audit → GLM via openrouter.
+
+- **9/09 22:35–23:00 — Xiaomi perso due volte, braccio MiniCPM5 rinviato; owner a letto.** LFM sullo Xiaomi 14:
+  **24/24 ok** in 53 min (T11 121 s). Poi (1) 22:34 gate termico del supervisore Luna in `unknown` (pattern
+  `Current thermal status:`, i telefoni stampano `Thermal Status:`), senza timeout; (2) 22:36 kill del supervisore
+  → trap EXIT del runner cancella `screen_off_timeout` → schermo spento → keyguard SICURO (PIN) → HyperOS congela
+  l'app: C01 MiniCPM5 `ready_timeout` 738 s con `cpuset=/background`, `wakefulness=Dozing`, RSS 278 MB; (3) owner
+  sblocca due volte; 22:58 il watch_arm legge la vecchia riga C01 come primo non-ok 40 s dopo il rilancio → stop →
+  trap → lock 2, guardia esterna a 10 s arrivata tardi. Tutto fermato, app chiusa, nessun processo tocca lo
+  Xiaomi. Post-mortem in `xiaomi/RUN-STATE.md` con le tre modifiche prima del rilancio (righe solo post-avvio,
+  niente restore del timeout con un braccio pendente, START_AT senza check delle righe stantie). Regola in memoria
+  ([[kalsa-campaign-ops-lessons]]). **Budget thinking (v2, Mac)**: LFM a "256" ha mediana 470 token di ragionamento
+  con `finish=stop` → il tetto non ha mai morso sul server; MiniCPM5 perde uguale (61-67 %) a 1024 e libero; analisi
+  rifatta sul set completo (44+44+30 per modello) in corso, RESULTS-DEV.md "Thinking budget per model (data)".
+  Jelly 23:00: 22 righe LFM, M02 in corso, 38 °C stato termico 3 a 100 % su USB.
+
+- **9/09 23:20 — Jelly: M02 fallisce due volte per lo smontaggio del motore in background, non per il runner.** I 4
+  casi LFM rifatti: M03 641 s ok, T09 400 s ok, T11 527 s ok, M02 `send_failed` (turno 3 stavolta, turno 4 ok).
+  Telemetria `ev-lfm-remaining/case-M02.turn1.ev`: 8 s dopo la risposta del turno 1 → `KALSA_SESSION init` +
+  `load no_file` + `PREWARM start` = motore ricreato. Causa nel codice (`AppShell.tsx`, handler `onAppState`): su
+  QUALSIASI evento `background` l'app aborta l'invio, salva e chiama `disposeEngine()` subito, senza grazia
+  (`model.unload reason:"background"`). Ogni `kalsa://share` (harness e utente da Files) e ogni salto breve su
+  un'altra app costano al rientro init + prewarm completo: Jelly 60-120 s (a stato termico 3 oltre la pazienza
+  del runner → nodo Send assente → `send_failed`), S23 ~30 s. È il ciclo "background breve" di §13 e il punto §3
+  "attività accessorie non devono occupare il motore al messaggio successivo". Fix in corso: grazia di 45 s in
+  background prima dello smontaggio (annullata al rientro; smontaggio immediato solo su pressione memoria), APK
+  da CI e verifica sul Jelly domani. Braccio MiniCPM5 Jelly partito 23:16 con il supervisore corretto.
+
+- **9/09 23:45 — commit 0b75254 (app main): fail-fast, ammissione a freddo, grazia in background.** Da dati S23 di
+  stasera: `stallWatchdog.ts` (gap 10 s o <0,5 tok/s dopo 30 s, armato al primo token, reset per round),
+  `prefillDeadline.ts` (5× tempo EMA, floor 90 s, senza EMA non sorveglia; stima = max(chars/4, ultimo prompt reale)),
+  `admissionModel.ts` (il gate misura il modello che verrà caricato, anche a freddo), background: salvataggio subito
+  come prima, `disposeEngine` dopo 45 s di grazia (annullata al rientro, saltata con gen più nuova o turno vivo,
+  immediata sotto pressione). Due audit GLM per parte, report in `product-suite/*2026-09-09.md`. APK CI run
+  34434394330 (arm64 debuggable) per domani: S23 carico → riproduzione con memoria campionata; Jelly → ciclo
+  "background breve" senza prewarm al rientro. Jelly MiniCPM5 C01 ok 621 s (23:41); v2e 1024 completa, libera in corso.
+
+- **10/09 00:05 — v2e giudicata: per LFM 1024 > 256, modesto ma concorde.** GLM 17-11 (32 pari), Luna 22-14 (24 pari),
+  medie 3,77/3,57 e 3,68/3,45; libero ≈ 1024 (16-12, 21-13). Deterministico 36 vs 34/44. Costo p90 780 vs 600 token
+  di ragionamento per riga (~+60 s sul Jelly, ~+20 s sull'S23). Decisione all'owner in PLAN "Aperti" con proposta
+  (LFM 1024 da S23 in su, 512 sul Jelly). Giudici GLM+Luna perché deepseek/mimo fuori quota. Jelly MiniCPM5 3/24 alle
+  23:59 (C03 786 s, stato termico 3), fine stimata ~04:00.

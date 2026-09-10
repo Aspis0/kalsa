@@ -35,7 +35,7 @@ def load_inputs(args):
 
 
 def request_fields(args, sampler, tools):
-    fields = {"model": "minicpm-v2c", **sampler, "tools": tools, "tool_choice": "auto"}
+    fields = {"model": args.model_label, **sampler, "tools": tools, "tool_choice": "auto"}
     if args.block == "bakeoff":
         fields["seed"] = 1234
     if args.budget == "1024":
@@ -50,6 +50,8 @@ def main():
     parser.add_argument("--base-url", required=True)
     parser.add_argument("--block", choices=("wild", "bakeoff"), required=True)
     parser.add_argument("--budget", choices=("1024", "nobudget"), required=True)
+    parser.add_argument("--model-label", default="minicpm-v2c")
+    parser.add_argument("--model-name", default="minicpm5-2b")
     parser.add_argument("--sampler", required=True)
     parser.add_argument("--judge-pack", default="results/judge-pack-v2.jsonl")
     parser.add_argument("--corpus", default="corpus/wild.jsonl")
@@ -104,7 +106,7 @@ def main():
         if meta["error"]:
             errors += 1
         row = {
-            "id": row_id, "qid": qid, "model": "minicpm5-2b", "model_label": "minicpm-v2c",
+            "id": row_id, "qid": qid, "model": args.model_name, "model_label": args.model_label,
             "block": args.block, "budget_label": args.budget,
             "budget": 1024 if args.budget == "1024" else None,
             "lang": lang, "category": category, "split": split,

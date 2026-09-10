@@ -1,0 +1,3 @@
+wrote=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/results/wild-v2e-1024/lfm@1024.jsonl rows=16 errors=0 budget=1024
+wrote=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/results/bakeoff-v2e-1024/lfm@1024.jsonl rows=44 errors=0 budget=1024
+v2e complete model=lfm budget=1024

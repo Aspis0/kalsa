@@ -1,0 +1,242 @@
+{
+  "W01": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "W02": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W04": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W05": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W07": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "W08": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W11": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "W12": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "W13": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W15": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W16": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W18": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "W21": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W22": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "W26": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "W27": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/absurd_gift/en": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/absurd_gift/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/absurd_gift/fr": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/absurd_gift/it": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/ambiguous/en": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/ambiguous/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/ambiguous/fr": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/ambiguous/it": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/arith_change/en": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/arith_change/es": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/arith_change/fr": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/arith_change/it": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/count_vowels/en": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/count_vowels/es": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/count_vowels/fr": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/count_vowels/it": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/fact_spa2000/en": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/fact_spa2000/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/fact_spa2000/fr": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/fact_spa2000/it": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/false_premise/en": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/false_premise/es": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/false_premise/fr": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/false_premise/it": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/fermi_estimate/en": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/fermi_estimate/es": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/fermi_estimate/fr": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/fermi_estimate/it": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/format_obedience/en": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/format_obedience/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/format_obedience/fr": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/format_obedience/it": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/genuine_refusal/en": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/genuine_refusal/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/genuine_refusal/fr": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/genuine_refusal/it": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/honesty_unknown/en": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/honesty_unknown/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/honesty_unknown/fr": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  },
+  "bakeoff/honesty_unknown/it": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/local_knowledge/en": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/local_knowledge/es": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/local_knowledge/fr": {
+    "A": "lfm-v2b-merged",
+    "B": "lfm-v2e@nobudget"
+  },
+  "bakeoff/local_knowledge/it": {
+    "A": "lfm-v2e@nobudget",
+    "B": "lfm-v2b-merged"
+  }
+}
