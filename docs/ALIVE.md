@@ -4223,3 +4223,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 - **10/09 evening — one APK, not two.** `1807aad` already contains Regenera. APK `34538930575`
   (`c370c98`) cancelled as redundant. Live CI APK is `34539915778` on `1807aad` (`apk.yml`
   arm64-v8a debuggable). Two sequential Jelly shots on that install: Regenera, then model-switch.
+
+- **10/09 evening — Altro Copy invert + decode EMA 3-sample withhold SHIP.** Sheet Copy was
+  `!text.trim()` (unreachable for normal messages); now `sheetCopyVisible`. Jelly `KALSA_THINKING
+  budget:1024` after one short turn: EMA published only after 3 accepted samples so first measure
+  stays short (owner). In-memory Map, restart resets. MiMo SHIP-WITH-FIXES (comments only) then
+  re-audit **SHIP**. App `c906727`. Not in the live `1807aad` APK; do not cut a third build until
+  Regenera and model-switch shots finish. Reports: `THINK-COPY-RECON/FIX/AUDIT-2026-09-10.md`.
