@@ -4091,3 +4091,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   SKIP: rigenera/modifica (nessun nodo UI accessibile via dump, solo `Altro`: da fare a mano). Fix in corso: modulo
   Expo locale `modules/kalsa-lifecycle` (Handler sul main looper per il timer + inoltro di `onTrimMemory`), grazia
   generica sull'handle; cablaggio AppShell dopo il commit dell'estrazione memoria (Luna 54bc9812).
+
+- **10/09 ~15:20 — ESTRAZIONE MEMORIA CORRETTA SU MAIN (`e455afc`).** Recon GLM (`MEMORY-EXTRACT-RECON`): dopo ogni
+  turno l'estrazione girava con thinking off, n_predict 256, timeout fisso 20 s, e l'invio successivo la aspettava
+  (`await memoryExtractRef`); sul Jelly scadeva sempre a 20 s senza un fatto. Fix (Luna d1552823): timeout =
+  prefill + decode stimati dalle EMA misurate, clamp 20-120 s, EMA assente/non finita → 20 s (`extractBudget.ts`);
+  un nuovo invio abortisce l'estrazione in coda o in corso (ferma la completion nativa) e non la aspetta più; il
+  restore del checkpoint KV gira sempre; n_predict 192 (caso peggiore del parser: 3 add × 120 char + 10 remove);
+  `KALSA_MEMORY_EXTRACT {durationMs, timeoutMs, stopReason, extractParseOutcome}`. Audit GLM ostile
+  (`MEMORY-EXTRACT-AUDIT-2026-09-10.md`): race confutate, due blocchi (guardia NaN, 128 token troncavano il JSON)
+  corretti e ri-auditati → SHIP. Resta aperto (pre-esistente): stop/clearChat non annullano un'estrazione in corso.
+  Verifica sul Jelly con il prossimo APK: attesi `stopReason:"done"` con fatti e `aborted_by_send` sugli invii ravvicinati.
