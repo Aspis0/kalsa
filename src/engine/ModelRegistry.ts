@@ -240,7 +240,7 @@ export const MODEL_REGISTRY: ModelInfo[] = [
     // measured: #63 QRD8650 A_sa803197e_s4_logcat.txt:9230, 104.00 MiB @ n_ctx 16384
     kvBytesPerToken: 6656,
     // Budget caps the think block but cannot disable it (template has no off switch).
-    thinking: { short: 512, extended: 1024 },
+    thinking: { short: 512, extended: 1024, nPredict: 2048 },
     preserveThinking: true,
     descriptionKey: "models.lfm25.description",
     ramBadgeKey: "models.lfm25.ramBadge",
