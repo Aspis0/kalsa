@@ -133,6 +133,8 @@ import {
   saveEngineSession,
   streamAssistantTurn,
   type EngineMessage,
+  type MemoryExtractResult,
+  type MemoryExtractStopReason,
   type EngineToolResult,
   type EngineTurnOptions,
 } from "../engine/LlamaService";
@@ -153,6 +155,7 @@ import {
 import { setProcessUnloadedReason } from "../hooks/useProcessHealth";
 import { useThermalHardGate } from "../hooks/useThermalHardGate";
 import { useBatteryEta, type BatteryEtaUiState } from "../hooks/useBatteryEta";
+import { EXTRACT_MEMORY_MIN_TIMEOUT_MS } from "../engine/extractBudget";
 import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
 import {
   computeHistoryHashFromMessages,
@@ -2574,6 +2577,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const compactionEnabledRef = useRef(COMPACTION_ENABLED_DEFAULT);
   /** Serialize extractMemory so it never overlaps a chat completion on the same engine. */
   const memoryExtractRef = useRef<Promise<void> | null>(null);
+  /** Cancels a queued/running extraction when the user starts the next send. */
+  const memoryExtractCancelRef = useRef<(() => void) | null>(null);
 
   const refreshMemoryFacts = useCallback(async () => {
     try {
@@ -4749,6 +4754,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           // CisWire feature bits for this turn's telemetry lines. Assigned
           // after the per-send toggle reads below; 0 → field omitted.
           let turnCiswireFlags = 0;
+          type MemoryExtractDetails = {
+            durationMs: number;
+            timeoutMs: number;
+            stopReason: MemoryExtractStopReason;
+          };
+          const noExtractDetails: MemoryExtractDetails = {
+            durationMs: 0,
+            timeoutMs: EXTRACT_MEMORY_MIN_TIMEOUT_MS,
+            stopReason: "skipped_no_snapshot",
+          };
 
           /**
            * Turn-end order (must preserve for KV save effectiveness):
@@ -4766,6 +4781,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           let extractGateSource = 0;
           const emitSettledMemoryTelemetry = async (
             snapshot?: ReturnType<typeof MemoryStore.snapshotMemoryTelemetry>,
+            details: MemoryExtractDetails = noExtractDetails,
           ) => {
             let extractTelemetry = snapshot;
             if (!extractTelemetry) {
@@ -4780,12 +4796,22 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
             console.log(formatMemoryLine({
               ...extractTelemetry,
+              ...(details.stopReason === "aborted_by_send"
+                ? {
+                    factsExtracted: 0,
+                    factsStored: 0,
+                    factsRejectedFull: 0,
+                  }
+                : {}),
               // Injection belongs to the turn, not to extraction.
               factsInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
               dnaDeferred: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
               dnaInjected: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
               dnaBudgetTokens: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
               ciswireFlags: turnCiswireFlags || undefined,
+              durationMs: details.durationMs,
+              timeoutMs: details.timeoutMs,
+              stopReason: details.stopReason,
             }, "KALSA_MEMORY_EXTRACT"));
           };
           const trackMemoryExtractJob = (extractJob: Promise<void>) => {
@@ -4818,7 +4844,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 extractGateSource: MemoryStore.MEMORY_TELEMETRY_NOT_APPLICABLE,
                 extractStopReason: 4,
               };
-              trackMemoryExtractJob(emitSettledMemoryTelemetry(earlyTelemetry));
+              trackMemoryExtractJob(
+                emitSettledMemoryTelemetry(earlyTelemetry, noExtractDetails),
+              );
               return;
             }
             if (calendarExtractSkipSeq === fetchAllowlistTurnSeq) return;
@@ -4830,6 +4858,15 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const saveGate = new Promise<void>((resolve) => {
               releaseSaveGate = resolve;
             });
+            let extractionCancelled = false;
+            const extractionAbortController = new AbortController();
+            const cancelExtractionForSend = () => {
+              extractionCancelled = true;
+              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
+              releaseSaveGate?.();
+              extractionAbortController.abort();
+            };
+            memoryExtractCancelRef.current = cancelExtractionForSend;
             // clearChat/stop aborts the signal — release so we never hang the ref.
             const onAbortRelease = () => {
               if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
@@ -4848,8 +4885,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }, 10_000);
 
             const extractJob = (async () => {
+              let extractResult: MemoryExtractResult | null = null;
+              let extractDetails: MemoryExtractDetails = noExtractDetails;
               try {
                 await saveGate;
+                if (extractionCancelled) {
+                  extractDetails = {
+                    durationMs: 0,
+                    timeoutMs: EXTRACT_MEMORY_MIN_TIMEOUT_MS,
+                    stopReason: "aborted_by_send",
+                  };
+                  MemoryStore.trackMemoryExtractStopReason(1);
+                  return;
+                }
                 if (signal.aborted || turnFailed) {
                   MemoryStore.trackMemoryExtractStopReason(1);
                   return;
@@ -4864,25 +4912,33 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 }
 
                 MemoryStore.trackMemoryExtractStopReason(0);
-                const { add, remove, parseOutcome } = await extractMemory(
+                extractResult = await extractMemory(
                   capturedUser,
                   capturedAssistant,
                   locale,
+                  extractionAbortController.signal,
                 );
+                extractDetails = {
+                  durationMs: extractResult.durationMs,
+                  timeoutMs: extractResult.timeoutMs,
+                  stopReason: extractResult.stopReason,
+                };
 
                 // Track parse outcome BEFORE the early return; outcome codes are
                 // documented with trackMemoryParseOutcome in MemoryStore.ts.
-                MemoryStore.trackMemoryParseOutcome(parseOutcome);
+                MemoryStore.trackMemoryParseOutcome(extractResult.parseOutcome);
+
+                if (extractResult.stopReason !== "done") return;
 
                 // Single batched apply: re-checks epoch + enabled under the store mutex
                 // so a clear/toggle-off during extract cannot be partially overwritten.
-                if (add.length === 0 && remove.length === 0) return;
+                if (extractResult.add.length === 0 && extractResult.remove.length === 0) return;
                 if (MemoryStore.getEpoch() !== startEpoch) return;
                 if (!(await MemoryStore.getEnabled())) return;
 
                 const applied = await MemoryStore.applyExtractResults(
-                  add,
-                  remove,
+                  extractResult.add,
+                  extractResult.remove,
                   startEpoch,
                 );
                 if (applied) {
@@ -4895,9 +4951,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 // Record the gate source before taking the late-arriving snapshot.
                 MemoryStore.trackMemoryExtractGateSource(extractGateSource);
                 // Emit extract-complete telemetry even if the send signal aborted.
-                await emitSettledMemoryTelemetry();
+                await emitSettledMemoryTelemetry(undefined, extractDetails);
 
                 clearTimeout(gateTimeoutId);
+                if (memoryExtractCancelRef.current === cancelExtractionForSend) {
+                  memoryExtractCancelRef.current = null;
+                }
                 try {
                   signal.removeEventListener("abort", onAbortRelease);
                 } catch {
@@ -4929,6 +4988,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           try {
             // Wait out a pending memory extract so we never dual-complete on the engine.
             if (memoryExtractRef.current) {
+              // A new send owns the engine now: stop extraction and let its
+              // checkpoint-restore finally run before this turn proceeds.
+              memoryExtractCancelRef.current?.();
               try {
                 await memoryExtractRef.current;
               } catch {

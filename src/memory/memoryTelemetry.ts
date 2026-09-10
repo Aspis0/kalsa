@@ -6,7 +6,7 @@
  * from MEMORY=0 — the report looks like a measurement but measures nothing.
  *
  * Fields are enumerated by name so a string field added later cannot leak
- * user text into a log line. Numbers only: counters and extraction lifecycle codes.
+ * user text into a log line. Lifecycle strings are fixed codes, never user text.
  *
  * Privacy: fact TEXT is never included. Counters only.
  */
@@ -47,6 +47,12 @@ export interface MemoryTelemetry {
   extractStopReason: number;
   /** CisWire feature bits: compaction=1, memory=2, tool-help=4. */
   ciswireFlags?: number;
+  /** Settled extraction wall-clock duration. */
+  durationMs?: number;
+  /** Timeout selected for the settled extraction. */
+  timeoutMs?: number;
+  /** Settled extraction lifecycle outcome. */
+  stopReason?: "done" | "timeout" | "aborted_by_send" | "skipped_no_snapshot";
 }
 
 /**
@@ -75,5 +81,8 @@ export function formatMemoryLine(t: MemoryTelemetry, prefix = "KALSA_MEMORY"): s
     extractGateSource: t.extractGateSource,
     extractStopReason: t.extractStopReason,
     ...(t.ciswireFlags ? { ciswireFlags: t.ciswireFlags } : {}),
+    ...(t.durationMs !== undefined ? { durationMs: t.durationMs } : {}),
+    ...(t.timeoutMs !== undefined ? { timeoutMs: t.timeoutMs } : {}),
+    ...(t.stopReason !== undefined ? { stopReason: t.stopReason } : {}),
   })}`;
 }

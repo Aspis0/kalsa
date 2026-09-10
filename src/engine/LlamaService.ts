@@ -117,6 +117,10 @@ import {
   recordPrefillSample,
 } from "./prefillSpeed";
 import {
+  EXTRACT_MEMORY_MIN_TIMEOUT_MS,
+  extractTimeoutMs,
+} from "./extractBudget";
+import {
   MIN_PREFILL_DEADLINE_MS,
   prefillDeadlineMs,
 } from "./prefillDeadline";
@@ -439,8 +443,8 @@ function rethrowWithNativeTail(error: unknown): never {
   throw new Error(withNativeTail(String(error)));
 }
 
-/** extractMemory wall-clock timeout (ms); on expiry stopCompletion is called. */
-const EXTRACT_MEMORY_TIMEOUT_MS = 20_000;
+/** Parser worst case is 3×120-char adds + 10 removes; 192 balances coverage vs Jelly's ~3.4 tok/s decode. */
+const EXTRACT_MEMORY_N_PREDICT = 192;
 /** translateText wall-clock timeout (ms); on expiry stopCompletion is called. */
 const TRANSLATE_TIMEOUT_MS = 30_000;
 /** Hard cap on source text fed to translateText (chars). */
@@ -3968,11 +3972,35 @@ async function restoreNativeSession(
   engine: LlamaContext,
   srcPath: string,
 ): Promise<boolean> {
-  if (activeGovernorActive && engine === context) return false;
+  const t0 = Date.now();
+  const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
+    try {
+      console.log(
+        `KALSA_SESSION ${JSON.stringify({
+          op: "load",
+          source: "memory_extract_restore",
+          ms: Date.now() - t0,
+          ok,
+          ...extra,
+        })}`,
+      );
+    } catch {
+      // telemetry must never throw
+    }
+  };
+  if (activeGovernorActive && engine === context) {
+    log(false, { reason: "governor-mode" });
+    return false;
+  }
   try {
     const result = await engine.loadSession(srcPath);
-    return sessionLoadHasTokens(result);
+    const ok = sessionLoadHasTokens(result);
+    log(ok, {
+      tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
+    });
+    return ok;
   } catch {
+    log(false, { reason: "load_error" });
     return false;
   }
 }
@@ -3983,8 +4011,9 @@ async function restoreNativeSession(
  * Fail-closed: invalid JSON / wrong shape / engine not ready / timeout → empty arrays.
  * No tools, no websearch, no logging of contents.
  *
- * Timeout: ~20s wall clock; on expiry calls engine.stopCompletion() so the native
- * completion does not keep the engine busy (Promise.race alone is not enough).
+ * Timeout: measured prefill + decode budget, clamped to 20–120s; on expiry calls
+ * engine.stopCompletion() so the native completion does not keep the engine busy.
+ * A caller can abort the completion; the checkpoint restore below still runs.
  *
  * EXTRACT_MEMORY_PRESERVE_CHAT_KV (default): do not call clearCache. The extract
  * completion overwrites native KV; we restore from the just-saved .kvs when it
@@ -4001,105 +4030,150 @@ export async function extractMemory(
   userText: string,
   assistantText: string,
   locale: Locale,
-): Promise<{ add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome }> {
+  signal?: AbortSignal,
+): Promise<MemoryExtractResult> {
+  const startedAt = Date.now();
   const userSlice = (userText ?? "").trim().slice(0, 2000);
   const assistantSlice = (assistantText ?? "").trim().slice(0, 2000);
-  if (!userSlice && !assistantSlice) return { add: [], remove: [], parseOutcome: 0 };
+  if (!userSlice && !assistantSlice) {
+    return memoryExtractResult(
+      startedAt,
+      EXTRACT_MEMORY_MIN_TIMEOUT_MS,
+      { add: [], remove: [], parseOutcome: 0 },
+      "skipped_no_snapshot",
+    );
+  }
 
   const strings = getStrings(locale);
   const prompt = strings.memory.extractPrompt
     .replace("{user}", userSlice)
     .replace("{assistant}", assistantSlice);
+  const modelId = activeModelId;
+  const timeoutMs = extractTimeoutMs({
+    decodeTokPerSec: modelId ? getDecodeTokPerSec(modelId) : null,
+    nPredict: EXTRACT_MEMORY_N_PREDICT,
+    promptTokensEstimate: Math.max(1, Math.ceil(prompt.length / 4)),
+    prefillTokPerSec: modelId ? getPrefillTokPerSec(modelId) : null,
+  });
 
   return withEngineJob(async () => {
     // Capture context INSIDE the serialized job.
     const engine = context;
-    if (!engine) return { add: [], remove: [], parseOutcome: 0 as const };
-
-    const preserve =
-      EXTRACT_MEMORY_PRESERVE_CHAT_KV &&
-      kvHoldsChatSession &&
-      engine === context;
-
     let restorePath: string | null = null;
     let tempPath: string | null = null;
-
-    if (preserve) {
-      if (chatKvDiskCurrent && activeModelId && (await sessionFileExists(activeModelId))) {
-        restorePath = sessionFilePath(activeModelId);
-      } else if (activeModelId) {
-        tempPath = `${sessionFilePath(activeModelId)}.extract-ckpt`;
-        const snapped = await snapshotNativeSession(engine, tempPath);
-        if (!snapped) {
-          try {
-            await FileSystem.deleteAsync(tempPath, { idempotent: true });
-          } catch {
-            // ignore
-          }
-          // Cannot isolate extract without destroying chat KV — skip.
-          return { add: [], remove: [], parseOutcome: 0 };
-        }
-        restorePath = tempPath;
-      } else {
-        return { add: [], remove: [], parseOutcome: 0 };
-      }
-    } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
-      try {
-        await engine.clearCache();
-      } catch {
-        // best effort — extract still proceeds
-      }
-      kvHoldsChatSession = false;
-      lastChatNPast = undefined;
-      chatKvDiskCurrent = false;
-    } else {
-      // Flag on but nothing to restore (kvHoldsChatSession already false).
-      // Skip rather than run a naked extract over whatever is in context.
-      return { add: [], remove: [], parseOutcome: 0 };
-    }
-
+    let extraction: { add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome } = {
+      add: [],
+      remove: [],
+      parseOutcome: 0,
+    };
+    let stopReason: MemoryExtractStopReason = "done";
+    let abortedBySend = signal?.aborted ?? false;
+    let completionStarted = false;
     let timedOut = false;
     let timer: ReturnType<typeof setTimeout> | null = null;
+    const onAbort = () => {
+      abortedBySend = true;
+      if (completionStarted) {
+        void engine?.stopCompletion().catch(() => undefined);
+      }
+    };
 
     try {
-      timer = setTimeout(() => {
-        timedOut = true;
-        // Real cancellation: stop the native completion, do not leave engine busy.
-        void engine.stopCompletion().catch(() => undefined);
-      }, EXTRACT_MEMORY_TIMEOUT_MS);
+      if (!engine || abortedBySend) {
+        stopReason = abortedBySend ? "aborted_by_send" : "skipped_no_snapshot";
+      } else {
+        signal?.addEventListener("abort", onAbort, { once: true });
+        const preserve =
+          EXTRACT_MEMORY_PRESERVE_CHAT_KV &&
+          kvHoldsChatSession &&
+          engine === context;
 
-      await refreshGovernorBeforeCompletion(engine);
-      const result = await trackCompletion(
-        engine.completion({
-          messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
-          n_predict: 256,
-          stop: STOP_WORDS,
-          temperature: 0.1,
-          top_k: 20,
-          top_p: 0.9,
-          enable_thinking: false,
-          thinking_budget_tokens: 0,
-          reasoning_format: "none",
-          chat_template_kwargs: { enable_thinking: false },
-        }),
-      );
+        if (preserve) {
+          if (chatKvDiskCurrent && modelId && (await sessionFileExists(modelId))) {
+            restorePath = sessionFilePath(modelId);
+          } else if (modelId) {
+            tempPath = `${sessionFilePath(modelId)}.extract-ckpt`;
+            const snapped = await snapshotNativeSession(engine, tempPath);
+            if (snapped) {
+              restorePath = tempPath;
+            } else {
+              stopReason = "skipped_no_snapshot";
+            }
+          } else {
+            stopReason = "skipped_no_snapshot";
+          }
+        } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
+          try {
+            await engine.clearCache();
+          } catch {
+            // best effort — extract still proceeds
+          }
+          kvHoldsChatSession = false;
+          lastChatNPast = undefined;
+          chatKvDiskCurrent = false;
+        } else {
+          // Flag on but nothing to restore (kvHoldsChatSession already false).
+          // Skip rather than run a naked extract over whatever is in context.
+          stopReason = "skipped_no_snapshot";
+        }
 
-      emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
+        if (stopReason === "done" && abortedBySend) {
+          stopReason = "aborted_by_send";
+        } else if (stopReason === "done") {
+          timer = setTimeout(() => {
+            timedOut = true;
+            void engine.stopCompletion().catch(() => undefined);
+          }, timeoutMs);
 
-      if (timedOut) return { add: [], remove: [], parseOutcome: 0 as const };
+          await refreshGovernorBeforeCompletion(engine);
+          if (abortedBySend) {
+            stopReason = "aborted_by_send";
+          } else {
+            completionStarted = true;
+            const result = await trackCompletion(
+              engine.completion({
+                messages: [{ role: "user", content: prompt }] as RNLlamaOAICompatibleMessage[],
+                n_predict: EXTRACT_MEMORY_N_PREDICT,
+                stop: STOP_WORDS,
+                temperature: 0.1,
+                top_k: 20,
+                top_p: 0.9,
+                enable_thinking: false,
+                thinking_budget_tokens: 0,
+                reasoning_format: "none",
+                chat_template_kwargs: { enable_thinking: false },
+              }),
+            );
 
-      const raw =
-        typeof result.content === "string" && result.content.length > 0
-          ? result.content
-          : (result.text ?? "");
-      return parseMemoryExtract(raw);
+            emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
+
+            if (abortedBySend) {
+              stopReason = "aborted_by_send";
+            } else if (timedOut) {
+              stopReason = "timeout";
+            } else {
+              const raw =
+                typeof result.content === "string" && result.content.length > 0
+                  ? result.content
+                  : (result.text ?? "");
+              extraction = parseMemoryExtract(raw);
+            }
+          }
+        }
+      }
     } catch {
-      // Timeout stopCompletion often rejects the completion promise — treat as empty.
-      return { add: [], remove: [], parseOutcome: 0 as const };
+      // Timeout/send stopCompletion often rejects the completion promise — treat as empty.
+      if (abortedBySend) stopReason = "aborted_by_send";
+      else if (timedOut) stopReason = "timeout";
     } finally {
       if (timer) clearTimeout(timer);
+      try {
+        signal?.removeEventListener("abort", onAbort);
+      } catch {
+        // ignore
+      }
       if (restorePath) {
-        if (engine === context) {
+        if (engine && engine === context) {
           const restored = await restoreNativeSession(engine, restorePath);
           kvHoldsChatSession = restored;
           if (!restored) {
@@ -4120,7 +4194,38 @@ export async function extractMemory(
         }
       }
     }
+
+    return memoryExtractResult(startedAt, timeoutMs, extraction, stopReason);
   });
+}
+
+export type MemoryExtractStopReason =
+  | "done"
+  | "timeout"
+  | "aborted_by_send"
+  | "skipped_no_snapshot";
+
+export type MemoryExtractResult = {
+  add: string[];
+  remove: string[];
+  parseOutcome: MemoryParseOutcome;
+  durationMs: number;
+  timeoutMs: number;
+  stopReason: MemoryExtractStopReason;
+};
+
+function memoryExtractResult(
+  startedAt: number,
+  timeoutMs: number,
+  extraction: { add: string[]; remove: string[]; parseOutcome: MemoryParseOutcome },
+  stopReason: MemoryExtractStopReason,
+): MemoryExtractResult {
+  return {
+    ...extraction,
+    durationMs: Math.max(0, Date.now() - startedAt),
+    timeoutMs,
+    stopReason,
+  };
 }
 
 /** Parse outcome: 0=did not run, 1=parsed OK, 2=parser rejected. */
