@@ -648,6 +648,8 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     networkUnreachable: "Network unreachable — check your connection.",
     storageFailed: "Storage error — check free disk space and app permissions.",
     engineInitFailed: "Could not load the model.",
+    engineDisposeTimeout:
+      "Could not unload the previous model. Retry the model switch.",
     modelNotLoaded: "Model not loaded. Download and load a model first.",
     turnInterrupted:
       "Reply interrupted — the model was changed or unloaded. Please resend your message.",

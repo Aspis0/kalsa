@@ -647,6 +647,8 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     networkUnreachable: "Rete non raggiungibile — controlla la connessione.",
     storageFailed: "Errore di archiviazione — controlla lo spazio libero e i permessi dell'app.",
     engineInitFailed: "Impossibile caricare il modello.",
+    engineDisposeTimeout:
+      "Impossibile scaricare il modello precedente. Riprova a cambiare modello.",
     modelNotLoaded: "Modello non caricato. Scarica e carica prima un modello.",
     turnInterrupted:
       "Risposta interrotta — il modello è stato cambiato o rimosso dalla memoria. Reinvia il messaggio.",
