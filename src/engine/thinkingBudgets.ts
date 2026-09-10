@@ -13,6 +13,13 @@ export type ThinkingCompletionFields = {
 
 type ThinkingModel = Pick<ModelInfo, "thinking" | "preserveThinking">;
 
+/**
+ * Five tok/s selects extended thinking: Jelly LFM is about 3.4 tok/s, while
+ * Galaxy S23 is about 10–11 tok/s and Xiaomi is faster. Runtime speed keeps
+ * one kernel path for all phones.
+ */
+export const EXTENDED_THINKING_MIN_DECODE_TOK_PER_SEC = 5;
+
 function positiveBudget(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? value
@@ -51,6 +58,7 @@ function withKwargs(
 export function resolveThinkingParams(
   mode: ThinkingMode,
   model: ThinkingModel | null,
+  speed?: { decodeTokPerSec: number | null },
 ): { fields: ThinkingCompletionFields; nPredict: number } {
   const nPredict = Math.max(1024, model?.thinking?.nPredict ?? 1024);
   switch (mode) {
@@ -78,16 +86,25 @@ export function resolveThinkingParams(
       };
     case "default":
     default:
-      return {
-        fields: withKwargs(
-          {
-            enable_thinking: true,
-            thinking_budget_tokens: positiveBudget(model?.thinking?.short, 256),
-            reasoning_format: "none",
-          },
-          model,
-        ),
-        nPredict,
-      };
+      {
+        const extended =
+          speed?.decodeTokPerSec !== null &&
+          speed?.decodeTokPerSec !== undefined &&
+          speed.decodeTokPerSec >= EXTENDED_THINKING_MIN_DECODE_TOK_PER_SEC;
+        const budget = extended
+          ? positiveBudget(model?.thinking?.extended, 512)
+          : positiveBudget(model?.thinking?.short, 256);
+        return {
+          fields: withKwargs(
+            {
+              enable_thinking: true,
+              thinking_budget_tokens: budget,
+              reasoning_format: "none",
+            },
+            model,
+          ),
+          nPredict,
+        };
+      }
   }
 }

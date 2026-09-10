@@ -5,15 +5,26 @@
 import { resolveThinkingParams } from "./thinkingBudgets";
 
 const qwen = { thinking: { short: 256, extended: 512 } };
-const lfm = { thinking: { short: 256, extended: 512 }, preserveThinking: true };
+const lfm = { thinking: { short: 512, extended: 1024 }, preserveThinking: true };
 
 describe("resolveThinkingParams production default", () => {
-  test("model with thinking budgets: enable_thinking on, budget is short (never 0)", () => {
-    const { fields, nPredict } = resolveThinkingParams("default", qwen);
+  test("no speed measurement selects the model short budget", () => {
+    const { fields, nPredict } = resolveThinkingParams("default", lfm);
     expect(fields.enable_thinking).toBe(true);
-    expect(fields.thinking_budget_tokens).toBe(256);
+    expect(fields.thinking_budget_tokens).toBe(512);
     expect(fields.thinking_budget_tokens).toBeGreaterThan(0);
     expect(nPredict).toBe(1024);
+  });
+
+  test.each([
+    [3.4, 512],
+    [5, 1024],
+    [11, 1024],
+  ])("speed %s selects the expected default budget", (decodeTokPerSec, budget) => {
+    const { fields } = resolveThinkingParams("default", lfm, {
+      decodeTokPerSec,
+    });
+    expect(fields.thinking_budget_tokens).toBe(budget);
   });
 
   test("null model: historical short 256, never budget 0", () => {
@@ -48,6 +59,17 @@ describe("all accepted thinking modes", () => {
       expect(fields.enable_thinking).not.toBe(false);
       expect(fields.thinking_budget_tokens).not.toBe(0);
     }
+  });
+
+  test("bench modes still select short/extended explicitly", () => {
+    expect(
+      resolveThinkingParams("budget256", lfm, { decodeTokPerSec: 11 }).fields
+        .thinking_budget_tokens,
+    ).toBe(512);
+    expect(
+      resolveThinkingParams("budget512", lfm, { decodeTokPerSec: 3.4 }).fields
+        .thinking_budget_tokens,
+    ).toBe(1024);
   });
 
   test("preserveThinking keeps the live mode enabled", () => {
