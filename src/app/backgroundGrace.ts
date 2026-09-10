@@ -1,16 +1,14 @@
-type TimerHandle = ReturnType<typeof setTimeout>;
-
 /** Schedules one deferred background action until foreground or cancellation. */
-export function createBackgroundGrace({
+export function createBackgroundGrace<H>({
   graceMs,
   setTimeout: schedule,
   clearTimeout: cancelTimer,
 }: {
   graceMs: number;
-  setTimeout: (run: () => void, delayMs: number) => TimerHandle;
-  clearTimeout: (handle: TimerHandle) => void;
+  setTimeout: (run: () => void, delayMs: number) => H;
+  clearTimeout: (handle: H) => void;
 }) {
-  let pending: TimerHandle | null = null;
+  let pending: H | null = null;
 
   const cancel = (): boolean => {
     if (pending === null) return false;
