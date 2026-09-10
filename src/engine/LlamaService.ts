@@ -107,7 +107,19 @@ import {
   type ToolAttributionSnapshot,
   type ToolRetrievalStrategy,
 } from "./turnTelemetry";
-import { recordPrefillSample } from "./prefillSpeed";
+import {
+  createStallWatchdog,
+  GENERATION_STALL_GAP_MS,
+} from "./stallWatchdog";
+import {
+  getLastPromptTokens,
+  getPrefillTokPerSec,
+  recordPrefillSample,
+} from "./prefillSpeed";
+import {
+  MIN_PREFILL_DEADLINE_MS,
+  prefillDeadlineMs,
+} from "./prefillDeadline";
 import {
   computeHistoryHashFromMessages,
   computePromptEnvHash,
@@ -2801,6 +2813,27 @@ export async function streamAssistantTurn(
 
     let finished = false;
     let aborted = false;
+    const stallWatchdog = createStallWatchdog({
+      gapMs: GENERATION_STALL_GAP_MS,
+      now: Date.now,
+    });
+    let stallTimer: ReturnType<typeof setInterval> | null = null;
+    let prefillTimer: ReturnType<typeof setTimeout> | null = null;
+    let stallTokenCount = 0;
+    const clearPrefillDeadline = () => {
+      if (prefillTimer !== null) {
+        clearTimeout(prefillTimer);
+        prefillTimer = null;
+      }
+    };
+    const stopStallWatchdog = () => {
+      if (stallTimer !== null) {
+        clearInterval(stallTimer);
+        stallTimer = null;
+      }
+      clearPrefillDeadline();
+      stallWatchdog.reset();
+    };
     // Raw tokens for this turn (all rounds). On abort, emit before onDone so
     // the UI can persist modelEmittedText for the interrupted partial.
     let rawEmittedAccum = "";
@@ -2811,12 +2844,16 @@ export async function streamAssistantTurn(
       }
     };
 
-    const abort = () => {
+    const abort = (error?: Error) => {
       aborted = true;
-      if (rawEmittedAccum) {
-        callbacks.onModelEmittedText?.(rawEmittedAccum);
-      }
-      finishOnce(() => callbacks.onDone());
+      stopStallWatchdog();
+      finishOnce(() => {
+        if (rawEmittedAccum) {
+          callbacks.onModelEmittedText?.(rawEmittedAccum);
+        }
+        if (error) callbacks.onError(error);
+        else callbacks.onDone();
+      });
       // Same identity guard as bailIfStopped: after the disposeEngineLocked
       // safety-net timeout forces a release(), `engine` no longer matches the
       // live module-level `context` — calling stopCompletion() on it would be
@@ -2826,10 +2863,89 @@ export async function streamAssistantTurn(
         void engine.stopCompletion().catch(() => undefined);
       }
     };
-    signal?.addEventListener("abort", abort, { once: true });
+    const checkStall = () => {
+      if (finished || aborted) return;
+      const result = stallWatchdog.check();
+      if (!result.stalled) return;
+      stopStallWatchdog();
+      try {
+        console.log(
+          `KALSA_STALL ${JSON.stringify({
+            gapMs: result.gapMs,
+            tokens: stallTokenCount,
+            turnId,
+            reason: result.reason,
+            tokPerSec: result.tokPerSec,
+          })}`,
+        );
+      } catch {
+        // telemetry must never throw
+      }
+      const seconds = Math.max(1, Math.round(result.gapMs / 1000));
+      abort(
+        new Error(
+          strings.errors.generationStalled.replace("{seconds}", String(seconds)),
+        ),
+      );
+    };
+    const startStallWatchdog = () => {
+      if (stallTimer === null) {
+        stallTimer = setInterval(checkStall, 2_000);
+      }
+    };
+    const armPrefillDeadline = () => {
+      // Use the native promptN lower bound when available: it includes chat
+      // template/tool-schema tokens that chars/4 cannot see.
+      const charsPerTokenEstimate = Math.ceil(
+        JSON.stringify(currentMessages).length / 4,
+      );
+      const lastPromptTokens = activeModel
+        ? getLastPromptTokens(activeModel.id)
+        : null;
+      const promptTokensEstimate = Math.max(
+        charsPerTokenEstimate,
+        lastPromptTokens ?? 0,
+      );
+      const prefillTokPerSec = activeModel
+        ? getPrefillTokPerSec(activeModel.id)
+        : null;
+      const deadlineMs = prefillDeadlineMs({
+        promptTokensEstimate,
+        prefillTokPerSec,
+        minMs: MIN_PREFILL_DEADLINE_MS,
+      });
+      if (deadlineMs === null) return;
+      prefillTimer = setTimeout(() => {
+        prefillTimer = null;
+        if (finished || aborted) return;
+        try {
+          console.log(
+            `KALSA_STALL ${JSON.stringify({
+              gapMs: 0,
+              tokens: stallTokenCount,
+              turnId,
+              reason: "prefill",
+              tokPerSec: prefillTokPerSec,
+            })}`,
+          );
+        } catch {
+          // telemetry must never throw
+        }
+        abort(
+          new Error(
+            strings.errors.prefillStalled.replace(
+              "{seconds}",
+              String(Math.max(1, Math.round(deadlineMs / 1000))),
+            ),
+          ),
+        );
+      }, deadlineMs);
+    };
+    const onAbort = () => abort();
+    signal?.addEventListener("abort", onAbort, { once: true });
     if (signal?.aborted) {
-      abort();
-      signal.removeEventListener("abort", abort);
+      onAbort();
+      signal.removeEventListener("abort", onAbort);
       return;
     }
 
@@ -3229,6 +3345,7 @@ export async function streamAssistantTurn(
 
       for (let round = 0; round < (hasTools ? MAX_TOOL_ROUNDS : 1); round += 1) {
         if (bailIfStopped()) return;
+        stopStallWatchdog();
         // Snapshot prior-round cleaned prose before this round's stream starts.
         streamedTextAtRoundStart = streamedText;
         // Fresh think-tag / tool_call-tag state for this round's stream (each round is a new completion).
@@ -3250,6 +3367,7 @@ export async function streamAssistantTurn(
         governorThermoSource = (
           await refreshGovernorBeforeCompletion(engine, thermoLogState)
         ).thermo_source;
+        armPrefillDeadline();
         const result = await trackCompletion(
           engine.completion(
             applyBenchSampling(
@@ -3289,6 +3407,10 @@ export async function streamAssistantTurn(
               // official incremental field; cleanStreamDelta strips any
               // <think>/<tool_call> markup that appears in the raw token stream.
               if (finished || aborted) return;
+              clearPrefillDeadline();
+              stallWatchdog.noteToken();
+              stallTokenCount += 1;
+              startStallWatchdog();
               emitBenchProbs(data);
               const raw = data.token ?? "";
               if (raw) rawEmittedAccum += raw;
@@ -3300,6 +3422,8 @@ export async function streamAssistantTurn(
             },
           ),
         );
+        stopStallWatchdog();
+        if (aborted) return;
         recordBenchCompletion(result);
         // tokens_cached is n_past in llama.rn — used-token disk gate.
         noteChatNPast(result?.tokens_cached);
@@ -3608,6 +3732,8 @@ export async function streamAssistantTurn(
               thermoLogState,
             );
             governorThermoSource = fallbackThermo.thermo_source;
+            stopStallWatchdog();
+            armPrefillDeadline();
             const fallbackResult = await trackCompletion(
               engine.completion(
                 applyBenchSampling(
@@ -3626,6 +3752,10 @@ export async function streamAssistantTurn(
                 ),
                 (data: TokenData) => {
                   if (finished || aborted) return;
+                  clearPrefillDeadline();
+                  stallWatchdog.noteToken();
+                  stallTokenCount += 1;
+                  startStallWatchdog();
                   emitBenchProbs(data);
                   const raw = data.token ?? "";
                   if (raw) rawEmittedAccum += raw;
@@ -3637,6 +3767,8 @@ export async function streamAssistantTurn(
                 },
               ),
             );
+            stopStallWatchdog();
+            if (aborted) return;
             recordBenchCompletion(fallbackResult);
             emitTurnTelemetry(
               turnId,
@@ -3666,6 +3798,8 @@ export async function streamAssistantTurn(
               kvReproState = nextKvReproState(kvReproState, "clean_completion");
             }
           } catch (fallbackError) {
+            stopStallWatchdog();
+            if (aborted) return;
             // Fallback completion failed (engine error, abort, etc.) — fall
             // through to the canned message. emitEngineError will fire below
             // only if we have no text at all; for now just log and continue.
@@ -3702,7 +3836,8 @@ export async function streamAssistantTurn(
         emitEngineError(callbacks, finishOnce, error);
       }
     } finally {
-      signal?.removeEventListener("abort", abort);
+      stopStallWatchdog();
+      signal?.removeEventListener("abort", onAbort);
       // Chat completions leave conversation tokens in the native KV — eligible
       // for saveSession on background (utility jobs clear this flag).
       if (engine === context && !disposing) {

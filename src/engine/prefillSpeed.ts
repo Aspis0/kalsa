@@ -17,6 +17,7 @@ const EMA_ALPHA = 0.3;
 const MIN_ACCEPTED_PROMPT_TOKENS = 64;
 
 const tokPerSecByModel = new Map<string, number>();
+const lastPromptTokensByModel = new Map<string, number>();
 
 function isUsableSample(promptN: number, promptMs: number): boolean {
   return (
@@ -38,6 +39,7 @@ export function recordPrefillSample(
 ): void {
   if (!modelId || !isUsableSample(promptN, promptMs)) return;
   const tokPerSec = (promptN / promptMs) * 1000;
+  lastPromptTokensByModel.set(modelId, promptN);
   const prev = tokPerSecByModel.get(modelId);
   tokPerSecByModel.set(
     modelId,
@@ -50,6 +52,11 @@ export function recordPrefillSample(
 /** EMA tokens/s for a model, or null when no usable sample exists yet. */
 export function getPrefillTokPerSec(modelId: string): number | null {
   return tokPerSecByModel.get(modelId) ?? null;
+}
+
+/** Last accepted native prompt size, including chat-template overhead. */
+export function getLastPromptTokens(modelId: string): number | null {
+  return lastPromptTokensByModel.get(modelId) ?? null;
 }
 
 /**
@@ -69,4 +76,5 @@ export function prefillBudgetTokens(
 /** Test-only: wipe in-memory EMAs between test cases. */
 export function __resetPrefillSpeedForTests(): void {
   tokPerSecByModel.clear();
+  lastPromptTokensByModel.clear();
 }
