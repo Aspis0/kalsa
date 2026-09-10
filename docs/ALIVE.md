@@ -550,7 +550,7 @@ Memory extraction `e455afc` is **PASS scoped**: meta v2 is identical, restore lo
 
 The `e2e09f5` identity fix is commit `095466ec5c88a8cf4588b898b00cce632b1c1508` on pushed app `main`. APK CI run `34494832409` and E2E emulator run `34494789017` are **SUCCESS** on the exact head. `assets/app.config` and the independent calculation agree on `kalsa-eng-v1:source:765509c292652441bd8bc8a3ebbad51c51657a4127cd545b47488800f9433a65`; engine-change invalidation remains build-time/logic evidence, not a second-APK device proof. This is scoped identity/memory PASS, not blanket G2 PASS.
 
-Remaining product work includes the documented embedding completion-log gap and propagation of outer Stop/clear abort to `extractionAbortController`; no result above is promoted as blanket G2 PASS.
+The embedding completion-log gap is closed at the diagnostic level by app commit `1edf5c662715a357c7aa74d16b9b2ab787688f6e`: the historical 707-chunk report was a force-stop/SIGKILL, not a missing surviving-process exit, and surviving exits already log `done` exactly once. The app now logs deterministic progress every 50 successful chunks and at the final planned chunk. MiMo audit is **SHIP** with zero corrections; local gates are targeted Jest 6/6, full Jest 646/646, tsc clean, semanticIndexHarness 29/0, and embeddingServiceHarness 22/1 versus pre-existing base 21/1. Automatic E2E run `34528014849` targets exact `1edf5c6` and remains pending; no device or Mac build was performed.
 
 ## 10. Diario
 
