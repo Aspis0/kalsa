@@ -1,0 +1,4 @@
+09-10 10:04:05.609 22531 22555 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+09-10 10:04:05.615 22531 22555 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":2259}
+09-10 10:04:05.671 22531 22555 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null}
+09-10 10:04:20.857 22531 22555 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2188,"tokensEvaluated":2122,"tokensPredicted":65,"draftTokens":0,"draftAccepted":0,"promptMs":9382.009,"predictedMs":5694.408,"predictedPerSecond":11.414707200467546,"contextFull":false,"interrupted":false,"ciswireFlags":1}

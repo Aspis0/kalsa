@@ -1,0 +1,30 @@
+[ci] share-send attempt 1/3: Convert 7 kilometers to miles. Reply with the number rounded to two decimals only.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share-send: submitted prev=2 count=2
+[ci] share-send attempt 1/3: Quale giorno viene dopo martedì? Rispondi con una sola parola, in italiano.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share-send: submitted prev=3 count=3
+[ci] share-send attempt 1/3: What day comes after Tuesday? Reply with one word in English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share-send: submitted prev=4 count=4
+[ci] share-send attempt 1/3: Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltanto questi tre giorni, nell'ordine dato, separandoli con virgole e senza testo extra.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share-send: submitted prev=5 count=5
+[ci] share-send attempt 1/3: I want to exercise three times: Monday, Wednesday, and Friday. List only these three days in that order, separated by commas, with no extra text.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share-send: submitted prev=6 count=7

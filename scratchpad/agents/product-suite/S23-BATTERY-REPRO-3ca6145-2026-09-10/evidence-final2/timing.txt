@@ -1,0 +1,10 @@
+id=C02 turn=1 start_ms=1789049028408 before_assistant=2
+id=C02 send_ok=1 reply_status=ok first_ms=1789049049467 completion_ms=1789049071408 elapsed_ms=43027
+id=C03 turn=2 start_ms=1789049134820 before_assistant=3
+id=C03 send_ok=1 reply_status=ok first_ms=1789049155767 completion_ms=1789049172510 elapsed_ms=37716
+id=C04 turn=3 start_ms=1789049236170 before_assistant=4
+id=C04 send_ok=1 reply_status=ok first_ms=1789049258958 completion_ms=1789049270019 elapsed_ms=33875
+id=C05 turn=4 start_ms=1789049333854 before_assistant=5
+id=C05 send_ok=1 reply_status=ok first_ms=1789049358810 completion_ms=1789049369980 elapsed_ms=36152
+id=C06 turn=5 start_ms=1789049433956 before_assistant=6
+id=C06 send_ok=1 reply_status=ok first_ms=1789049469381 completion_ms=1789049480514 elapsed_ms=46584

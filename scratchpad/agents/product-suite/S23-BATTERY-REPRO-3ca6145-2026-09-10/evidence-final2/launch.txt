@@ -1,0 +1,4 @@
+cold_launch_ms=60600
+prewarm_ready=1
+conversation_id=conv-g1-i14-1789042691
+finished=2026-09-10T10:12:24-0400

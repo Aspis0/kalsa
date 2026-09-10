@@ -4136,3 +4136,18 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   quando l'identità è ignota (l'identità vuota non arriva mai su disco); `KALSA_PREFIX` logga il cambio di
   ambiente prompt fra i turni coi campi che differiscono; `tokensOnDisk` nella riga di load. 20 test, tsc pulito.
   **Non ancora auditato in modo ostile né provato su telefono** (fermata la giornata su richiesta dell'owner).
+
+- **10/09 ~17:30 — S23, RIPRODUZIONE DEL BUG BATTERIA SU 3ca6145: PARZIALE, NON RIPRODOTTO CON LFM**
+  (report `S23-BATTERY-REPRO-3ca6145-2026-09-10.md`, evidenze `evidence-final2/`). Telefono scollegato, 89 %,
+  35,4 °C, thermal 0; 5 domande (C02-C06) via `kalsa://share` con 60 s di idle. Risultato: **89 → 86 %, cioè
+  −0,6 punti per domanda contro −4,8 del 9/09**; picco 39,0 °C, thermal sempre 1; decode 11,0-13,1 tok/s contro
+  0,06; nessun `KALSA_STALL`, nessuna scadenza di prefill, nessun `model.unload`, nessun `turnInterrupted`.
+  `KALSA_THINKING`: turno 1 budget 512 con EMA nulla, turni 2-5 budget 1024 con EMA 11,3-12,3 — la regola di
+  velocità funziona come deciso. Fit `allow:true, alreadyResident:true`, `availableMb` 2088-2259.
+  **ATTENZIONE, non è un confronto alla pari:** il 9/09 il crollo era con **MiniCPM5 Q4_K_M**, qui gira **LFM**,
+  il modello spedito. Quindi questo prova che LFM sull'APK corretto è sano sull'S23, non che i fix curino la
+  patologia di MiniCPM5 (modello parcheggiato: non si rifà). Due cose restano aperte: il warning
+  `failed to mlock 223 MB: Out of memory` compare ancora al caricamento a freddo (cosmetico, RLIMIT 64 MB), e
+  il prewarm a freddo è costato 38,6 s per 1832 token. **La correzione dell'estrazione memoria NON è stata
+  esercitata**: tutti e cinque i turni hanno loggato `KALSA_MEMORY_EXTRACT {memoryEnabled:0, stopReason:
+  "skipped_no_snapshot"}`, cioè la memoria è spenta su quell'installazione. Va riprovata col Jelly a memoria accesa.
