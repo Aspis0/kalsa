@@ -1,3 +1,5 @@
+const { computeEngineBuildId } = require("./scripts/engine-build-id.js");
+
 const config = {
   name: "Kalsa AI Chat",
   slug: "kalsa",
@@ -133,5 +135,11 @@ const config = {
 
 module.exports = () => {
   const next = JSON.parse(JSON.stringify(config));
+  // Engine identity from the real build inputs (fork pin, bridge/native
+  // patches, native tree, source-vs-prebuilt variant), embedded in the shipped
+  // APK's app.config `extra` and read at runtime via expo-constants. Throws on
+  // an unreadable input so prebuild fails loudly instead of shipping an
+  // engine that cannot be identified (KV identity audit, 2026-09-10).
+  next.extra = { ...next.extra, engineBuildId: computeEngineBuildId(__dirname) };
   return next;
 };

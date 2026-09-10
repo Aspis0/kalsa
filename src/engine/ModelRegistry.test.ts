@@ -45,7 +45,7 @@ describe("MODEL_REGISTRY catalog invariants", () => {
       engineCtx: 8192,
       kvCache: { k: "q8_0", v: "q4_0" },
       kvBytesPerToken: 17472,
-      thinking: { short: 256, extended: 512 },
+      thinking: { short: 512, extended: 1024, nPredict: 2048 },
       sizeClass: "2B",
       minRamTier: "low",
     });
