@@ -42,11 +42,15 @@ export BENCH_TARGET
 
 RUN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 KALSA_DIR="$(cd "$RUN_DIR/../../../../../kalsa" && pwd)"
-# shellcheck source=/Users/marco/Projects/kalsa/scripts/device-share-send.sh
-source "$KALSA_DIR/scripts/device-share-send.sh"
-
+# OUT must be bound BEFORE sourcing device-share-send.sh: that script's
+# top-level OUT="${OUT:-device-share-send-out}" would otherwise steal the
+# default (observed 2026-09-09: the whole LFM arm evidence landed in
+# device-share-send-out/).
 OUT="${OUT:-$OUT_JSONL.d}"
 mkdir -p "$OUT"
+export OUT
+# shellcheck source=/Users/marco/Projects/kalsa/scripts/device-share-send.sh
+source "$KALSA_DIR/scripts/device-share-send.sh"
 ACTIVITY="${ACTIVITY:-com.kalsa.app/.MainActivity}"
 CASE_IDS="${CASE_IDS:-}"
 
@@ -286,6 +290,71 @@ EOF
   return 1
 }
 
+# share_norm <text> — strip + collapse whitespace (and decode &#10; etc. that
+# uiautomator emits for newlines): the ONLY normalisation allowed before the
+# composer-vs-turn equality ("normalise whitespace only").
+share_norm() {
+  printf '%s' "$1" | python3 -c '
+import html, re, sys
+t = html.unescape(sys.stdin.read())
+print(re.sub(r"\s+", " ", t).strip())
+'
+}
+
+# runner_case_need_run <file> <id> — echoes 0 when the last recorded row for
+# the id has every turn ok (skip), 1 when missing/partial/failed (re-run; the
+# prior rows of that id are removed from the file so re-runs never duplicate).
+runner_case_need_run() {
+  python3 - "$1" "$2" <<'RUNPY'
+import json, sys
+path, cid = sys.argv[1], sys.argv[2]
+rows = []
+try:
+    for l in open(path, encoding="utf-8"):
+        l = l.strip()
+        if not l:
+            continue
+        rows.append(json.loads(l))
+except FileNotFoundError:
+    pass
+same = [r for r in rows if r.get("id") == cid]
+if not same:
+    print(1)
+    sys.exit(0)
+r = same[-1]
+turns = r.get("turns") or []
+if turns and all(t.get("status") == "ok" for t in turns):
+    print(0)
+    sys.exit(0)
+keep = [r for r in rows if r.get("id") != cid]
+with open(path, "w", encoding="utf-8") as f:
+    if keep:
+        f.write("\n".join(json.dumps(x, ensure_ascii=False) for x in keep) + "\n")
+print(1)
+RUNPY
+}
+
+# runner_watchdog_failed <file> — 0 unless the last 3 rows all have a
+# non-ok status (never burn the phone on a broken send path again).
+runner_watchdog_failed() {
+  python3 - "$1" <<'WDPY'
+import json, sys
+rows = []
+try:
+    for l in open(sys.argv[1], encoding="utf-8"):
+        l = l.strip()
+        if l:
+            rows.append(json.loads(l))
+except FileNotFoundError:
+    pass
+tail = rows[-3:]
+if len(tail) < 3:
+    print(0)
+    sys.exit(0)
+print(1 if all(r.get("status") != "ok" for r in tail) else 0)
+WDPY
+}
+
 # ── new-APK share semantics (APK main@5707cfe) ──────────────────────────
 # Measured on the S23 2026-09-09: with the docs/share fixes the kalsa://share
 # deep link APPENDS to the composer draft (it used to replace), and the draft
@@ -325,7 +394,12 @@ device_share_send() {
   device_tap_reload_if_needed || true
   prev=$(device_history_assistant_count)
   case "$prev" in ''|*[!0-9]*) prev=0 ;; esac
-  needle=$(printf '%s' "$msg" | awk '{s=$0} END {if (length(s)>48) print substr(s,1,48); else print s}')
+  # FULL turn text (diagnosis 2026-09-09: a 48-char needle made every longer
+  # turn "mismatch" while the composer held the complete message -> 11
+  # send_failed in a row). Comparison normalises whitespace only
+  # (uiautomator escapes newlines as &#10; and collapses spaces).
+  needle="$msg"
+  needle_norm=$(share_norm "$msg")
 
   # 1) composer must start empty (a fresh launch left residues for turn 2+).
   for rel in 1 2; do
@@ -345,26 +419,29 @@ device_share_send() {
   for i in 1 2 3; do
     nonce="${i}_$(date +%s)"
     device_share_intent "$msg" "$nonce" || { log "share: am start failed"; continue; }
-    local t=0 landed=""
+    local t=0 landed="" landed_norm=""
     while [ "$t" -lt 24 ]; do
       landed=$(device_composer_state)
       case "$landed" in
-        "TEXT:$needle") break ;;
-        EMPTY) log "share: composer empty right after share (intent swallowed?) attempt $i"; : ;;
-        TEXT:*) log "share: composer mismatch after share (${landed#TEXT:}...) attempt $i"; : ;;
-        *) : ;;
+        TEXT:*) landed_norm=$(share_norm "${landed#TEXT:}")
+                [ "$landed_norm" = "$needle_norm" ] && break
+                log "share: composer mismatch after share (${landed_norm:0:70}...) attempt $i"; : ;;
+        EMPTY) landed_norm=""
+               log "share: composer empty right after share (intent swallowed?) attempt $i"; : ;;
+        *) landed_norm="" ; : ;;
       esac
       sleep 3
       t=$((t + 3))
     done
-    if [ "$landed" = "TEXT:$needle" ]; then
+    if [ "$landed_norm" = "$needle_norm" ] && [ -n "$landed_norm" ]; then
       log "share: text landed alone in composer (attempt $i)"
       break
     fi
     log "share: precise landing failed (attempt $i) -> relaunch + reshare"
     device_app_relaunch || return 1
   done
-  [ "$landed" = "TEXT:$needle" ] || { log "share: text never landed cleanly"; return 1; }
+  [ "$landed_norm" = "$needle_norm" ] && [ -n "$landed_norm" ] \
+    || { log "share: text never landed cleanly"; return 1; }
 
   # 3) tap Invia once (label; content-desc on this APK). Re-dump before any
   #    retry: the tap may have gone through but the dump flaked.
@@ -488,7 +565,10 @@ main() {
 
   device_keepawake_begin
 
-  while IFS= read -r line || [ -n "$line" ]; do
+  local line CASE_LINES=()
+  while IFS= read -r line; do CASE_LINES+=("$line"); done < "$CASES_FILE"
+  unset -v line
+  for line in "${CASE_LINES[@]}"; do
     [ -n "$(printf '%s' "$line" | tr -d ' \t')" ] || continue
     case_id=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["id"])' "$line")
     if [ -n "$CASE_IDS" ]; then
@@ -497,15 +577,22 @@ main() {
     lang=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["lang"])' "$line")
     category=$(python3 -c 'import json,sys; print(json.loads(sys.argv[1])["category"])' "$line")
     turns=$(python3 -c 'import json,sys; c=json.loads(sys.argv[1]); print(json.dumps([t["content"] for t in c["turns"] if t["role"]=="user"], ensure_ascii=False))' "$line")
-    if [ -s "$OUT_JSONL" ]; then
-      if grep -oE '"id": *"[^"]+"' "$OUT_JSONL" | sed -E 's/"id": *"([^"]+)"/\1/' | sort -u | grep -qxF "$case_id"; then
-        log "skip $case_id (already recorded in $OUT_JSONL)"
+    if [ -s "$OUT_JSONL" ] && grep -oE '"id": *"[^"]+"' "$OUT_JSONL" \
+        | sed -E 's/"id": *"([^"]+)"/\1/' | sort -u | grep -qxF "$case_id"; then
+      if [ "$(runner_case_need_run "$OUT_JSONL" "$case_id")" = "1" ]; then
+        log "re-run $case_id (prior row not fully ok: removed)"
+      else
+        log "skip $case_id (already fully ok in $OUT_JSONL)"
         continue
       fi
     fi
     n=$((n + 1))
     run_case "$case_id" "$lang" "$category" "$turns"
-  done < "$CASES_FILE"
+    if [ "$(runner_watchdog_failed "$OUT_JSONL")" = "1" ]; then
+      log "WATCHDOG: 3 consecutive failures, stopping"
+      exit 3
+    fi
+  done
 
   adb shell am force-stop com.kalsa.app </dev/null >/dev/null 2>&1 || true
   log "run complete: $n cases -> $OUT_JSONL"
