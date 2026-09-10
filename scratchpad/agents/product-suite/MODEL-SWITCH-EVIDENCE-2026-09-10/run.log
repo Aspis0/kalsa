@@ -1,0 +1,18 @@
+[model-switch] start utc=2026-09-10T23:44:50Z
+[model-switch] dump failed, not an empty screen
+[model-switch] share-send attempt 1/3: Dimmi solo la parola: pronto.
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] share-send: text not visible after share (attempt 1/3)
+[model-switch] share-send attempt 2/3: Dimmi solo la parola: pronto.
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[model-switch] dump failed, not an empty screen
+[sw] stop then menu
+[sw] tap Qwen Seleziona 340,435 23:53:17Z
