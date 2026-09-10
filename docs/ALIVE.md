@@ -4054,3 +4054,17 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   M02 `send_failed` per entrambi = smontaggio del motore in background (fix 0b75254, da verificare). Fallimenti
   deterministici: LFM C02, I06; MiniCPM5 I05, I06, I07 (JSON non valido), T09, T11. `device/jelly/SCORE.md`,
   `RUN-STATE.md`. Xiaomi: solo LFM 24/24 (score al braccio MiniCPM5). S23: LFM 24 ok, MiniCPM5 da rifare.
+
+- **10/09 08:15 — budget di thinking deciso e committato (acade04).** Owner 07:40: "alto per S23, basso per il
+  MediaTek". Implementato senza rami per telefono: `decodeSpeed.ts` (EMA per modello, ≥16 token, turni interrotti
+  esclusi), `thinkingBudgets.ts` sceglie `extended` (LFM 1024) con decode misurato ≥ 5 tok/s, altrimenti `short`
+  (512), prima misura → short; registro LFM e dev-MiniCPM5 512/1024; `KALSA_THINKING {budget, decodeTokPerSec}`
+  per turno. Audit GLM pulito. APK CI in build. Jelly: cicli di vita su 0b75254 in corso (Luna 0235aac7); S23:
+  braccio MiniCPM5 15/24 alle 08:00; proposta all'owner: G1 chiuso oggi per LFM e tre stream paralleli sui telefoni.
+
+- **10/09 08:15 — G1 CHIUSO dall'owner: LFM2.5-2.6B è il modello principale** (5 giorni prima del 15/09, "stiamo
+  andando troppo lenti"). Evidenza in PLAN "Decisioni prese" 10/09. Conseguenze: braccio MiniCPM5 sullo Xiaomi
+  annullato; braccio S23 fermato a 16/24 (score parziale in `s23/SCORE.md`); i telefoni passano a tre stream
+  distinti: Jelly cicli di vita (0b75254, in corso), S23 riproduzione bug memoria/batteria con l'APK 899e76b
+  (budget 512/1024 per velocità, watchdog, grazia), Xiaomi Gallery + memoria HyperOS quando sbloccato. Fine tuning
+  MiniCPM5 resta opzione post-M1.
