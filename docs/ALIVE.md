@@ -4102,3 +4102,16 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (`MEMORY-EXTRACT-AUDIT-2026-09-10.md`): race confutate, due blocchi (guardia NaN, 128 token troncavano il JSON)
   corretti e ri-auditati → SHIP. Resta aperto (pre-esistente): stop/clearChat non annullano un'estrazione in corso.
   Verifica sul Jelly con il prossimo APK: attesi `stopReason:"done"` con fatti e `aborted_by_send` sugli invii ravvicinati.
+
+- **10/09 ~15:50 — GRAZIA DI SMONTAGGIO RESA NATIVA (`3ca6145` su main).** Modulo Expo locale `modules/kalsa-lifecycle`
+  (Kotlin 118 righe, come `kalsa-thermal`): timer su Handler del main looper (`backgroundTimerDidFire`) e inoltro di
+  `ComponentCallbacks2.onTrimMemory` (`trimMemory {level}`), registrato solo quando JS ascolta. AppShell inietta lo
+  scheduler nativo nella grazia (`src/app/backgroundTimer.ts`, fallback JS se il modulo manca, log una tantum
+  `background.grace {"timer":"native"|"js"}`); trim ≥ 40 in background con grazia pendente → smontaggio immediato
+  (`background.grace {"cancelled":true,"reason":"trim","level":N}` poi `model.unload {"reason":"trim","level":N}`).
+  Audit GLM (`LIFECYCLE-MODULE-AUDIT-2026-09-10.md`): consegna eventi ad activity in pausa CONFERMATA nei sorgenti
+  expo-modules-core (nessun gate sui listener, emit accodato sul thread JS; non copre Doze); due blocchi corretti
+  (registrazione in OnStartObserving, no memoizzazione del null) → SHIP parte 1 e parte 2. Non ancora provato su
+  telefono: APK CI 34478649461 (3ca6145, arm64 debuggable) in build; contiene anche l'estrazione `e455afc`.
+  Verifica Jelly: ciclo lungo 70 s deve mostrare `timer:"native"` e `model.unload {"reason":"background"}` a ~45 s,
+  poi riapertura con `.kvs` caldo e gate a freddo `no_active_model` con `availableMb`.
