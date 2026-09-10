@@ -177,6 +177,7 @@ import { resolveThinkingParams } from "./thinkingBudgets";
 import { getModelById } from "./ModelRegistry";
 import type { ModelInfo } from "./ModelRegistry";
 import type { DecodeMeasurement } from "./deviceThroughput";
+import { getDecodeTokPerSec, recordDecodeSample } from "./decodeSpeed";
 import {
   getChatGeneration,
   markChatCompleting,
@@ -953,6 +954,9 @@ function emitTurnTelemetry(
     if (model != null) {
       // Feed prompt_n, not tokens_evaluated, so cache hits do not inflate speed.
       recordPrefillSample(model.id, promptN, result.timings?.prompt_ms ?? -1);
+      if (!r.interrupted) {
+        recordDecodeSample(model.id, r.tokensPredicted, r.predictedMs);
+      }
       onDecodeSample?.(model, {
         predictedPerSecond: r.predictedPerSecond,
         tokensPredicted: r.tokensPredicted,
@@ -2961,7 +2965,25 @@ export async function streamAssistantTurn(
     // activeModelId === null → null model (defaults); unknown id still falls back
     // via getModelById (acceptable) but null must not invent a model.
     const activeModel = activeModelId ? getModelById(activeModelId) : null;
-    const { fields: thinkingFields, nPredict } = resolveThinkingParams(thinkingMode, activeModel);
+    const decodeTokPerSec = activeModel
+      ? getDecodeTokPerSec(activeModel.id)
+      : null;
+    const { fields: thinkingFields, nPredict } = resolveThinkingParams(
+      thinkingMode,
+      activeModel,
+      { decodeTokPerSec },
+    );
+    try {
+      console.log(
+        `KALSA_THINKING ${JSON.stringify({
+          turnId,
+          budget: thinkingFields.thinking_budget_tokens ?? 0,
+          decodeTokPerSec,
+        })}`,
+      );
+    } catch {
+      // telemetry must never break a turn
+    }
 
     const benchTokenIds: number[] = [];
     let benchTokenCount = 0;

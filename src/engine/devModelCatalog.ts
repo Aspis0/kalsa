@@ -49,7 +49,7 @@ const MINICPM5_DEFAULTS: CatalogDefaults & {
   contextLength: 131072,
   engineCtx: 8192,
   kvCache: { k: "q8_0", v: "q4_0" },
-  thinking: { short: 256, extended: 512 },
+  thinking: { short: 512, extended: 1024 },
   descriptionKey: "models.minicpm5.description",
   minRamTier: "low",
 };
