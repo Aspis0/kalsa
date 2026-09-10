@@ -4124,3 +4124,15 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (testID `message-action-{more,copy,edit}` sul menu messaggi, RN-rendered; "rigenera" non esiste nella UI di
   questo checkout). APK CI 34483949398 in build; il Jelly ripete la stessa verifica appena pronto. L'S23 sta
   riproducendo il bug batteria su 3ca6145: valido, perché contiene tutti i fix tranne il timer nativo.
+
+- **10/09 ~17:10 — IDENTITÀ DELLA SESSIONE LEGATA AL FILE E AL MOTORE (`e2e09f5` su main).** Recon GLM
+  (`SESSION-IDENTITY-RECON-2026-09-10.md`): il `.kvs` era già legato a modello, conversazione, hash dell'ambiente
+  prompt, storia, nCtx e tipi cache, con rifiuti nominati `meta_mismatch:<campo>`; i fatti memoria vanno in coda
+  all'ultimo messaggio utente (`MEMORY_FACTS_ON_USER_TAIL`) e non entrano nell'hash, quindi l'estrazione non fa
+  ripartire la sessione da freddo; il restore passa da `llama_state_save_file`/`load_file` (stato ricorrente LFM
+  incluso) con doppia guardia sul caso upstream #25913. Buchi chiusi ora: `modelFileId` (size:mtime del GGUF
+  caricato + sha dichiarato se presente) e `engineBuild` (impronta di `systemInfo`, contiene il marker
+  `kalsa-native-patches`) nel meta, `formatVersion` 1→2, salvataggio saltato con `session_identity_unavailable`
+  quando l'identità è ignota (l'identità vuota non arriva mai su disco); `KALSA_PREFIX` logga il cambio di
+  ambiente prompt fra i turni coi campi che differiscono; `tokensOnDisk` nella riga di load. 20 test, tsc pulito.
+  **Non ancora auditato in modo ostile né provato su telefono** (fermata la giornata su richiesta dell'owner).
