@@ -4115,3 +4115,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   telefono: APK CI 34478649461 (3ca6145, arm64 debuggable) in build; contiene anche l'estrazione `e455afc`.
   Verifica Jelly: ciclo lungo 70 s deve mostrare `timer:"native"` e `model.unload {"reason":"background"}` a ~45 s,
   poi riapertura con `.kvs` caldo e gate a freddo `no_active_model` con `availableMb`.
+
+- **10/09 ~16:40 — VERIFICA JELLY SU 3ca6145 FALLITA ALL'AVVIO: modulo nativo NON collegato** (`background.grace
+  {"timer":"js"}`, report `JELLY-LIFECYCLE-3ca6145-2026-09-10.md`, resto SKIP per condizione di stop). Causa, mia:
+  `.gitignore` riga 42 (`android/`) ha escluso `modules/kalsa-lifecycle/android/` dal commit; `3ca6145` conteneva solo
+  config, package e TS, autolinking non ha trovato nulla (log CI: solo `kalsa-thermal`). Avevo verificato i file su
+  disco e non quelli nel commit. Fix `1e02fe3` (eccezione `!modules/*/android/**` + add forzato), più `e89bd2a`
+  (testID `message-action-{more,copy,edit}` sul menu messaggi, RN-rendered; "rigenera" non esiste nella UI di
+  questo checkout). APK CI 34483949398 in build; il Jelly ripete la stessa verifica appena pronto. L'S23 sta
+  riproducendo il bug batteria su 3ca6145: valido, perché contiene tutti i fix tranne il timer nativo.
