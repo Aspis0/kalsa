@@ -4077,3 +4077,17 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   ~2 GB di swap già occupati a riposo (tabella in `s23/RUN-STATE.md`). Nessun runner residuo, app force-stopped,
   pref LFM ripristinata. Risultato coerente col G1 chiuso: sull'S23 LFM è più veloce (percorso Q4_0) e non ha
   fallito un caso. Prossimo passo S23: riproduzione del bug memoria/batteria con l'APK 899e76b (CI in corso).
+
+- **10/09 ~14:40 — CICLI DI VITA JELLY SU 0b75254: 7 PASS, 2 FAIL (smontaggio a 45 s), 2 SKIP** (Luna 0235aac7,
+  report `product-suite/JELLY-LIFECYCLE-0b75254-2026-09-10.md` + cartella evidenze). PASS: baseline freddo
+  (promptMs 17,3 s, 6,7 tok/s, nessuno stallo, fit a caldo `availableMb=3829`), background breve 15 s (nessun
+  unload/init/prewarm, secondo invio promptMs 4,7 s poi 2,0 s: il bug M02 dello share è chiuso), kill del processo
+  (storia conservata, `load ok tokens=2508`), back/riapertura (stesso PID, grazia annullata), stop generazione
+  (parziale tenuto, invio successivo ok, nessuno stallo), background breve ripetuto. FAIL ×2: 70 s in HOME → nessun
+  `model.unload`, al rientro `background.grace {"cancelled":true}`. **Causa trovata su disco:** i timer JS di
+  RN Android sono guidati dal Choreographer e si fermano ad activity in pausa
+  (`JavaTimerManager.kt:72-74 onHostPause → clearFrameCallback`): il `setTimeout` da 45 s non può scattare in
+  background, mai. Il percorso di ammissione `no_active_model` a freddo resta quindi non esercitato sul Jelly.
+  SKIP: rigenera/modifica (nessun nodo UI accessibile via dump, solo `Altro`: da fare a mano). Fix in corso: modulo
+  Expo locale `modules/kalsa-lifecycle` (Handler sul main looper per il timer + inoltro di `onTrimMemory`), grazia
+  generica sull'handle; cablaggio AppShell dopo il commit dell'estrazione memoria (Luna 54bc9812).
