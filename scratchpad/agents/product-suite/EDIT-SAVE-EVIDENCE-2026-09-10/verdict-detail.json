@@ -1,0 +1,16 @@
+{
+  "n": 2,
+  "n_user": 1,
+  "n_edited": 1,
+  "last": {
+    "id": "a-8080268",
+    "role": "assistant",
+    "text": "The",
+    "createdAt": 1789079618701,
+    "interrupted": true
+  },
+  "edited_heads": [
+    "Dimmi solo la parola: ciao."
+  ],
+  "pass": true
+}

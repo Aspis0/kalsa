@@ -1,0 +1,35 @@
+[edit-save] start utc=2026-09-10T22:32:46Z
+[edit-save] tap 'Nuova chat' at 436,171
+[edit-save] tapped Nuova chat
+[edit-save] share-send
+[edit-save] share-send attempt 1/3: Dimmi solo la parola: ciao.
+[edit-save] share-send: Send attempt 1/3
+[edit-save] node 'Send' NOT FOUND
+[edit-save] tap 'Invia' at 426,805
+[edit-save] share-send: submitted prev=2 count=2
+[edit-save] submitted utc=2026-09-10T22:33:14Z
+[edit-save] tapping stop coords 426,805
+[edit-save] after-stop n 1 0 role=user edited=None interrupted=None streaming=None len=27 'Dimmi solo la parola: ciao.' 
+[edit-save] tap 'Altro' at 413,344
+[edit-save] tapped Altro
+[edit-save] tap 'Modifica' at 240,722
+[edit-save] tapped Modifica
+[edit-save] tap 'Salva' at 389,524
+[edit-save] tapped Salva utc=2026-09-10T22:33:38Z
+[edit-save] KALSA_SEND fit seen after 0s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 3s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 6s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 9s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 12s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 15s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 18s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 21s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 24s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 27s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 30s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 33s (resend started); keep polling SQL
+[edit-save] KALSA_SEND fit seen after 36s (resend started); keep polling SQL
+[edit-save] edited:true in SQL after 39s
+[edit-save] after-save n 2 0 role=user edited=True interrupted=None streaming=None len=27 'Dimmi solo la parola: ciao.' 1 role=assistant edited=None interrupted=True streaming=None len=3 'The' 
+[edit-save] verdict=PASS
+[edit-save] end utc=2026-09-10T22:34:37Z
