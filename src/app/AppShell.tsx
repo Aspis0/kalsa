@@ -170,6 +170,7 @@ import {
 } from "../engine/sessionPersistence";
 import { formatDigestLine } from "../engine/digestTelemetry";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
+import { createExtractAbort } from "../memory/extractAbort";
 import { boundMemoryFacts } from "../memory/dnaBounding";
 import {
   conversationHasPersistedMessages,
@@ -4896,21 +4897,19 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const saveGate = new Promise<void>((resolve) => {
               releaseSaveGate = resolve;
             });
-            let extractionCancelled = false;
-            const extractionAbortController = new AbortController();
-            const cancelExtractionForSend = () => {
-              extractionCancelled = true;
-              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
-              releaseSaveGate?.();
-              extractionAbortController.abort();
-            };
-            memoryExtractCancelRef.current = cancelExtractionForSend;
-            // clearChat/stop aborts the signal — release so we never hang the ref.
-            const onAbortRelease = () => {
-              if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
-              releaseSaveGate?.();
-            };
-            signal.addEventListener("abort", onAbortRelease, { once: true });
+            // Cancel = release the gate (source 3) + abort the extraction's own
+            // signal. stop/clearChat abort the TURN signal; forwarding it here is
+            // what makes cancellation reach a completion that is already running
+            // (audit 2026-09-10: the old listener released the gate only, and
+            // extractMemory listens on this controller, not on the turn signal).
+            const extractAbort = createExtractAbort({
+              outer: signal,
+              onCancel: () => {
+                if (releaseSaveGate && extractGateSource === 0) extractGateSource = 3;
+                releaseSaveGate?.();
+              },
+            });
+            memoryExtractCancelRef.current = extractAbort.cancel;
             // Safety valve (re-verify finding 1c): if NO path releases the gate
             // (rapid re-send inside the save window, a skipped save branch, a
             // Fabric-lane ordering glitch), the extract must still run — a
@@ -4927,7 +4926,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               let extractDetails: MemoryExtractDetails = noExtractDetails;
               try {
                 await saveGate;
-                if (extractionCancelled) {
+                if (extractAbort.cancelled()) {
                   extractDetails = {
                     durationMs: 0,
                     timeoutMs: EXTRACT_MEMORY_MIN_TIMEOUT_MS,
@@ -4954,7 +4953,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   capturedUser,
                   capturedAssistant,
                   locale,
-                  extractionAbortController.signal,
+                  extractAbort.signal,
                 );
                 extractDetails = {
                   durationMs: extractResult.durationMs,
@@ -4992,14 +4991,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 await emitSettledMemoryTelemetry(undefined, extractDetails);
 
                 clearTimeout(gateTimeoutId);
-                if (memoryExtractCancelRef.current === cancelExtractionForSend) {
+                if (memoryExtractCancelRef.current === extractAbort.cancel) {
                   memoryExtractCancelRef.current = null;
                 }
-                try {
-                  signal.removeEventListener("abort", onAbortRelease);
-                } catch {
-                  // ignore
-                }
+                extractAbort.detach();
               }
             })();
 
