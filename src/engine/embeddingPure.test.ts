@@ -5,6 +5,7 @@ import {
   listDocumentChunksForEmbed,
   planChunksToEmbed,
   shouldDegradeToBm25Only,
+  shouldLogEmbedProgress,
 } from "./embeddingPure";
 
 describe("embeddingPure", () => {
@@ -45,5 +46,48 @@ describe("embeddingPure", () => {
     const planned = planChunksToEmbed(existing, [first, first, ...chunks.slice(1)]);
     expect(planned).toHaveLength(chunks.length - 1);
     expect(planned).not.toContainEqual(first);
+  });
+
+  test("logs progress at every 50 chunks and at the final planned chunk", () => {
+    // Interval boundaries on a non-round total.
+    expect(shouldLogEmbedProgress(50, 707)).toBe(true);
+    expect(shouldLogEmbedProgress(100, 707)).toBe(true);
+    expect(shouldLogEmbedProgress(51, 707)).toBe(false);
+    expect(shouldLogEmbedProgress(99, 707)).toBe(false);
+    // Final planned chunk (not a multiple of the interval).
+    expect(shouldLogEmbedProgress(707, 707)).toBe(true);
+    // Final chunk before any interval boundary.
+    expect(shouldLogEmbedProgress(30, 30)).toBe(true);
+    // Final chunk that is also an interval boundary is still one predicate hit.
+    expect(shouldLogEmbedProgress(50, 50)).toBe(true);
+    expect(shouldLogEmbedProgress(100, 100)).toBe(true);
+    // Invalid / out-of-range inputs never fire.
+    expect(shouldLogEmbedProgress(0, 707)).toBe(false);
+    expect(shouldLogEmbedProgress(-50, 707)).toBe(false);
+    expect(shouldLogEmbedProgress(708, 707)).toBe(false);
+    expect(shouldLogEmbedProgress(1.5, 10)).toBe(false);
+    expect(shouldLogEmbedProgress(10, 10, 0)).toBe(false);
+  });
+
+  test("emits exactly one progress line per qualifying count (no duplicates)", () => {
+    const logged: number[] = [];
+    for (let embedded = 1; embedded <= 250; embedded += 1) {
+      if (shouldLogEmbedProgress(embedded, 250)) logged.push(embedded);
+    }
+    expect(logged).toEqual([50, 100, 150, 200, 250]);
+
+    // final === multiple of 50 must not be counted twice, and short jobs log
+    // only the final chunk.
+    const finalMultiple: number[] = [];
+    for (let embedded = 1; embedded <= 100; embedded += 1) {
+      if (shouldLogEmbedProgress(embedded, 100)) finalMultiple.push(embedded);
+    }
+    expect(finalMultiple).toEqual([50, 100]);
+
+    const shortJob: number[] = [];
+    for (let embedded = 1; embedded <= 12; embedded += 1) {
+      if (shouldLogEmbedProgress(embedded, 12)) shortJob.push(embedded);
+    }
+    expect(shortJob).toEqual([12]);
   });
 });

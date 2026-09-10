@@ -143,3 +143,33 @@ export function planChunksToEmbed(
   }
   return out;
 }
+
+/** Cadence of deterministic background-embed progress telemetry. */
+export const EMBED_PROGRESS_INTERVAL = 50;
+
+/**
+ * Deterministic progress-logging predicate for the background embed job.
+ *
+ * `embeddedCount` is the number of chunks successfully embedded so far and
+ * `plannedTotal` is how many chunks the job planned to embed. True at every
+ * `interval`-th chunk and at the final planned chunk, so a completed job always
+ * emits one terminal progress line even when `plannedTotal` is not a multiple
+ * of `interval`. Pure and monotonic: for an increasing `embeddedCount` each
+ * qualifying value is true exactly once, so inline logging cannot duplicate a
+ * line. When `plannedTotal` is also a multiple of `interval` both rules match
+ * the same count and still yield a single `true` (one log), not two.
+ */
+export function shouldLogEmbedProgress(
+  embeddedCount: number,
+  plannedTotal: number,
+  interval: number = EMBED_PROGRESS_INTERVAL,
+): boolean {
+  if (!Number.isInteger(embeddedCount) || !Number.isInteger(plannedTotal)) {
+    return false;
+  }
+  if (!Number.isInteger(interval) || interval <= 0) return false;
+  if (embeddedCount <= 0 || plannedTotal <= 0) return false;
+  if (embeddedCount > plannedTotal) return false;
+  if (embeddedCount === plannedTotal) return true;
+  return embeddedCount % interval === 0;
+}
