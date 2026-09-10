@@ -1,0 +1,11 @@
+09-10 04:29:40.193 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":17,"ok":true,"estimatedBytes":44228373.25924215,"usedTokens":2529,"reason":"unchanged"}
+09-10 04:29:40.205 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":12,"ok":true,"estimatedBytes":44228373.25924215,"usedTokens":2529,"reason":"unchanged"}
+09-10 04:29:47.732 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 04:29:47.790 18656 18683 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 36 key-value pairs and 381 tensors from /data/user/0/com.kalsa.app/files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf (version GGUF V3 (latest))
+09-10 04:29:55.174 18656 18683 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-10 04:29:55.254 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":79,"ok":true,"tokens":2529}
+09-10 04:29:55.266 18656 18683 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 04:29:55.296 18656 18683 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-10 04:30:39.682 18656 18683 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":2643,"tokensEvaluated":2555,"tokensPredicted":87,"draftTokens":0,"draftAccepted":0,"promptMs":7945.963,"predictedMs":35966.136,"predictedPerSecond":2.4189420848544865,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-10 04:30:39.682 18656 18683 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"3","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-10 04:30:39.995 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":279,"ok":true,"estimatedBytes":46222060.31007394,"usedTokens":2643,"tokens":2643,"hash":"2827084429","messageCount":6}

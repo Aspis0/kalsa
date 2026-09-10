@@ -1,0 +1,11 @@
+09-10 04:31:09.946 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":16,"ok":true,"estimatedBytes":46222060.31007394,"usedTokens":2643,"reason":"unchanged"}
+09-10 04:31:09.958 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":12,"ok":true,"estimatedBytes":46222060.31007394,"usedTokens":2643,"reason":"unchanged"}
+09-10 04:31:17.401 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 04:31:17.459 18656 18683 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 36 key-value pairs and 381 tensors from /data/user/0/com.kalsa.app/files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf (version GGUF V3 (latest))
+09-10 04:31:24.899 18656 18683 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-10 04:31:24.968 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":69,"ok":true,"tokens":2643}
+09-10 04:31:24.981 18656 18683 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 04:31:25.004 18656 18683 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-10 04:32:25.637 18656 18683 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2740,"tokensEvaluated":2666,"tokensPredicted":73,"draftTokens":0,"draftAccepted":0,"promptMs":28317.618000000002,"predictedMs":31815.918999999998,"predictedPerSecond":2.2944488889351273,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-10 04:32:25.637 18656 18683 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-10 04:32:25.950 18656 18683 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":276,"ok":true,"estimatedBytes":47918443.15157117,"usedTokens":2740,"tokens":2740,"hash":"1774828378","messageCount":8}

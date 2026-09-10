@@ -1,0 +1,2 @@
+model=lfm2.5-2.6b
+devmodels=1

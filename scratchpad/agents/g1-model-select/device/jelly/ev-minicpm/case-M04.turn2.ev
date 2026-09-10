@@ -1,0 +1,11 @@
+09-10 04:47:45.244 21994 22021 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":21,"ok":true,"estimatedBytes":42706875.24676525,"usedTokens":2442,"reason":"unchanged"}
+09-10 04:47:45.257 21994 22021 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":12,"ok":true,"estimatedBytes":42706875.24676525,"usedTokens":2442,"reason":"unchanged"}
+09-10 04:47:52.824 21994 22021 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 04:47:52.881 21994 22021 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 36 key-value pairs and 381 tensors from /data/user/0/com.kalsa.app/files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf (version GGUF V3 (latest))
+09-10 04:48:00.638 21994 22021 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-10 04:48:00.720 21994 22021 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":82,"ok":true,"tokens":2442}
+09-10 04:48:00.731 21994 22021 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 04:48:00.752 21994 22021 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-10 04:48:42.262 21994 22021 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":2548,"tokensEvaluated":2464,"tokensPredicted":83,"draftTokens":0,"draftAccepted":0,"promptMs":6963.4310000000005,"predictedMs":34066.97,"predictedPerSecond":2.436377523448666,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-10 04:48:42.262 21994 22021 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"3","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-10 04:48:42.504 21994 22021 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":207,"ok":true,"estimatedBytes":44560654.43438078,"usedTokens":2548,"tokens":2548,"hash":"2755763592","messageCount":6}

@@ -1,0 +1,130 @@
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+starting MiniCPM5 supervisor; waiting for cool gate
+2026-09-09 23:16:09 EDT cool waited=0s battery_deciC=380 thermal_status=0
+2026-09-09 23:16:39 EDT cool waited=30s battery_deciC=380 thermal_status=0
+2026-09-09 23:17:10 EDT cool waited=60s battery_deciC=380 thermal_status=0
+2026-09-09 23:17:40 EDT cool waited=90s battery_deciC=370 thermal_status=0
+2026-09-09 23:18:10 EDT cool waited=120s battery_deciC=370 thermal_status=0
+2026-09-09 23:18:40 EDT cool waited=150s battery_deciC=370 thermal_status=0
+2026-09-09 23:19:10 EDT cool waited=180s battery_deciC=370 thermal_status=0
+2026-09-09 23:19:40 EDT cool waited=210s battery_deciC=360 thermal_status=0
+2026-09-09 23:20:11 EDT cool waited=240s battery_deciC=360 thermal_status=0
+2026-09-09 23:20:41 EDT cool waited=270s battery_deciC=360 thermal_status=0
+2026-09-09 23:21:11 EDT cool waited=300s battery_deciC=360 thermal_status=0
+2026-09-09 23:21:41 EDT cool waited=330s battery_deciC=360 thermal_status=0
+2026-09-09 23:22:11 EDT cool waited=360s battery_deciC=350 thermal_status=0
+cool gate passed; starting MiniCPM5 full arm
+2026-09-09 23:22:11 EDT arm=minicpm rows=0
+2026-09-09 23:27:12 EDT arm=minicpm rows=0
+2026-09-09 23:32:13 EDT arm=minicpm rows=0
+2026-09-09 23:37:14 EDT arm=minicpm rows=1 last_id=C01 last_status=ok
+2026-09-09 23:42:15 EDT arm=minicpm rows=1 last_id=C01 last_status=ok
+2026-09-09 23:47:16 EDT arm=minicpm rows=2 last_id=C02 last_status=ok
+2026-09-09 23:52:17 EDT arm=minicpm rows=2 last_id=C02 last_status=ok
+2026-09-09 23:57:18 EDT arm=minicpm rows=2 last_id=C02 last_status=ok
+2026-09-10 00:02:19 EDT arm=minicpm rows=3 last_id=C03 last_status=ok
+2026-09-10 00:07:19 EDT arm=minicpm rows=3 last_id=C03 last_status=ok
+2026-09-10 00:12:20 EDT arm=minicpm rows=4 last_id=C04 last_status=ok
+2026-09-10 00:17:21 EDT arm=minicpm rows=4 last_id=C04 last_status=ok
+2026-09-10 00:22:22 EDT arm=minicpm rows=4 last_id=C04 last_status=ok
+2026-09-10 00:27:23 EDT arm=minicpm rows=5 last_id=C05 last_status=ok
+2026-09-10 00:32:24 EDT arm=minicpm rows=5 last_id=C05 last_status=ok
+2026-09-10 00:37:24 EDT arm=minicpm rows=5 last_id=C05 last_status=ok
+2026-09-10 00:42:25 EDT arm=minicpm rows=6 last_id=C06 last_status=ok
+2026-09-10 00:47:26 EDT arm=minicpm rows=6 last_id=C06 last_status=ok
+2026-09-10 00:52:27 EDT arm=minicpm rows=6 last_id=C06 last_status=ok
+2026-09-10 00:57:28 EDT arm=minicpm rows=7 last_id=C07 last_status=ok
+2026-09-10 01:02:28 EDT arm=minicpm rows=7 last_id=C07 last_status=ok
+2026-09-10 01:07:29 EDT arm=minicpm rows=7 last_id=C07 last_status=ok
+2026-09-10 01:12:30 EDT arm=minicpm rows=8 last_id=I01 last_status=ok
+2026-09-10 01:17:31 EDT arm=minicpm rows=8 last_id=I01 last_status=ok
+2026-09-10 01:22:32 EDT arm=minicpm rows=9 last_id=I02 last_status=ok
+2026-09-10 01:27:33 EDT arm=minicpm rows=9 last_id=I02 last_status=ok
+2026-09-10 01:32:33 EDT arm=minicpm rows=9 last_id=I02 last_status=ok
+2026-09-10 01:37:34 EDT arm=minicpm rows=10 last_id=I03 last_status=ok
+2026-09-10 01:42:35 EDT arm=minicpm rows=10 last_id=I03 last_status=ok
+2026-09-10 01:47:36 EDT arm=minicpm rows=10 last_id=I03 last_status=ok
+2026-09-10 01:52:36 EDT arm=minicpm rows=11 last_id=I04 last_status=ok
+2026-09-10 01:57:37 EDT arm=minicpm rows=11 last_id=I04 last_status=ok
+2026-09-10 02:02:38 EDT arm=minicpm rows=12 last_id=I05 last_status=ok
+2026-09-10 02:07:39 EDT arm=minicpm rows=12 last_id=I05 last_status=ok
+2026-09-10 02:12:40 EDT arm=minicpm rows=12 last_id=I05 last_status=ok
+2026-09-10 02:17:41 EDT arm=minicpm rows=12 last_id=I05 last_status=ok
+2026-09-10 02:22:42 EDT arm=minicpm rows=13 last_id=I06 last_status=ok
+2026-09-10 02:27:42 EDT arm=minicpm rows=13 last_id=I06 last_status=ok
+2026-09-10 02:32:43 EDT arm=minicpm rows=13 last_id=I06 last_status=ok
+2026-09-10 02:37:44 EDT arm=minicpm rows=14 last_id=I07 last_status=ok
+2026-09-10 02:42:45 EDT arm=minicpm rows=14 last_id=I07 last_status=ok
+2026-09-10 02:47:46 EDT arm=minicpm rows=14 last_id=I07 last_status=ok
+2026-09-10 02:52:46 EDT arm=minicpm rows=15 last_id=I08 last_status=ok
+2026-09-10 02:57:47 EDT arm=minicpm rows=15 last_id=I08 last_status=ok
+2026-09-10 03:02:48 EDT arm=minicpm rows=16 last_id=I10 last_status=ok
+2026-09-10 03:07:49 EDT arm=minicpm rows=16 last_id=I10 last_status=ok
+2026-09-10 03:12:50 EDT arm=minicpm rows=16 last_id=I10 last_status=ok
+2026-09-10 03:17:51 EDT arm=minicpm rows=17 last_id=I12 last_status=ok
+2026-09-10 03:22:51 EDT arm=minicpm rows=17 last_id=I12 last_status=ok
+2026-09-10 03:27:52 EDT arm=minicpm rows=18 last_id=I14 last_status=ok
+2026-09-10 03:32:53 EDT arm=minicpm rows=18 last_id=I14 last_status=ok
+2026-09-10 03:37:54 EDT arm=minicpm rows=18 last_id=I14 last_status=ok
+2026-09-10 03:42:55 EDT arm=minicpm rows=18 last_id=I14 last_status=ok
+2026-09-10 03:47:56 EDT arm=minicpm rows=19 last_id=M01 last_status=ok
+2026-09-10 03:52:56 EDT arm=minicpm rows=19 last_id=M01 last_status=ok
+2026-09-10 03:57:57 EDT arm=minicpm rows=19 last_id=M01 last_status=ok
+2026-09-10 04:02:58 EDT arm=minicpm rows=19 last_id=M01 last_status=ok
+2026-09-10 04:07:59 EDT arm=minicpm rows=19 last_id=M01 last_status=ok
+2026-09-10 04:12:30 EDT arm=minicpm non_ok=send_failed id=M02 consecutive=1
+2026-09-10 04:13:00 EDT arm=minicpm rows=20 last_id=M02 last_status=send_failed
+2026-09-10 04:18:01 EDT arm=minicpm rows=20 last_id=M02 last_status=send_failed
+2026-09-10 04:23:01 EDT arm=minicpm rows=20 last_id=M02 last_status=send_failed
+2026-09-10 04:28:02 EDT arm=minicpm rows=20 last_id=M02 last_status=send_failed
+2026-09-10 04:33:03 EDT arm=minicpm rows=21 last_id=M03 last_status=ok
+2026-09-10 04:38:04 EDT arm=minicpm rows=21 last_id=M03 last_status=ok
+2026-09-10 04:43:05 EDT arm=minicpm rows=21 last_id=M03 last_status=ok
+2026-09-10 04:48:06 EDT arm=minicpm rows=21 last_id=M03 last_status=ok
+2026-09-10 04:53:06 EDT arm=minicpm rows=22 last_id=M04 last_status=ok
+2026-09-10 04:58:07 EDT arm=minicpm rows=22 last_id=M04 last_status=ok
+2026-09-10 05:03:08 EDT arm=minicpm rows=22 last_id=M04 last_status=ok
+2026-09-10 05:08:09 EDT arm=minicpm rows=23 last_id=T09 last_status=ok
+2026-09-10 05:13:10 EDT arm=minicpm rows=23 last_id=T09 last_status=ok
+2026-09-10 05:18:10 EDT arm=minicpm rows=23 last_id=T09 last_status=ok
+2026-09-10 05:23:11 EDT arm=minicpm rows=24 last_id=T11 last_status=ok
+MiniCPM5 complete; deduping last-ok-per-id score inputs
+deduped /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm.out.jsonl -> /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-score-dedup.jsonl rows= 24
+deduped /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl -> /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm-score-dedup.jsonl rows= 24
+rows=48 cases=24
+model	phone	lang	category	pass	fail	rubric	error
+dev-minicpm5-2b	Jelly	en	conversation	3	0	0	0
+dev-minicpm5-2b	Jelly	en	instructions	5	1	1	0
+dev-minicpm5-2b	Jelly	en	memory	1	0	0	1
+dev-minicpm5-2b	Jelly	it	conversation	3	0	1	0
+dev-minicpm5-2b	Jelly	it	instructions	2	2	0	0
+dev-minicpm5-2b	Jelly	it	memory	2	0	0	0
+dev-minicpm5-2b	Jelly	it	tools	0	2	0	0
+lfm2.5-2.6b	Jelly	en	conversation	2	1	0	0
+lfm2.5-2.6b	Jelly	en	instructions	5	1	1	0
+lfm2.5-2.6b	Jelly	en	memory	1	0	0	1
+lfm2.5-2.6b	Jelly	it	conversation	3	0	1	0
+lfm2.5-2.6b	Jelly	it	instructions	4	0	0	0
+lfm2.5-2.6b	Jelly	it	memory	2	0	0	0
+lfm2.5-2.6b	Jelly	it	tools	2	0	0	0
+model	phone	metric	median	max	n
+dev-minicpm5-2b	Jelly	promptMs	13008.3	33262.9	24
+dev-minicpm5-2b	Jelly	tok_s	2.3	2.5	24
+lfm2.5-2.6b	Jelly	promptMs	6212.4	29181.3	24
+lfm2.5-2.6b	Jelly	tok_s	3.4	5.0	24
+failures
+lfm2.5-2.6b	Jelly	C02	FAIL	check mismatch
+lfm2.5-2.6b	Jelly	I06	FAIL	check mismatch
+lfm2.5-2.6b	Jelly	M02	ERROR	send_failed (never dropped)
+dev-minicpm5-2b	Jelly	I05	FAIL	check mismatch
+dev-minicpm5-2b	Jelly	I06	FAIL	check mismatch
+dev-minicpm5-2b	Jelly	I07	FAIL	check error: Expecting value: line 1 column 1 (char 0)
+dev-minicpm5-2b	Jelly	M02	ERROR	send_failed (never dropped)
+dev-minicpm5-2b	Jelly	T09	FAIL	expected tool device_calc; executed=[] requested=[]
+dev-minicpm5-2b	Jelly	T11	FAIL	expected tool write_note; executed=[] requested=[]
+score_rc=0
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

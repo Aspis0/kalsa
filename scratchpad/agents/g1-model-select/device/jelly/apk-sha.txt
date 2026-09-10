@@ -1,0 +1,1 @@
+30253a561638d24a776c09e95887edd3f931ef8cb87add2d9331699725ab7934  /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/.base.apk

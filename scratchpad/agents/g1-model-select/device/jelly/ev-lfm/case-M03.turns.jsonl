@@ -1,0 +1,4 @@
+{"user": "Tieni a mente il mio piano: martedì devo chiamare Sara, giovedì devo pagare l'affitto e sabato voglio fare una passeggiata.", "status": "not_run", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}
+{"user": "Qual è la capitale della Francia?", "status": "not_run", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}
+{"user": "Traduci in inglese la parola 'casa'.", "status": "not_run", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}
+{"user": "Quale impegno ho giovedì?", "status": "not_run", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}

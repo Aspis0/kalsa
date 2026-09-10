@@ -4046,3 +4046,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   di ragionamento per riga (~+60 s sul Jelly, ~+20 s sull'S23). Decisione all'owner in PLAN "Aperti" con proposta
   (LFM 1024 da S23 in su, 512 sul Jelly). Giudici GLM+Luna perché deepseek/mimo fuori quota. Jelly MiniCPM5 3/24 alle
   23:59 (C03 786 s, stato termico 3), fine stimata ~04:00.
+
+- **10/09 05:25 — Jelly SCORE (G1 sweep 24×2, APK 4b29466, USB 100 %, 37-39 °C, stato termico 0-3).** Deterministico:
+  LFM 19 pass / 2 fail / 1 error, MiniCPM5 16 / 5 / 1; 2 righe a rubrica per modello (giudizio cieco da fare con
+  S23/Xiaomi). **Tool offline: LFM 2/2 (device_calc, write_note), MiniCPM5 0/2** (nessuna chiamata richiesta né
+  eseguita). Velocità sul Jelly (mediane su 24): decode LFM 3,4 tok/s vs MiniCPM5 2,3; promptMs 6,2 s vs 13,0 s.
+  M02 `send_failed` per entrambi = smontaggio del motore in background (fix 0b75254, da verificare). Fallimenti
+  deterministici: LFM C02, I06; MiniCPM5 I05, I06, I07 (JSON non valido), T09, T11. `device/jelly/SCORE.md`,
+  `RUN-STATE.md`. Xiaomi: solo LFM 24/24 (score al braccio MiniCPM5). S23: LFM 24 ok, MiniCPM5 da rifare.

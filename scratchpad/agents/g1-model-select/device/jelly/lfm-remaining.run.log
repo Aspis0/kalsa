@@ -1,0 +1,109 @@
+[ci] serial=JELLYS0000053795 model=lfm2.5-2.6b out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-remaining.run.jsonl reply_timeout=600
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case M02 (memory/en) model=lfm2.5-2.6b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-m02-1789007659
+[ci] ready after 65s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Remember for this conversation: my train leaves from Bristol at 07:25,
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 130s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: What is 8 plus 5?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 25s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Rewrite briefly: 'The parcel arrived this morning.'
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] node 'Invia' NOT FOUND
+[ci] share: Send node not found after 1 tries
+[ci] node 'Send' NOT FOUND
+[ci] node 'Invia' NOT FOUND
+[ci] share: Send node not found after 2 tries
+[ci] node 'Send' NOT FOUND
+[ci] node 'Invia' NOT FOUND
+[ci] share: Send node not found after 3 tries
+[ci] share: Send node never found
+[ci]   turn 4/4: Where does my train leave from, when, and how do I prefer my tea?
+[ci] share: composer not empty before share (Rewrite briefly: 'The parcel arrived this morning.'...) -> relaunch 1/2
+[ci] share: relaunching app to reset composer state
+[ci] ready after 120s (KALSA_PREWARM idle marker)
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 225s (stable x2, quiet 20s, telemetry clean)
+[ci] case M02 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-remaining.run.jsonl)
+[ci] === case M03 (memory/it) model=lfm2.5-2.6b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-m03-1789008459
+[ci] ready after 120s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Tieni a mente il mio piano: martedì devo chiamare Sara, giovedì devo p
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 215s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: Qual è la capitale della Francia?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 60s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Traduci in inglese la parola 'casa'.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 50s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: Quale impegno ho giovedì?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 50s (stable x2, quiet 20s, telemetry clean)
+[ci] case M03 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-remaining.run.jsonl)
+[ci] === case T09 (tools/it) model=lfm2.5-2.6b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-t09-1789009105
+[ci] ready after 120s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Usa lo strumento calcolatrice con expression='18 / 3'. Voglio una chia
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 200s (stable x2, quiet 20s, telemetry clean)
+[ci] case T09 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-remaining.run.jsonl)
+[ci] === case T11 (tools/it) model=lfm2.5-2.6b serial=JELLYS0000053795 ===
+[ci] thermal: pause — status=3 battery_deci=390 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=390
+[ci] thermal: cooling… waited=60s status=3 battery_deci=390
+[ci] thermal: cooling… waited=90s status=0 battery_deci=390
+[ci] thermal: resume after 90s — status=0 battery_deci=390
+[ci] conversation: conv-g1-t11-1789009600
+[ci] ready after 125s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Salva una nota intitolata 'Idee weekend' con il testo 'Visitare il mer
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 215s (stable x2, quiet 20s, telemetry clean)
+[ci] case T11 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-remaining.run.jsonl)
+[ci] run complete: 4 cases -> /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/lfm-remaining.run.jsonl
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

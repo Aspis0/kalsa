@@ -1,0 +1,18 @@
+probe_host_start=2026-09-09 19:08:02 EDT
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+probe_conversation=conv-g1-probe-1788995283 serial=JELLYS0000053795
+Starting: Intent { cmp=com.kalsa.app/.MainActivity }
+[ci] ready after 65s (KALSA_PREWARM idle marker)
+probe_ready=ok
+probe_length=75
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=0)
+probe_send_rc=0
+probe_host_end=2026-09-09 19:09:29 EDT

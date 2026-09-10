@@ -1,0 +1,11 @@
+09-09 21:34:40.842 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":15,"ok":true,"estimatedBytes":18250330.9453125,"usedTokens":2598,"reason":"unchanged"}
+09-09 21:34:40.855 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":13,"ok":true,"estimatedBytes":18250330.9453125,"usedTokens":2598,"reason":"unchanged"}
+09-09 21:34:48.417 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 21:34:48.503 15849 15875 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 21:34:53.286 15849 15875 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-09 21:34:53.354 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":68,"ok":true,"tokens":2598}
+09-09 21:34:53.369 15849 15875 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 21:34:53.391 15849 15875 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 21:35:28.868 15849 15875 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2740,"tokensEvaluated":2626,"tokensPredicted":113,"draftTokens":0,"draftAccepted":0,"promptMs":4068.9390000000003,"predictedMs":31066.645999999997,"predictedPerSecond":3.6373414754846727,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-09 21:35:28.868 15849 15875 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 21:35:29.172 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":261,"ok":true,"estimatedBytes":19247847.109375,"usedTokens":2740,"tokens":2740,"hash":"26356583","messageCount":8}

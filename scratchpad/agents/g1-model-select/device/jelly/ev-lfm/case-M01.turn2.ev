@@ -1,0 +1,11 @@
+09-09 21:32:19.574 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":39,"ok":true,"estimatedBytes":154271744,"usedTokens":2354,"reason":"last_exchange_prefix"}
+09-09 21:32:19.582 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":8,"ok":true,"estimatedBytes":154271744,"usedTokens":2354,"reason":"last_exchange_prefix"}
+09-09 21:32:27.075 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 21:32:27.163 15849 15875 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 21:32:31.975 15849 15875 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-09 21:32:32.030 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":55,"ok":true,"tokens":2202}
+09-09 21:32:32.041 15849 15875 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 21:32:32.057 15849 15875 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 21:34:07.638 15849 15875 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":2598,"tokensEvaluated":2332,"tokensPredicted":265,"draftTokens":0,"draftAccepted":0,"promptMs":14282.986,"predictedMs":80925.36799999999,"predictedPerSecond":3.274622118493178,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-09 21:34:07.638 15849 15875 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"3","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 21:34:07.937 15849 15875 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":257,"ok":true,"estimatedBytes":18250330.9453125,"usedTokens":2598,"tokens":2598,"hash":"1078726027","messageCount":6}

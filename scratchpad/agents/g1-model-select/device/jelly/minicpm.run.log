@@ -1,0 +1,400 @@
+[ci] serial=JELLYS0000053795 model=dev-minicpm5-2b out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl reply_timeout=600
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C01 (conversation/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] model change: kalsa.model.id -> dev-minicpm5-2b
+[ci] model pref: kalsa.model.id=dev-minicpm5-2b (verified by read-back)
+[ci] conversation: conv-g1-c01-1789010539
+[ci] ready after 175s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quanto fa 2 + 2? Rispondi solo con il numero.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 300s (stable x2, quiet 20s, telemetry clean)
+[ci] case C01 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case C02 (conversation/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-c02-1789011164
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 7 kilometers to miles. Reply with the number rounded to two de
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 360s (stable x2, quiet 20s, telemetry clean)
+[ci] case C02 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case C03 (conversation/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-c03-1789011938
+[ci] ready after 255s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quale giorno viene dopo martedì? Rispondi con una sola parola, in ital
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 360s (stable x2, quiet 20s, telemetry clean)
+[ci] case C03 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case C04 (conversation/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-c04-1789012730
+[ci] ready after 260s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: What day comes after Tuesday? Reply with one word in English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 350s (stable x2, quiet 20s, telemetry clean)
+[ci] case C04 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case C05 (conversation/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] thermal: pause — status=3 battery_deci=390 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=390
+[ci] thermal: cooling… waited=60s status=3 battery_deci=390
+[ci] thermal: cooling… waited=90s status=0 battery_deci=390
+[ci] thermal: resume after 90s — status=0 battery_deci=390
+[ci] conversation: conv-g1-c05-1789013611
+[ci] ready after 260s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltan
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 375s (stable x2, quiet 20s, telemetry clean)
+[ci] case C05 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case C06 (conversation/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-c06-1789014436
+[ci] ready after 255s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: I want to exercise three times: Monday, Wednesday, and Friday. List on
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 340s (stable x2, quiet 20s, telemetry clean)
+[ci] case C06 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case C07 (conversation/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-c07-1789015206
+[ci] ready after 255s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Ho una riunione alle 10:00 e devo uscire di casa alle 9:20. Preparami 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 410s (stable x2, quiet 20s, telemetry clean)
+[ci] case C07 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I01 (instructions/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] thermal: pause — status=3 battery_deci=390 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=390
+[ci] thermal: cooling… waited=60s status=3 battery_deci=390
+[ci] thermal: cooling… waited=90s status=0 battery_deci=390
+[ci] thermal: resume after 90s — status=0 battery_deci=390
+[ci] conversation: conv-g1-i01-1789016152
+[ci] ready after 250s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Restituisci solo JSON valido con esattamente questi campi e valori: ci
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 345s (stable x2, quiet 20s, telemetry clean)
+[ci] case I01 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I02 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i02-1789016911
+[ci] ready after 250s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Return only valid JSON with exactly these fields and values: city='Lon
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 345s (stable x2, quiet 20s, telemetry clean)
+[ci] case I02 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I03 (instructions/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i03-1789017671
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Rispondi solo con JSON. Crea un oggetto con priority='high', done=fals
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 425s (stable x2, quiet 20s, telemetry clean)
+[ci] case I03 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I04 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i04-1789018512
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Reply only with JSON. Create an object with priority='low', done=true,
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 355s (stable x2, quiet 20s, telemetry clean)
+[ci] case I04 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I05 (instructions/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i05-1789019278
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Formatta la frase 'Porta il caricatore domani' come una checklist Mark
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 370s (stable x2, quiet 20s, telemetry clean)
+[ci] case I05 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I06 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] thermal: pause — status=3 battery_deci=390 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=390
+[ci] thermal: cooling… waited=60s status=3 battery_deci=390
+[ci] thermal: cooling… waited=90s status=3 battery_deci=390
+[ci] thermal: cooling… waited=120s status=3 battery_deci=390
+[ci] thermal: cooling… waited=150s status=3 battery_deci=390
+[ci] thermal: cooling… waited=180s status=3 battery_deci=390
+[ci] thermal: cooling… waited=210s status=3 battery_deci=390
+[ci] thermal: cooling… waited=240s status=0 battery_deci=390
+[ci] thermal: resume after 240s — status=0 battery_deci=390
+[ci] conversation: conv-g1-i06-1789020303
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Format the sentence 'Bring the charger tomorrow' as a Markdown checkli
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 385s (stable x2, quiet 20s, telemetry clean)
+[ci] case I06 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I07 (instructions/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] thermal: pause — status=3 battery_deci=390 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=390
+[ci] thermal: cooling… waited=60s status=3 battery_deci=390
+[ci] thermal: cooling… waited=90s status=3 battery_deci=390
+[ci] thermal: cooling… waited=120s status=0 battery_deci=390
+[ci] thermal: resume after 120s — status=0 battery_deci=390
+[ci] conversation: conv-g1-i07-1789021232
+[ci] ready after 250s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Estrai dal testo solo il nome e il numero: 'Contatto: Giulia Bianchi, 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 440s (stable x2, quiet 20s, telemetry clean)
+[ci] case I07 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I08 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i08-1789022110
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Extract only the name and number from: 'Contact: Daniel Reed, phone 55
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 340s (stable x2, quiet 20s, telemetry clean)
+[ci] case I08 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I10 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i10-1789022875
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Reply with a two-column Markdown table, Product and Quantity, with exa
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 335s (stable x2, quiet 20s, telemetry clean)
+[ci] case I10 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I12 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i12-1789023634
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 125 minutes into hours and minutes. Reply as '<number> hours a
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 335s (stable x2, quiet 20s, telemetry clean)
+[ci] case I12 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case I14 (instructions/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-i14-1789024380
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Give me three alternative titles, each no more than five words, for a 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 335s (stable x2, quiet 20s, telemetry clean)
+[ci] case I14 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case M01 (memory/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-m01-1789025137
+[ci] ready after 245s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Ricorda per questa conversazione: il mio treno parte da Bologna alle 0
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 420s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: Quanto fa 6 più 7?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 90s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Riscrivi in modo più breve: 'Il pacco è arrivato stamattina'.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 65s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: A che ora parte il mio treno e come preferisco il caffè?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 70s (stable x2, quiet 20s, telemetry clean)
+[ci] case M01 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case M02 (memory/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-m02-1789026292
+[ci] ready after 235s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Remember for this conversation: my train leaves from Bristol at 07:25,
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 350s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: What is 8 plus 5?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 25s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Rewrite briefly: 'The parcel arrived this morning.'
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] node 'Invia' NOT FOUND
+[ci] share: Send node not found after 1 tries
+[ci] node 'Send' NOT FOUND
+[ci] node 'Invia' NOT FOUND
+[ci] share: Send node not found after 2 tries
+[ci] node 'Send' NOT FOUND
+[ci] node 'Invia' NOT FOUND
+[ci] share: Send node not found after 3 tries
+[ci] share: Send node never found
+[ci]   turn 4/4: Where does my train leave from, when, and how do I prefer my tea?
+[ci] share: composer not empty before share (Rewrite briefly: 'The parcel arrived this morning.'...) -> relaunch 1/2
+[ci] share: relaunching app to reset composer state
+[ci] ready after 250s (KALSA_PREWARM idle marker)
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 330s (stable x2, quiet 20s, telemetry clean)
+[ci] case M02 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case M03 (memory/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] thermal: pause — status=3 battery_deci=390 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=390
+[ci] thermal: cooling… waited=60s status=3 battery_deci=390
+[ci] thermal: cooling… waited=90s status=3 battery_deci=390
+[ci] thermal: cooling… waited=120s status=0 battery_deci=390
+[ci] thermal: resume after 120s — status=0 battery_deci=390
+[ci] conversation: conv-g1-m03-1789028056
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Tieni a mente il mio piano: martedì devo chiamare Sara, giovedì devo p
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 400s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: Qual è la capitale della Francia?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Traduci in inglese la parola 'casa'.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 65s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: Quale impegno ho giovedì?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case M03 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case M04 (memory/en) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-m04-1789029181
+[ci] ready after 235s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Keep this in mind: on Tuesday I call Sara, on Thursday I pay rent, and
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 340s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: What is the capital of France?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 110s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Translate the word 'casa' into English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 65s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: What is scheduled for Thursday?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 155s (stable x2, quiet 20s, telemetry clean)
+[ci] case M04 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case T09 (tools/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-t09-1789030351
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Usa lo strumento calcolatrice con expression='18 / 3'. Voglio una chia
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 440s (stable x2, quiet 20s, telemetry clean)
+[ci] case T09 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] === case T11 (tools/it) model=dev-minicpm5-2b serial=JELLYS0000053795 ===
+[ci] conversation: conv-g1-t11-1789031213
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Salva una nota intitolata 'Idee weekend' con il testo 'Visitare il mer
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,806
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 460s (stable x2, quiet 20s, telemetry clean)
+[ci] case T11 done (rows appended to /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl)
+[ci] run complete: 24 cases -> /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/jelly/minicpm.out.jsonl
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

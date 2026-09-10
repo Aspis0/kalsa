@@ -1,0 +1,10 @@
+09-09 21:42:19.867 18560 18587 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":1,"tokensCached":1949,"tokensEvaluated":1949,"tokensPredicted":0,"draftTokens":0,"draftAccepted":0,"promptMs":15058.394,"predictedMs":0,"predictedPerSecond":0,"contextFull":false,"interrupted":true,"tool":"write_note","ciswireFlags":4}
+09-09 21:42:19.883 18560 18587 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":16,"ok":false,"estimatedBytes":127729664,"usedTokens":1949,"reason":"kv_prefix_unavailable"}
+09-09 21:42:23.429 18560 18587 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 21:42:23.534 18560 18587 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 21:42:29.494 18560 18587 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod","nGpuLayers":0}
+09-09 21:42:29.514 18560 18587 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":19,"ok":false,"reason":"no_file"}
+09-09 21:42:29.569 18560 18587 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-09 21:45:23.195 18560 18587 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":173599.52,"promptN":1832,"hash":"3586270056"}'
+09-09 21:46:07.701 18560 18587 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":2081,"tokensEvaluated":2006,"tokensPredicted":74,"draftTokens":0,"draftAccepted":0,"promptMs":22225.961,"predictedMs":21852.261,"predictedPerSecond":3.386377272356394,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-09 21:46:07.703 18560 18587 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"2","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":["device_calc"]}

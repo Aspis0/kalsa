@@ -1,0 +1,33 @@
+2026-09-09 19:14:14 EDT arm=lfm rows=0
+2026-09-09 19:21:32 EDT foreground supervisor started; LFM runner pid=75187
+2026-09-09 19:26:32 EDT arm=lfm rows=1 last_status=ok
+2026-09-09 19:31:32 EDT arm=lfm rows=2 last_status=ok
+2026-09-09 19:36:33 EDT arm=lfm rows=3 last_status=ok
+2026-09-09 19:41:33 EDT arm=lfm rows=3 last_status=ok
+2026-09-09 19:46:33 EDT arm=lfm rows=4 last_status=ok
+2026-09-09 19:51:33 EDT arm=lfm rows=5 last_status=ok
+2026-09-09 19:56:33 EDT arm=lfm rows=6 last_status=ok
+2026-09-09 20:01:34 EDT arm=lfm rows=6 last_status=ok
+2026-09-09 20:06:34 EDT arm=lfm rows=7 last_status=ok
+2026-09-09 20:11:34 EDT arm=lfm rows=7 last_status=ok
+2026-09-09 20:16:35 EDT arm=lfm rows=8 last_status=ok
+2026-09-09 20:21:35 EDT arm=lfm rows=9 last_status=ok
+2026-09-09 20:26:35 EDT arm=lfm rows=10 last_status=ok
+2026-09-09 20:31:35 EDT arm=lfm rows=10 last_status=ok
+2026-09-09 20:36:36 EDT arm=lfm rows=11 last_status=ok
+2026-09-09 20:41:36 EDT arm=lfm rows=12 last_status=ok
+2026-09-09 20:46:36 EDT arm=lfm rows=12 last_status=ok
+2026-09-09 20:51:36 EDT arm=lfm rows=13 last_status=ok
+2026-09-09 20:56:37 EDT arm=lfm rows=14 last_status=ok
+2026-09-09 21:01:37 EDT arm=lfm rows=14 last_status=ok
+2026-09-09 21:06:37 EDT arm=lfm rows=15 last_status=ok
+2026-09-09 21:11:38 EDT arm=lfm rows=16 last_status=ok
+2026-09-09 21:16:38 EDT arm=lfm rows=17 last_status=ok
+2026-09-09 21:21:38 EDT arm=lfm rows=17 last_status=ok
+2026-09-09 21:26:38 EDT arm=lfm rows=18 last_status=ok
+2026-09-09 21:31:38 EDT arm=lfm rows=18 last_status=ok
+2026-09-09 21:36:39 EDT arm=lfm rows=19 last_status=ok
+2026-09-09 21:41:39 EDT arm=lfm rows=19 last_status=ok
+2026-09-09 21:46:39 EDT arm=lfm rows=19 last_status=ok
+2026-09-09 21:51:39 EDT arm=lfm rows=20 last_status=send_failed
+2026-09-09 21:51:39 EDT STOP first_non_ok arm=lfm status=send_failed; MiniCPM5 not started
