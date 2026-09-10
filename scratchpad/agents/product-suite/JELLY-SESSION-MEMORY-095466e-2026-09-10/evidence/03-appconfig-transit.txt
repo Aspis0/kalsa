@@ -1,0 +1,19 @@
+APK assets/app.config transit check (NEW APK from 095466e)
+timestamp_utc=2026-09-10T15:55:38Z
+
+embedded extra.engineBuildId:
+kalsa-eng-v1:source:765509c292652441bd8bc8a3ebbad51c51657a4127cd545b47488800f9433a65
+
+expected from COMMITTED sources at 095466e (git show blobs, not working tree):
+kalsa-eng-v1:source:765509c292652441bd8bc8a3ebbad51c51657a4127cd545b47488800f9433a65
+
+inputs (committed):
+  pin=native/kalsallama.pin commit=67c73d26cb4ce53d8f04b199b523bf05d18fbd61
+  variant=source
+  llama.rn=0.12.8 (from committed package-lock.json; installed tree matches)
+  patches=llama.rn+0.12.8.patch:aa7f1926de4b78d927589f61767fcabfa1e53e7d6d3c1bbf3d9e8b7d6d9f97e1
+  native files=26 (bmoe/** + GovernorBatteryModule.kt), sha256 per file from git cat-file
+  scripts/sync-kalsallama.sh, plugins/withLlamaFromSource.js sha256 from git show
+  generator=committed scripts/engine-build-id.js @095466e (git show), engineBuildIdFromInputs()
+
+MATCH=YES

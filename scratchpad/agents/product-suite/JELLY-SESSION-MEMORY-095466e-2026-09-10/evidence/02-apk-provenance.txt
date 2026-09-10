@@ -1,0 +1,16 @@
+JELLY session+memory APK provenance
+timestamp_utc=2026-09-10T15:55:38Z
+serial=JELLYS0000053795
+ci_run=34494832409
+workflow=apk.yml
+dispatch_inputs abi=arm64-v8a debuggable=true ref=main
+run_head_sha=095466ec5c88a8cf4588b898b00cce632b1c1508
+run_conclusion=success
+local_apk=/tmp/kalsa-ci-34494832409-095466e/kalsa-apk-arm64-v8a-debuggable-095466ec5c88a8cf4588b898b00cce632b1c1508/app-release.apk
+local_size_bytes=142957046
+local_sha256=224fb7d117f66bd94af0e8acd22d9b24559f6b3f98e9f059aebb2a25256e346a
+ci_artifact_id=10160873999 size=60212463
+abi=arm64-v8a
+debuggable_verify_ci=application-debuggable present ([verify] OK)
+assert_native_patch_ci=kalsa-native-patches + q23k present in all release librnllama*.so
+ci_step_conclusions=Typecheck+logic harnesses=success; Build APK=success; Assert native patch=success; Verify debuggable=success; Upload=success

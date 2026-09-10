@@ -1,0 +1,4 @@
+=== PHASE B marker: force-stop/reopen ===
+force_stop_utc=2026-09-10T16:09:16Z
+pre_stop_pid=19298
+post_start_pid=21302 utc=2026-09-10T16:09:24Z

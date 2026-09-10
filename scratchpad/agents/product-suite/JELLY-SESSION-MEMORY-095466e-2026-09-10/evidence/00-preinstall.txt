@@ -1,0 +1,9 @@
+=== pre-install device state ===
+    codePath=/data/app/~~QGiGsIiGIKVGd5Y2E9uyCQ==/com.kalsa.app-cO_Mx4NuVK7502PZ36rYqA==
+    versionCode=1 minSdk=33 targetSdk=36
+    versionName=0.1.0
+    lastUpdateTime=2026-09-10 10:29:30
+      firstInstallTime=2026-08-12 01:58:33
+---
+  level: 100
+  temperature: 290

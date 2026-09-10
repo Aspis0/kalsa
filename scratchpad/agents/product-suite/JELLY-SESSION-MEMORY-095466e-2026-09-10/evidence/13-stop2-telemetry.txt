@@ -1,0 +1,3 @@
+09-10 12:21:16.791 I/ReactNativeJS(21302): KALSA_SESSION {"op":"save","ms":137,"ok":true,"estimatedBytes":37224212.34765625,"usedTokens":5299,"tokens":512,"hash":"2668797559","messageCount":43}
+09-10 12:21:16.793 I/ReactNativeJS(21302): KALSA_SESSION {"op":"save","ms":2,"ok":true,"estimatedBytes":3777292,"usedTokens":512,"reason":"unchanged"}
+09-10 12:22:07.857 I/ReactNativeJS(21302): KALSA_MEMORY_EXTRACT {"memoryEnabled":1,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":-1,"totalFactsInStore":-1,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":4,"ciswireFlags":6,"durationMs":0,"timeoutMs":20000,"stopReason":"skipped_no_snapshot"}

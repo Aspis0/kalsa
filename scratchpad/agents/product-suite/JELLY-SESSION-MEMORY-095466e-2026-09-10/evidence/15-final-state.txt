@@ -1,0 +1,8 @@
+=== final device state ===
+timestamp_utc=2026-09-10T16:22:49Z
+  level: 100
+  temperature: 350
+    lastUpdateTime=2026-09-10 11:55:56
+      firstInstallTime=2026-08-12 01:58:33
+pid=21302
+no uninstall / no clear-data / no file deletion performed

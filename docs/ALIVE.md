@@ -544,11 +544,13 @@ conversation hydration, 100-minute extraction timeout → 180 s with partial tex
 
 Current product status: G1 closed on 10 September with LFM2.5-2.6B as the main model; M1 remains 9 October. The S23 battery reproduction is **PARTIAL** and not paired: 9/09 was MiniCPM5 Q4_K_M, while 10/09 was shipped LFM. The five LFM attempts provide energy evidence, but C02's final retry false-settled (`The`); only C03-C06 are valid answers, and the prior C02 `4.35` is excluded. Memory extraction was disabled in all five turns (`memoryEnabled:0`, `skipped_no_snapshot`).
 
-Lifecycle sources omitted from 3ca6145 were restored in `1e02fe3`; `e89bd2a` adds the UI test IDs. APK CI run `34483949398` was installed on the Jelly with install `Success`, local SHA-256 `a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb`, and identical installed hash. The native gate is **PASS**: save `10:34:18.945` → unload `10:35:04.621` (~45.7 s), reopen fit `no_active_model availableMb=5789`, load `3628 tokens/62 ms`, prewarm `skip kv_holds_chat`, continuation `promptMs=1489.054`. The short check is **PASS with limits** because shell HOME/reopen markers are missing; only cancellation/no-unload slices were covered, so this is not blanket lifecycle PASS. Stop is SKIP (uiautomator idle harness), Edit is SKIP (no edit menu item), and Regenerate is absent.
+Lifecycle sources omitted from 3ca6145 were restored in `1e02fe3`; `e89bd2a` adds the UI test IDs. The Jelly native/long gate is **PASS** on APK CI run `34483949398`, SHA-256 `a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb`, with identical installed hash: save `10:34:18.945` → unload `10:35:04.621` (~45.7 s), reopen fit `no_active_model availableMb=5789`, load `3628 tokens/62 ms`, prewarm `skip kv_holds_chat`, continuation `promptMs=1489.054`. The brief check is **PASS with limits** because shell HOME/reopen markers are missing; only cancellation/no-unload slices were covered, so this is not blanket lifecycle PASS. Stop abort is reachable but partial preservation is not demonstrated; Edit is reachable but save is unverified; Regenerate is absent.
 
-Memory extraction `e455afc` is **BLOCKED** by setup/UI: `memoryEnabled:0`, with no `done` or `aborted` proof. The `e2e09f5` identity fix is local commit `095466ec5c88a8cf4588b898b00cce632b1c1508` on app `main` (ahead 1, not pushed); MiMo re-audit is **SHIP by code-review approval** with a new profile because the old GLM profile is unavailable. The re-audit report records CI/APK limits not executed. SessionMeta facts are corrected (`50/0`); identity tests are `16/16`, with orchestrator verification of meta50 and targeted20. No new APK exists; runtime promotion waits for an APK and device verification.
+Memory extraction `e455afc` is now **PASS scoped**: meta v2 is identical, restore loaded 4517 tokens with prewarm skipped, completed extraction produced facts 1/1 and 2/2, and the next send produced `aborted_by_send` after 8688 ms with facts 0 and restore 5022. The outer Stop/clear abort gap remains open because `abortRef` is null after send and `onAbortRelease` reaches only `saveGate`; recon correction and Skilled98c66 fix are in progress.
 
-Remaining product work includes the documented embedding completion-log gap and the explicitly gated memory-enabled verification; no result above is promoted before those checks.
+The `e2e09f5` identity fix is commit `095466ec5c88a8cf4588b898b00cce632b1c1508` on pushed app `main`. APK CI run `34494832409` and E2E emulator run `34494789017` are **SUCCESS** on the exact head. `assets/app.config` and the independent calculation agree on `kalsa-eng-v1:source:765509c292652441bd8bc8a3ebbad51c51657a4127cd545b47488800f9433a65`; engine-change invalidation remains build-time/logic evidence, not a second-APK device proof. This is scoped identity/memory PASS, not blanket G2 PASS.
+
+Remaining product work includes the documented embedding completion-log gap and propagation of outer Stop/clear abort to `extractionAbortController`; no result above is promoted as blanket G2 PASS.
 
 ## 10. Diario
 
@@ -4177,3 +4179,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   three new files, are included. MiMo re-audit is **SHIP by code-review approval**; the updated re-audit report
   explicitly records that CI/APK execution was not performed. No new APK exists. Jelly remains native/long-gate
   PASS with the stated limits, memory extraction BLOCKED, and Stop/Edit SKIP.
+
+- **10/09 latest verified session/memory update.** App commit `095466ec5c88a8cf4588b898b00cce632b1c1508` and
+  experiments commit `76ac60e1` are pushed. APK CI `34494832409` and E2E emulator `34494789017` are **SUCCESS** on
+  the exact app head; an independent calculation from the committed inputs matches the embedded
+  `engineBuildId` `kalsa-eng-v1:source:765509c292652441bd8bc8a3ebbad51c51657a4127cd545b47488800f9433a65` exactly.
+  The separate Jelly session/memory result is **PASS scoped**: meta v2, load `4517` tokens, prewarm skip, facts
+  `1/1` and `2/2`, and `aborted_by_send` after `8688 ms` with facts `0` and restore `5022`. The native/long
+  lifecycle result remains PASS under its separate `e89bd2a` provenance; the brief slice is PASS with limits. Stop
+  partial preservation and Edit save remain unverified. The concrete open gap is `abortRef=null` after send while
+  `onAbortRelease` reaches only `saveGate`; recon correction and Skilled98c66 are in progress. No blanket G2 PASS.

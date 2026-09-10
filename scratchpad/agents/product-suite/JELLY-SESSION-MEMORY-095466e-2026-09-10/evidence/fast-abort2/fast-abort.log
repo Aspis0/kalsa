@@ -1,0 +1,41 @@
+fast_abort_send.sh — real abort attempt (e455afc)
+serial=JELLYS0000053795  pid=21302  start utc=2026-09-10T16:17:17Z
+
+[ci] start utc=2026-09-10T16:17:17Z epoch_ms=1789057037812 msg='E quella del Portogallo?'
+[ci] baseline turn-end lines: 1
+[ci] new turn-end seen after 15s: 09-10 12:17:34.498 KALSA_MEMORY {"memoryEnabled":1,...,"factsInjected":3,...}
+[ci] sending share intent utc=2026-09-10T16:17:35Z
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] text in composer after 0s utc=2026-09-10T16:17:37Z
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 426,805
+[ci] Send tapped (attempt 1) utc=2026-09-10T16:17:43Z
+[ci] done prev_assistants=20 utc=2026-09-10T16:17:43Z
+
+Resulting logcat (device-local time, PID 21302):
+
+09-10 12:17:34.498 KALSA_MEMORY {"memoryEnabled":1,...,"factsInjected":3,"dnaInjected":3,"dnaBudgetTokens":1200,...}
+09-10 12:17:34.732 KALSA_SESSION {"op":"save","ms":204,"ok":true,"estimatedBytes":35278353.35,"usedTokens":5022,"tokens":5022,"hash":"3387358155","messageCount":40}
+09-10 12:17:43.322 KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,...,"activeModel":"lfm2.5-2.6b"}
+09-10 12:17:43.330 KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"allow":true,"reasonKey":null,"availableMb":3823}
+09-10 12:17:43.413 KALSA_SESSION {"op":"load","source":"memory_extract_restore","ms":39,"ok":true,"tokensOnDisk":5022,"tokens":5022}
+09-10 12:17:43.421 KALSA_MEMORY_EXTRACT {"memoryEnabled":1,"factsExtracted":0,"factsStored":0,"factsRejectedFull":0,"factsInjected":-1,"totalFactsInStore":3,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":0,"extractGateSource":1,"extractStopReason":0,"ciswireFlags":6,"durationMs":8688,"timeoutMs":47539.7346210591,"stopReason":"aborted_by_send"}
+
+Interpretation:
+- stopReason = "aborted_by_send" (NOT skipped_no_snapshot).
+- extractStopReason = 0 (AppShell's normal run code), so the extraction had started;
+  the abort reached LlamaService's native-completion path, not the pre-start cancel
+  path (which would set extractStopReason = 1).
+- durationMs 8688 of timeoutMs 47540 -> aborted mid-flight.
+- factsExtracted/factsStored = 0 -> aborted facts dropped.
+- The next send was accepted at :43.322 and the app continued (fit allow:true);
+  the extract settled at :43.421. The send cancels extraction instead of awaiting
+  natural completion; the native checkpoint restore remains serialized
+  (memory_extract_restore is logged at :43.413, before the extract settles).
+
+Missed first attempt (recorded, not counted as proof): evidence/fast-abort/ and
+evidence/11-abort-attempt.txt — the send landed ~5 s after that extraction had
+already finished with stopReason "done".
+
+Full-slice logcat was lost to the device ring buffer rotating; the two extract
+lines above are preserved verbatim in evidence/11-extract-lines.txt.

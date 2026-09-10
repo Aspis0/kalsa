@@ -1,0 +1,14 @@
+install -r result (data preserved)
+timestamp_utc=2026-09-10T15:55:52Z
+  Performing Streamed Install
+  Success
+--- post-install package state ---
+    codePath=/data/app/~~6xcj9pEeZSD6yOOqzVVihg==/com.kalsa.app-mQORSGqpLM_6lNe7vfeeeA==
+    versionCode=1 minSdk=33 targetSdk=36
+    versionName=0.1.0
+    lastUpdateTime=2026-09-10 11:55:56
+      firstInstallTime=2026-08-12 01:58:33
+--- data dir preserved? memory key still present ---
+  kalsa.bench.kvtranscript|1
+  kalsa.locale|it
+  kalsa.memory.enabled|0

@@ -1,0 +1,3 @@
+=== session meta AFTER turn1 save (active conv) ===
+timestamp_utc=2026-09-10T16:09:12Z
+kalsa.session.meta.lfm2_002e5-2_002e6b__conv-g1-t11-1789031213__71419929|{"formatVersion":2,"modelFileId":"1593894944:1787448754334","engineBuild":"kalsa-eng-v1:source:765509c292652441bd8bc8a3ebbad51c51657a4127cd545b47488800f9433a65:kalsa-native-patches","nCtx":16384,"cacheTypeK":"q8_0","cacheTypeV":"q4_0","historyHash":"2788512926","savedAt":1789056525713,"historyMessageCount":36,"promptEnvHash":"71419929","engineKnob":"{\"useMmap\":false}","conversationId":"conv-g1-t11-1789031213","bakedUserTails":[{"bare":"Rispondi con una sola parola: capitale del Belgio?","prefixed":"Rispondi con una sola parola: capitale del Belgio?"}]}

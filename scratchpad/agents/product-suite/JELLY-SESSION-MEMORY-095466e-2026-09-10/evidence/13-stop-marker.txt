@@ -1,0 +1,4 @@
+STOP button visible after 1s, tapping 426,805 utc=2026-09-10T16:20:46Z
+tapped utc=2026-09-10T16:20:46Z
+stop button up after 1s utc=2026-09-10T16:21:40Z
+tapping stop @ 426,805 utc=2026-09-10T16:22:07Z

@@ -1,0 +1,8 @@
+=== Edit (USER message) reachability — PASS ===
+timestamp_utc=2026-09-10T16:20:16Z
+user message: 'E quella della Spagna?' (right-aligned bubble, x>=108)
+tapped its Altro @ [366,329][460,368]
+sheet revealed content-desc: Salva nelle note, Traduci, Modifica, Annulla
+tap Modifica @ 240,722 -> EditText (android.widget.EditText) preloaded text='E quella della Spagna?', buttons Annulla/Salva
+NOTE/limit: adb input text does NOT update React TextInput state (documented harness hole), so no text change was typed; Annulla used to leave state clean
+previous session saw only Salva nelle note/Traduci/Annulla because the dump was an ASSISTANT message menu

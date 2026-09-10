@@ -1,0 +1,6 @@
+=== CI logic gate for 095466e ===
+run 34494832409 apk.yml step 'Typecheck + logic harnesses' status=completed conclusion=success at 2026-09-10T15:22:10Z
+includes: npm run typecheck + 40 harnesses incl. sessionMetaHarness (local 50/0) and thinkingBudgetsHarness
+note: ci.yml (jest) does NOT trigger on main push; no separate 'CI logic' run exists for 095466e.
+
+run 34494789017 e2e-emulator status at 2026-09-10T15:22:10Z: {"conclusion":"","status":"in_progress"}

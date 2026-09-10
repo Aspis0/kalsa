@@ -1,0 +1,9 @@
+=== memory setup via UI (after tap) ===
+timestamp_utc=2026-09-10T16:04:53Z
+<node index="3" text="" resource-id="" class="android.widget.Switch" package="com.kalsa.app" content-desc="Ricorda informazioni su di me" checkable="true" checked="true" clickable="true" enabled="true" focusable="true" focused="false" scrollable="false" long-clickable="false" password="false" selected="false" bounds="[363,647][429,685]" />
+--- visible memory texts ---
+text="Memoria"
+
+=== DB corroboration (read-only) ===
+timestamp_utc=2026-09-10T16:04:57Z
+kalsa.memory.enabled|1
