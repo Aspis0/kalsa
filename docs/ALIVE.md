@@ -542,10 +542,13 @@ capped at 5 pages, exact-id document selection, malformed SEND filters (doubled 
 conversation hydration, 100-minute extraction timeout → 180 s with partial text (5707cfe). Opt-in dev-catalog entry
 `dev-minicpm5-2b` with one-time sha256 verification (7836db7).
 
-Open, with numbers attached: tool turns make the session unsaveable → cold reopen after a tool/document chat
-(`session-contract/TOOL-ROUND-RECON.md`, three fix shapes); MiniCPM5 prefill 3× slower than LFM on the S23 and 1.7× on the Jelly (repack path
-question, the prewarm "single-token" reading was an accounting artefact, fixed e168b4a and verified on the Jelly); `decideDocStrategy` sends up to half the context to full_context regardless of the phone's
-prefill budget (minutes on the Jelly); background embedding reached 707 chunks without a `done` line.
+Current product status: G1 closed on 10 September with LFM2.5-2.6B as the main model; M1 remains 9 October. The S23 battery reproduction is **PARTIAL** and not paired: 9/09 was MiniCPM5 Q4_K_M, while 10/09 was shipped LFM. The five LFM attempts provide energy evidence, but C02's final retry false-settled (`The`); only C03-C06 are valid answers, and the prior C02 `4.35` is excluded. Memory extraction was disabled in all five turns (`memoryEnabled:0`, `skipped_no_snapshot`).
+
+Lifecycle sources omitted from 3ca6145 were restored in `1e02fe3`; `e89bd2a` adds the UI test IDs. APK CI run `34483949398` was installed on the Jelly with install `Success`, local SHA-256 `a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb`, and identical installed hash. The native gate is **PASS**: save `10:34:18.945` → unload `10:35:04.621` (~45.7 s), reopen fit `no_active_model availableMb=5789`, load `3628 tokens/62 ms`, prewarm `skip kv_holds_chat`, continuation `promptMs=1489.054`. The short check is **PASS with limits** because shell HOME/reopen markers are missing; only cancellation/no-unload slices were covered, so this is not blanket lifecycle PASS. Stop is SKIP (uiautomator idle harness), Edit is SKIP (no edit menu item), and Regenerate is absent.
+
+Memory extraction `e455afc` is **BLOCKED** by setup/UI: `memoryEnabled:0`, with no `done` or `aborted` proof. The `e2e09f5` identity fix is local commit `095466ec5c88a8cf4588b898b00cce632b1c1508` on app `main` (ahead 1, not pushed); MiMo re-audit is **SHIP by code-review approval** with a new profile because the old GLM profile is unavailable. The re-audit report records CI/APK limits not executed. SessionMeta facts are corrected (`50/0`); identity tests are `16/16`, with orchestrator verification of meta50 and targeted20. No new APK exists; runtime promotion waits for an APK and device verification.
+
+Remaining product work includes the documented embedding completion-log gap and the explicitly gated memory-enabled verification; no result above is promoted before those checks.
 
 ## 10. Diario
 
@@ -4151,3 +4154,26 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   il prewarm a freddo è costato 38,6 s per 1832 token. **La correzione dell'estrazione memoria NON è stata
   esercitata**: tutti e cinque i turni hanno loggato `KALSA_MEMORY_EXTRACT {memoryEnabled:0, stopReason:
   "skipped_no_snapshot"}`, cioè la memoria è spenta su quell'installazione. Va riprovata col Jelly a memoria accesa.
+
+- **10/09 current-state update — G1 is closed; LFM is the main model and M1 remains 9 October.** The S23 result stays
+  **PARTIAL** and is not a paired cure claim: 9/09 was MiniCPM5 Q4_K_M, 10/09 was LFM; C02's final retry
+  false-settled, C03-C06 are the four valid answers, and memory extraction was disabled. Lifecycle sources missing
+  from 3ca6145 are fixed in `1e02fe3`; APK CI `e89bd2a`, run `34483949398`, installed on the Jelly today with
+  `Success`. Luna0235 verification is in progress and is **not PASS**. `e2e09f5` is in hostile audit by Reviewer
+  Doc MiMo with a new profile because the old GLM profile is unavailable; no identity APK exists. Do not promote
+  either result until the Jelly verification and audit are complete.
+
+- **10/09 verified follow-up — Jelly lifecycle and session identity.** On APK CI `e89bd2a` / run `34483949398`,
+  SHA `a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb`, the native lifecycle gate is **PASS**:
+  `HOME 10:34:18.945 save` → `unload 10:35:04.621` (~45.7 s), reopen fit `no_active_model availableMb=5789`,
+  `load ok 3628 tokens/62 ms`, `prewarm skip kv_holds_chat`, continuation `promptMs=1489.054`. The short check is
+  **PASS with limits** (missing shell HOME/reopen markers); no blanket lifecycle PASS. Stop SKIP, Edit SKIP,
+  Regenerate absent. Memory `e455afc` is BLOCKED (`memoryEnabled:0`, no done/aborted proof). Identity `e2e09f5`
+  is BLOCKED by static `engineBuild=kalsa-native-patches:app:1`; DeepSeek `98c66` remains working-tree only and
+  MiMo `42a` is re-auditing. New identity tests are 16/16; no new APK exists. No other device test was run.
+
+- **10/09 final identity update.** The e2e09f5 app fix is now local commit
+  `095466ec5c88a8cf4588b898b00cce632b1c1508` on `main` (ahead 1, not pushed); all eight fix files, including the
+  three new files, are included. MiMo re-audit is **SHIP by code-review approval**; the updated re-audit report
+  explicitly records that CI/APK execution was not performed. No new APK exists. Jelly remains native/long-gate
+  PASS with the stated limits, memory extraction BLOCKED, and Stop/Edit SKIP.

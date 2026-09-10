@@ -1,0 +1,14 @@
+cycle=stop-mid-generation-attempt
+timestamp_pre_send_utc=2026-09-10T14:42:19Z
+timestamp_submitted_utc=2026-09-10T14:42:38Z
+UI dump attempt during generation:
+ERROR: could not get idle state.
+Harness helper discovery:
+device_tap_reload_if_needed
+device_tap_send
+tap_editable
+tap_node
+No stop/interrupt helper was present.
+09-10 10:43:32.786 15264 15287 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":4112,"tokensEvaluated":3795,"tokensPredicted":316,"draftTokens":0,"draftAccepted":0,"promptMs":2592.053,"predictedMs":54116.164,"predictedPerSecond":5.839290456729342,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-10 10:43:33.114 15264 15287 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":290,"ok":true,"estimatedBytes":28885820.1875,"usedTokens":4112,"tokens":4112,"hash":"3424562452","messageCount":34}
+KALSA_STALL: no matching line in this filtered slice.

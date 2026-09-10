@@ -1,0 +1,7 @@
+cycle=message-actions-edit-discovery
+battery_last_observed=level:100 temperature:300 (state check 2026-09-10T14:40:11Z)
+UI nodes discovered in /sdcard/kalsa-lifecycle-e89bd2a-ui.xml:
+<node index="4" text="" resource-id="message-action-copy" class="android.widget.Button" package="com.kalsa.app" content-desc="Copia" clickable="true" enabled="true" bounds="[19,366][127,406]">
+<node index="6" text="" resource-id="message-action-more" class="android.widget.Button" package="com.kalsa.app" content-desc="Altro" clickable="true" enabled="true" bounds="[357,366][452,406]">
+After tapping Altro, visible actions were content-desc="Salva nelle note", content-desc="Traduci", content-desc="Annulla".
+No message-action-edit / Modifica node was discoverable. Regenerate was not present.

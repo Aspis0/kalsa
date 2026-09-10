@@ -1,0 +1,9 @@
+cycle=brief-background
+timestamp_pre_send_utc=2026-09-10T14:37:36Z
+timestamp_state_check_utc=2026-09-10T14:40:11Z
+battery_at_state_check=AC powered:true USB powered:false status:4 level:100 temperature:300
+09-10 10:37:53.013 15264 15287 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":3945}
+09-10 10:38:02.025 15264 15287 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":3761,"tokensEvaluated":3721,"tokensPredicted":39,"draftTokens":0,"draftAccepted":0,"promptMs":2140.418,"predictedMs":6600.563999999999,"predictedPerSecond":5.908585993560551,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-10 10:38:26.813 15264 15287 I ReactNativeJS: 'background.grace', '{"cancelled":true}'
+No model.unload line observed in this brief slice.
+Harness limit: the user interrupt removed the shell's explicit BRIEF_HOME/BRIEF_REOPEN output, but the app cancellation marker was observed.

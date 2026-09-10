@@ -1,0 +1,9 @@
+JELLY lifecycle startup gate
+timestamp_utc=2026-09-10T14:32:37Z
+serial=JELLYS0000053795
+package=com.kalsa.app
+activity=com.kalsa.app/.MainActivity
+marker_count=1
+09-10 10:32:33.573 15264 15287 I ReactNativeJS: 'background.grace', '{"timer":"native"}'
+battery_at_gate=AC powered:true USB powered:false status:4 level:100 temperature:290
+verdict=PASS

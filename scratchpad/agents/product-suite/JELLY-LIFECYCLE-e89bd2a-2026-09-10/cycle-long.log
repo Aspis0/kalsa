@@ -1,0 +1,18 @@
+cycle=long-background
+timestamp_pre_send_utc=2026-09-10T14:33:06Z
+timestamp_home_utc=2026-09-10T14:34:18Z
+timestamp_after_70s_utc=2026-09-10T14:35:28Z
+timestamp_reopen_utc=2026-09-10T14:35:51Z
+battery=AC powered:true USB powered:false status:4 level:100 temperature:290
+09-10 10:33:22.925 15264 15287 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":3899}
+09-10 10:33:33.872 15264 15287 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":3628,"tokensEvaluated":3576,"tokensPredicted":51,"draftTokens":0,"draftAccepted":0,"promptMs":2296.64,"predictedMs":8366.752999999999,"predictedPerSecond":6.095554631527906,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+09-10 10:34:18.945 15264 15287 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":65,"ok":true,"estimatedBytes":25485835.515625,"usedTokens":3628,"tokens":3628,"reason":"unchanged"}
+09-10 10:34:18.963 15264 15287 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":18,"ok":true,"estimatedBytes":25485835.515625,"usedTokens":3628,"tokens":3628,"reason":"unchanged"}
+09-10 10:35:04.621 15264 15287 I ReactNativeJS: 'model.unload', '{"reason":"background","graceMs":45000}'
+09-10 10:36:51.241 15264 15287 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":false,"lostRecovery":false,"activeModel":null}
+09-10 10:36:51.246 15264 15287 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"absent","alreadyResident":false,"recoverLost":false,"allow":true,"reasonKey":"no_active_model","availableMb":5789}
+09-10 10:36:51.298 15264 15287 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 10:36:55.430 15264 15287 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":62,"ok":true,"tokens":3628}
+09-10 10:36:55.441 15264 15287 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 10:37:04.549 15264 15287 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"2","round":0,"tokensCached":3697,"tokensEvaluated":3652,"tokensPredicted":44,"draftTokens":0,"draftAccepted":0,"promptMs":1489.054,"predictedMs":7357.723999999999,"predictedPerSecond":5.98011015362903,"contextFull":false,"interrupted":false,"ciswireFlags":4}
+KALSA_STALL: no matching line in this filtered slice.

@@ -1,0 +1,12 @@
+JELLY lifecycle APK provenance
+timestamp_utc=2026-09-10T14:32:00Z
+serial=JELLYS0000053795
+ci_run=34483949398
+head_sha=e89bd2aafb3fb9caffadf492fb0319dd9ec5a6cf
+local_apk=/private/tmp/kalsa-ci-34483949398-e89bd2a/kalsa-apk-arm64-v8a-debuggable-e89bd2aafb3fb9caffadf492fb0319dd9ec5a6cf/app-release.apk
+local_sha256=a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb
+installed_base_apk=/data/app/~~QGiGsIiGIKVGd5Y2E9uyCQ==/com.kalsa.app-cO_Mx4NuVK7502PZ36rYqA==/base.apk
+installed_sha256=a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb
+hash_match=true
+model=lfm2.5-2.6b
+battery_at_provenance=AC powered:true USB powered:false status:4 level:100 temperature:290
