@@ -1,0 +1,5 @@
+=== START 03-assemble-kit 2026-09-06T08:33:12Z ===
+command: assemble_kit
+assembled /Users/marco/kalsa-qdc/qdc-750-mulmat-view/gpu-kit-2f3b24d
+tar sha256 ea665c375be525932ced9db2dc24accb8daac8ed7ffa42a59c872dcf17912212
+=== END 03-assemble-kit exit=0 2026-09-06T08:33:15Z ===

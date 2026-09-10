@@ -1,0 +1,9 @@
+ts=2026-09-09T16:03:46 epoch=1788984226 tag=stopped
+pid=
+thermal_status=2
+battery_deci=412
+battery_c=41.2
+battery_level=35
+ AC powered: true
+ USB powered: false
+ status: 2

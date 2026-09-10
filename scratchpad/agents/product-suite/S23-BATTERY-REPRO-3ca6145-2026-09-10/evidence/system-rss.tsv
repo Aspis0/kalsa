@@ -1,0 +1,3 @@
+phase	timestamp	epoch_ms	process	pid	VmRSS_kB
+start	2026-09-10T09:42:13-0400		traced	2179	26668
+start	2026-09-10T09:42:13-0400		traced_perf	10907	60440

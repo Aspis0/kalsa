@@ -1,0 +1,1 @@
+{"user": "Return only valid JSON with exactly these fields and values: city='London', days=4.", "status": "send_failed", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}

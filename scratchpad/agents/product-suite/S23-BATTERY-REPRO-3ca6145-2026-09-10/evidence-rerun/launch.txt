@@ -1,0 +1,5 @@
+cold_launch_ms=55646
+prewarm_ready=1
+new_chat_tapped=1
+old_cid=conv-g1-i14-1789042691
+conversation_id=conv-g1-i14-1789042691

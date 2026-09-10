@@ -1,0 +1,6 @@
+09-09 15:36:51.691 23116 23147 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 15:36:51.792 23116 23147 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 15:36:55.545 23116 23147 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 15:36:55.554 23116 23147 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":8,"ok":false,"reason":"no_file"}
+09-09 15:36:55.565 23116 23147 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-09 15:37:37.533 23116 23147 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":41711.163,"hash":"3586270056"}'

@@ -1,0 +1,7 @@
+[ci] share-send attempt 1/3: Convert 7 kilometers to miles. Reply with the number rounded to two decimals only.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share-send: Send attempt 1/3
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

@@ -1,0 +1,4 @@
+# Clean launch after adb install -r; startup gate slice
+09-10 09:35:43.030 12621 12644 I ReactNativeJS: 'background.grace', '{"timer":"js"}'
+09-10 09:35:43.598 12621 12644 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 09:35:43.736 12621 12644 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))

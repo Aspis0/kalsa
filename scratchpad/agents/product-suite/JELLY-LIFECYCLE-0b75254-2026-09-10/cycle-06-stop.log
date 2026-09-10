@@ -1,0 +1,6 @@
+# adb logcat -c before; UI dump + tap; post-cycle filtered lifecycle slice
+stop_node_discovered=<node class="android.widget.Button" content-desc="Interrompi generazione" clickable="true" enabled="true" bounds="[402,780][451,830]">
+stop_tapped_label=Interrompi generazione
+history_after_stop_now=9
+09-10 08:19:23.310  8283  8308 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"availableMb":3749}
+09-10 08:19:42.685  8283  8308 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"5","tokensCached":3342,"promptMs":12195.256,"predictedPerSecond":6.2112348527121215,"interrupted":false}

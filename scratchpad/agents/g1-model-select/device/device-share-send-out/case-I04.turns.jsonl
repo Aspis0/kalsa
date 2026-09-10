@@ -1,0 +1,1 @@
+{"user": "Reply only with JSON. Create an object with priority='low', done=true, and tags=['phone','offline'].", "status": "send_failed", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}

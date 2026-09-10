@@ -2,6 +2,10 @@
 
 Scout: idea-scout | Date: 2026-09-02 | Repo: /Users/marco/Projects/kalsa
 
+> **Status (2026-09-05):** LOT-A and LOT-B are **DONE**. LOT-C is the next execution target.  
+> Execution plan + package split: [`LOT-STATUS.md`](./LOT-STATUS.md) (§ LOT-C).  
+> This file remains the **recon map** (what exists). Do not treat every section as a must-ship item — prioritize C1 catalog prune + C2 tier retarget first; C5 tinyBERT and hard thermal gate need explicit product calls.
+
 ---
 
 ## C1. Model Catalog

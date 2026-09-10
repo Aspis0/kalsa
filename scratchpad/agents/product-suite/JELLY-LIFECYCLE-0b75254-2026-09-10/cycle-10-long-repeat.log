@@ -1,0 +1,7 @@
+# adb logcat -c before; post-cycle filtered lifecycle slice
+09-10 08:22:41.079  8283  8308 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":19,"ok":true,"estimatedBytes":24460220.3046875,"usedTokens":3482,"reason":"unchanged"}
+09-10 08:22:41.082  8283  8308 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":3,"ok":true,"estimatedBytes":24460220.3046875,"usedTokens":3482,"reason":"unchanged"}
+09-10 08:24:22.401  8283  8308 I ReactNativeJS: 'background.grace', '{"cancelled":true}'
+09-10 08:24:43.602  8283  8308 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"availableMb":3754}
+09-10 08:24:43.634  8283  8308 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 08:24:53.549  8283  8308 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"8","tokensCached":3552,"promptMs":2294.3450000000003,"predictedPerSecond":6.082886218667054,"interrupted":false}

@@ -1,0 +1,1 @@
+{"user": "Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltanto questi tre giorni, nell'ordine dato, separandoli con virgole e senza testo extra.", "status": "send_failed", "reply": null, "reply_raw": null, "telemetry": null, "toolcall_rounds": [], "tool_names_executed": [], "tools_requested": []}

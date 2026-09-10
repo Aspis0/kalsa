@@ -1,0 +1,2 @@
+plugged=0 level=94 temperature_c=32.7 thermal=0
+model_pref=lfm2.5-2.6b

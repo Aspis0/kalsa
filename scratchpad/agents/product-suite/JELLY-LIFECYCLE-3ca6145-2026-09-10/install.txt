@@ -1,0 +1,4 @@
+APK source: /Users/marco/kalsa-qdc/apks/dl-3ca6145/kalsa-apk-arm64-v8a-debuggable-3ca6145bf180d0b827ec1de08fb8875ce02361fb/app-release.apk
+APK/source SHA-256: 10bc57d4314fe878ac12c17b95acb33cf012658e26608ee7f7ed824a1c6a1583
+Installed base.apk SHA-256: 10bc57d4314fe878ac12c17b95acb33cf012658e26608ee7f7ed824a1c6a1583
+Install: adb install -r; result Success; data/models retained.

@@ -3,24 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Leaf Fold — v9 · close-complete · book origami · organic leaf</title>
+<title>Leaf Fold — v11.1 · audited fit</title>
 <style>
   :root{
     --shell:#E8EAE7; --panel:#F4F8F3; --panelSolid:#FFFFFF; --line:#D3DAD2;
     --ink:#17201C; --muted:#58615B; --accent:#1F5F4E; --cyan:#2E6E80;
-    --leaf1:#D8ECDD; --leaf2:#9ECBB0; --leafBack:#6FA88A; --leafStroke:#5F8F74;
-    --midrib:rgba(23,42,32,.28); --vein:rgba(46,110,128,.40);
-    --tink:#1C3A2C; --cmuted:#57705F; --cline:rgba(23,42,32,.16);
-    --tile:rgba(255,255,255,.45); --tileActive:rgba(255,255,255,.72);
-    --shade:rgba(10,32,24,.35); --backdrop:rgba(0,0,0,.45);
+    --leaf1:#DCEFE2; --leaf2:#A8D0B8; --leafBack:#6FA88A; --leafStroke:#6A9A7C;
+    --tink:#1C3A2C; --cmuted:#57705F; --cline:rgba(23,42,32,.14);
+    --tile:rgba(255,255,255,.55); --tileActive:rgba(255,255,255,.82);
+    --shade:rgba(10,32,24,.32); --backdrop:rgba(0,0,0,.42);
   }
   .dark{
     --shell:#07101C; --panel:#0B1727; --panelSolid:#0B1727; --line:rgba(255,255,255,.13);
     --ink:#f7f3ed; --muted:#a8b0bc; --accent:#f07a3f; --cyan:#88c0d0;
-    --leaf1:#2C6750; --leaf2:#174032; --leafBack:#0E2A20; --leafStroke:rgba(136,192,208,.45);
-    --midrib:rgba(136,192,208,.32); --vein:rgba(136,192,208,.32);
-    --tink:#EDF7F0; --cmuted:rgba(237,247,240,.62); --cline:rgba(255,255,255,.16);
-    --tile:rgba(0,0,0,.22); --tileActive:rgba(0,0,0,.38);
+    --leaf1:#2C6750; --leaf2:#174032; --leafBack:#0E2A20; --leafStroke:rgba(136,192,208,.4);
+    --tink:#EDF7F0; --cmuted:rgba(237,247,240,.62); --cline:rgba(255,255,255,.14);
+    --tile:rgba(0,0,0,.28); --tileActive:rgba(0,0,0,.42);
     --shade:rgba(0,0,0,.45); --backdrop:rgba(0,0,0,.55);
   }
   *{box-sizing:border-box; margin:0; padding:0; -webkit-font-smoothing:antialiased;}
@@ -68,49 +66,70 @@
 
   #backdrop{position:absolute; inset:0; background:var(--backdrop); opacity:0; pointer-events:none; z-index:5;}
   #stage{position:absolute; inset:0; z-index:6; pointer-events:none;
-    perspective:1000px; perspective-origin:220px 400px;
     transform-origin:29px 63px; opacity:0; visibility:hidden;}
-  #paper{position:absolute; inset:0; transform-style:preserve-3d; transform-origin:29px 63px; will-change:transform;}
-  .half{position:absolute; inset:0; transform-style:preserve-3d; will-change:transform;}
+  #paper{position:absolute; inset:0; transform-origin:29px 63px; will-change:transform;}
+  .half{position:absolute; inset:0; will-change:transform;}
   .half svg{position:absolute; inset:0; width:100%; height:100%; overflow:visible;}
   .lf1{stop-color:var(--leaf1);} .lf2{stop-color:var(--leaf2);}
-  #flap{transform-origin:220px 407px;}
+  #flap{transform-origin:195px 400px;}
   #flapShade{position:absolute; inset:0; pointer-events:none; opacity:0;
-    background:linear-gradient(90deg, var(--shade) 0%, transparent 60%);}
-  #edge{position:absolute; width:4px; height:620px; top:90px; left:218px;
+    background:linear-gradient(90deg, var(--shade) 0%, transparent 55%);}
+  #edge{position:absolute; width:3px; height:640px; top:70px; left:193.5px;
     border-radius:2px; pointer-events:none; opacity:0;
-    background:linear-gradient(180deg, var(--leafStroke), var(--leafBack), var(--leafStroke));
-    box-shadow:0 0 8px rgba(0,0,0,.28);}
-  #veins, #crease{position:absolute; inset:0; width:100%; height:100%; pointer-events:none; opacity:0;}
-  #onleaf{position:absolute; left:62px; right:52px; top:175px; bottom:100px; z-index:7;
-    display:flex; flex-direction:column; gap:4px; color:var(--tink); pointer-events:none; opacity:0;}
-  .lrow{display:flex; align-items:center; gap:8px; padding:0 2px 8px;}
-  .lrow .brand{font-weight:800; font-size:21px; color:var(--tink);}
+    background:var(--leafStroke); box-shadow:0 0 6px rgba(0,0,0,.2);}
+
+  /*
+    NEARLY FULL-SCREEN leaf:
+    Soft tip only in the top ~56px (under status/nav). From y≈100 to y≈760 the
+    silhouette is almost a rounded rectangle (~8–382). Content lives entirely
+    in that fat band. Chats flex+scroll. Tools pinned at bottom inside the leaf.
+  */
+  #onleaf{
+    position:absolute; inset:0; z-index:7;
+    /* top/bottom padding pushed into the WIDE band (audit: header@112 and Notes@732 overflowed) */
+    padding:138px 34px 92px;
+    display:flex; flex-direction:column; gap:0;
+    color:var(--tink); pointer-events:none; opacity:0;
+  }
+  .lhead{display:flex; align-items:center; gap:8px; padding:0 2px 10px; flex-shrink:0;}
+  .lhead .brand{font-weight:800; font-size:20px;}
   .persona{margin-left:auto; display:flex; align-items:center; gap:6px; padding:5px 10px;
-    border:1px solid var(--cline); border-radius:999px;}
-  .persona .dot{width:14px; height:14px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--cyan));}
-  .persona .n{font-size:10.5px; font-weight:600; color:var(--tink);}
-  .lsearch{display:flex; align-items:center; gap:7px; border:1px solid var(--cline);
-    border-radius:12px; padding:8px 11px; color:var(--cmuted); font-size:12px; margin-bottom:4px;}
-  .lsec{font-size:9.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--cmuted); margin:7px 2px 5px;}
-  .lconv{padding:7px 9px; border-radius:11px;}
+    border:1px solid var(--cline); border-radius:999px; background:var(--tile);}
+  .persona .dot{width:12px; height:12px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--cyan));}
+  .persona .n{font-size:11px; font-weight:600;}
+  .lsearch{display:flex; align-items:center; gap:8px; border:1px solid var(--cline);
+    border-radius:12px; padding:9px 12px; color:var(--cmuted); font-size:13px;
+    margin:0 0 8px; background:var(--tile); flex-shrink:0;}
+  .lsec{font-size:10px; letter-spacing:.1em; text-transform:uppercase; color:var(--cmuted);
+    margin:0 4px 6px; flex-shrink:0;}
+  /* CHATS: take all remaining space, clearly scrollable */
+  .lchats{
+    flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:0 2px 6px; margin-bottom:2px;
+    scrollbar-width:thin; scrollbar-color:rgba(23,42,32,.35) transparent;
+  }
+  .lchats::-webkit-scrollbar{width:5px;}
+  .lchats::-webkit-scrollbar-thumb{background:rgba(23,42,32,.28); border-radius:4px;}
+  .lconv{padding:10px 12px; border-radius:12px;}
   .lconv.active{background:var(--tileActive);}
-  .lconv .t{font-size:12.5px; font-weight:600; color:var(--tink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-  .lconv .p{font-size:10px; color:var(--cmuted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:1px;}
-  .ldiv{height:1px; background:var(--cline); margin:6px 0;}
-  .ltools{display:grid; grid-template-columns:1fr 1fr; gap:7px;}
-  .ltool{display:flex; align-items:center; gap:8px; padding:11px 11px;
-    border-radius:13px; font-size:12px; font-weight:600; color:var(--tink);
+  .lconv .t{font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .lconv .p{font-size:11px; color:var(--cmuted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px;}
+  .ldiv{height:1px; background:var(--cline); margin:8px 2px; flex-shrink:0;}
+  .ltools{display:flex; flex-direction:column; gap:6px; flex-shrink:0; padding:0 0 2px;}
+  .ltool{display:flex; align-items:center; gap:12px; padding:11px 14px;
+    border-radius:14px; font-size:14px; font-weight:600; color:var(--tink);
     background:var(--tile); border:1px solid var(--cline);}
-  .lic{width:15px; height:15px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
-  .ic{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  .lic{width:17px; height:17px; stroke:currentColor; fill:none; stroke-width:2;
+    stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
+  .ic{width:14px; height:14px; stroke:currentColor; fill:none; stroke-width:2;
+    stroke-linecap:round; stroke-linejoin:round; flex-shrink:0;}
   #hint{position:absolute; bottom:14px; left:0; right:0; text-align:center; font-size:10.5px; color:var(--muted); z-index:4;}
 </style>
 </head>
 <body>
   <div class="side">
-    <h1>🍃 Leaf Fold — v9</h1>
-    <div class="sub">Close totale (stage hidden a p≈0). Origami a libro in 2D: lembo scaleX(-1→1) sulla piega (3D viene flattenato da overflow:hidden del phone). Foglia simmetrica organica.</div>
+    <h1>🍃 Leaf Fold — v11.1</h1>
+    <div class="sub">Audit geometrico: HEADER/PERSONA/Notes uscivano. Padding nella banda larga + foglia più aperta in alto/basso. Zero FAIL sull’audit.</div>
     <div class="row">
       <button class="ctl" id="bOpen">▶ Open</button>
       <button class="ctl" id="bClose">◀ Close</button>
@@ -127,7 +146,7 @@
       <button class="ctl on" id="mFull">Full</button>
       <button class="ctl" id="mReduced">Reduced</button>
     </div>
-    <div class="ph"><b>Fix vs v8:</b> crash Motion · stage leftover · path flap ≠ base · backface 3D rotto. Ora grow→unfold→content, close fold→shrink→gone.</div>
+    <div class="ph"><b>v11 rethink:</b> occupa quasi tutto lo schermo. Header non tagliato. Scroll chat evidente. Settings nella fascia larga in basso.</div>
   </div>
 
   <div class="phone" id="phone">
@@ -162,65 +181,80 @@
 
     <div id="backdrop"></div>
 
-    <!-- Symmetric organic leaf, crease x=220. LEAF_D shared by both halves. -->
     <div id="stage">
       <div id="paper">
         <div class="half" id="base">
           <svg viewBox="0 0 390 800">
             <defs>
-              <linearGradient id="gBodyL" x1="0" y1="0" x2="0.55" y2="1">
+              <linearGradient id="gBodyL" x1="0.2" y1="0" x2="0.8" y2="1">
                 <stop offset="0" class="lf1"/><stop offset="1" class="lf2"/>
               </linearGradient>
-              <clipPath id="clipL"><path d="M 220 55 L 220 755 L -50 820 L -50 -20 Z"/></clipPath>
+              <clipPath id="clipL"><path d="M 195 42 L 195 794 L -30 820 L -30 -20 Z"/></clipPath>
             </defs>
             <path clip-path="url(#clipL)"
-                  d="M 220 55 C 300 85, 355 175, 368 310 C 378 440, 345 580, 220 755 C 95 580, 62 440, 72 310 C 85 175, 140 85, 220 55 Z"
-                  fill="url(#gBodyL)" stroke="var(--leafStroke)" stroke-width="1.7" stroke-linejoin="round"/>
+                  d="M 195 42
+                     C 300 55, 365 95, 385 170
+                     C 395 250, 395 400, 393 560
+                     C 391 660, 375 730, 310 765
+                     C 255 785, 220 792, 195 794
+                     C 170 792, 135 785, 80 765
+                     C 15 730, -1 660, -3 560
+                     C -5 400, -5 250, 5 170
+                     C 25 95, 90 55, 195 42 Z"
+                  fill="url(#gBodyL)" stroke="var(--leafStroke)" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
         </div>
 
         <div class="half" id="flap">
           <svg viewBox="0 0 390 800">
             <defs>
-              <linearGradient id="gBodyR" x1="0" y1="0" x2="0.55" y2="1">
+              <linearGradient id="gBodyR" x1="0.2" y1="0" x2="0.8" y2="1">
                 <stop offset="0" class="lf1"/><stop offset="1" class="lf2"/>
               </linearGradient>
-              <clipPath id="clipR"><path d="M 220 55 L 220 755 L 440 820 L 440 -20 Z"/></clipPath>
+              <clipPath id="clipR"><path d="M 195 42 L 195 794 L 420 820 L 420 -20 Z"/></clipPath>
             </defs>
             <path id="flapPath" clip-path="url(#clipR)"
-                  d="M 220 55 C 300 85, 355 175, 368 310 C 378 440, 345 580, 220 755 C 95 580, 62 440, 72 310 C 85 175, 140 85, 220 55 Z"
-                  fill="url(#gBodyR)" stroke="var(--leafStroke)" stroke-width="1.7" stroke-linejoin="round"/>
+                  d="M 195 42
+                     C 300 55, 365 95, 385 170
+                     C 395 250, 395 400, 393 560
+                     C 391 660, 375 730, 310 765
+                     C 255 790, 220 792, 195 794
+                     C 170 792, 135 790, 80 765
+                     C 15 730, -1 660, -3 560
+                     C -5 400, -5 250, 5 170
+                     C 25 95, 90 55, 195 42 Z"
+                  fill="url(#gBodyR)" stroke="var(--leafStroke)" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
           <div id="flapShade"></div>
         </div>
 
         <div id="edge"></div>
-        <svg id="crease" viewBox="0 0 390 800">
-          <path d="M 220 55 L 220 755" stroke="var(--midrib)" stroke-width="1.6" fill="none" stroke-linecap="round"/>
-        </svg>
-        <svg id="veins" viewBox="0 0 390 800">
-          <path d="M 220 120 C 255 180, 275 250, 285 340" fill="none" stroke="var(--vein)" stroke-width="1.25"/>
-          <path d="M 220 160 C 185 220, 160 300, 150 390" fill="none" stroke="var(--vein)" stroke-width="1.1"/>
-          <path d="M 220 280 C 270 340, 295 420, 300 520" fill="none" stroke="var(--vein)" stroke-width="1.1"/>
-          <path d="M 220 360 C 175 430, 155 510, 155 590" fill="none" stroke="var(--vein)" stroke-width="1"/>
-          <path d="M 220 480 C 250 560, 255 640, 245 700" fill="none" stroke="var(--vein)" stroke-width="1"/>
-        </svg>
 
         <div id="onleaf">
-          <div class="lrow">
+          <div class="lhead">
             <span class="brand">Kalsa</span>
-            <div class="persona"><div class="dot"></div><span class="n">Persona: Default</span>
-              <svg class="ic" viewBox="0 0 24 24" style="width:11px;height:11px"><path d="m9 6 6 6-6 6"/></svg>
+            <div class="persona"><div class="dot"></div><span class="n">Default</span>
+              <svg class="ic" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
             </div>
           </div>
           <div class="lsearch"><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>Search chats</div>
-          <div class="lconv active"><div class="t">Sourdough schedule</div><div class="p">Feed 1:1:1, keep at 24–26°C…</div></div>
-          <div class="lconv"><div class="t">Bike route Sunday</div><div class="p">Ghisallo loop, 68km…</div></div>
-          <div class="lconv"><div class="t">Trip to Bologna</div><div class="p">Trattoria list…</div></div>
+          <div class="lsec">Chats</div>
+          <div class="lchats" id="chatList">
+            <div class="lconv active"><div class="t">Sourdough schedule</div><div class="p">Feed 1:1:1, keep at 24–26°C…</div></div>
+            <div class="lconv"><div class="t">Bike route Sunday</div><div class="p">Ghisallo loop, 68km…</div></div>
+            <div class="lconv"><div class="t">Trip to Bologna</div><div class="p">Trattoria list…</div></div>
+            <div class="lconv"><div class="t">Garden soil mix</div><div class="p">Peat-free recipe…</div></div>
+            <div class="lconv"><div class="t">Kubernetes on Pi</div><div class="p">k3s + Longhorn notes…</div></div>
+            <div class="lconv"><div class="t">Pasta carbonara</div><div class="p">Guanciale, no cream…</div></div>
+            <div class="lconv"><div class="t">Tax docs 2025</div><div class="p">Receipts folder…</div></div>
+            <div class="lconv"><div class="t">Camera lens pick</div><div class="p">35mm vs 50mm…</div></div>
+            <div class="lconv"><div class="t">Weekend packing</div><div class="p">Train to Verona…</div></div>
+            <div class="lconv"><div class="t">MoE streaming notes</div><div class="p">Barrier port, ngl sweep…</div></div>
+          </div>
           <div class="ldiv"></div>
-          <div class="lsec">Strumenti</div>
+          <div class="lsec">Tools</div>
           <div class="ltools">
-            <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1"/></svg>Settings</div>
+            <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9 17 7M7 17l-2.1 2.1"/></svg>Settings</div>
             <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>Account</div>
             <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/></svg>Documents</div>
             <div class="ltool"><svg class="lic" viewBox="0 0 24 24"><path d="M15 4h4v4M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4"/></svg>Notes</div>
@@ -236,10 +270,9 @@
 const $=id=>document.getElementById(id);
 const phone=$("phone"), backdrop=$("backdrop"), stage=$("stage"), paper=$("paper"),
       flap=$("flap"), flapPath=$("flapPath"), flapShade=$("flapShade"), edge=$("edge"),
-      crease=$("crease"), veins=$("veins"), onleaf=$("onleaf"),
-      budIcon=$("budIcon"), hint=$("hint"), scrub=$("scrub");
+      onleaf=$("onleaf"), budIcon=$("budIcon"), hint=$("hint"), scrub=$("scrub");
 
-flap.style.transformOrigin="220px 407px";
+flap.style.transformOrigin="195px 400px";
 
 let pRaw=0, anim=null, reduced=false;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
@@ -250,7 +283,6 @@ function render(){
   const v=clamp(pRaw,0,1);
   const open=v>0.008;
 
-  /* CLOSE COMPLETE */
   stage.style.visibility = open ? "visible" : "hidden";
   stage.style.opacity = open ? "1" : "0";
   backdrop.style.opacity = open ? v.toFixed(3) : "0";
@@ -266,13 +298,10 @@ function render(){
     return;
   }
 
-  /* 0–0.28 grow folded · 0.18–0.88 unfold · 0.78–1 content */
   const growT = smooth(clamp(v/0.28,0,1));
   const scale = reduced ? lerp(0.18,1,smooth(v)) : lerp(0.12,1,growT);
   paper.style.transform = "scale("+scale.toFixed(4)+")";
 
-  /* 2D book fold: scaleX -1 (mirrored onto left) → 0 (edge) → +1 (open).
-     3D rotateY is flattened to nothing by .phone { overflow:hidden }. */
   let sx=1;
   if(!reduced){
     const foldT = smooth(clamp((v-0.18)/0.70,0,1));
@@ -284,19 +313,15 @@ function render(){
     flapPath.setAttribute("fill", "url(#gBodyR)");
   }
 
-  const edgeAmt = 1 - Math.abs(sx); // peak at the hinge
-  edge.style.opacity = (edgeAmt*0.95).toFixed(3);
-  edge.style.transform = "scaleX("+(0.5+1.6*edgeAmt).toFixed(2)+")";
-
-  const motion = clamp((0.95-v)/0.14,0,1)*clamp((v-0.05)/0.14,0,1);
-  flapShade.style.opacity = (edgeAmt*motion*0.8).toFixed(3);
-  crease.style.opacity = (0.12*v + edgeAmt*0.55).toFixed(3);
+  const edgeAmt = 1 - Math.abs(sx);
+  const motion = clamp((0.92-v)/0.12,0,1)*clamp((v-0.08)/0.12,0,1);
+  edge.style.opacity = (edgeAmt*motion*0.85).toFixed(3);
+  flapShade.style.opacity = (edgeAmt*motion*0.55).toFixed(3);
 
   const late = clamp((v-0.78)/0.18,0,1);
-  veins.style.opacity = late.toFixed(3);
   onleaf.style.opacity = late.toFixed(3);
   onleaf.style.pointerEvents = late>0.65 ? "auto" : "none";
-  onleaf.style.transform = "translateY("+((1-late)*12).toFixed(1)+"px)";
+  onleaf.style.transform = "translateY("+((1-late)*8).toFixed(1)+"px)";
   scrub.value = String(Math.round(v*1000));
 }
 

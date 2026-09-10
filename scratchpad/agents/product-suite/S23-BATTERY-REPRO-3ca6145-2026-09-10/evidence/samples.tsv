@@ -1,0 +1,2 @@
+turn	phase	timestamp	epoch_ms	battery_level	battery_c	current_now	current_avg	thermal	MemAvailable_kB	SwapFree_kB	pid	majflt	VmRSS_kB	VmSwap_kB	big_core_freq
+0	pre	2026-09-10T09:42:13-0400	1789047733428	96	29.9			0	4149888	1911912					cpu7=3360000
