@@ -253,6 +253,46 @@ async function main() {
       "formatVersion",
     );
   });
+  // Session identity fields (e2e09f5): modelFileId binds the loaded GGUF,
+  // engineBuild binds the compiled engine (pin + bridge/native patches +
+  // variant). Both must be compared and reported by name.
+  test("mismatch modelFileId → field name", () => {
+    assert(
+      sessionMetaMismatchField(
+        { ...base, modelFileId: "100:200" },
+        { ...base, modelFileId: "100:201" },
+      ) === "modelFileId",
+      "modelFileId",
+    );
+  });
+  test("mismatch engineBuild → field name", () => {
+    assert(
+      sessionMetaMismatchField(
+        { ...base, engineBuild: "kalsa-eng-v1:source:aaa" },
+        { ...base, engineBuild: "kalsa-eng-v1:source:bbb" },
+      ) === "engineBuild",
+      "engineBuild",
+    );
+  });
+  test("identity absent-vs-present mismatches", () => {
+    assert(
+      !sessionMetaMatches(base, { ...base, modelFileId: "1:2" }),
+      "present vs missing modelFileId must mismatch",
+    );
+    assert(
+      !sessionMetaMatches(base, { ...base, engineBuild: "build-a" }),
+      "present vs missing engineBuild must mismatch",
+    );
+  });
+  test("identity equal on both sides matches", () => {
+    const m = {
+      ...base,
+      modelFileId: "100:200:deadbeef",
+      engineBuild: "kalsa-eng-v1:source:aaa",
+    };
+    assert(sessionMetaMatches(m, { ...m }), "same identity must match");
+    assert(sessionMetaMismatchField(m, { ...m }) === null, "no mismatch field");
+  });
 
   // 5. savedAt difference does NOT cause mismatch
   test("savedAt difference does not mismatch", () => {
@@ -305,6 +345,12 @@ async function main() {
   // hasTools + the tool NAMES and blockFormat: hasTools alone was a boolean, so
   // turning Web off changed the tool array without changing the hash and the
   // same .kvs was reused under a different system prompt (audit F6, 2026-08-21).
+  //
+  // MEMORY_FACTS_ON_USER_TAIL (e2e09f5): facts ride the last user message, so
+  // they are NOT part of the system prompt and must NOT enter this hash. The
+  // canonical shape always joins "" in tail mode; a fact change cannot
+  // invalidate the stable prefix. Flipping the flag to false re-enters facts
+  // and fails this harness on purpose (see the facts assertion below).
   test("computePromptEnvHash stable + djb2 shape", () => {
     const a = computePromptEnvHash("en", ["fact a"], true, ["web_search"], "md");
     const b = computePromptEnvHash("en", ["fact a"], true, ["web_search"], "md");
@@ -313,7 +359,7 @@ async function main() {
     const expected = historyHash(
       JSON.stringify({
         locale: "en",
-        memoryFactsJoined: "fact a",
+        memoryFactsJoined: "",
         hasTools: true,
         tools: ["web_search"],
         blockFormat: "md",
@@ -338,10 +384,17 @@ async function main() {
     );
   });
 
-  test("computePromptEnvHash sensitive to locale / facts / hasTools", () => {
+  test("computePromptEnvHash sensitive to locale / hasTools, not facts (tail mode)", () => {
     const base = computePromptEnvHash("en", ["f"], true);
     assert(base !== computePromptEnvHash("it", ["f"], true), "locale");
-    assert(base !== computePromptEnvHash("en", ["g"], true), "facts");
+    assert(
+      base === computePromptEnvHash("en", ["g"], true),
+      "facts must NOT change the hash: they ride the user tail (MEMORY_FACTS_ON_USER_TAIL)",
+    );
+    assert(
+      base === computePromptEnvHash("en", [], true),
+      "a fact set and no facts must hash the same in tail mode",
+    );
     assert(base !== computePromptEnvHash("en", ["f"], false), "hasTools");
     assert(
       computePromptEnvHash("en", null, true) === computePromptEnvHash("en", [], true),

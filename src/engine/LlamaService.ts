@@ -1,5 +1,4 @@
 import { AppState, Platform } from "react-native";
-import { nativeBuildVersion } from "expo-application";
 
 import {
   addNativeLogListener,
@@ -154,6 +153,7 @@ import {
   type SessionSaveFingerprint,
   type SessionMeta,
 } from "./sessionPersistence";
+import { engineBuildFingerprint, readEngineBuildId } from "./engineIdentity";
 import {
   recordSessionDiskSample,
   sessionBytesPerTokenForModel,
@@ -1310,14 +1310,6 @@ export type EngineInitResult = {
   systemInfo?: string;
 };
 
-function engineBuildFingerprint(systemInfo?: string): string | null {
-  if (typeof systemInfo !== "string" || systemInfo.trim().length === 0) return null;
-  const patchToken =
-    systemInfo.split(/\s+/).find((token) => token.includes("kalsa-native-patches")) ??
-    "systemInfo:unmarked";
-  return `${patchToken.slice(0, 96)}:app:${nativeBuildVersion ?? "unknown"}`;
-}
-
 /**
  * Carica il modello (idempotente per la stessa coppia model+mmproj+nCtx+KV).
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
@@ -1742,6 +1734,7 @@ export function initEngine(
     activeEngineBuild =
       engineBuildFingerprint(
         typeof context?.systemInfo === "string" ? context.systemInfo : undefined,
+        readEngineBuildId(),
       ) ?? undefined;
     activeModelId = modelId;
     activeMmprojPath = options.mmprojPath ?? null;

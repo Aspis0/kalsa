@@ -25,7 +25,7 @@ export type SessionMeta = {
   formatVersion: typeof SESSION_FORMAT_VERSION;
   /** Size + mtime of the loaded GGUF, optionally followed by its catalog SHA. */
   modelFileId: string;
-  /** Native patch marker plus app native build version. */
+  /** Prebuild engine build id (pin + bridge/native patches + variant) + patch marker. */
   engineBuild: string;
   nCtx: number;
   cacheTypeK: string;
