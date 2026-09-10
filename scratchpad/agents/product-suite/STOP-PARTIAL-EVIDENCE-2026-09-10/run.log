@@ -1,0 +1,66 @@
+[stop-partial] start utc=2026-09-10T21:58:49Z serial=JELLYS0000053795
+[stop-partial] devices=List of devices attached JELLYS0000053795	device 192.168.1.152:5555	device  
+[stop-partial] apk sha=224fb7d117f66bd94af0e8acd22d9b24559f6b3f98e9f059aebb2a25256e346a
+[stop-partial] pid=21302
+  level: 100
+  temperature: 280
+[stop-partial] hist-before    18785 bytes
+[stop-partial] ui-before parsed={"stop": false, "thinking": true, "ready": true, "invia": true, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 3}
+[stop-partial] tap 'Nuova chat' at 436,171
+[stop-partial] tapped Nuova chat
+[stop-partial] ui-after-newchat parsed={"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 72, "best": "Cerca sul web: ultime notizie su [argomento], Websearch · modello locale", "n_candidates": 8}
+[stop-partial] clearing logcat
+[stop-partial] marker START 2026-09-10T21:59:04Z
+[stop-partial] share-send prompt
+[stop-partial] share-send attempt 1/3: Scrivi un testo di almeno 250 parole sul mare, in italiano. Inizia la risposta visibile con la frase: Il mare è vasto.
+[stop-partial] share-send: Send attempt 1/3
+[stop-partial] node 'Send' NOT FOUND
+[stop-partial] tap 'Invia' at 426,806
+[stop-partial] share-send: submitted prev=21 count=21
+[stop-partial] submitted utc=2026-09-10T21:59:24Z
+[stop-partial] t=0s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=3s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=6s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=9s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=12s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=15s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=18s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=21s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=24s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=27s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=30s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=33s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=36s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=39s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=42s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=45s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=48s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=51s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=54s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=57s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=60s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=63s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=66s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=69s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=72s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=75s {"stop": true, "thinking": true, "ready": true, "invia": false, "best_len": 72, "best": "Scarica il modello vocale in Impostazioni → Voce per usare la dettatura.", "n_candidates": 2}
+[stop-partial] t=78s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=81s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=84s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=87s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=90s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=93s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=96s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=99s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=102s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling
+[stop-partial] t=105s {"stop": false, "thinking": false, "ready": true, "invia": true, "best_len": 516, "best": "Oggi, le sfide ambientali pongono interrogativi cruciali. L'inquinamento da plastica, l'azzurramento degli oceani e il riscaldamento globale mettono a dura prova gli ecosistemi marini. Tuttavia, anche il mare offre speranze: le correnti di ", "n_candidates": 3}
+[stop-partial] visible text 516 but stop button missing — keep polling

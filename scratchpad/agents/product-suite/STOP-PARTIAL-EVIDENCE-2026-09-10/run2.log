@@ -1,0 +1,37 @@
+[stop-partial2] start utc=2026-09-10T22:08:43Z serial=JELLYS0000053795
+[stop-partial2] before {"ok": true, "n": 2, "n_asst": 1, "len": 1925, "streaming": null, "interrupted": null, "head": "Il mare è vasto. Le sue acque infinite abbracciano quasi un terzo della superficie terrestre, coprendo oltre 360 milioni di chilometri quadrati. Questo immenso oceano ha formato l'"}
+[stop-partial2] clearing logcat
+[stop-partial2] share-send
+[stop-partial2] share-send attempt 1/3: Elenca in italiano venti paragrafi sul mare, ciascuno di almeno tre frasi. Inizia il primo paragrafo con: Il mare è vasto.
+[stop-partial2] share-send: Send attempt 1/3
+[stop-partial2] node 'Send' NOT FOUND
+[stop-partial2] tap 'Invia' at 426,806
+[stop-partial2] share-send: submitted prev=1 count=1
+[stop-partial2] submitted utc=2026-09-10T22:09:06Z
+[stop-partial2] thinking-dump i=1 timed out/failed
+[stop-partial2] thinking-dump i=2 timed out/failed
+[stop-partial2] thinking-dump i=3 timed out/failed
+[stop-partial2] thinking-dump i=4 timed out/failed
+[stop-partial2] thinking-dump i=5 timed out/failed
+[stop-partial2] thinking-dump i=6 timed out/failed
+[stop-partial2] thinking-dump i=7 timed out/failed
+[stop-partial2] thinking-dump i=8 timed out/failed
+[stop-partial2] thinking-dump i=9 timed out/failed
+[stop-partial2] thinking-dump i=10 timed out/failed
+[stop-partial2] WARN: no Interrompi node; falling back to 426,805
+[stop-partial2] t=0s sql={"ok": true, "n": 2, "n_asst": 1, "len": 1925, "streaming": null, "interrupted": null, "head": "Il mare è vasto. Le sue acque infinite abbracciano quasi un terzo della superficie terrestre, coprendo oltre 360 milioni di chilometri quadrati. Questo immenso oceano ha formato l'"}
+[stop-partial2] visible sql len=1925 streaming=None — tapping 426,805
+[stop-partial2] tapped utc=2026-09-10T22:09:17Z after 0s
+  level: 100
+  temperature: 330
+[stop-partial2] verdict=FAIL
+[stop-partial2] detail={
+  "n_messages": 3,
+  "last_role": "user",
+  "last_len": 122,
+  "last_interrupted": null,
+  "last_streaming": null,
+  "last_text_head": "Elenca in italiano venti paragrafi sul mare, ciascuno di almeno tre frasi. Inizia il primo paragrafo con: Il mare è vasto.",
+  "pass": false
+}
+[stop-partial2] end utc=2026-09-10T22:09:26Z

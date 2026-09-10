@@ -1,0 +1,21 @@
+{
+  "before_asst": 1,
+  "n_messages": 5,
+  "n_asst": 2,
+  "visible_snapshot": {
+    "n": 5,
+    "last": {
+      "id": "a-8080264",
+      "role": "assistant",
+      "text": "The user wants me to write 20 paragraphs about the sea in Italian, each with at least 3 sentences. The first paragraph must start with \"Il mare è vasto.\" The response must be in Italian (as per the language rule). I",
+      "createdAt": 1789078281793,
+      "interrupted": true
+    }
+  },
+  "last_role": "assistant",
+  "last_len": 285,
+  "last_interrupted": true,
+  "last_streaming": null,
+  "last_text_head": "The user wants me to write 20 paragraphs about the sea in Italian, each with at least 3 sentences. The first paragraph must start with \"Il mare è vasto.\" The response must be in Italian (as per the language rule). I should not include any i",
+  "pass": true
+}

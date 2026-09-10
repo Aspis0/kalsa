@@ -1,0 +1,9 @@
+{
+  "n_messages": 3,
+  "last_role": "user",
+  "last_len": 122,
+  "last_interrupted": null,
+  "last_streaming": null,
+  "last_text_head": "Elenca in italiano venti paragrafi sul mare, ciascuno di almeno tre frasi. Inizia il primo paragrafo con: Il mare è vasto.",
+  "pass": false
+}
