@@ -5,7 +5,10 @@
 import { resolveThinkingParams } from "./thinkingBudgets";
 
 const qwen = { thinking: { short: 256, extended: 512 } };
-const lfm = { thinking: { short: 512, extended: 1024 }, preserveThinking: true };
+const lfm = {
+  thinking: { short: 512, extended: 1024, nPredict: 2048 },
+  preserveThinking: true,
+};
 
 describe("resolveThinkingParams production default", () => {
   test("no speed measurement selects the model short budget", () => {
@@ -13,7 +16,7 @@ describe("resolveThinkingParams production default", () => {
     expect(fields.enable_thinking).toBe(true);
     expect(fields.thinking_budget_tokens).toBe(512);
     expect(fields.thinking_budget_tokens).toBeGreaterThan(0);
-    expect(nPredict).toBe(1024);
+    expect(nPredict).toBe(2048);
   });
 
   test.each([

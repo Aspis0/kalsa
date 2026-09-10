@@ -43,13 +43,13 @@ const LFM25_DEFAULTS: CatalogDefaults & {
 };
 
 const MINICPM5_DEFAULTS: CatalogDefaults & {
-  thinking: { short: number; extended: number };
+  thinking: { short: number; extended: number; nPredict: number };
 } = {
   vendor: "OpenBMB",
   contextLength: 131072,
   engineCtx: 8192,
   kvCache: { k: "q8_0", v: "q4_0" },
-  thinking: { short: 512, extended: 1024 },
+  thinking: { short: 512, extended: 1024, nPredict: 2048 },
   descriptionKey: "models.minicpm5.description",
   minRamTier: "low",
 };

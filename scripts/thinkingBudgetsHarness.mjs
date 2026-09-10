@@ -195,8 +195,8 @@ async function main() {
   test("registry: recommended models keep their declared budgets and answer headroom", () => {
     const t2b = MODEL_REGISTRY.find((m) => m.recommendForTiers?.includes("low"))?.thinking;
     assert(
-      t2b && t2b.short === 256 && t2b.extended === 512 && t2b.nPredict === undefined,
-      `low-tier recommendation thinking expected {256,512}, got ${JSON.stringify(t2b)}`,
+      t2b && t2b.short === 512 && t2b.extended === 1024 && t2b.nPredict === 2048,
+      `low-tier recommendation thinking expected {512,1024,nPredict:2048}, got ${JSON.stringify(t2b)}`,
     );
     for (const m of MODEL_REGISTRY.filter((entry) => entry.recommendForTiers?.includes("high"))) {
       const t = m.thinking;
