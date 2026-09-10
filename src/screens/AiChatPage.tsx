@@ -91,6 +91,7 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { canRegen, editedFlagForResend, findRegenTarget } from "./regenTarget";
+import { sheetCopyVisible } from "./sheetCopyVisible";
 import { decidePreSendFit } from "../engine/deviceProfile";
 import { resolveAdmissionModel } from "../engine/admissionModel";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
@@ -4161,7 +4162,8 @@ export function AiChatPage({
                 >
                   {copiedFlash ? t("common.copied") : t("chat.a11yLongPress")}
                 </Text>
-                {!messageMenu.text.trim() ? (
+                {/* Copy needs text; attachment-only empty captions keep Notes/Translate below. */}
+                {sheetCopyVisible(messageMenu.text) ? (
                   <AttachSheetRow
                     icon={<BrandIcon name="copy" size={22} />}
                     label={copiedFlash ? t("common.copied") : t("common.copy")}
