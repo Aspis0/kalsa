@@ -10,14 +10,23 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
 
-import { SESSION_DISK_GATE_USED_TOKENS } from "./ttftFlags";
+import {
+  MEMORY_FACTS_ON_USER_TAIL,
+  SESSION_DISK_GATE_USED_TOKENS,
+} from "./ttftFlags";
 
 export { SESSION_DISK_GATE_USED_TOKENS };
+
+export const SESSION_FORMAT_VERSION = 2;
 
 // ── Pure section ────────────────────────────────────────────────────────────
 
 export type SessionMeta = {
-  formatVersion: 1;
+  formatVersion: typeof SESSION_FORMAT_VERSION;
+  /** Size + mtime of the loaded GGUF, optionally followed by its catalog SHA. */
+  modelFileId: string;
+  /** Native patch marker plus app native build version. */
+  engineBuild: string;
   nCtx: number;
   cacheTypeK: string;
   cacheTypeV: string;
@@ -33,8 +42,8 @@ export type SessionMeta = {
   divergesAtLastExchange?: boolean;
   /**
    * djb2 over JSON.stringify({locale, memoryFactsJoined, hasTools, tools, blockFormat}).
-   * When MEMORY_FACTS_ON_USER_TAIL, callers must pass [] for facts so a new
-   * fact does not cold-start the whole prefix. Mismatch → cold start.
+   * When MEMORY_FACTS_ON_USER_TAIL, facts are omitted so a new fact does not
+   * cold-start the whole prefix. Mismatch → cold start.
    * Optional for back-compat reads. Changing the hashed shape invalidates
    * older saved sessions (one cold prefill).
    */
@@ -348,20 +357,24 @@ export function memoryFactTextsForEnvHash(
 
 /**
  * Hash of system-prompt env inputs that are not covered by historyHash.
- * Covers locale, memory facts (joined), whether tools are wired into
- * buildSystemPrompt, the sorted tool-name set, and blockFormat.
- * When MEMORY_FACTS_ON_USER_TAIL the caller must pass [] / omit facts — they
- * are no longer part of the system prompt. Changing the hashed shape
+ * Covers locale, memory facts (joined when they live in the system prompt),
+ * whether tools are wired into buildSystemPrompt, the sorted tool-name set,
+ * and blockFormat.
+ * When MEMORY_FACTS_ON_USER_TAIL, facts are omitted because they are no
+ * longer part of the system prompt. Changing the hashed shape
  * invalidates older saved sessions (one cold prefill).
  */
 export function computePromptEnvHash(
   locale: string,
-  memoryFacts: string[] | undefined | null,
+  memoryFacts: readonly string[] | undefined | null,
   hasTools: boolean,
   toolNames?: readonly string[] | null,
   blockFormat?: string | null,
 ): string {
-  const memoryFactsJoined = Array.isArray(memoryFacts) ? memoryFacts.join("\n") : "";
+  const memoryFactsJoined =
+    !MEMORY_FACTS_ON_USER_TAIL && Array.isArray(memoryFacts)
+      ? memoryFacts.join("\n")
+      : "";
   const tools = Array.isArray(toolNames)
     ? [...new Set(toolNames.filter((n) => typeof n === "string" && n.length > 0))].sort()
     : [];
@@ -395,6 +408,8 @@ export function sessionMetaMatches(a: SessionMeta, b: SessionMeta): boolean {
  */
 export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string | null {
   if (a.formatVersion !== b.formatVersion) return "formatVersion";
+  if (a.modelFileId !== b.modelFileId) return "modelFileId";
+  if (a.engineBuild !== b.engineBuild) return "engineBuild";
   if (a.nCtx !== b.nCtx) return "nCtx";
   if (a.cacheTypeK !== b.cacheTypeK) return "cacheTypeK";
   if (a.cacheTypeV !== b.cacheTypeV) return "cacheTypeV";
@@ -596,7 +611,9 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
     if (
       parsed == null ||
       typeof parsed !== "object" ||
-      parsed.formatVersion !== 1 ||
+      parsed.formatVersion !== SESSION_FORMAT_VERSION ||
+      typeof parsed.modelFileId !== "string" ||
+      typeof parsed.engineBuild !== "string" ||
       typeof parsed.nCtx !== "number" ||
       typeof parsed.cacheTypeK !== "string" ||
       typeof parsed.cacheTypeV !== "string" ||
@@ -605,7 +622,9 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
       return null;
     }
     const meta: SessionMeta = {
-      formatVersion: 1,
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: parsed.modelFileId,
+      engineBuild: parsed.engineBuild,
       nCtx: parsed.nCtx,
       cacheTypeK: parsed.cacheTypeK,
       cacheTypeV: parsed.cacheTypeV,

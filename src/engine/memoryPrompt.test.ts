@@ -68,16 +68,16 @@ describe("buildSystemPrompt (memory facts)", () => {
 });
 
 describe("computePromptEnvHash", () => {
-  test("4: differs when facts differ, when hasTools differs; stable otherwise", () => {
+  test("4: facts stay outside the hash in tail mode; other inputs differ", () => {
     const a = computePromptEnvHash("en", ["User likes espresso"], true);
     const b = computePromptEnvHash("en", ["User likes espresso"], true);
     expect(a).toBe(b);
 
-    // Facts are hashed (they are back in the system prompt).
-    expect(computePromptEnvHash("en", ["A"], true)).not.toBe(
+    // Facts ride the user tail and do not invalidate the stable prefix.
+    expect(computePromptEnvHash("en", ["A"], true)).toBe(
       computePromptEnvHash("en", ["B"], true),
     );
-    expect(computePromptEnvHash("en", [], true)).not.toBe(
+    expect(computePromptEnvHash("en", [], true)).toBe(
       computePromptEnvHash("en", ["something"], true),
     );
     // null/undefined facts join to "" — same as [].

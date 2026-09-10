@@ -19,7 +19,9 @@ jest.mock("expo-file-system/legacy", () => ({
 import { computePromptEnvHash } from "./sessionPersistence";
 import {
   isLegacySessionFileName,
+  modelFileIdFromInfo,
   parseSessionStem,
+  promptEnvChangedFields,
   sessionStem,
 } from "./sessionKey";
 
@@ -31,10 +33,43 @@ describe("sessionStem", () => {
   });
 
   test("different prompt env hashes produce different stems", () => {
-    const a = computePromptEnvHash("en", ["A"], true);
-    const b = computePromptEnvHash("en", ["B"], true);
+    const a = computePromptEnvHash("en", [], true);
+    const b = computePromptEnvHash("it", [], true);
     expect(a).not.toBe(b);
     expect(sessionStem("m", "c", a)).not.toBe(sessionStem("m", "c", b));
+  });
+
+  test("reports changed prompt environment fields", () => {
+    const base = {
+      locale: "en",
+      hasTools: true,
+      toolNames: ["web_search"],
+      blockFormat: "none",
+      facts: [],
+    } as const;
+    expect(
+      promptEnvChangedFields(base, {
+        ...base,
+        locale: "it",
+        hasTools: false,
+        toolNames: ["web_fetch"],
+        blockFormat: "system-end",
+        facts: ["likes tea"],
+      }),
+    ).toEqual(["locale", "hasTools", "toolNames", "blockFormat", "facts"]);
+    expect(
+      promptEnvChangedFields(base, { ...base, toolNames: ["web_search"] }),
+    ).toEqual([]);
+  });
+
+  test("builds a model file identity without hashing the GGUF", () => {
+    expect(
+      modelFileIdFromInfo(
+        { exists: true, size: 123, modificationTime: 4.5 },
+        "abc",
+      ),
+    ).toBe("123:4500:abc");
+    expect(modelFileIdFromInfo({ exists: true, size: 123 })).toBeNull();
   });
 
   test("null when a part is empty", () => {
