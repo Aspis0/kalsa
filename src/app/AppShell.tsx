@@ -1485,6 +1485,41 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     const ac = new AbortController();
     embedJobAbortRef.current = ac;
     const signal = ac.signal;
+    let embeddedCount = 0;
+    let index: SemanticVectorIndex | undefined;
+    const logEmbedDone = (
+      reason: "completed" | "partial" | "failed" | "aborted",
+    ) => {
+      // eslint-disable-next-line no-console
+      console.log(
+        `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index?.chunkCount ?? 0},"reason":${JSON.stringify(reason)}}`,
+      );
+      // Opt-in telemetry: genuine native/model failures only.
+      // RAM-gate / abort / hung / not-downloaded / cap / partial are excluded.
+      if (reason === "failed") {
+        try {
+          const kind = consumeLastEmbedFailure();
+          if (
+            kind === "oom" ||
+            kind === "model_corrupt" ||
+            kind === "native_crash"
+          ) {
+            // eslint-disable-next-line @typescript-eslint/no-require-imports
+            const tel = require("../telemetry/telemetry") as {
+              reportTelemetry: (i: Record<string, unknown>) => void;
+            };
+            tel.reportTelemetry({
+              code: "embed.native",
+              detail: kind,
+              phase: "embed",
+              chunks: embeddedCount,
+            });
+          }
+        } catch {
+          /* telemetry never throws */
+        }
+      }
+    };
 
     // eslint-disable-next-line no-console
     console.log(
@@ -1634,48 +1669,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       );
 
       // Working index: either the map-owned one or a fresh cold-import index.
-      let index =
+      index =
         docSemanticByIdRef.current.get(entry.id) ??
         new SemanticVectorIndex({ dims: EMBEDDING_MODEL.dims });
 
       // Embed one-by-one (G99 ~1–3 s/chunk). Abort if gen stale / signal / deleted.
       // Terminal reason tracks why the job ended so `[embed] done` is never
       // misleading on partial/failed exits (vec null, reject, cap, delete).
-      let embeddedCount = 0;
       /** "completed" | "partial" | "failed" | "aborted" — set before every exit. */
       let terminalReason: "completed" | "partial" | "failed" | "aborted" =
         "completed";
-      const logEmbedDone = (reason: typeof terminalReason) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `[embed] done {"docId":${JSON.stringify(entry.id)},"embedded":${embeddedCount},"indexChunks":${index.chunkCount},"reason":${JSON.stringify(reason)}}`,
-        );
-        // Opt-in telemetry: genuine native/model failures only.
-        // RAM-gate / abort / hung / not-downloaded / cap / partial are excluded.
-        if (reason === "failed") {
-          try {
-            const kind = consumeLastEmbedFailure();
-            if (
-              kind === "oom" ||
-              kind === "model_corrupt" ||
-              kind === "native_crash"
-            ) {
-              // eslint-disable-next-line @typescript-eslint/no-require-imports
-              const tel = require("../telemetry/telemetry") as {
-                reportTelemetry: (i: Record<string, unknown>) => void;
-              };
-              tel.reportTelemetry({
-                code: "embed.native",
-                detail: kind,
-                phase: "embed",
-                chunks: embeddedCount,
-              });
-            }
-          } catch {
-            /* telemetry never throws */
-          }
-        }
-      };
       for (const chunk of toEmbed) {
         if (!stillCurrent() || signal.aborted) {
           // eslint-disable-next-line no-console
@@ -1888,12 +1891,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         terminalReason = embeddedCount > 0 ? "partial" : "failed";
       }
       logEmbedDone(terminalReason);
-    } catch {
+    } catch (e) {
       // ignore — hybrid degrades to BM25
       // eslint-disable-next-line no-console
       console.log(
-        `[embed] skip: job exception {"docId":${JSON.stringify(entry.id)}}`,
+        `[embed] skip: job exception {"docId":${JSON.stringify(entry.id)},"error":${JSON.stringify(String(e).slice(0, 200))}}`,
       );
+      logEmbedDone(embeddedCount > 0 ? "partial" : "failed");
     } finally {
       releaseRead();
       embedJobInFlightRef.current = false;
