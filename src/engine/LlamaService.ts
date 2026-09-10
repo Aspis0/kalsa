@@ -1,4 +1,5 @@
 import { AppState, Platform } from "react-native";
+import { nativeBuildVersion } from "expo-application";
 
 import {
   addNativeLogListener,
@@ -146,6 +147,7 @@ import {
   sessionHistoryPrefixAccepts,
   sessionLoadHasTokens,
   sessionMetaMismatchField,
+  SESSION_FORMAT_VERSION,
   buildKvDiagPayload,
   shouldSaveSession,
   writeSessionMeta,
@@ -161,7 +163,13 @@ import {
   loadSessionDiskCalibration,
   saveSessionDiskCalibration,
 } from "./sessionDiskCalibrationStore";
-import { legacySessionStem, sessionStem } from "./sessionKey";
+import {
+  legacySessionStem,
+  modelFileIdFromInfo,
+  promptEnvChangedFields,
+  sessionStem,
+  type PromptEnvInputs,
+} from "./sessionKey";
 import {
   deleteLegacyModelSession,
   deleteSessionsForConversation,
@@ -230,6 +238,8 @@ import * as FileSystem from "expo-file-system/legacy";
 
 let context: LlamaContext | null = null;
 let activeModelId: string | null = null;
+let activeModelFileId: string | undefined;
+let activeEngineBuild: string | undefined;
 let activeMmprojPath: string | null = null;
 let activeEngineCtx = 0;
 let activeCacheTypeK: string | null = null;
@@ -293,6 +303,8 @@ let kvReproState: KvReproState = { ...INITIAL_KV_REPRO_STATE };
  * on-disk session stem.
  */
 let lastPromptEnvHash: string | undefined;
+let lastCompletionPromptEnvHash: string | undefined;
+let lastCompletionPromptEnvInputs: PromptEnvInputs | undefined;
 /**
  * Format-B last-user prefixes already encoded into chat KV. Re-applied onto
  * earlier users on the next turn so llama.rn prefix-match does not die at
@@ -1298,6 +1310,14 @@ export type EngineInitResult = {
   systemInfo?: string;
 };
 
+function engineBuildFingerprint(systemInfo?: string): string | null {
+  if (typeof systemInfo !== "string" || systemInfo.trim().length === 0) return null;
+  const patchToken =
+    systemInfo.split(/\s+/).find((token) => token.includes("kalsa-native-patches")) ??
+    "systemInfo:unmarked";
+  return `${patchToken.slice(0, 96)}:app:${nativeBuildVersion ?? "unknown"}`;
+}
+
 /**
  * Carica il modello (idempotente per la stessa coppia model+mmproj+nCtx+KV).
  * `mmprojPath` presente → initMultimodal obbligatorio: se restituisce false
@@ -1715,6 +1735,14 @@ export function initEngine(
         rethrowWithNativeTail(error);
       }
     }
+    const loadedFileInfo = await FileSystem.getInfoAsync(modelPath).catch(() => null);
+    activeModelFileId = loadedFileInfo
+      ? modelFileIdFromInfo(loadedFileInfo, modelInfo?.sha256) ?? undefined
+      : undefined;
+    activeEngineBuild =
+      engineBuildFingerprint(
+        typeof context?.systemInfo === "string" ? context.systemInfo : undefined,
+      ) ?? undefined;
     activeModelId = modelId;
     activeMmprojPath = options.mmprojPath ?? null;
     // Single effective context size — must match initLlama n_ctx and session meta.
@@ -1756,6 +1784,8 @@ export function initEngine(
       await tryLoadEngineSession(modelId, {
         historyHash: options.sessionRestore.historyHash,
         promptEnvHash: options.sessionRestore.promptEnvHash,
+        modelFileId: activeModelFileId ?? "",
+        engineBuild: activeEngineBuild ?? "",
         nCtx: effectiveNCtx,
         cacheTypeK,
         cacheTypeV,
@@ -1852,6 +1882,8 @@ async function disposeEngineLocked(opts?: {
     const current = context;
     context = null;
     activeModelId = null;
+    activeModelFileId = undefined;
+    activeEngineBuild = undefined;
     activeMmprojPath = null;
     activeEngineCtx = 0;
     activeCacheTypeK = null;
@@ -1877,6 +1909,8 @@ async function disposeEngineLocked(opts?: {
     chatKvDiskCurrent = false;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
+    lastCompletionPromptEnvHash = undefined;
+    lastCompletionPromptEnvInputs = undefined;
     bakedUserTails = [];
     resetPrewarmState();
     lastKnownEngineRssBytes = null;
@@ -2177,6 +2211,10 @@ export async function saveEngineSession(
         log(false, { reason: "no_session_key" });
         return false;
       }
+      if (!activeModelFileId || !activeEngineBuild) {
+        log(false, { reason: "session_identity_unavailable" });
+        return false;
+      }
       if (gate.preservePrefix) {
         // Never save the live KV after tools: on LFM2.5/hybrid, the next
         // prompt cannot use partial seq_rm and a restored full-tool KV has no
@@ -2264,7 +2302,9 @@ export async function saveEngineSession(
         throw moveError;
       }
       const meta: SessionMeta = {
-        formatVersion: 1,
+        formatVersion: SESSION_FORMAT_VERSION,
+        modelFileId: activeModelFileId,
+        engineBuild: activeEngineBuild,
         nCtx: activeEngineCtx,
         cacheTypeK: activeCacheTypeK ?? "",
         cacheTypeV: activeCacheTypeV ?? "",
@@ -2375,6 +2415,8 @@ async function tryLoadEngineSession(
   expected: {
     historyHash: string;
     promptEnvHash?: string;
+    modelFileId: string;
+    engineBuild: string;
     nCtx: number;
     cacheTypeK: string;
     cacheTypeV: string;
@@ -2390,7 +2432,13 @@ async function tryLoadEngineSession(
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
     try {
       console.log(
-        `KALSA_SESSION ${JSON.stringify({ op: "load", ms: Date.now() - t0, ok, ...extra })}`,
+        `KALSA_SESSION ${JSON.stringify({
+          op: "load",
+          ms: Date.now() - t0,
+          ok,
+          tokensOnDisk: buildKvDiagPayload({ ok, tokensLoaded }).tokens_on_disk,
+          ...extra,
+        })}`,
       );
     } catch {
       // telemetry must never throw
@@ -2472,7 +2520,9 @@ async function tryLoadEngineSession(
       historyHash: historySentinel,
     };
     const expectedMeta: SessionMeta = {
-      formatVersion: 1,
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: expected.modelFileId,
+      engineBuild: expected.engineBuild,
       nCtx: expected.nCtx,
       cacheTypeK: expected.cacheTypeK,
       cacheTypeV: expected.cacheTypeV,
@@ -2616,9 +2666,13 @@ export async function restoreEngineSession(modelId: string): Promise<boolean> {
   return withLifecycleLock(() =>
     withEngineJob(async () => {
       if (!context || activeModelId !== modelId) return false;
+      lastCompletionPromptEnvHash = undefined;
+      lastCompletionPromptEnvInputs = undefined;
       return tryLoadEngineSession(modelId, {
         historyHash: "",
         promptEnvHash: lastPromptEnvHash,
+        modelFileId: activeModelFileId ?? "",
+        engineBuild: activeEngineBuild ?? "",
         nCtx: activeEngineCtx,
         cacheTypeK: activeCacheTypeK ?? "",
         cacheTypeV: activeCacheTypeV ?? "",
@@ -3066,15 +3120,47 @@ export async function streamAssistantTurn(
     // later saveEngineSession can reject restores whose system prompt drifted.
     // Facts on the user tail are not part of that prefix — do not hash them.
     const toolNames = (options?.tools ?? []).map((t) => t.function.name);
-    lastPromptEnvHash = computePromptEnvHash(
+    const promptEnvInputs: PromptEnvInputs = {
       locale,
-      MEMORY_FACTS_ON_USER_TAIL
+      hasTools: hasTools && toolCallingEnabled,
+      toolNames: toolCallingEnabled ? toolNames : [],
+      blockFormat,
+      facts: MEMORY_FACTS_ON_USER_TAIL
         ? []
         : memoryFactTextsForEnvHash(options.memoryFacts),
-      hasTools && toolCallingEnabled,
-      toolCallingEnabled ? toolNames : [],
-      blockFormat,
+    };
+    lastPromptEnvHash = computePromptEnvHash(
+      promptEnvInputs.locale,
+      promptEnvInputs.facts,
+      promptEnvInputs.hasTools,
+      promptEnvInputs.toolNames,
+      promptEnvInputs.blockFormat,
     );
+    let prefixEnvLogged = false;
+    const noteCompletionPromptEnv = () => {
+      if (prefixEnvLogged) return;
+      prefixEnvLogged = true;
+      const from = lastCompletionPromptEnvHash;
+      if (from && from !== lastPromptEnvHash) {
+        const changed = lastCompletionPromptEnvInputs
+          ? promptEnvChangedFields(lastCompletionPromptEnvInputs, promptEnvInputs)
+          : ["locale", "hasTools", "toolNames", "blockFormat", "facts"];
+        try {
+          console.log(
+            `KALSA_PREFIX ${JSON.stringify({
+              reason: "env_hash_changed",
+              from,
+              to: lastPromptEnvHash,
+              changed,
+            })}`,
+          );
+        } catch {
+          // prefix telemetry must never break a turn
+        }
+      }
+      lastCompletionPromptEnvHash = lastPromptEnvHash;
+      lastCompletionPromptEnvInputs = promptEnvInputs;
+    };
 
     let bakedMatched: BakedUserTail[] = [];
     if (BAKE_FORMAT_B_USER_PREFIX) {
@@ -3393,6 +3479,7 @@ export async function streamAssistantTurn(
         governorThermoSource = (
           await refreshGovernorBeforeCompletion(engine, thermoLogState)
         ).thermo_source;
+        noteCompletionPromptEnv();
         armPrefillDeadline();
         const result = await trackCompletion(
           engine.completion(
@@ -3759,6 +3846,7 @@ export async function streamAssistantTurn(
             );
             governorThermoSource = fallbackThermo.thermo_source;
             stopStallWatchdog();
+            noteCompletionPromptEnv();
             armPrefillDeadline();
             const fallbackResult = await trackCompletion(
               engine.completion(
@@ -3973,6 +4061,7 @@ async function restoreNativeSession(
   srcPath: string,
 ): Promise<boolean> {
   const t0 = Date.now();
+  let tokensLoaded: unknown;
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
     try {
       console.log(
@@ -3981,6 +4070,7 @@ async function restoreNativeSession(
           source: "memory_extract_restore",
           ms: Date.now() - t0,
           ok,
+          tokensOnDisk: buildKvDiagPayload({ ok, tokensLoaded }).tokens_on_disk,
           ...extra,
         })}`,
       );
@@ -3994,6 +4084,7 @@ async function restoreNativeSession(
   }
   try {
     const result = await engine.loadSession(srcPath);
+    tokensLoaded = result?.tokens_loaded;
     const ok = sessionLoadHasTokens(result);
     log(ok, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,

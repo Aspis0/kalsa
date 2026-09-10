@@ -52,6 +52,55 @@ export type ParsedSessionStem = {
   promptEnvHash: string;
 };
 
+export type PromptEnvInputs = {
+  locale: string;
+  hasTools: boolean;
+  toolNames: readonly string[];
+  blockFormat: string;
+  facts: readonly string[];
+};
+
+function normalizedNames(names: readonly string[]): string {
+  return [...new Set(names.filter((name) => name.length > 0))].sort().join("\u0000");
+}
+
+/** Return the prompt-env fields that changed between two live completions. */
+export function promptEnvChangedFields(
+  previous: PromptEnvInputs,
+  next: PromptEnvInputs,
+): string[] {
+  const changed: string[] = [];
+  if (previous.locale !== next.locale) changed.push("locale");
+  if (previous.hasTools !== next.hasTools) changed.push("hasTools");
+  if (normalizedNames(previous.toolNames) !== normalizedNames(next.toolNames)) {
+    changed.push("toolNames");
+  }
+  if (previous.blockFormat !== next.blockFormat) changed.push("blockFormat");
+  if (previous.facts.join("\n") !== next.facts.join("\n")) changed.push("facts");
+  return changed;
+}
+
+/** Build a cheap GGUF identity from Expo's byte size and second-based mtime. */
+export function modelFileIdFromInfo(
+  info: { exists?: unknown; size?: unknown; modificationTime?: unknown },
+  declaredSha?: string,
+): string | null {
+  if (
+    info.exists !== true ||
+    typeof info.size !== "number" ||
+    !Number.isFinite(info.size) ||
+    info.size < 0 ||
+    typeof info.modificationTime !== "number" ||
+    !Number.isFinite(info.modificationTime)
+  ) {
+    return null;
+  }
+  const digest = typeof declaredSha === "string" && declaredSha.length > 0
+    ? `:${declaredSha}`
+    : "";
+  return `${Math.trunc(info.size)}:${Math.round(info.modificationTime * 1000)}${digest}`;
+}
+
 /**
  * Parse a `.kvs` file name (not sidecars). Null for legacy `${modelId}.kvs`.
  * Splits on the last two SEP so a model id that still contains `__` round-trips.

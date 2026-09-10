@@ -19,10 +19,13 @@ import {
   computeHistoryHashFromMessages,
   markSessionDivergesAtLastExchange,
   readSessionMeta,
+  sessionMetaMismatchField,
+  SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
   sessionMetaKey,
   shouldSaveSession,
   writeSessionMeta,
+  type SessionMeta,
 } from "./sessionPersistence";
 
 describe("sessionHistoryPrefixAccepts", () => {
@@ -115,7 +118,9 @@ describe("sessionHistoryPrefixAccepts", () => {
 describe("session meta marker", () => {
   test("mark round-trips through AsyncStorage", async () => {
     let raw = JSON.stringify({
-      formatVersion: 1,
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: "123:4500",
+      engineBuild: "kalsa-native-patches-v1:app:7",
       nCtx: 4096,
       cacheTypeK: "f16",
       cacheTypeV: "f16",
@@ -139,7 +144,28 @@ describe("session meta marker", () => {
       await writeSessionMeta("tool", JSON.parse(raw)),
     ).toBe(true);
     expect(await markSessionDivergesAtLastExchange("tool")).toBe(true);
-    expect((await readSessionMeta("tool"))?.divergesAtLastExchange).toBe(true);
+    const meta = await readSessionMeta("tool");
+    expect(meta?.divergesAtLastExchange).toBe(true);
+    expect(meta?.modelFileId).toBe("123:4500");
+    expect(meta?.engineBuild).toBe("kalsa-native-patches-v1:app:7");
+  });
+
+  test("reports model file and engine build mismatches", () => {
+    const base: SessionMeta = {
+      formatVersion: SESSION_FORMAT_VERSION,
+      modelFileId: "1:2",
+      engineBuild: "build-a",
+      nCtx: 4096,
+      cacheTypeK: "f16",
+      cacheTypeV: "f16",
+      historyHash: "hash",
+    };
+    expect(
+      sessionMetaMismatchField({ ...base, modelFileId: "3:4" }, base),
+    ).toBe("modelFileId");
+    expect(
+      sessionMetaMismatchField({ ...base, engineBuild: "build-b" }, base),
+    ).toBe("engineBuild");
   });
 });
 
