@@ -4159,6 +4159,7 @@ export function AiChatPage({
                   <AttachSheetRow
                     icon={<BrandIcon name="copy" size={22} />}
                     label={copiedFlash ? t("common.copied") : t("common.copy")}
+                    testID="message-action-copy"
                     onPress={() => {
                       // Keep menu open ~400ms with "Copied!" so feedback is visible.
                       void (async () => {
@@ -4198,6 +4199,7 @@ export function AiChatPage({
                   <AttachSheetRow
                     icon={<SquarePen size={18} color={colors.ink} />}
                     label={t("chat.edit")}
+                    testID="message-action-edit"
                     onPress={() => {
                       setEditingMessage({ id: messageMenu.id, draft: messageMenu.text });
                       setMessageMenu(null);
@@ -4713,15 +4715,21 @@ function AttachSheetRow({
   label,
   onPress,
   colors,
+  testID,
 }: {
   icon: React.ReactNode;
   label: string;
   onPress: () => void;
   colors: any;
+  testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      testID={testID}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
@@ -4743,18 +4751,22 @@ function MessageActionChip({
   onPress,
   colors,
   active,
+  testID,
 }: {
   icon: React.ReactNode;
   label: string;
   onPress: () => void;
   colors: any;
   active?: boolean;
+  testID?: string;
 }) {
   return (
     <Pressable
       onPress={onPress}
+      accessible={true}
       accessibilityRole="button"
       accessibilityLabel={label}
+      testID={testID}
       hitSlop={10}
       style={({ pressed }) => ({
         flexDirection: "row",
@@ -5130,6 +5142,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
               <MessageActionChip
                 icon={<BrandIcon name="copy" size={18} />}
                 label={t("common.copy")}
+                testID="message-action-copy"
                 onPress={() => onCopyText(m.text)}
                 colors={colors}
               />
@@ -5137,6 +5150,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
               <MessageActionChip
                 icon={<MoreHorizontal size={14} color={colors.muted} />}
                 label={t("chat.more")}
+                testID="message-action-more"
                 onPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
                 colors={colors}
               />
@@ -5298,6 +5312,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             <MessageActionChip
               icon={<BrandIcon name="copy" size={18} />}
               label={t("common.copy")}
+              testID="message-action-copy"
               onPress={() => onCopyText(m.text)}
               colors={colors}
             />
@@ -5320,6 +5335,7 @@ const ChatMessageRow = React.memo(function ChatMessageRow({
             <MessageActionChip
               icon={<MoreHorizontal size={14} color={colors.muted} />}
               label={t("chat.more")}
+              testID="message-action-more"
               onPress={() => onOpenMessageMenu(m.id, m.text, m.role, m.streaming)}
               colors={colors}
             />
