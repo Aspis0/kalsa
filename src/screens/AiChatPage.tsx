@@ -90,6 +90,7 @@ import {
   sendingInFlightRef,
 } from "../engine/regenState";
 import { decidePreSendFit } from "../engine/deviceProfile";
+import { resolveAdmissionModel } from "../engine/admissionModel";
 import { getAvailableMemoryBytesUncached } from "../engine/monitor";
 import { getModelById } from "../engine/ModelRegistry";
 import { miniappStripMakesKvNonReproducible } from "../engine/kvReproducibility";
@@ -371,6 +372,8 @@ type Props = {
   supportsVision?: boolean;
   /** OS thermal CRITICAL gate; blocks every new inference entry point. */
   inferenceBlocked?: boolean;
+  /** Selected catalog model; used when the native engine is not resident. */
+  selectedModelId: string;
 };
 
 type SuggestionItem = {
@@ -816,6 +819,7 @@ export function AiChatPage({
   bumpPersistEpochRef,
   supportsVision = false,
   inferenceBlocked = false,
+  selectedModelId,
 }: Props) {
   const { colors, mode, fontScaleId } = useLabTheme<any>();
   // Reactive tokens: font-scale change re-renders this page via context.
@@ -1877,36 +1881,20 @@ export function AiChatPage({
     if (liveness.status === "lost") {
       onMemoryBanner?.("chat.unloaded");
     }
+    const activeModelId = getActiveModelId();
     const lostModelId = getEngineLostModelId();
-    const mid = getActiveModelId() ?? lostModelId;
-    // No active model and no lost mark → allow; ensureEngineForModel
-    // will surface load errors. After a scoped lost mark, mid is the
-    // lost model id so recoverLost cannot apply to a different model.
-    if (!mid) {
-      try {
-        console.log(
-          `KALSA_SEND ${JSON.stringify({
-            phase: "fit",
-            liveness: liveness.status,
-            alreadyResident: false,
-            recoverLost: false,
-            allow: true,
-            reasonKey: "no_active_model",
-          })}`,
-        );
-      } catch {
-        // breadcrumb must never throw
-      }
-      return { ok: true };
-    }
+    const admission = resolveAdmissionModel({
+      activeModelId,
+      lostModelId,
+      selectedModelId,
+    });
+    const mid = admission.mid;
+    const noActiveModel = activeModelId === null && lostModelId === null;
     const model = getModelById(mid);
-    if (!model) {
-      return { ok: true };
-    }
     const alreadyResident =
       liveness.status === "alive" &&
       isEngineReady() &&
-      getActiveModelId() === mid;
+      admission.alreadyResidentPossible;
     const recoverLost = shouldRecoverLost(lostModelId, mid);
     let available: number | null = null;
     try {
@@ -1941,7 +1929,9 @@ export function AiChatPage({
           alreadyResident,
           recoverLost,
           allow: decision.allow,
-          reasonKey: decision.allow ? decision.bannerKey : decision.reasonKey,
+          reasonKey: decision.allow
+            ? decision.bannerKey ?? (noActiveModel ? "no_active_model" : null)
+            : decision.reasonKey,
           availableMb:
             typeof available === "number"
               ? Math.round(available / (1024 * 1024))
@@ -1960,7 +1950,7 @@ export function AiChatPage({
       onMemoryBanner?.(decision.bannerKey);
     }
     return { ok: true };
-  }, [onMemoryBanner, showVoiceNote, t]);
+  }, [onMemoryBanner, selectedModelId, showVoiceNote, t]);
 
   /**
    * Abort-and-await lifecycle for AppShell background disposal.

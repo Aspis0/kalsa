@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert, Keyboard, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
+import { Alert, AppState, Keyboard, Linking, Modal, Pressable, ScrollView, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { X as LucideX, Globe as LucideGlobe, Settings as LucideSettings, FileText as LucideFileText, StickyNote as LucideStickyNote, UserCircle as LucideUserCircle } from "lucide-react-native";
@@ -196,6 +196,8 @@ import {
   parseCompactionEnabled,
 } from "../engine/ttftFlags";
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
+import { createBackgroundGrace } from "./backgroundGrace";
+import { backgroundDiscardPlan } from "./backgroundDiscardPlan";
 import { importSharedPdf, SharedImportError } from "../documents/importSharedDocument";
 import { loadNotesIndex, readNote, saveNote } from "../notes/NotesStore";
 import {
@@ -318,6 +320,12 @@ type ActiveOverlay =
 
 const MODEL_STORAGE_KEY = "kalsa.model.id";
 const NOTES_CONTEXT_MAX_CHARS = 24_000;
+/**
+ * Keep a quick app switch or Files share from forcing a prewarm. Forty-five
+ * seconds exceeds any share round-trip and is shorter than the OS background-
+ * kill horizon on the supported phones.
+ */
+const BACKGROUND_DISPOSE_GRACE_MS = 45_000;
 
 async function loadNotesContext(): Promise<{
   context: string;
@@ -2805,6 +2813,209 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // Foreground -> evaluateModelFit; only allow lazy restore when fits|tight. Never auto-load.
   useEffect(() => {
     let disposed = false;
+    const backgroundGrace = createBackgroundGrace({
+      graceMs: BACKGROUND_DISPOSE_GRACE_MS,
+      setTimeout,
+      clearTimeout,
+    });
+    type BackgroundDiscard = {
+      genAtEntry: number | null;
+      preparation: Promise<boolean>;
+      disposeRequested: boolean;
+      cancelled: boolean;
+      finished: boolean;
+    };
+    let pendingBackgroundDiscard: BackgroundDiscard | null = null;
+    const finishBackgroundDiscard = (discard: BackgroundDiscard) => {
+      if (discard.finished) return;
+      discard.finished = true;
+      if (pendingBackgroundDiscard === discard) pendingBackgroundDiscard = null;
+      discardInFlightRef.current = false;
+      discardGenerationRef.current += 1;
+    };
+    const requestDeferredDispose = (discard: BackgroundDiscard) => {
+      if (discard.finished || discard.disposeRequested) return;
+      discard.disposeRequested = true;
+      void (async () => {
+        try {
+          const prepared = await discard.preparation;
+          if (!prepared || discard.cancelled) return;
+          // A turn may have started while the engine stayed resident during
+          // grace. Never dispose it from this deferred path.
+          if (
+            streamInFlightRef.current ||
+            sendingInFlightRef.current ||
+            regenInFlightRef.current ||
+            sendClaimRef.current
+          ) {
+            return;
+          }
+          const plan = backgroundDiscardPlan({
+            state:
+              AppState.currentState === "background"
+                ? "background_expired"
+                : AppState.currentState,
+            pendingGrace: false,
+            genAtEntry: discard.genAtEntry,
+            genNow: chatGateGenRef.current,
+            pressure: false,
+          });
+          if (plan.skipReason === "newer_gen") {
+            console.info(
+              "background.grace",
+              JSON.stringify({ skipped: "newer_gen" }),
+            );
+            return;
+          }
+          if (!plan.disposeNow) return;
+          const releasedGenBg = discard.genAtEntry;
+          if (
+            releasedGenBg !== null &&
+            chatGateGenRef.current === releasedGenBg
+          ) {
+            chatGateGenRef.current = null;
+          }
+          if (isEngineReady() || releasedGenBg !== null) {
+            try {
+              if (isEngineReady()) {
+                await runNativeOp(() => disposeEngine());
+                // Same-process unload→reload must not compare stale H0
+                // against the just-saved .kvs (would miss and delete it).
+                resetBootHistoryHash();
+                setProcessUnloadedReason("chat.unloaded");
+                setMemoryBannerKey("chat.unloaded");
+                console.info(
+                  "model.unload",
+                  JSON.stringify({
+                    reason: "background",
+                    graceMs: BACKGROUND_DISPOSE_GRACE_MS,
+                  }),
+                );
+              }
+            } catch {
+              // ignore
+            } finally {
+              // Release only the gen captured at entry (markChatReleased is
+              // already gen-guarded against a newer owner). If gen was null
+              // but the gate is still chat_* after dispose (stale owner),
+              // release the current generation so embed is not stuck.
+              if (releasedGenBg !== null) {
+                markChatReleased(releasedGenBg);
+              } else {
+                const gate = getLlamaContextGateState();
+                if (gate === "chat_loading" || gate === "chat_ready") {
+                  markChatReleased(getChatGeneration());
+                }
+              }
+            }
+          }
+        } catch {
+          // never throw from AppState listener
+        } finally {
+          finishBackgroundDiscard(discard);
+        }
+      })();
+    };
+    const discardBackground = () => {
+      if (discardInFlightRef.current) return;
+      discardInFlightRef.current = true;
+      // Round-8 FIX 3: capture THIS load's gen SYNCHRONOUSLY at entry.
+      const genAtEntry = chatGateGenRef.current;
+      const preparation = (async () => {
+        try {
+          // Abort regen first so edit/regen cannot race dispose.
+          regenAbortRef.current?.abort();
+
+          // Abort-and-await lifecycle owned by AiChatPage: aborts send,
+          // awaits stream finalization + turn-end save, returns real hash.
+          let historyHashValue = historyHash("");
+          let historyMessageCount = 0;
+          const lifecycle = backgroundDiscardLifecycleRef.current;
+          if (lifecycle) {
+            try {
+              const result = await lifecycle();
+              if (result && typeof result.historyHashValue === "string") {
+                historyHashValue = result.historyHashValue;
+              }
+              if (
+                result &&
+                typeof result.historyMessageCount === "number" &&
+                Number.isInteger(result.historyMessageCount) &&
+                result.historyMessageCount >= 0
+              ) {
+                historyMessageCount = result.historyMessageCount;
+              }
+            } catch {
+              // fall through with empty-history hash only if genuinely empty
+            }
+          }
+
+          // Hard wait: never dispose while stream/send/regen/claim still in flight.
+          const t0 = Date.now();
+          while (
+            (streamInFlightRef.current ||
+              sendingInFlightRef.current ||
+              regenInFlightRef.current ||
+              sendClaimRef.current) &&
+            Date.now() - t0 < 5000
+          ) {
+            await new Promise((r) => setTimeout(r, 50));
+          }
+          if (
+            streamInFlightRef.current ||
+            sendingInFlightRef.current ||
+            regenInFlightRef.current ||
+            sendClaimRef.current
+          ) {
+            return false;
+          }
+
+          const modelId = getActiveModelId();
+          if (modelId && isEngineReady()) {
+            try {
+              await saveEngineSession(
+                modelId,
+                historyHashValue,
+                historyMessageCount,
+              );
+            } catch {
+              // ignore
+            }
+          }
+          return true;
+        } catch {
+          // never throw from AppState listener
+          return false;
+        }
+      })();
+      const discard: BackgroundDiscard = {
+        genAtEntry,
+        preparation,
+        disposeRequested: false,
+        cancelled: false,
+        finished: false,
+      };
+      pendingBackgroundDiscard = discard;
+      backgroundGrace.onBackground(() => requestDeferredDispose(discard));
+      void preparation.then((prepared) => {
+        if (prepared || discard.disposeRequested) return;
+        backgroundGrace.cancel();
+        discard.cancelled = true;
+        finishBackgroundDiscard(discard);
+      });
+    };
+    const cancelGraceTimer = () => {
+      if (!backgroundGrace.onForeground()) return false;
+      console.info("background.grace", JSON.stringify({ cancelled: true }));
+      return true;
+    };
+    const cancelBackgroundGrace = () => {
+      if (!cancelGraceTimer()) return;
+      const discard = pendingBackgroundDiscard;
+      if (!discard || discard.disposeRequested) return;
+      discard.cancelled = true;
+      void discard.preparation.then(() => finishBackgroundDiscard(discard));
+    };
     const handle = startMemoryMonitor({
       intervalMs: 15_000,
       onPressure: (bytes) => {
@@ -2820,140 +3031,55 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         } catch {
           // telemetry never throws
         }
+        if (backgroundGrace.isPending()) {
+          const discard = pendingBackgroundDiscard;
+          const plan = backgroundDiscardPlan({
+            state: AppState.currentState,
+            pendingGrace: true,
+            genAtEntry: discard?.genAtEntry ?? null,
+            genNow: chatGateGenRef.current,
+            pressure: true,
+          });
+          if (backgroundGrace.cancel()) {
+            console.info("background.grace", JSON.stringify({ cancelled: true }));
+          }
+          if (plan.skipReason === "newer_gen") {
+            console.info(
+              "background.grace",
+              JSON.stringify({ skipped: "newer_gen" }),
+            );
+          }
+          if (
+            plan.disposeNow &&
+            AppState.currentState === "background" &&
+            discard
+          ) {
+            requestDeferredDispose(discard);
+          } else if (discard && !discard.disposeRequested) {
+            discard.cancelled = true;
+            void discard.preparation.then(() => finishBackgroundDiscard(discard));
+          }
+        }
       },
       onAppState: (state) => {
         if (disposed) return;
         if (state === "background") {
-          // True background only. iOS `inactive` is Control Center / shade —
-          // abort/save/dispose there would kill a still-visible session.
-          // (AiChatPage already skips expensive KV save on inactive.)
+          // Contract: save at entry, dispose after grace; in-flight send is aborted at entry as before.
           if (discardInFlightRef.current) return;
-          discardInFlightRef.current = true;
-          void (async () => {
-            // Round-8 FIX 3: capture THIS load's gen SYNCHRONOUSLY at entry,
-            // BEFORE the first await (lifecycle / hard-wait / save). Same pattern
-            // as regen/edit myGen capture. A concurrent ensure may bump the ref
-            // during awaits; release is a no-op if gen is no longer current.
-            const releasedGenBg = chatGateGenRef.current;
-            try {
-              // Abort regen first so edit/regen cannot race dispose.
-              regenAbortRef.current?.abort();
-
-              // Abort-and-await lifecycle owned by AiChatPage: aborts send,
-              // awaits stream finalization + turn-end save, returns real hash.
-              let historyHashValue = historyHash("");
-              let historyMessageCount = 0;
-              const lifecycle = backgroundDiscardLifecycleRef.current;
-              if (lifecycle) {
-                try {
-                  const result = await lifecycle();
-                  if (
-                    result &&
-                    typeof result.historyHashValue === "string"
-                  ) {
-                    historyHashValue = result.historyHashValue;
-                  }
-                  if (
-                    result &&
-                    typeof result.historyMessageCount === "number" &&
-                    Number.isInteger(result.historyMessageCount) &&
-                    result.historyMessageCount >= 0
-                  ) {
-                    historyMessageCount = result.historyMessageCount;
-                  }
-                } catch {
-                  // fall through with empty-history hash only if genuinely empty
-                }
-              }
-
-              // Hard wait: never dispose while stream/send/regen/claim still in flight.
-              const t0 = Date.now();
-              while (
-                (streamInFlightRef.current ||
-                  sendingInFlightRef.current ||
-                  regenInFlightRef.current ||
-                  sendClaimRef.current) &&
-                Date.now() - t0 < 5000
-              ) {
-                await new Promise((r) => setTimeout(r, 50));
-              }
-              // If still busy after wait (e.g. a new send re-claimed during the
-              // lifecycle await), bail before disposing so the engine stays up.
-              // Monitor re-fires on the next background transition / pressure tick.
-              if (
-                streamInFlightRef.current ||
-                sendingInFlightRef.current ||
-                regenInFlightRef.current ||
-                sendClaimRef.current
-              ) {
-                return;
-              }
-
-              const modelId = getActiveModelId();
-              if (modelId && isEngineReady()) {
-                // saveEngineSession itself gates on kvReproducible.
-                // Use the real historyHash from lifecycle (empty only if empty).
-                try {
-                  await saveEngineSession(
-                    modelId,
-                    historyHashValue,
-                    historyMessageCount,
-                  );
-                } catch {
-                  // ignore
-                }
-              }
-              // Only clear the ref if we still own this gen (no concurrent ensure
-              // claimed a newer generation during the awaits above).
-              if (
-                releasedGenBg !== null &&
-                chatGateGenRef.current === releasedGenBg
-              ) {
-                chatGateGenRef.current = null;
-              }
-              if (isEngineReady() || releasedGenBg !== null) {
-                try {
-                  if (isEngineReady()) {
-                    await runNativeOp(() => disposeEngine());
-                    // Same-process unload→reload must not compare stale H0
-                    // against the just-saved .kvs (would miss and delete it).
-                    resetBootHistoryHash();
-                    setProcessUnloadedReason("chat.unloaded");
-                    setMemoryBannerKey("chat.unloaded");
-                    console.info(
-                      "model.unload",
-                      JSON.stringify({ reason: "background" }),
-                    );
-                  }
-                } catch {
-                  // ignore
-                } finally {
-                  // Release only the gen captured at entry (markChatReleased is
-                  // already gen-guarded against a newer owner). If gen was null
-                  // but the gate is still chat_* after dispose (stale owner),
-                  // release the current generation so embed is not stuck.
-                  if (releasedGenBg !== null) {
-                    markChatReleased(releasedGenBg);
-                  } else {
-                    const gate = getLlamaContextGateState();
-                    if (gate === "chat_loading" || gate === "chat_ready") {
-                      markChatReleased(getChatGeneration());
-                    }
-                  }
-                }
-              }
-            } catch {
-              // never throw from AppState listener
-            } finally {
-              discardInFlightRef.current = false;
-              // Bump so a concurrent/next send can detect this discard cycle
-              // finished; ensureEngineForModel re-acquires if the engine is gone.
-              discardGenerationRef.current += 1;
-            }
-          })();
+          const plan = backgroundDiscardPlan({
+            state,
+            pendingGrace: backgroundGrace.isPending(),
+            genAtEntry: chatGateGenRef.current,
+            genNow: chatGateGenRef.current,
+            pressure: false,
+          });
+          if (plan.saveNow && plan.scheduleDispose) {
+            discardBackground();
+          }
           return;
         }
         if (state === "active") {
+          cancelBackgroundGrace();
           void (async () => {
             try {
               if (thermalHardGateRef.current) return;
@@ -3009,6 +3135,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     });
     return () => {
       disposed = true;
+      cancelBackgroundGrace();
       handle.stop();
     };
   }, []);
@@ -5718,6 +5845,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             onSwitchConversation={handleSwitchConversation}
             onDeleteConversation={handleDeleteConversation}
             onConversationTouched={handleConversationTouched}
+            selectedModelId={currentModel.id}
             persistFlushRef={persistFlushRef}
             isActiveChatEmptyRef={isActiveChatEmptyRef}
             bumpPersistEpochRef={bumpPersistEpochRef}

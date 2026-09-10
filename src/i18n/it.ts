@@ -649,6 +649,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     modelNotLoaded: "Modello non caricato. Scarica e carica prima un modello.",
     turnInterrupted:
       "Risposta interrotta — il modello è stato cambiato o rimosso dalla memoria. Reinvia il messaggio.",
+    generationStalled:
+      "La risposta si è bloccata (nessuna parola nuova per {seconds} s). Il dispositivo potrebbe avere poca memoria o essere troppo caldo; riprova o scarica il modello.",
+    prefillStalled:
+      "La risposta non è iniziata entro {seconds} s. Il dispositivo potrebbe avere poca memoria o essere troppo caldo; riprova o scarica il modello.",
     contextFull:
       "Contesto pieno: la conversazione è troppo lunga per questo modello. Riprova con messaggi più brevi.",
     visionInitFailed: "Vision non disponibile: initMultimodal non riuscito per questo modello.",

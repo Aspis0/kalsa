@@ -650,6 +650,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
     modelNotLoaded: "Model not loaded. Download and load a model first.",
     turnInterrupted:
       "Reply interrupted — the model was changed or unloaded. Please resend your message.",
+    generationStalled:
+      "The reply stalled (no new words for {seconds} s). The device may be out of memory or too hot; try again or unload the model.",
+    prefillStalled:
+      "The reply did not start within {seconds} s. The device may be out of memory or too hot; try again or unload the model.",
     contextFull:
       "Context full: this conversation is too long for the model. Retry with shorter messages.",
     visionInitFailed: "Vision unavailable: multimodal init failed for this model.",
