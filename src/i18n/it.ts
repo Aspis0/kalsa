@@ -507,6 +507,7 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
     a11ySend: "Invia",
     more: "Altro",
     edit: "Modifica",
+    regen: "Rigenera",
     regenBusy: "Rigenera già in corso",
     unloaded: "Scaricato per pressione di memoria",
     lazyReload: "Tocca per ricaricare",
