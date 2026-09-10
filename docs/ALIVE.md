@@ -4068,3 +4068,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   distinti: Jelly cicli di vita (0b75254, in corso), S23 riproduzione bug memoria/batteria con l'APK 899e76b
   (budget 512/1024 per velocità, watchdog, grazia), Xiaomi Gallery + memoria HyperOS quando sbloccato. Fine tuning
   MiniCPM5 resta opzione post-M1.
+
+- **10/09 ~14:15 — S23 SCORE FINALE (commit `43aeb46c`).** `device/s23/SCORE.md`, 41 righe dedup per id (ultima `ok`):
+  **LFM 24/24 senza errori** (22 pass + 2 rubrica; tool 2/2, memoria 4/4), decode mediana 10,7 tok/s (max 11,8),
+  promptMs mediana 1,5 s (max 5,0); **MiniCPM5 15/24 ok + 2 `reply_timeout` (I01, I06)**, 7 casi non eseguiti
+  (I14, M01-M04, T09, T11), decode 6,1 tok/s (max 6,9), promptMs 5,4 s (max 21,3). Il braccio MiniCPM5 notturno
+  era col telefono in carica: MemAvailable 2,2-2,4 GB e SwapFree 1,8-2,0 GB su 4 GB durante I01-I12, cioè
+  ~2 GB di swap già occupati a riposo (tabella in `s23/RUN-STATE.md`). Nessun runner residuo, app force-stopped,
+  pref LFM ripristinata. Risultato coerente col G1 chiuso: sull'S23 LFM è più veloce (percorso Q4_0) e non ha
+  fallito un caso. Prossimo passo S23: riproduzione del bug memoria/batteria con l'APK 899e76b (CI in corso).
