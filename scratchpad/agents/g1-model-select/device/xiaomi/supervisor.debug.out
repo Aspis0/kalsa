@@ -1,0 +1,78 @@
++ set -u
++ ROOT=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device
++ XIAOMI=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi
++ SERIAL=192.168.1.193:35049
++ CASES=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/subset-24.cases.jsonl
++ RUNNER=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/run_device_subset.sh
++ export ANDROID_SERIAL=192.168.1.193:35049
++ ANDROID_SERIAL=192.168.1.193:35049
++ export PATH=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/product-suite/adb-jelly-wrapper:/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/product-suite/adb-jelly-wrapper:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path:/Users/marco/.codex/tmp/arg0/codex-arg0lf64DP:/Users/marco/.mtplx/bin:/Users/marco/.bun/bin:/Users/marco/.grok/bin:/Users/marco/.local/bin:/Users/marco/.cargo/bin
++ PATH=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/product-suite/adb-jelly-wrapper:/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/product-suite/adb-jelly-wrapper:/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/System/Cryptexes/App/usr/bin:/usr/bin:/bin:/usr/sbin:/sbin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/local/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/bin:/var/run/com.apple.security.cryptexd/codex.system/bootstrap/usr/appleinternal/bin:/pkg/env/global/bin:/opt/homebrew/lib/node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/codex-path:/Users/marco/.codex/tmp/arg0/codex-arg0lf64DP:/Users/marco/.mtplx/bin:/Users/marco/.bun/bin:/Users/marco/.grok/bin:/Users/marco/.local/bin:/Users/marco/.cargo/bin
++ mkdir -p /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/supervisor
++ export OUT=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/supervisor
++ OUT=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/supervisor
++ source /Users/marco/Projects/kalsa/scripts/device-env.sh
+++ set -uo pipefail
+++ PKG=com.kalsa.app
+++ BENCH_TARGET=device
+++++ dirname /Users/marco/Projects/kalsa/scripts/device-env.sh
++++ cd /Users/marco/Projects/kalsa/scripts
++++ pwd
+++ _DEVICE_ENV_DIR=/Users/marco/Projects/kalsa/scripts
+++ source /Users/marco/Projects/kalsa/scripts/ci-lib.sh
++++ set -uo pipefail
++++ PKG=com.kalsa.app
++++ DB=/data/data/com.kalsa.app/databases/RKStorage
++++ BENCH_TARGET=device
++++ KA_SCREEN_TIMEOUT_MS=86400000
++++ THERMAL_STATUS_PAUSE=3
++++ THERMAL_STATUS_RESUME=1
++++ THERMAL_BATTERY_PAUSE_DECI=440
++++ THERMAL_BATTERY_RESUME_DECI=390
++++ THERMAL_POLL_S=30
++++ THERMAL_WAIT_CAP_S=1200
++++ case "$BENCH_TARGET" in
++++ COMPOSER_PROBE_FAILED=__composer_probe_failed__
++++ CONVERSATIONS_INDEX_KEY=kalsa.conversations.v1
++++ LEGACY_MESSAGES_KEY=kalsa.messages.v1
++++ THERMAL_STATUS_AT_TURN=
++++ THERMAL_BATTERY_DECI_AT_TURN=
++++ COMPOSER_PLACEHOLDERS=("Ask a question…" "Fai una domanda…")
+++ start_arm lfm lfm2.5-2.6b /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.run.log
+++ local arm=lfm model=lfm2.5-2.6b out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl runlog=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.run.log
+++ printf '%s\n' 37734
+++ OUT=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/ev-lfm
+++ REPLY_TIMEOUT=600
+++ READY_TIMEOUT=600
+++ bash /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/run_device_subset.sh 192.168.1.193:35049 lfm2.5-2.6b /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/subset-24.cases.jsonl /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl
++ lfm_pid=37734
+++ date '+%Y-%m-%d %H:%M:%S %Z'
++ printf 'lfm_runner_pid=%s\nstarted=%s\nreply_timeout=600\nready_timeout=600\n' 37734 '2026-09-09 21:26:26 EDT'
++ echo 'started LFM arm pid=37734'
+started LFM arm pid=37734
++ watch_arm lfm /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.run.log 37734
++ local arm=lfm out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl runlog=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.run.log runner_pid=37734
++ local last_check=0 now stamp last status count level
++ :
+++ date +%s
++ now=1789003586
++ ((  now - last_check >= 300  ))
++ last_check=1789003586
+++ date '+%Y-%m-%d %H:%M:%S %Z'
++ stamp='2026-09-09 21:26:26 EDT'
+++ device_battery_level
+++ local v
++++ adb shell dumpsys battery
++++ tr -d '\r'
++++ device_battery_level_from_dump
++++ awk '/^[[:space:]]+level:[[:space:]]*[0-9]+[[:space:]]*$/ { print $2; exit }'
+++ v=79
+++ case "$v" in
+++ printf '%s\n' 79
++ level=79
++ [[ 79 =~ ^[0-9]+$ ]]
++ '[' 79 -lt 30 ']'
++ '[' -s /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl ']'
++ printf '%s arm=%s rows=0 battery_level=%s\n' '2026-09-09 21:26:26 EDT' lfm 79
+2026-09-09 21:26:26 EDT arm=lfm rows=0 battery_level=79
++ sleep 30

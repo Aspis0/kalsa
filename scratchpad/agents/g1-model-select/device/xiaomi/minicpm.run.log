@@ -1,0 +1,14 @@
+[ci] serial=192.168.1.193:35049 model=dev-minicpm5-2b out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/minicpm.out.jsonl reply_timeout=600
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C02 (conversation/en) model=dev-minicpm5-2b serial=192.168.1.193:35049 ===
+  File "<string>", line 1
+    print(f'{int('309')/10:.1f}')
+                  ^
+SyntaxError: f-string: unmatched '('
+[ci] conversation: conv-g1-c02-1789009104
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

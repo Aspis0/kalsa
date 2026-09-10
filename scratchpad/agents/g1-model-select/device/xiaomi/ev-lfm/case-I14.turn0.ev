@@ -1,0 +1,12 @@
+09-09 22:02:43.164 26620 29818 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}
+09-09 22:02:51.064 26620 29818 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 22:02:51.140 26620 29818 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 22:02:53.007 26620 29818 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 22:02:53.018 26620 29818 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":11,"ok":false,"reason":"no_file"}
+09-09 22:02:53.028 26620 29818 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-09 22:03:15.534 26620 29818 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":22487.33,"promptN":1832,"hash":"3586270056"}'
+09-09 22:03:39.587 26620 29818 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2196,"tokensEvaluated":1856,"tokensPredicted":339,"draftTokens":0,"draftAccepted":0,"promptMs":645.535,"predictedMs":23300.628,"predictedPerSecond":14.548964088006555,"contextFull":false,"interrupted":false}
+09-09 22:03:39.589 26620 29818 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":1,"fallbackCalls":0,"fallbackDialect":"none","executed":1,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":["create_miniapp"]}
+09-09 22:04:02.040 26620 29818 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":1,"tokensCached":2202,"tokensEvaluated":1977,"tokensPredicted":224,"draftTokens":0,"draftAccepted":0,"promptMs":3140.549,"predictedMs":19197.043999999998,"predictedPerSecond":11.66846312380177,"contextFull":false,"interrupted":false,"tool":"create_miniapp"}
+09-09 22:04:02.040 26620 29818 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":1,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 22:04:02.078 26620 29818 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":7,"ok":false,"estimatedBytes":144310272,"usedTokens":2202,"reason":"kv_prefix_unavailable"}

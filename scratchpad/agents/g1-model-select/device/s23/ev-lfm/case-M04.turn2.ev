@@ -1,0 +1,11 @@
+09-09 20:39:18.275 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":6,"ok":true,"estimatedBytes":14951181.53256705,"usedTokens":2166,"reason":"unchanged"}
+09-09 20:39:18.280 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":5,"ok":true,"estimatedBytes":14951181.53256705,"usedTokens":2166,"reason":"unchanged"}
+09-09 20:39:25.760 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 20:39:25.836 15392 15423 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 20:39:27.769 15392 15423 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 20:39:27.796 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":27,"ok":true,"tokens":2166}
+09-09 20:39:27.806 15392 15423 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 20:39:27.833 15392 15423 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 20:39:39.111 15392 15423 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":2309,"tokensEvaluated":2188,"tokensPredicted":120,"draftTokens":0,"draftAccepted":0,"promptMs":919.658,"predictedMs":10237.43,"predictedPerSecond":11.7216918699322,"contextFull":false,"interrupted":false,"ciswireFlags":1}
+09-09 20:39:39.111 15392 15423 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"3","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 20:39:39.242 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":101,"ok":true,"estimatedBytes":15938263.231162196,"usedTokens":2309,"tokens":2309,"hash":"3894960305","messageCount":6}

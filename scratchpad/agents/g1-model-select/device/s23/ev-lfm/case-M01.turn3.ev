@@ -1,0 +1,11 @@
+09-09 18:42:18.099 18275 18304 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":6,"ok":true,"estimatedBytes":16883928.914431673,"usedTokens":2446,"reason":"unchanged"}
+09-09 18:42:18.105 18275 18304 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":6,"ok":true,"estimatedBytes":16883928.914431673,"usedTokens":2446,"reason":"unchanged"}
+09-09 18:42:21.173 18275 18304 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 18:42:21.270 18275 18304 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 18:42:23.590 18275 18304 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 18:42:23.622 18275 18304 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":32,"ok":true,"tokens":2446}
+09-09 18:42:23.634 18275 18304 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 18:42:23.668 18275 18304 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 18:42:34.188 18275 18304 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2576,"tokensEvaluated":2474,"tokensPredicted":101,"draftTokens":0,"draftAccepted":0,"promptMs":1211.607,"predictedMs":9186.301,"predictedPerSecond":10.994632115799384,"contextFull":false,"interrupted":false,"ciswireFlags":1}
+09-09 18:42:34.189 18275 18304 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 18:42:34.298 18275 18304 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":84,"ok":true,"estimatedBytes":17781275.913154535,"usedTokens":2576,"tokens":2576,"hash":"758047638","messageCount":8}

@@ -1,0 +1,11 @@
+09-09 18:50:43.957 20878 20906 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":7,"ok":true,"estimatedBytes":15151358.939974457,"usedTokens":2195,"reason":"unchanged"}
+09-09 18:50:43.964 20878 20906 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":7,"ok":true,"estimatedBytes":15151358.939974457,"usedTokens":2195,"reason":"unchanged"}
+09-09 18:50:51.363 20878 20906 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 18:50:51.452 20878 20906 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 18:50:53.633 20878 20906 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 18:50:53.717 20878 20906 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":84,"ok":true,"tokens":2195}
+09-09 18:50:53.730 20878 20906 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 18:50:53.752 20878 20906 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 18:51:04.439 20878 20906 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2331,"tokensEvaluated":2223,"tokensPredicted":107,"draftTokens":0,"draftAccepted":0,"promptMs":1123.51,"predictedMs":9441.402,"predictedPerSecond":11.33306261082835,"contextFull":false,"interrupted":false,"ciswireFlags":1}
+09-09 18:51:04.440 20878 20906 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 18:51:04.558 20878 20906 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":79,"ok":true,"estimatedBytes":16090121.954022989,"usedTokens":2331,"tokens":2331,"hash":"3942970144","messageCount":8}

@@ -1,0 +1,11 @@
+09-10 06:01:13.177 12374 12402 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}
+09-10 06:01:20.812 12374 12402 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 06:01:20.882 12374 12402 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 36 key-value pairs and 381 tensors from /data/user/0/com.kalsa.app/files/models/dev-minicpm5-2b/MiniCPM5-2B-Q4_K_M.gguf (version GGUF V3 (latest))
+09-10 06:01:25.938 12374 12402 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-10 06:01:25.946 12374 12402 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":8,"ok":false,"reason":"no_file"}
+09-10 06:01:25.950 12374 12402 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-10 06:06:23.811 12374 12402 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"eval-failed","hash":"3586270056","promptMs":0,"promptN":1,"tokensEvaluated":2112}'
+09-10 06:06:23.822 12374 12402 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"prefix_miss","prewarm":null,"send":"3586270056"}'
+09-10 06:06:32.613 12374 12402 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2183,"tokensEvaluated":2148,"tokensPredicted":34,"draftTokens":0,"draftAccepted":0,"promptMs":3646.149,"predictedMs":4951.576999999999,"predictedPerSecond":6.866499299112182,"contextFull":false,"interrupted":false,"ciswireFlags":1}
+09-10 06:06:32.614 12374 12402 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"1","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-10 06:06:33.559 12374 12402 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":919,"ok":true,"estimatedBytes":38177361.10611677,"usedTokens":2183,"tokens":2183,"hash":"1926623668","messageCount":2}

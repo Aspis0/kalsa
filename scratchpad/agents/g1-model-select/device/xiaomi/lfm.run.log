@@ -1,0 +1,33 @@
+[ci] serial=192.168.1.193:35049 model=lfm2.5-2.6b out=/Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl reply_timeout=600
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] skip C01 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip C02 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip C03 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip C04 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip C05 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip C06 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip C07 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I01 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I02 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I03 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I04 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I05 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I06 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I07 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I08 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I10 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I12 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip I14 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip M01 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip M02 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip M03 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip M04 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip T09 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] skip T11 (already fully ok in /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl)
+[ci] run complete: 0 cases -> /Users/marco/Projects/kalsa-moe-experiments/scratchpad/agents/g1-model-select/device/xiaomi/lfm.out.jsonl
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

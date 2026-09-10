@@ -1,0 +1,11 @@
+09-09 20:40:10.420 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":6,"ok":true,"estimatedBytes":15938263.231162196,"usedTokens":2309,"reason":"unchanged"}
+09-09 20:40:10.426 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":6,"ok":true,"estimatedBytes":15938263.231162196,"usedTokens":2309,"reason":"unchanged"}
+09-09 20:40:15.790 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 20:40:15.872 15392 15423 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 20:40:17.879 15392 15423 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 20:40:17.965 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":85,"ok":true,"tokens":2309}
+09-09 20:40:17.975 15392 15423 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 20:40:17.997 15392 15423 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 20:40:25.818 15392 15423 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2410,"tokensEvaluated":2326,"tokensPredicted":83,"draftTokens":0,"draftAccepted":0,"promptMs":654.5790000000001,"predictedMs":7054.786999999999,"predictedPerSecond":11.765061085472887,"contextFull":false,"interrupted":false,"ciswireFlags":1}
+09-09 20:40:25.819 15392 15423 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 20:40:25.926 15392 15423 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":83,"ok":true,"estimatedBytes":16635432.82247765,"usedTokens":2410,"tokens":2410,"hash":"3985439198","messageCount":8}

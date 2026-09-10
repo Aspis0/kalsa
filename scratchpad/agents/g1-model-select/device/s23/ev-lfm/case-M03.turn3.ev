@@ -1,0 +1,11 @@
+09-09 20:34:18.991 12749 12781 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":7,"ok":true,"estimatedBytes":16283396.69220945,"usedTokens":2359,"reason":"unchanged"}
+09-09 20:34:18.996 12749 12781 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":5,"ok":true,"estimatedBytes":16283396.69220945,"usedTokens":2359,"reason":"unchanged"}
+09-09 20:34:26.587 12749 12781 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 20:34:26.673 12749 12781 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 20:34:28.666 12749 12781 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 20:34:28.691 12749 12781 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":25,"ok":true,"tokens":2359}
+09-09 20:34:28.701 12749 12781 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 20:34:28.717 12749 12781 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 20:34:39.951 12749 12781 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2500,"tokensEvaluated":2379,"tokensPredicted":120,"draftTokens":0,"draftAccepted":0,"promptMs":781.874,"predictedMs":10334.18,"predictedPerSecond":11.611951794917449,"contextFull":false,"interrupted":false,"ciswireFlags":1}
+09-09 20:34:39.951 12749 12781 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 20:34:40.056 12749 12781 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":77,"ok":true,"estimatedBytes":17256673.052362707,"usedTokens":2500,"tokens":2500,"hash":"632101861","messageCount":8}

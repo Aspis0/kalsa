@@ -103,6 +103,8 @@ device_state_snapshot() {
         dumpsys power 2>/dev/null | grep -m1 "mWakefulness=" | sed "s/.*mWakefulness=\([A-Za-z]*\).*/wakefulness=\1/"
       fi
     ' </dev/null 2>/dev/null | tr -d '\r'
+    adb shell 'awk "/^(MemAvailable|SwapFree|SwapTotal):/ {print}" /proc/meminfo' \
+      </dev/null 2>/dev/null | tr -d '\r'
     printf 'thermal_status=%s\n' "$(device_thermal_status)"
     printf 'battery_deci=%s\n' "$(device_battery_temp_deci)"
     printf 'battery_c=%s\n' "$(device_battery_temp_c)"

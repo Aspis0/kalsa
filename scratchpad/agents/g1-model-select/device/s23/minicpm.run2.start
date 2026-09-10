@@ -1,0 +1,14 @@
+# MiniCPM5 run2 launch
+start_ts=2026-09-10 05:28:53 EDT
+start_rows=5
+reply_timeout=900
+ready_timeout=600
+serial=192.168.1.152:5555
+model=dev-minicpm5-2b
+pid=49288
+relaunch_ts=2026-09-10 05:29:46 EDT
+relaunch_pid=49405
+live_launch_ts=2026-09-10 05:30:59 EDT
+live_start_rows=4
+prior_attempt_removed=C03_before_live_launch
+live_runner_pid=49697

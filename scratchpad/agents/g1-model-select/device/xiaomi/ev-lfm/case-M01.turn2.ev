@@ -1,0 +1,11 @@
+09-09 22:07:49.635 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":22,"ok":true,"estimatedBytes":145948672,"usedTokens":2227,"reason":"last_exchange_prefix"}
+09-09 22:07:49.644 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"mark_prefix","ms":9,"ok":true,"estimatedBytes":145948672,"usedTokens":2227,"reason":"last_exchange_prefix"}
+09-09 22:07:57.820 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 22:07:57.903 28599 31470 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 22:07:59.758 28599 31470 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 22:07:59.788 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":30,"ok":true,"tokens":2083}
+09-09 22:07:59.799 28599 31470 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 22:07:59.808 28599 31470 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 22:08:17.628 28599 31470 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"3","round":0,"tokensCached":2472,"tokensEvaluated":2205,"tokensPredicted":266,"draftTokens":0,"draftAccepted":0,"promptMs":2074.451,"predictedMs":15656.898,"predictedPerSecond":16.989316785483307,"contextFull":false,"interrupted":false}
+09-09 22:08:17.628 28599 31470 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"3","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 22:08:17.729 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":81,"ok":true,"estimatedBytes":16952051.22302158,"usedTokens":2472,"tokens":2472,"hash":"2097592860","messageCount":6}

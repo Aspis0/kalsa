@@ -1,0 +1,11 @@
+09-09 22:08:50.601 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":10,"ok":true,"estimatedBytes":16952051.22302158,"usedTokens":2472,"reason":"unchanged"}
+09-09 22:08:50.609 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":8,"ok":true,"estimatedBytes":16952051.22302158,"usedTokens":2472,"reason":"unchanged"}
+09-09 22:08:58.852 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 22:08:58.935 28599 31470 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 22:09:00.776 28599 31470 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 22:09:00.815 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":39,"ok":true,"tokens":2472}
+09-09 22:09:00.824 28599 31470 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 22:09:00.833 28599 31470 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 22:09:10.713 28599 31470 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2666,"tokensEvaluated":2500,"tokensPredicted":165,"draftTokens":0,"draftAccepted":0,"promptMs":512.219,"predictedMs":9274.999,"predictedPerSecond":17.789759330432275,"contextFull":false,"interrupted":false}
+09-09 22:09:10.713 28599 31470 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 22:09:10.811 28599 31470 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":76,"ok":true,"estimatedBytes":18282430.64748201,"usedTokens":2666,"tokens":2666,"hash":"1648942885","messageCount":8}

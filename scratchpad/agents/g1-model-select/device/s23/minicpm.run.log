@@ -1,0 +1,64 @@
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=480
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C01 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c01-1789003237
+[ci] ready after 210s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quanto fa 2 + 2? Rispondi solo con il numero.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 130s (stable x2, quiet 20s, telemetry clean)
+[ci] case C01 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case C02 (conversation/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c02-1789003651
+[ci] ready after 220s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 7 kilometers to miles. Reply with the number rounded to two de
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 220s (stable x2, quiet 20s, telemetry clean)
+[ci] case C02 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case C03 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c03-1789004193
+[ci] ready after 240s (UI label fallback; engine idle marker never seen)
+[ci]   turn 1/1: Quale giorno viene dopo martedì? Rispondi con una sola parola, in ital
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply: TIMEOUT after 480s (last text: ⚠️ Risposta interrotta — il modello è stato cambiato o rimos)
+[ci] case C03 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case C04 (conversation/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c04-1789005063
+[ci] ready after 240s (UI label fallback; engine idle marker never seen)
+[ci]   turn 1/1: What day comes after Tuesday? Reply with one word in English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted prev=0 count=1 (count grew)
+[ci] reply: TIMEOUT after 480s (last text: ⚠️ Risposta interrotta — il modello è stato cambiato o rimos)
+[ci] case C04 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case C05 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c05-1789005927
+[ci] ready after 230s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltan
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply: TIMEOUT after 480s (last text: L'utente vuole elencare tre giorni: l)
+[ci] case C05 done (rows appended to s23/minicpm.out.jsonl)
+[ci] WATCHDOG: 3 consecutive failures, stopping
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

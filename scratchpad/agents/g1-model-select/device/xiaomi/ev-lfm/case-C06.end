@@ -1,0 +1,16 @@
+ts=2026-09-09T21:39:28 epoch=1789004368 tag=end
+pid=12473
+VmHWM:	 3641808 kB
+VmRSS:	 3641808 kB
+RssAnon:	 1902508 kB
+RssFile:	 1715064 kB
+VmSwap:	   13056 kB
+cpuset=/top-app
+wakefulness=Awake
+thermal_status=0
+battery_deci=382
+battery_c=
+battery_level=74
+ AC powered: false
+ USB powered: false
+ status: 3

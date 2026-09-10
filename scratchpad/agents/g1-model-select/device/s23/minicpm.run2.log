@@ -1,0 +1,188 @@
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=900
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] skip C01 (already fully ok in s23/minicpm.out.jsonl)
+[ci] skip C02 (already fully ok in s23/minicpm.out.jsonl)
+[ci] re-run C03 (prior row not fully ok: removed)
+[ci] === case C03 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=900
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] skip C01 (already fully ok in s23/minicpm.out.jsonl)
+[ci] skip C02 (already fully ok in s23/minicpm.out.jsonl)
+[ci] === case C03 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c03-1789032665
+[ci] ready after 240s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quale giorno viene dopo martedì? Rispondi con una sola parola, in ital
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 140s (stable x2, quiet 20s, telemetry clean)
+[ci] case C03 done (rows appended to s23/minicpm.out.jsonl)
+[ci] re-run C04 (prior row not fully ok: removed)
+[ci] === case C04 (conversation/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c04-1789033133
+[ci] ready after 200s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: What day comes after Tuesday? Reply with one word in English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 300s (stable x2, quiet 20s, telemetry clean)
+[ci] case C04 done (rows appended to s23/minicpm.out.jsonl)
+[ci] re-run C05 (prior row not fully ok: removed)
+[ci] === case C05 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c05-1789033749
+[ci] ready after 180s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltan
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 150s (stable x2, quiet 20s, telemetry clean)
+[ci] case C05 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case C06 (conversation/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c06-1789034165
+[ci] ready after 265s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: I want to exercise three times: Monday, Wednesday, and Friday. List on
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 285s (stable x2, quiet 20s, telemetry clean)
+[ci] case C06 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case C07 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c07-1789034833
+[ci] ready after 195s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Ho una riunione alle 10:00 e devo uscire di casa alle 9:20. Preparami 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 565s (stable x2, quiet 20s, telemetry clean)
+[ci] case C07 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I01 (instructions/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i01-1789035777
+[ci] ready after 155s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Restituisci solo JSON valido con esattamente questi campi e valori: ci
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply: TIMEOUT after 900s (last text: L'utente vuole che io restituisca solo JSON valido con speci)
+[ci] case I01 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I02 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i02-1789037076
+[ci] ready after 180s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Return only valid JSON with exactly these fields and values: city='Lon
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 245s (stable x2, quiet 20s, telemetry clean)
+[ci] case I02 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I03 (instructions/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i03-1789037608
+[ci] ready after 200s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Rispondi solo con JSON. Crea un oggetto con priority='high', done=fals
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 205s (stable x2, quiet 20s, telemetry clean)
+[ci] case I03 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I04 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i04-1789038114
+[ci] ready after 155s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Reply only with JSON. Create an object with priority='low', done=true,
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 140s (stable x2, quiet 20s, telemetry clean)
+[ci] case I04 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I05 (instructions/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i05-1789038496
+[ci] ready after 280s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Formatta la frase 'Porta il caricatore domani' come una checklist Mark
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 145s (stable x2, quiet 20s, telemetry clean)
+[ci] case I05 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I06 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i06-1789039016
+[ci] ready after 115s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Format the sentence 'Bring the charger tomorrow' as a Markdown checkli
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply: TIMEOUT after 900s (last text: The user wants me to create a Markdown checklist with one un)
+[ci] case I06 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I07 (instructions/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i07-1789040281
+[ci] ready after 235s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Estrai dal testo solo il nome e il numero: 'Contatto: Giulia Bianchi, 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 270s (stable x2, quiet 20s, telemetry clean)
+[ci] case I07 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I08 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i08-1789040908
+[ci] ready after 210s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Extract only the name and number from: 'Contact: Daniel Reed, phone 55
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 285s (stable x2, quiet 20s, telemetry clean)
+[ci] case I08 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I10 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i10-1789041527
+[ci] ready after 215s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Reply with a two-column Markdown table, Product and Quantity, with exa
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 305s (stable x2, quiet 20s, telemetry clean)
+[ci] case I10 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I12 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i12-1789042175
+[ci] ready after 265s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 125 minutes into hours and minutes. Reply as '<number> hours a
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 150s (stable x2, quiet 20s, telemetry clean)
+[ci] case I12 done (rows appended to s23/minicpm.out.jsonl)
+[ci] === case I14 (instructions/en) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

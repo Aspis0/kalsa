@@ -1,0 +1,13 @@
+START_AT=minicpm verified 24 LFM ok rows; skipping LFM arm
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+keep-awake held by supervisor for LFM-to-MiniCPM5 cooling transition
+2026-09-09 22:58:18 EDT cool battery_deciC=309 thermal_status=0 battery_level=53
+starting MiniCPM5 arm
+2026-09-09 22:58:18 EDT arm=minicpm rows=1 last_status=not_run battery_level=53
+2026-09-09 22:58:18 EDT STOP first_non_ok arm=minicpm status=not_run
+MiniCPM5 arm stopped rc=3
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

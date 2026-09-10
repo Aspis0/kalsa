@@ -1,0 +1,12 @@
+ts=2026-09-10T07:16:55 epoch=1789039015 tag=stopped
+pid=
+MemAvailable:    4356804 kB
+SwapTotal:       4194300 kB
+SwapFree:        1848156 kB
+thermal_status=2
+battery_deci=403
+battery_c=40.3
+battery_level=100
+ AC powered: true
+ USB powered: false
+ status: 5

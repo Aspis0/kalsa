@@ -1,0 +1,606 @@
+# LFM arm restart 2026-09-09 (after send_failed diagnosis)
+# apk sha256 cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45 (main@5707cfe, verified pm path pull)
+# fixes: full-text landing equality (whitespace-normalised), OUT before source, watchdog 3x non-ok -> exit 3
+# protocol: model blocks (24 x lfm, then 24 x dev-minicpm5-2b), PROTOCOL.md; evidence OUT=s23/ev-lfm
+Wed Sep  9 16:49:14 EDT 2026
+[ci] serial=192.168.1.152:5555 model=lfm2.5-2.6b out=s23/lfm.out.jsonl reply_timeout=240
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: skipped (Termux missing — not fatal)
+0
+[ci] re-run C01 (prior row not fully ok: removed)
+[ci] === case C01 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c01-1788986959
+[ci] ready after 40s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quanto fa 2 + 2? Rispondi solo con il numero.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 95s (stable x2, quiet 20s, telemetry clean)
+[ci] case C01 done (rows appended to s23/lfm.out.jsonl)
+0
+[ci] WATCHDOG: 3 consecutive failures, stopping
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+# LFM arm 3rd start 2026-09-09 17:02 (rc-convention fix verified live)
+Wed Sep  9 16:52:47 EDT 2026
+[ci] serial=192.168.1.152:5555 model=lfm2.5-2.6b out=s23/lfm.out.jsonl reply_timeout=240
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] skip C01 (already fully ok in s23/lfm.out.jsonl)
+[ci] === case C02 (conversation/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c02-1788987172
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 7 kilometers to miles. Reply with the number rounded to two de
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case C02 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C03 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c03-1788987367
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quale giorno viene dopo martedì? Rispondi con una sola parola, in ital
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case C03 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C04 (conversation/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c04-1788987549
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: What day comes after Tuesday? Reply with one word in English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case C04 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C05 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c05-1788987731
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltan
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 75s (stable x2, quiet 20s, telemetry clean)
+[ci] case C05 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C06 (conversation/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c06-1788987910
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: I want to exercise three times: Monday, Wednesday, and Friday. List on
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case C06 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C07 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c07-1788988088
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Ho una riunione alle 10:00 e devo uscire di casa alle 9:20. Preparami 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 95s (stable x2, quiet 20s, telemetry clean)
+[ci] case C07 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I01 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] thermal: pause — status=3 battery_deci=428 (SEVERE or battery>=440dC); waiting for status<=1 and battery<=390dC (cap 1200s)
+[ci] thermal: cooling… waited=30s status=3 battery_deci=426
+[ci] thermal: cooling… waited=60s status=3 battery_deci=415
+[ci] thermal: cooling… waited=90s status=3 battery_deci=412
+[ci] thermal: cooling… waited=120s status=3 battery_deci=412
+[ci] thermal: cooling… waited=150s status=3 battery_deci=411
+[ci] thermal: cooling… waited=180s status=3 battery_deci=411
+[ci] thermal: cooling… waited=210s status=3 battery_deci=410
+[ci] thermal: cooling… waited=240s status=2 battery_deci=409
+[ci] thermal: cooling… waited=270s status=2 battery_deci=408
+[ci] thermal: cooling… waited=300s status=2 battery_deci=406
+[ci] thermal: cooling… waited=330s status=2 battery_deci=405
+[ci] thermal: cooling… waited=360s status=2 battery_deci=403
+[ci] thermal: cooling… waited=390s status=2 battery_deci=402
+[ci] thermal: cooling… waited=420s status=2 battery_deci=401
+[ci] thermal: cooling… waited=450s status=2 battery_deci=400
+[ci] thermal: cooling… waited=480s status=2 battery_deci=399
+[ci] thermal: cooling… waited=510s status=2 battery_deci=398
+[ci] thermal: cooling… waited=540s status=2 battery_deci=397
+[ci] thermal: cooling… waited=570s status=2 battery_deci=396
+[ci] thermal: cooling… waited=600s status=2 battery_deci=395
+[ci] thermal: cooling… waited=630s status=2 battery_deci=396
+[ci] thermal: cooling… waited=660s status=2 battery_deci=394
+[ci] thermal: cooling… waited=690s status=2 battery_deci=393
+[ci] thermal: cooling… waited=720s status=2 battery_deci=392
+[ci] thermal: cooling… waited=750s status=2 battery_deci=391
+[ci] thermal: cooling… waited=780s status=2 battery_deci=391
+[ci] thermal: cooling… waited=810s status=2 battery_deci=391
+[ci] thermal: cooling… waited=840s status=2 battery_deci=391
+[ci] thermal: cooling… waited=870s status=2 battery_deci=391
+[ci] thermal: cooling… waited=900s status=2 battery_deci=391
+[ci] thermal: cooling… waited=930s status=2 battery_deci=391
+[ci] thermal: cooling… waited=960s status=2 battery_deci=391
+[ci] thermal: cooling… waited=990s status=2 battery_deci=391
+[ci] thermal: cooling… waited=1020s status=2 battery_deci=391
+[ci] thermal: cooling… waited=1050s status=2 battery_deci=392
+[ci] thermal: cooling… waited=1080s status=2 battery_deci=392
+[ci] thermal: cooling… waited=1110s status=2 battery_deci=392
+[ci] thermal: cooling… waited=1140s status=2 battery_deci=392
+[ci] thermal: cooling… waited=1170s status=2 battery_deci=392
+[ci] thermal: cooling… waited=1200s status=2 battery_deci=392
+[ci] FATAL: thermal: still hot after 1200s — status=2 battery_deci=392 (refusing throttled data)
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+# arm relaunch 17:58:39 cycle=1
+[ci] serial=192.168.1.152:5555 model=lfm2.5-2.6b out=s23/lfm.out.jsonl reply_timeout=240
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: skipped (Termux missing — not fatal)
+[ci] skip C01 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip C02 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip C03 (already fully ok in s23/lfm.out.jsonl)
+[ci] === case C04 (conversation/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c04-1788991124
+[ci] ready after 65s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: What day comes after Tuesday? Reply with one word in English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 65s (stable x2, quiet 20s, telemetry clean)
+[ci] case C04 done (rows appended to s23/lfm.out.jsonl)
+[ci] skip C05 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip C06 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip C07 (already fully ok in s23/lfm.out.jsonl)
+[ci] === case I01 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i01-1788991310
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Restituisci solo JSON valido con esattamente questi campi e valori: ci
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I01 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I02 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i02-1788991490
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Return only valid JSON with exactly these fields and values: city='Lon
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I02 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I03 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i03-1788991670
+[ci] ready after 75s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Rispondi solo con JSON. Crea un oggetto con priority='high', done=fals
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 75s (stable x2, quiet 20s, telemetry clean)
+[ci] case I03 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I04 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i04-1788991868
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Reply only with JSON. Create an object with priority='low', done=true,
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case I04 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I05 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i05-1788992055
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Formatta la frase 'Porta il caricatore domani' come una checklist Mark
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case I05 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I06 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i06-1788992243
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Format the sentence 'Bring the charger tomorrow' as a Markdown checkli
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 105s (stable x2, quiet 20s, telemetry clean)
+[ci] case I06 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I07 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i07-1788992454
+[ci] ready after 70s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Estrai dal testo solo il nome e il numero: 'Contatto: Giulia Bianchi, 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I07 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I08 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i08-1788992658
+[ci] ready after 75s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Extract only the name and number from: 'Contact: Daniel Reed, phone 55
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case I08 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I10 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i10-1788992867
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Reply with a two-column Markdown table, Product and Quantity, with exa
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I10 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I12 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i12-1788993047
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 125 minutes into hours and minutes. Reply as '<number> hours a
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 75s (stable x2, quiet 20s, telemetry clean)
+[ci] case I12 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I14 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i14-1788993232
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Give me three alternative titles, each no more than five words, for a 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 95s (stable x2, quiet 20s, telemetry clean)
+[ci] case I14 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case M01 (memory/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-m01-1788993433
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Ricorda per questa conversazione: il mio treno parte da Bologna alle 0
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: Quanto fa 6 più 7?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Riscrivi in modo più breve: 'Il pacco è arrivato stamattina'.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 45s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: A che ora parte il mio treno e come preferisco il caffè?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci] case M01 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case M02 (memory/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-m02-1788993790
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Remember for this conversation: my train leaves from Bristol at 07:25,
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: What is 8 plus 5?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 105s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Rewrite briefly: 'The parcel arrived this morning.'
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: Where does my train leave from, when, and how do I prefer my tea?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci] case M02 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case M03 (memory/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-m03-1788994300
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Tieni a mente il mio piano: martedì devo chiamare Sara, giovedì devo p
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply: TIMEOUT after 240s (last text: The user is sharing their plan for the week (call Sara on Tu)
+[ci]   turn 2/4: Qual è la capitale della Francia?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Traduci in inglese la parola 'casa'.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: Quale impegno ho giovedì?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 35s (stable x2, quiet 20s, telemetry clean)
+[ci] case M03 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case M04 (memory/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+# arm relaunch 20:00:21 cycle=1
+[ci] serial=192.168.1.152:5555 model=lfm2.5-2.6b out=s23/lfm.out.jsonl reply_timeout=240
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] skip C01 (already fully ok in s23/lfm.out.jsonl)
+[ci] === case C02 (conversation/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c02-1788998426
+[ci] ready after 65s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Convert 7 kilometers to miles. Reply with the number rounded to two de
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case C02 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C03 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c03-1788998629
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Quale giorno viene dopo martedì? Rispondi con una sola parola, in ital
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 70s (stable x2, quiet 20s, telemetry clean)
+[ci] case C03 done (rows appended to s23/lfm.out.jsonl)
+[ci] skip C04 (already fully ok in s23/lfm.out.jsonl)
+[ci] === case C05 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c05-1788998810
+[ci] ready after 50s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Voglio allenarmi tre volte: lunedì, mercoledì e venerdì. Elenca soltan
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case C05 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C06 (conversation/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c06-1788998994
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: I want to exercise three times: Monday, Wednesday, and Friday. List on
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case C06 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case C07 (conversation/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c07-1788999185
+[ci] ready after 50s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Ho una riunione alle 10:00 e devo uscire di casa alle 9:20. Preparami 
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case C07 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I01 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i01-1788999387
+[ci] ready after 60s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Restituisci solo JSON valido con esattamente questi campi e valori: ci
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I01 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I02 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i02-1788999586
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Return only valid JSON with exactly these fields and values: city='Lon
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I02 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case I03 (instructions/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i03-1788999772
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Rispondi solo con JSON. Crea un oggetto con priority='high', done=fals
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci] case I03 done (rows appended to s23/lfm.out.jsonl)
+[ci] skip I04 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip I05 (already fully ok in s23/lfm.out.jsonl)
+[ci] === case I06 (instructions/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-i06-1788999965
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Format the sentence 'Bring the charger tomorrow' as a Markdown checkli
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci] case I06 done (rows appended to s23/lfm.out.jsonl)
+[ci] skip I07 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip I08 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip I10 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip I12 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip I14 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip M01 (already fully ok in s23/lfm.out.jsonl)
+[ci] skip M02 (already fully ok in s23/lfm.out.jsonl)
+[ci] re-run M03 (prior row not fully ok: removed)
+[ci] === case M03 (memory/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-m03-1789000162
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Tieni a mente il mio piano: martedì devo chiamare Sara, giovedì devo p
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 80s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: Qual è la capitale della Francia?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=1)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Traduci in inglese la parola 'casa'.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: Quale impegno ho giovedì?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted prev=3 count=4 (count grew)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci] case M03 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case M04 (memory/en) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-m04-1789000518
+[ci] ready after 50s (KALSA_PREWARM idle marker)
+[ci]   turn 1/4: Keep this in mind: on Tuesday I call Sara, on Thursday I pay rent, and
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 85s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 2/4: What is the capital of France?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted prev=1 count=2 (count grew)
+[ci] reply settled after 25s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 3/4: Translate the word 'casa' into English.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=2)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci]   turn 4/4: What is scheduled for Thursday?
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=3)
+[ci] reply settled after 30s (stable x2, quiet 20s, telemetry clean)
+[ci] case M04 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case T09 (tools/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-t09-1789000864
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Usa lo strumento calcolatrice con expression='18 / 3'. Voglio una chia
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: composer empty right after share (intent swallowed?) attempt 1
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 75s (stable x2, quiet 20s, telemetry clean)
+[ci] case T09 done (rows appended to s23/lfm.out.jsonl)
+[ci] === case T11 (tools/it) model=lfm2.5-2.6b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-t11-1789001049
+[ci] ready after 55s (KALSA_PREWARM idle marker)
+[ci]   turn 1/1: Salva una nota intitolata 'Idee weekend' con il testo 'Visitare il mer
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] reply settled after 95s (stable x2, quiet 20s, telemetry clean)
+[ci] case T11 done (rows appended to s23/lfm.out.jsonl)
+[ci] run complete: 13 cases -> s23/lfm.out.jsonl
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist

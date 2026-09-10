@@ -1,0 +1,11 @@
+09-09 22:25:20.906 31539 13207 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":5,"ok":true,"estimatedBytes":15669675.179856114,"usedTokens":2285,"reason":"unchanged"}
+09-09 22:25:20.913 31539 13207 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":7,"ok":true,"estimatedBytes":15669675.179856114,"usedTokens":2285,"reason":"unchanged"}
+09-09 22:25:29.093 31539 13207 I ReactNativeJS: KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-09 22:25:29.173 31539 13207 I ReactNativeJS: KALSA_NATIVE info llama_model_loader: loaded meta data with 38 key-value pairs and 266 tensors from /data/user/0/com.kalsa.app/files/models/lfm2.5-2.6b/LFM2.5-2.6B-QAD-Q4_0.gguf (version GGUF V3 (latest))
+09-09 22:25:31.005 31539 13207 I ReactNativeJS: KALSA_NATIVE_VARIANT {"androidLib":"rnllama_jni_v8_2_dotprod_i8mm_hexagon_opencl","nGpuLayers":0}
+09-09 22:25:31.035 31539 13207 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":30,"ok":true,"tokens":2285}
+09-09 22:25:31.043 31539 13207 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-09 22:25:31.059 31539 13207 I ReactNativeJS: 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-09 22:25:36.339 31539 13207 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"4","round":0,"tokensCached":2393,"tokensEvaluated":2302,"tokensPredicted":90,"draftTokens":0,"draftAccepted":0,"promptMs":363.548,"predictedMs":4839.224999999999,"predictedPerSecond":18.598019310943386,"contextFull":false,"interrupted":false}
+09-09 22:25:36.339 31539 13207 I ReactNativeJS: KALSA_TOOLCALL {"turnId":"4","round":0,"toolChoice":"auto","structuredCalls":0,"fallbackCalls":0,"fallbackDialect":"none","executed":0,"skippedCap":0,"skippedDup":0,"skippedFailedRepeat":0,"failed":0,"blockedPrivacy":0,"namesValid":true,"argsParsed":true,"toolNames":[]}
+09-09 22:25:36.420 31539 13207 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":62,"ok":true,"estimatedBytes":16410298.776978416,"usedTokens":2393,"tokens":2393,"hash":"3245356109","messageCount":8}

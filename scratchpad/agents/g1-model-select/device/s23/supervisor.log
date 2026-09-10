@@ -1,0 +1,15 @@
+17:33:38 supervisor start
+17:58:39 arm relaunch cycle=1
+19:01:48 STOP: send_failed rows present: M03
+19:01:48 supervisor end
+19:15:19 supervisor start
+20:00:21 arm relaunch cycle=1
+20:13:23 LFM-DONE rows=25 ok=24
+21:13:26 starting minicpm arm
+21:15:26 LFM-DONE rows=33 ok=33
+21:15:27 starting minicpm arm
+21:17:27 LFM-DONE rows=33 ok=33
+21:17:27 starting minicpm arm
+21:19:27 LFM-DONE rows=33 ok=33
+21:19:28 starting minicpm arm
+21:20:20 supervisor killed by orchestrator: it relaunched the minicpm arm every 2 min (3 concurrent runners 21:13/21:15/21:17, log kept as minicpm.run.contaminated-3runners-2113.log); single runner relaunched by hand

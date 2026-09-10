@@ -1,0 +1,50 @@
+# minicpm arm header 2026-09-09
+# apk sha256 cedd730151baa39bd0b7c19e108eba6e30cd5e133a0b61fec566d208760a5f45 (main@5707cfe)
+Wed Sep  9 17:33:24 EDT 2026
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=480
+[ci] keep-awake: saved screen_off_timeout=null
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C01 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] model change: kalsa.model.id -> dev-minicpm5-2b
+[ci] model pref: kalsa.model.id=dev-minicpm5-2b (verified by read-back)
+[ci] conversation: conv-g1-c01-1789002812
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=480
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C01 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c01-1789002933
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=480
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C01 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] conversation: conv-g1-c01-1789003053
+[ci] ready after 240s (UI label fallback; engine idle marker never seen)
+[ci]   turn 1/1: Quanto fa 2 + 2? Rispondi solo con il numero.
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[ci] share: text landed alone in composer (attempt 1)
+[ci] node 'Send' NOT FOUND
+[ci] tap 'Invia' at 963,2115
+[ci] share: submitted (composer empty, prev=0)
+[ci] serial=192.168.1.152:5555 model=dev-minicpm5-2b out=s23/minicpm.out.jsonl reply_timeout=480
+[ci] keep-awake: saved screen_off_timeout=86400000
+[ci] keep-awake: set screen_off_timeout=86400000 (restored on exit)
+[ci] keep-awake: added com.kalsa.app to deviceidle whitelist (was_whitelisted=0)
+[ci] keep-awake: sent KEYCODE_WAKEUP
+[ci] termux-wake-lock: on
+[ci] === case C01 (conversation/it) model=dev-minicpm5-2b serial=192.168.1.152:5555 ===
+[ci] keep-awake: deleted screen_off_timeout (was unset/null at setup; put cannot undo unset)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: removed com.kalsa.app from deviceidle whitelist
+[ci] keep-awake: deleted screen_off_timeout (leak: saved equalled KA_SCREEN_TIMEOUT_MS=86400000 from a prior run)
