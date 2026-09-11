@@ -4434,3 +4434,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `8be587c` and re-check restore (`n_common`). Owner: sideload the fix
   on Xiaomi too — grok `4e432524` installing `8be587c` (SHA `52970eba…`)
   with thermal gate, no file deletes. G2 not claimed.
+
+- **11/09 — S23 extract-switch `8be587c` PASS scoped.** SHA `52970eba…`.
+  `activeId` `conv-g1-i14-1789042691` → `conv-g1-i12-1789042175` after
+  tap `drawer-conversation-conv-g1-i12-1789042175`. Extract
+  `util-extractMemory-4` `interrupted:true` `promptMs=11579`;
+  `KALSA_MEMORY_EXTRACT stopReason:"aborted_by_send"`
+  `extractStopReason:0` `durationMs=11674`. Parent quoted
+  `before-activeId.txt` / `after-activeId.txt` / `kalsa-excerpt.txt`.
+  1807aad was HARNESS_MISS. Report
+  `S23-SWITCH-EXTRACT-8be587c-2026-09-11.md`. G2 not claimed.
