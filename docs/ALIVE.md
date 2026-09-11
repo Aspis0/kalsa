@@ -4307,7 +4307,17 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   must match. `no_file` means `staleDropped===0` (no kvs for that model+conv
   under any env hash). Save logs `ok:true` only after `.kvs` rename **and**
   after `evictSessionPool`. Explorer report:
-  `SESSION-NO-FILE-RECON-2026-09-11.md`. Hash unify is on disk uncommitted
-  (`promptEnvToolHashFields`, AppShell load matches save, save `reason:evicted`
-  if keepStem missing after pool evict). Targeted Jest 19/19. MiMo audit
-  `66770bda` in flight. G2 not claimed.
+  `SESSION-NO-FILE-RECON-2026-09-11.md`. Hash unify is on disk uncommitted.
+  `computeSessionPromptEnvHash` lives in `src/engine/sessionPromptEnv.ts` (AppShell
+  import). `sessionSaveOkAfterEvict` removed; save `evicted` is a direct
+  `sessionFileExists` check. Parent Jest 18/18. App commit `2619db0` pushed.
+  Re-audit SHIP-WITH-FIXES: `!MEMORY_FACTS_ON_USER_TAIL` branch kept (symmetric
+  with save if the flag flips). Device restore on this APK not done. G2 not
+  claimed.
+
+- **11/09 — session load/save prompt-env hash unify SHIP (`2619db0`).** Load no
+  longer hardcodes `hasTools=true`. Shared `promptEnvToolHashFields`. Save
+  `reason:evicted` if keepStem missing after pool evict. `KALSA_SESSION` logs
+  `stem`. Re-audit: leftover `!MEMORY_FACTS_ON_USER_TAIL` branch is dead while
+  the flag is true; kept for save/load symmetry. Device restore of this commit
+  not yet run. G2 not claimed.
