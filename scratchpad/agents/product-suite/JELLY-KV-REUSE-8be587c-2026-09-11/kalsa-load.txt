@@ -1,0 +1,3 @@
+09-11 07:09:30.958 24559 24605 W RNLlama : loadSession:108 KALSA_KVRESUME n_tokens=2621 pos_max=2620 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+09-11 07:09:30.967 24559 24605 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":53,"ok":true,"tokensOnDisk":2621,"stem":"lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929","tokens":2621}
+09-11 07:09:30.979 24559 24605 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'

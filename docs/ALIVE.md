@@ -4444,3 +4444,15 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `before-activeId.txt` / `after-activeId.txt` / `kalsa-excerpt.txt`.
   1807aad was HARNESS_MISS. Report
   `S23-SWITCH-EXTRACT-8be587c-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — Jelly KV-reuse `8be587c` PASS scoped.** SHA-256
+  `52970eba0d5e7d587ddc048878425f97af69ecd0708be09716886cf8f6b5fb6e`
+  local==installed (`JELLYS0000053795` only). First load after install
+  `ok:false reason:meta_mismatch:engineBuild` (stem still `…71419929`).
+  Save on active LFM chat `ok:true tokens:2621`, force-stop Kalsa only:
+  load `ok:true` 53 ms, `KALSA_KVRESUME` hybrid resumable=1. User turn
+  `KALSA_KVPREFIX n_common=2621` / `embd=2621` / `text_tokens=2938`,
+  `KALSA_TELEMETRY prompt_n=317` `tokensEvaluated=2938` `promptMs=16304`.
+  Thinking 512 (`decodeTokPerSec:null`). Extract `n_common=2` recover
+  `2/211` (expected). Parent quoted RNLlama lines in `quoted-rnllama.txt`.
+  Report `JELLY-KV-REUSE-8be587c-2026-09-11.md`. G2 not claimed.

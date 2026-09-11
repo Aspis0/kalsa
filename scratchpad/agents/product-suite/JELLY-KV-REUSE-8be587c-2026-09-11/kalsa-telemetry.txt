@@ -1,0 +1,2 @@
+09-11 07:10:10.016 24559 24605 I ReactNativeJS: KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null}
+09-11 07:10:53.513 24559 24605 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":3107,"tokensEvaluated":2938,"tokensPredicted":168,"draftTokens":0,"draftAccepted":0,"promptMs":16304.104000000001,"predictedMs":26975.842,"predictedPerSecond":6.227794483671723,"contextFull":false,"interrupted":false,"prompt_n":317,"ciswireFlags":6}

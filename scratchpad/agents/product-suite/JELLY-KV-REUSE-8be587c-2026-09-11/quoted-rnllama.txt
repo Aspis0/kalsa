@@ -1,0 +1,5 @@
+09-11 07:09:30.958 24559 24605 W RNLlama : loadSession:108 KALSA_KVRESUME n_tokens=2621 pos_max=2620 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+09-11 07:10:10.068 24559 24676 W RNLlama : loadPrompt:473 KALSA_KVPREFIX embd=2621 text_tokens=2938 n_common=2621 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d29cf70
+09-11 07:10:53.841 24559 24673 W RNLlama : loadPrompt:473 KALSA_KVPREFIX embd=3107 text_tokens=211 n_common=2 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d29cf70
+09-11 07:10:53.841 24559 24673 W RNLlama : loadPrompt:522 KALSA_KVDIVERGE n_common=2 shared_lo=0 embd_hi=14 text_hi=14 shared_ids=[124894 124899 ] embd_ids=[23630 207 2245 81 483 44874 20 445 6226 2462 13508 2335 ] text_ids=[5922 207 2245 81 445 35972 1114 482 717 43510 22 388 ]
+09-11 07:10:53.841 24559 24673 I RNLlama : loadPrompt:580 restored state checkpoint: reusing 2/211 prompt tokens

@@ -1,0 +1,12 @@
+utc=2026-09-11T11:03:21Z
+apk=/tmp/kalsa-apk-8be587c/app-release.apk
+local_sha256=52970eba0d5e7d587ddc048878425f97af69ecd0708be09716886cf8f6b5fb6e
+=== adb install -r ===
+Performing Streamed Install
+Success
+install_rc=0
+installed_path=/data/app/~~p13xUCx0PdQCgyP69N2wmg==/com.kalsa.app-E_WK0RQU4neqq9OFeWsNvg==/base.apk
+installed_sha256=52970eba0d5e7d587ddc048878425f97af69ecd0708be09716886cf8f6b5fb6e
+hash_match=true
+    versionName=0.1.0
+    lastUpdateTime=2026-09-11 07:03:27

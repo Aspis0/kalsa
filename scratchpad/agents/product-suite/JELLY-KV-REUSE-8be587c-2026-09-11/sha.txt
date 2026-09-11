@@ -1,0 +1,7 @@
+local_sha256=52970eba0d5e7d587ddc048878425f97af69ecd0708be09716886cf8f6b5fb6e
+installed_sha256=52970eba0d5e7d587ddc048878425f97af69ecd0708be09716886cf8f6b5fb6e
+hash_match=true
+apk=/tmp/kalsa-apk-8be587c/app-release.apk
+ci_run=34559343621
+artifact=10184628653
+commit=8be587c69e98f32aff0778bddd075a7c616f4cf9
