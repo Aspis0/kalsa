@@ -59,3 +59,20 @@ export function assembleBoundaryForAlign(args: {
   if (args.storedConv !== args.activeConv) return null;
   return args.boundary ?? 0;
 }
+
+/**
+ * Clamp the assemble start while chat KV is live.
+ * Off/ciswire: use loadedB (0 on old files = full prompt vs full KV).
+ * Conv mismatch (loadedB null) or cold: keep computedStart (do not stamp B with A's window).
+ * Anchored: caller already aligned boundaryIndex — leave computedStart.
+ */
+export function assembleStartForLiveKv(args: {
+  mode: "off" | "anchored" | "ciswire";
+  kvHeld: boolean;
+  loadedB: number | null;
+  computedStart: number;
+}): number {
+  if (args.mode === "anchored") return args.computedStart;
+  if (args.kvHeld && args.loadedB !== null) return args.loadedB;
+  return args.computedStart;
+}

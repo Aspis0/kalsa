@@ -1,5 +1,6 @@
 import {
   assembleBoundaryForAlign,
+  assembleStartForLiveKv,
   decideAssembleWindowAction,
   shouldSlideAssembleBoundary,
   windowSlideDiscardModelId,
@@ -118,6 +119,52 @@ describe("assembleBoundaryForAlign", () => {
         boundary: undefined,
       }),
     ).toBe(0);
+  });
+});
+
+describe("assembleStartForLiveKv", () => {
+  test("off + live KV uses loadedB even when the computed window slid", () => {
+    expect(
+      assembleStartForLiveKv({
+        mode: "off",
+        kvHeld: true,
+        loadedB: 0,
+        computedStart: 23,
+      }),
+    ).toBe(0);
+  });
+
+  test("off + cold keeps the computed start", () => {
+    expect(
+      assembleStartForLiveKv({
+        mode: "off",
+        kvHeld: false,
+        loadedB: null,
+        computedStart: 23,
+      }),
+    ).toBe(23);
+  });
+
+  test("anchored leaves computedStart unchanged", () => {
+    expect(
+      assembleStartForLiveKv({
+        mode: "anchored",
+        kvHeld: true,
+        loadedB: 0,
+        computedStart: 12,
+      }),
+    ).toBe(12);
+  });
+
+  test("off + conv mismatch (loadedB null) does not stamp a foreign window", () => {
+    expect(
+      assembleStartForLiveKv({
+        mode: "off",
+        kvHeld: true,
+        loadedB: null,
+        computedStart: 23,
+      }),
+    ).toBe(23);
   });
 });
 
