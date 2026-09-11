@@ -4550,3 +4550,8 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   full-clear to `tokens_loaded:0` when `seq_rm` fails. Then EMA withhold
   3→5 samples (Jelly 5.5 tok/s unlocked 1024). Tool-Jelly next. G2 not
   claimed.
+
+- **11/09 — P0+P1 SHIP `b889991`.** Native save/load throw `kv_inconsistent`;
+  JS keeps the `.kvs`. EMA `MIN_SAMPLES_BEFORE_EMA=5`. Parent Jest 23/23
+  EXIT:0. Patch still 25 diffs / 3920 lines. APK CI `34624941399` + E2E
+  `34624945395` queued. P2 tool-Jelly next. G2 not claimed.
