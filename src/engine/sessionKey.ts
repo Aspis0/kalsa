@@ -60,6 +60,21 @@ export type PromptEnvInputs = {
   facts: readonly string[];
 };
 
+/**
+ * Save (streamAssistantTurn) and load (AppShell) must pass the same pair into
+ * computePromptEnvHash. toolsWired is Boolean(tools.length && executeTool).
+ */
+export function promptEnvToolHashFields(args: {
+  toolsWired: boolean;
+  toolCallingEnabled: boolean;
+  toolNames: readonly string[];
+}): { hasTools: boolean; toolNames: readonly string[] } {
+  return {
+    hasTools: args.toolsWired && args.toolCallingEnabled,
+    toolNames: args.toolCallingEnabled ? args.toolNames : [],
+  };
+}
+
 function normalizedNames(names: readonly string[]): string {
   return [...new Set(names.filter((name) => name.length > 0))].sort().join("\u0000");
 }
