@@ -4555,3 +4555,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   JS keeps the `.kvs`. EMA `MIN_SAMPLES_BEFORE_EMA=5`. Parent Jest 23/23
   EXIT:0. Patch still 25 diffs / 3920 lines. APK CI `34624941399` + E2E
   `34624945395` queued. P2 tool-Jelly next. G2 not claimed.
+
+- **11/09 — DeepSeek SHIP-WITH-FIXES, no APK blocker; `c498639`.** Load
+  throw covers longer+shorter hybrid; checkpoints cleared; save matches
+  load (mrope shorter only); `markChatKvCleared` on failed load so HOME
+  cannot overwrite a kept `.kvs` with empty. Parent Jest 24/24. APK
+  `34627488445` + E2E `34627489848` on `c498639`. Residuals (n_past=0,
+  helper theater) wait. G2 not claimed.
