@@ -4521,3 +4521,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   **PASS scoped** (`S23-HOME-RESTORE-31495c3-2026-09-11.md`): SHA
   `126e98c2…`; HOME `mark_prefix` ok:true; unload 45 s; load `ok:true`
   2091 tokens; `n_common=2088` not prewarm 1829. G2 not claimed.
+
+- **11/09 — G2 closeout on lab phones.** S23 grok `798d29e6` and Jelly
+  `2544f6ed` on APK `31495c3` (SHA `126e98c2…`): complete CPU chat +
+  recovery. Governor stays off (v0.3 lives on kalsallama branches
+  `kalsa/governor-v0.3-on-*`, not the ship pin `gemm-f32-mul-q4k`
+  `67c73d26`). Xiaomi not in the all-day lab. G2 not claimed.
