@@ -1,0 +1,2 @@
+09-11 07:26:02.893 W/RNLlama ( 6066): loadSession:108 KALSA_KVRESUME n_tokens=1956 pos_max=1955 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+09-11 07:26:36.690 W/RNLlama ( 6066): loadPrompt:473 KALSA_KVPREFIX embd=1956 text_tokens=1979 n_common=1956 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb40000736e64e530

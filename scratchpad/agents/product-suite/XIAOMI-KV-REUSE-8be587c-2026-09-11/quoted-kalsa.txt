@@ -1,0 +1,9 @@
+09-11 07:26:01.090 I/ReactNativeJS( 6066): KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-11 07:26:02.893 W/RNLlama ( 6066): loadSession:108 KALSA_KVRESUME n_tokens=1956 pos_max=1955 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+09-11 07:26:02.900 I/ReactNativeJS( 6066): KALSA_SESSION {"op":"load","ms":23,"ok":true,"tokensOnDisk":1956,"stem":"lfm2_002e5-2_002e6b__conv-g1-c02-1789009104__71419929","tokens":1956}
+09-11 07:26:23.706 I/ReactNativeJS( 6066): KALSA_SESSION {"op":"save","ms":186,"ok":true,"estimatedBytes":13416336.696012428,"usedTokens":1956,"stem":"lfm2_002e5-2_002e6b__conv-g1-c02-1789009104__71419929","tokens":1956,"hash":"1974313492","messageCount":2}
+09-11 07:26:23.706 I/ReactNativeJS( 6066): KALSA_SESSION {"op":"save","ms":0,"ok":true,"estimatedBytes":13416336.696012428,"usedTokens":1956,"stem":"lfm2_002e5-2_002e6b__conv-g1-c02-1789009104__71419929","reason":"unchanged"}
+09-11 07:26:36.667 I/ReactNativeJS( 6066): KALSA_THINKING {"turnId":"1","budget":512,"decodeTokPerSec":null}
+09-11 07:26:36.690 W/RNLlama ( 6066): loadPrompt:473 KALSA_KVPREFIX embd=1956 text_tokens=1979 n_common=1956 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb40000736e64e530
+09-11 07:26:46.510 I/ReactNativeJS( 6066): KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2171,"tokensEvaluated":1979,"tokensPredicted":191,"draftTokens":0,"draftAccepted":0,"promptMs":356.156,"predictedMs":9403.437,"predictedPerSecond":20.31172219264084,"contextFull":false,"interrupted":false,"prompt_n":23}
+09-11 07:26:46.592 I/ReactNativeJS( 6066): KALSA_SESSION {"op":"save","ms":66,"ok":true,"estimatedBytes":14891036.281719316,"usedTokens":2171,"stem":"lfm2_002e5-2_002e6b__conv-g1-c02-1789009104__71419929","tokens":2171,"hash":"3471563299","messageCount":4}

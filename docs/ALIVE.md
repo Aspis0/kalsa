@@ -4456,3 +4456,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Thinking 512 (`decodeTokPerSec:null`). Extract `n_common=2` recover
   `2/211` (expected). Parent quoted RNLlama lines in `quoted-rnllama.txt`.
   Report `JELLY-KV-REUSE-8be587c-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — Xiaomi KV-reuse `8be587c` PASS scoped.** Parent `sha256sum`
+  on installed `base.apk` = `52970eba…fb6e`. Serial `:34651`. First load
+  `no_meta` stem `…71419929`. Save then force-stop: load `ok:true` 1956
+  tokens / 23 ms, `KVRESUME` hybrid resumable=1. User turn `n_common=1956`
+  / `text_tokens=1979` / `prompt_n=23` / `promptMs=356`. Thinking 512
+  (EMA null). Unplugged 93 %, 30.4 °C. Quoted `quoted-rnllama.txt` /
+  `quoted-kalsa.txt`. Report `XIAOMI-KV-REUSE-8be587c-2026-09-11.md`.
+  All three phones now on `8be587c` with `n_common` = saved. G2 not claimed.
