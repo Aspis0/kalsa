@@ -4368,3 +4368,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `n_past=0`; keep `n_tokens <= n_common` + post-load boundary snapshots)
   and always split a closed think span. No APK until that lands and a
   **new** MiMo pass (this auditor is burned). G2 not claimed.
+
+- **11/09 — parent audit SHIP-WITH-FIXES.** Report
+  `kalsa/KV-REUSE-PATCH-AUDIT-2026-09-11.md`. keep_prefix=0 + think split are
+  on disk (parent Jest 24/24 EXIT:0). Remaining must-fix: when split from
+  `modelEmittedText`, `content` must be `split.after` not UI-cleaned text.
+  LFM template concatenates `</think>` + content with no extra newline
+  (HF `chat_template.jinja`); current helper drops `\n\n` after think →
+  same class as `beb13d90`. Grok `798d29e6` fixing F4. No APK until that
+  is on disk. Device proof still S23 `KALSA_KVPREFIX` + `prompt_n`. G2 not
+  claimed.
