@@ -4465,3 +4465,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (EMA null). Unplugged 93 %, 30.4 °C. Quoted `quoted-rnllama.txt` /
   `quoted-kalsa.txt`. Report `XIAOMI-KV-REUSE-8be587c-2026-09-11.md`.
   All three phones now on `8be587c` with `n_common` = saved. G2 not claimed.
+
+- **11/09 — S23 8s / Jelly 16s after restore are new-token prefill, not
+  the 37s wipe.** S23 `prompt_n=232` / `promptMs=8137`; Jelly `317` /
+  `16304`. Facts+persona ride the last user message (`MEMORY_FACTS_ON_USER_TAIL`).
+  GPU prefill is G3. Xiaomi grok `4e432524`: HOME 45s lifecycle on
+  `8be587c` (was immediate dispose on `4b29466`). G2 not claimed.
