@@ -4319,11 +4319,19 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   longer hardcodes `hasTools=true`. Shared `promptEnvToolHashFields`. Save
   `reason:evicted` if keepStem missing after pool evict. `KALSA_SESSION` logs
   `stem`. Re-audit: leftover `!MEMORY_FACTS_ON_USER_TAIL` branch is dead while
-  the flag is true; kept for save/load symmetry. Device restore of this commit
-  not yet run. G2 not claimed.
+  the flag is true; kept for save/load symmetry. Device restore **PASS scoped**
+  on Jelly (next entry). G2 not claimed.
 
 - **11/09 — drawer testID + foreign-model session evict SHIP (`3431db4`).**
   `testID=drawer-conversation-{id}` (no layout change). `pickEvictionStems`
   drops other-model `.kvs` before same-model LRU; `keepStem` never evicted.
-  MiMo audit **SHIP** (legacy keepStem → pure LRU is correct, undocumented).
-  Parent Jest 6/6. No second APK until `2619db0` restore lands. G2 not claimed.
+  MiMo audit **SHIP**. Parent Jest 6/6. Next APK after this restore. G2 not claimed.
+
+- **11/09 02:38 — Jelly restore `2619db0` PASS scoped.** SHA
+  `0c45c496504e85dc4bb0c96ffb9560110f5ac59cd98d472455705ae6a5f78290`. After
+  `save ok:true tokens:2301`, force-stop, `load ok:true` 43 ms, `KVRESUME
+  resumable=1` hybrid. Continuation `KALSA_KVPREFIX n_common=2301` / `embd=2301`
+  `text_tokens=2606`, `promptMs=15034` (305 new tokens, ~20 tok/s on Jelly). Not
+  the S23 37 s full prefill. Extract then `n_common=2` `checkpoints=[2301]` —
+  same seq_rm/checkpoint hole as `beb13d90`. Report:
+  `RESTORE-2619db0-JELLY-EVIDENCE-2026-09-11.md`. G2 not claimed.

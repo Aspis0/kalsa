@@ -1,0 +1,14 @@
+09-10 22:38:08.055 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 22:38:12.463 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"load","ms":43,"ok":true,"tokensOnDisk":2301,"stem":"lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929","tokens":2301}
+09-10 22:38:12.463 I/ReactNativeJS( 1727): 'KALSA_KVDIAG', '{"n_past":2301,"tokens_on_disk":2301,"ok":true}'
+09-10 22:38:12.474 I/ReactNativeJS( 1727): 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 22:38:19.533 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"save","ms":156,"ok":true,"estimatedBytes":16975681.4296875,"usedTokens":2301,"stem":"lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929","tokens":2301,"hash":"3166278461","messageCount":2}
+09-10 22:38:19.534 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"save","ms":0,"ok":true,"estimatedBytes":16975681.4296875,"usedTokens":2301,"stem":"lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929","reason":"unchanged"}
+09-10 22:38:32.028 I/ReactNativeJS( 1727): 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'
+09-10 22:38:32.041 I/ReactNativeJS( 1727): 'KALSA_PREWARM', '{"match":false,"reason":"kv_holds_chat","prewarm":null,"send":"3586270056"}'
+09-10 22:38:32.078 W/RNLlama ( 1727): loadPrompt:471 KALSA_KVPREFIX embd=2301 text_tokens=2606 n_common=2301 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2942d0
+09-10 22:39:06.885 I/ReactNativeJS( 1727): KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":2716,"tokensEvaluated":2606,"tokensPredicted":109,"draftTokens":0,"draftAccepted":0,"promptMs":15034.229000000001,"predictedMs":19537.686,"predictedPerSecond":5.578961602719994,"contextFull":false,"interrupted":false,"ciswireFlags":6}
+09-10 22:39:07.109 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"save","ms":201,"ok":true,"estimatedBytes":20037353.65625,"usedTokens":2716,"stem":"lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929","tokens":2716,"hash":"2271356780","messageCount":4}
+09-10 22:39:07.213 W/RNLlama ( 1727): loadPrompt:471 KALSA_KVPREFIX embd=2716 text_tokens=209 n_common=2 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2942d0
+09-10 22:39:07.213 W/RNLlama ( 1727): loadPrompt:520 KALSA_KVDIVERGE n_common=2 shared_lo=0 embd_hi=14 text_hi=14 shared_ids=[124894 124899 ] embd_ids=[23630 207 2245 81 483 44874 20 445 6226 2462 13508 2335 ] text_ids=[5922 207 2245 81 445 35972 1114 482 717 43510 22 388 ]
+09-10 22:39:07.213 W/RNLlama ( 1727): loadPrompt:588 KALSA_KVDIAG n_common=2 total=209 search_max=2 checkpoints=[2301,]

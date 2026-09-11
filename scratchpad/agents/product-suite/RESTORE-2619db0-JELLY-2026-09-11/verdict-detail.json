@@ -1,0 +1,14 @@
+{
+  "load_ok": true,
+  "tokens": 2301,
+  "stem": "lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929",
+  "promptMs": 15034.229000000001,
+  "tokensEvaluated": 2606,
+  "tokensCached": 2716,
+  "tokensPredicted": 109,
+  "kvprefix": [
+    "KALSA_KVPREFIX embd=2301 text_tokens=2606 n_common=2301 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2942d0",
+    "KALSA_KVPREFIX embd=2716 text_tokens=209 n_common=2 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007d9d2942d0"
+  ],
+  "pass": false
+}

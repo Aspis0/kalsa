@@ -1,0 +1,5 @@
+09-10 22:38:08.055 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 22:38:12.456 W/RNLlama ( 1727): loadSession:108 KALSA_KVRESUME n_tokens=2301 pos_max=2300 mrope_media=0 is_recurrent=0 is_hybrid=1 n_swa=0 resumable=1
+09-10 22:38:12.463 I/ReactNativeJS( 1727): KALSA_SESSION {"op":"load","ms":43,"ok":true,"tokensOnDisk":2301,"stem":"lfm2_002e5-2_002e6b__conv-g1-m01-1789025137__71419929","tokens":2301}
+09-10 22:38:12.463 I/ReactNativeJS( 1727): 'KALSA_KVDIAG', '{"n_past":2301,"tokens_on_disk":2301,"ok":true}'
+09-10 22:38:12.474 I/ReactNativeJS( 1727): 'KALSA_PREWARM', '{"op":"skip","reason":"kv_holds_chat"}'

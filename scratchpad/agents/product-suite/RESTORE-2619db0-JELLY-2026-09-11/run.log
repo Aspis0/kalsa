@@ -1,0 +1,55 @@
+[r2619] start utc=2026-09-11T02:24:43Z
+[r2619] Pronto t=0s
+[r2619] turn1 share-send
+[r2619] share-send attempt 1/3: Dimmi solo la parola: pane.
+[r2619] share-send: Send attempt 1/3
+[r2619] node 'Send' NOT FOUND
+[r2619] tap 'Invia' at 426,805
+[r2619] share-send: submitted prev=5 count=5
+[r2619] start utc=2026-09-11T02:26:49Z
+[r2619] Pronto t=0s
+[r2619] turn1 share-send
+[r2619] share-send attempt 1/3: Dimmi solo la parola: pane.
+[r2619] share-send: Send attempt 1/3
+[r2619] node 'Send' NOT FOUND
+[r2619] tap 'Invia' at 426,805
+[r2619] share-send: submitted prev=5 count=5
+[r2619] WARN no telemetry turn1
+[r2619] force-stop after save
+[r2619] Pronto t=0s
+[r2619] turn2 continuation
+[r2619] share-send attempt 1/3: Dimmi solo: ok.
+[r2619] share-send: Send attempt 1/3
+[r2619] node 'Send' NOT FOUND
+[r2619] tap 'Invia' at 426,805
+[r2619] share-send: submitted prev=6 count=6
+[r2619] WARN no telemetry turn1
+[r2619] force-stop after save
+[r2619] Pronto t=0s
+[r2619] turn2 continuation
+[r2619] share-send attempt 1/3: Dimmi solo: ok.
+[r2619] share-send: Send attempt 1/3
+[r2619] node 'Send' NOT FOUND
+[r2619] tap 'Invia' at 426,805
+[r2619] share-send: submitted prev=6 count=6
+[r2619] WARN no telemetry turn2
+[r2619] verdict=FAIL
+[r2619] start utc=2026-09-11T02:35:42Z
+[r2619] Pronto t=0s
+[r2619] tap 'Nuova chat' at 436,171
+[r2619] turn1 share-send
+[r2619] share-send attempt 1/3: Dimmi solo la parola: pane.
+[r2619] share-send: Send attempt 1/3
+[r2619] node 'Send' NOT FOUND
+[r2619] tap 'Invia' at 426,805
+[r2619] share-send: submitted prev=6 count=6
+[r2619] save ok:true
+[r2619] force-stop after save
+[r2619] Pronto t=0s
+[r2619] turn2 continuation
+[r2619] share-send attempt 1/3: Dimmi solo: ok.
+[r2619] share-send: Send attempt 1/3
+[r2619] node 'Send' NOT FOUND
+[r2619] tap 'Invia' at 426,805
+[r2619] share-send: submitted prev=1 count=1
+[r2619] verdict=FAIL
