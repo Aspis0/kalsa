@@ -1,0 +1,25 @@
+{
+  "load_ok": true,
+  "load_reason": null,
+  "tokens": 1931,
+  "stem": null,
+  "promptMs": 377.159,
+  "tokensEvaluated": 1954,
+  "tokensCached": 2216,
+  "tokensPredicted": 261,
+  "n_common": 1931,
+  "kvprefix": [
+    "KALSA_KVPREFIX embd=1931 text_tokens=1954 n_common=1931 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb40000736e64e530"
+  ],
+  "rnllama_sample": [
+    "09-11 06:22:01.970 D/RNLlama ( 2193): Using /data/user/0/com.kalsa.app/app_rnllama-htp for HTP libraries",
+    "09-11 06:22:01.975 D/RNLlama ( 2193): Extracted HTP library: libggml-htp-v73.so",
+    "09-11 06:22:01.978 D/RNLlama ( 2193): Extracted HTP library: libggml-htp-v75.so",
+    "09-11 06:22:01.979 D/RNLlama ( 2193): Extracted HTP library: libggml-htp-v79.so",
+    "09-11 06:22:01.981 D/RNLlama ( 2193): Extracted HTP library: libggml-htp-v81.so",
+    "09-11 06:22:01.981 D/RNLlama ( 2193): Set ADSP_LIBRARY_PATH=/data/user/0/com.kalsa.app/app_rnllama-htp",
+    "09-11 06:22:02.066 I/RNLlama ( 2193): loadModel:667 Using n_parallel: 1 (enables up to 1 parallel slots)",
+    "09-11 06:22:02.066 I/RNLlama ( 2193): loadModel:690 kalsa moe stream: kalsa_moe disabled"
+  ],
+  "pass": true
+}

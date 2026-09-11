@@ -4416,3 +4416,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   recover `2/248` (different prompt). Parent quoted RNLlama lines in
   `quoted-rnllama.txt`. Report `S23-KV-REUSE-8be587c-2026-09-11.md`.
   G2 not claimed (Xiaomi force-stop restore still open).
+
+- **11/09 — Xiaomi force-stop restore PASS scoped on `4b29466`.** Serial
+  `:34651` (TLS). SHA `30253a56…` = `main@4b29466`, no sideload. Save
+  `ok:true tokens:1931` → force-stop Kalsa only → load `ok:true` 20 ms,
+  `KALSA_KVRESUME` hybrid resumable=1. Continuation `KALSA_KVPREFIX
+  n_common=1931` / `embd=1931` / `text_tokens=1954`, `promptMs=377`.
+  Parent quoted `kalsa-turn2.txt`. This APK still disposes on background
+  (share-send re-inits). Thinking 256. Unplugged 99 %, battery 37.2 °C
+  after the shot (gate 40 not hit). Report
+  `XIAOMI-G2-RESTORE-2026-09-11.md`. Not blanket G2 (old APK, one short
+  chat, not the `8be587c` KV-reuse build).
