@@ -4335,3 +4335,22 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   the S23 37 s full prefill. Extract then `n_common=2` `checkpoints=[2301]` —
   same seq_rm/checkpoint hole as `beb13d90`. Report:
   `RESTORE-2619db0-JELLY-EVIDENCE-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — S23 37s after restore is cold prefill, not decode.** APK `1807aad`
+  load `ok:true` tokens 1867 then next turn `tokensEvaluated=1890`
+  `promptMs=37724` ≈ 50 tok/s. Same cascade as Qwen CLI `beb13d90`: Jinja
+  `<think>` mismatch vs KV → partial `n_common` → hybrid `seq_rm` fail →
+  `llama_memory_clear`. Jelly user-turn on `2619db0` missed it (one fresh
+  assistant with `modelEmittedText` matched KV); extract-after-save on that
+  chat hit it (`n_common=2`, checkpoints `[2301]`). Grok recon:
+  `KV-REUSE-AFTER-LOAD-RECON-2026-09-11.md`. Native work stays in
+  `patches/llama.rn+0.12.8.patch` (no ggml-org / llama.rn PRs).
+
+- **11/09 — KV-reuse patch uncommitted; MiMo audit in flight.** Grok `798d29e6`
+  (no APK, no kalsallama push): JS `llamaHistoryAssistantFields` splits think
+  inner into `reasoning_content`; patch `recoverStateCheckpoint` picks
+  `n_tokens <= n_common`; seq_rm fail `keep_prefix=1` and does **not**
+  `llama_memory_clear`. Parent Jest 24/24 EXIT:0 (`modelEmittedText` +
+  `ciswireFlagsTelemetry`). Hostile audit Reviewer Doc `26d99d8d` running.
+  Do not cut APK until that audit. Drawer `3431db4` rides the same APK after.
+  G2 not claimed.
