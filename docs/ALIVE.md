@@ -4503,3 +4503,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Xiaomi-style 43 ms restore. Battery ~40.6 °C thermal 2. Parent quoted
   `unload.txt`. Report `S23-LIFECYCLE-8be587c-2026-09-11.md`. G2 not
   claimed.
+
+- **11/09 — S23 HOME reopen restore FAIL.** Chat had `save ok:true
+  tokens:2091` then `mark_prefix usedTokens:3154`. Unload still 46 s.
+  Reopen `load ok:false reason:meta_mismatch:stale_kv_completed_turn`
+  (`sessionPersistence.ts`: suffix has a completed assistant the KV
+  never saw). User-turn `n_common=1829` = static prewarm, not 2091.
+  HOME-entry save was `kv_not_chat` (extract held the context). Parent
+  quoted `logcat-reopen2.txt:8526`. Report
+  `S23-LIFECYCLE-8be587c-RESTORE-2026-09-11.md`. G2 not claimed.
