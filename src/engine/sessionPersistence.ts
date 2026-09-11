@@ -577,19 +577,10 @@ export async function readPersistedHistoryLength(): Promise<number | null> {
 }
 
 /**
- * Load resumable predicate (non-mrope): `pos_max + 1 == n_tokens`.
- * Empty (`n_tokens=0`, `pos_max=-1`) is consistent. Longer memory is not.
- */
-export function sessionKvSnapshotIsConsistent(nTokens: number, posMax: number): boolean {
-  if (!Number.isFinite(nTokens) || !Number.isFinite(posMax) || nTokens < 0) {
-    return false;
-  }
-  return posMax + 1 === nTokens;
-}
-
-/**
- * Save-gate matching native: refuse when memory is longer than the token
- * list (`pos_max+1 > n_tokens`). Shorter memory is not this bug.
+ * Native save-refuse predicate for text (non-mrope): `pos_max+1 != n_tokens`.
+ * Empty (`0`, `-1`) is consistent. JS has no mrope flag — native additionally
+ * allows shorter memory only when mrope placeholders are present; longer
+ * memory is refused even for mrope.
  */
 export function sessionKvSaveWouldBeInconsistent(
   nTokens: number,
@@ -598,7 +589,20 @@ export function sessionKvSaveWouldBeInconsistent(
   if (!Number.isFinite(nTokens) || !Number.isFinite(posMax) || nTokens < 0) {
     return true;
   }
-  return posMax + 1 > nTokens;
+  return posMax + 1 !== nTokens;
+}
+
+/** Native chat KV is gone. A later save must not claim a live session. */
+export function chatKvHoldAfterNativeClear(): {
+  kvHoldsChatSession: false;
+  lastChatNPast: undefined;
+  chatKvDiskCurrent: false;
+} {
+  return {
+    kvHoldsChatSession: false,
+    lastChatNPast: undefined,
+    chatKvDiskCurrent: false,
+  };
 }
 
 /** Native throw "kv_inconsistent" — keep the previous .kvs, do not delete. */
@@ -609,6 +613,11 @@ export function sessionNativeErrorReason(error: unknown): string | null {
       : String(error ?? "");
   if (blob.includes("kv_inconsistent")) return "kv_inconsistent";
   return null;
+}
+
+/** Keep the .kvs on native kv_inconsistent; delete on any other load failure. */
+export function shouldDeleteSessionArtifactsOnLoadFailure(reason: string): boolean {
+  return reason !== "kv_inconsistent";
 }
 
 /**
@@ -623,8 +632,8 @@ export function sessionNativeErrorReason(error: unknown): string | null {
  * caller must not write the divergent live KV; hybrid/recurrent models may
  * otherwise lack a pre-divergence checkpoint and clear the cache on restore.
  *
- * Optional nTokens/posMax: when both are present, refuse an inconsistent
- * hybrid snapshot (`kv_inconsistent`) so the previous .kvs is not overwritten.
+ * Inconsistent hybrid snapshots are refused by the native save throw
+ * (`kv_inconsistent`), not by this gate.
  */
 export function shouldSaveSession(args: {
   hasContext: boolean;
@@ -632,8 +641,6 @@ export function shouldSaveSession(args: {
   kvHoldsChatSession: boolean;
   kvReproducible: boolean;
   kvDivergesAtLastExchange?: boolean;
-  nTokens?: number;
-  posMax?: number;
 }): { save: boolean; reason?: string; preservePrefix?: boolean } {
   if (!args.hasContext) return { save: false, reason: "no_context" };
   if (args.disposing) return { save: false, reason: "disposing" };
@@ -643,13 +650,6 @@ export function shouldSaveSession(args: {
       return { save: true, preservePrefix: true };
     }
     return { save: false, reason: "kv_not_reproducible" };
-  }
-  if (
-    args.nTokens !== undefined &&
-    args.posMax !== undefined &&
-    sessionKvSaveWouldBeInconsistent(args.nTokens, args.posMax)
-  ) {
-    return { save: false, reason: "kv_inconsistent" };
   }
   return { save: true };
 }

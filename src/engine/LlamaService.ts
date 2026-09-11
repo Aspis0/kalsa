@@ -152,6 +152,8 @@ import {
   SESSION_FORMAT_VERSION,
   buildKvDiagPayload,
   sessionNativeErrorReason,
+  chatKvHoldAfterNativeClear,
+  shouldDeleteSessionArtifactsOnLoadFailure,
   shouldSaveSession,
   writeSessionMeta,
   type SessionSaveFingerprint,
@@ -926,9 +928,7 @@ export function notifyStaticPrefixInputs(
       } catch {
         // best-effort; the following prewarm still evals the new prefix
       }
-      kvHoldsChatSession = false;
-      lastChatNPast = undefined;
-      chatKvDiskCurrent = false;
+      markChatKvCleared();
     });
     void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
   });
@@ -2095,6 +2095,12 @@ export function markKvNonReproducible(
   kvReproState = nextKvReproState(kvReproState, event);
 }
 
+/** Native chat KV is gone — a later save must not overwrite a kept .kvs. */
+function markChatKvCleared(): void {
+  ({ kvHoldsChatSession, lastChatNPast, chatKvDiskCurrent } =
+    chatKvHoldAfterNativeClear());
+}
+
 /** Record chat KV used tokens. 0 / non-finite clears (empty or unknown). */
 function noteChatNPast(value: unknown): void {
   if (typeof value === "number" && Number.isFinite(value) && value > 0) {
@@ -2591,6 +2597,7 @@ async function tryLoadEngineSession(
     tokensLoaded = result?.tokens_loaded;
     if (!sessionLoadHasTokens(result)) {
       bakedUserTails = [];
+      markChatKvCleared();
       await deleteSessionArtifacts(loadStem);
       log(false, { reason: "tokens_loaded:0" });
       return false;
@@ -2614,10 +2621,9 @@ async function tryLoadEngineSession(
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
     bakedUserTails = [];
+    markChatKvCleared();
     const reason = sessionErrorReason(error);
-    // Inconsistent hybrid snapshot: keep the .kvs. Wiping it is the
-    // tokens_loaded:0 cold start (Jelly 5927/6093, S23 collapsed chat).
-    if (reason !== "kv_inconsistent" && loadStem) {
+    if (shouldDeleteSessionArtifactsOnLoadFailure(reason) && loadStem) {
       await deleteSessionArtifacts(loadStem);
     }
     log(false, { reason });
@@ -2639,9 +2645,7 @@ export async function invalidateEngineSession(modelId: string): Promise<void> {
   return withEngineJob(async () => {
     try {
       if (activeModelId === modelId) {
-        kvHoldsChatSession = false;
-        lastChatNPast = undefined;
-        chatKvDiskCurrent = false;
+        markChatKvCleared();
         bakedUserTails = [];
       }
       if (conv) {
