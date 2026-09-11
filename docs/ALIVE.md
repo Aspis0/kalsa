@@ -4431,5 +4431,6 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
 - **11/09 — next G2 holes in flight.** S23 grok `798d29e6`: conversation-
   switch during extract on `8be587c` using `drawer-conversation-{id}`
   (was HARNESS_MISS on `1807aad`). Jelly grok `2544f6ed`: install
-  `8be587c` and re-check restore (`n_common`). Xiaomi stays on `4b29466`
-  (daily phone, no sideload). G2 not claimed.
+  `8be587c` and re-check restore (`n_common`). Owner: sideload the fix
+  on Xiaomi too — grok `4e432524` installing `8be587c` (SHA `52970eba…`)
+  with thermal gate, no file deletes. G2 not claimed.
