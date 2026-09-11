@@ -53,6 +53,39 @@ describe("pickEvictionStems", () => {
     ];
     expect(pickEvictionStems(files, 80, "keep")).toEqual(["a"]);
   });
+
+  test("evicts foreign-model files before same-model LRU", () => {
+    const keep = sessionStem("lfm2.5-2.6b", "c-keep", "env")!;
+    const sameOld = sessionStem("lfm2.5-2.6b", "c-old", "env")!;
+    const foreignNew = sessionStem("minicpm5-8b", "c-new", "env")!;
+    const foreignOld = sessionStem("minicpm5-8b", "c-old", "env")!;
+    const files = [
+      { stem: keep, bytes: 40, lastUsedAt: 10 },
+      { stem: sameOld, bytes: 40, lastUsedAt: 1 },
+      { stem: foreignNew, bytes: 50, lastUsedAt: 9 },
+      { stem: foreignOld, bytes: 50, lastUsedAt: 2 },
+    ];
+    // 180 used vs 80 budget: drop both MiniCPM5 (100) and stop. sameOld stays.
+    expect(pickEvictionStems(files, 80, keep)).toEqual([foreignOld, foreignNew]);
+    expect(pickEvictionStems(files, 80, keep)).not.toContain(keep);
+  });
+
+  test("same-model still LRU after foreign files are gone", () => {
+    const keep = sessionStem("lfm2.5-2.6b", "c-keep", "env")!;
+    const older = sessionStem("lfm2.5-2.6b", "c-older", "env")!;
+    const newer = sessionStem("lfm2.5-2.6b", "c-newer", "env")!;
+    const foreign = sessionStem("minicpm5-8b", "c-x", "env")!;
+    const files = [
+      { stem: keep, bytes: 40, lastUsedAt: 10 },
+      { stem: older, bytes: 40, lastUsedAt: 2 },
+      { stem: newer, bytes: 40, lastUsedAt: 8 },
+      { stem: foreign, bytes: 50, lastUsedAt: 9 },
+    ];
+    // 170 vs 80: foreign (50) then same-model older (40) → 80. newer stays.
+    expect(pickEvictionStems(files, 80, keep)).toEqual([foreign, older]);
+    expect(pickEvictionStems(files, 80, keep)).not.toContain(keep);
+    expect(pickEvictionStems(files, 80, keep)).not.toContain(newer);
+  });
 });
 
 describe("staleStemsForConversation", () => {
