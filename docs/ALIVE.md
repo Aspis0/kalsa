@@ -4485,3 +4485,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   on `8be587c`: conversation-switch during extract via
   `drawer-conversation-{id}` (was HARNESS_MISS on Jelly). S23 grok
   `798d29e6` still on HOME lifecycle. G2 not claimed.
+
+- **11/09 — S23 HOME lifecycle `8be587c` PASS (grace only).** SHA
+  `52970eba…`. HOME save `kv_not_chat` (no chat KV). `model.unload`
+  `graceMs:45000` at **46 s**. Not immediate dispose. Reopen: model gone
+  (expected after grace); `i14` `.kvs` was already `no_file` so no
+  Xiaomi-style 43 ms restore. Battery ~40.6 °C thermal 2. Parent quoted
+  `unload.txt`. Report `S23-LIFECYCLE-8be587c-2026-09-11.md`. G2 not
+  claimed.
