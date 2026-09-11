@@ -4512,3 +4512,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   HOME-entry save was `kv_not_chat` (extract held the context). Parent
   quoted `logcat-reopen2.txt:8526`. Report
   `S23-LIFECYCLE-8be587c-RESTORE-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — extract live-snapshot SHIP `31495c3`.** HOME meta write reverted
+  (would pair boot assistant with a short KV). Extract snapshots live
+  native first (`extractChatKvRestoreSource` snapshot > disk > none);
+  pooled stem, not `modelId`. `restoreNativeSession` notes `n_past`.
+  Parent Jest 15/15 EXIT:0. E2E `34604105740` + APK `34604104890` in
+  flight. S23 HOME reopen retest after that APK. G2 not claimed.
