@@ -4295,3 +4295,18 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   miss (`activeId` never left `conv-g1-m01`). Engine-change invalidation still
   has no second-APK proof (native identity inputs unchanged `095466e`→`c906727`).
   Recon of the vanished save is in flight (Explorer). G2 is not claimed.
+
+- **11/09 01:25 — conversation-switch during extract is HARNESS_MISS on S23.**
+  `activeId` stayed `conv-g1-i14-1789042691` after Menu/swipe+tap. EXTRACT `done`
+  because the switch never landed, not because cancel failed. Path untested, not
+  refuted. Report: `S23-SWITCH-EXTRACT-CANCEL-1807aad-2026-09-11.md`.
+
+- **11/09 recon — session `no_file` after `save ok:true`.** Parent verified:
+  load hash in `AppShell.tsx:3792` hardcodes `hasTools=true`; save hash in
+  `LlamaService.ts:3118` uses `hasTools && toolCallingEnabled`. F6 said they
+  must match. `no_file` means `staleDropped===0` (no kvs for that model+conv
+  under any env hash). Save logs `ok:true` only after `.kvs` rename **and**
+  after `evictSessionPool`. Explorer report:
+  `SESSION-NO-FILE-RECON-2026-09-11.md`. Skilled Coder grok-4.6 `798d29e6` is
+  unifying the hash and refusing to log save-ok if keepStem is gone. G2 not
+  claimed.
