@@ -4590,3 +4590,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Device retest owed: Jelly Interrompi+reopen must not stay at ~1833
   (`KALSA_SESSION window_align` / `KALSA_KVPREFIX`). `off`/ciswire
   `legacyWindowStart` still ungated. G2 not claimed.
+
+- **11/09 — off-mode clamp SHIP `c7801f9`.** Jelly `1d22dd1` FAIL: compaction
+  **off**, `n_common=1827/1837`, zero `window_align`. Clamp
+  `legacyWindowStart` to live KV `assembleBoundary` (legacy = 0). This
+  Jelly `.kvs` was full-transcript (`n_common=6038` at turn 5 on
+  `c498639`) so first send should match, not a one-turn guess. APK CI
+  `34647005878` queued. Retest: `window_align` from>0 to 0 and
+  `n_common` ≈ 6492; `KALSA_THINKING contextMode:"off"`. G2 not claimed.
