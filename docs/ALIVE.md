@@ -4397,3 +4397,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   ~32°C on AC, thermal 0. Lockscreen PIN not disabled (daily phone).
   Evidence `XIAOMI-G2-IDENTITY-2026-09-11.md`. Grok `4e432524` resumed
   to wait for a human unlock then run restore oneshot. G2 not claimed.
+
+- **11/09 ~12:00 — owner unlocked Xiaomi; CI APK green.** E2E
+  `34559340574` SUCCESS; APK `34559343621` SUCCESS, artifact
+  `kalsa-apk-arm64-v8a-debuggable-8be587c…` id `10184628653`. Xiaomi grok
+  `4e432524` told to reconnect `:37707` and run restore oneshot on the
+  **installed** `4b29466` (no sideload). S23 grok `798d29e6` told to
+  install `8be587c` and measure KV reuse (`KALSA_KVPREFIX` + `prompt_n`).
+  G2 not claimed.
