@@ -144,6 +144,8 @@ import {
   resolveSessionDiskTokens,
   sessionFileExists,
   sessionFilePath,
+  extractChatKvPaths,
+  extractChatKvRestoreSource,
   sessionHistoryPrefixAccepts,
   sessionLoadHasTokens,
   sessionMetaMismatchField,
@@ -4097,6 +4099,7 @@ async function restoreNativeSession(
     const result = await engine.loadSession(srcPath);
     tokensLoaded = result?.tokens_loaded;
     const ok = sessionLoadHasTokens(result);
+    if (ok) noteChatNPast(result?.tokens_loaded);
     log(ok, {
       tokens: typeof result?.tokens_loaded === "number" ? result.tokens_loaded : 0,
     });
@@ -4189,20 +4192,45 @@ export async function extractMemory(
           EXTRACT_MEMORY_PRESERVE_CHAT_KV &&
           kvHoldsChatSession &&
           engine === context;
+        // Pooled .kvs is sessionStem(model, conv, env), never the raw modelId
+        // (legacy per-model path). Looking up modelId missed the chat file,
+        // extract overwrote native KV, HOME saved kv_not_chat, reopen
+        // stale_kv_completed_turn (S23 8be587c).
+        const chatStem =
+          modelId != null
+            ? activeSessionStem(
+                modelId,
+                getSessionConversationId() ?? undefined,
+                lastPromptEnvHash,
+              )
+            : null;
 
         if (preserve) {
-          if (chatKvDiskCurrent && modelId && (await sessionFileExists(modelId))) {
-            restorePath = sessionFilePath(modelId);
-          } else if (modelId) {
-            tempPath = `${sessionFilePath(modelId)}.extract-ckpt`;
-            const snapped = await snapshotNativeSession(engine, tempPath);
-            if (snapped) {
-              restorePath = tempPath;
-            } else {
-              stopReason = "skipped_no_snapshot";
-            }
-          } else {
+          if (!chatStem) {
             stopReason = "skipped_no_snapshot";
+          } else {
+            const paths = extractChatKvPaths(chatStem);
+            const snapped = await snapshotNativeSession(engine, paths.snapshot);
+            const diskExists = await sessionFileExists(chatStem);
+            const source = extractChatKvRestoreSource({
+              snapshotOk: snapped,
+              diskExists,
+            });
+            if (source === "snapshot") {
+              tempPath = paths.snapshot;
+              restorePath = paths.snapshot;
+            } else {
+              try {
+                await FileSystem.deleteAsync(paths.snapshot, { idempotent: true });
+              } catch {
+                // ignore
+              }
+              if (source === "disk") {
+                restorePath = paths.disk;
+              } else {
+                stopReason = "skipped_no_snapshot";
+              }
+            }
           }
         } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
           try {
@@ -4280,6 +4308,8 @@ export async function extractMemory(
           kvHoldsChatSession = restored;
           if (!restored) {
             lastChatNPast = undefined;
+            chatKvDiskCurrent = false;
+          } else if (tempPath && restorePath === tempPath) {
             chatKvDiskCurrent = false;
           }
         } else {

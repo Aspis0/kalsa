@@ -15,10 +15,14 @@ jest.mock("expo-file-system/legacy", () => ({
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as FileSystem from "expo-file-system/legacy";
+import { sessionStem } from "./sessionKey";
 import {
   computeHistoryHashFromMessages,
+  extractChatKvPaths,
+  extractChatKvRestoreSource,
   markSessionDivergesAtLastExchange,
   readSessionMeta,
+  sessionFilePath,
   sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
@@ -112,6 +116,46 @@ describe("sessionHistoryPrefixAccepts", () => {
         { role: "user", text: "pending" },
       ]),
     ).toEqual({ accept: true });
+  });
+
+  test("rejects short KV meta paired with a completed-assistant boot", () => {
+    const userOnly = [{ role: "user", text: "ciao" }];
+    expect(
+      sessionHistoryPrefixAccepts(
+        {
+          historyHash: computeHistoryHashFromMessages(userOnly),
+          historyMessageCount: 1,
+        },
+        [...userOnly, { role: "assistant", text: "ciao!" }],
+      ),
+    ).toEqual({ accept: false, reason: "stale_kv_completed_turn" });
+  });
+});
+
+describe("extract chat KV restore", () => {
+  const modelId = "lfm2.5-2.6b";
+  const stem = sessionStem(modelId, "conv-g1-i14-1789042691", "71419929")!;
+
+  test("prefers live snapshot over an existing disk file", () => {
+    expect(
+      extractChatKvRestoreSource({ snapshotOk: true, diskExists: true }),
+    ).toBe("snapshot");
+  });
+
+  test("falls back to disk only when snapshot fails", () => {
+    expect(
+      extractChatKvRestoreSource({ snapshotOk: false, diskExists: true }),
+    ).toBe("disk");
+    expect(
+      extractChatKvRestoreSource({ snapshotOk: false, diskExists: false }),
+    ).toBe("none");
+  });
+
+  test("disk restore path is the pooled stem, not modelId", () => {
+    const paths = extractChatKvPaths(stem);
+    expect(paths.disk).toBe(sessionFilePath(stem));
+    expect(paths.snapshot).toBe(`${paths.disk}.extract-ckpt`);
+    expect(paths.disk).not.toBe(sessionFilePath(modelId));
   });
 });
 
