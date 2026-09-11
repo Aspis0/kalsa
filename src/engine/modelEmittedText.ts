@@ -4,6 +4,8 @@
  * No template-specific tokens — just replay whatever was produced.
  */
 
+import { THINK_CLOSE } from "./thinkStream";
+
 /** Named restore refusal: history cannot re-render the saved KV byte-for-byte. */
 export const HISTORY_NOT_REPRODUCIBLE = "history_not_reproducible";
 
@@ -21,6 +23,52 @@ export function promptContentForHistoryMessage(message: {
     return message.modelEmittedText;
   }
   return message.content;
+}
+
+export type LlamaHistoryAssistantFields = {
+  content: string;
+  reasoning_content?: string;
+};
+
+/**
+ * llama.rn Jinja re-emits `<think>` from `reasoning_content`, not from
+ * stuffing the raw span into `content` (that double-wraps or gets stripped).
+ * Inner think body only — no open/close tags.
+ */
+export function llamaHistoryAssistantFields(message: {
+  role: string;
+  content: string;
+  modelEmittedText?: string;
+}): LlamaHistoryAssistantFields {
+  if (message.role !== "assistant") {
+    return { content: message.content };
+  }
+  const emitted =
+    typeof message.modelEmittedText === "string" && message.modelEmittedText.length > 0
+      ? message.modelEmittedText
+      : undefined;
+  const source = emitted ?? message.content;
+  const split = splitClosedLeadingThink(source);
+  if (!split) {
+    return { content: emitted ?? message.content };
+  }
+  // Jinja is `think + content` with no extra separator. After-close bytes
+  // (e.g. `\n\n` before the answer) must stay on content or KV prefix-match dies.
+  return { reasoning_content: split.inner, content: split.after };
+}
+
+function splitClosedLeadingThink(
+  raw: string,
+): { inner: string; after: string } | null {
+  const leading = raw.match(/^[ \t\r\n]*<think>/);
+  if (!leading) return null;
+  const afterOpen = raw.slice(leading[0].length);
+  const closeIdx = afterOpen.indexOf(THINK_CLOSE);
+  if (closeIdx < 0) return null;
+  return {
+    inner: afterOpen.slice(0, closeIdx),
+    after: afterOpen.slice(closeIdx + THINK_CLOSE.length),
+  };
 }
 
 /**

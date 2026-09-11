@@ -2,7 +2,10 @@
  * Per-turn completion telemetry (counters + timings + optional tool metadata).
  *
  * WHY these fields:
- * - tokensCached vs tokensEvaluated: KV-cache health (reuse vs full re-eval).
+ * - prompt_n (timings.prompt_n / n_p_eval): tokens actually eval'd this
+ *   completion — the reuse metric. tokens_evaluated is prompt SIZE and
+ *   includes cache hits (see LlamaService emitTurnTelemetry).
+ * - tokensCached: n_past after the completion, not n_common.
  * - tokensPredicted: generation length; also a hidden-token detector when UI
  *   token count diverges from native predicted count.
  * - draftTokens / draftAccepted: multi-token prediction (MTP) acceptance rate.
@@ -116,12 +119,14 @@ export function isSuccessfulToolOutcome(result: {
 
 export type RoundTelemetry = {
   round: number;
-  tokensCached: number; // result.tokens_cached
-  tokensEvaluated: number; // result.tokens_evaluated (prompt tokens processed)
+  tokensCached: number; // result.tokens_cached (n_past after)
+  tokensEvaluated: number; // result.tokens_evaluated (prompt size, includes hits)
   tokensPredicted: number; // result.tokens_predicted
   draftTokens: number; // result.draft_tokens ?? 0
   draftAccepted: number; // result.draft_tokens_accepted ?? 0
   promptMs: number; // timings.prompt_ms ?? -1
+  /** timings.prompt_n; -1 when the native result omitted it. */
+  promptN: number;
   predictedMs: number; // timings.predicted_ms ?? -1
   predictedPerSecond: number; // timings.predicted_per_second ?? -1
   contextFull: boolean;
@@ -152,6 +157,7 @@ export type CompletionLikeResult = {
   interrupted?: boolean;
   timings?: {
     prompt_ms?: number;
+    prompt_n?: number;
     predicted_ms?: number;
     predicted_per_second?: number;
   } | null;
@@ -174,6 +180,7 @@ export function roundTelemetryFromResult(
     draftTokens: result.draft_tokens ?? 0,
     draftAccepted: result.draft_tokens_accepted ?? 0,
     promptMs: timings?.prompt_ms ?? -1,
+    promptN: typeof timings?.prompt_n === "number" ? timings.prompt_n : -1,
     predictedMs: timings?.predicted_ms ?? -1,
     predictedPerSecond: timings?.predicted_per_second ?? -1,
     contextFull: result.context_full ?? false,
@@ -187,10 +194,11 @@ export function roundTelemetryFromResult(
  * — NEVER user text or document paths.
  */
 export function formatTelemetryLine(turnId: string, r: RoundTelemetry): string {
-  const { ciswireFlags, ...telemetry } = r;
+  const { ciswireFlags, promptN, ...telemetry } = r;
   return `KALSA_TELEMETRY ${JSON.stringify({
     turnId,
     ...telemetry,
+    prompt_n: promptN,
     ...(ciswireFlags ? { ciswireFlags } : {}),
   })}`;
 }

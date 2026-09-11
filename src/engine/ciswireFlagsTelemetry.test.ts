@@ -8,6 +8,7 @@
 import { formatDigestLine } from "./digestTelemetry";
 import {
   formatTelemetryLine,
+  roundTelemetryFromResult,
   type RoundTelemetry,
 } from "./turnTelemetry";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
@@ -20,6 +21,7 @@ const baseRound: RoundTelemetry = {
   draftTokens: 0,
   draftAccepted: 0,
   promptMs: 100,
+  promptN: 20,
   predictedMs: 200,
   predictedPerSecond: 25,
   contextFull: false,
@@ -74,6 +76,29 @@ describe("ciswireFlags omission rule", () => {
     expect(
       payloadOf(formatDigestLine({ ...baseDigest, ciswireFlags: 0 })),
     ).not.toHaveProperty("ciswireFlags");
+  });
+
+  test("formatTelemetryLine emits prompt_n from RoundTelemetry.promptN", () => {
+    expect(payloadOf(formatTelemetryLine("t1", baseRound))).toHaveProperty(
+      "prompt_n",
+      20,
+    );
+    expect(payloadOf(formatTelemetryLine("t1", baseRound))).not.toHaveProperty(
+      "promptN",
+    );
+    expect(
+      payloadOf(formatTelemetryLine("t1", { ...baseRound, promptN: -1 })),
+    ).toHaveProperty("prompt_n", -1);
+  });
+
+  test("roundTelemetryFromResult reads timings.prompt_n", () => {
+    expect(
+      roundTelemetryFromResult(
+        { timings: { prompt_n: 23, prompt_ms: 37724 } },
+        0,
+      ).promptN,
+    ).toBe(23);
+    expect(roundTelemetryFromResult({}, 0).promptN).toBe(-1);
   });
 
   test("every formatter emits the raw bitmask when bits are set", () => {
