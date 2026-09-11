@@ -26,10 +26,11 @@ import {
   sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
-  sessionKvSnapshotIsConsistent,
   sessionKvSaveWouldBeInconsistent,
+  chatKvHoldAfterNativeClear,
   sessionMetaKey,
   sessionNativeErrorReason,
+  shouldDeleteSessionArtifactsOnLoadFailure,
   shouldSaveSession,
   writeSessionMeta,
   type SessionMeta,
@@ -241,30 +242,11 @@ describe("shouldSaveSession", () => {
 });
 
 describe("hybrid snapshot consistency", () => {
-  const common = {
-    hasContext: true,
-    disposing: false,
-    kvHoldsChatSession: true,
-    kvReproducible: true,
-  };
-
-  test("pos_max+1 must equal n_tokens", () => {
-    expect(sessionKvSnapshotIsConsistent(5927, 5926)).toBe(true);
-    expect(sessionKvSnapshotIsConsistent(5927, 6093)).toBe(false);
-    expect(sessionKvSnapshotIsConsistent(0, -1)).toBe(true);
-    expect(sessionKvSnapshotIsConsistent(0, 0)).toBe(false);
-  });
-
-  test("save-gate refuses a longer hybrid snapshot", () => {
+  test("native save-refuse: pos_max+1 must equal n_tokens", () => {
     expect(sessionKvSaveWouldBeInconsistent(5927, 6093)).toBe(true);
     expect(sessionKvSaveWouldBeInconsistent(5927, 5926)).toBe(false);
     expect(sessionKvSaveWouldBeInconsistent(0, -1)).toBe(false);
-    expect(
-      shouldSaveSession({ ...common, nTokens: 5927, posMax: 6093 }),
-    ).toEqual({ save: false, reason: "kv_inconsistent" });
-    expect(
-      shouldSaveSession({ ...common, nTokens: 5927, posMax: 5926 }),
-    ).toEqual({ save: true });
+    expect(sessionKvSaveWouldBeInconsistent(5927, 5000)).toBe(true);
   });
 
   test("maps native kv_inconsistent throw to a stable reason", () => {
@@ -277,5 +259,24 @@ describe("hybrid snapshot consistency", () => {
     expect(sessionNativeErrorReason(new Error("Failed to load session"))).toBe(
       null,
     );
+  });
+
+  test("load failure keeps the .kvs only for kv_inconsistent", () => {
+    expect(shouldDeleteSessionArtifactsOnLoadFailure("kv_inconsistent")).toBe(
+      false,
+    );
+    expect(shouldDeleteSessionArtifactsOnLoadFailure("tokens_loaded:0")).toBe(
+      true,
+    );
+    expect(shouldDeleteSessionArtifactsOnLoadFailure("error:Error")).toBe(true);
+    expect(shouldDeleteSessionArtifactsOnLoadFailure("")).toBe(true);
+  });
+
+  test("native clear drops chat-KV hold so save cannot overwrite a kept file", () => {
+    expect(chatKvHoldAfterNativeClear()).toEqual({
+      kvHoldsChatSession: false,
+      lastChatNPast: undefined,
+      chatKvDiskCurrent: false,
+    });
   });
 });
