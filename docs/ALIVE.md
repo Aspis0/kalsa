@@ -4307,6 +4307,7 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   must match. `no_file` means `staleDropped===0` (no kvs for that model+conv
   under any env hash). Save logs `ok:true` only after `.kvs` rename **and**
   after `evictSessionPool`. Explorer report:
-  `SESSION-NO-FILE-RECON-2026-09-11.md`. Skilled Coder grok-4.6 `798d29e6` is
-  unifying the hash and refusing to log save-ok if keepStem is gone. G2 not
-  claimed.
+  `SESSION-NO-FILE-RECON-2026-09-11.md`. Hash unify is on disk uncommitted
+  (`promptEnvToolHashFields`, AppShell load matches save, save `reason:evicted`
+  if keepStem missing after pool evict). Targeted Jest 19/19. MiMo audit
+  `66770bda` in flight. G2 not claimed.
