@@ -1,0 +1,42 @@
+{
+  "verdict": "PASS",
+  "reason": "aborted_by_send_native",
+  "home_utc": "2026-09-11T01:09:46Z",
+  "memory": {
+    "memoryEnabled": 1,
+    "factsExtracted": -1,
+    "factsStored": -1,
+    "factsRejectedFull": -1,
+    "factsInjected": 0,
+    "totalFactsInStore": -1,
+    "dnaDeferred": 0,
+    "dnaInjected": 0,
+    "dnaBudgetTokens": 1200,
+    "extractParseOutcome": -1,
+    "extractGateSource": -1,
+    "extractStopReason": -1,
+    "ciswireFlags": 3
+  },
+  "extract": {
+    "memoryEnabled": 1,
+    "factsExtracted": 0,
+    "factsStored": 0,
+    "factsRejectedFull": 0,
+    "factsInjected": -1,
+    "totalFactsInStore": 0,
+    "dnaDeferred": -1,
+    "dnaInjected": -1,
+    "dnaBudgetTokens": -1,
+    "extractParseOutcome": 0,
+    "extractGateSource": 1,
+    "extractStopReason": 0,
+    "ciswireFlags": 3,
+    "durationMs": 23123,
+    "timeoutMs": 20000,
+    "stopReason": "aborted_by_send"
+  },
+  "native_line": "09-10 21:10:08.606 20315 20338 I ReactNativeJS: KALSA_TELEMETRY {\"turnId\":\"util-extractMemory-2\",\"round\":0,\"tokensCached\":226,\"tokensEvaluated\":229,\"tokensPredicted\":0,\"draftTokens\":0,\"draftAccepted\":0,\"promptMs\":23036.568,\"predictedMs\":0,\"predictedPerSecond\":0,\"contextFull\":false,\"interrupted\":true}",
+  "native_started": true,
+  "memory_line": "09-10 21:09:45.480 20315 20338 I ReactNativeJS: KALSA_MEMORY {\"memoryEnabled\":1,\"factsExtracted\":-1,\"factsStored\":-1,\"factsRejectedFull\":-1,\"factsInjected\":0,\"totalFactsInStore\":-1,\"dnaDeferred\":0,\"dnaInjected\":0,\"dnaBudgetTokens\":1200,\"extractParseOutcome\":-1,\"extractGateSource\":-1,\"extractStopReason\":-1,\"ciswireFlags\":3}",
+  "extract_line": "09-10 21:10:08.675 20315 20338 I ReactNativeJS: KALSA_MEMORY_EXTRACT {\"memoryEnabled\":1,\"factsExtracted\":0,\"factsStored\":0,\"factsRejectedFull\":0,\"factsInjected\":-1,\"totalFactsInStore\":0,\"dnaDeferred\":-1,\"dnaInjected\":-1,\"dnaBudgetTokens\":-1,\"extractParseOutcome\":0,\"extractGateSource\":1,\"extractStopReason\":0,\"ciswireFlags\":3,\"durationMs\":23123,\"timeoutMs\":20000,\"stopReason\":\"aborted_by_send\"}"
+}

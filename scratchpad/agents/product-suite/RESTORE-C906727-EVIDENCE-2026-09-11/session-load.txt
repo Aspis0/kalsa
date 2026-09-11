@@ -1,0 +1,2 @@
+09-10 21:12:51.054 I/ReactNativeJS(19070): KALSA_SESSION {"op":"init","no_extra_bufts":0}
+09-10 21:12:55.866 I/ReactNativeJS(19070): KALSA_SESSION {"op":"load","ms":23,"ok":false,"tokensOnDisk":0,"reason":"no_file"}

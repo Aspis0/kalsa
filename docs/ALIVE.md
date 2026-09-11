@@ -4278,3 +4278,20 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `20:46:46.393` pid 14192. Turn completed `interrupted:false` `predictedPerSecond:6.48`
   (above the 5 tok/s extended threshold). EMA unpublished so this send stayed short. Report:
   `EMA-WITHHOLD-JELLY-EVIDENCE-2026-09-11.md`. G2 is not claimed.
+
+- **11/09 01:10 — background-discard extract-cancel PASS scoped on S23.** HOME at
+  `01:09:46Z` after `KALSA_MEMORY` `21:09:45.480` → EXTRACT `21:10:08.675`
+  `stopReason:"aborted_by_send"` `extractGateSource:1` `extractStopReason:0`
+  `durationMs:23123`. Native `util-extractMemory-2` `interrupted:true`
+  `promptMs=23036`. Same `1807aad` hash, no reinstall. Parent verified quoted
+  lines. Report: `S23-BG-EXTRACT-CANCEL-1807aad-2026-09-11.md`. f99fe45 Nuova
+  chat + HOME are both PASS on S23; conversation-switch still unproven.
+
+- **11/09 01:12 — Jelly session restore on `c906727` is no_file, not reuse.**
+  `KALSA_SESSION load ok:false reason:no_file` at `21:12:55.866`. Active
+  `conv-g1-m01` has MiniCPM5 `.kvs` from 03:44 and **no** LFM stem, even though
+  the same process logged `save ok:true usedTokens:3305` at `21:07:53` (then
+  extract timeout). Conversation-switch during extract on Jelly was a harness
+  miss (`activeId` never left `conv-g1-m01`). Engine-change invalidation still
+  has no second-APK proof (native identity inputs unchanged `095466e`→`c906727`).
+  Recon of the vanished save is in flight (Explorer). G2 is not claimed.

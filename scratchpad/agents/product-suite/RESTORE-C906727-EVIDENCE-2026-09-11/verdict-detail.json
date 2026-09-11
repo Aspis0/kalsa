@@ -1,0 +1,9 @@
+{
+  "load_ok": false,
+  "tokensOnDisk": null,
+  "promptMs": null,
+  "tokensCached": null,
+  "tokensPredicted": null,
+  "interrupted": null,
+  "pass": false
+}
