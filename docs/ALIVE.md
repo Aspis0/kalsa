@@ -4388,3 +4388,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   restore after that APK. Xiaomi grok `4e432524` (main phone, charge
   overnight, thermal gate, no file deletes); `adb connect 192.168.1.193:5555`
   was connection refused at dispatch. G2 not claimed.
+
+- **11/09 — Xiaomi adb up, G2 blocked on PIN.** Wireless is TLS
+  `192.168.1.193:37707` not 5555. Xiaomi 14 HyperOS OS3.0.303, serial
+  `625689a2`. Installed Kalsa is **`main@4b29466`** (SHA `30253a56…`),
+  not the KV-reuse APK. Prefs were `dev-minicpm5-2b`; grok wrote
+  `lfm2.5-2.6b` with app stopped. MiniCPM5 files left on disk. Battery
+  ~32°C on AC, thermal 0. Lockscreen PIN not disabled (daily phone).
+  Evidence `XIAOMI-G2-IDENTITY-2026-09-11.md`. Grok `4e432524` resumed
+  to wait for a human unlock then run restore oneshot. G2 not claimed.
