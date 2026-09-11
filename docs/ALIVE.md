@@ -4354,3 +4354,17 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `ciswireFlagsTelemetry`). Hostile audit Reviewer Doc `26d99d8d` running.
   Do not cut APK until that audit. Drawer `3431db4` rides the same APK after.
   G2 not claimed.
+
+- **11/09 — keep_prefix REJECT (parent); grok fix in flight.** MiMo `26d99d8d`
+  finished twice without writing `KV-REUSE-PATCH-AUDIT-2026-09-11.md` and
+  without a verdict (looped on Jinja double-wrap). Parent verified on disk:
+  seq_rm fail + recover miss (extract `n_common=2`, checkpoints `[2301]`)
+  leaves `n_past=2` while KV still holds 2301 chat tokens, then
+  `nextToken` decodes a different prompt from `embd[n_past]`
+  (`rn-completion.cpp` ~581-590 then ~1115-1140). That is polluted hybrid
+  state, not a 2-token save. JS `visible.startsWith(THINK_OPEN) → {content:
+  emitted}` is the stuffing path the same file's comment forbids. Grok
+  `798d29e6` told to drop keep_prefix (recover-fail → `llama_memory_clear` +
+  `n_past=0`; keep `n_tokens <= n_common` + post-load boundary snapshots)
+  and always split a closed think span. No APK until that lands and a
+  **new** MiMo pass (this auditor is burned). G2 not claimed.
