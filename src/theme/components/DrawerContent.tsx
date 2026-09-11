@@ -182,6 +182,7 @@ export function DrawerContent({
             conversationItems.map((item) => (
               <Pressable
                 key={item.id}
+                testID={`drawer-conversation-${item.id}`}
                 onPress={item.onPress}
                 onLongPress={item.onLongPress}
                 delayLongPress={380}

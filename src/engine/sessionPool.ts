@@ -41,7 +41,11 @@ export type PoolFile = {
   lastUsedAt: number;
 };
 
-/** Oldest first, never the keep stem. Empty when already within budget. */
+function modelIdOfStem(stem: string): string | null {
+  return parseSessionStem(`${stem}.kvs`)?.modelId ?? null;
+}
+
+/** Foreign-model first, then oldest lastUsedAt. Never the keep stem. */
 export function pickEvictionStems(
   files: PoolFile[],
   budgetBytes: number,
@@ -51,10 +55,21 @@ export function pickEvictionStems(
   let remaining = 0;
   for (const f of files) remaining += Math.max(0, f.bytes);
   if (remaining <= budget) return [];
+  const keepModel = modelIdOfStem(keepStem);
+  const isForeign = (stem: string): boolean => {
+    if (keepModel == null) return false;
+    const model = modelIdOfStem(stem);
+    return model != null && model !== keepModel;
+  };
   const ordered = files
     .filter((f) => f.stem !== keepStem)
     .slice()
-    .sort((a, b) => a.lastUsedAt - b.lastUsedAt || a.stem.localeCompare(b.stem));
+    .sort((a, b) => {
+      const aForeign = isForeign(a.stem);
+      const bForeign = isForeign(b.stem);
+      if (aForeign !== bForeign) return aForeign ? -1 : 1;
+      return a.lastUsedAt - b.lastUsedAt || a.stem.localeCompare(b.stem);
+    });
   const evict: string[] = [];
   for (const f of ordered) {
     if (remaining <= budget) break;
