@@ -4577,3 +4577,16 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `n_common=1833` ≈ prewarm (JS history had the interrupted user line).
   P1: first 3 shorts `budget:512 decodeTokPerSec:null`. Tool skipped.
   Report `JELLY-P0-c498639-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — 1833 window/KV SHIP `1d22dd1` (code, not device).** Jelly
+  `c498639` post-Interrompi reopen was `n_common=1833` because anchored
+  `shouldRebuildAnchored` slid `boundaryIndex` while native KV still held
+  the full transcript. App `1d22dd1`: do not slide while chat KV is live;
+  persist `assembleBoundary` (legacy files = 0) and align on restore;
+  discard RAM+.kvs only on a real anchored slide; failed load drops hold;
+  tag the boundary with the assembled chat id. Calc-shaped turns force
+  the short thinking budget. DeepSeek **SHIP**. Parent Jest 61/61.
+  APK CI `34641301698` queued (`apk.yml` arm64 debuggable, `main`).
+  Device retest owed: Jelly Interrompi+reopen must not stay at ~1833
+  (`KALSA_SESSION window_align` / `KALSA_KVPREFIX`). `off`/ciswire
+  `legacyWindowStart` still ungated. G2 not claimed.
