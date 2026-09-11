@@ -4569,3 +4569,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `kv_inconsistent` this shot (`resumable=1`). Parent quoted `load-r1.txt`
   / `kvprefix-r1.txt`. Report `S23-P0-c498639-2026-09-11.md`. Jelly P0
   still in flight. G2 not claimed.
+
+- **11/09 — Jelly P0+P1 `c498639` PASS scoped.** SHA `60cfaede…`
+  hash_match. Healthy restore `n_common=5068` / `prompt_n=335`. Interrompi
+  + force-stop: `.kvs` kept (43675852 B), reopen load `ok:true` 6492
+  (not `tokens_loaded:0`, not file gone). Post-reopen user-turn
+  `n_common=1833` ≈ prewarm (JS history had the interrupted user line).
+  P1: first 3 shorts `budget:512 decodeTokPerSec:null`. Tool skipped.
+  Report `JELLY-P0-c498639-2026-09-11.md`. G2 not claimed.
