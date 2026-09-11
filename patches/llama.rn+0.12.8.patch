@@ -747,10 +747,10 @@ index 650349e..44056ed 100644
      }
  }
 diff --git a/node_modules/llama.rn/cpp/jsi/JSISession.h b/node_modules/llama.rn/cpp/jsi/JSISession.h
-index fa4cbad..8d31171 100644
+index 0000000..1111111 100644
 --- a/node_modules/llama.rn/cpp/jsi/JSISession.h
 +++ b/node_modules/llama.rn/cpp/jsi/JSISession.h
-@@ -45,6 +45,9 @@ namespace rnllama_jsi {
+@@ -45,6 +45,9 @@
          if (!ctx || !ctx->completion) {
              throw std::runtime_error("Context or completion not initialized");
          }
@@ -760,7 +760,7 @@ index fa4cbad..8d31171 100644
          if (ctx->slot_manager != nullptr) {
              // llama_state_load_file restores every sequence at once, which
              // would corrupt in-flight parallel slots
-@@ -54,8 +57,8 @@ namespace rnllama_jsi {
+@@ -54,8 +57,8 @@
          auto& embd = ctx->completion->embd;
  
          size_t n_token_count_out = 0;
@@ -771,7 +771,7 @@ index fa4cbad..8d31171 100644
               throw std::runtime_error("Failed to load session");
          }
          // Keep LLAMA_TOKEN_NULL media placeholders: they hold the positions of
-@@ -69,24 +72,32 @@ namespace rnllama_jsi {
+@@ -69,24 +72,32 @@
          // legitimately hold fewer time positions than placeholder tokens -
          // but only when placeholders are actually present; for a text-only
          // token list a lagging frontier can only mean an inconsistent file.
@@ -809,7 +809,7 @@ index fa4cbad..8d31171 100644
                  if (n_swa > 0 && !is_recurrent_or_hybrid) {
                      const llama_pos pos_min = llama_memory_seq_pos_min(kv, 0);
                      resumable = pos_min == 0 ||
-@@ -94,11 +105,33 @@ namespace rnllama_jsi {
+@@ -94,11 +105,38 @@
                  }
              }
          }
@@ -829,21 +829,26 @@ index fa4cbad..8d31171 100644
 +        // discarded and the whole prompt is re-prefilled ("no usable state
 +        // checkpoint (recurrent/hybrid/SWA), doing full cache clear"; measured
 +        // n_past=0 on a Xiaomi 14 and in CI run 31293842336 despite ok:true).
-+        // Registering it at embd.size() lets findStateCheckpoint adopt it:
-+        // n_common equals this length when the next prompt extends this exact
-+        // history, and search_max = min(n_common, total-1) then admits it.
-+        // Divergent re-renders simply fail the prefix compare and fall back to
-+        // the pre-patch behaviour. Media placeholders likewise: they never match
-+        // the text-only token list, so those sessions stay conservative.
++        // Registering it at embd.size() lets findStateCheckpoint adopt it
++        // when n_common equals this length (next prompt extends this history).
++        // Also snapshot message boundaries so a think-block diverge (n_common
++        // < full restored length) can still pick n_tokens <= n_common.
++        // Media placeholders never match a text-only list — those stay conservative.
 +        if (!embd.empty()) {
 +            ctx->completion->probeStateCache();
 +            ctx->completion->captureStateCheckpoint(embd, embd.size());
++            const auto bounds = ctx->completion->computeMessageBoundaries(embd, /*min_gap*/ 1);
++            for (llama_pos p : bounds) {
++                if (p > 0 && (size_t) p < embd.size()) {
++                    ctx->completion->captureStateCheckpoint(embd, (size_t) p);
++                }
++            }
 +        }
 +
          // Media identity for placeholder positions; absent for text-only or
          // legacy files (media is then conservatively reprocessed)
          ctx->setMediaHashes(embd.empty() ? std::vector<std::string>{}
-@@ -109,7 +142,7 @@ namespace rnllama_jsi {
+@@ -109,7 +147,7 @@
          text_tokens.reserve(embd.size());
          std::copy_if(embd.begin(), embd.end(), std::back_inserter(text_tokens),
                       [](llama_token t) { return t != LLAMA_TOKEN_NULL; });
@@ -852,7 +857,7 @@ index fa4cbad..8d31171 100644
  
          jsi::Object result(runtime);
          result.setProperty(runtime, "tokens_loaded", (double)embd.size());
-@@ -121,6 +154,9 @@ namespace rnllama_jsi {
+@@ -121,6 +159,9 @@
          if (!ctx || !ctx->completion) {
              throw std::runtime_error("Context or completion not initialized");
          }
@@ -862,7 +867,7 @@ index fa4cbad..8d31171 100644
          if (ctx->slot_manager != nullptr) {
              // The single-completion embd does not describe the parallel slots'
              // sequences; a whole-context save would be inconsistent
-@@ -139,7 +175,7 @@ namespace rnllama_jsi {
+@@ -139,7 +180,7 @@
          // failure in between can never pair stale hashes with the new file
          rnllama::write_state_meta(path, {});
  
@@ -870,7 +875,6 @@ index fa4cbad..8d31171 100644
 +        if (!llama_state_save_file(ctx->active_ctx(), path.c_str(), session_tokens.data(), save_size)) {
               throw std::runtime_error("Failed to save session");
          }
- 
 diff --git a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp b/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
 index aaab748..6b137d6 100644
 --- a/node_modules/llama.rn/cpp/jsi/RNLlamaJSI.cpp
@@ -1383,16 +1387,19 @@ index aaab748..6b137d6 100644
                      auto resultCallback = [contextId, callInvoker, runtimePtr](int32_t requestId, const std::vector<float>& embedding) {
                          auto callbacks = RequestManager::getInstance().getRequest(contextId, requestId);
 diff --git a/node_modules/llama.rn/cpp/rn-completion.cpp b/node_modules/llama.rn/cpp/rn-completion.cpp
-index a60bd15..817eab3 100644
+index 0000000..1111111 100644
 --- a/node_modules/llama.rn/cpp/rn-completion.cpp
 +++ b/node_modules/llama.rn/cpp/rn-completion.cpp
-@@ -8,4 +8,5 @@
+@@ -8,6 +8,7 @@
  #include <algorithm>
  #include <cstring>
  #include <cstdlib>
 +#include <cmath>
  #include <limits>
-@@ -18,2 +18,38 @@ namespace rnllama {
+ 
+ // Include multimodal support
+@@ -17,6 +18,42 @@
+ 
  namespace rnllama {
  
 +static bool benchRawTopProbs(
@@ -1431,7 +1438,10 @@ index a60bd15..817eab3 100644
 +    return true;
 +}
 +
-@@ -42,6 +42,7 @@ void llama_rn_context_completion::rewind() {
+ // Constructor
+ llama_rn_context_completion::llama_rn_context_completion(llama_rn_context* parent)
+     : parent_ctx(parent) {
+@@ -42,6 +79,7 @@
      parent_ctx->params.sampling.generation_prompt.clear();
      num_prompt_tokens = 0;
      num_tokens_predicted = 0;
@@ -1439,7 +1449,7 @@ index a60bd15..817eab3 100644
      num_draft_tokens = 0;
      num_draft_tokens_accepted = 0;
      resetGenerationTimings();
-@@ -178,7 +179,7 @@ void llama_rn_context_completion::captureStateCheckpoint() {
+@@ -178,7 +216,7 @@
  
  void llama_rn_context_completion::captureStateCheckpoint(
          const std::vector<llama_token> &seq, size_t n) {
@@ -1448,7 +1458,7 @@ index a60bd15..817eab3 100644
          return;
      }
      if (n == 0 || n > seq.size()) {
-@@ -193,7 +194,7 @@ void llama_rn_context_completion::captureStateCheckpoint(
+@@ -193,7 +231,7 @@
      }
  
      const size_t size = llama_state_seq_get_size_ext(
@@ -1457,7 +1467,7 @@ index a60bd15..817eab3 100644
      if (size == 0) {
          return;
      }
-@@ -228,7 +229,7 @@ void llama_rn_context_completion::captureStateCheckpoint(
+@@ -228,7 +266,7 @@
          return;
      }
      const size_t written = llama_state_seq_get_data_ext(
@@ -1466,7 +1476,7 @@ index a60bd15..817eab3 100644
          LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
      if (written == 0) {
          // Can fail under memory pressure; the old snapshot at this boundary
-@@ -273,10 +274,10 @@ int llama_rn_context_completion::findStateCheckpoint(
+@@ -273,33 +311,35 @@
  bool llama_rn_context_completion::recoverStateCheckpoint(
          const std::vector<llama_token> &target, size_t max_reuse,
          size_t total_tokens, llama_pos &n_past_out) {
@@ -1475,11 +1485,29 @@ index a60bd15..817eab3 100644
          return false;
      }
 -    auto * kv = llama_get_memory(parent_ctx->ctx);
+-    // Never select a full-prompt snapshot: one token must remain to evaluate,
+-    // and freeing it with a post-restore seq_rm(k-1) would roll back onto stale
+-    // rollback-ring state. A shorter snapshot leaves room by construction.
+-    const size_t search_max = total_tokens > 0 ? std::min(max_reuse, total_tokens - 1) : 0;
+-    const int ckpt_idx = findStateCheckpoint(target, search_max);
 +    auto * kv = llama_get_memory(parent_ctx->active_ctx());
-     // Never select a full-prompt snapshot: one token must remain to evaluate,
-     // and freeing it with a post-restore seq_rm(k-1) would roll back onto stale
-     // rollback-ring state. A shorter snapshot leaves room by construction.
-@@ -294,12 +295,12 @@ bool llama_rn_context_completion::recoverStateCheckpoint(
++    // Longest snapshot with n_tokens <= n_common (max_reuse). min(n_common,
++    // total-1) rejected a restore checkpoint of length n_common when
++    // n_common == total (exact match; one token reserved to eval).
++    const int ckpt_idx = findStateCheckpoint(target, max_reuse);
+     if (ckpt_idx < 0 || !restoreStateCheckpoint((size_t) ckpt_idx)) {
+         return false;
+     }
+-    const llama_pos k = (llama_pos) state_checkpoints[ckpt_idx].n_tokens();
++    llama_pos k = (llama_pos) state_checkpoints[ckpt_idx].n_tokens();
+     // Recurrent part is back at k; truncating the live attention prefix to k
+     // succeeds since nothing remains past k.
+     llama_memory_seq_rm(kv, 0, k, -1);
++    if (total_tokens > 0 && (size_t) k >= total_tokens) {
++        k = (llama_pos) total_tokens - 1;
++    }
+     n_past_out = k;
+     return true;
  }
  
  bool llama_rn_context_completion::restoreStateCheckpoint(size_t index) {
@@ -1494,7 +1522,7 @@ index a60bd15..817eab3 100644
          LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
      if (read == 0) {
          LOG_WARNING("state checkpoint restore failed (n_tokens=%zu)", c.n_tokens());
-@@ -362,7 +363,7 @@ std::vector<llama_pos> llama_rn_context_completion::computeMessageBoundaries(
+@@ -362,7 +402,7 @@
              continue;
          }
          // Whitespace between delimiters keeps the run open.
@@ -1503,7 +1531,7 @@ index a60bd15..817eab3 100644
          if (!piece.empty() && piece.find_first_not_of(" \t\r\n") == std::string::npos) {
              continue;
          }
-@@ -390,7 +391,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -390,7 +430,7 @@
      if (!has_media) {
          std::vector<llama_token> text_tokens;
          // Text-only path - use modified tokenization for encoder-decoder models
@@ -1512,7 +1540,7 @@ index a60bd15..817eab3 100644
          num_prompt_tokens = text_tokens.size();
  
          // LOG tokens
-@@ -427,6 +428,65 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -427,6 +467,65 @@
          // n_common = shared prefix with the live cache; it bounds how far a
          // checkpoint may be trusted.
          size_t n_common = is_enc_dec ? 0 : find_common_prefix_length(embd, text_tokens);
@@ -1578,7 +1606,7 @@ index a60bd15..817eab3 100644
          // A mem-shared MTP draft leaves stale speculative cells in the target's
          // SHARED KV window that upstream never cleans (TAG_KV_CACHE_SHARE_CELLS,
          // see initMTP). Reusing any prefix — even the plain seq_rm fast path —
-@@ -436,6 +496,22 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -436,6 +535,22 @@
          if (mtp_draft_mem_shared) {
              n_common = 0;
          }
@@ -1601,7 +1629,7 @@ index a60bd15..817eab3 100644
          n_past = (llama_pos) n_common;
  
          embd = text_tokens;
-@@ -446,7 +522,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -446,7 +561,7 @@
  
          // Manage KV cache
          probeStateCache();
@@ -1610,29 +1638,32 @@ index a60bd15..817eab3 100644
          if (mtp_draft_mem_shared) {
              llama_memory_clear(kv, false);  // drop the polluted shared window
          }
-@@ -459,6 +535,21 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -455,11 +570,23 @@
+         // Recurrent/hybrid/SWA: seq_rm fails beyond the rollback window; restore
+         // the longest matching snapshot and reprocess only the diverged tail.
+         if (!cache_remove_success) {
++            // Steal vs ggml-org/llama.cpp #20955 / #25592: seq_rm fails by
++            // design on hybrid. Restore nearest checkpoint with n_tokens <=
++            // n_common (user-turn 37s). Extract n_common=2 vs ckpt=2301 is an
++            // expected miss — then clear, do not keep a polluted prefix.
++            // mtp_draft_mem_shared still cleared the window above.
+             if (recoverStateCheckpoint(text_tokens, n_common, num_prompt_tokens, n_past)) {
                  LOG_INFO("restored state checkpoint: reusing %d/%zu prompt tokens",
                      n_past, num_prompt_tokens);
              } else {
-+                // Kalsa diag: name WHY recovery failed — n_common vs the snapshots
-+                // we hold. A restored-session checkpoint is longer than
-+                // search_max = min(n_common, total-1) and can never be picked,
-+                // so this line distinguishes "prompt diverged" (small n_common)
-+                // from "checkpoint unusable" (n_common large, sizes larger).
-+                {
-+                    std::string sizes;
-+                    for (const auto &c : state_checkpoints) {
-+                        sizes += std::to_string(c.n_tokens()) + ",";
-+                    }
-+                    LOG_WARNING("KALSA_KVDIAG n_common=%zu total=%zu search_max=%zu checkpoints=[%s]",
-+                        n_common, (size_t) num_prompt_tokens,
-+                        num_prompt_tokens > 0 ? std::min(n_common, (size_t) num_prompt_tokens - 1) : (size_t) 0,
-+                        sizes.c_str());
+-                LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
++                std::string sizes;
++                for (const auto &c : state_checkpoints) {
++                    sizes += std::to_string(c.n_tokens()) + ",";
 +                }
-                 LOG_WARNING("no usable state checkpoint (recurrent/hybrid/SWA model), doing full cache clear");
++                LOG_WARNING("KALSA_KVDIAG n_common=%zu total=%zu search_max=%zu checkpoints=[%s] keep_prefix=0",
++                    n_common, (size_t) num_prompt_tokens,
++                    n_common,
++                    sizes.c_str());
                  llama_memory_clear(kv, false);
                  clearStateCheckpoints();
-@@ -518,8 +609,8 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+                 n_past = 0;
+@@ -518,8 +645,8 @@
  
          LOG_VERBOSE("prompt ingested, n_past: %d, cached: %s, to_eval: %s",
              n_past,
@@ -1643,7 +1674,7 @@ index a60bd15..817eab3 100644
          );
      } else {
          // Multimodal path - process all media paths
-@@ -546,7 +637,7 @@ void llama_rn_context_completion::loadPrompt(const std::vector<std::string> &med
+@@ -546,7 +673,7 @@
                      n_eval = parent_ctx->params.n_batch;
                  }
  
@@ -1652,7 +1683,7 @@ index a60bd15..817eab3 100644
                  if (ret < 0) {
                      LOG_ERROR("Failed to encode token batch, code: %d, n_eval: %d, n_past_batch: %d", ret, n_eval, n_past_batch);
                      has_next_token = false;
-@@ -587,7 +678,8 @@ void llama_rn_context_completion::beginCompletion() {
+@@ -587,7 +714,8 @@
  void llama_rn_context_completion::beginCompletion(int chat_format, common_reasoning_format reasoning_format, const std::string &generation_prompt, const std::string &chat_parser) {
      // number of tokens to keep when resetting context
      n_remain = parent_ctx->params.n_predict;
@@ -1662,7 +1693,7 @@ index a60bd15..817eab3 100644
      resetGenerationTimings();
      is_predicting = true;
  
-@@ -626,9 +718,17 @@ void llama_rn_context_completion::updateGenerationTiming() {
+@@ -626,9 +754,17 @@
  }
  
  bool llama_rn_context_completion::shouldUseMTP() const {
@@ -1682,7 +1713,7 @@ index a60bd15..817eab3 100644
  }
  
  void llama_rn_context_completion::resetSpeculative() {
-@@ -662,7 +762,7 @@ void llama_rn_context_completion::initMTP() {
+@@ -662,7 +798,7 @@
  
      const auto n_mtp = parent_ctx->params.speculative.draft.n_max;
      if ((llama_model_is_recurrent(parent_ctx->model) || llama_model_is_hybrid(parent_ctx->model)) &&
@@ -1691,7 +1722,7 @@ index a60bd15..817eab3 100644
          throw std::runtime_error(
              "MTP for recurrent or hybrid models must be enabled when loading the model "
              "with speculative.type='draft-mtp' and speculative.n_max/spec_draft_n_max set");
-@@ -675,7 +775,7 @@ void llama_rn_context_completion::initMTP() {
+@@ -675,7 +811,7 @@
          throw std::runtime_error("failed to create MTP draft context");
      }
  
@@ -1700,7 +1731,7 @@ index a60bd15..817eab3 100644
      parent_ctx->params.speculative.draft.ctx_dft = spec_ctx.get();
  
      spec = common_speculative_init(parent_ctx->params.speculative, 1);
-@@ -683,14 +783,14 @@ void llama_rn_context_completion::initMTP() {
+@@ -683,14 +819,14 @@
          throw std::runtime_error("failed to initialize MTP speculative decoding");
      }
  
@@ -1717,7 +1748,7 @@ index a60bd15..817eab3 100644
          if (state_cache_enabled) {
              LOG_INFO("state cache disabled for this turn: mem-shared MTP draft "
                       "(shared-cell state restore is unsupported upstream)");
-@@ -717,7 +817,7 @@ void llama_rn_context_completion::evalMTPPrompt() {
+@@ -717,7 +853,7 @@
          spec_prompt.assign(embd.begin(), embd.end() - 1);
      }
  
@@ -1726,7 +1757,7 @@ index a60bd15..817eab3 100644
  
      // Reuse whatever prefix loadPrompt already left in the (shared) target
      // memory: it set n_past to the reused position. Decode only the diverged tail.
-@@ -748,7 +848,7 @@ void llama_rn_context_completion::evalMTPPrompt() {
+@@ -748,7 +884,7 @@
                               (llama_pos) (offset + i), { seq_id }, needs_logits);
          }
  
@@ -1735,7 +1766,7 @@ index a60bd15..817eab3 100644
          if (ret != 0) {
              // Memory holds only [0, offset); trim embd so a later prefix match
              // can't claim never-decoded cells (mirrors nextToken).
-@@ -807,7 +907,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -807,7 +943,7 @@
          ? parent_ctx->params.speculative.draft.n_max
          : std::max<int32_t>(0, remaining - 1);
      const int32_t n_draft_ctx = std::max<int32_t>(0, n_ctx - (int32_t) spec_n_past - 1);
@@ -1744,7 +1775,7 @@ index a60bd15..817eab3 100644
      const int32_t n_draft_limit = std::min<int32_t>(
          parent_ctx->params.speculative.draft.n_max,
          std::min<int32_t>(n_draft_remaining, std::min<int32_t>(n_draft_ctx, n_draft_batch)));
-@@ -840,7 +940,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -840,7 +976,7 @@
                           spec_n_past + (llama_pos) i + 1, { seq_id }, true);
      }
  
@@ -1753,7 +1784,7 @@ index a60bd15..817eab3 100644
      if (ret != 0) {
          throw std::runtime_error("failed to evaluate MTP target batch, ret=" + std::to_string(ret));
      }
-@@ -848,7 +948,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -848,7 +984,7 @@
          throw std::runtime_error("failed to process MTP target batch");
      }
  
@@ -1762,7 +1793,7 @@ index a60bd15..817eab3 100644
      if (accepted.empty()) {
          return false;
      }
-@@ -865,7 +965,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -865,7 +1001,7 @@
  
          completion_token_output output;
          output.tok = accepted[i];
@@ -1771,7 +1802,7 @@ index a60bd15..817eab3 100644
          spec_pending_tokens.push_back(std::move(output));
      }
  
-@@ -886,7 +986,7 @@ bool llama_rn_context_completion::refillMTPTokens() {
+@@ -886,7 +1022,7 @@
      spec_n_past += (llama_pos) accepted_count;
      n_past = spec_n_past;
  
@@ -1780,7 +1811,7 @@ index a60bd15..817eab3 100644
      common_context_seq_rm(spec_ctx.get(), seq_id, spec_n_past, -1);
  
      if (saw_eos) {
-@@ -951,7 +1051,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -951,7 +1087,7 @@
          const int n_left    = n_past - parent_ctx->params.n_keep - 1;
          const int n_discard = n_left/2;
  
@@ -1789,7 +1820,7 @@ index a60bd15..817eab3 100644
          llama_memory_seq_rm (kv, 0, parent_ctx->params.n_keep + 1            , parent_ctx->params.n_keep + n_discard + 1);
          llama_memory_seq_add(kv, 0, parent_ctx->params.n_keep + 1 + n_discard, n_past, -n_discard);
  
-@@ -1003,13 +1103,13 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1003,13 +1139,13 @@
          {
              n_eval = parent_ctx->params.n_batch;
          }
@@ -1805,13 +1836,16 @@ index a60bd15..817eab3 100644
              );
              // Trim embd to what the memory actually contains so a later prefix
              // match can't claim never-written cells.
-@@ -1050,13 +1150,32 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1047,8 +1183,22 @@
+     // seq_rm; otherwise the next ingest reprocesses it once and lays a boundary
+     // snapshot after it.
+ 
 -    const llama_vocab* vocab = llama_model_get_vocab(parent_ctx->model);
 +    const bool forced = bench_force_ids_enabled;
 +    const bool raw_probs_requested = bench_raw_probs > 0;
 +    result.raw_probs_requested = raw_probs_requested;
 +    result.forced = forced;
-+
+ 
 +    llama_context* active_ctx = parent_ctx != nullptr ? parent_ctx->active_ctx() : nullptr;
 +    const llama_model* active_model =
 +        active_ctx != nullptr ? llama_get_model(active_ctx) : nullptr;
@@ -1822,27 +1856,23 @@ index a60bd15..817eab3 100644
 +        has_next_token = false;
 +        return result;
 +    }
--
 +
      if (parent_ctx->params.n_predict == 0)
      {
          has_next_token = false;
-         result.tok = llama_vocab_eos(vocab);
+@@ -1056,28 +1206,56 @@
          return result;
      }
--
-+
+ 
 +    if (ctx_sampling == nullptr) {
 +        has_next_token = false;
 +        return result;
 +    }
 +
      startGenerationTiming();
--
-+
+ 
      {
          // out of user input, sample next token
-@@ -1063,7 +1182,28 @@ completion_token_output llama_rn_context_completion::nextToken()
          std::vector<llama_token_data> candidates;
 -        candidates.reserve(llama_vocab_n_tokens(vocab));
 +        candidates.reserve(n_vocab);
@@ -1856,7 +1886,7 @@ index a60bd15..817eab3 100644
 +        if (raw_probs_requested) {
 +            benchRawTopProbs(active_ctx, vocab, bench_raw_probs, result.raw_probs);
 +        }
-+
+ 
 +        llama_token new_token_id;
 +        if (forced) {
 +            const llama_token forced_token = bench_force_ids[bench_force_index];
@@ -1870,26 +1900,23 @@ index a60bd15..817eab3 100644
 +        } else {
 +            new_token_id = common_sampler_sample(ctx_sampling, active_ctx, -1);
 +        }
- 
++
          const int32_t n_probs = parent_ctx->params.sampling.n_probs;
 -        if (n_probs > 0) {
-+        if (n_probs > 0 && !forced) {
-@@ -1070,6 +1210,8 @@ completion_token_output llama_rn_context_completion::nextToken()
 -          llama_token_data_array cur_p = *common_sampler_get_candidates(ctx_sampling, true);
 -          for (size_t i = 0; i < std::min(cur_p.size, (size_t)n_probs); ++i)
 -          {
 -              result.probs.push_back({cur_p.data[i].id, cur_p.data[i].p});
--          }
--        }
++        if (n_probs > 0 && !forced) {
 +          llama_token_data_array * cur_p = common_sampler_get_candidates(ctx_sampling, true);
 +          if (cur_p != nullptr && cur_p->data != nullptr && cur_p->selected < cur_p->size) {
 +              for (size_t i = 0; i < std::min(cur_p->size, (size_t)n_probs); ++i)
 +              {
 +                  result.probs.push_back({cur_p->data[i].id, cur_p->data[i].p});
 +              }
-+          }
-+        }
-@@ -1077,7 +1219,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+           }
+         }
+ 
          if (llama_vocab_is_eog(vocab, new_token_id)) {
              has_next_token = false;
              stopped_eos = true;
@@ -1898,7 +1925,7 @@ index a60bd15..817eab3 100644
              return result;
          }
  
-@@ -1089,7 +1231,7 @@ completion_token_output llama_rn_context_completion::nextToken()
+@@ -1089,7 +1267,7 @@
              parent_ctx->tts_wrapper->next_token_uses_guide_token = (new_token_id == 198);
          }
          result.tok = new_token_id;
@@ -1907,7 +1934,7 @@ index a60bd15..817eab3 100644
  
          common_sampler_accept(ctx_sampling, result.tok, true);
          if (tg) {
-@@ -1143,7 +1285,11 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1143,7 +1321,11 @@
  {
      completion_token_output token_with_probs = nextToken();
  
@@ -1920,7 +1947,7 @@ index a60bd15..817eab3 100644
      generated_text += utf8_gate.feed(token_text);
  
      if (parent_ctx->isVocoderEnabled()) {
-@@ -1175,8 +1321,8 @@ completion_token_output llama_rn_context_completion::doCompletion()
+@@ -1175,8 +1357,8 @@
      }
  
      LOG_VERBOSE("next token, token: %s, token_text: %s, has_next_token: %d, n_remain: %d, num_tokens_predicted: %d, stopped_eos: %d, stopped_word: %d, stopped_limit: %d, stopping_word: %s",
@@ -1931,7 +1958,7 @@ index a60bd15..817eab3 100644
          has_next_token,
          n_remain,
          num_tokens_predicted,
-@@ -1214,10 +1360,10 @@ completion_chat_output llama_rn_context_completion::parseChatOutput(bool is_part
+@@ -1214,10 +1396,10 @@
  
  std::vector<float> llama_rn_context_completion::embedding(common_params &embd_params)
  {
@@ -1944,7 +1971,7 @@ index a60bd15..817eab3 100644
      if (!initSampling()) {
          throw std::runtime_error("Failed to initialize sampling");
      }
-@@ -1226,7 +1372,7 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1226,7 +1408,7 @@
      doCompletion();
      endCompletion();
  
@@ -1953,7 +1980,7 @@ index a60bd15..817eab3 100644
      if (!embd_params.embedding)
      {
          LOG_WARNING("embedding disabled, embedding: %s", embd_params.embedding);
-@@ -1234,11 +1380,11 @@ std::vector<float> llama_rn_context_completion::embedding(common_params &embd_pa
+@@ -1234,11 +1416,11 @@
      }
      float *data;
  
@@ -1968,7 +1995,7 @@ index a60bd15..817eab3 100644
      }
  
      if (!data) {
-@@ -1254,7 +1400,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1254,7 +1436,7 @@
      std::vector<float> scores;
  
      // Check if this model supports reranking (requires rank pooling type)
@@ -1977,7 +2004,7 @@ index a60bd15..817eab3 100644
      if (pooling_type != LLAMA_POOLING_TYPE_RANK) {
          throw std::runtime_error("reranking not supported, pooling_type: " + std::to_string(pooling_type));
      }
-@@ -1278,18 +1424,18 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1278,18 +1460,18 @@
  
          std::vector<llama_token> rerank_tokens = format_rerank_tokens(vocab, query_tokens, doc_tokens);
  
@@ -1999,7 +2026,7 @@ index a60bd15..817eab3 100644
              if (data) {
                  scores.push_back(data[0]); // For rank pooling, the score is the first (and only) dimension
              } else {
-@@ -1302,7 +1448,7 @@ std::vector<float> llama_rn_context_completion::rerank(const std::string &query,
+@@ -1302,7 +1484,7 @@
          endCompletion();
  
          // Clear KV cache again to prepare for next document or restore original state
@@ -2008,7 +2035,7 @@ index a60bd15..817eab3 100644
      }
  
      return scores;
-@@ -1321,7 +1467,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1321,7 +1503,7 @@
  
      is_predicting = true;
  
@@ -2017,7 +2044,7 @@ index a60bd15..817eab3 100644
      auto * model = parent_ctx->model;
      auto * mem = llama_get_memory(ctx);
  
-@@ -1357,7 +1503,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1357,7 +1539,7 @@
  
      llama_batch batch = llama_batch_init(n_kv_max, 0, 1);
  
@@ -2026,7 +2053,7 @@ index a60bd15..817eab3 100644
          const int32_t total = batch_ref.n_tokens;
          for (int32_t i = 0; i < total; i += n_batch_ref) {
              const int32_t n_tokens_step = std::min(n_batch_ref, total - i);
-@@ -1372,7 +1518,7 @@ std::string llama_rn_context_completion::bench(int pp, int tg, int pl, int nr) {
+@@ -1372,7 +1554,7 @@
                  batch_ref.logits   + i,
              };
  
@@ -2035,7 +2062,7 @@ index a60bd15..817eab3 100644
              if (ret != 0) {
                  LOG_ERROR("llama_decode() failed during benchmark, n_batch=%d ret=%d", n_batch_ref, ret);
                  return false;
-@@ -1547,7 +1693,7 @@ void llama_rn_context_completion::processMedia(
+@@ -1547,7 +1729,7 @@
          eraseStateCheckpointsAfter(n);
      };
      parent_ctx->mtmd_wrapper->processMedia(

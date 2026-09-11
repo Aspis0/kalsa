@@ -88,6 +88,7 @@ import {
 import { createThinkStreamCleaner } from "./thinkStream";
 import {
   historyWindowReproducesKv,
+  llamaHistoryAssistantFields,
   modelEmittedTextForVisibleReply,
   promptContentForHistoryMessage,
 } from "./modelEmittedText";
@@ -960,8 +961,6 @@ function emitTurnTelemetry(
 ): void {
   try {
     const r = roundTelemetryFromResult(result, round);
-    const promptN =
-      (result.timings as { prompt_n?: number } | null | undefined)?.prompt_n ?? 0;
     // Omitted when null so the JSON stays backward-compatible for rounds that
     // never ran a successful tool.
     if (attribution?.tool != null) r.tool = attribution.tool;
@@ -970,7 +969,7 @@ function emitTurnTelemetry(
     console.log(formatTelemetryLine(turnId, r));
     if (model != null) {
       // Feed prompt_n, not tokens_evaluated, so cache hits do not inflate speed.
-      recordPrefillSample(model.id, promptN, result.timings?.prompt_ms ?? -1);
+      recordPrefillSample(model.id, r.promptN > 0 ? r.promptN : 0, result.timings?.prompt_ms ?? -1);
       if (!r.interrupted) {
         recordDecodeSample(model.id, r.tokensPredicted, r.predictedMs);
       }
@@ -3113,14 +3112,16 @@ export async function streamAssistantTurn(
       typeof options.lastUserMessage === "string"
         ? options.lastUserMessage
         : (messages[userIndex]?.content ?? "");
-    let historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) =>
-      index === userIndex
-        ? buildUserMessage(message)
-        : {
-            role: message.role,
-            content: promptContentForHistoryMessage(message),
-          },
-    );
+    let historyMessages: RNLlamaOAICompatibleMessage[] = messages.map((message, index) => {
+      if (index === userIndex) return buildUserMessage(message);
+      if (message.role === "assistant") {
+        return { role: "assistant", ...llamaHistoryAssistantFields(message) };
+      }
+      return {
+        role: message.role,
+        content: promptContentForHistoryMessage(message),
+      };
+    });
     // Capture prompt-env hash from the same inputs the system prompt uses so a
     // later saveEngineSession can reject restores whose system prompt drifted.
     // Facts on the user tail are not part of that prefix — do not hash them.

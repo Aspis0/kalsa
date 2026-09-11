@@ -6,6 +6,7 @@
 import {
   HISTORY_NOT_REPRODUCIBLE,
   historyWindowReproducesKv,
+  llamaHistoryAssistantFields,
   modelEmittedTextForVisibleReply,
   normalizeModelEmittedTextForSave,
   promptContentForHistoryMessage,
@@ -70,6 +71,53 @@ describe("promptContentForHistoryMessage", () => {
     expect(prompt).toBe("raw-emitted");
     expect(msg.content).toBe("visible");
     expect(msg.modelEmittedText).toBe("raw-emitted");
+  });
+});
+
+describe("llamaHistoryAssistantFields", () => {
+  test("splits a leading think span into reasoning_content, visible stays content", () => {
+    const fields = llamaHistoryAssistantFields({
+      role: "assistant",
+      content: "La memoria KV è una cache.",
+      modelEmittedText: "<think>\n\n</think>\n\nLa memoria KV è una cache.",
+    });
+    expect(fields.reasoning_content).toBe("\n\n");
+    expect(fields.content).toBe("\n\nLa memoria KV è una cache.");
+    expect(fields.content).not.toContain("<think>");
+    expect(fields.reasoning_content).not.toContain("<think>");
+  });
+
+  test("no think tags: content is the raw emission", () => {
+    const fields = llamaHistoryAssistantFields({
+      role: "assistant",
+      content: "visible",
+      modelEmittedText: "raw-emitted",
+    });
+    expect(fields.reasoning_content).toBeUndefined();
+    expect(fields.content).toBe("raw-emitted");
+  });
+
+  test("does not double-wrap when visible already starts with think", () => {
+    const raw = "<think>abc</think>\nHi";
+    const fields = llamaHistoryAssistantFields({
+      role: "assistant",
+      content: raw,
+      modelEmittedText: raw,
+    });
+    expect(fields.reasoning_content).toBe("abc");
+    expect(fields.content).toBe("\nHi");
+    expect(fields.content).not.toContain("<think>");
+    expect(fields.reasoning_content).not.toContain("<think>");
+  });
+
+  test("truncated think stays in content", () => {
+    const fields = llamaHistoryAssistantFields({
+      role: "assistant",
+      content: "",
+      modelEmittedText: "<think>unfinished",
+    });
+    expect(fields.reasoning_content).toBeUndefined();
+    expect(fields.content).toBe("<think>unfinished");
   });
 });
 
