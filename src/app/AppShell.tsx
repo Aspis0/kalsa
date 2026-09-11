@@ -160,8 +160,6 @@ import { EXTRACT_MEMORY_MIN_TIMEOUT_MS } from "../engine/extractBudget";
 import { getPlatformThermalHardGate } from "../engine/platformThermalStatus";
 import {
   computeHistoryHashFromMessages,
-  computePromptEnvHash,
-  memoryFactTextsForEnvHash,
   getBootHistoryHash,
   historyHash,
   readBootMessages,
@@ -169,6 +167,7 @@ import {
   setBootMessagesKey,
   setSessionConversationId,
 } from "../engine/sessionPersistence";
+import { computeSessionPromptEnvHash } from "../engine/sessionPromptEnv";
 import { formatDigestLine } from "../engine/digestTelemetry";
 import { formatMemoryLine } from "../memory/memoryTelemetry";
 import { createExtractAbort } from "../memory/extractAbort";
@@ -196,7 +195,6 @@ import { applyPersonaTail } from "../engine/personaTail";
 import {
   COMPACTION_ENABLED_DEFAULT,
   EAGER_ENGINE_INIT,
-  MEMORY_FACTS_ON_USER_TAIL,
   claimEagerKick,
   parseCompactionEnabled,
 } from "../engine/ttftFlags";
@@ -3788,31 +3786,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Facts on the user tail must not enter this hash or a new fact
       // cold-starts the entire KV prefix (MEMORY_FACTS_ON_USER_TAIL).
       const blockFormat = await getBlockFormat();
-      const toolNames = (agentOptions.tools ?? []).map((t) => t.function.name);
-      let sessionPromptEnvHash = computePromptEnvHash(
+      const sessionPromptEnvHash = await computeSessionPromptEnvHash({
         locale,
-        [],
-        true,
-        toolNames,
+        tools: agentOptions.tools,
+        executeTool: agentOptions.executeTool,
         blockFormat,
-      );
-      if (!MEMORY_FACTS_ON_USER_TAIL) {
-        try {
-          const enabled = await MemoryStore.getEnabled();
-          if (enabled) {
-            const facts = await MemoryStore.listFacts();
-            sessionPromptEnvHash = computePromptEnvHash(
-              locale,
-              memoryFactTextsForEnvHash(facts),
-              true,
-              toolNames,
-              blockFormat,
-            );
-          }
-        } catch {
-          // empty facts → match disabled / cold
-        }
-      }
+      });
       if (!stillCurrent()) {
         markChatReleased(chatGen);
         if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
@@ -4356,31 +4335,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
       const blockFormatDl = await getBlockFormat();
-      const toolNamesDl = (agentOptions.tools ?? []).map((t) => t.function.name);
-      let sessionPromptEnvHash = computePromptEnvHash(
+      const sessionPromptEnvHash = await computeSessionPromptEnvHash({
         locale,
-        [],
-        true,
-        toolNamesDl,
-        blockFormatDl,
-      );
-      if (!MEMORY_FACTS_ON_USER_TAIL) {
-        try {
-          const enabled = await MemoryStore.getEnabled();
-          if (enabled) {
-            const facts = await MemoryStore.listFacts();
-            sessionPromptEnvHash = computePromptEnvHash(
-              locale,
-              memoryFactTextsForEnvHash(facts),
-              true,
-              toolNamesDl,
-              blockFormatDl,
-            );
-          }
-        } catch {
-          // empty facts → match disabled / cold
-        }
-      }
+        tools: agentOptions.tools,
+        executeTool: agentOptions.executeTool,
+        blockFormat: blockFormatDl,
+      });
       if (!stillCurrent()) {
         markChatReleased(chatGenDl);
         if (chatGateGenRef.current === chatGenDl) chatGateGenRef.current = null;

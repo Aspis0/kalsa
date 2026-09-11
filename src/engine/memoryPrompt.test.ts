@@ -89,9 +89,8 @@ describe("computePromptEnvHash", () => {
     );
 
     // hasTools is a real input (was hardcoded true before the hash fix).
-    // Call sites that always wire tools still pass the literal true
-    // (AppShell ensureEngine / download path); streamAssistantTurn passes
-    // the live Boolean(tools?.length && executeTool).
+    // AppShell load and streamAssistantTurn save both use promptEnvToolHashFields
+    // so toolChoiceMode none hashes as hasTools false / empty names.
     expect(computePromptEnvHash("en", [], true)).not.toBe(
       computePromptEnvHash("en", [], false),
     );

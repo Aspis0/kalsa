@@ -167,6 +167,7 @@ import {
   legacySessionStem,
   modelFileIdFromInfo,
   promptEnvChangedFields,
+  promptEnvToolHashFields,
   sessionStem,
   type PromptEnvInputs,
 } from "./sessionKey";
@@ -2157,6 +2158,7 @@ export async function saveEngineSession(
     });
     let bytesPerToken: number | null = null;
     let estimatedBytes = usedTokens == null ? 0 : estimateSessionBytes(usedTokens);
+    let logStem: string | null = null;
     const log = (
       ok: boolean,
       extra?: Record<string, number | boolean | string>,
@@ -2170,6 +2172,7 @@ export async function saveEngineSession(
             ok,
             estimatedBytes,
             usedTokens: usedTokens ?? -1,
+            ...(logStem ? { stem: logStem } : {}),
             ...extra,
           })}`,
         );
@@ -2204,6 +2207,7 @@ export async function saveEngineSession(
         log(false, { reason: "no_session_key" });
         return false;
       }
+      logStem = stem;
       if (!activeModelFileId || !activeEngineBuild) {
         log(false, { reason: "session_identity_unavailable" });
         return false;
@@ -2360,6 +2364,14 @@ export async function saveEngineSession(
       } catch {
         // ignore
       }
+      await touchSessionUse(stem);
+      const budgetBytes = await readSessionPoolBudgetBytes();
+      await evictSessionPool(stem, budgetBytes);
+      await deleteLegacyModelSession(modelId);
+      if (!(await sessionFileExists(stem))) {
+        log(false, { reason: "evicted" });
+        return false;
+      }
       chatKvDiskCurrent = true;
       noteChatNPast(tokens);
       const successfulUsedTokens =
@@ -2370,10 +2382,6 @@ export async function saveEngineSession(
         { ...saveFingerprint, usedTokens: successfulUsedTokens },
         true,
       );
-      await touchSessionUse(stem);
-      const budgetBytes = await readSessionPoolBudgetBytes();
-      await evictSessionPool(stem, budgetBytes);
-      await deleteLegacyModelSession(modelId);
       log(true, {
         tokens: typeof tokens === "number" ? tokens : 0,
         hash: historyHashValue,
@@ -2422,6 +2430,7 @@ async function tryLoadEngineSession(
   const t0 = Date.now();
   let loadOk = false;
   let tokensLoaded: unknown;
+  let logStem: string | null = null;
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
     try {
       console.log(
@@ -2430,6 +2439,7 @@ async function tryLoadEngineSession(
           ms: Date.now() - t0,
           ok,
           tokensOnDisk: buildKvDiagPayload({ ok, tokensLoaded }).tokens_on_disk,
+          ...(logStem ? { stem: logStem } : {}),
           ...extra,
         })}`,
       );
@@ -2462,6 +2472,7 @@ async function tryLoadEngineSession(
       log(false, { reason: "no_session_key" });
       return false;
     }
+    logStem = stem;
     const staleDropped = convId
       ? await discardStaleConversationSessions(modelId, convId, envHash ?? "")
       : 0;
@@ -2493,6 +2504,7 @@ async function tryLoadEngineSession(
           return false;
         }
         loadStem = legacy;
+        logStem = legacy;
       }
     }
     const stored = await readSessionMeta(loadStem);
@@ -3113,10 +3125,15 @@ export async function streamAssistantTurn(
     // later saveEngineSession can reject restores whose system prompt drifted.
     // Facts on the user tail are not part of that prefix — do not hash them.
     const toolNames = (options?.tools ?? []).map((t) => t.function.name);
+    const hashedTools = promptEnvToolHashFields({
+      toolsWired: hasTools,
+      toolCallingEnabled,
+      toolNames,
+    });
     const promptEnvInputs: PromptEnvInputs = {
       locale,
-      hasTools: hasTools && toolCallingEnabled,
-      toolNames: toolCallingEnabled ? toolNames : [],
+      hasTools: hashedTools.hasTools,
+      toolNames: hashedTools.toolNames,
       blockFormat,
       facts: MEMORY_FACTS_ON_USER_TAIL
         ? []
