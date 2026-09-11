@@ -1,0 +1,1 @@
+09-11 08:46:55.547 28177 28203 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"util-extractMemory-4","round":0,"tokensCached":212,"tokensEvaluated":212,"tokensPredicted":0,"draftTokens":0,"draftAccepted":0,"promptMs":10712.139000000001,"predictedMs":0,"predictedPerSecond":0,"contextFull":false,"interrupted":true,"prompt_n":210}

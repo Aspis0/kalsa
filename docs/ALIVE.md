@@ -4472,6 +4472,16 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   GPU prefill is G3. Xiaomi grok `4e432524`: HOME 45s lifecycle on
   `8be587c` (was immediate dispose on `4b29466`). G2 not claimed.
 
+- **11/09 — Jelly extract-switch `8be587c` PASS scoped.** SHA `52970eba…`.
+  `activeId` `conv-g1-t11-1789031213` → `conv-g1-m01-1789025137` after
+  tap `drawer-conversation-conv-g1-m01-1789025137`. Extract
+  `util-extractMemory-4` `interrupted:true` `promptMs=10712`;
+  `KALSA_MEMORY_EXTRACT stopReason:"aborted_by_send"`
+  `extractStopReason:0` `durationMs=10902`. Thinking 512. Parent quoted
+  `before-activeId.txt` / `after-activeId.txt` / `kalsa-extract.txt`.
+  Prior Jelly path was HARNESS_MISS. Report
+  `JELLY-SWITCH-EXTRACT-8be587c-2026-09-11.md`. G2 not claimed.
+
 - **11/09 — Xiaomi HOME lifecycle `8be587c` PASS scoped.** SHA `52970eba…`.
   HOME does **not** dispose immediately (`4b29466` did). Save `ok:true`
   `08:12:07` then `model.unload` `graceMs:45000` at `08:13:18` (**~72 s**
