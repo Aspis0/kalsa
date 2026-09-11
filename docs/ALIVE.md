@@ -4544,3 +4544,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `n_common=1829/1827`. 14 healthy turns of 19 (thermal ≥40 °C). Tool
   **PASS** `device_calc`. Thinking 512 then **1024** after EMA ~8.8.
   Report `S23-G2-31495c3-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — G2 bugfix in flight (P0+P1).** Grok `798d29e6`: do not save
+  inconsistent hybrid KV (`pos_max+1 > n_tokens`); load must not
+  full-clear to `tokens_loaded:0` when `seq_rm` fails. Then EMA withhold
+  3→5 samples (Jelly 5.5 tok/s unlocked 1024). Tool-Jelly next. G2 not
+  claimed.
