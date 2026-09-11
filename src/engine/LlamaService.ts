@@ -2951,6 +2951,8 @@ export type StreamTurnOptions = EngineTurnOptions & {
   assembleBoundary?: number;
   /** Conversation id of the history being assembled (not the session bind). */
   assembleChatId?: string;
+  /** Product context regime for this turn (off | anchored | ciswire). */
+  contextMode?: "off" | "anchored" | "ciswire";
   /** Receives each settled completion's numeric decode sample for calibration. */
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
   /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
@@ -3162,6 +3164,7 @@ export async function streamAssistantTurn(
           budget: thinkingFields.thinking_budget_tokens ?? 0,
           decodeTokPerSec: speedOpts.decodeTokPerSec,
           forceShort: speedOpts.forceShort,
+          ...(options.contextMode ? { contextMode: options.contextMode } : {}),
         })}`,
       );
     } catch {

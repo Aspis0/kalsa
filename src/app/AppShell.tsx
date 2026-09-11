@@ -254,7 +254,10 @@ import * as MemoryStore from "../memory/MemoryStore";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import { RetrieverIndex } from "../context/retriever";
-import { decideAssembleWindowAction } from "../engine/windowKvInvariant";
+import {
+  assembleStartForLiveKv,
+  decideAssembleWindowAction,
+} from "../engine/windowKvInvariant";
 import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
@@ -5225,7 +5228,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             const historyLengths = validatedHistory.map(
               (m) => m.text?.length ?? 0,
             );
-            const legacyWindowStart = legacyWindowMode
+            let legacyWindowStart = legacyWindowMode
               ? windowStartIndex(
                   historyLengths,
                   {
@@ -5238,6 +5241,33 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   perMessageCap,
                 )
               : 0;
+            if (!anchoredOn) {
+              const kvHeld = chatKvIsHeld();
+              const loadedB = kvHeld
+                ? getLoadedAssembleBoundary(chatId)
+                : null;
+              const computedStart = legacyWindowStart;
+              legacyWindowStart = assembleStartForLiveKv({
+                mode: contextMode,
+                kvHeld,
+                loadedB,
+                computedStart,
+              });
+              if (loadedB !== null && computedStart !== legacyWindowStart) {
+                try {
+                  console.log(
+                    `KALSA_SESSION ${JSON.stringify({
+                      op: "window_align",
+                      from: computedStart,
+                      to: legacyWindowStart,
+                    })}`,
+                  );
+                } catch {
+                  // telemetry must never throw
+                }
+              }
+              boundaryForAssemble = legacyWindowStart;
+            }
             if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
 
@@ -5630,8 +5660,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 operativeContext,
                 lastUserMessage: text,
                 lastUserBare: lastUserHistoryContent,
-                assembleBoundary: boundaryForAssemble,
+                assembleBoundary: anchoredOn
+                  ? boundaryForAssemble
+                  : legacyWindowStart,
                 assembleChatId: chatId,
+                contextMode,
                 onDecodeSample: recordDecodeSample,
                 ciswireFlags: turnCiswireFlags || undefined,
               },
