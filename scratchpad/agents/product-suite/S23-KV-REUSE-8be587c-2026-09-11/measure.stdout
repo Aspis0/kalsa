@@ -1,0 +1,24 @@
+[s23-kv] build-and-measure utc=2026-09-11T10:18:02Z
+[s23-kv] logcat 54792 build
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[s23-kv] tap Invia 963,2115 utc=2026-09-11T10:18:11Z tag=b1
+[s23-kv] sent b1; wait tel+save (cold history prefill expected)
+[s23-kv] save ok:true elapsed=36s
+09-11 06:18:05.852 14075 14099 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":0,"ok":false,"estimatedBytes":0,"usedTokens":-1,"reason":"kv_not_chat"}
+09-11 06:18:48.001 14075 14099 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":54,"ok":true,"estimatedBytes":19334376.487867177,"usedTokens":2801,"stem":"lfm2_002e5-2_002e6b__conv-g1-i14-1789042691__71419929","tokens":2801,"hash":"14097640","messageCount":14}
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[s23-kv] tap Invia 963,2115 utc=2026-09-11T10:18:57Z tag=b2
+[s23-kv] sent b2; wait save
+[s23-kv] save2 ok
+09-11 06:18:52.186 14075 14099 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":1,"ok":true,"estimatedBytes":19334376.487867177,"usedTokens":2801,"stem":"lfm2_002e5-2_002e6b__conv-g1-i14-1789042691__71419929","reason":"unchanged"}
+09-11 06:18:52.187 14075 14099 I ReactNativeJS: KALSA_SESSION {"op":"save","ms":1,"ok":true,"estimatedBytes":19334376.487867177,"usedTokens":2801,"stem":"lfm2_002e5-2_002e6b__conv-g1-i14-1789042691__71419929","reason":"unchanged"}
+[s23-kv] force-stop after save
+[s23-kv] relaunch utc=2026-09-11T10:19:01Z
+[s23-kv] LOAD ok:true
+09-11 06:19:21.599 15335 15360 I ReactNativeJS: KALSA_SESSION {"op":"load","ms":97,"ok":true,"tokensOnDisk":2801,"stem":"lfm2_002e5-2_002e6b__conv-g1-i14-1789042691__71419929","tokens":2801}
+Warning: Activity not started, intent has been delivered to currently running top-most instance.
+[s23-kv] tap Invia 963,2115 utc=2026-09-11T10:19:34Z tag=m1
+[s23-kv] wait user-turn telemetry
+[s23-kv] got telemetry
+09-11 06:20:11.647 15335 15360 I ReactNativeJS: KALSA_TELEMETRY {"turnId":"1","round":0,"tokensCached":3329,"tokensEvaluated":3033,"tokensPredicted":295,"draftTokens":0,"draftAccepted":0,"promptMs":8137.356,"predictedMs":28589.246,"predictedPerSecond":10.318565239530976,"contextFull":false,"interrupted":false,"prompt_n":232,"ciswireFlags":3}
+[s23-kv] end utc=2026-09-11T10:20:14Z

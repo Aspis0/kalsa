@@ -4405,3 +4405,14 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   **installed** `4b29466` (no sideload). S23 grok `798d29e6` told to
   install `8be587c` and measure KV reuse (`KALSA_KVPREFIX` + `prompt_n`).
   G2 not claimed.
+
+- **11/09 — S23 KV-reuse `8be587c` PASS scoped.** SHA-256
+  `52970eba0d5e7d587ddc048878425f97af69ecd0708be09716886cf8f6b5fb6e`
+  local==installed. After save `tokens:2801` and force-stop: load
+  `ok:true` 97 ms, `KALSA_KVRESUME` hybrid resumable=1. User turn
+  `KALSA_KVPREFIX n_common=2801` / `embd=2801` / `text_tokens=3033`,
+  `KALSA_TELEMETRY prompt_n=232` `tokensEvaluated=3033` `promptMs=8137`.
+  Not the 37 s / 1890-token cold prefill. Extract `n_common=2` then
+  recover `2/248` (different prompt). Parent quoted RNLlama lines in
+  `quoted-rnllama.txt`. Report `S23-KV-REUSE-8be587c-2026-09-11.md`.
+  G2 not claimed (Xiaomi force-stop restore still open).
