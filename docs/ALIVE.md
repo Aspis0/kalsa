@@ -4321,3 +4321,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `stem`. Re-audit: leftover `!MEMORY_FACTS_ON_USER_TAIL` branch is dead while
   the flag is true; kept for save/load symmetry. Device restore of this commit
   not yet run. G2 not claimed.
+
+- **11/09 — drawer testID + foreign-model session evict SHIP (`3431db4`).**
+  `testID=drawer-conversation-{id}` (no layout change). `pickEvictionStems`
+  drops other-model `.kvs` before same-model LRU; `keepStem` never evicted.
+  MiMo audit **SHIP** (legacy keepStem → pure LRU is correct, undocumented).
+  Parent Jest 6/6. No second APK until `2619db0` restore lands. G2 not claimed.
