@@ -4607,3 +4607,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (`S23-1833-c7801f9-2026-09-11.md`): ciswire, no `window_align`,
   `n_common=1941` vs `embd=2357` (gap 416) at first-user/facts, not
   system prefix. Different hole. G2 not claimed.
+
+- **11/09 — S23 facts-diverge SHIP `2f2b09a` (code, not device).** Meta
+  `bakedUserTails` length 1 on a 10-message chat; first user in KV had
+  facts, prompt did not (`n_common=1941`). Keepers fill holes; identity
+  tails prevent a restore-discard loop; one in-stream discard if the
+  first prev user is still unprefixed; assemble tag re-seated after
+  discard. DeepSeek **SHIP**. APK CI `34654900939` queued. Retest: first
+  send may `window_slide`; next send `n_common` ≈ `embd`. G2 not claimed.
