@@ -60,6 +60,12 @@ export type SessionMeta = {
    * Payload only — ignored by sessionMetaMatches (historyHash is the gate).
    */
   bakedUserTails?: Array<{ bare: string; prefixed: string }>;
+  /**
+   * assembleEngineHistory start index this .kvs was saved against.
+   * Payload only — ignored by sessionMetaMatches. Missing on old files ≡ 0
+   * (full transcript).
+   */
+  assembleBoundary?: number;
 };
 
 /**
@@ -448,6 +454,22 @@ export function sessionMetaMismatchField(a: SessionMeta, b: SessionMeta): string
   return null;
 }
 
+/** Old files omit assembleBoundary → 0 (full transcript). */
+export function sessionAssembleBoundary(
+  meta: { assembleBoundary?: unknown } | null | undefined,
+): number {
+  const n = meta?.assembleBoundary;
+  if (
+    typeof n === "number" &&
+    Number.isInteger(n) &&
+    Number.isFinite(n) &&
+    n >= 0
+  ) {
+    return n;
+  }
+  return 0;
+}
+
 // ── Impure I/O (expo / AsyncStorage) ────────────────────────────────────────
 
 export function sessionsDirectory(): string {
@@ -715,6 +737,7 @@ export async function readSessionMeta(stem: string): Promise<SessionMeta | null>
       meta.divergesAtLastExchange = true;
     }
     if (Array.isArray(parsed.bakedUserTails)) meta.bakedUserTails = parsed.bakedUserTails;
+    meta.assembleBoundary = sessionAssembleBoundary(parsed);
     return meta;
   } catch {
     return null;

@@ -153,6 +153,7 @@ import {
   buildKvDiagPayload,
   sessionNativeErrorReason,
   chatKvHoldAfterNativeClear,
+  sessionAssembleBoundary,
   shouldDeleteSessionArtifactsOnLoadFailure,
   shouldSaveSession,
   writeSessionMeta,
@@ -192,7 +193,11 @@ import {
   type KvReproEvent,
   type KvReproState,
 } from "./kvReproducibility";
-import { resolveThinkingParams } from "./thinkingBudgets";
+import { resolveThinkingParams, thinkingSpeedOpts } from "./thinkingBudgets";
+import {
+  assembleBoundaryForAlign,
+  windowSlideDiscardModelId,
+} from "./windowKvInvariant";
 import { getModelById } from "./ModelRegistry";
 import type { ModelInfo } from "./ModelRegistry";
 import type { DecodeMeasurement } from "./deviceThroughput";
@@ -281,6 +286,9 @@ let activeSpecType: string | undefined;
  * start. Cleared on dispose / those utility clearCache paths.
  */
 let kvHoldsChatSession = false;
+/** Assemble start index of the live chat KV. Undefined when KV is not held. */
+let lastAssembleBoundary: number | undefined;
+let lastAssembleConvId: string | undefined;
 /**
  * Last known chat KV used-token count (n_past). llama.rn exposes this as
  * completion tokens_cached and loadSession tokens_loaded. Disk-gate input;
@@ -1093,6 +1101,68 @@ export function getActiveModelId(): string | null {
   return activeModelId;
 }
 
+export function chatKvIsHeld(): boolean {
+  return kvHoldsChatSession;
+}
+
+export function getLoadedAssembleBoundary(activeChatId: string): number | null {
+  return assembleBoundaryForAlign({
+    kvHeld: kvHoldsChatSession,
+    storedConv: lastAssembleConvId ?? "",
+    activeConv: activeChatId,
+    boundary: lastAssembleBoundary,
+  });
+}
+
+/**
+ * Anchored boundary will slide: delete the .kvs first, then clear RAM.
+ * True only if disk delete did not throw and (clearCache ran or there was
+ * no context). AppShell advances B only on true.
+ */
+export async function discardChatKvForWindowSlide(
+  modelId: string,
+): Promise<boolean> {
+  if (windowSlideDiscardModelId(modelId) == null) return false;
+  const conv = getSessionConversationId();
+  return withEngineJob(async () => {
+    let diskOk = false;
+    try {
+      if (conv) {
+        await deleteSessionsForModelConversation(modelId, conv);
+      } else {
+        await deleteLegacyModelSession(modelId);
+      }
+      diskOk = true;
+    } catch {
+      diskOk = false;
+    }
+    let ramOk = false;
+    try {
+      if (!context || disposing) {
+        ramOk = true;
+      } else {
+        await context.clearCache();
+        ramOk = true;
+      }
+    } catch {
+      ramOk = false;
+    }
+    const ok = diskOk && ramOk;
+    if (ok) {
+      markChatKvCleared();
+      bakedUserTails = [];
+    }
+    try {
+      console.log(
+        `KALSA_SESSION ${JSON.stringify({ op: "window_slide", kvCleared: ok })}`,
+      );
+    } catch {
+      // telemetry must never throw
+    }
+    return ok;
+  });
+}
+
 export function isEngineLostRecovery(modelId?: string): boolean {
   if (!engineLostRecoveryState.armed) return false;
   if (modelId === undefined) return true;
@@ -1903,6 +1973,8 @@ async function disposeEngineLocked(opts?: {
     kvHoldsChatSession = false;
     lastChatNPast = undefined;
     chatKvDiskCurrent = false;
+    lastAssembleBoundary = undefined;
+    lastAssembleConvId = undefined;
     kvReproState = nextKvReproState(kvReproState, "dispose");
     lastPromptEnvHash = undefined;
     lastCompletionPromptEnvHash = undefined;
@@ -2099,6 +2171,8 @@ export function markKvNonReproducible(
 function markChatKvCleared(): void {
   ({ kvHoldsChatSession, lastChatNPast, chatKvDiskCurrent } =
     chatKvHoldAfterNativeClear());
+  lastAssembleBoundary = undefined;
+  lastAssembleConvId = undefined;
 }
 
 /** Record chat KV used tokens. 0 / non-finite clears (empty or unknown). */
@@ -2334,6 +2408,7 @@ export async function saveEngineSession(
       if (BAKE_FORMAT_B_USER_PREFIX && bakedUserTails.length > 0) {
         meta.bakedUserTails = bakedUserTails;
       }
+      meta.assembleBoundary = lastAssembleBoundary ?? 0;
       // Meta after rename, before dropping .bak: a failed meta write must not
       // report success, and the .kvs without meta must not stay (F4).
       if (!(await writeSessionMeta(stem, meta))) {
@@ -2439,6 +2514,7 @@ async function tryLoadEngineSession(
 ): Promise<boolean> {
   const t0 = Date.now();
   let loadOk = false;
+  const heldChatKvAtEntry = kvHoldsChatSession;
   let tokensLoaded: unknown;
   let logStem: string | null = null;
   const log = (ok: boolean, extra?: Record<string, number | boolean | string>) => {
@@ -2605,6 +2681,8 @@ async function tryLoadEngineSession(
     kvHoldsChatSession = true;
     chatKvDiskCurrent = true;
     noteChatNPast(result?.tokens_loaded);
+    lastAssembleBoundary = sessionAssembleBoundary(stored);
+    lastAssembleConvId = convId ?? "";
     // Keep lastPromptEnvHash aligned with the restored KV for a later save.
     lastPromptEnvHash =
       stored.promptEnvHash ?? expected.promptEnvHash ?? lastPromptEnvHash;
@@ -2629,6 +2707,18 @@ async function tryLoadEngineSession(
     log(false, { reason });
     return false;
   } finally {
+    if (!loadOk) {
+      if (heldChatKvAtEntry && context && !disposing) {
+        try {
+          await context.clearCache();
+        } catch {
+          // still drop the hold so AppShell cannot align B to chat A's boundary
+        }
+      }
+      lastAssembleBoundary = undefined;
+      lastAssembleConvId = undefined;
+      markChatKvCleared();
+    }
     emitKvDiag();
   }
 }
@@ -2857,6 +2947,10 @@ export type StreamTurnOptions = EngineTurnOptions & {
    * attachment placeholder / unsliced).
    */
   lastUserBare?: string;
+  /** assembleEngineHistory start index for this turn (saved with the .kvs). */
+  assembleBoundary?: number;
+  /** Conversation id of the history being assembled (not the session bind). */
+  assembleChatId?: string;
   /** Receives each settled completion's numeric decode sample for calibration. */
   onDecodeSample?: (model: ModelInfo, sample: DecodeMeasurement) => void;
   /** CisWire feature bits for this turn's KALSA_TELEMETRY lines. */
@@ -2869,6 +2963,13 @@ export async function streamAssistantTurn(
   signal: AbortSignal | undefined,
   options: StreamTurnOptions,
 ): Promise<void> {
+  lastAssembleBoundary = sessionAssembleBoundary({
+    assembleBoundary: options.assembleBoundary,
+  });
+  lastAssembleConvId =
+    typeof options.assembleChatId === "string" && options.assembleChatId.length > 0
+      ? options.assembleChatId
+      : (getSessionConversationId() ?? "");
   // Entire turn (incl. tool rounds) is one FIFO engine job — no concurrent
   // completion with extractMemory / translateText. Tool executeTool stays
   // inside the lock but does not call completion, so no self-deadlock.
@@ -3044,17 +3145,23 @@ export async function streamAssistantTurn(
     const decodeTokPerSec = activeModel
       ? getDecodeTokPerSec(activeModel.id)
       : null;
+    const thinkingUserText =
+      typeof options.lastUserMessage === "string"
+        ? options.lastUserMessage
+        : "";
+    const speedOpts = thinkingSpeedOpts(decodeTokPerSec, thinkingUserText);
     const { fields: thinkingFields, nPredict } = resolveThinkingParams(
       thinkingMode,
       activeModel,
-      { decodeTokPerSec },
+      speedOpts,
     );
     try {
       console.log(
         `KALSA_THINKING ${JSON.stringify({
           turnId,
           budget: thinkingFields.thinking_budget_tokens ?? 0,
-          decodeTokPerSec,
+          decodeTokPerSec: speedOpts.decodeTokPerSec,
+          forceShort: speedOpts.forceShort,
         })}`,
       );
     } catch {

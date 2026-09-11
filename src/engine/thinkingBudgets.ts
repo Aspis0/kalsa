@@ -44,6 +44,42 @@ function withKwargs(
 }
 
 /**
+ * Calc/tool-shaped user turns: Jelly at 1024 thinking burned the budget
+ * then Interrompi with toolChoice:auto and zero tool_calls. Short budget
+ * so the model can still emit a call.
+ *
+ * + × * ÷ always. Minus and slash only with spaces ("18 - 7"), never dates
+ * ("2026-09-11", "12/25/2026"). Bare "x" is not multiply ("3x2").
+ */
+export function userTurnLooksLikeToolRequest(text: unknown): boolean {
+  if (typeof text !== "string") return false;
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  if (/\d+\s*[+×*÷]\s*\d/.test(t)) return true;
+  if (/\d+\s+[-/]\s+\d/.test(t)) return true;
+  if (/\d+\s*più\s*\d/.test(t)) return true;
+  if (
+    /\b(calcolatrice|calcolare|calcola|quanto fa|calculator|calculate|somma|moltiplica|dividi)\b/.test(
+      t,
+    )
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/** Speed opts LlamaService passes into resolveThinkingParams. */
+export function thinkingSpeedOpts(
+  decodeTokPerSec: number | null,
+  lastUserMessage: unknown,
+): { decodeTokPerSec: number | null; forceShort: boolean } {
+  return {
+    decodeTokPerSec,
+    forceShort: userTurnLooksLikeToolRequest(lastUserMessage),
+  };
+}
+
+/**
  * Map bench thinking mode → NativeCompletionParams fields.
  *
  * Every accepted mode keeps thinking enabled with a positive budget. The
@@ -58,7 +94,7 @@ function withKwargs(
 export function resolveThinkingParams(
   mode: ThinkingMode,
   model: ThinkingModel | null,
-  speed?: { decodeTokPerSec: number | null },
+  speed?: { decodeTokPerSec: number | null; forceShort?: boolean },
 ): { fields: ThinkingCompletionFields; nPredict: number } {
   const nPredict = Math.max(1024, model?.thinking?.nPredict ?? 1024);
   switch (mode) {
@@ -88,6 +124,7 @@ export function resolveThinkingParams(
     default:
       {
         const extended =
+          !speed?.forceShort &&
           speed?.decodeTokPerSec !== null &&
           speed?.decodeTokPerSec !== undefined &&
           speed.decodeTokPerSec >= EXTENDED_THINKING_MIN_DECODE_TOK_PER_SEC;
