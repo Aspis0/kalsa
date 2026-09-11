@@ -214,6 +214,7 @@ import {
   bakeTextContent,
   buildMemoryFactsBlock,
   commitBakedLastUser,
+  keepStillValidBakedTails,
   lastUserContent,
   parseBakedUserTails,
   prefixMessageContent,
@@ -1119,48 +1120,53 @@ export function getLoadedAssembleBoundary(activeChatId: string): number | null {
  * True only if disk delete did not throw and (clearCache ran or there was
  * no context). AppShell advances B only on true.
  */
-export async function discardChatKvForWindowSlide(
+async function discardChatKvForWindowSlideLocked(
   modelId: string,
 ): Promise<boolean> {
   if (windowSlideDiscardModelId(modelId) == null) return false;
   const conv = getSessionConversationId();
-  return withEngineJob(async () => {
-    let diskOk = false;
-    try {
-      if (conv) {
-        await deleteSessionsForModelConversation(modelId, conv);
-      } else {
-        await deleteLegacyModelSession(modelId);
-      }
-      diskOk = true;
-    } catch {
-      diskOk = false;
+  let diskOk = false;
+  try {
+    if (conv) {
+      await deleteSessionsForModelConversation(modelId, conv);
+    } else {
+      await deleteLegacyModelSession(modelId);
     }
-    let ramOk = false;
-    try {
-      if (!context || disposing) {
-        ramOk = true;
-      } else {
-        await context.clearCache();
-        ramOk = true;
-      }
-    } catch {
-      ramOk = false;
+    diskOk = true;
+  } catch {
+    diskOk = false;
+  }
+  let ramOk = false;
+  try {
+    if (!context || disposing) {
+      ramOk = true;
+    } else {
+      await context.clearCache();
+      ramOk = true;
     }
-    const ok = diskOk && ramOk;
-    if (ok) {
-      markChatKvCleared();
-      bakedUserTails = [];
-    }
-    try {
-      console.log(
-        `KALSA_SESSION ${JSON.stringify({ op: "window_slide", kvCleared: ok })}`,
-      );
-    } catch {
-      // telemetry must never throw
-    }
-    return ok;
-  });
+  } catch {
+    ramOk = false;
+  }
+  const ok = diskOk && ramOk;
+  if (ok) {
+    markChatKvCleared();
+    bakedUserTails = [];
+  }
+  try {
+    console.log(
+      `KALSA_SESSION ${JSON.stringify({ op: "window_slide", kvCleared: ok })}`,
+    );
+  } catch {
+    // telemetry must never throw
+  }
+  return ok;
+}
+
+export async function discardChatKvForWindowSlide(
+  modelId: string,
+): Promise<boolean> {
+  if (windowSlideDiscardModelId(modelId) == null) return false;
+  return withEngineJob(() => discardChatKvForWindowSlideLocked(modelId));
 }
 
 export function isEngineLostRecovery(modelId?: string): boolean {
@@ -3298,10 +3304,29 @@ export async function streamAssistantTurn(
     };
 
     let bakedMatched: BakedUserTail[] = [];
+    const bakeUserContents = historyMessages
+      .filter((m) => m.role === "user")
+      .map((m) => m.content);
+    const previousBaked = bakedUserTails;
     if (BAKE_FORMAT_B_USER_PREFIX) {
-      const baked = applyBakedUserTails(historyMessages, bakedUserTails);
+      const baked = applyBakedUserTails(historyMessages, previousBaked);
       historyMessages = baked.messages;
       bakedMatched = baked.matched;
+      if (baked.firstPrevUnprefixed && kvHoldsChatSession) {
+        const discarded = await discardChatKvForWindowSlideLocked(
+          activeModelId ?? "",
+        );
+        if (discarded) {
+          lastAssembleBoundary = sessionAssembleBoundary({
+            assembleBoundary: options.assembleBoundary,
+          });
+          lastAssembleConvId =
+            typeof options.assembleChatId === "string" &&
+            options.assembleChatId.length > 0
+              ? options.assembleChatId
+              : (getSessionConversationId() ?? "");
+        }
+      }
     }
 
     const systemText = buildSystemPrompt(
@@ -3357,6 +3382,7 @@ export async function streamAssistantTurn(
           bakedMatched,
           lastBare,
           bakeTextContent(lastPrefixedRaw),
+          keepStillValidBakedTails(previousBaked, bakeUserContents),
         );
       }
     }
