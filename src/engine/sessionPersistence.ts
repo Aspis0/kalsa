@@ -577,6 +577,41 @@ export async function readPersistedHistoryLength(): Promise<number | null> {
 }
 
 /**
+ * Load resumable predicate (non-mrope): `pos_max + 1 == n_tokens`.
+ * Empty (`n_tokens=0`, `pos_max=-1`) is consistent. Longer memory is not.
+ */
+export function sessionKvSnapshotIsConsistent(nTokens: number, posMax: number): boolean {
+  if (!Number.isFinite(nTokens) || !Number.isFinite(posMax) || nTokens < 0) {
+    return false;
+  }
+  return posMax + 1 === nTokens;
+}
+
+/**
+ * Save-gate matching native: refuse when memory is longer than the token
+ * list (`pos_max+1 > n_tokens`). Shorter memory is not this bug.
+ */
+export function sessionKvSaveWouldBeInconsistent(
+  nTokens: number,
+  posMax: number,
+): boolean {
+  if (!Number.isFinite(nTokens) || !Number.isFinite(posMax) || nTokens < 0) {
+    return true;
+  }
+  return posMax + 1 > nTokens;
+}
+
+/** Native throw "kv_inconsistent" — keep the previous .kvs, do not delete. */
+export function sessionNativeErrorReason(error: unknown): string | null {
+  const blob =
+    error instanceof Error
+      ? `${error.name} ${error.message}`
+      : String(error ?? "");
+  if (blob.includes("kv_inconsistent")) return "kv_inconsistent";
+  return null;
+}
+
+/**
  * Synchronous save-gate for native KV sessions (no I/O, no disk check).
  *
  * Ordering matches saveEngineSession's early returns so CI can grep the same
@@ -587,6 +622,9 @@ export async function readPersistedHistoryLength(): Promise<number | null> {
  * existing prefix file and mark it for one completed suffix exchange. The
  * caller must not write the divergent live KV; hybrid/recurrent models may
  * otherwise lack a pre-divergence checkpoint and clear the cache on restore.
+ *
+ * Optional nTokens/posMax: when both are present, refuse an inconsistent
+ * hybrid snapshot (`kv_inconsistent`) so the previous .kvs is not overwritten.
  */
 export function shouldSaveSession(args: {
   hasContext: boolean;
@@ -594,6 +632,8 @@ export function shouldSaveSession(args: {
   kvHoldsChatSession: boolean;
   kvReproducible: boolean;
   kvDivergesAtLastExchange?: boolean;
+  nTokens?: number;
+  posMax?: number;
 }): { save: boolean; reason?: string; preservePrefix?: boolean } {
   if (!args.hasContext) return { save: false, reason: "no_context" };
   if (args.disposing) return { save: false, reason: "disposing" };
@@ -603,6 +643,13 @@ export function shouldSaveSession(args: {
       return { save: true, preservePrefix: true };
     }
     return { save: false, reason: "kv_not_reproducible" };
+  }
+  if (
+    args.nTokens !== undefined &&
+    args.posMax !== undefined &&
+    sessionKvSaveWouldBeInconsistent(args.nTokens, args.posMax)
+  ) {
+    return { save: false, reason: "kv_inconsistent" };
   }
   return { save: true };
 }

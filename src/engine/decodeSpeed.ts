@@ -9,13 +9,13 @@ const MIN_ACCEPTED_PREDICTED_TOKENS = 16;
  * the value is withheld until this many accepted samples have landed for the
  * model, so a one-off fast turn cannot unlock extended thinking by itself.
  */
-export const MIN_SAMPLES_BEFORE_EMA = 3;
+export const MIN_SAMPLES_BEFORE_EMA = 5;
 
 type DecodeEma = { tokPerSec: number; samples: number };
 
 /**
  * In-memory only: a process restart resets the per-model sample count, so
- * thinking stays on the short budget until 3 accepted samples land again.
+ * thinking stays on the short budget until 5 accepted samples land again.
  * That cold-start withholding is intentional (owner rule: first measure →
  * short) and is deliberately not persisted.
  */
@@ -52,7 +52,7 @@ export function recordDecodeSample(
  * EMA tokens/s for a model, or null until at least
  * `MIN_SAMPLES_BEFORE_EMA` usable chat samples have been recorded. The count
  * lives in the in-memory map above, so after a process restart this returns
- * null again and extended thinking stays withheld until 3 fresh samples.
+ * null again and extended thinking stays withheld until 5 fresh samples.
  */
 export function getDecodeTokPerSec(modelId: string): number | null {
   const ema = emaByModel.get(modelId);

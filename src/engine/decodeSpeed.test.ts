@@ -11,10 +11,11 @@ describe("decodeSpeed", () => {
   });
 
   test("withholds the EMA until the minimum sample count is reached", () => {
-    recordDecodeSample("lfm", 16, 1000);
-    expect(getDecodeTokPerSec("lfm")).toBeNull();
-    recordDecodeSample("lfm", 16, 1000);
-    expect(getDecodeTokPerSec("lfm")).toBeNull();
+    expect(MIN_SAMPLES_BEFORE_EMA).toBe(5);
+    for (let i = 0; i < MIN_SAMPLES_BEFORE_EMA - 1; i += 1) {
+      recordDecodeSample("lfm", 16, 1000);
+      expect(getDecodeTokPerSec("lfm")).toBeNull();
+    }
     recordDecodeSample("lfm", 16, 1000);
     expect(getDecodeTokPerSec("lfm")).toBeCloseTo(16);
   });
@@ -45,6 +46,11 @@ describe("decodeSpeed", () => {
     recordDecodeSample("lfm", 16, 1000);
     recordDecodeSample("lfm", 16, 1000);
     recordDecodeSample("lfm", 15, 1000); // below floor: rejected
+    expect(getDecodeTokPerSec("lfm")).toBeNull();
+    // 2 accepted so far. One more would publish if the reject counted.
+    for (let i = 0; i < MIN_SAMPLES_BEFORE_EMA - 3; i += 1) {
+      recordDecodeSample("lfm", 16, 1000);
+    }
     expect(getDecodeTokPerSec("lfm")).toBeNull();
     recordDecodeSample("lfm", 16, 1000);
     expect(getDecodeTokPerSec("lfm")).toBeCloseTo(16);
