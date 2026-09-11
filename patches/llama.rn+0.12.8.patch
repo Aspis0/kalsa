@@ -867,7 +867,7 @@ index 0000000..1111111 100644
          if (ctx->slot_manager != nullptr) {
              // The single-completion embd does not describe the parallel slots'
              // sequences; a whole-context save would be inconsistent
-@@ -139,7 +180,7 @@
+@@ -139,6 +180,6 @@
          // failure in between can never pair stale hashes with the new file
          rnllama::write_state_meta(path, {});
  
