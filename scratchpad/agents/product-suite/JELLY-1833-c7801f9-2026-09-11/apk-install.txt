@@ -1,0 +1,13 @@
+utc=2026-09-11T21:52:52Z
+serial=JELLYS0000053795
+apk=/tmp/kalsa-apk-c7801f9/app-release.apk
+commit=c7801f9
+ci_run=34647005878
+local_sha256=4da49ee0bda8e32c838166147d379c23e673a462feb5fc5159b102aac7b2a975
+=== adb install -r -d ===
+Performing Streamed Install
+Success
+install_rc=0
+installed_path=/data/app/~~M-gmTpY9HM4mFVAKJ0FXnA==/com.kalsa.app-w0Xl_IF3Crp6B709iBvnJQ==/base.apk
+installed_sha256=4da49ee0bda8e32c838166147d379c23e673a462feb5fc5159b102aac7b2a975
+hash_match=true
