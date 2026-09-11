@@ -4527,3 +4527,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   recovery. Governor stays off (v0.3 lives on kalsallama branches
   `kalsa/governor-v0.3-on-*`, not the ship pin `gemm-f32-mul-q4k`
   `67c73d26`). Xiaomi not in the all-day lab. G2 not claimed.
+
+- **11/09 — Jelly `31495c3` slices (not G2 closed).** SHA `126e98c2…`
+  hash_match. Governor OFF. Short restore **PASS** `n_common=4020` /
+  `prompt_n=335` / `promptMs=20906`. Mix **8** finished Italian turns;
+  tool calc **incomplete** (1024 think, Interrompi, no `KALSA_TOOLCALL`).
+  EMA 5.51 unlocked 1024 mid-mix; after force-stop, 5 turns at 512
+  (EMA 3.3). Interrupted 1024 left `resumable=0` `tokens_loaded:0`;
+  recovered via prewarm 1832 / 60 s. Long restore **PASS** `n_common=5701`
+  / `prompt_n=335` / `promptMs=39595`. Doc library opened, no generate.
+  Report `JELLY-G2-31495c3-2026-09-11.md`. G2 not claimed.
