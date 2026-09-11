@@ -4480,3 +4480,8 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Unplugged 89→88 %, 32.0 °C. Parent quoted `logcat-until-recents.txt`
   / `logcat-reopen-turn.txt`. Report
   `XIAOMI-LIFECYCLE-8be587c-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — Jelly idle → extract-switch in flight.** Grok `2544f6ed`
+  on `8be587c`: conversation-switch during extract via
+  `drawer-conversation-{id}` (was HARNESS_MISS on Jelly). S23 grok
+  `798d29e6` still on HOME lifecycle. G2 not claimed.
