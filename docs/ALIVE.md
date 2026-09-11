@@ -4427,3 +4427,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   after the shot (gate 40 not hit). Report
   `XIAOMI-G2-RESTORE-2026-09-11.md`. Not blanket G2 (old APK, one short
   chat, not the `8be587c` KV-reuse build).
+
+- **11/09 — next G2 holes in flight.** S23 grok `798d29e6`: conversation-
+  switch during extract on `8be587c` using `drawer-conversation-{id}`
+  (was HARNESS_MISS on `1807aad`). Jelly grok `2544f6ed`: install
+  `8be587c` and re-check restore (`n_common`). Xiaomi stays on `4b29466`
+  (daily phone, no sideload). G2 not claimed.
