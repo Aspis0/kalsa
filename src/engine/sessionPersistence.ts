@@ -159,6 +159,24 @@ export function sessionFilePath(stem: string): string {
   return sessionFilePathForBase(FileSystem.documentDirectory ?? "", stem);
 }
 
+/** Snapshot of live native KV, then on-disk pooled .kvs if snapshot fails. */
+export type ExtractChatKvRestoreSource = "snapshot" | "disk" | "none";
+
+export function extractChatKvRestoreSource(args: {
+  snapshotOk: boolean;
+  diskExists: boolean;
+}): ExtractChatKvRestoreSource {
+  if (args.snapshotOk) return "snapshot";
+  if (args.diskExists) return "disk";
+  return "none";
+}
+
+/** Paths for extract checkpoint restore. `stem` is the pooled session stem. */
+export function extractChatKvPaths(stem: string): { disk: string; snapshot: string } {
+  const disk = sessionFilePath(stem);
+  return { disk, snapshot: `${disk}.extract-ckpt` };
+}
+
 /**
  * djb2 hash over UTF-16 code units (JS string indexing).
  * Returns unsigned 32-bit value as decimal string.
