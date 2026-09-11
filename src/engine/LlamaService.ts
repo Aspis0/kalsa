@@ -151,6 +151,7 @@ import {
   sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
   buildKvDiagPayload,
+  sessionNativeErrorReason,
   shouldSaveSession,
   writeSessionMeta,
   type SessionSaveFingerprint,
@@ -2069,6 +2070,8 @@ function emitEngineError(
 
 /** Telemetry-safe error tag (name/enum only — never message/path/user data). */
 function sessionErrorReason(error: unknown): string {
+  const native = sessionNativeErrorReason(error);
+  if (native) return native;
   const raw =
     error instanceof Error
       ? error.name || "Error"
@@ -2611,8 +2614,13 @@ async function tryLoadEngineSession(
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
     bakedUserTails = [];
-    if (loadStem) await deleteSessionArtifacts(loadStem);
-    log(false, { reason: sessionErrorReason(error) });
+    const reason = sessionErrorReason(error);
+    // Inconsistent hybrid snapshot: keep the .kvs. Wiping it is the
+    // tokens_loaded:0 cold start (Jelly 5927/6093, S23 collapsed chat).
+    if (reason !== "kv_inconsistent" && loadStem) {
+      await deleteSessionArtifacts(loadStem);
+    }
+    log(false, { reason });
     return false;
   } finally {
     emitKvDiag();

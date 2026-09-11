@@ -26,7 +26,10 @@ import {
   sessionMetaMismatchField,
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
+  sessionKvSnapshotIsConsistent,
+  sessionKvSaveWouldBeInconsistent,
   sessionMetaKey,
+  sessionNativeErrorReason,
   shouldSaveSession,
   writeSessionMeta,
   type SessionMeta,
@@ -234,5 +237,45 @@ describe("shouldSaveSession", () => {
     expect(
       shouldSaveSession({ ...common, kvReproducible: false }),
     ).toEqual({ save: false, reason: "kv_not_reproducible" });
+  });
+});
+
+describe("hybrid snapshot consistency", () => {
+  const common = {
+    hasContext: true,
+    disposing: false,
+    kvHoldsChatSession: true,
+    kvReproducible: true,
+  };
+
+  test("pos_max+1 must equal n_tokens", () => {
+    expect(sessionKvSnapshotIsConsistent(5927, 5926)).toBe(true);
+    expect(sessionKvSnapshotIsConsistent(5927, 6093)).toBe(false);
+    expect(sessionKvSnapshotIsConsistent(0, -1)).toBe(true);
+    expect(sessionKvSnapshotIsConsistent(0, 0)).toBe(false);
+  });
+
+  test("save-gate refuses a longer hybrid snapshot", () => {
+    expect(sessionKvSaveWouldBeInconsistent(5927, 6093)).toBe(true);
+    expect(sessionKvSaveWouldBeInconsistent(5927, 5926)).toBe(false);
+    expect(sessionKvSaveWouldBeInconsistent(0, -1)).toBe(false);
+    expect(
+      shouldSaveSession({ ...common, nTokens: 5927, posMax: 6093 }),
+    ).toEqual({ save: false, reason: "kv_inconsistent" });
+    expect(
+      shouldSaveSession({ ...common, nTokens: 5927, posMax: 5926 }),
+    ).toEqual({ save: true });
+  });
+
+  test("maps native kv_inconsistent throw to a stable reason", () => {
+    expect(sessionNativeErrorReason(new Error("kv_inconsistent"))).toBe(
+      "kv_inconsistent",
+    );
+    expect(
+      sessionNativeErrorReason(new Error("Failed to load session: kv_inconsistent")),
+    ).toBe("kv_inconsistent");
+    expect(sessionNativeErrorReason(new Error("Failed to load session"))).toBe(
+      null,
+    );
   });
 });
