@@ -2,7 +2,11 @@
  * Production thinking default + preserve_thinking capability.
  */
 
-import { resolveThinkingParams } from "./thinkingBudgets";
+import {
+  resolveThinkingParams,
+  thinkingSpeedOpts,
+  userTurnLooksLikeToolRequest,
+} from "./thinkingBudgets";
 
 const qwen = { thinking: { short: 256, extended: 512 } };
 const lfm = {
@@ -30,10 +34,58 @@ describe("resolveThinkingParams production default", () => {
     expect(fields.thinking_budget_tokens).toBe(budget);
   });
 
+  test("forceShort keeps the short budget even when EMA would extend", () => {
+    const { fields } = resolveThinkingParams("default", lfm, {
+      decodeTokPerSec: 11,
+      forceShort: true,
+    });
+    expect(fields.thinking_budget_tokens).toBe(512);
+  });
+
   test("null model: historical short 256, never budget 0", () => {
     const { fields } = resolveThinkingParams("default", null);
     expect(fields.enable_thinking).toBe(true);
     expect(fields.thinking_budget_tokens).toBe(256);
+  });
+});
+
+describe("userTurnLooksLikeToolRequest", () => {
+  test("detects calc-shaped turns", () => {
+    expect(userTurnLooksLikeToolRequest("calcolatrice 18+7")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("Quanto fa 2+2?")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("calcolare")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("somma 3 e 5")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("18 più 7")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("18 - 7")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("18 / 7")).toBe(true);
+    expect(userTurnLooksLikeToolRequest("ciao")).toBe(false);
+    expect(userTurnLooksLikeToolRequest("")).toBe(false);
+  });
+
+  test("does not treat dates, ranges, versions, or bare più as calc", () => {
+    expect(userTurnLooksLikeToolRequest("2026-09-11")).toBe(false);
+    expect(userTurnLooksLikeToolRequest("10-20 minuti")).toBe(false);
+    expect(userTurnLooksLikeToolRequest("12/25/2026")).toBe(false);
+    expect(userTurnLooksLikeToolRequest("versione 3x2")).toBe(false);
+    expect(userTurnLooksLikeToolRequest("4x4")).toBe(false);
+    expect(userTurnLooksLikeToolRequest("un caffè in più")).toBe(false);
+  });
+});
+
+describe("thinkingSpeedOpts", () => {
+  test("sets forceShort from the last user message", () => {
+    expect(thinkingSpeedOpts(11, "calcolatrice 18+7")).toEqual({
+      decodeTokPerSec: 11,
+      forceShort: true,
+    });
+    expect(thinkingSpeedOpts(11, "ciao")).toEqual({
+      decodeTokPerSec: 11,
+      forceShort: false,
+    });
+    expect(thinkingSpeedOpts(null, "18 più 7")).toEqual({
+      decodeTokPerSec: null,
+      forceShort: true,
+    });
   });
 });
 

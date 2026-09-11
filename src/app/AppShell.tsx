@@ -118,11 +118,14 @@ import {
   saveDeviceBandwidthCalibration,
 } from "../engine/deviceThroughputStore";
 import {
+  chatKvIsHeld,
   completeOnce,
+  discardChatKvForWindowSlide,
   disposeEngine,
   extractMemory,
   getActiveEngineNCtx,
   getActiveModelId,
+  getLoadedAssembleBoundary,
   initEngine,
   invalidateConversationSessions,
   invalidateEngineSession,
@@ -251,6 +254,7 @@ import * as MemoryStore from "../memory/MemoryStore";
 import { isWhisperModelDownloaded, releaseWhisper } from "../voice/WhisperService";
 import { isTtsEnabled, setTtsEnabled } from "../voice/TtsService";
 import { RetrieverIndex } from "../context/retriever";
+import { decideAssembleWindowAction } from "../engine/windowKvInvariant";
 import {
   advanceAnchoredBoundary,
   advanceCompactionBoundary,
@@ -5311,32 +5315,73 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               const compactorConfig =
                 winBudget == null ? null : { windowCharBudget: winBudget };
 
-              if (anchoredOn) {
-                const rebuild = shouldRebuildAnchored(state, {
+              const kvHeld = chatKvIsHeld();
+              if (kvHeld) {
+                const loadedB = getLoadedAssembleBoundary(chatId);
+                if (loadedB !== null) {
+                  const fromB = resolveBoundaryIndex(
+                    state,
+                    validatedHistory.length,
+                  );
+                  if (fromB !== loadedB) {
+                    try {
+                      console.log(
+                        `KALSA_SESSION ${JSON.stringify({
+                          op: "window_align",
+                          from: fromB,
+                          to: loadedB,
+                        })}`,
+                      );
+                    } catch {
+                      // telemetry must never throw
+                    }
+                  }
+                  state = { ...state, boundaryIndex: loadedB };
+                  compactorStateByChat.set(chatId, state);
+                  try {
+                    await AsyncStorage.setItem(
+                      compactorStorageKey(chatId),
+                      serializeCompactorState(state),
+                    );
+                  } catch {
+                    // best-effort
+                  }
+                }
+              }
+              const windowAction = decideAssembleWindowAction({
+                budgetRebuild: anchoredOn
+                  ? shouldRebuildAnchored(state, {
+                      historyLengths,
+                      currentTurnLength: currentTurnChars,
+                      profile: windowProfile,
+                      maxCharsPerMessage: perMessageCap,
+                    })
+                  : shouldRebuild(
+                      state,
+                      userTurnCount,
+                      compactorConfig,
+                      recentForBudget,
+                    ),
+                forceRebuild,
+                kvHoldsChatSession: kvHeld,
+                anchored: anchoredOn,
+              });
+              let slideOk = windowAction.slide;
+              if (windowAction.discard) {
+                slideOk = await discardChatKvForWindowSlide(
+                  getActiveModelId() ?? currentModel.id,
+                );
+              }
+              if (slideOk && anchoredOn) {
+                state = advanceAnchoredBoundary(state, {
+                  chatId,
+                  userTurnCount,
                   historyLengths,
                   currentTurnLength: currentTurnChars,
                   profile: windowProfile,
                   maxCharsPerMessage: perMessageCap,
                 });
-                if (rebuild || forceRebuild) {
-                  state = advanceAnchoredBoundary(state, {
-                    chatId,
-                    userTurnCount,
-                    historyLengths,
-                    currentTurnLength: currentTurnChars,
-                    profile: windowProfile,
-                    maxCharsPerMessage: perMessageCap,
-                  });
-                }
-              } else if (
-                shouldRebuild(
-                  state,
-                  userTurnCount,
-                  compactorConfig,
-                  recentForBudget,
-                ) ||
-                forceRebuild
-              ) {
+              } else if (slideOk && !anchoredOn) {
                 state = advanceCompactionBoundary(state, {
                   chatId,
                   userTurnCount,
@@ -5585,6 +5630,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 operativeContext,
                 lastUserMessage: text,
                 lastUserBare: lastUserHistoryContent,
+                assembleBoundary: boundaryForAssemble,
+                assembleChatId: chatId,
                 onDecodeSample: recordDecodeSample,
                 ciswireFlags: turnCiswireFlags || undefined,
               },
