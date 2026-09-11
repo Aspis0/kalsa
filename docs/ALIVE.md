@@ -4378,3 +4378,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   same class as `beb13d90`. Grok `798d29e6` fixing F4. No APK until that
   is on disk. Device proof still S23 `KALSA_KVPREFIX` + `prompt_n`. G2 not
   claimed.
+
+- **11/09 — F4 on disk, CI in flight, Xiaomi grok overnight.** App
+  `b85e775` (think `reasoning_content` + `split.after`; hybrid recover
+  `n_tokens <= n_common`; seq_rm miss clears). Parent Jest 24/24 EXIT:0.
+  First E2E `34559090460` **failed 44s**: patch-package could not parse
+  a JSISession hunk (header 7/7, body 6/6). Fixed `8be587c`. E2E
+  `34559340574` + APK `34559343621` (arm64 debuggable) running. S23
+  restore after that APK. Xiaomi grok `4e432524` (main phone, charge
+  overnight, thermal gate, no file deletes); `adb connect 192.168.1.193:5555`
+  was connection refused at dispatch. G2 not claimed.
