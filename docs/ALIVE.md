@@ -4537,3 +4537,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   recovered via prewarm 1832 / 60 s. Long restore **PASS** `n_common=5701`
   / `prompt_n=335` / `promptMs=39595`. Doc library opened, no generate.
   Report `JELLY-G2-31495c3-2026-09-11.md`. G2 not claimed.
+
+- **11/09 — S23 `31495c3` G2 campaign (not closed).** SHA `126e98c2…`.
+  Restore after 4 turns **PASS** `n_common=3606`. Recovery smoke and
+  restore after collapsed chat **FAIL** `tokens_loaded:0` /
+  `n_common=1829/1827`. 14 healthy turns of 19 (thermal ≥40 °C). Tool
+  **PASS** `device_calc`. Thinking 512 then **1024** after EMA ~8.8.
+  Report `S23-G2-31495c3-2026-09-11.md`. G2 not claimed.
