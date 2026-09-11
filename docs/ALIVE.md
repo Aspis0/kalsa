@@ -4471,3 +4471,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `16304`. Facts+persona ride the last user message (`MEMORY_FACTS_ON_USER_TAIL`).
   GPU prefill is G3. Xiaomi grok `4e432524`: HOME 45s lifecycle on
   `8be587c` (was immediate dispose on `4b29466`). G2 not claimed.
+
+- **11/09 — Xiaomi HOME lifecycle `8be587c` PASS scoped.** SHA `52970eba…`.
+  HOME does **not** dispose immediately (`4b29466` did). Save `ok:true`
+  `08:12:07` then `model.unload` `graceMs:45000` at `08:13:18` (**~72 s**
+  wall on HyperOS, not 45 s). Same pid 6066. Reopen recents: load
+  `ok:true` 43 ms, `n_common=2171`, `prompt_n=18`, `promptMs=289`.
+  Unplugged 89→88 %, 32.0 °C. Parent quoted `logcat-until-recents.txt`
+  / `logcat-reopen-turn.txt`. Report
+  `XIAOMI-LIFECYCLE-8be587c-2026-09-11.md`. G2 not claimed.
