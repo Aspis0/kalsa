@@ -1,0 +1,13 @@
+apkpath=/data/app/~~YpTH6b6kpTYF50svRaoVqQ==/com.kalsa.app-P59ASMajhRipA3hGZA7Kfg==/base.apk
+expect=9c03c710655e607ac2181063c589a507c1084de8adbe16a4fd4e2a50c6213693
+=== dumpsys package (version/times) ===
+    codePath=/data/app/~~YpTH6b6kpTYF50svRaoVqQ==/com.kalsa.app-P59ASMajhRipA3hGZA7Kfg==
+    versionCode=1 minSdk=33 targetSdk=36
+    versionName=0.1.0
+    lastUpdateTime=2026-09-10 20:01:55
+    signatures=PackageSignatures{ae003ac version:2, signatures:[51ed3f60], past signatures:[]}
+    pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ]
+      firstInstallTime=2026-08-15 20:52:25
+=== device sha256sum ===
+9c03c710655e607ac2181063c589a507c1084de8adbe16a4fd4e2a50c6213693  /data/app/~~YpTH6b6kpTYF50svRaoVqQ==/com.kalsa.app-P59ASMajhRipA3hGZA7Kfg==/base.apk
+sha256sum_rc=0

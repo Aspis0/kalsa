@@ -1,0 +1,13 @@
+which_adb=/opt/homebrew/bin/adb
+adb_version=Android Debug Bridge version 1.0.41
+=== adb devices ===
+List of devices attached
+JELLYS0000053795       device usb:1048576X product:Jelly_Star model:Jelly_Star device:Jelly_Star transport_id:15
+192.168.1.152:5555     device product:dm1qsqw model:SM_S911U device:dm1q transport_id:19
+
+=== getprop ===
+SM-S911U
+R3CW406P8CV
+16
+=== pm path ===
+package:/data/app/~~YpTH6b6kpTYF50svRaoVqQ==/com.kalsa.app-P59ASMajhRipA3hGZA7Kfg==/base.apk

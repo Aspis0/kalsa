@@ -1,0 +1,36 @@
+[ema] start utc=2026-09-11T00:45:29Z
+[ema] header Pronto t=0s
+[ema] share-send ciao
+[ema] share-send attempt 1/3: Dimmi solo la parola: ciao.
+[ema] share-send: Send attempt 1/3
+[ema] node 'Send' NOT FOUND
+[ema] tap 'Invia' at 426,805
+[ema] share-send: submitted prev=1 count=1
+[ema] t=0s hist_rc=1
+[ema] t=4s hist_rc=1
+[ema] t=8s hist_rc=1
+[ema] t=12s hist_rc=1
+[ema] t=16s hist_rc=1
+[ema] t=20s hist_rc=1
+[ema] t=24s hist_rc=1
+[ema] t=28s hist_rc=1
+[ema] t=32s hist_rc=1
+[ema] t=36s hist_rc=1
+[ema] t=40s hist_rc=1
+[ema] t=44s hist_rc=1
+[ema] t=48s hist_rc=1
+[ema] t=52s hist_rc=1
+[ema] t=56s hist_rc=2
+[ema] t=60s hist_rc=2
+[ema] t=64s hist_rc=2
+[ema] t=68s hist_rc=2
+[ema] t=72s hist_rc=2
+[ema] t=76s hist_rc=2
+[ema] t=80s hist_rc=2
+[ema] t=84s hist_rc=0
+[ema] verdict=PASS {
+  "budget": 512,
+  "decodeTokPerSec": null,
+  "n_thinking": 1,
+  "pass": true
+}

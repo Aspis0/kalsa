@@ -1,0 +1,2 @@
+09-10 20:41:36.804 16661 16688 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+09-10 20:41:36.811 16661 16688 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":2344}

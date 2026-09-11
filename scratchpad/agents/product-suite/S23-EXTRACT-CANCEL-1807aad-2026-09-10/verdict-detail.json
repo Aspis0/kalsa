@@ -1,0 +1,40 @@
+{
+  "verdict": "PASS",
+  "reason": "aborted_by_send",
+  "tap_utc": "2026-09-11T00:42:35Z",
+  "memory": {
+    "memoryEnabled": 1,
+    "factsExtracted": -1,
+    "factsStored": -1,
+    "factsRejectedFull": -1,
+    "factsInjected": 0,
+    "totalFactsInStore": -1,
+    "dnaDeferred": 0,
+    "dnaInjected": 0,
+    "dnaBudgetTokens": 1200,
+    "extractParseOutcome": -1,
+    "extractGateSource": -1,
+    "extractStopReason": -1,
+    "ciswireFlags": 3
+  },
+  "extract": {
+    "memoryEnabled": 1,
+    "factsExtracted": 0,
+    "factsStored": 0,
+    "factsRejectedFull": 0,
+    "factsInjected": -1,
+    "totalFactsInStore": 0,
+    "dnaDeferred": -1,
+    "dnaInjected": -1,
+    "dnaBudgetTokens": -1,
+    "extractParseOutcome": 0,
+    "extractGateSource": 1,
+    "extractStopReason": 0,
+    "ciswireFlags": 3,
+    "durationMs": 4222,
+    "timeoutMs": 20444.57484577388,
+    "stopReason": "aborted_by_send"
+  },
+  "memory_line": "09-10 20:42:34.732 16661 16688 I ReactNativeJS: KALSA_MEMORY {\"memoryEnabled\":1,\"factsExtracted\":-1,\"factsStored\":-1,\"factsRejectedFull\":-1,\"factsInjected\":0,\"totalFactsInStore\":-1,\"dnaDeferred\":0,\"dnaInjected\":0,\"dnaBudgetTokens\":1200,\"extractParseOutcome\":-1,\"extractGateSource\":-1,\"extractStopReason\":-1,\"ciswireFlags\":3}",
+  "extract_line": "09-10 20:42:39.024 16661 16688 I ReactNativeJS: KALSA_MEMORY_EXTRACT {\"memoryEnabled\":1,\"factsExtracted\":0,\"factsStored\":0,\"factsRejectedFull\":0,\"factsInjected\":-1,\"totalFactsInStore\":0,\"dnaDeferred\":-1,\"dnaInjected\":-1,\"dnaBudgetTokens\":-1,\"extractParseOutcome\":0,\"extractGateSource\":1,\"extractStopReason\":0,\"ciswireFlags\":3,\"durationMs\":4222,\"timeoutMs\":20444.57484577388,\"stopReason\":\"aborted_by_send\"}"
+}

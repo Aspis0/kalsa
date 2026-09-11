@@ -1,0 +1,27 @@
+[s23-extract] start utc=2026-09-11T00:40:36Z serial=192.168.1.152:5555 msg=Scrivi una frase breve sul pane, in italiano.
+[s23-extract] force-stop hung engine
+[s23-extract] started utc=2026-09-11T00:40:38Z
+[s23-extract] load-logcat pid=26146
+[s23-extract] no reload/pronto chip; tapping 400,230 anyway
+[s23-extract] tap reload 400,230
+[s23-extract] wait PREWARM done
+[s23-extract] PREWARM done utc=2026-09-11T00:41:26Z elapsed=34s
+09-10 20:40:51.914 16661 16688 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"start","hash":"3586270056","systemChars":3969,"toolCount":5}'
+09-10 20:41:26.282 16661 16688 I ReactNativeJS: 'KALSA_PREWARM', '{"op":"done","promptMs":34349.763,"promptN":1832,"hash":"3586270056"}'
+[s23-extract] shot-logcat pid=26633 utc=2026-09-11T00:41:30Z
+[s23-extract] share-intent
+[s23-extract] composer has prompt attempt=1
+[s23-extract] tap Invia 963,2115 utc=2026-09-11T00:41:36Z
+[s23-extract] wait KALSA_SEND
+[s23-extract] KALSA_SEND utc=2026-09-11T00:41:37Z
+09-10 20:41:36.804 16661 16688 I ReactNativeJS: KALSA_SEND {"empty":false,"sendClaim":false,"sending":false,"translation":false,"voiceBusy":false,"regen":false,"regenPass":false,"pdf":false,"historyLoaded":true,"jsReady":true,"lostRecovery":false,"activeModel":"lfm2.5-2.6b"}
+09-10 20:41:36.811 16661 16688 I ReactNativeJS: KALSA_SEND {"phase":"fit","liveness":"alive","alreadyResident":true,"recoverLost":false,"allow":true,"reasonKey":null,"availableMb":2344}
+[s23-extract] nuova_chat 984,285 bounds=[930,231][1038,339]
+[s23-extract] wait KALSA_MEMORY {
+[s23-extract] turn-end MEMORY utc=2026-09-11T00:42:35Z elapsed=53s
+09-10 20:42:34.732 16661 16688 I ReactNativeJS: KALSA_MEMORY {"memoryEnabled":1,"factsExtracted":-1,"factsStored":-1,"factsRejectedFull":-1,"factsInjected":0,"totalFactsInStore":-1,"dnaDeferred":0,"dnaInjected":0,"dnaBudgetTokens":1200,"extractParseOutcome":-1,"extractGateSource":-1,"extractStopReason":-1,"ciswireFlags":3}
+[s23-extract] TAP Nuova chat 984,285 utc=2026-09-11T00:42:35Z epoch=1789087355.175
+[s23-extract] wait KALSA_MEMORY_EXTRACT
+[s23-extract] EXTRACT utc=2026-09-11T00:42:39Z elapsed_after_tap=4s
+09-10 20:42:39.024 16661 16688 I ReactNativeJS: KALSA_MEMORY_EXTRACT {"memoryEnabled":1,"factsExtracted":0,"factsStored":0,"factsRejectedFull":0,"factsInjected":-1,"totalFactsInStore":0,"dnaDeferred":-1,"dnaInjected":-1,"dnaBudgetTokens":-1,"extractParseOutcome":0,"extractGateSource":1,"extractStopReason":0,"ciswireFlags":3,"durationMs":4222,"timeoutMs":20444.57484577388,"stopReason":"aborted_by_send"}
+[s23-extract] end utc=2026-09-11T00:42:39Z PASS aborted_by_send

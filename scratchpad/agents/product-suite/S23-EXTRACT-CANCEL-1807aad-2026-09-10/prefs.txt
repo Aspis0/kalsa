@@ -1,0 +1,14 @@
+=== git ===
+c906727
+f99fe45 fix(memory): forward chat cancellation to extraction
+1807aad fix(engine): bound model-switch dispose so a hung stop cannot freeze the UI
+f99fe45_ancestor_of_1807aad=0
+1807aad_ancestor_of_f99fe45=1
+=== app running? ===
+10911
+pidof_rc=0
+=== prefs ===
+kalsa.locale|it
+kalsa.memory.enabled|1
+kalsa.model.id|lfm2.5-2.6b
+sql_rc=0
