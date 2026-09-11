@@ -4562,3 +4562,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   cannot overwrite a kept `.kvs` with empty. Parent Jest 24/24. APK
   `34627488445` + E2E `34627489848` on `c498639`. Residuals (n_past=0,
   helper theater) wait. G2 not claimed.
+
+- **11/09 — S23 P0 `c498639` PASS scoped.** SHA `60cfaede…`. Healthy
+  restore load `ok:true` 2520 / `n_common=2520`. Mid-send force-stop load
+  `ok:true` 2831 / `n_common=2829` (not `tokens_loaded:0`). No
+  `kv_inconsistent` this shot (`resumable=1`). Parent quoted `load-r1.txt`
+  / `kvprefix-r1.txt`. Report `S23-P0-c498639-2026-09-11.md`. Jelly P0
+  still in flight. G2 not claimed.

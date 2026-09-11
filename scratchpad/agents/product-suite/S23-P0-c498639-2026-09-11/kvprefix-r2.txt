@@ -1,0 +1,1 @@
+09-11 14:27:54.091  7169  7273 W RNLlama : loadPrompt:473 KALSA_KVPREFIX embd=2831 text_tokens=3158 n_common=2829 mtp_draft_mem_shared=0 is_enc_dec=0 this=0xb400007af5fc3c00

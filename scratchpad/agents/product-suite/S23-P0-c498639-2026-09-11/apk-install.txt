@@ -1,0 +1,12 @@
+utc=2026-09-11T18:20:43Z
+local_sha256=60cfaede79f931536a910400f371fe88096e17e528173c30981b7fafb1111d59
+Performing Streamed Install
+Success
+install_rc=0
+installed_path=/data/app/~~cosFo-HxfFF3YRptqPgh2g==/com.kalsa.app-S3e0uswoYrZH6NpctV3aqg==/base.apk
+installed_sha256=60cfaede79f931536a910400f371fe88096e17e528173c30981b7fafb1111d59
+hash_match=true
+  level: 33
+  temperature: 274
+Thermal Status: 0
+SM-S911U
