@@ -78,6 +78,14 @@ export function bakeTextContent(content: unknown): string {
   return text;
 }
 
+function isIdentityBakedTail(tail: BakedUserTail): boolean {
+  const bareKey = bakeRematchKey(tail.bare);
+  return (
+    bakeRematchKey(tail.prefixed) === bareKey &&
+    bakeTextContent(tail.prefixed) === bareKey
+  );
+}
+
 function coerceBakeText(value: unknown): string | undefined {
   if (typeof value === "string") return value;
   if (Array.isArray(value)) return bakeTextContent(value);
@@ -176,49 +184,84 @@ export function keepStillValidBakedTails(
  * otherwise match dies at the previous user every turn (stable facts worse than
  * facts-in-system). Aligns the longest consecutive bare run so both a
  * compaction window (drop-prefix) and regen/edit of the last turn (drop-suffix)
- * still match. Stops applying at the first bare-content mismatch. Does not
- * mutate `messages`. Last user is left bare for this turn's format-B apply.
- * Applied content is always a string (never image_url).
+ * still match. Keepers fill holes (and an empty run). Last user stays bare.
+ * Unprefixed prev users get identity tails in `matched` (prefixed === bare)
+ * so the next rematch covers them. `firstPrevUnprefixed` is true when baked
+ * is non-empty and the first previous user got no real replacement.
  */
 export function applyBakedUserTails<T extends TailMessage>(
   messages: T[],
   baked: readonly BakedUserTail[],
-): { messages: T[]; matched: BakedUserTail[] } {
+): {
+  messages: T[];
+  matched: BakedUserTail[];
+  firstPrevUnprefixed: boolean;
+} {
   if (!baked.length || messages.length === 0) {
-    return { messages, matched: [] };
+    return { messages, matched: [], firstPrevUnprefixed: false };
   }
   const userIdxs: number[] = [];
   for (let i = 0; i < messages.length; i++) {
     if (messages[i]?.role === "user") userIdxs.push(i);
   }
   if (userIdxs.length <= 1) {
-    return { messages, matched: [] };
+    return { messages, matched: [], firstPrevUnprefixed: false };
   }
   const prevIdxs = userIdxs.slice(0, -1);
   const prevContents = prevIdxs.map((idx) =>
     bakeRematchKey(messages[idx]?.content),
   );
   const run = findLongestBareRun(prevContents, baked);
-  const replacements: { idx: number; tail: BakedUserTail }[] = [];
-  const aligned: BakedUserTail[] = [];
+  const applied: (BakedUserTail | undefined)[] = prevIdxs.map(() => undefined);
+  const usedBaked = new Set<number>();
   if (run) {
     for (let i = 0; i < run.length; i++) {
-      const tail = baked[run.bakedStart + i]!;
-      replacements.push({ idx: prevIdxs[run.prevStart + i]!, tail });
-      aligned.push({
+      const bakedAt = run.bakedStart + i;
+      const prevAt = run.prevStart + i;
+      const tail = baked[bakedAt]!;
+      usedBaked.add(bakedAt);
+      applied[prevAt] = {
         bare: bakeTextContent(tail.bare),
         prefixed: bakeTextContent(tail.prefixed),
-      });
+      };
     }
   }
-  const matched =
-    aligned.length > 0 ? aligned : keepStillValidBakedTails(baked, prevContents);
-  if (replacements.length === 0) return { messages, matched };
+  const remainingBaked = baked.filter((_, i) => !usedBaked.has(i));
+  const remainingPrev = prevContents.filter((_, p) => applied[p] === undefined);
+  const keepers = keepStillValidBakedTails(remainingBaked, remainingPrev);
+  const keeperPool = keepers.slice();
+  for (let p = 0; p < prevIdxs.length; p++) {
+    if (applied[p]) continue;
+    const key = prevContents[p]!;
+    const k = keeperPool.findIndex(
+      (tail) => bakeRematchKey(tail.bare) === key,
+    );
+    if (k < 0) continue;
+    applied[p] = keeperPool[k]!;
+    keeperPool.splice(k, 1);
+  }
+  const firstPrevUnprefixed = applied[0] === undefined;
+  const matched: BakedUserTail[] = [];
+  for (let p = 0; p < prevIdxs.length; p++) {
+    const tail = applied[p];
+    if (tail) {
+      matched.push(tail);
+      continue;
+    }
+    const key = prevContents[p]!;
+    matched.push({ bare: key, prefixed: key });
+  }
+  if (applied.every((tail) => tail == null)) {
+    return { messages, matched, firstPrevUnprefixed };
+  }
   const next = messages.slice();
-  for (const { idx, tail } of replacements) {
+  for (let p = 0; p < prevIdxs.length; p++) {
+    const tail = applied[p];
+    if (!tail || isIdentityBakedTail(tail)) continue;
+    const idx = prevIdxs[p]!;
     next[idx] = { ...next[idx]!, content: bakeTextContent(tail.prefixed) };
   }
-  return { messages: next, matched };
+  return { messages: next, matched, firstPrevUnprefixed };
 }
 
 /** Append this turn's last-user bake as text; keep at most MAX_BAKED_USER_TAILS. */
@@ -226,16 +269,16 @@ export function commitBakedLastUser(
   matched: readonly BakedUserTail[],
   lastBare: unknown,
   lastPrefixed: unknown,
+  keepers: readonly BakedUserTail[] = [],
 ): BakedUserTail[] {
-  const next = matched
-    .map((tail) => ({
-      bare: bakeTextContent(tail.bare),
-      prefixed: bakeTextContent(tail.prefixed),
-    }))
-    .concat({
-      bare: bakeRematchKey(lastBare),
-      prefixed: bakeTextContent(lastPrefixed),
-    });
+  const heads = (matched.length > 0 ? matched : keepers).map((tail) => ({
+    bare: bakeTextContent(tail.bare),
+    prefixed: bakeTextContent(tail.prefixed),
+  }));
+  const next = heads.concat({
+    bare: bakeRematchKey(lastBare),
+    prefixed: bakeTextContent(lastPrefixed),
+  });
   return next.length > MAX_BAKED_USER_TAILS
     ? next.slice(-MAX_BAKED_USER_TAILS)
     : next;
