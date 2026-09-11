@@ -4517,5 +4517,7 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   (would pair boot assistant with a short KV). Extract snapshots live
   native first (`extractChatKvRestoreSource` snapshot > disk > none);
   pooled stem, not `modelId`. `restoreNativeSession` notes `n_past`.
-  Parent Jest 15/15 EXIT:0. E2E `34604105740` + APK `34604104890` in
-  flight. S23 HOME reopen retest after that APK. G2 not claimed.
+  Parent Jest 15/15 EXIT:0. APK `34604104890` SUCCESS. S23 HOME reopen
+  **PASS scoped** (`S23-HOME-RESTORE-31495c3-2026-09-11.md`): SHA
+  `126e98c2…`; HOME `mark_prefix` ok:true; unload 45 s; load `ok:true`
+  2091 tokens; `n_common=2088` not prewarm 1829. G2 not claimed.
