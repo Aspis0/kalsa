@@ -4598,3 +4598,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `c498639`) so first send should match, not a one-turn guess. APK CI
   `34647005878` queued. Retest: `window_align` from>0 to 0 and
   `n_common` ≈ 6492; `KALSA_THINKING contextMode:"off"`. G2 not claimed.
+
+- **11/09 — Jelly 1833 `c7801f9` PASS scoped.** SHA `4da49ee0…` hash_match.
+  `contextMode:"off"`, `window_align from:5 to:0`, load 6492,
+  `n_common=6492` = `embd` (`text_tokens=6881`). File kept. 1d22dd1 was
+  `n_common=1827` with no align. Report
+  `JELLY-1833-c7801f9-2026-09-11.md`. S23 same APK **FAIL scoped**
+  (`S23-1833-c7801f9-2026-09-11.md`): ciswire, no `window_align`,
+  `n_common=1941` vs `embd=2357` (gap 416) at first-user/facts, not
+  system prefix. Different hole. G2 not claimed.
