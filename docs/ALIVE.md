@@ -4696,3 +4696,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   **SHIP**): one unprefixed heal per engine hold; latch on load ok and
   bake commit. Parent Jest 7/7. APK CI `34709742240` queued. Device:
   two sends, second must keep n_common ≈ embd. G2 not claimed.
+
+- **12/09 — S23 `88152e1` send2 PASS scoped (no slide).** SHA `376bc11b…`
+  hash_match; stayon 0 timeout null. Load `no_file` (expected). Send1
+  `n_common=1829` save `tokens:4893`. Send2 **no `window_slide`**,
+  `KVPREFIX embd=4893 n_common=2094` (not 0, KV kept). Remaining:
+  KVDIVERGE at user-role 5922, 2094 vs 4893 (facts-header on a user
+  the live KV still has bare). G2 not claimed.
