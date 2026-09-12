@@ -4615,3 +4615,16 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   first prev user is still unprefixed; assemble tag re-seated after
   discard. DeepSeek **SHIP**. APK CI `34654900939` queued. Retest: first
   send may `window_slide`; next send `n_common` ≈ `embd`. G2 not claimed.
+
+- **12/09 — Battery P0 SHIP `cb1d92d` (code, not device).** S23 found
+  dead at 0% overnight, plugged in, Kalsa open. App: after abort+5s,
+  background/trim still dispose if JS in-flight flags stick; foreground
+  save+dispose after 180s quiet idle, or abort+dispose after 15 min
+  stuck generation (Jelly ~3.4 tok/s × 1024 ≈ 5 min). Engine stays
+  loaded after a completed turn; bump on send/download/keyboard/typing/
+  regen. Harness: restore round-trips `stay_on_while_plugged_in`,
+  force-stops `$PKG`, EXIT trap keeps `_device_session_restore`.
+  DeepSeek **SHIP**. Parent Jest 11/11. Not unload-every-turn. Device
+  proof owed tomorrow on S23 (also check leaked `screen_off_timeout`
+  86400000 / `stay_on_while_plugged_in`). APK not queued (unpushed).
+  G2 not claimed.
