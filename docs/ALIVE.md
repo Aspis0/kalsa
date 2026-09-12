@@ -4663,3 +4663,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `lastChatNPast`; null n_past allows the save; 512 vs 5632 still
   refused. Parent Jest 22/22. APK CI `34700891221` queued. G2 not
   claimed.
+
+- **12/09 — S23 `da5582d` restore FAIL `history_not_reproducible`;
+  fix `202e364`.** Save `ok:true tokens:4134 messageCount:17` then load
+  deleted the file because G1 assistants have `text` and no
+  `modelEmittedText`. Assemble already falls back to text. `202e364`
+  (DeepSeek **SHIP**): completed legacy accepts; interrupted without
+  capture still refuses; refuse does not delete the `.kvs`. Parent Jest
+  41/41. APK CI `34703294141` queued. Device: save+force-stop+load
+  `ok:true` on `conv-g1-i14`. G2 not claimed.
