@@ -115,9 +115,8 @@ export function lastUserContent<T extends TailMessage>(
 
 /**
  * Longest consecutive baked.bare run against previous-user text.
- * Covers drop-prefix (compaction) and drop-suffix (regen / edit last).
- * Tie-break: earlier prev index (KV dies at the first unmatched user), then
- * later baked index (suffix — compaction of identical bares).
+ * Empty rematch keys never match. Length-1 prefers the latest prev (previous
+ * last user). Longer runs still prefer earlier prev, then later baked index.
  */
 function findLongestBareRun(
   prevContents: readonly string[],
@@ -130,23 +129,29 @@ function findLongestBareRun(
       let length = 0;
       while (
         bakedStart + length < baked.length &&
-        prevStart + length < prevContents.length &&
-        bakeRematchKey(prevContents[prevStart + length]) ===
-          bakeRematchKey(baked[bakedStart + length]!.bare)
+        prevStart + length < prevContents.length
       ) {
+        const prevKey = bakeRematchKey(prevContents[prevStart + length]);
+        const bakedKey = bakeRematchKey(baked[bakedStart + length]!.bare);
+        if (!prevKey || !bakedKey || prevKey !== bakedKey) break;
         length++;
       }
       if (length === 0) continue;
-      if (
-        !best ||
-        length > best.length ||
-        (length === best.length && prevStart < best.prevStart) ||
-        (length === best.length &&
-          prevStart === best.prevStart &&
-          bakedStart > best.bakedStart)
-      ) {
-        best = { bakedStart, prevStart, length };
+      const cand = { bakedStart, prevStart, length };
+      if (!best || length > best.length) {
+        best = cand;
+        continue;
       }
+      if (length !== best.length) continue;
+      if (length === 1 && prevStart !== best.prevStart) {
+        if (prevStart > best.prevStart) best = cand;
+        continue;
+      }
+      if (length > 1 && prevStart !== best.prevStart) {
+        if (prevStart < best.prevStart) best = cand;
+        continue;
+      }
+      if (bakedStart > best.bakedStart) best = cand;
     }
   }
   return best;
@@ -164,7 +169,9 @@ export function keepStillValidBakedTails(
   const remaining = prevContents.map((c) => bakeRematchKey(c));
   const keepers: BakedUserTail[] = [];
   for (const tail of baked) {
-    const idx = remaining.indexOf(bakeRematchKey(tail.bare));
+    const key = bakeRematchKey(tail.bare);
+    if (!key) continue;
+    const idx = remaining.lastIndexOf(key);
     if (idx >= 0) {
       keepers.push({
         bare: bakeTextContent(tail.bare),
@@ -230,9 +237,10 @@ export function applyBakedUserTails<T extends TailMessage>(
   const remainingPrev = prevContents.filter((_, p) => applied[p] === undefined);
   const keepers = keepStillValidBakedTails(remainingBaked, remainingPrev);
   const keeperPool = keepers.slice();
-  for (let p = 0; p < prevIdxs.length; p++) {
+  for (let p = prevIdxs.length - 1; p >= 0; p--) {
     if (applied[p]) continue;
     const key = prevContents[p]!;
+    if (!key) continue;
     const k = keeperPool.findIndex(
       (tail) => bakeRematchKey(tail.bare) === key,
     );
