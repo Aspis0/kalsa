@@ -4654,3 +4654,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Device proof owed: timeout 5 min (restore null), no stayon, one send
   on `conv-g1-i14` with engine loaded, then restore must not
   `historyHash`. G2 not claimed.
+
+- **12/09 — S23 `f0862e6` restore FAIL; gate fix `da5582d`.** SHA
+  `ad949dc3…` hash_match; stayon 0 timeout null after. Save
+  `native_shorter_than_npast usedTokens:8192 tokens:3099` — 8192 is
+  history×512 capped at nCtx, not n_past. Then `load no_file`. Hash
+  projector untested. `da5582d` (DeepSeek **SHIP**): coverage gate uses
+  `lastChatNPast`; null n_past allows the save; 512 vs 5632 still
+  refused. Parent Jest 22/22. APK CI `34700891221` queued. G2 not
+  claimed.
