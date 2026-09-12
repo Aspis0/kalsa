@@ -4672,3 +4672,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   capture still refuses; refuse does not delete the `.kvs`. Parent Jest
   41/41. APK CI `34703294141` queued. Device: save+force-stop+load
   `ok:true` on `conv-g1-i14`. G2 not claimed.
+
+- **12/09 — S23 `202e364` restore still FAIL; `d3959aa` SHIP.** Save
+  `ok:true tokens:4454`. File kept on disk (30 MB). Load still
+  `history_not_reproducible`: assistants 14 and 20 are `interrupted`
+  with `text` 1933/1292 and no `modelEmittedText`. `d3959aa` (DeepSeek
+  **SHIP**): interrupted with visible text accepts; empty still refuses.
+  Parent Jest 20/20. APK CI `34706413608` queued. First device check:
+  load-only of the existing 4454 file. G2 not claimed.
