@@ -2357,7 +2357,7 @@ export async function saveEngineSession(
       // save error in 5ms, restore MISS no_meta). Strip it ourselves for the
       // native call only; expo-file-system ops keep the URI form.
       const tokens = await ctx.saveSession(tmpPath.replace(/^file:\/\//, ""));
-      if (!sessionNativeSaveCoversNPast(tokens, usedTokens)) {
+      if (!sessionNativeSaveCoversNPast(tokens, lastChatNPast)) {
         log(false, {
           reason: "native_shorter_than_npast",
           tokens: typeof tokens === "number" ? tokens : -1,

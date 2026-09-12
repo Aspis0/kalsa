@@ -202,8 +202,9 @@ export function computeHistoryHashFromMessages(messages: unknown): string {
 }
 
 /**
- * Native save_size must cover n_past. A 512-token think snapshot cannot
- * replay a 12-message KV (usedTokens 5632 vs tokens 512 on S23 cb1d92d).
+ * Native save_size vs live KV n_past — never the disk-budget estimate
+ * (historyLength*512 capped at nCtx). Null n_past allows a positive save.
+ * Refuse 512 vs lastChatNPast 5632.
  */
 export function sessionNativeSaveCoversNPast(
   nativeTokens: unknown,

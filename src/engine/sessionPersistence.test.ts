@@ -165,9 +165,9 @@ describe("history hash persistable projection", () => {
 
   test("native 512-token save does not cover n_past 5632", () => {
     expect(sessionNativeSaveCoversNPast(512, 5632)).toBe(false);
+    expect(sessionNativeSaveCoversNPast(3099, undefined)).toBe(true);
     expect(sessionNativeSaveCoversNPast(2357, 2357)).toBe(true);
     expect(sessionNativeSaveCoversNPast(undefined, 2357)).toBe(false);
-    expect(sessionNativeSaveCoversNPast(512, undefined)).toBe(true);
   });
 });
 
