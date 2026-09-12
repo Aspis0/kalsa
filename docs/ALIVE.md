@@ -4689,3 +4689,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `window_slide` → `n_common=0` (2f2b09a one-turn heal: meta
   `assembleBoundary=0`, `bakedUserTails` length 1). That is not a load
   fail. Second-send n_common after heal still owed. G2 not claimed.
+
+- **12/09 — S23 heal send2 FAIL; `88152e1` SHIP.** Same process: send1
+  filled KV to 4635 (no slide); send2 `window_slide` `n_common=0`.
+  `firstPrevUnprefixed` discarded every turn. `88152e1` (DeepSeek
+  **SHIP**): one unprefixed heal per engine hold; latch on load ok and
+  bake commit. Parent Jest 7/7. APK CI `34709742240` queued. Device:
+  two sends, second must keep n_common ≈ embd. G2 not claimed.
