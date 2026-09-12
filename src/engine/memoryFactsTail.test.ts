@@ -1,6 +1,7 @@
 import {
   applyBakedUserTails,
   commitBakedLastUser,
+  shouldDiscardUnprefixedHeal,
   type BakedUserTail,
 } from "./memoryFactsTail";
 
@@ -76,5 +77,44 @@ describe("commitBakedLastUser", () => {
     const second = applyBakedUserTails(history, committed);
     expect(second.firstPrevUnprefixed).toBe(false);
     expect(second.messages[0]?.content).toBe("hello ");
+  });
+
+  test("send2 after commit with extra last user is not firstPrevUnprefixed", () => {
+    const baked: BakedUserTail[] = [{ bare: "u4", prefixed: "P\nu4" }];
+    const hist1 = [
+      u("u1"), a("a"), u("u2"), a("b"), u("u3"), a("c"), u("u4"), a("d"), u("now"),
+    ];
+    const first = applyBakedUserTails(hist1, baked);
+    expect(first.firstPrevUnprefixed).toBe(true);
+    const committed = commitBakedLastUser(first.matched, "now", "Pnow");
+    const hist2 = [...hist1, a("ok"), u("next")];
+    const second = applyBakedUserTails(hist2, committed);
+    expect(second.firstPrevUnprefixed).toBe(false);
+  });
+});
+
+describe("shouldDiscardUnprefixedHeal", () => {
+  test("one heal per hold", () => {
+    expect(
+      shouldDiscardUnprefixedHeal({
+        firstPrevUnprefixed: true,
+        kvHoldsChatSession: true,
+        alreadyHealed: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldDiscardUnprefixedHeal({
+        firstPrevUnprefixed: true,
+        kvHoldsChatSession: true,
+        alreadyHealed: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldDiscardUnprefixedHeal({
+        firstPrevUnprefixed: true,
+        kvHoldsChatSession: false,
+        alreadyHealed: false,
+      }),
+    ).toBe(false);
   });
 });

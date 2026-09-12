@@ -265,6 +265,19 @@ export function applyBakedUserTails<T extends TailMessage>(
 }
 
 /** Append this turn's last-user bake as text; keep at most MAX_BAKED_USER_TAILS. */
+/** One unprefixed KV heal per engine hold — not every send. */
+export function shouldDiscardUnprefixedHeal(args: {
+  firstPrevUnprefixed: boolean;
+  kvHoldsChatSession: boolean;
+  alreadyHealed: boolean;
+}): boolean {
+  return (
+    args.firstPrevUnprefixed &&
+    args.kvHoldsChatSession &&
+    !args.alreadyHealed
+  );
+}
+
 export function commitBakedLastUser(
   matched: readonly BakedUserTail[],
   lastBare: unknown,

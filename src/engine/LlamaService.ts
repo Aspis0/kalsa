@@ -216,6 +216,7 @@ import {
   buildMemoryFactsBlock,
   commitBakedLastUser,
   keepStillValidBakedTails,
+  shouldDiscardUnprefixedHeal,
   lastUserContent,
   parseBakedUserTails,
   prefixMessageContent,
@@ -328,6 +329,7 @@ let lastCompletionPromptEnvInputs: PromptEnvInputs | undefined;
  * the previous user. Restored from session meta after loadSession.
  */
 let bakedUserTails: BakedUserTail[] = [];
+let bakeUnprefixedHealed = false;
 
 /**
  * Last successfully prewarmed system+tools hash, or the hash marked after a
@@ -1152,6 +1154,7 @@ async function discardChatKvForWindowSlideLocked(
   if (ok) {
     markChatKvCleared();
     bakedUserTails = [];
+    // Keep bakeUnprefixedHealed: this discard IS the one-shot heal.
   }
   try {
     console.log(
@@ -1987,6 +1990,7 @@ async function disposeEngineLocked(opts?: {
     lastCompletionPromptEnvHash = undefined;
     lastCompletionPromptEnvInputs = undefined;
     bakedUserTails = [];
+    bakeUnprefixedHealed = false;
     resetPrewarmState();
     lastKnownEngineRssBytes = null;
     // Intentionally do NOT delete session files here — they survive dispose
@@ -2648,6 +2652,7 @@ async function tryLoadEngineSession(
     const mismatchField = sessionMetaMismatchField(storedForConfig, expectedMeta);
     if (mismatchField !== null) {
       bakedUserTails = [];
+      bakeUnprefixedHealed = false;
       await deleteSessionArtifacts(loadStem);
       // Field name only (enum-like) — attributable cold starts: historyHash =
       // save missed/raced; promptEnvHash = locale (or legacy facts-in-system)
@@ -2694,6 +2699,7 @@ async function tryLoadEngineSession(
     tokensLoaded = result?.tokens_loaded;
     if (!sessionLoadHasTokens(result)) {
       bakedUserTails = [];
+      bakeUnprefixedHealed = false;
       markChatKvCleared();
       await deleteSessionArtifacts(loadStem);
       log(false, { reason: "tokens_loaded:0" });
@@ -2710,6 +2716,7 @@ async function tryLoadEngineSession(
     bakedUserTails = BAKE_FORMAT_B_USER_PREFIX
       ? parseBakedUserTails(stored.bakedUserTails)
       : [];
+    bakeUnprefixedHealed = true;
     loadOk = true;
     await touchSessionUse(stem);
     if (loadStem !== stem) await touchSessionUse(loadStem);
@@ -2720,6 +2727,7 @@ async function tryLoadEngineSession(
   } catch (error) {
     console.warn("[tryLoadEngineSession]", error);
     bakedUserTails = [];
+    bakeUnprefixedHealed = false;
     markChatKvCleared();
     const reason = sessionErrorReason(error);
     if (shouldDeleteSessionArtifactsOnLoadFailure(reason) && loadStem) {
@@ -2738,6 +2746,7 @@ async function tryLoadEngineSession(
       }
       lastAssembleBoundary = undefined;
       lastAssembleConvId = undefined;
+      bakeUnprefixedHealed = false;
       markChatKvCleared();
     }
     emitKvDiag();
@@ -2758,6 +2767,7 @@ export async function invalidateEngineSession(modelId: string): Promise<void> {
       if (activeModelId === modelId) {
         markChatKvCleared();
         bakedUserTails = [];
+        bakeUnprefixedHealed = false;
       }
       if (conv) {
         await deleteSessionsForModelConversation(modelId, conv);
@@ -3327,10 +3337,17 @@ export async function streamAssistantTurn(
       const baked = applyBakedUserTails(historyMessages, previousBaked);
       historyMessages = baked.messages;
       bakedMatched = baked.matched;
-      if (baked.firstPrevUnprefixed && kvHoldsChatSession) {
+      if (
+        shouldDiscardUnprefixedHeal({
+          firstPrevUnprefixed: baked.firstPrevUnprefixed,
+          kvHoldsChatSession,
+          alreadyHealed: bakeUnprefixedHealed,
+        })
+      ) {
         const discarded = await discardChatKvForWindowSlideLocked(
           activeModelId ?? "",
         );
+        bakeUnprefixedHealed = true;
         if (discarded) {
           lastAssembleBoundary = sessionAssembleBoundary({
             assembleBoundary: options.assembleBoundary,
@@ -3399,6 +3416,7 @@ export async function streamAssistantTurn(
           bakeTextContent(lastPrefixedRaw),
           keepStillValidBakedTails(previousBaked, bakeUserContents),
         );
+        bakeUnprefixedHealed = true;
       }
     }
 
