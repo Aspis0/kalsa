@@ -209,7 +209,7 @@ describe("historyWindowReproducesKv", () => {
     });
   });
 
-  test("interrupted assistant without emitted text → refused with named reason", () => {
+  test("interrupted assistant with text and no emitted → accepted", () => {
     const window = [
       { role: "user", text: "hi" },
       {
@@ -218,7 +218,15 @@ describe("historyWindowReproducesKv", () => {
         interrupted: true,
       },
     ];
-    expect(historyWindowReproducesKv(window)).toEqual({
+    expect(historyWindowReproducesKv(window)).toEqual({ accept: true });
+  });
+
+  test("interrupted assistant with empty text and no emitted → refused", () => {
+    expect(
+      historyWindowReproducesKv([
+        { role: "assistant", text: "", interrupted: true },
+      ]),
+    ).toEqual({
       accept: false,
       reason: HISTORY_NOT_REPRODUCIBLE,
     });

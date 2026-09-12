@@ -120,8 +120,8 @@ export function modelEmittedTextForVisibleReply(
  * Can this history window re-render the native KV?
  *
  * Assemble already falls back to `text`/`content` when emitted is missing
- * (`promptContentForHistoryMessage`). Legacy G1 chats saved that way.
- * Interrupted assistants without captured emission still refuse.
+ * (`promptContentForHistoryMessage`). G1 interrupted turns with body text
+ * were saved that way (S23 4454-token KV). Empty assistants still refuse.
  */
 export function historyWindowReproducesKv(
   messages: ReadonlyArray<unknown> | null | undefined,
@@ -133,16 +133,12 @@ export function historyWindowReproducesKv(
       role?: unknown;
       text?: unknown;
       content?: unknown;
-      interrupted?: unknown;
       modelEmittedText?: unknown;
     };
     if (m.role !== "assistant") continue;
     const emitted =
       typeof m.modelEmittedText === "string" ? m.modelEmittedText.trim() : "";
     if (emitted.length > 0) continue;
-    if (m.interrupted === true) {
-      return { accept: false, reason: HISTORY_NOT_REPRODUCIBLE };
-    }
     const text = typeof m.text === "string" ? m.text.trim() : "";
     const content = typeof m.content === "string" ? m.content.trim() : "";
     if (text.length === 0 && content.length === 0) {
