@@ -155,6 +155,7 @@ import {
   chatKvHoldAfterNativeClear,
   sessionAssembleBoundary,
   shouldDeleteSessionArtifactsOnLoadFailure,
+  sessionNativeSaveCoversNPast,
   shouldSaveSession,
   writeSessionMeta,
   type SessionSaveFingerprint,
@@ -2356,6 +2357,18 @@ export async function saveEngineSession(
       // save error in 5ms, restore MISS no_meta). Strip it ourselves for the
       // native call only; expo-file-system ops keep the URI form.
       const tokens = await ctx.saveSession(tmpPath.replace(/^file:\/\//, ""));
+      if (!sessionNativeSaveCoversNPast(tokens, usedTokens)) {
+        log(false, {
+          reason: "native_shorter_than_npast",
+          tokens: typeof tokens === "number" ? tokens : -1,
+        });
+        try {
+          await FileSystem.deleteAsync(tmpPath, { idempotent: true });
+        } catch {
+          // keep previous .kvs
+        }
+        return false;
+      }
       // Replace real file only after a complete tmp write. moveAsync fails if
       // dest exists, and a plain delete-then-move leaves a loss window (kill
       // between the two loses the previous good file — re-verify finding 2).

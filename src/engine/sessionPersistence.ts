@@ -14,6 +14,7 @@ import {
   MEMORY_FACTS_ON_USER_TAIL,
   SESSION_DISK_GATE_USED_TOKENS,
 } from "./ttftFlags";
+import { toPersistableHistoryMessages } from "./historyPersistable";
 
 export { SESSION_DISK_GATE_USED_TOKENS };
 
@@ -195,10 +196,24 @@ export function historyHash(messagesJson: string): string {
   return String(h >>> 0);
 }
 
-/** JSON.stringify(messages array or []) then historyHash. */
+/** Persistable projection then historyHash. Load and save must use this. */
 export function computeHistoryHashFromMessages(messages: unknown): string {
-  const arr = Array.isArray(messages) ? messages : [];
-  return historyHash(JSON.stringify(arr));
+  return historyHash(JSON.stringify(toPersistableHistoryMessages(messages)));
+}
+
+/**
+ * Native save_size must cover n_past. A 512-token think snapshot cannot
+ * replay a 12-message KV (usedTokens 5632 vs tokens 512 on S23 cb1d92d).
+ */
+export function sessionNativeSaveCoversNPast(
+  nativeTokens: unknown,
+  nPast: number | null | undefined,
+): boolean {
+  if (nPast == null || !Number.isFinite(nPast) || nPast <= 0) return true;
+  if (typeof nativeTokens !== "number" || !Number.isFinite(nativeTokens)) {
+    return false;
+  }
+  return nativeTokens + 1 >= nPast;
 }
 
 /**
