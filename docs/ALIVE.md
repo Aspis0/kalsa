@@ -4717,3 +4717,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `window_align 21→0`, `n_common=4893=embd`, no `window_slide`. Send2
   `n_common=5196` / `embd=5199`. Was 2094/4893 on `88152e1`. Not G2.
   Jelly still on older APK (`c7801f9` 1833 PASS only).
+
+- **12/09 — Jelly `d39fa51` send2 rematch PASS scoped.** SHA `1a0fb8f5…`
+  hash_match; chat `conv-g1-m01-1789025137`; stayon 0 timeout null.
+  Load `ok:true tokens:6492`. Send1 `window_align 6→0`, `n_common=6492=embd`.
+  Send2 `window_align 8→0`, `n_common=6999=embd`. No `window_slide`.
+  Extract in between `n_common=2` then restore 6999 (expected). Same APK
+  as S23 5196/5199. Xiaomi not on this APK. G2 not claimed.
