@@ -1106,6 +1106,8 @@ device_keepawake_setup() {
   # mid-setup still restores (the old order left a 24h timeout with no trap).
   _KA_SCREEN_TIMEOUT_SAVED=$(adb shell "settings get system screen_off_timeout" 2>/dev/null | tr -d '\r' || true)
   log "keep-awake: saved screen_off_timeout=${_KA_SCREEN_TIMEOUT_SAVED:-<empty>}"
+  _KA_STAY_ON_SAVED=$(adb shell "settings get global stay_on_while_plugged_in" 2>/dev/null | tr -d '\r' || true)
+  log "keep-awake: saved stay_on_while_plugged_in=${_KA_STAY_ON_SAVED:-<empty>}"
   # 2) deviceidle whitelist — remember whether WE add it so restore only removes
   #    what we added (never drop a whitelist entry the device already had).
   _KA_WL_WAS_WHITELISTED=$(_device_whitelist_has_pkg)
@@ -1175,6 +1177,36 @@ device_keepawake_restore() {
   else
     log "keep-awake: left $PKG in deviceidle whitelist (was already whitelisted before run)"
   fi
+
+  # Restore stay-on (saved before any mutation). Unreadable → stayon false.
+  case "${_KA_STAY_ON_SAVED-}" in
+    ''|null)
+      if adb shell "svc power stayon false" >/dev/null 2>&1; then
+        log "keep-awake: WARNING stay_on_while_plugged_in unreadable at setup; stayon false"
+      else
+        log "keep-awake: WARNING stay_on_while_plugged_in unreadable at setup; stayon false failed"
+      fi
+      ;;
+    *)
+      if adb shell "settings put global stay_on_while_plugged_in ${_KA_STAY_ON_SAVED}" >/dev/null 2>&1; then
+        log "keep-awake: restored stay_on_while_plugged_in=${_KA_STAY_ON_SAVED}"
+      else
+        log "keep-awake: WARNING failed to restore stay_on_while_plugged_in (saved=${_KA_STAY_ON_SAVED})"
+        if adb shell "svc power stayon false" >/dev/null 2>&1; then
+          log "keep-awake: stayon false after failed put"
+        else
+          log "keep-awake: WARNING stayon false failed"
+        fi
+      fi
+      ;;
+  esac
+  if adb shell "am force-stop $PKG" >/dev/null 2>&1; then
+    log "keep-awake: force-stop $PKG"
+  else
+    log "keep-awake: WARNING force-stop $PKG failed"
+  fi
+  log "keep-awake: stay_on_while_plugged_in=$(adb shell settings get global stay_on_while_plugged_in 2>/dev/null | tr -d '\r')"
+  log "keep-awake: screen_off_timeout=$(adb shell settings get system screen_off_timeout 2>/dev/null | tr -d '\r')"
 }
 
 # thermal_decision <status> <battery_deci_celsius>

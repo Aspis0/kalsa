@@ -21,7 +21,7 @@ export function backgroundDiscardPlan({
 }) {
   // The timer callback uses this private state so expiry is distinct from a
   // second background notification, which must not schedule twice.
-  if (state === "background_expired") {
+  if (state === "background_expired" || state === "idle_expired") {
     return genAtEntry === genNow
       ? { ...noAction(), disposeNow: true }
       : noAction("newer_gen");
@@ -37,4 +37,19 @@ export function backgroundDiscardPlan({
     return { ...noAction(), saveNow: true, scheduleDispose: true };
   }
   return noAction();
+}
+
+/**
+ * After abort + bounded wait, background/trim still dispose even if JS
+ * in-flight flags are stuck. Idle must not unload a live send.
+ */
+export function skipDisposeWhileInFlight(args: {
+  inFlight: boolean;
+  kind: "background" | "idle" | "trim";
+  stuckExpired?: boolean;
+}): boolean {
+  if (!args.inFlight) return false;
+  if (args.kind === "background" || args.kind === "trim") return false;
+  if (args.stuckExpired) return false;
+  return true;
 }

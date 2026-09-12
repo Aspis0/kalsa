@@ -90,11 +90,12 @@ device_termux_wakelock_restore() {
   adb shell "run-as com.termux files/usr/bin/bash -lc 'export PATH=/data/data/com.termux/files/usr/bin:\$PATH; termux-wake-unlock'" >/dev/null 2>&1 || true
 }
 
-# keep-awake + Termux. Overwrites the keep-awake EXIT trap so both restore.
+# keep-awake + Termux. Composes setup's EXIT restore (ime + keepawake).
+# Callers must not replace this trap — stayon/force-stop live in restore.
 device_keepawake_begin() {
   device_keepawake_setup
   device_termux_wakelock_setup
-  trap 'device_termux_wakelock_restore; device_keepawake_restore' EXIT
+  trap 'device_termux_wakelock_restore; _device_session_restore' EXIT
 }
 
 device_collapse_shade() {

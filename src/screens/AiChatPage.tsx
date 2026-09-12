@@ -90,6 +90,7 @@ import {
   sendClaimRef,
   sendingInFlightRef,
 } from "../engine/regenState";
+import { bumpForegroundIdleRef } from "../app/foregroundIdleDispose";
 import { canRegen, editedFlagForResend, findRegenTarget } from "./regenTarget";
 import { sheetCopyVisible } from "./sheetCopyVisible";
 import { decidePreSendFit } from "../engine/deviceProfile";
@@ -3108,6 +3109,7 @@ export function AiChatPage({
       // Capture generation at acquire (before any await).
       const myGeneration = regenGenerationRef.current;
       regenInFlightRef.current = true;
+      bumpForegroundIdleRef.current();
       regenAbortRef.current = new AbortController();
       const snapshot = messagesRef.current.slice();
       try {
@@ -4084,7 +4086,10 @@ export function AiChatPage({
             <TextInput
               ref={inputRef}
               value={draft}
-              onChangeText={setDraft}
+              onChangeText={(v) => {
+                setDraft(v);
+                bumpForegroundIdleRef.current();
+              }}
               placeholder={t("chat.placeholder")}
               placeholderTextColor={colors.muted}
               editable={!sending && !voiceBlocksComposer}
@@ -4272,9 +4277,10 @@ export function AiChatPage({
               </Text>
               <TextInput
                 value={editingMessage.draft}
-                onChangeText={(v) =>
-                  setEditingMessage((prev) => (prev ? { ...prev, draft: v } : prev))
-                }
+                onChangeText={(v) => {
+                  setEditingMessage((prev) => (prev ? { ...prev, draft: v } : prev));
+                  bumpForegroundIdleRef.current();
+                }}
                 multiline
                 autoFocus
                 accessibilityLabel={t("chat.edit")}

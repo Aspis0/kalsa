@@ -204,7 +204,16 @@ import {
 import { parseShareUrl, SHARE_TEXT_CAP, SHARE_TEXT_FILE_MAX_BYTES } from "./shareIntent";
 import { createBackgroundGrace } from "./backgroundGrace";
 import { createBackgroundTimer } from "./backgroundTimer";
-import { backgroundDiscardPlan } from "./backgroundDiscardPlan";
+import {
+  backgroundDiscardPlan,
+  skipDisposeWhileInFlight,
+} from "./backgroundDiscardPlan";
+import {
+  bumpForegroundIdleRef,
+  FOREGROUND_IDLE_DISPOSE_MS,
+  FOREGROUND_STUCK_INFLIGHT_MS,
+  shouldRunForegroundIdleDispose,
+} from "./foregroundIdleDispose";
 import {
   addTrimMemoryListener,
   TRIM_MEMORY_BACKGROUND,
@@ -2871,32 +2880,50 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       discardInFlightRef.current = false;
       discardGenerationRef.current += 1;
     };
+    const idleClock = {
+      lastUserActivityAt: Date.now(),
+      timer: null as ReturnType<typeof backgroundTimer.setTimeout> | null,
+      arm() {},
+    };
     const requestDeferredDispose = (
       discard: BackgroundDiscard,
       trimLevel?: number,
+      kind: "background" | "idle" | "trim" = trimLevel !== undefined
+        ? "trim"
+        : "background",
     ) => {
       if (discard.finished || discard.disposeRequested) return;
       discard.disposeRequested = true;
       void (async () => {
         try {
-          const prepared = await discard.preparation;
-          if (!prepared || discard.cancelled) return;
-          // A turn may have started while the engine stayed resident during
-          // grace. Never dispose it from this deferred path.
-          if (
+          await discard.preparation;
+          if (discard.cancelled) return;
+          const inFlight =
             streamInFlightRef.current ||
             sendingInFlightRef.current ||
             regenInFlightRef.current ||
-            sendClaimRef.current
+            sendClaimRef.current;
+          if (
+            skipDisposeWhileInFlight({
+              inFlight,
+              kind,
+              stuckExpired:
+                Date.now() - idleClock.lastUserActivityAt >=
+                FOREGROUND_STUCK_INFLIGHT_MS,
+            })
           ) {
+            idleClock.arm();
             return;
           }
           const plan = backgroundDiscardPlan({
             state:
-              (AppState.currentState === "background" ||
-                (trimLevel !== undefined && AppState.currentState !== "active"))
-                ? "background_expired"
-                : AppState.currentState,
+              kind === "idle"
+                ? "idle_expired"
+                : (AppState.currentState === "background" ||
+                    (trimLevel !== undefined &&
+                      AppState.currentState !== "active"))
+                  ? "background_expired"
+                  : AppState.currentState,
             pendingGrace: false,
             genAtEntry: discard.genAtEntry,
             genNow: chatGateGenRef.current,
@@ -2907,9 +2934,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               "background.grace",
               JSON.stringify({ skipped: "newer_gen" }),
             );
+            if (kind === "idle") idleClock.arm();
             return;
           }
-          if (!plan.disposeNow) return;
+          if (!plan.disposeNow) {
+            if (kind === "idle") idleClock.arm();
+            return;
+          }
           const releasedGenBg = discard.genAtEntry;
           if (
             releasedGenBg !== null &&
@@ -2929,12 +2960,18 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 console.info(
                   "model.unload",
                   JSON.stringify(
-                    trimLevel === undefined
-                      ? {
-                          reason: "background",
-                          graceMs: BACKGROUND_DISPOSE_GRACE_MS,
-                        }
-                      : { reason: "trim", level: trimLevel },
+                    trimLevel !== undefined
+                      ? { reason: "trim", level: trimLevel }
+                      : kind === "idle"
+                        ? {
+                            reason: "idle",
+                            idleMs:
+                              Date.now() - idleClock.lastUserActivityAt,
+                          }
+                        : {
+                            reason: "background",
+                            graceMs: BACKGROUND_DISPOSE_GRACE_MS,
+                          },
                   ),
                 );
               }
@@ -2962,7 +2999,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
       })();
     };
-    const discardBackground = () => {
+    const discardBackground = (kind: "background" | "idle" = "background") => {
       if (discardInFlightRef.current) return;
       discardInFlightRef.current = true;
       // Round-8 FIX 3: capture THIS load's gen SYNCHRONOUSLY at entry.
@@ -2996,7 +3033,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             }
           }
 
-          // Hard wait: never dispose while stream/send/regen/claim still in flight.
+          // Abort already issued. Bounded wait, then dispose even if JS
+          // in-flight flags are stuck (native stop already aborted).
           const t0 = Date.now();
           while (
             (streamInFlightRef.current ||
@@ -3006,14 +3044,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             Date.now() - t0 < 5000
           ) {
             await new Promise((r) => setTimeout(r, 50));
-          }
-          if (
-            streamInFlightRef.current ||
-            sendingInFlightRef.current ||
-            regenInFlightRef.current ||
-            sendClaimRef.current
-          ) {
-            return false;
           }
 
           const modelId = getActiveModelId();
@@ -3042,14 +3072,61 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         finished: false,
       };
       pendingBackgroundDiscard = discard;
-      backgroundGrace.onBackground(() => requestDeferredDispose(discard));
-      void preparation.then((prepared) => {
-        if (prepared || discard.disposeRequested) return;
-        backgroundGrace.cancel();
-        discard.cancelled = true;
-        finishBackgroundDiscard(discard);
-      });
+      if (kind === "idle") {
+        void preparation.then(() => {
+          if (discard.disposeRequested || discard.cancelled) return;
+          requestDeferredDispose(discard, undefined, "idle");
+        });
+      } else {
+        backgroundGrace.onBackground(() =>
+          requestDeferredDispose(discard, undefined, "background"),
+        );
+        void preparation.then((prepared) => {
+          if (discard.disposeRequested) return;
+          if (!prepared) {
+            requestDeferredDispose(discard, undefined, "background");
+          }
+        });
+      }
     };
+    const engineWorkInFlight = () =>
+      streamInFlightRef.current ||
+      sendingInFlightRef.current ||
+      regenInFlightRef.current ||
+      sendClaimRef.current ||
+      downloadInFlight.current;
+    idleClock.arm = () => {
+      if (idleClock.timer) backgroundTimer.clearTimeout(idleClock.timer);
+      idleClock.timer = backgroundTimer.setTimeout(() => {
+        idleClock.timer = null;
+        if (disposed) return;
+        const idleMs = Date.now() - idleClock.lastUserActivityAt;
+        const inFlight = engineWorkInFlight();
+        if (
+          !shouldRunForegroundIdleDispose({
+            engineReady: isEngineReady(),
+            inFlight,
+            idleMs,
+          })
+        ) {
+          idleClock.arm();
+          return;
+        }
+        if (discardInFlightRef.current) {
+          idleClock.arm();
+          return;
+        }
+        discardBackground("idle");
+      }, FOREGROUND_IDLE_DISPOSE_MS);
+    };
+    bumpForegroundIdleRef.current = () => {
+      idleClock.lastUserActivityAt = Date.now();
+      if (!idleClock.timer) idleClock.arm();
+    };
+    bumpForegroundIdleRef.current();
+    const keyboardShow = Keyboard.addListener("keyboardDidShow", () => {
+      bumpForegroundIdleRef.current();
+    });
     const cancelGraceTimer = () => {
       if (!backgroundGrace.onForeground()) return false;
       console.info("background.grace", JSON.stringify({ cancelled: true }));
@@ -3126,6 +3203,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         if (state === "active") {
           cancelBackgroundGrace();
+          bumpForegroundIdleRef.current();
           void (async () => {
             try {
               if (thermalHardGateRef.current) return;
@@ -3200,6 +3278,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     });
     return () => {
       disposed = true;
+      keyboardShow.remove();
+      if (idleClock.timer) backgroundTimer.clearTimeout(idleClock.timer);
+      idleClock.timer = null;
+      bumpForegroundIdleRef.current = () => {};
       trimMemorySubscription?.remove();
       cancelBackgroundGrace();
       handle.stop();
@@ -4093,6 +4175,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     const generation = engineGenerationRef.current;
     if (downloadInFlight.current || modelState === "downloading") return;
     downloadInFlight.current = true;
+    bumpForegroundIdleRef.current();
 
     const expectedModelId = model.id;
     const stillCurrent = () =>
@@ -4793,6 +4876,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           return;
         }
         streamInFlightRef.current = true;
+        bumpForegroundIdleRef.current();
         setStreaming(true);
         lastUserRawRef.current = typeof text === "string" ? text : "";
         // Fresh web_fetch allowlist for every send (F5), even if text matches the previous turn.
