@@ -542,7 +542,7 @@ capped at 5 pages, exact-id document selection, malformed SEND filters (doubled 
 conversation hydration, 100-minute extraction timeout → 180 s with partial text (5707cfe). Opt-in dev-catalog entry
 `dev-minicpm5-2b` with one-time sha256 verification (7836db7).
 
-Current product status: G1 closed on 10 September with LFM2.5-2.6B as the main model; M1 remains 9 October. The S23 battery reproduction is **PARTIAL** and not paired: 9/09 was MiniCPM5 Q4_K_M, while 10/09 was shipped LFM. The five LFM attempts provide energy evidence, but C02's final retry false-settled (`The`); only C03-C06 are valid answers, and the prior C02 `4.35` is excluded. Memory extraction was disabled in all five turns (`memoryEnabled:0`, `skipped_no_snapshot`).
+Current product status: G1 closed on 10 September with LFM2.5-2.6B as the main model; M1 remains 9 October. The S23 battery reproduction is **PARTIAL** and not paired: 9/09 was MiniCPM5 Q4_K_M, while 10/09 was shipped LFM. The five LFM attempts provide energy evidence, but C02's final retry false-settled (`The`); only C03-C06 are valid answers, and the prior C02 `4.35` is excluded. Memory extraction was disabled in all five turns (`memoryEnabled:0`, `skipped_no_snapshot`). A separate overnight 0% drain (Kalsa open, plugged in) is app `cb1d92d` (DeepSeek SHIP, code); device proof is waiting on APK `34692988025`.
 
 Lifecycle sources omitted from 3ca6145 were restored in `1e02fe3`; `e89bd2a` adds the UI test IDs. The Jelly native/long gate is **PASS** on APK CI run `34483949398`, SHA-256 `a2d08f9df19d179d86d55db1e0407bd4ec77ec9e6d2edb0954083487c27ea5fb`, with identical installed hash: save `10:34:18.945` → unload `10:35:04.621` (~45.7 s), reopen fit `no_active_model availableMb=5789`, load `3628 tokens/62 ms`, prewarm `skip kv_holds_chat`, continuation `promptMs=1489.054`. The brief check is **PASS with limits** because shell HOME/reopen markers are missing; only cancellation/no-unload slices were covered, so this is not blanket lifecycle PASS. Stop abort plus partial preservation is **PASS scoped** on the same installed `095466e` APK (`STOP-PARTIAL-JELLY-EVIDENCE-2026-09-10.md`): Stop after visible text left assistant `a-8080264` at 285 chars with `interrupted:true`, UI marker `Generazione interrotta.`, and `extractStopReason:4`; the partial is English chain-of-thought, not the Italian answer. Edit→Salva is **PASS scoped** (`EDIT-SAVE-JELLY-EVIDENCE-2026-09-10.md`): Salva on the prefilled draft re-sent with `edited:true`, session `messageCount:2`, assistant `ciao`. Regenera UI is **PASS scoped** on Jelly APK `34539915778` / `1807aad` (SHA `9c03c710…3693`): Altro→Rigenera, `KALSA_SEND regen:true`, user `edited` absent, assistant `ciao`. Model-switch LFM→Qwen on the same install left the header on Qwen "Tocca per ricaricare" in 2 s, not checking. MiniCPM5 unused. Pref restored to LFM. Same `1807aad` APK on S23: extract-cancel is **PASS scoped** (Nuova chat → `aborted_by_send`, native extract interrupted). Copy sheet on Jelly APK `34544351697` / `c906727` (SHA `1a47fff2…4298`) is **PASS scoped**. Decode-EMA withhold on that Jelly install is **PASS scoped** (`budget:512 decodeTokPerSec:null` on the first send; that turn decoded at 6.48 tok/s).
 
@@ -4624,7 +4624,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   loaded after a completed turn; bump on send/download/keyboard/typing/
   regen. Harness: restore round-trips `stay_on_while_plugged_in`,
   force-stops `$PKG`, EXIT trap keeps `_device_session_restore`.
-  DeepSeek **SHIP**. Parent Jest 11/11. Not unload-every-turn. Device
-  proof owed tomorrow on S23 (also check leaked `screen_off_timeout`
-  86400000 / `stay_on_while_plugged_in`). APK not queued (unpushed).
-  G2 not claimed.
+  DeepSeek **SHIP**. Parent Jest 11/11. Not unload-every-turn. Pushed
+  `origin/main`. APK CI `34692988025` in_progress (arm64 debuggable).
+  S23 on (TLS `adb-R3CW406P8CV-zyLM4b._adb-tls-connect._tcp`, SM-S911U);
+  before opening Kalsa: `stay_on_while_plugged_in=0`,
+  `screen_off_timeout=null` (not the 86400000 leak), battery 100% 29.9°C
+  full, Kalsa pid empty, installed APK still `c7801f9` (`lastUpdateTime`
+  2026-09-11 17:52:35). Device proof of `cb1d92d` + bake `2f2b09a` owed
+  after this APK. G2 not claimed.
