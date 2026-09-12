@@ -4711,3 +4711,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `34712435449` queued. Device: two sends, send2 `n_common` should
   approach embd (not ~2094). G2 not claimed. Jelly/Xiaomi not retested
   on this APK.
+
+- **12/09 — S23 `d39fa51` send2 rematch PASS scoped.** SHA `1a0fb8f5…`
+  hash_match; stayon 0 timeout null. Load `ok:true tokens:4893`. Send1
+  `window_align 21→0`, `n_common=4893=embd`, no `window_slide`. Send2
+  `n_common=5196` / `embd=5199`. Was 2094/4893 on `88152e1`. Not G2.
+  Jelly still on older APK (`c7801f9` 1833 PASS only).
