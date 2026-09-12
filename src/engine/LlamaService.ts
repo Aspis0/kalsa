@@ -2682,7 +2682,9 @@ async function tryLoadEngineSession(
       bootMessages.slice(0, Math.max(0, prefixCount)),
     );
     if (!reproCheck.accept) {
-      await deleteSessionArtifacts(loadStem);
+      if (shouldDeleteSessionArtifactsOnLoadFailure(reproCheck.reason)) {
+        await deleteSessionArtifacts(loadStem);
+      }
       log(false, { reason: `meta_mismatch:${reproCheck.reason}` });
       return false;
     }

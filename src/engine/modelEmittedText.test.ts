@@ -192,12 +192,18 @@ describe("historyWindowReproducesKv", () => {
     expect(historyWindowReproducesKv(window)).toEqual({ accept: true });
   });
 
-  test("legacy history (no field) → refused with named reason", () => {
+  test("legacy history (no field) with text → accepted", () => {
     const window = [
       { role: "user", text: "hi" },
       { role: "assistant", text: "hello" },
     ];
-    expect(historyWindowReproducesKv(window)).toEqual({
+    expect(historyWindowReproducesKv(window)).toEqual({ accept: true });
+  });
+
+  test("empty assistant (no text, no content, no emitted) → refused", () => {
+    expect(
+      historyWindowReproducesKv([{ role: "assistant", text: "" }]),
+    ).toEqual({
       accept: false,
       reason: HISTORY_NOT_REPRODUCIBLE,
     });
@@ -286,10 +292,7 @@ describe("historyWindowReproducesKv", () => {
         modelEmittedText: undefined,
       },
     ];
-    expect(historyWindowReproducesKv(poisoned)).toEqual({
-      accept: false,
-      reason: HISTORY_NOT_REPRODUCIBLE,
-    });
+    expect(historyWindowReproducesKv(poisoned)).toEqual({ accept: true });
 
     // Full long emission is accepted.
     expect(historyWindowReproducesKv(window)).toEqual({ accept: true });
