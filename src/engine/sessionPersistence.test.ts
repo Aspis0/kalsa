@@ -322,10 +322,18 @@ describe("hybrid snapshot consistency", () => {
     );
   });
 
-  test("load failure keeps the .kvs only for kv_inconsistent", () => {
+  test("load failure keeps the .kvs for kv_inconsistent and history_not_reproducible", () => {
     expect(shouldDeleteSessionArtifactsOnLoadFailure("kv_inconsistent")).toBe(
       false,
     );
+    expect(
+      shouldDeleteSessionArtifactsOnLoadFailure("history_not_reproducible"),
+    ).toBe(false);
+    expect(
+      shouldDeleteSessionArtifactsOnLoadFailure(
+        "meta_mismatch:history_not_reproducible",
+      ),
+    ).toBe(false);
     expect(shouldDeleteSessionArtifactsOnLoadFailure("tokens_loaded:0")).toBe(
       true,
     );

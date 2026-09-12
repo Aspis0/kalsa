@@ -653,9 +653,11 @@ export function sessionNativeErrorReason(error: unknown): string | null {
   return null;
 }
 
-/** Keep the .kvs on native kv_inconsistent; delete on any other load failure. */
+/** Keep the .kvs on kv_inconsistent / history_not_reproducible; delete otherwise. */
 export function shouldDeleteSessionArtifactsOnLoadFailure(reason: string): boolean {
-  return reason !== "kv_inconsistent";
+  if (reason === "kv_inconsistent") return false;
+  if (reason.includes("history_not_reproducible")) return false;
+  return true;
 }
 
 /**
