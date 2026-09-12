@@ -85,7 +85,7 @@ rp_main() {
   adb logcat -c </dev/null >/dev/null 2>&1 || true
   adb logcat -v time </dev/null > "$OUT/logcat.txt" 2>&1 &
   local logcat_pid=$!
-  trap 'kill '"$logcat_pid"' 2>/dev/null || true; device_termux_wakelock_restore; device_keepawake_restore' EXIT
+  trap 'kill '"$logcat_pid"' 2>/dev/null || true; device_termux_wakelock_restore; _device_session_restore' EXIT
 
   for i in $(seq 1 "$CYCLES"); do
     log "=== cycle $i/$CYCLES ==="
