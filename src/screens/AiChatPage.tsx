@@ -102,7 +102,8 @@ import {
   normalizeModelEmittedTextForSave,
   readModelEmittedText,
 } from "../engine/modelEmittedText";
-import { historyHash } from "../engine/sessionPersistence";
+import { toPersistableHistoryMessages } from "../engine/historyPersistable";
+import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
 import {
   messagesKey,
   titleFromFirstUserText,
@@ -544,58 +545,7 @@ function buildPersistableMessages(
   messagesSnapshot: Message[],
   opts?: { allowStreamingPartial?: boolean },
 ): Message[] {
-  const allowStreamingPartial = opts?.allowStreamingPartial === true;
-  return messagesSnapshot
-    .filter((message) => {
-      if (!message.streaming) return true;
-      if (!allowStreamingPartial) return false;
-      // Skip empty thinking placeholders — no useful partial to restore.
-      return typeof message.text === "string" && message.text.trim().length > 0;
-    })
-    .map((message) => {
-      const attachments = message.attachments?.map((a) => ({
-        id: a.id,
-        kind: a.kind,
-        name: a.name,
-        uri: "",
-        ...(typeof a.pageCount === "number" && a.pageCount > 0 ? { pageCount: a.pageCount } : {}),
-        ...(typeof a.libraryDocId === "string" && a.libraryDocId.length > 0
-          ? { libraryDocId: a.libraryDocId.slice(0, 120) }
-          : {}),
-      }));
-      // modelEmittedText rides on ...message (assistant-only). New persisted
-      // field → historyHash changes once (one cold prefill; fails safe).
-      // Whitespace-only normalises to absent (matches restore).
-      const emitted = normalizeModelEmittedTextForSave(
-        message.role,
-        message.modelEmittedText,
-      );
-      if (message.streaming && allowStreamingPartial) {
-        return {
-          ...message,
-          streaming: undefined,
-          statusLabel: undefined,
-          statusHistory: undefined,
-          interrupted: true,
-          attachments,
-          ...(emitted !== undefined
-            ? { modelEmittedText: emitted }
-            : { modelEmittedText: undefined }),
-        };
-      }
-      return {
-        ...message,
-        streaming: undefined,
-        // Never persist live tool status — restored "Writing / Reading document…"
-        // after kill/reload left an orphan strip on finished turns (Jelly MED-5).
-        statusLabel: undefined,
-        statusHistory: undefined,
-        attachments,
-        ...(emitted !== undefined
-          ? { modelEmittedText: emitted }
-          : { modelEmittedText: undefined }),
-      };
-    });
+  return toPersistableHistoryMessages(messagesSnapshot, opts) as Message[];
 }
 
 /**
@@ -1357,7 +1307,11 @@ export function AiChatPage({
                   console.warn("[persistMessages]", err);
                 });
                 notifyConversationTouched(clean as Message[]);
-                void saveEngineSession(modelId, historyHash(payload), clean.length);
+                void saveEngineSession(
+                  modelId,
+                  computeHistoryHashFromMessages(clean),
+                  clean.length,
+                );
               }
             }
           }
@@ -2024,9 +1978,8 @@ export function AiChatPage({
       await new Promise((r) => setTimeout(r, 50));
     }
     const clean = buildPersistableMessages(messagesRef.current);
-    const payload = clean.length > 0 ? JSON.stringify(clean) : "";
     return {
-      historyHashValue: historyHash(payload),
+      historyHashValue: computeHistoryHashFromMessages(clean),
       historyMessageCount: clean.length,
     };
   }, []);
@@ -2777,7 +2730,7 @@ export function AiChatPage({
                       try {
                         await saveEngineSession(
                           mid,
-                          historyHash(payload),
+                          computeHistoryHashFromMessages(persistable),
                           persistable.length,
                         );
                         turnSaveHold.resolve?.();
@@ -2828,7 +2781,7 @@ export function AiChatPage({
                   try {
                     await saveEngineSession(
                       mid,
-                      historyHash(payload),
+                      computeHistoryHashFromMessages(persistable),
                       persistable.length,
                     );
                   } finally {

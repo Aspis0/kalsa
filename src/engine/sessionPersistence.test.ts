@@ -28,6 +28,7 @@ import {
   SESSION_FORMAT_VERSION,
   sessionHistoryPrefixAccepts,
   sessionKvSaveWouldBeInconsistent,
+  sessionNativeSaveCoversNPast,
   chatKvHoldAfterNativeClear,
   sessionMetaKey,
   sessionNativeErrorReason,
@@ -134,6 +135,39 @@ describe("sessionHistoryPrefixAccepts", () => {
         [...userOnly, { role: "assistant", text: "ciao!" }],
       ),
     ).toEqual({ accept: false, reason: "stale_kv_completed_turn" });
+  });
+});
+
+describe("history hash persistable projection", () => {
+  test("raw boot extras hash as persistable of the same turn", () => {
+    const persistable = [
+      { id: "u1", role: "user", text: "ciao", createdAt: 1 },
+      {
+        id: "a1",
+        role: "assistant",
+        text: "hey",
+        createdAt: 2,
+        modelEmittedText: "hey",
+      },
+    ];
+    const rawBoot = [
+      { ...persistable[0], streaming: false, statusLabel: "Writing…" },
+      {
+        ...persistable[1],
+        statusHistory: ["x"],
+        modelEmittedText: "  hey  ",
+      },
+    ];
+    expect(computeHistoryHashFromMessages(rawBoot)).toBe(
+      computeHistoryHashFromMessages(persistable),
+    );
+  });
+
+  test("native 512-token save does not cover n_past 5632", () => {
+    expect(sessionNativeSaveCoversNPast(512, 5632)).toBe(false);
+    expect(sessionNativeSaveCoversNPast(2357, 2357)).toBe(true);
+    expect(sessionNativeSaveCoversNPast(undefined, 2357)).toBe(false);
+    expect(sessionNativeSaveCoversNPast(512, undefined)).toBe(true);
   });
 });
 
