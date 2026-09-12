@@ -4703,3 +4703,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `KVPREFIX embd=4893 n_common=2094` (not 0, KV kept). Remaining:
   KVDIVERGE at user-role 5922, 2094 vs 4893 (facts-header on a user
   the live KV still has bare). G2 not claimed.
+
+- **12/09 — length-1 bake rematch SHIP `d39fa51`.** S23 2094 vs 4893:
+  a single facts tail attached to the first prev user. Length-1 now
+  prefers the latest prev; empty rematch keys ignored; keepers fill
+  from the end. DeepSeek **SHIP**. Parent Jest 9/9. APK CI
+  `34712435449` queued. Device: two sends, send2 `n_common` should
+  approach embd (not ~2094). G2 not claimed. Jelly/Xiaomi not retested
+  on this APK.
