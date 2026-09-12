@@ -4680,3 +4680,12 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   **SHIP**): interrupted with visible text accepts; empty still refuses.
   Parent Jest 20/20. APK CI `34706413608` queued. First device check:
   load-only of the existing 4454 file. G2 not claimed.
+
+- **12/09 — S23 `d3959aa` load PASS scoped.** SHA `785be308…` hash_match;
+  kvs 30078316 B unchanged after `install -r`. `KALSA_KVRESUME`
+  `n_tokens=4454 pos_max=4453 resumable=1`. `load ok:true tokens:4454`.
+  Not `history_not_reproducible` / `no_file` / `historyHash`. stayon 0
+  timeout null. Optional next send did `window_align 15→0` +
+  `window_slide` → `n_common=0` (2f2b09a one-turn heal: meta
+  `assembleBoundary=0`, `bakedUserTails` length 1). That is not a load
+  fail. Second-send n_common after heal still owed. G2 not claimed.
