@@ -4632,3 +4632,15 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   full, Kalsa pid empty, installed APK still `c7801f9` (`lastUpdateTime`
   2026-09-11 17:52:35). Device proof of `cb1d92d` + bake `2f2b09a` owed
   after this APK. G2 not claimed.
+
+- **12/09 — S23 `cb1d92d` APK `34692988025` SHA `4a87fc1e…` hash_match.**
+  Parent-verified, not the writer’s A/B PASS labels. Stayon=0 timeout=null
+  after; Kalsa pid empty. **B PASS scoped:** screen-off (timeout=null)
+  armed `background.grace timer:native` 08:57:43 → `model.unload`
+  `reason:background graceMs:45000` 08:58:44. Not the HOME-after-turn
+  protocol; it is the real-user path. **A not the 1941 facts-diverge:**
+  engine already unloaded before the send; `window_align from:4 to:0`
+  + `window_slide kvCleared` then `n_common=0 embd=0` (cold heal).
+  Second pass `load ok:false meta_mismatch:historyHash` then
+  `KVDIVERGE n_common=1829 embd=1832` (system-prefix class, not 1941).
+  Report `S23-CB1D92D-2026-09-12/verdict.md` + `run.log`. G2 not claimed.
