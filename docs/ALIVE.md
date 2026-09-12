@@ -4644,3 +4644,13 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Second pass `load ok:false meta_mismatch:historyHash` then
   `KVDIVERGE n_common=1829 embd=1832` (system-prefix class, not 1941).
   Report `S23-CB1D92D-2026-09-12/verdict.md` + `run.log`. G2 not claimed.
+
+- **12/09 — historyHash restore killer SHIP `f0862e6`.** S23 `cb1d92d`
+  second load `meta_mismatch:historyHash` 2488697392 vs 227285259 then
+  `KVDIVERGE` 1829/1832. Save and load now hash
+  `toPersistableHistoryMessages`. Native save shorter than n_past is
+  refused before overwrite (`native_shorter_than_npast`; 512 vs 5632).
+  DeepSeek **SHIP**. Parent Jest 22/22. APK CI `34698163423` queued.
+  Device proof owed: timeout 5 min (restore null), no stayon, one send
+  on `conv-g1-i14` with engine loaded, then restore must not
+  `historyHash`. G2 not claimed.
