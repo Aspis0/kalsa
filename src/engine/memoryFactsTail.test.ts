@@ -25,6 +25,27 @@ describe("applyBakedUserTails keepers", () => {
     expect(matched.map((t) => t.bare)).toEqual(["u1", "u2"]);
   });
 
+  test("length-1 bake sticks to the previous last user, not the first", () => {
+    const baked: BakedUserTail[] = [{ bare: "u2", prefixed: "P\nu2" }];
+    const { messages, firstPrevUnprefixed } = applyBakedUserTails(
+      [u("u1"), a("x"), u("u2"), a("y"), u("now")],
+      baked,
+    );
+    expect(messages[0]?.content).toBe("u1");
+    expect(messages[2]?.content).toBe("P\nu2");
+    expect(firstPrevUnprefixed).toBe(true);
+  });
+
+  test("empty rematch keys never prefix the first user", () => {
+    const baked: BakedUserTail[] = [{ bare: "", prefixed: "P\n" }];
+    const { messages } = applyBakedUserTails(
+      [u(""), a("x"), u(""), a("y"), u("now")],
+      baked,
+    );
+    expect(messages[0]?.content).toBe("");
+    expect(messages[2]?.content).toBe("");
+  });
+
   test("firstPrevUnprefixed when baked has only a later user", () => {
     const baked: BakedUserTail[] = [{ bare: "tea", prefixed: "FACTS\n\ntea" }];
     const { messages, firstPrevUnprefixed, matched } = applyBakedUserTails(
