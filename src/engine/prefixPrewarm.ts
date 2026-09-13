@@ -143,6 +143,34 @@ export function shouldSkipPrewarmWhenKvHoldsChat(
   return kvHoldsChatSession === true;
 }
 
+/**
+ * Locale/web/device/calendar flips must not clearCache while live chat KV
+ * is held. S23 20t t4: notifyStaticPrefixInputs wiped mid-chat then
+ * prewarmed over empty KV (`n_common=0`). Next send may hash-miss; that
+ * is correct. Same boolean as shouldSkipPrewarmWhenKvHoldsChat — inverted.
+ */
+export function shouldWipeKvOnPrefixInputChange(
+  kvHoldsChatSession: boolean,
+): boolean {
+  return !shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession);
+}
+
+/**
+ * Control flow for notifyStaticPrefixInputs. Hash identity first, then
+ * live chat KV (must not clearCache), then in-flight engine jobs.
+ * Only wipe_and_queue may resetPrewarmState + clearCache + queue.
+ */
+export function planPrefixInputChange(input: {
+  hashSkip: boolean;
+  kvHoldsChat: boolean;
+  busy: boolean;
+}): "skip_hash" | "skip_kv_holds" | "skip_inflight" | "wipe_and_queue" {
+  if (input.hashSkip) return "skip_hash";
+  if (!shouldWipeKvOnPrefixInputChange(input.kvHoldsChat)) return "skip_kv_holds";
+  if (input.busy) return "skip_inflight";
+  return "wipe_and_queue";
+}
+
 export function assembleStaticPrefix(input: {
   locale: string;
   systemText: string;

@@ -86,6 +86,8 @@ async function main() {
     assembleStaticPrefix,
     shouldSkipPrewarmWhenKvHoldsChat,
     shouldSkipStaticPrefixPrewarm,
+    shouldWipeKvOnPrefixInputChange,
+    planPrefixInputChange,
   } = prewarmMod;
 
   assert(flagsMod.EAGER_PREFIX_PREWARM === true, "EAGER_PREFIX_PREWARM must default true");
@@ -214,6 +216,75 @@ async function main() {
   assert(
     shouldSkipPrewarmWhenKvHoldsChat(true, true) === true,
     "chat KV stays authoritative",
+  );
+
+  // S23 20t t4: notifyStaticPrefixInputs must not clearCache while chat KV
+  // is held. Same skip boolean, inverted — do not duplicate the check.
+  assert(
+    shouldWipeKvOnPrefixInputChange(true) === false,
+    "holds chat → do not wipe KV on prefix input change",
+  );
+  assert(
+    shouldWipeKvOnPrefixInputChange(false) === true,
+    "no chat KV → wipe+re-prewarm on prefix input change",
+  );
+  assert(
+    shouldWipeKvOnPrefixInputChange(true) ===
+      !shouldSkipPrewarmWhenKvHoldsChat(true),
+    "wipe gate is the skip helper inverted (holds chat)",
+  );
+  assert(
+    shouldWipeKvOnPrefixInputChange(false) ===
+      !shouldSkipPrewarmWhenKvHoldsChat(false),
+    "wipe gate is the skip helper inverted (empty KV)",
+  );
+
+  // notifyStaticPrefixInputs control flow: planner, not helper-only.
+  // Order: hashSkip → kv holds → busy → wipe_and_queue.
+  assert(
+    planPrefixInputChange({ hashSkip: true, kvHoldsChat: false, busy: false }) ===
+      "skip_hash",
+    "hashSkip → skip_hash",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: true, busy: false }) ===
+      "skip_kv_holds",
+    "kv holds → skip_kv_holds",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: false, busy: true }) ===
+      "skip_inflight",
+    "busy → skip_inflight",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: false, busy: false }) ===
+      "wipe_and_queue",
+    "idle empty KV → wipe_and_queue",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: false, busy: true }) !==
+      planPrefixInputChange({ hashSkip: false, kvHoldsChat: false, busy: false }),
+    "skip_inflight is distinct from wipe_and_queue (reset cannot hide in busy path)",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: true, kvHoldsChat: true, busy: true }) ===
+      "skip_hash",
+    "hashSkip wins over kv holds and busy",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: true, busy: true }) ===
+      "skip_kv_holds",
+    "kv holds wins over busy",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: true, busy: false }) ===
+      (shouldWipeKvOnPrefixInputChange(true) ? "wipe_and_queue" : "skip_kv_holds"),
+    "planner uses wipe helper — no duplicated boolean (holds chat)",
+  );
+  assert(
+    planPrefixInputChange({ hashSkip: false, kvHoldsChat: false, busy: false }) ===
+      (shouldWipeKvOnPrefixInputChange(false) ? "wipe_and_queue" : "skip_kv_holds"),
+    "planner uses wipe helper — no duplicated boolean (empty KV)",
   );
 
   console.log("prefixPrewarmHarness OK");
