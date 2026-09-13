@@ -6,6 +6,12 @@ HTTP + SSE). Bound to `127.0.0.1:8080`. Exposed on the tailnet only through
 
 This directory is the server-side deliverable. The phone app is a later run.
 
+**This Mac, 2026-09-13:** Ornith is already on disk as **MTPLX safetensors**
+(`~/.mtplx/models/philipjohnbasile--ornith-ai-Ornith-1.5-35B-A3B-V2-MTPLX/`,
+21 GiB), not as a GGUF. llama-server cannot load that tree. No GGUF download
+or conversion was done. See `NOTES.md`. `run.sh` will exit until
+`KALSA_BRAIN_MODEL` points at a GGUF.
+
 ## What you get
 
 | Piece | Role |
@@ -36,9 +42,14 @@ If `brew install llama.cpp` fails, use a GitHub release binary for macOS arm64
 from [ggml-org/llama.cpp](https://github.com/ggml-org/llama.cpp/releases) and
 put `llama-server` on `PATH`. Build from source only if both of those fail.
 
-## 2. Download the model
+## 2. Model (GGUF)
 
-Official GGUF: [`ornith-ai/Ornith-1.5-35B-A3B-GGUF`](https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B-GGUF).
+Hunt local copies first (`NOTES.md`). On this Mac the only complete Ornith
+is MTPLX safetensors; **do not download a 20 GB GGUF unless a later run
+explicitly allows it.**
+
+If a GGUF is required and still missing, official repo:
+[`ornith-ai/Ornith-1.5-35B-A3B-GGUF`](https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B-GGUF).
 
 Default on this Mac: **Q4_K_M** (`Ornith-1.5-35B-Q4_K_M.gguf`, ~20.2 GiB).
 64 GB unified memory holds weights + 32k KV with headroom. Q5_K_M (~23.6 GiB)

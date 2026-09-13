@@ -18,22 +18,27 @@ Filled in on the owner Mac (`Marco’s MacBook Pro`, Apple Silicon, 10 cores,
 Homebrew also advertised a newer stable `0.4.0`. This run kept the already-installed
 `b10360` rather than upgrading mid-task.
 
-## Model
+## Model hunt (2026-09-13) — no GGUF on this Mac
 
-| | |
-| --- | --- |
-| Repo | [`ornith-ai/Ornith-1.5-35B-A3B-GGUF`](https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B-GGUF) (official GGUF, not a third-party requant) |
-| File | `Ornith-1.5-35B-Q4_K_M.gguf` |
-| Path | `~/.kalsa/models/ornith-1.5-35b-a3b/Ornith-1.5-35B-Q4_K_M.gguf` |
-| Size | 20.22 GiB (21 713 463 040 bytes, from Hugging Face `Content-Length`) |
-| Quant | Q4_K_M |
+Orchestrator update: Ornith is already on disk; do **not** download a GGUF.
+A `hf download` of `Ornith-1.5-35B-Q4_K_M.gguf` that had started earlier in
+this run was killed (PID 16218) and the ~17 GiB incomplete blob under
+`~/.kalsa/models/ornith-1.5-35b-a3b/` was deleted. No conversion was run.
 
-**Why Q4_K_M:** this Mac has 64 GB RAM and ~109 GB free disk. Q4_K_M is the
-requested class and fits comfortably (~20 GB weights). Same official repo also
-ships Q5_K_M (23.61 GiB), Q6_K (27.20 GiB), Q8_0 (35.21 GiB). Those would still
-load on 64 GB; Q4_K_M leaves more unified-memory headroom for a 32k context,
-Metal scratch, and the desktop. Not using `mmproj-Ornith-1.5-35B-BF16.gguf`
-(vision projector) — this endpoint is chat completions only.
+**What is actually here (usable by pi/mtplx, not by llama-server):**
+
+| Path | Format | Size | Notes |
+| --- | --- | --- | --- |
+| `~/.mtplx/models/philipjohnbasile--ornith-ai-Ornith-1.5-35B-A3B-V2-MTPLX/` | safetensors shards + MTPLX sidecar | 21 GiB | Complete. Paseo profile `Free Coder open` model id `mtplx/philipjohnbasile-ornith-ai-ornith-1-5-35b-a3b-v2-mtplx`. Source repo `philipjohnbasile/ornith-ai-Ornith-1.5-35B-A3B-V2-MTPLX`, `resolved_sha` `5aeec0f34d48b7c6fff28adc15de14b689eb27ed`. Forge: body 4-bit affine, MTP kept bf16, arch `qwen3-next-mtp`. Files: `model-00001..04-of-00004.safetensors` (5.0+5.0+5.0+3.2 GiB), `model-vision.safetensors` (852 MiB), `mtp.safetensors` (1.6 GiB), tokenizer, `chat_template.jinja`, `mtplx_runtime.json`. |
+| `~/.cache/huggingface/hub/models--ornith-ai--Ornith-1.5-35B-A3B-MLX-4bit` | Hugging Face cache stub | 4 KiB | `refs/main` only. **Not** the weights. |
+
+**Searched, no Ornith GGUF:** `mdfind -name ornith`; `mdfind '*.gguf'`; `find ~ -maxdepth 5` (and a no-prune variant); `~/.cache/huggingface`, `~/.pi`, `~/.mtplx`, `~/.lmstudio`, `~/Library/Application Support/lmstudio`, `~/.ollama`, `~/.cache/lm-studio`, `~/Models`, `~/models`, `~/Downloads`, `~/.cache/pi`, `~/.kalsa/models`, `/Volumes` (only Macintosh HD); `~/Projects` including `kalsa-moe-experiments/logs/dl-ornith-q2kl.log` (that log is a Windows path `C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\ornith-dl`, not this Mac). Large GGUFs present are MiniCPM/Qwen/Marco-Mini — not Ornith.
+
+llama-server cannot load safetensors/MTPLX. `KALSA_BRAIN_MODEL` is therefore unset; `run.sh` will refuse until a GGUF exists. Do **not** convert the MTPLX tree in this run.
+
+**Intended GGUF if a later run is allowed to fetch one:** official
+[`ornith-ai/Ornith-1.5-35B-A3B-GGUF`](https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B-GGUF) `Ornith-1.5-35B-Q4_K_M.gguf` (~20.22 GiB). Why Q4_K_M: 64 GB unified memory, ~109 GB free disk; Q4_K_M is the requested class and leaves headroom for 32k ctx vs Q5_K_M (23.61 GiB) / Q6_K (27.20 GiB) / Q8_0 (35.21 GiB). Not using `mmproj-*.gguf` (vision). Default path `run.sh` looks for:
+`~/.kalsa/models/ornith-1.5-35b-a3b/Ornith-1.5-35B-Q4_K_M.gguf` (file not present).
 
 ## Flags
 
@@ -60,7 +65,9 @@ API key file: `~/.kalsa/api-keys` (mode 600, one token per line). Not in git.
 
 ## RAM (first successful load)
 
-To be filled after `run.sh` brings `/health` up. Capture with:
+Not measured. llama-server was not started: no Ornith GGUF on disk.
+
+When a GGUF is present:
 
 ```bash
 ps -o pid,rss,vsz,command -p "$(cat ~/.kalsa/macbrain.pid)"
