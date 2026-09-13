@@ -86,6 +86,28 @@ describe("stall watchdog", () => {
     expect(afterGap.tokPerSec).toBeCloseTo(1 / 3, 12);
   });
 
+  test("does not rate-stall a live think at 0.166 tok/s with a 1.8s gap", () => {
+    let now = 10_000;
+    const watchdog = createStallWatchdog({
+      gapMs: GENERATION_STALL_GAP_MS,
+      now: () => now,
+    });
+
+    // T20D: 7/42s ≈ 0.166 tok/s, gapMs=1812.
+    const stepMs = 6_000;
+    watchdog.noteToken();
+    for (let i = 1; i < MIN_TOKENS_BEFORE_RATE; i += 1) {
+      now += stepMs;
+      watchdog.noteToken();
+    }
+    now += 1_812;
+    const result = watchdog.check();
+    expect(result.stalled).toBe(false);
+    expect(result.gapMs).toBe(1_812);
+    expect(result.tokPerSec).toBeCloseTo(7 / 42_000 * 1000, 8);
+    expect(result.tokPerSec).toBeLessThan(MIN_DECODE_TOK_PER_SEC);
+  });
+
   test("stalls on trailing 8 tokens slower than 0.2 tok/s with reason rate", () => {
     let now = 10_000;
     const watchdog = createStallWatchdog({

@@ -7,9 +7,10 @@
  *
  * Rate: trailing window of the last `MIN_TOKENS_BEFORE_RATE` timestamps,
  * not cumulative since firstTokenAt. Judge only after 8 tokens and only
- * when gapMs >= 1000 — a token that just arrived is not a stall. 0.5
- * tok/s fired on 3 s think tokens (~0.33 tok/s); 0.2 is 5 s/token. A
- * 0.058 tok/s crawl still fails the trailing rate.
+ * when gapMs >= 10 s. S23 T20D aborted a live think at tokens=329
+ * gapMs=1812 tokPerSec=0.166 (`reason=rate`) — 1.8 s between tokens is
+ * not a hang. 0.2 tok/s is 5 s/token; a 0.058 tok/s crawl with ~9 s
+ * gaps still fails the trailing rate.
  *
  * A true hang still aborts: no tokens → prefill deadline; after the first
  * token a 45 s gap; 15 min FOREGROUND_STUCK remains the inflight cap.
@@ -17,7 +18,7 @@
 export const GENERATION_STALL_GAP_MS = 45_000;
 export const MIN_TOKENS_BEFORE_RATE = 8;
 export const MIN_DECODE_TOK_PER_SEC = 0.2;
-export const MIN_GAP_MS_BEFORE_RATE = 1_000;
+export const MIN_GAP_MS_BEFORE_RATE = 10_000;
 
 export type StallReason = "gap" | "rate";
 
