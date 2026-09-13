@@ -4736,3 +4736,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   17:30. `KALSA_KVRESUME n_tokens=6999 resumable=1`. `load ok:true
   tokens:6999`. Send `window_align 8→0`, `n_common=6999=embd`. No
   `window_slide`. stayon 0 timeout null. G2 still needs Xiaomi.
+
+- **12/09 — S23 `d39fa51` kill-recovery PASS scoped.** kvs 35048956 B
+  15:37. `KALSA_KVRESUME n_tokens=5199 resumable=1`. `load ok:true
+  tokens:5199`. Send `n_common=5196` / `embd=5199`. No `window_slide`.
+  stayon 0 timeout null. Same-build chat+kill-recovery now S23+Jelly.
+  Xiaomi still unreachable. G2 not claimed.
