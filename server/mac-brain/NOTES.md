@@ -34,48 +34,53 @@ this run was killed (PID 16218) and the ~17 GiB incomplete blob under
 
 **Searched, no Ornith GGUF:** `mdfind -name ornith`; `mdfind '*.gguf'`; `find ~ -maxdepth 5` (and a no-prune variant); `~/.cache/huggingface`, `~/.pi`, `~/.mtplx`, `~/.lmstudio`, `~/Library/Application Support/lmstudio`, `~/.ollama`, `~/.cache/lm-studio`, `~/Models`, `~/models`, `~/Downloads`, `~/.cache/pi`, `~/.kalsa/models`, `/Volumes` (only Macintosh HD); `~/Projects` including `kalsa-moe-experiments/logs/dl-ornith-q2kl.log` (that log is a Windows path `C:\Users\gualt\Desktop\Kalsa\moe-experiments\models\ornith-dl`, not this Mac). Large GGUFs present are MiniCPM/Qwen/Marco-Mini — not Ornith.
 
-llama-server cannot load safetensors/MTPLX. `KALSA_BRAIN_MODEL` is therefore unset; `run.sh` will refuse until a GGUF exists. Do **not** convert the MTPLX tree in this run.
+**M1b:** mtplx *can* serve this tree over OpenAI HTTP. llama-server GGUF path is fallback only. No conversion, no download.
 
-**Intended GGUF if a later run is allowed to fetch one:** official
-[`ornith-ai/Ornith-1.5-35B-A3B-GGUF`](https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B-GGUF) `Ornith-1.5-35B-Q4_K_M.gguf` (~20.22 GiB). Why Q4_K_M: 64 GB unified memory, ~109 GB free disk; Q4_K_M is the requested class and leaves headroom for 32k ctx vs Q5_K_M (23.61 GiB) / Q6_K (27.20 GiB) / Q8_0 (35.21 GiB). Not using `mmproj-*.gguf` (vision). Default path `run.sh` looks for:
-`~/.kalsa/models/ornith-1.5-35b-a3b/Ornith-1.5-35B-Q4_K_M.gguf` (file not present).
+## Serving runtime (M1b) — mtplx, already up
+
+| | |
+| --- | --- |
+| CLI wrapper | `~/.mtplx/bin/mtplx` → `exec '/Users/marco/Library/Application Support/MTPLX/runtime-venv/bin/mtplx'` |
+| App | `/Applications/MTPLX.app` |
+| Version | `mtplx 2.11.1` |
+| Subcommands | `start`, `tune`, `setup`, `quickstart`, `serve`, `connect`, `ask`, `run`, `chat`, `status`, `stop`, `settings`, `inspect`, `trace`, `forge`, `hardware`, `models` |
+| Live process | `python -m mtplx.server.openai` (PID 42053) launched by `mtplx serve --host 127.0.0.1 --port 8000 --model …V2-MTPLX … --app-launch-id …` |
+| Bind | `127.0.0.1:8000` only. **Not** 8080 — a second copy would load ~21 GiB twice. The MTPLX app owns this daemon; `run.sh --backend mtplx` **attaches**, it does not spawn a sibling. |
+| OpenAI API | `/v1/models`, `/v1/chat/completions` (stream + non-stream), `/docs`. `/health` (not `/v1/health`). |
+| Served id | `philipjohnbasile-ornith-ai-ornith-1.5-35b-a3b-v2-mtplx` |
+| pi | `~/.pi/agent/models.json` provider `mtplx` `baseUrl: http://127.0.0.1:8000/v1`. Paseo profile `Free Coder open` uses `mtplx/philipjohnbasile-ornith-ai-ornith-1-5-35b-a3b-v2-mtplx`. |
+
+**Auth:** `mtplx serve` supports `--api-key`, `--api-key-file`, `--no-auth` (localhost). The **live** daemon has **none of those flags**. `/health` and `/v1/models` return 200 with no header. Chat completions return 200 with no key **and** with a dummy `Authorization: Bearer`. This is acceptable for loopback-only. **It is not acceptable to Tailscale-Serve this port until a key is configured** — flag before any Serve enable. `~/.kalsa/api-keys` exists for the llama-server fallback; the live mtplx process does not read it. pi stores its own key for `:8000` but the server does not enforce it.
+
+**Do not** `mtplx stop` this daemon from Kalsa scripts — it is the Paseo local coder.
+
+Smoke (this run, no extra start):
+
+- `GET /health` → 200, `"ok": true`, model path the MTPLX tree.
+- Non-stream `POST /v1/chat/completions` → 200, `content: "pong"`, model id as above. Needs `max_tokens` ≳ 64 because reasoning (`qwen3` parser, effort medium) consumes tokens before the answer.
+- Stream → incremental `data:` chunks (141 lines), visible `delta.content` `"1 2 3 4 5 6 7 8"`, final `data: [DONE]`. ~60 tok/s decode.
+
+`--download` exists on `mtplx serve`. `run.sh` never passes it.
 
 ## Flags
 
+**Live mtplx (authoritative):** `--host 127.0.0.1 --port 8000 --model ~/.mtplx/models/philipjohnbasile--ornith-ai-Ornith-1.5-35B-A3B-V2-MTPLX --generation-mode mtp --profile sustained --depth 1 --scheduler-mode ar_batch --batching-preset agent --max-active-requests 2` plus the app's MTP/fan/adaptive flags. No `--api-key*`.
+
+**llama-server fallback** (`run.sh --backend llama-server`) — only if a GGUF exists; unused this run:
+
 ```
-llama-server
-  --model ~/.kalsa/models/ornith-1.5-35b-a3b/Ornith-1.5-35B-Q4_K_M.gguf
-  --host 127.0.0.1
-  --port 8080
-  --ctx-size 32768
-  --threads 8
-  --n-gpu-layers all
-  --flash-attn auto
-  --api-key-file ~/.kalsa/api-keys
-  --sse-ping-interval 30
+llama-server --model <GGUF> --host 127.0.0.1 --port 8080 --ctx-size 32768
+  --threads 8 --n-gpu-layers all --flash-attn auto
+  --api-key-file ~/.kalsa/api-keys --sse-ping-interval 30
 ```
 
-`--threads 8` leaves 2 of 10 cores for the OS/UI. `--n-gpu-layers all` is Metal
-on unified memory (`auto` is the llama.cpp default; we pin `all`). Context 32768
-is a deliberate cap vs whatever the GGUF advertises, so KV does not eat the
-machine. `--sse-ping-interval 30` matches llama.cpp's own default; set explicitly
-so a future default change does not silently drop pings.
+API key file: `~/.kalsa/api-keys` (mode 600, one token per line). Not in git. Enforced only by llama-server.
 
-API key file: `~/.kalsa/api-keys` (mode 600, one token per line). Not in git.
+## RAM (mtplx Ornith, measured 2026-09-13)
 
-## RAM (first successful load)
+From the stream completion `mtplx_stats`: `active_memory_bytes` 21 551 025 666 (~20.1 GiB), `peak_memory_bytes` 44 632 099 336 (~41.6 GiB), `cache_memory_bytes` ~348 MiB. Process RSS of the Python server is a red herring (~431 MiB) — weights live in Metal/MLX.
 
-Not measured. llama-server was not started: no Ornith GGUF on disk.
-
-When a GGUF is present:
-
-```bash
-ps -o pid,rss,vsz,command -p "$(cat ~/.kalsa/macbrain.pid)"
-# rss is KiB
-```
-
-Also `memory_pressure` / Activity Monitor "llama-server" if RSS looks off
-because of Metal wired pages.
+64 GB machine: peak ~42 GiB is tight-but-ok; do **not** start a second Ornith (no llama-server + mtplx, no second `mtplx serve` on 8080).
 
 ## Tailnet
 
@@ -85,4 +90,5 @@ because of Metal wired pages.
 | Logged in | yes — node `<mac-hostname>` (`<tailnet-ip>`), tailnet MagicDNS suffix `<tailnet>.ts.net` |
 | MagicDNS | `<mac>.<tailnet>.ts.net` |
 | Serve | **not enabled on this tailnet.** `tailscale serve --bg 8080` prints `Serve is not enabled on your tailnet` and a login.tailscale.com enable URL; `serve status` stays `No serve config`. Funnel was not used. An admin must enable Serve, then re-run `…/Tailscale serve --bg 8080`. |
-| Local | `http://127.0.0.1:8080` (nothing listening this run — no GGUF) |
+| Local | `http://127.0.0.1:8000` (mtplx OpenAI server, Ornith). 8080 is the llama-server fallback and is free. |
+| Serve target when enabled | `tailscale serve --bg 8000` (not 8080). Still blocked on the tailnet admin toggle. |

@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <!--
-  launchd template for the Kalsa Mac brain (llama-server).
-  Do NOT install this automatically. See README.md for install/uninstall.
+  launchd template for the llama-server FALLBACK only.
+  Preferred runtime is mtplx on 127.0.0.1:8000 (MTPLX.app). Do not install
+  this while mtplx is serving Ornith — two copies of the model will OOM.
+  Do NOT install this automatically. See README.md.
 
   Edit the model path and user-specific paths before loading.
 -->
