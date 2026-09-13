@@ -82,6 +82,7 @@ because of Metal wired pages.
 | | |
 | --- | --- |
 | CLI | `/Applications/Tailscale.app/Contents/MacOS/Tailscale` (`tailscale` is not on the default PATH) |
+| Logged in | yes — node `<mac-hostname>` (`<tailnet-ip>`), tailnet MagicDNS suffix `<tailnet>.ts.net` |
 | MagicDNS | `<mac>.<tailnet>.ts.net` |
-| Serve | `tailscale serve --bg 8080` (HTTPS on 443, tailnet only — not Funnel) |
-| Local | `http://127.0.0.1:8080` |
+| Serve | **not enabled on this tailnet.** `tailscale serve --bg 8080` prints `Serve is not enabled on your tailnet` and a login.tailscale.com enable URL; `serve status` stays `No serve config`. Funnel was not used. An admin must enable Serve, then re-run `…/Tailscale serve --bg 8080`. |
+| Local | `http://127.0.0.1:8080` (nothing listening this run — no GGUF) |

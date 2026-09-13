@@ -213,6 +213,7 @@ Delete that tree if you want a full wipe. **Do not** put the key in git.
 | `refusing double-start` | Something already owns 8080 (`lsof -nP -iTCP:8080 -sTCP:LISTEN`). |
 | `/health` not ready in 180s | `tail -n 80 ~/.kalsa/macbrain.log`. First load of 20 GB can take a minute; Metal OOM shows up here. Drop `KALSA_BRAIN_CTX` to `16384`. |
 | HTTP 401 | Bearer does not match `~/.kalsa/api-keys` (first line, no quotes). |
+| `Serve is not enabled on your tailnet` | This tailnet has Serve off. An admin must enable it (the CLI prints a `login.tailscale.com/f/serve` URL). Do not use Funnel. Local `127.0.0.1:8080` is independent. |
 | Tailscale URL fails, local works | `tailscale status` logged in? `tailscale serve status` pointing at 8080? Funnel must stay off. |
 | Stream has no `data: [DONE]` | Client must use `stream: true` and not buffer (`curl -N`). llama.cpp SSE ping interval is 30s (`--sse-ping-interval 30`). |
 
