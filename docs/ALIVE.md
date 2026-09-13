@@ -4742,3 +4742,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   tokens:5199`. Send `n_common=5196` / `embd=5199`. No `window_slide`.
   stayon 0 timeout null. Same-build chat+kill-recovery now S23+Jelly.
   Xiaomi still unreachable. G2 not claimed.
+
+- **13/09 — Xiaomi 14 back on LAN; G2 `d39fa51` slice in flight.** Ping
+  192.168.1.193 ok. adb TLS `192.168.1.193:38413` (mdns
+  `adb-625689a2-9xEOfw`, product houji 23127PN0CG). Old port 34651
+  refused. stayon=0, timeout=120000, battery 28% charging 35.3°C,
+  lastUpdateTime 2026-09-11 07:05:50. Same APK as S23+Jelly. Chat +
+  kill-recovery running. G2 not claimed.
