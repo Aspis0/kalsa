@@ -4755,3 +4755,11 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   timeout restored 120000. UI: "Enter PIN or use fingerprint to unlock".
   `mDreamingLockscreen=true`. No load/KVPREFIX. Waiting for unlock then A+B.
   G2 not claimed.
+
+- **13/09 — Xiaomi `d39fa51` A+B PASS scoped.** Chat
+  `conv-g1-c02-1789009104`. SHA `1a0fb8f5…`. stayon 0 timeout 120000.
+  A: load 2361, send1 `n_common=2361`, send2 `2374/2436`, no
+  `window_slide`. B: `KVRESUME 2486 resumable=1`, load 2486, send
+  `n_common=2486=embd`. Same-build chat+kill-recovery now on S23 +
+  Jelly + Xiaomi (`d39fa51`). Tools/docs/20–30 turns not on this APK.
+  G2 not claimed.
