@@ -1,13 +1,23 @@
 /**
- * Generation watchdog thresholds. A 10 s token gap (0.05 tok/s is
- * pathological on either phone) is far beyond the Jelly's normal 3 tok/s
- * decode, or roughly 330 ms gaps. The rate rule requires at least 0.5 tok/s
- * after 30 s and catches sustained S23 failures such as 0.058 tok/s, even
- * when occasional tokens keep every gap below 10 s.
+ * Generation watchdog thresholds.
+ *
+ * Gap 45 s: S23 T20B after a 1832-token prefix reuse paused ~10 s on the
+ * first think token (`KALSA_STALL` gapMs=10143, tokens=1, tokPerSec=0.098).
+ * The old 10 s gap aborted a live think start, not a hang.
+ *
+ * Rate: trailing window of the last `MIN_TOKENS_BEFORE_RATE` timestamps,
+ * not cumulative since firstTokenAt. Judge only after 8 tokens and only
+ * when gapMs >= 1000 — a token that just arrived is not a stall. 0.5
+ * tok/s fired on 3 s think tokens (~0.33 tok/s); 0.2 is 5 s/token. A
+ * 0.058 tok/s crawl still fails the trailing rate.
+ *
+ * A true hang still aborts: no tokens → prefill deadline; after the first
+ * token a 45 s gap; 15 min FOREGROUND_STUCK remains the inflight cap.
  */
-export const GENERATION_STALL_GAP_MS = 10_000;
-export const RATE_GRACE_MS = 30_000;
-export const MIN_DECODE_TOK_PER_SEC = 0.5;
+export const GENERATION_STALL_GAP_MS = 45_000;
+export const MIN_TOKENS_BEFORE_RATE = 8;
+export const MIN_DECODE_TOK_PER_SEC = 0.2;
+export const MIN_GAP_MS_BEFORE_RATE = 1_000;
 
 export type StallReason = "gap" | "rate";
 
@@ -24,34 +34,39 @@ export type StallWatchdog = {
   reset: () => void;
 };
 
+function trailingTokPerSec(tokenAt: readonly number[]): number {
+  if (tokenAt.length < 2) return 0;
+  const spanMs = tokenAt[tokenAt.length - 1]! - tokenAt[0]!;
+  if (spanMs <= 0) return 0;
+  return ((tokenAt.length - 1) / spanMs) * 1000;
+}
+
 export function createStallWatchdog(input: {
   gapMs: number;
   now: () => number;
 }): StallWatchdog {
-  let firstTokenAt: number | null = null;
-  let lastTokenAt: number | null = null;
-  let tokenCount = 0;
+  const tokenAt: number[] = [];
 
   return {
     noteToken: () => {
-      const now = input.now();
-      firstTokenAt ??= now;
-      lastTokenAt = now;
-      tokenCount += 1;
+      tokenAt.push(input.now());
+      if (tokenAt.length > MIN_TOKENS_BEFORE_RATE) {
+        tokenAt.shift();
+      }
     },
     check: () => {
-      if (firstTokenAt === null || lastTokenAt === null) {
+      if (tokenAt.length === 0) {
         return { stalled: false, reason: "gap", gapMs: 0, tokPerSec: 0 };
       }
       const now = input.now();
-      const gapMs = Math.max(0, now - lastTokenAt);
-      const elapsedMs = Math.max(0, now - firstTokenAt);
-      const tokPerSec = elapsedMs > 0 ? (tokenCount / elapsedMs) * 1000 : 0;
+      const gapMs = Math.max(0, now - tokenAt[tokenAt.length - 1]!);
+      const tokPerSec = trailingTokPerSec(tokenAt);
       if (gapMs >= input.gapMs) {
         return { stalled: true, reason: "gap", gapMs, tokPerSec };
       }
       if (
-        elapsedMs >= RATE_GRACE_MS &&
+        tokenAt.length >= MIN_TOKENS_BEFORE_RATE &&
+        gapMs >= MIN_GAP_MS_BEFORE_RATE &&
         tokPerSec < MIN_DECODE_TOK_PER_SEC
       ) {
         return { stalled: true, reason: "rate", gapMs, tokPerSec };
@@ -59,9 +74,7 @@ export function createStallWatchdog(input: {
       return { stalled: false, reason: "gap", gapMs, tokPerSec };
     },
     reset: () => {
-      firstTokenAt = null;
-      lastTokenAt = null;
-      tokenCount = 0;
+      tokenAt.length = 0;
     },
   };
 }

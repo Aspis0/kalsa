@@ -8,19 +8,20 @@ export const MIN_PREFILL_DEADLINE_MS = 90_000;
  * 47 °C) took 225 s for 2112 tokens, while chars/4 gave 992 tokens and a 3×
  * deadline of 167 s would have falsely stalled it. The minimum prevents
  * short prompts from being treated as stalled by timer jitter.
- * A missing EMA leaves the prefill unwatched until a sample exists.
+ * A missing EMA still arms the min deadline (90 s) so a cold process
+ * cannot hang forever before token 1. Luna stall-trail audit 2026-09-13.
  */
 export function prefillDeadlineMs(input: {
   promptTokensEstimate: number;
   prefillTokPerSec: number | null;
   minMs: number;
-}): number | null {
+}): number {
   if (
     input.prefillTokPerSec === null ||
     !Number.isFinite(input.prefillTokPerSec) ||
     input.prefillTokPerSec <= 0
   ) {
-    return null;
+    return Math.max(0, input.minMs);
   }
   const promptTokens = Math.max(0, input.promptTokensEstimate);
   const minMs = Math.max(0, input.minMs);

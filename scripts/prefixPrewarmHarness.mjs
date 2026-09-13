@@ -87,6 +87,7 @@ async function main() {
     shouldSkipPrewarmWhenKvHoldsChat,
     shouldSkipStaticPrefixPrewarm,
     shouldWipeKvOnPrefixInputChange,
+    shouldApplyQueuedPrefixWipe,
     planPrefixInputChange,
   } = prewarmMod;
 
@@ -237,6 +238,34 @@ async function main() {
     shouldWipeKvOnPrefixInputChange(false) ===
       !shouldSkipPrewarmWhenKvHoldsChat(false),
     "wipe gate is the skip helper inverted (empty KV)",
+  );
+
+  // Queued wipe-job recheck: same boolean, not a second inversion.
+  assert(
+    shouldApplyQueuedPrefixWipe(true) === false,
+    "holds chat → queued wipe must not apply",
+  );
+  assert(
+    shouldApplyQueuedPrefixWipe(false) === true,
+    "empty KV → queued wipe may apply",
+  );
+  assert(
+    shouldApplyQueuedPrefixWipe(true) === shouldWipeKvOnPrefixInputChange(true),
+    "queued wipe helper is the planner wipe helper (holds chat)",
+  );
+  assert(
+    shouldApplyQueuedPrefixWipe(false) === shouldWipeKvOnPrefixInputChange(false),
+    "queued wipe helper is the planner wipe helper (empty KV)",
+  );
+  assert(
+    shouldApplyQueuedPrefixWipe(true) ===
+      !shouldSkipPrewarmWhenKvHoldsChat(true),
+    "queued wipe helper is the skip helper inverted (holds chat)",
+  );
+  assert(
+    shouldApplyQueuedPrefixWipe(false) ===
+      !shouldSkipPrewarmWhenKvHoldsChat(false),
+    "queued wipe helper is the skip helper inverted (empty KV)",
   );
 
   // notifyStaticPrefixInputs control flow: planner, not helper-only.

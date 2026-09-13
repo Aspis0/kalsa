@@ -1,14 +1,14 @@
 import { MIN_PREFILL_DEADLINE_MS, prefillDeadlineMs } from "./prefillDeadline";
 
 describe("prefillDeadlineMs", () => {
-  test("returns null without a prefill EMA", () => {
+  test("arms the min deadline without a prefill EMA", () => {
     expect(
       prefillDeadlineMs({
         promptTokensEstimate: 2112,
         prefillTokPerSec: null,
         minMs: MIN_PREFILL_DEADLINE_MS,
       }),
-    ).toBeNull();
+    ).toBe(MIN_PREFILL_DEADLINE_MS);
   });
 
   test("allows five measured prefill durations", () => {

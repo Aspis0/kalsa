@@ -2904,6 +2904,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             sendingInFlightRef.current ||
             regenInFlightRef.current ||
             sendClaimRef.current ||
+            downloadInFlight.current ||
+            modelSwitchInFlightRef.current ||
             nativeEngineWorkInFlight();
           if (
             skipDisposeWhileInFlight({
@@ -3042,7 +3044,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             (streamInFlightRef.current ||
               sendingInFlightRef.current ||
               regenInFlightRef.current ||
-              sendClaimRef.current) &&
+              sendClaimRef.current ||
+              nativeEngineWorkInFlight()) &&
             Date.now() - t0 < 5000
           ) {
             await new Promise((r) => setTimeout(r, 50));
@@ -3097,6 +3100,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       regenInFlightRef.current ||
       sendClaimRef.current ||
       downloadInFlight.current ||
+      modelSwitchInFlightRef.current ||
       nativeEngineWorkInFlight();
     idleClock.arm = () => {
       if (idleClock.timer) backgroundTimer.clearTimeout(idleClock.timer);
@@ -3478,7 +3482,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           (streamInFlightRef.current ||
             sendingInFlightRef.current ||
             regenInFlightRef.current ||
-            sendClaimRef.current) &&
+            sendClaimRef.current ||
+            nativeEngineWorkInFlight()) &&
           Date.now() - startedAt < 5000
         ) {
           await new Promise((resolve) => setTimeout(resolve, 50));

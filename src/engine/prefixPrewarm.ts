@@ -156,9 +156,21 @@ export function shouldWipeKvOnPrefixInputChange(
 }
 
 /**
+ * Wipe-job run-time recheck, inside withLifecycleLock immediately before
+ * clearCache. Init assigns `context` (isEngineReady) before
+ * tryLoadEngineSession sets kvHoldsChatSession. Same boolean as
+ * shouldWipeKvOnPrefixInputChange — do not invert again.
+ */
+export function shouldApplyQueuedPrefixWipe(kvHoldsNow: boolean): boolean {
+  return shouldWipeKvOnPrefixInputChange(kvHoldsNow);
+}
+
+/**
  * Control flow for notifyStaticPrefixInputs. Hash identity first, then
  * live chat KV (must not clearCache), then in-flight engine jobs.
  * Only wipe_and_queue may resetPrewarmState + clearCache + queue.
+ * Planner `busy` is sampled before locks; LlamaService rechecks
+ * engineJobPendingCount inside withLifecycleLock (skip_inflight).
  */
 export function planPrefixInputChange(input: {
   hashSkip: boolean;
