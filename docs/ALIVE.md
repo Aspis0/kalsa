@@ -4749,3 +4749,9 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   refused. stayon=0, timeout=120000, battery 28% charging 35.3°C,
   lastUpdateTime 2026-09-11 07:05:50. Same APK as S23+Jelly. Chat +
   kill-recovery running. G2 not claimed.
+
+- **13/09 — Xiaomi `d39fa51` SHA PASS, A/B BLOCKED lockscreen PIN.**
+  Installed `lastUpdateTime` 2026-09-13 01:01:27, SHA `1a0fb8f5…`. stayon 0
+  timeout restored 120000. UI: "Enter PIN or use fingerprint to unlock".
+  `mDreamingLockscreen=true`. No load/KVPREFIX. Waiting for unlock then A+B.
+  G2 not claimed.
