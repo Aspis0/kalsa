@@ -4724,3 +4724,10 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   Send2 `window_align 8→0`, `n_common=6999=embd`. No `window_slide`.
   Extract in between `n_common=2` then restore 6999 (expected). Same APK
   as S23 5196/5199. Xiaomi not on this APK. G2 not claimed.
+
+- **12/09 — G2: same-build chat+KV on S23+Jelly (`d39fa51`); Xiaomi
+  unreachable.** S23 send2 `5196/5199`; Jelly `6999/6999`; both no
+  `window_slide`. G2 gate is three-phone complete-chat + uncorrupted
+  recovery (PLAN 23/09). Xiaomi 14 `192.168.1.193` ping 100% loss, not
+  in adb mdns (only S23 `192.168.1.152:33983`). Cannot claim G2. Next:
+  kill-recovery of Jelly's 6999 save; Xiaomi when on LAN.
