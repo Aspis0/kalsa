@@ -131,6 +131,7 @@ import {
   invalidateEngineSession,
   isEngineLostRecovery,
   isEngineReady,
+  nativeEngineWorkInFlight,
   notifyStaticPrefixInputs,
   queueStaticPrefixPrewarm,
   restoreEngineSession,
@@ -2902,7 +2903,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             streamInFlightRef.current ||
             sendingInFlightRef.current ||
             regenInFlightRef.current ||
-            sendClaimRef.current;
+            sendClaimRef.current ||
+            nativeEngineWorkInFlight();
           if (
             skipDisposeWhileInFlight({
               inFlight,
@@ -3094,7 +3096,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       sendingInFlightRef.current ||
       regenInFlightRef.current ||
       sendClaimRef.current ||
-      downloadInFlight.current;
+      downloadInFlight.current ||
+      nativeEngineWorkInFlight();
     idleClock.arm = () => {
       if (idleClock.timer) backgroundTimer.clearTimeout(idleClock.timer);
       idleClock.timer = backgroundTimer.setTimeout(() => {

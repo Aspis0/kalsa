@@ -226,6 +226,7 @@ import {
   assembleStaticPrefix,
   classifyPrewarmResult,
   computePrewarmPrefixHash,
+  planPrefixInputChange,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
 } from "./prefixPrewarm";
@@ -681,6 +682,11 @@ let lifecycleChain: Promise<void> = Promise.resolve();
 // Tracking completion attive: dispose ferma e ATTENDE prima di release().
 const activeCompletionSet = new Set<Promise<unknown>>();
 
+/** Native completion or FIFO engine job still running (prefill/think/decode). */
+export function nativeEngineWorkInFlight(): boolean {
+  return activeCompletionSet.size > 0 || engineJobPendingCount > 0;
+}
+
 /**
  * FIFO gate for ALL engine completions (stream / extract / translate).
  * llama.cpp does not support concurrent completions on one LlamaContext.
@@ -910,9 +916,11 @@ export async function queueStaticPrefixPrewarm(
 
 /**
  * Settings that change the static prefix (locale / web / device / calendar).
- * Same identity → no-op. Else mark stale. If a chat (or any engine job) is
- * in flight, do not clearCache (do not fight an in-flight turn / cc8ed55).
- * Next send logs a hash-miss. If idle, clearCache + re-queue prewarm.
+ * Same identity → no-op. Live chat KV → skip (do not clearCache to re-prewarm
+ * a new static prefix; next send may hash-miss). If a chat (or any engine
+ * job) is in flight, do not clearCache (do not fight an in-flight turn /
+ * cc8ed55). Next send logs a hash-miss. If idle and KV is empty, clearCache
+ * + re-queue prewarm.
  */
 export function notifyStaticPrefixInputs(
   locale: Locale,
@@ -921,28 +929,41 @@ export function notifyStaticPrefixInputs(
   if (!EAGER_PREFIX_PREWARM || !isEngineReady()) return;
   void getToolChoiceMode().then((toolChoiceMode) => {
     const prefix = resolvePrewarmPrefix(locale, tools, toolChoiceMode);
-    if (
-      shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
-      prewarmQueuedKey === prefix.hash
-    ) {
-      return;
-    }
-    const busy = engineJobPendingCount > 0;
-    resetPrewarmState();
-    if (busy) {
-      logPrewarm({ op: "skip", reason: "in_flight" });
-      return;
-    }
-    void withEngineJob(async () => {
-      if (!context || disposing) return;
-      try {
-        await context.clearCache();
-      } catch {
-        // best-effort; the following prewarm still evals the new prefix
-      }
-      markChatKvCleared();
+    const plan = planPrefixInputChange({
+      hashSkip:
+        shouldSkipStaticPrefixPrewarm(prewarmPrefixHash, prefix.hash) ||
+        prewarmQueuedKey === prefix.hash,
+      kvHoldsChat: kvHoldsChatSession,
+      busy: engineJobPendingCount > 0,
     });
-    void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
+    switch (plan) {
+      case "skip_hash":
+        return;
+      case "skip_kv_holds":
+        logPrewarm({ op: "skip", reason: "kv_holds_chat" });
+        return;
+      case "skip_inflight":
+        logPrewarm({ op: "skip", reason: "in_flight" });
+        return;
+      case "wipe_and_queue":
+        resetPrewarmState();
+        void withEngineJob(async () => {
+          if (!context || disposing) return;
+          try {
+            await context.clearCache();
+          } catch {
+            // best-effort; the following prewarm still evals the new prefix
+          }
+          markChatKvCleared();
+        });
+        void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
+        return;
+      default: {
+        const _exhaustive: never = plan;
+        void _exhaustive;
+        return;
+      }
+    }
   });
 }
 
