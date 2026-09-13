@@ -4763,3 +4763,8 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   `n_common=2486=embd`. Same-build chat+kill-recovery now on S23 +
   Jelly + Xiaomi (`d39fa51`). Tools/docs/20–30 turns not on this APK.
   G2 not claimed.
+
+- **13/09 — G2 leftovers in flight on S23+Jelly (`d39fa51`).** Tools
+  (`device_calc`), in-app document if already imported (adb SEND-PDF
+  still HARNESS_MISS), 20 turns with n_common not stuck at 1833.
+  Xiaomi not in this slice. G2 not claimed.
