@@ -205,6 +205,7 @@ import type { DecodeMeasurement } from "./deviceThroughput";
 import { getDecodeTokPerSec, recordDecodeSample } from "./decodeSpeed";
 import {
   getChatGeneration,
+  isNativeOpChainEmpty,
   markChatCompleting,
   markChatCompletingDone,
   markChatReleased,
@@ -227,6 +228,7 @@ import {
   classifyPrewarmResult,
   computePrewarmPrefixHash,
   planPrefixInputChange,
+  shouldApplyQueuedPrefixWipe,
   shouldSkipPrewarmWhenKvHoldsChat,
   shouldSkipStaticPrefixPrewarm,
 } from "./prefixPrewarm";
@@ -682,9 +684,13 @@ let lifecycleChain: Promise<void> = Promise.resolve();
 // Tracking completion attive: dispose ferma e ATTENDE prima di release().
 const activeCompletionSet = new Set<Promise<unknown>>();
 
-/** Native completion or FIFO engine job still running (prefill/think/decode). */
+/** Native completion, FIFO engine job, or lifecycle native-op still running. */
 export function nativeEngineWorkInFlight(): boolean {
-  return activeCompletionSet.size > 0 || engineJobPendingCount > 0;
+  return (
+    activeCompletionSet.size > 0 ||
+    engineJobPendingCount > 0 ||
+    !isNativeOpChainEmpty()
+  );
 }
 
 /**
@@ -827,6 +833,23 @@ export async function queueStaticPrefixPrewarm(
         { role: "user" as const, content: "." },
       ];
       await refreshGovernorBeforeCompletion(engine);
+      // Dispose can null context / bump generation during the governor await.
+      if (gen !== prewarmGeneration) {
+        logPrewarm({ op: "skip", reason: "stale" });
+        return;
+      }
+      if (disposing || context !== engine) {
+        logPrewarm({
+          op: "skip",
+          reason: context !== engine ? "no_context" : "disposing",
+        });
+        return;
+      }
+      // Queue-time skip can race restore / a completed turn setting the hold.
+      if (shouldSkipPrewarmWhenKvHoldsChat(kvHoldsChatSession)) {
+        logPrewarm({ op: "skip", reason: "kv_holds_chat" });
+        return;
+      }
       const result = await trackCompletion(
         engine.completion({
           messages: prewarmMessages as RNLlamaOAICompatibleMessage[],
@@ -947,16 +970,32 @@ export function notifyStaticPrefixInputs(
         return;
       case "wipe_and_queue":
         resetPrewarmState();
-        void withEngineJob(async () => {
-          if (!context || disposing) return;
-          try {
-            await context.clearCache();
-          } catch {
-            // best-effort; the following prewarm still evals the new prefix
+        // Outer lifecycle (same chain as init restore), inner engine job.
+        // Reverse order deadlocks with disposeEngineLocked / restoreEngineSession
+        // (lifecycle then wait engineJobChain). If a job is already pending,
+        // skip — do not queue behind it while holding lifecycle. Recheck
+        // immediately before clearCache while both locks are held.
+        void withLifecycleLock(async () => {
+          if (engineJobPendingCount > 0) {
+            logPrewarm({ op: "skip", reason: "in_flight" });
+            return;
           }
-          markChatKvCleared();
+          await withEngineJob(async () => {
+            if (!context || disposing) return;
+            if (!shouldApplyQueuedPrefixWipe(kvHoldsChatSession)) {
+              logPrewarm({ op: "skip", reason: "kv_holds_chat" });
+              return;
+            }
+            try {
+              await context.clearCache();
+            } catch {
+              // Native KV may still hold chat. Do not mark cleared or prewarm.
+              return;
+            }
+            markChatKvCleared();
+            void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
+          });
         });
-        void queueStaticPrefixPrewarm(locale, tools, toolChoiceMode);
         return;
       default: {
         const _exhaustive: never = plan;
@@ -3149,7 +3188,6 @@ export async function streamAssistantTurn(
         prefillTokPerSec,
         minMs: MIN_PREFILL_DEADLINE_MS,
       });
-      if (deadlineMs === null) return;
       prefillTimer = setTimeout(() => {
         prefillTimer = null;
         if (finished || aborted) return;

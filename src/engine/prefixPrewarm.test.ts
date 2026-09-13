@@ -1,4 +1,9 @@
-import { classifyPrewarmResult } from "./prefixPrewarm";
+import {
+  classifyPrewarmResult,
+  shouldApplyQueuedPrefixWipe,
+  shouldSkipPrewarmWhenKvHoldsChat,
+  shouldWipeKvOnPrefixInputChange,
+} from "./prefixPrewarm";
 
 describe("classifyPrewarmResult", () => {
   it("fails on a native error", () => {
@@ -41,5 +46,27 @@ describe("classifyPrewarmResult", () => {
     expect(
       classifyPrewarmResult({ tokens_evaluated: 2112, tokens_cached: 1200 }),
     ).toBe("failed");
+  });
+});
+
+describe("shouldApplyQueuedPrefixWipe", () => {
+  it("does not wipe when chat KV is held", () => {
+    expect(shouldApplyQueuedPrefixWipe(true)).toBe(false);
+  });
+
+  it("allows wipe when chat KV is empty", () => {
+    expect(shouldApplyQueuedPrefixWipe(false)).toBe(true);
+  });
+
+  it("is the skip helper inverted, not a second boolean", () => {
+    expect(shouldApplyQueuedPrefixWipe(true)).toBe(
+      !shouldSkipPrewarmWhenKvHoldsChat(true),
+    );
+    expect(shouldApplyQueuedPrefixWipe(false)).toBe(
+      !shouldSkipPrewarmWhenKvHoldsChat(false),
+    );
+    expect(shouldApplyQueuedPrefixWipe(true)).toBe(
+      shouldWipeKvOnPrefixInputChange(true),
+    );
   });
 });
