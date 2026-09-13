@@ -4731,3 +4731,8 @@ A/B in-app con l'APK che monta il kernel corretto. Sull'8 Elite (V79) non si app
   recovery (PLAN 23/09). Xiaomi 14 `192.168.1.193` ping 100% loss, not
   in adb mdns (only S23 `192.168.1.152:33983`). Cannot claim G2. Next:
   kill-recovery of Jelly's 6999 save; Xiaomi when on LAN.
+
+- **12/09 — Jelly `d39fa51` kill-recovery PASS scoped.** kvs 47058556 B
+  17:30. `KALSA_KVRESUME n_tokens=6999 resumable=1`. `load ok:true
+  tokens:6999`. Send `window_align 8→0`, `n_common=6999=embd`. No
+  `window_slide`. stayon 0 timeout null. G2 still needs Xiaomi.
