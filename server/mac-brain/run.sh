@@ -333,6 +333,10 @@ start_mtplx() {
     --no-auth \
     >>"$LOGFILE" 2>&1 &
   echo $! > "$PIDFILE"
+  # Child pid in the lock so a SIGKILL of this wrapper (no EXIT trap) still
+  # shows a live owner. EXIT trap still drops the lock when run.sh finishes
+  # after wait_health — accepted residual, see README/NOTES.
+  echo $! > "$LOCKDIR/pid"
   echo "pid $(cat "$PIDFILE")  log ${LOGFILE}"
   echo "waiting for /v1/models ..."
   wait_health "$(cat "$PIDFILE")"
@@ -373,6 +377,7 @@ start_llama() {
     --sse-ping-interval 30 \
     >>"$LOGFILE" 2>&1 &
   echo $! > "$PIDFILE"
+  echo $! > "$LOCKDIR/pid"
   echo "pid $(cat "$PIDFILE")  log ${LOGFILE}"
   echo "waiting for /health ..."
   wait_health "$(cat "$PIDFILE")"

@@ -80,6 +80,13 @@ tailnet: https://<this-mac>.<tailnet>.ts.net  (Serve must be enabled…)
 ```
 
 `run.sh` **nohup-backgrounds** a spawn (it is not a foreground supervisor).
+After `nohup … &` the child pid is copied into the lock file. If this
+wrapper is SIGKILL'd before EXIT, steal still sees a live child. If the
+wrapper exits normally after `/v1/models` is up, the EXIT trap drops the
+lock (attach then uses port + `/v1/models`). **Accepted residual:** a
+window between spawn and the child pid write, and after a normal EXIT,
+where a second `run.sh` can race before `/v1/models` is ready. Do not
+redesign the lock for that.
 A mkdir lock under `~/.kalsa/macbrain.lock` serializes attach/spawn so two
 concurrent starts cannot both load weights. The lock directory stores the
 holder pid; a dead pid is reclaimed under a short mkdir mutex

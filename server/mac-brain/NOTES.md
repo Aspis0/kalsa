@@ -46,6 +46,7 @@ this run was killed (PID 16218) and the ~17 GiB incomplete blob under
 | Subcommands | `start`, `tune`, `setup`, `quickstart`, `serve`, `connect`, `ask`, `run`, `chat`, `status`, `stop`, `settings`, `inspect`, `trace`, `forge`, `hardware`, `models` |
 | Live process | `python -m mtplx.server.openai` (PID 42053) launched by `mtplx serve --host 127.0.0.1 --port 8000 --model …V2-MTPLX … --app-launch-id …` |
 | Bind | `127.0.0.1:8000` only. `run.sh` uses a mkdir lock + `/v1/models` attach so two scripts cannot both spawn. A second copy of the 21 GiB weights would still OOM if something else loaded them. |
+| Spawn/lock residual | `nohup` backgrounds `mtplx serve`; the child pid is written into `macbrain.lock/pid`. Wrapper EXIT after ready still rmdirs the lock (attach path). SIGKILL of the wrapper before that write, or a second start before `/v1/models` is ready, is an accepted residual — not a lock redesign. |
 | OpenAI API | `/v1/models`, `/v1/chat/completions` (stream + non-stream), `/docs`. `/health` (not `/v1/health`). |
 | Served id | `philipjohnbasile-ornith-ai-ornith-1.5-35b-a3b-v2-mtplx` |
 | pi | `~/.pi/agent/models.json` provider `mtplx` `baseUrl: http://127.0.0.1:8000/v1`. Paseo profile `Free Coder open` uses `mtplx/philipjohnbasile-ornith-ai-ornith-1-5-35b-a3b-v2-mtplx`. |
