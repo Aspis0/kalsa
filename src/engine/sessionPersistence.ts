@@ -110,6 +110,8 @@ export type SessionSaveFingerprint = {
   stem: string;
   historyHash: string;
   usedTokens: number | null;
+  engineBuild: string;
+  conversationId: string;
 };
 
 export function isSameSessionSave(
@@ -120,7 +122,9 @@ export function isSameSessionSave(
     previous !== null &&
     previous.stem === next.stem &&
     previous.historyHash === next.historyHash &&
-    previous.usedTokens === next.usedTokens
+    previous.usedTokens === next.usedTokens &&
+    previous.engineBuild === next.engineBuild &&
+    previous.conversationId === next.conversationId
   );
 }
 
@@ -130,6 +134,39 @@ export function rememberSuccessfulSessionSave(
   succeeded: boolean,
 ): SessionSaveFingerprint | null {
   return succeeded ? next : previous;
+}
+
+function positiveSaveTokens(n: number | null | undefined): number | undefined {
+  return typeof n === "number" && Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+/**
+ * Last-save usedTokens for assemble hold. Bound to engine + conversation so a
+ * leftover save from chat A cannot clamp chat B. Null fingerprint (native
+ * clear / failed restore) → undefined.
+ */
+export function lastSaveTokensForHint(
+  fingerprint: SessionSaveFingerprint | null | undefined,
+  identity: {
+    engineBuild?: string | null;
+    conversationId?: string | null;
+  },
+): number | undefined {
+  const n = positiveSaveTokens(fingerprint?.usedTokens);
+  if (n === undefined || !fingerprint) return undefined;
+  const engineBuild = identity.engineBuild;
+  const conversationId = identity.conversationId;
+  if (
+    typeof engineBuild !== "string" ||
+    engineBuild.length === 0 ||
+    typeof conversationId !== "string" ||
+    conversationId.length === 0
+  ) {
+    return undefined;
+  }
+  if (fingerprint.engineBuild !== engineBuild) return undefined;
+  if (fingerprint.conversationId !== conversationId) return undefined;
+  return n;
 }
 
 /** Default messages key until migrate / AppShell bind the active conversation. */
@@ -630,16 +667,39 @@ export function sessionKvSaveWouldBeInconsistent(
   return posMax + 1 !== nTokens;
 }
 
-/** Native chat KV is gone. A later save must not claim a live session. */
+/** Native captureStateCheckpoint: only snapshot when pos_max+1 == n. */
+export function sessionCheckpointCaptureIsHonest(
+  n: number,
+  posMax: number,
+): boolean {
+  return Number.isFinite(n) && Number.isFinite(posMax) && n > 0 && posMax + 1 === n;
+}
+
+/** Native recoverStateCheckpoint: seq_rm must leave pos_max+1 == k. */
+export function sessionRecoverTrimIsHonest(
+  k: number,
+  posMax: number,
+  seqRmOk: boolean,
+): boolean {
+  return seqRmOk && Number.isFinite(k) && Number.isFinite(posMax) && posMax + 1 === k;
+}
+
+/**
+ * Native chat KV is gone (dispose, successful utility clearCache, failed
+ * extract restore, session invalidation, markChatKvCleared). Do not use this
+ * on a flag-only hold drop — that regresses t10 last-save hint.
+ */
 export function chatKvHoldAfterNativeClear(): {
   kvHoldsChatSession: false;
   lastChatNPast: undefined;
   chatKvDiskCurrent: false;
+  lastSuccessfulSessionSave: null;
 } {
   return {
     kvHoldsChatSession: false,
     lastChatNPast: undefined,
     chatKvDiskCurrent: false,
+    lastSuccessfulSessionSave: null,
   };
 }
 

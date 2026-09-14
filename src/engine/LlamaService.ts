@@ -135,6 +135,7 @@ import {
   getSessionConversationId,
   hasEnoughDiskForSession,
   isSameSessionSave,
+  lastSaveTokensForHint,
   markSessionDivergesAtLastExchange,
   promoteSessionBak,
   readBootMessages,
@@ -1176,12 +1177,16 @@ export function chatKvNPast(): number | undefined {
 }
 
 /**
- * usedTokens from the last successful native save. Survives hold-flag /
- * lastChatNPast drops that do not prove native chat KV is empty.
+ * usedTokens from the last successful native save for this engine +
+ * conversation. Survives hold-flag / lastChatNPast drops that do not prove
+ * native chat KV is empty. Undefined after native clear / failed restore,
+ * or when the leftover save belongs to another chat/engine.
  */
 export function chatKvLastSaveTokens(): number | undefined {
-  const n = lastSuccessfulSessionSave?.usedTokens;
-  return typeof n === "number" && Number.isFinite(n) && n > 0 ? n : undefined;
+  return lastSaveTokensForHint(lastSuccessfulSessionSave, {
+    engineBuild: activeEngineBuild,
+    conversationId: getSessionConversationId(),
+  });
 }
 
 export function getLoadedAssembleBoundary(activeChatId: string): number | null {
@@ -1189,7 +1194,7 @@ export function getLoadedAssembleBoundary(activeChatId: string): number | null {
     kvHeld: kvHeldForAssembleWindow({
       kvHoldsChatSession,
       nPast: lastChatNPast,
-      lastSaveTokens: lastSuccessfulSessionSave?.usedTokens,
+      lastSaveTokens: chatKvLastSaveTokens(),
     }),
     storedConv: lastAssembleConvId ?? "",
     activeConv: activeChatId,
@@ -2059,9 +2064,7 @@ async function disposeEngineLocked(opts?: {
     activeEngineKnob = undefined;
     activeMtpNMax = undefined;
     activeSpecType = undefined;
-    kvHoldsChatSession = false;
-    lastChatNPast = undefined;
-    chatKvDiskCurrent = false;
+    dropChatKvHold(true);
     lastAssembleBoundary = undefined;
     lastAssembleConvId = undefined;
     kvReproState = nextKvReproState(kvReproState, "dispose");
@@ -2259,10 +2262,28 @@ export function markKvNonReproducible(
 
 /** Native chat KV is gone — a later save must not overwrite a kept .kvs. */
 function markChatKvCleared(): void {
-  ({ kvHoldsChatSession, lastChatNPast, chatKvDiskCurrent } =
-    chatKvHoldAfterNativeClear());
+  dropChatKvHold(true);
   lastAssembleBoundary = undefined;
   lastAssembleConvId = undefined;
+}
+
+/**
+ * Drop hold flags. Fingerprint dies only when native chat KV is known empty
+ * (t10: flag-only drop must keep last-save tokens).
+ */
+function dropChatKvHold(nativeEmpty: boolean): void {
+  if (nativeEmpty) {
+    ({
+      kvHoldsChatSession,
+      lastChatNPast,
+      chatKvDiskCurrent,
+      lastSuccessfulSessionSave,
+    } = chatKvHoldAfterNativeClear());
+    return;
+  }
+  kvHoldsChatSession = false;
+  lastChatNPast = undefined;
+  chatKvDiskCurrent = false;
 }
 
 /** Record chat KV used tokens. 0 / non-finite clears (empty or unknown). */
@@ -2413,6 +2434,8 @@ export async function saveEngineSession(
         stem,
         historyHash: historyHashValue,
         usedTokens,
+        engineBuild: activeEngineBuild ?? "",
+        conversationId: conversationId ?? "",
       };
       if (
         chatKvDiskCurrent &&
@@ -2867,7 +2890,7 @@ export async function invalidateConversationSessions(
   const wasActive = getSessionConversationId() === conversationId;
   return withEngineJob(async () => {
     try {
-      if (wasActive) kvHoldsChatSession = false;
+      if (wasActive) dropChatKvHold(true);
       await deleteSessionsForConversation(conversationId);
     } catch {
       // never throw
@@ -4492,14 +4515,18 @@ export async function extractMemory(
             }
           }
         } else if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
+          let nativeEmpty = false;
           try {
             await engine.clearCache();
+            nativeEmpty = true;
           } catch {
             // best effort — extract still proceeds
           }
-          kvHoldsChatSession = false;
-          lastChatNPast = undefined;
-          chatKvDiskCurrent = false;
+          if (abortedBySend) {
+            dropChatKvHold(nativeEmpty);
+          } else {
+            dropChatKvHold(true);
+          }
         } else {
           // Flag on but nothing to restore (kvHoldsChatSession already false).
           // Skip rather than run a naked extract over whatever is in context.
@@ -4566,15 +4593,12 @@ export async function extractMemory(
           const restored = await restoreNativeSession(engine, restorePath);
           kvHoldsChatSession = restored;
           if (!restored) {
-            lastChatNPast = undefined;
-            chatKvDiskCurrent = false;
+            dropChatKvHold(true);
           } else if (tempPath && restorePath === tempPath) {
             chatKvDiskCurrent = false;
           }
         } else {
-          kvHoldsChatSession = false;
-          lastChatNPast = undefined;
-          chatKvDiskCurrent = false;
+          dropChatKvHold(true);
         }
       }
       if (tempPath) {
@@ -4717,15 +4741,19 @@ export async function translateText(
     }
 
     try {
+      let nativeEmpty = false;
       try {
         await engine.clearCache();
+        nativeEmpty = true;
       } catch {
         // best effort — translate still proceeds
       }
-      kvHoldsChatSession = false;
-      lastChatNPast = undefined;
-      chatKvDiskCurrent = false;
-      if (aborted || signal?.aborted) return { text: "", truncated };
+      if (aborted || signal?.aborted) {
+        dropChatKvHold(nativeEmpty);
+        return { text: "", truncated };
+      }
+      // Utility completion overwrites chat KV.
+      dropChatKvHold(true);
 
       timer = setTimeout(() => {
         timedOut = true;
@@ -4829,19 +4857,21 @@ export async function completeOnce(
     }
 
     try {
+      let nativeEmpty = false;
       try {
         await engine.clearCache();
+        nativeEmpty = true;
       } catch {
         // best effort — completion still proceeds
       }
-      kvHoldsChatSession = false;
-      lastChatNPast = undefined;
-      chatKvDiskCurrent = false;
-      // Native KV no longer holds the chat static prefix.
-      prewarmPrefixHash = null;
       if (aborted || signal?.aborted || engine !== context) {
+        dropChatKvHold(nativeEmpty);
         return { text: "", aborted: true, engineSwapped: engine !== context };
       }
+      // Utility completion overwrites chat KV.
+      dropChatKvHold(true);
+      // Native KV no longer holds the chat static prefix.
+      prewarmPrefixHash = null;
 
       timer = setTimeout(() => {
         timedOut = true;

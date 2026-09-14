@@ -8,8 +8,10 @@
  * (S23 96d3d06 T20C t10 / T20B t13; f441b3d T20C t10 embd=7189
  * text_tokens=4173). Char-budget pressure must not drop the prefix the KV
  * still has. Hold flag / nPast can be false while native still has tokens —
- * last save usedTokens counts as live. A real slide (context_full) deletes
- * the .kvs first, then clearCache, then flags. Ciswire never discards chat KV.
+ * last save usedTokens counts as live, bound to engine + conversation, and
+ * cleared on known-empty native paths (not on a flag-only drop). A real
+ * slide (context_full) deletes the .kvs first, then clearCache, then flags.
+ * Ciswire never discards chat KV.
  */
 
 export function shouldSlideAssembleBoundary(args: {
@@ -62,8 +64,9 @@ function positiveTokenCount(n: number | null | undefined): boolean {
 /**
  * Hold flag and lastChatNPast can both drop while native chat KV still
  * has tokens (extract restore miss, translate/completeOnce flag clear).
- * Last successful save usedTokens is the remaining hint: do not shrink
- * the verbatim window for digest while that count is still live.
+ * Last successful save usedTokens is the remaining hint (same engine +
+ * conversation only): do not shrink the verbatim window for digest while
+ * that count is still live. Native-empty paths invalidate it.
  */
 export function kvHeldForAssembleWindow(args: {
   kvHoldsChatSession: boolean;

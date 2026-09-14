@@ -5303,10 +5303,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // Passing one index makes them agree by construction.
             const benchWindow = await getBenchLegacyWindow();
             const nPast = chatKvNPast();
+            const lastSaveTokens = chatKvLastSaveTokens();
             const kvHeld = kvHeldForAssembleWindow({
               kvHoldsChatSession: chatKvIsHeld(),
               nPast,
-              lastSaveTokens: chatKvLastSaveTokens(),
+              lastSaveTokens,
             });
             const loadedB = getLoadedAssembleBoundary(chatId);
             // Digest share shrinks the verbatim window. While live KV still
@@ -5384,7 +5385,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               console.log(
                 `KALSA_WINDOW ${JSON.stringify({
                   kvHeld,
-                  nPast: nPast ?? 0,
+                  nPast: nPast ?? null,
+                  lastSaveTokens: lastSaveTokens ?? null,
                   loadedB,
                   hasDigest,
                   legacyWindowStart,
