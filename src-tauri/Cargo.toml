@@ -9,6 +9,8 @@ license.workspace = true
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+# Digest checks over the chosen model's downloaded bytes.
+sha2 = "0.10"
 kalsa-catalog = { path = "../crates/kalsa-catalog" }
 kalsa-download = { path = "../crates/kalsa-download" }
 kalsa-pairing = { path = "../crates/kalsa-pairing" }

@@ -36,6 +36,13 @@ mod probe;
 mod store;
 mod verdict;
 
+/// The per-user directory this crate keeps builds, archives and models in:
+/// the shell places the chosen model here so one directory tells the whole
+/// story of what is on this machine.
+pub fn runtime_root() -> std::path::PathBuf {
+    store::root()
+}
+
 pub use assets::{Platform, ServerBackend};
 pub use candidates::candidates_for;
 pub use decide::{decide, DecideError, Decision};

@@ -59,16 +59,6 @@ impl Brain {
     }
 }
 
-/// The machine facts the walk needs, from the measurement this run keeps.
-fn machine_numbers(measurement: &Measurement) -> startup::Machine {
-    startup::Machine {
-        detected: measurement.will_run_on,
-        ram_bytes: startup::ram_bytes(),
-        bandwidth_bytes_per_second: measurement.ceiling_bytes_per_second,
-        compute_flops_per_second: measurement.compute.max(),
-    }
-}
-
 /// The phone's declaration, from the persisted pairing. Unpaired is a normal
 /// state, not an error: the catalog answers it with a refusal the user can
 /// act on.
@@ -169,11 +159,13 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
     if !brain.begin_turn_on() {
         return Err("The assistant is already starting.".into());
     }
-    let numbers = brain
+    let kept = brain
         .measurement
         .lock()
         .ok()
-        .and_then(|stored| stored.as_ref().map(machine_numbers));
+        .and_then(|stored| stored.clone());
+    let ram_bytes = startup::ram_bytes();
+    let runtime_root = kalsa_runtime::runtime_root();
     let state_file = state_file(&app)?;
     let server_override = std::env::var(SERVER_BIN_ENV).ok().map(PathBuf::from);
     let model_override = std::env::var(MODEL_ENV).ok().map(PathBuf::from);
@@ -186,12 +178,24 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
         };
         // A machine nobody has measured yet is measured here, once: turning
         // on must not dead-end on a button the user has to find elsewhere.
-        let (machine, measured) = match numbers {
-            Some(numbers) => (numbers, None),
+        let (machine, measured) = match kept {
+            Some(measurement) => (
+                startup::Machine {
+                    measurement,
+                    ram_bytes,
+                },
+                None,
+            ),
             None => {
                 progress(startup::Progress::Measuring);
                 let measurement = kalsa_probe::measure_reliable(&ProbeConfig::default());
-                (machine_numbers(&measurement), Some(measurement))
+                (
+                    startup::Machine {
+                        measurement: measurement.clone(),
+                        ram_bytes,
+                    },
+                    Some(measurement),
+                )
             }
         };
         startup::run(
@@ -200,6 +204,7 @@ async fn brain_start(app: tauri::AppHandle, brain: State<'_, Brain>) -> Result<(
             phone,
             model_override,
             state_file,
+            &runtime_root,
             &mut progress,
         )
         .map(|config| (config, measured))

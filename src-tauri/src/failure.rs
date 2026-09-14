@@ -8,6 +8,7 @@
 //! screen.
 
 use kalsa_catalog::RefusalReason;
+use kalsa_download::DownloadError;
 use kalsa_runtime::DecideError;
 use kalsa_supervisor::Failure;
 
@@ -34,6 +35,14 @@ pub(crate) enum StartupFailure {
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
     WeightsUnverified,
+    /// The disk was short before or during the model download.
+    NotEnoughDisk,
+    /// The downloaded bytes did not match the publisher's record; they were
+    /// thrown away.
+    DownloadCorrupted,
+    /// The connection dropped partway through. What arrived stays for the
+    /// next try.
+    ConnectionLost,
 }
 
 /// The words for a failure. Fail closed: exhaustive over
@@ -90,6 +99,21 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
              publisher, so it was not downloaded. A future app update finishes this."
                 .into()
         }
+        StartupFailure::NotEnoughDisk => {
+            "There is not enough room on the disk for the assistant's model. \
+             Freeing some space and trying again usually works."
+                .into()
+        }
+        StartupFailure::DownloadCorrupted => {
+            "The model download did not match the publisher's record, so it was \
+             thrown away. Trying again usually works."
+                .into()
+        }
+        StartupFailure::ConnectionLost => {
+            "The connection dropped partway through. Trying again keeps what was \
+             already downloaded."
+                .into()
+        }
     }
 }
 
@@ -123,6 +147,18 @@ impl From<DecideError> for StartupFailure {
             DecideError::UnverifiedAssets => Self::ServerUnverified,
             DecideError::CannotAcquire(_) => Self::ServerFetchFailed,
             DecideError::NothingWorked { .. } => Self::NoBackendWorked,
+        }
+    }
+}
+
+impl From<DownloadError> for StartupFailure {
+    fn from(error: DownloadError) -> Self {
+        match error {
+            DownloadError::Io(_) => Self::ConnectionLost,
+            DownloadError::DiskFull | DownloadError::NotEnoughSpace { .. } => Self::NotEnoughDisk,
+            DownloadError::SizeMismatch { .. } | DownloadError::DigestMismatch { .. } => {
+                Self::DownloadCorrupted
+            }
         }
     }
 }
@@ -172,6 +208,9 @@ mod tests {
             StartupFailure::NothingBetter,
             StartupFailure::NothingFastEnough,
             StartupFailure::WeightsUnverified,
+            StartupFailure::NotEnoughDisk,
+            StartupFailure::DownloadCorrupted,
+            StartupFailure::ConnectionLost,
         ]
     }
 
