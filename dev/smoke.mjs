@@ -7,6 +7,10 @@
 //
 //   node dev/smoke.mjs; echo $?
 
+// The status page is mounted directly for the hostile-input checks below;
+// states.js brings its own copies through the same module paths.
+import { mountStatus } from "../src/pages/status.js";
+
 // ---- the shim ----
 
 class FakeEl {
@@ -277,6 +281,44 @@ for (const { heading, sentence } of results) {
   const isMidDownload = MID_DOWNLOAD_OPENERS.some((phrase) => sentence.includes(phrase));
   if (isMidDownload && !RESUME_PHRASES.some((phrase) => sentence.includes(phrase))) {
     problems.push(`a mid-download failure must promise resume in an approved phrasing: ${heading}`);
+  }
+}
+
+// ---- hostile inputs: the wire contract is input, not a promise ----
+// Each of these must render something honest — a sentence, no leaked
+// internals, and where numbers appear, only the approved shapes — and must
+// never throw. A render that throws is a window that silently stops
+// updating in the middle of a download.
+const HOSTILE = [
+  { name: "NaN total", dto: { kind: "setup", phase: "fetching", fetching: { what: "engine", done_bytes: 320e6, total_bytes: NaN, resumed: false }, failure: null } },
+  { name: "zero total", dto: { kind: "setup", phase: "fetching", fetching: { what: "engine", done_bytes: 320e6, total_bytes: 0, resumed: false }, failure: null } },
+  { name: "negative done, missing what", dto: { kind: "setup", phase: "fetching", fetching: { done_bytes: -5 }, failure: null } },
+  { name: "missing bytes", dto: { kind: "setup", phase: "fetching", fetching: { what: "model" }, failure: null } },
+  { name: "fetching is a string", dto: { kind: "setup", phase: "fetching", fetching: "garbage", failure: null } },
+  { name: "fetching is null", dto: { kind: "setup", phase: "fetching", fetching: null, failure: null } },
+  { name: "unknown phase", dto: { kind: "setup", phase: "does-not-exist", fetching: null, failure: null } },
+  { name: "unknown failure", dto: { kind: "setup", phase: "failed", failure: "weird", fetching: null } },
+];
+
+for (const { name, dto } of HOSTILE) {
+  try {
+    const panel = document.createElement("div");
+    const view = mountStatus(panel, {
+      backend: { async read() { return [dto, false]; } },
+    });
+    await view.refresh();
+    const text = visibleText(panel);
+    for (const word of ["NaN", "Infinity", "undefined", "null"]) {
+      if (new RegExp(`\\b${word}\\b`).test(text)) {
+        problems.push(`hostile DTO "${name}" rendered the leak "${word}"`);
+      }
+    }
+    const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
+    if (!sentenceEl || sentenceEl.textContent.trim() === "") {
+      problems.push(`hostile DTO "${name}" rendered no sentence`);
+    }
+  } catch (error) {
+    problems.push(`hostile DTO "${name}" made the page throw: ${error.message}`);
   }
 }
 

@@ -67,13 +67,63 @@ const GENERIC_FAILURE = {
   action: "Try again",
 };
 
-// Sizes are shown the way downloads are advertised: MB below a gigabyte,
-// GB above, both ends of the comparison in the same unit.
-function fmtPair(done, total) {
-  if (total >= 1e9) {
-    return `${(done / 1e9).toFixed(1)} of ${(total / 1e9).toFixed(1)} GB`;
+// Why the computer is downloading, per part. "unknown" is what a fetching
+// payload with a `what` nobody sent degrades to.
+const GENERIC_FETCH =
+  "This computer is getting the parts it needs. This happens once.";
+
+const DOWNLOAD_COPY = {
+  engine: {
+    sentence:
+      "Your computer needs its own copy of the engine that does the thinking. This happens once.",
+  },
+  model: {
+    sentence:
+      "Now the model itself — the part that knows things. It is the bigger download, and it also happens only once.",
+  },
+  unknown: {
+    sentence: GENERIC_FETCH,
+  },
+};
+
+// The DTO is wire input from another process, not a promise: every field is
+// treated as untrusted, and anything unusable degrades to the honest state —
+// unknown size, zero progress, the generic words — instead of throwing in
+// the middle of a render.
+function normalizeFetching(fetching) {
+  if (fetching === null || typeof fetching !== "object") return null;
+  const count = (value, min) =>
+    typeof value === "number" && Number.isFinite(value) && value >= min ? value : null;
+  return {
+    what:
+      fetching.what === "engine" || fetching.what === "model"
+        ? fetching.what
+        : "unknown",
+    done: count(fetching.done_bytes, 0) ?? 0,
+    // A total of zero is no total: it is the shape of a size nobody sent.
+    total: count(fetching.total_bytes, 1),
+    resumed: fetching.resumed === true,
+  };
+}
+
+// One rounding, one source: the percentage is computed from the same
+// displayed numbers the line shows, so the line cannot disagree with itself
+// and no string is ever parsed back. With no usable total there is no
+// percentage and no proportional bar — how much has arrived is all there
+// honestly is.
+function display(done, total) {
+  if (total !== null && done <= total) {
+    const shown =
+      total >= 1e9
+        ? [(done / 1e9).toFixed(1), (total / 1e9).toFixed(1), "GB"]
+        : [String(Math.round(done / 1e6)), String(Math.round(total / 1e6)), "MB"];
+    const pct = Math.floor((Number(shown[0]) / Number(shown[1])) * 100);
+    return { text: `${shown[0]} of ${shown[1]} ${shown[2]} · ${pct}%`, pct };
   }
-  return `${Math.round(done / 1e6)} of ${Math.round(total / 1e6)} MB`;
+  if (done <= 0) return { text: "Receiving — the size was not announced.", pct: null };
+  const received =
+    done >= 1e9 ? `${(done / 1e9).toFixed(1)} GB` : `${Math.round(done / 1e6)} MB`;
+  return { text: `${received} received so far.`, pct: null };
 }
 
 export function mountSetup(root, { onRetry = () => {} } = {}) {
@@ -156,44 +206,17 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
       set(failure.head, failure.sentence, failure.action);
       return;
     }
-    if (setup.phase === "fetching" && setup.fetching) {
-      const { what, total_bytes, done_bytes, resumed } = setup.fetching;
-      if (what === "engine") {
-        set(
-          "Downloading",
-          "Your computer needs its own copy of the engine that does the thinking. This happens once.",
-          null,
-        );
-      } else {
-        set(
-          "Downloading",
-          "Now the model itself — the part that knows things. It is the bigger download, and it also happens only once.",
-          null,
-        );
-      }
-      // The size is a fact the server may not have announced, and a resumed
-      // download can outgrow the total it was given. Without a true total
-      // there is no percentage and no proportional bar: the line says how
-      // much has arrived, and that is all there honestly is.
-      const prefix = resumed && done_bytes > 0 ? "Picking up where it stopped — " : "";
-      if (total_bytes == null || done_bytes > total_bytes) {
-        const received = done_bytes >= 1e9
-          ? `${(done_bytes / 1e9).toFixed(1)} GB`
-          : `${Math.round(done_bytes / 1e6)} MB`;
-        showBytes(
-          done_bytes > 0
-            ? `${prefix}${received} received so far.`
-            : "Receiving — the size was not announced.",
-          null,
-        );
+    if (setup.phase === "fetching") {
+      const f = normalizeFetching(setup.fetching);
+      if (!f) {
+        hideProgress();
+        set("Downloading", GENERIC_FETCH, null);
         return;
       }
-      const pair = fmtPair(done_bytes, total_bytes);
-      // The percentage is computed from the numbers as shown, so the line
-      // cannot disagree with itself.
-      const [, doneShown, totalShown] = pair.match(/^([\d.]+) of ([\d.]+)/);
-      const pct = Math.floor((parseFloat(doneShown) / parseFloat(totalShown)) * 100);
-      showBytes(`${prefix}${pair} · ${pct}%`, pct);
+      set("Downloading", DOWNLOAD_COPY[f.what].sentence, null);
+      const prefix = f.resumed && f.done > 0 ? "Picking up where it stopped — " : "";
+      const shown = display(f.done, f.total);
+      showBytes(prefix + shown.text, shown.pct);
       return;
     }
     hideProgress();
