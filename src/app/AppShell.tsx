@@ -154,6 +154,7 @@ import {
   endBackendSwitch,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
+  recoverLocalBackend,
   setEngineBackendMode,
   disposeRemoteEngine,
   REMOTE_MAC_MODEL,
@@ -2865,7 +2866,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
         }
       } catch {
-        // keep default local model
+        try {
+          await recoverLocalBackend();
+        } catch {
+          // storage write failed; cache still forced local by the setter
+        }
       } finally {
         if (mounted) setPrefsReady(true);
       }

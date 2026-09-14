@@ -23,6 +23,7 @@ import {
   getEngineBackendMode,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
+  recoverLocalBackend,
   setEngineBackendMode,
   validateServedModel,
 } from "./remoteSettings";
@@ -104,6 +105,23 @@ describe("backend cache writes", () => {
     expect(snap.backend).toBe("local");
     expect(isRemoteEngineBackend()).toBe(true);
     await setEngineBackendMode("local");
+    expect(isRemoteEngineBackend()).toBe(false);
+  });
+
+  test("getItem rejects -> recoverLocalBackend -> not remote", async () => {
+    await setEngineBackendMode("remote");
+    const getItem = async () => {
+      throw new Error("fail");
+    };
+    try {
+      await getItem();
+      throw new Error("expected getItem to reject");
+    } catch (err) {
+      if (err instanceof Error && err.message === "expected getItem to reject") {
+        throw err;
+      }
+      await recoverLocalBackend();
+    }
     expect(isRemoteEngineBackend()).toBe(false);
   });
 });

@@ -75,6 +75,7 @@ export {
   endBackendSwitch,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
+  recoverLocalBackend,
   setEngineBackendMode,
   setRemoteServerModelId,
 } from "./remote/remoteSettings";

@@ -42,6 +42,12 @@ export function endBackendSwitch(): void {
   backendWriteIntent = null;
 }
 
+/** Boot catch / remount fallback: force local through the gated setter. */
+export async function recoverLocalBackend(): Promise<void> {
+  endBackendSwitch();
+  await setEngineBackendMode("local");
+}
+
 export function isRemoteEngineBackend(): boolean {
   return backendCache === "remote";
 }
