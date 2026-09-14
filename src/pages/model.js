@@ -33,7 +33,7 @@ const JUSTIFICATION_COPY = {
   relief:
     "It is not smarter than the model on your phone. It runs on this computer so your phone's battery lasts longer.",
   expectedButUnmeasured:
-    "It is probably stronger than the model on your phone, but the two have never been measured side by side. Until that happens, this page calls it promising, not better.",
+    "This model should be better than the one on your phone. We have not tested it on this computer yet.",
 };
 
 function render(decision) {

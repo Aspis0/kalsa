@@ -14,8 +14,8 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use kalsa_supervisor::{
-    conservative_threads, ServerConfig, ServerState, Supervisor, DEFAULT_BATCH, DEFAULT_CTX,
-    DEFAULT_IDLE_SECONDS, DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
+    conservative_threads, Failure, ServerConfig, ServerState, Supervisor, DEFAULT_BATCH,
+    DEFAULT_CTX, DEFAULT_IDLE_SECONDS, DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
 };
 use serde::Serialize;
 use tauri::{Manager, RunEvent, State};
@@ -92,7 +92,34 @@ enum StateDto {
     Stopped,
     Starting,
     Running { port: u16 },
+    /// Already in the user's words, produced only by `words` below.
     Failed { reason: String },
+}
+
+/// The words for each failure — the only place the supervisor's observations
+/// become sentences. Fail closed: the match is exhaustive, so a reason the
+/// supervisor learns to report breaks this build until it is given words, and
+/// a `detail` payload never crosses it. Every sentence says what happened and
+/// what the user can do, in the language of the screen, not of the crate.
+fn words(failure: &Failure) -> String {
+    match failure {
+        Failure::PortTaken => "Another program is in the way. Restarting the computer usually clears it.".into(),
+        Failure::InstanceUnreadable { .. } => {
+            "A copy of the assistant left over from earlier is stuck. Restarting the computer usually clears it.".into()
+        }
+        Failure::InstanceUnwritable { .. } => {
+            "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".into()
+        }
+        Failure::ServerNotStarted { .. } => {
+            "The assistant did not start. Turning it on again usually works; if it keeps failing, the app may need to be installed again.".into()
+        }
+        Failure::ServerExited { .. } => {
+            "The assistant stopped on its own. Turning it on again usually works.".into()
+        }
+        Failure::NotReady { .. } => {
+            "The assistant took too long to get ready. Turning it on again usually works.".into()
+        }
+    }
 }
 
 impl From<ServerState> for StateDto {
@@ -101,7 +128,9 @@ impl From<ServerState> for StateDto {
             ServerState::Stopped => Self::Stopped,
             ServerState::Starting => Self::Starting,
             ServerState::Running { port, .. } => Self::Running { port },
-            ServerState::Failed { reason } => Self::Failed { reason },
+            ServerState::Failed { reason } => Self::Failed {
+                reason: words(&reason),
+            },
         }
     }
 }
@@ -143,7 +172,10 @@ fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     let dir = app
         .path()
         .app_data_dir()
-        .map_err(|e| format!("no app data directory: {e}"))?;
+        .map_err(|_| {
+            // This string goes to the screen: the io error behind it stays here.
+            "The assistant could not save its place on this computer, so it could not start. Restarting the computer usually clears it.".to_string()
+        })?;
     Ok(dir.join("server.state"))
 }
 

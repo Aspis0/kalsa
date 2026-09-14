@@ -30,10 +30,36 @@ pub enum ServerState {
         pid: u32,
         port: u16,
     },
-    /// It is not running and we know why: the reason is user-facing copy.
+    /// It is not running and we know why. The reason is data: this crate
+    /// names what it observed, and the caller owns the words. The `detail`
+    /// payloads (an io error, the last line of stderr) are for logs and must
+    /// never reach the screen as-is.
     Failed {
-        reason: String,
+        reason: Failure,
     },
+}
+
+/// Why the server is not running, as the caller can match on it. One variant
+/// per user-actionable story, not per internal call site: what the user can
+/// do about a wedged state file and an unwritable one is the same restart.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Failure {
+    /// A program that is not ours holds the port. Never signalled, only
+    /// reported.
+    PortTaken,
+    /// A server from an earlier run is alive, but its state file cannot be
+    /// read, so it can be neither reused nor identified.
+    InstanceUnreadable { detail: String },
+    /// The state file could not be written, so this run cannot be identified
+    /// later as ours.
+    InstanceUnwritable { detail: String },
+    /// The server binary could not be started.
+    ServerNotStarted { detail: String },
+    /// The server stopped by itself. `detail` is its last stderr line, or its
+    /// exit status when it said nothing.
+    ServerExited { detail: String },
+    /// It never answered the readiness probe within the deadline.
+    NotReady { seconds: u64 },
 }
 
 enum Command {
@@ -206,18 +232,24 @@ fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
 }
 
 /// Reuses or clears a previous instance, then spawns and waits for readiness.
-fn start_blocking(config: &ServerConfig) -> Result<Started, String> {
+fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
     if let Some(started) = take_over(config)? {
         return Ok(started);
     }
     refuse_foreign_port(config)?;
-    let mut instance = InstanceFile::claim(&config.state_file)
-        .map_err(|e| format!("could not write our state file: {e}"))?;
+    let mut instance =
+        InstanceFile::claim(&config.state_file).map_err(|e| Failure::InstanceUnwritable {
+            detail: format!("could not write our state file: {e}"),
+        })?;
     let mut child = ChildHandle::spawn(&config.exe, &config.arguments(), Some(instance.handle()))
-        .map_err(|e| format!("could not start the server: {e}"))?;
+        .map_err(|e| Failure::ServerNotStarted {
+        detail: format!("could not start the server: {e}"),
+    })?;
     instance
         .describe(child.pid(), config.port)
-        .map_err(|e| format!("could not write our state file: {e}"))?;
+        .map_err(|e| Failure::InstanceUnwritable {
+            detail: format!("could not write our state file: {e}"),
+        })?;
 
     let deadline = Instant::now() + config.ready_timeout;
     loop {
@@ -229,10 +261,9 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, String> {
         }
         if Instant::now() >= deadline {
             let _ = child.terminate(config.stop_grace);
-            return Err(format!(
-                "the server did not answer within {} s",
-                config.ready_timeout.as_secs()
-            ));
+            return Err(Failure::NotReady {
+                seconds: config.ready_timeout.as_secs(),
+            });
         }
         std::thread::sleep(TICK);
     }
@@ -243,7 +274,7 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, String> {
 /// The lock decides what may be trusted: while it is held, the process it names
 /// is the server we started, so we may reuse it or close it. Without the lock
 /// the pid means nothing (it may have been recycled) and is never signalled.
-fn take_over(config: &ServerConfig) -> Result<Option<Started>, String> {
+fn take_over(config: &ServerConfig) -> Result<Option<Started>, Failure> {
     match InstanceFile::inspect(&config.state_file) {
         Ok(Existing::None) => Ok(None),
         Ok(Existing::Stale) => {
@@ -265,36 +296,36 @@ fn take_over(config: &ServerConfig) -> Result<Option<Started>, String> {
             let _ = std::fs::remove_file(&config.state_file);
             Ok(None)
         }
-        Err(e) => Err(format!(
-            "another Kalsa Brain server is running and its state file cannot be read ({e})"
-        )),
+        Err(e) => Err(Failure::InstanceUnreadable {
+            detail: format!("our state file cannot be read: {e}"),
+        }),
     }
 }
 
 /// A listener that is not ours is somebody else's program: never signalled,
 /// only reported.
-fn refuse_foreign_port(config: &ServerConfig) -> Result<(), String> {
+fn refuse_foreign_port(config: &ServerConfig) -> Result<(), Failure> {
     match TcpListener::bind(config.address()) {
         Ok(listener) => {
             drop(listener); // the child binds it for real
             Ok(())
         }
-        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => Err(format!(
-            "another program is already using port {}",
-            config.port
-        )),
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => Err(Failure::PortTaken),
         // Any other bind failure is not about a foreign listener: let the
         // server report it in its own words.
         Err(_) => Ok(()),
     }
 }
 
-/// What to show the user when the server stopped by itself. The last stderr
-/// line is the server's own explanation; when there is none, the exit status is.
-fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> String {
-    match child.output_tail().last() {
-        Some(line) => format!("the server stopped: {line}"),
-        None => format!("the server stopped ({status})"),
+/// What the supervisor knows when the server stopped by itself: its last
+/// stderr line, or its exit status when it said nothing. The detail is for
+/// logs; the caller owns the words.
+fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> Failure {
+    Failure::ServerExited {
+        detail: match child.output_tail().last() {
+            Some(line) => line.clone(),
+            None => format!("exit status {status}"),
+        },
     }
 }
 

@@ -11,7 +11,7 @@ use common::{
     clear_files, config, is_dead, recorded_pid, unique_port, wait_for, wait_reaped, FakeHealth,
     When,
 };
-use kalsa_supervisor::{InstanceFile, ServerState, Supervisor};
+use kalsa_supervisor::{Failure, InstanceFile, ServerState, Supervisor};
 
 #[test]
 fn a_stale_state_file_naming_a_live_stranger_kills_nothing() {
@@ -121,10 +121,9 @@ fn a_port_held_by_another_program_is_reported_and_left_alone() {
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match state {
-        ServerState::Failed { reason } => assert!(
-            reason.contains("another program") && reason.contains(&port.to_string()),
-            "reason: {reason}"
-        ),
+        ServerState::Failed {
+            reason: Failure::PortTaken,
+        } => {}
         other => panic!("unexpected state {other:?}"),
     }
     // Nothing was started, and nothing was signalled.

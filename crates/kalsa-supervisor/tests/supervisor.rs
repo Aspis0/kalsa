@@ -12,7 +12,7 @@ use std::time::Duration;
 use common::{
     clear_files, config, is_dead, recorded_pid, unique_port, wait_dead, wait_for, FakeHealth, When,
 };
-use kalsa_supervisor::{ServerState, Supervisor};
+use kalsa_supervisor::{Failure, ServerState, Supervisor};
 
 #[test]
 fn start_reports_running_once_the_server_answers() {
@@ -49,10 +49,9 @@ fn start_fails_when_the_server_never_answers() {
 
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match state {
-        ServerState::Failed { reason } => assert!(
-            reason.contains("did not answer"),
-            "unexpected reason: {reason}"
-        ),
+        ServerState::Failed {
+            reason: Failure::NotReady { .. },
+        } => {}
         other => panic!("unexpected state {other:?}"),
     }
     // The handshake timeout must not leak the child.
@@ -74,12 +73,12 @@ fn a_server_dying_after_it_served_is_reported_without_taking_us_down() {
     // ...and then it died on its own, which the watcher has to notice and say.
     let state = wait_for(&supervisor, |s| matches!(s, ServerState::Failed { .. }));
     match state {
-        ServerState::Failed { reason } => {
-            assert!(
-                reason.contains("failed to load the model"),
-                "reason: {reason}"
-            );
-        }
+        ServerState::Failed {
+            reason: Failure::ServerExited { detail },
+        } => assert!(
+            detail.contains("failed to load the model"),
+            "detail: {detail}"
+        ),
         other => panic!("unexpected state {other:?}"),
     }
     // The supervisor is still usable: this process is alive and answering.

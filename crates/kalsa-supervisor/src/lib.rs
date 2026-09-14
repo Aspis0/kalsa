@@ -20,4 +20,4 @@ pub use config::{
     DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
 };
 pub use instance::{Existing, InstanceFile};
-pub use supervisor::{ServerState, Supervisor};
+pub use supervisor::{Failure, ServerState, Supervisor};

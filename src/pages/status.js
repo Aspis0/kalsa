@@ -93,7 +93,8 @@ function render(state, modelChosen) {
       }
       break;
     case "failed":
-      // The reason is the supervisor's own sentence about what happened.
+      // Already in the user's words: mapped from the supervisor's structured
+      // reason in main.rs `words()`.
       set("Stopped", state.reason, "Try again", true);
       break;
     default:
@@ -106,6 +107,13 @@ function render(state, modelChosen) {
       action.hidden = true;
   }
 }
+
+// Every sentence on this screen is a literal this page owns, or words the
+// Rust side produced in main.rs `words()` for state.reason. Raw error text is
+// never rendered: if a command fails without its own words, the fallback is
+// the generic honest sentence.
+const GENERIC_FAILURE =
+  "Something on this computer stopped the assistant from starting. Restarting the computer usually clears it.";
 
 async function refresh() {
   if (!available()) {
@@ -134,17 +142,19 @@ action.addEventListener("click", async () => {
     action.disabled = true;
     try {
       await invoke("brain_start");
-    } catch (error) {
-      // The command's own words: they are written to be read.
-      sentence.textContent = String(error);
+    } catch {
+      sentence.textContent = GENERIC_FAILURE;
     }
     action.disabled = false;
   } else {
     action.disabled = true;
     try {
       await invoke("brain_stop");
-    } catch (error) {
-      sentence.textContent = String(error);
+    } catch {
+      // brain_stop returns nothing, so a rejection here has no words of its
+      // own. This one is true: the app's exit handler stops the server.
+      sentence.textContent =
+        "The assistant did not turn off. Closing this window will stop it.";
     }
     action.disabled = false;
   }
