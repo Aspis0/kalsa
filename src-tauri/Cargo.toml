@@ -1,0 +1,14 @@
+[package]
+name = "kalsa-brain"
+description = "Desktop app for the Kalsa Brain server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+kalsa-supervisor = { path = "../crates/kalsa-supervisor" }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2", features = [] }
