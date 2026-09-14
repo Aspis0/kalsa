@@ -5362,6 +5362,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 mode: contextMode,
                 loadedB,
                 computedStart,
+                kvHeld,
               });
               if (computedStart !== legacyWindowStart) {
                 try {

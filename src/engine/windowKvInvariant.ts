@@ -100,18 +100,19 @@ export function assembleBoundaryForAlign(args: {
 
 /**
  * Clamp assemble start to this chat's live KV.
- * loadedB is getLoadedAssembleBoundary: non-null only on hold+match
- * (unknown start → 0). Null is mismatch or not held — keep computedStart.
- * Do not treat null as 0. kvHeldForAssembleWindow (flag || nPast || last
- * save tokens) feeds that hold; it is not itself the clamp signal.
- * Anchored: caller already aligned boundaryIndex — leave computedStart.
+ * While KV is held, always start=0 (full JS history vs full native KV).
+ * A leftover loadedB from a cold/digest send (S23 91d7b73 t1 B=20 then
+ * t2–5 clamp to 20, t5 n_common=0 vs 7779) is poison.
+ * Mismatch / not held: keep computedStart. Anchored: leave computedStart.
  */
 export function assembleStartForLiveKv(args: {
   mode: "off" | "anchored" | "ciswire";
   loadedB: number | null;
   computedStart: number;
+  kvHeld: boolean;
 }): number {
   if (args.mode === "anchored") return args.computedStart;
+  if (args.kvHeld) return 0;
   if (args.loadedB !== null) return args.loadedB;
   return args.computedStart;
 }

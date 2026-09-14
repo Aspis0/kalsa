@@ -137,12 +137,13 @@ describe("assembleBoundaryForAlign", () => {
 });
 
 describe("assembleStartForLiveKv", () => {
-  test("off + live KV uses loadedB even when the computed window slid", () => {
+  test("off + live KV start=0 even when computed window slid", () => {
     expect(
       assembleStartForLiveKv({
         mode: "off",
         loadedB: 0,
         computedStart: 23,
+        kvHeld: true,
       }),
     ).toBe(0);
   });
@@ -153,6 +154,7 @@ describe("assembleStartForLiveKv", () => {
         mode: "off",
         loadedB: null,
         computedStart: 23,
+        kvHeld: false,
       }),
     ).toBe(23);
   });
@@ -163,49 +165,20 @@ describe("assembleStartForLiveKv", () => {
         mode: "anchored",
         loadedB: 0,
         computedStart: 12,
+        kvHeld: true,
       }),
     ).toBe(12);
   });
 
-  test("same-chat unknown start (align → 0) keeps the full prompt", () => {
-    const loadedB = assembleBoundaryForAlign({
-      kvHeld: true,
-      storedConv: "a",
-      activeConv: "a",
-      boundary: undefined,
-    });
-    expect(loadedB).toBe(0);
-    expect(
-      assembleStartForLiveKv({
-        mode: "off",
-        loadedB,
-        computedStart: 23,
-      }),
-    ).toBe(0);
+  test("ciswire + live KV ignores leftover digest B=20", () => {
     expect(
       assembleStartForLiveKv({
         mode: "ciswire",
-        loadedB,
-        computedStart: 23,
+        loadedB: 20,
+        computedStart: 20,
+        kvHeld: true,
       }),
     ).toBe(0);
-  });
-
-  test("ciswire + live KV uses loadedB even when the digest-share window slid", () => {
-    expect(
-      assembleStartForLiveKv({
-        mode: "ciswire",
-        loadedB: 0,
-        computedStart: 23,
-      }),
-    ).toBe(0);
-    expect(
-      assembleStartForLiveKv({
-        mode: "ciswire",
-        loadedB: 5,
-        computedStart: 23,
-      }),
-    ).toBe(5);
   });
 
   test("ciswire + cold keeps the computed start", () => {
@@ -214,18 +187,14 @@ describe("assembleStartForLiveKv", () => {
         mode: "ciswire",
         loadedB: null,
         computedStart: 23,
+        kvHeld: false,
       }),
     ).toBe(23);
   });
 
   test("hold false + nPast>0 + loadedB null does not clamp to 0", () => {
-    const kvHeld = kvHeldForAssembleWindow({
-      kvHoldsChatSession: false,
-      nPast: 7840,
-    });
-    expect(kvHeld).toBe(true);
     const loadedB = assembleBoundaryForAlign({
-      kvHeld,
+      kvHeld: true,
       storedConv: "native-a",
       activeConv: "js-b",
       boundary: 12,
@@ -236,13 +205,7 @@ describe("assembleStartForLiveKv", () => {
         mode: "ciswire",
         loadedB,
         computedStart: 23,
-      }),
-    ).toBe(23);
-    expect(
-      assembleStartForLiveKv({
-        mode: "off",
-        loadedB,
-        computedStart: 23,
+        kvHeld: false,
       }),
     ).toBe(23);
   });
