@@ -36,6 +36,9 @@ function press(panel) {
 // test wrapping.
 const REASON_PORT =
   "Another program is in the way. Restarting the computer usually clears it.";
+// failure.rs's ChosenModelUnfundable words, verbatim — smoke pins them.
+const REASON_UNFUNDABLE =
+  "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option.";
 const REASON_LONG =
   "The assistant stopped while it was getting ready. This can happen when the computer runs out of room while it is working. Turning it on again usually works, and closing other programs helps if it keeps happening. (stub)";
 
@@ -206,6 +209,15 @@ card("Status", "failed (real words)", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(
       { kind: "failed", reason: REASON_PORT },
+      true,
+    ),
+  }).refresh(),
+);
+
+card("Status", "failed: the chosen model cannot be funded (real words)", (panel) =>
+  mountStatus(panel, {
+    backend: statusBackend(
+      { kind: "failed", reason: REASON_UNFUNDABLE },
       true,
     ),
   }).refresh(),

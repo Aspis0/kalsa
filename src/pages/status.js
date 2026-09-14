@@ -18,12 +18,9 @@ import {
 const POLL_MS = 1000;
 
 // Every sentence on this screen is a literal this page owns, or words the
-// Rust side produced in main.rs `words()` for state.reason. Raw error text is
-// never rendered: if a command fails without its own words, the fallback is
-// the generic honest sentence.
-const GENERIC_FAILURE =
-  "Something on this computer stopped the assistant from starting. Restarting the computer usually clears it.";
-
+// Rust side produced: brain_state's reason is failure::words' sentence, and
+// brain_start's rejections are the walk's failure::words sentences. Raw
+// error text is never rendered because no command sends any.
 const STOP_FAILURE =
   "The assistant did not turn off. Closing this window will stop it.";
 
@@ -82,6 +79,10 @@ export function mountStatus(
 
   // The last render's facts, so the button acts on what the screen shows.
   let current = { state: null, modelChosen: null };
+  // A failed walk has no state to live in — the supervisor is still Stopped —
+  // so its sentence is held here until something actually runs. Without the
+  // hold, the next poll wipes the only honest words on the screen.
+  let heldFailure = null;
 
   // Either an action with a name, or no action: an empty name is no action,
   // so a visible labelless button is not a state this page can produce.
@@ -99,6 +100,9 @@ export function mountStatus(
 
   function render(state, modelChosen) {
     current = { state, modelChosen };
+    // The hold lives only while nothing runs: any other state has words of
+    // its own.
+    if (!state || state.kind !== "stopped") heldFailure = null;
 
     // The first run is not Off or On: it is a sequence of slow steps, and
     // while it runs the setup view replaces the switch entirely.
@@ -136,6 +140,8 @@ export function mountStatus(
             "Choose a model",
             true,
           );
+        } else if (heldFailure) {
+          set("Stopped", heldFailure, "Try again", true);
         } else {
           set(
             "Off",
@@ -210,8 +216,14 @@ export function mountStatus(
       action.disabled = true;
       try {
         await backend.start();
-      } catch {
-        sentence.textContent = GENERIC_FAILURE;
+        heldFailure = null;
+      } catch (error) {
+        // brain_start rejects with failure::words' own sentences — the
+        // walk's failures among them. Speak that sentence and hold it while
+        // nothing runs; the next poll must not wipe the only honest words
+        // on the screen.
+        heldFailure = String(error);
+        set("Stopped", heldFailure, "Try again", true);
       }
       action.disabled = false;
     } else {

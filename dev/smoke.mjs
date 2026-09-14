@@ -400,6 +400,41 @@ for (const { name, dto } of HOSTILE) {
   }
 }
 
+// ---- the walk's own words must survive the press ----
+// brain_start rejects with failure::words' sentences for the whole first
+// walk (the unfundable model among them). The page must speak THAT sentence
+// — a restart does not fix an unfundable model — and hold it against the
+// next poll, which re-renders the card while nothing is running.
+const UNFUNDABLE_SENTENCE =
+  "The model chosen for this computer needs more memory than the computer can give it, even to start. An app update may bring a smaller option.";
+
+if (!results.some((r) => r.sentence === UNFUNDABLE_SENTENCE)) {
+  problems.push("the unfundable-model failure must be on the bench in its own words");
+}
+
+try {
+  const panel = document.createElement("div");
+  const view = mountStatus(panel, {
+    backend: {
+      async read() {
+        return [{ kind: "stopped" }, true];
+      },
+      async start() {
+        throw new Error(UNFUNDABLE_SENTENCE);
+      },
+      async stop() {},
+    },
+  });
+  await view.refresh();
+  findVisible(panel, (el) => el.tag === "button").click();
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  if (!visibleText(panel).includes(UNFUNDABLE_SENTENCE)) {
+    problems.push("a walk failure must be spoken in its own words, not the generic ones");
+  }
+} catch (error) {
+  problems.push(`the walk-failure pin could not run: ${error.message}`);
+}
+
 if (problems.length > 0) {
   console.log("COPY PROBLEMS:");
   for (const problem of problems) console.log(`  - ${problem}`);
