@@ -26,7 +26,7 @@ import {
   getRemoteTemperature,
   validateServedModel,
 } from "./remoteSettings";
-import { REMOTE_MAC_MODEL_ID } from "./remoteMacModel";
+import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 
 let ready = false;
 let activeId: string | null = null;
@@ -166,7 +166,7 @@ export async function initRemoteEngine(
     throw new Error(probe.error || strings.errors.modelNotLoaded);
   }
   ready = true;
-  activeId = REMOTE_MAC_MODEL_ID;
+  activeId = REMOTE_COMPUTER_MODEL_ID;
   const serverId = probe.modelId || getRemoteServerModelId();
   console.log(
     "remote.brain.init",

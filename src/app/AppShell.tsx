@@ -166,8 +166,8 @@ import {
   setEngineBackendMode,
   disposeRemoteEngine,
   isSupersededRemoteOp,
-  REMOTE_MAC_MODEL,
-  REMOTE_MAC_MODEL_ID,
+  REMOTE_COMPUTER_MODEL,
+  REMOTE_COMPUTER_MODEL_ID,
   type EngineMessage,
   type MemoryExtractResult,
   type MemoryExtractStopReason,
@@ -2685,7 +2685,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // C7 — slope ETA from expo-battery level samples. Advisory only: never
   // blocks send/load. Enabled only while a model is loaded and the engine is
-  const currentModel = remoteActive ? REMOTE_MAC_MODEL : MODEL_REGISTRY[modelIndex];
+  const currentModel = remoteActive ? REMOTE_COMPUTER_MODEL : MODEL_REGISTRY[modelIndex];
 
   // ready (the drain slope is meaningless otherwise). Fail-open — unknown /
   // measuring / charging states simply render no hard stop.
@@ -2861,11 +2861,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           url: hydrated.url,
           savedModelId: saved,
           defaultLocalModelId: getDefaultModel().id,
-          remoteModelId: REMOTE_MAC_MODEL_ID,
+          remoteModelId: REMOTE_COMPUTER_MODEL_ID,
         });
         if (decision.kind === "remote") {
           engineIntentRef.current = {
-            modelId: REMOTE_MAC_MODEL_ID,
+            modelId: REMOTE_COMPUTER_MODEL_ID,
             remote: true,
           };
           setRemoteActive(true);
@@ -3736,7 +3736,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (decision.action === "ensure-remote") {
           if (mounted) {
             setRemoteActive(true);
-            void ensureEngineForModelRef.current(REMOTE_MAC_MODEL);
+            void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
           }
           return;
         }
@@ -3780,7 +3780,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   useEffect(() => {
     if (!remoteActive) return;
-    void ensureEngineForModelRef.current(REMOTE_MAC_MODEL);
+    void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
   }, [remoteActive]);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
@@ -3817,7 +3817,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         await setEngineBackendMode("remote");
         if (!stillCurrent()) return false;
         setRemoteActive(true);
-        await initEngine("", REMOTE_MAC_MODEL_ID, { locale, backend: "remote" });
+        await initEngine("", REMOTE_COMPUTER_MODEL_ID, { locale, backend: "remote" });
         if (!stillCurrent()) return false;
         if (isEngineReady()) {
           setModelState("ready");
@@ -4329,7 +4329,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     [modelIndex, modelState, remoteActive, t],
   );
 
-  const selectRemoteMac = useCallback(() => {
+  const selectRemoteComputer = useCallback(() => {
     if (
       downloadInFlight.current ||
       modelSwitchInFlightRef.current ||
@@ -4345,7 +4345,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     modelSwitchInFlightRef.current = true;
     engineGenerationRef.current += 1;
     engineIntentRef.current = {
-      modelId: REMOTE_MAC_MODEL_ID,
+      modelId: REMOTE_COMPUTER_MODEL_ID,
       remote: true,
     };
     beginBackendSwitch("remote");
@@ -4379,8 +4379,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         await setEngineBackendMode("remote");
         setRemoteActive(true);
-        AsyncStorage.setItem(MODEL_STORAGE_KEY, REMOTE_MAC_MODEL_ID).catch(() => undefined);
-        await ensureEngineForModel(REMOTE_MAC_MODEL);
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, REMOTE_COMPUTER_MODEL_ID).catch(() => undefined);
+        await ensureEngineForModel(REMOTE_COMPUTER_MODEL);
       } catch (error) {
         const fail = afterRemoteSwitchDispose(false);
         setRemoteActive(fail.remoteActive);
@@ -4399,7 +4399,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const selectModelById = useCallback(
     (modelId: string) => {
       // While a send holds the pre-await claim (fit-gate), queue the switch
-      // (last-wins) — including Mac — and apply it only after the claim
+      // (last-wins) — the remote computer included — and apply it only after the claim
       // releases. Avoids dispose racing ensureEngineForModel mid-send.
       if (deferModelSwitchIfSendClaimed(modelId)) {
         if (!modelSwitchDrainInFlightRef.current) {
@@ -4433,8 +4433,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         }
         return;
       }
-      if (modelId === REMOTE_MAC_MODEL_ID) {
-        selectRemoteMac();
+      if (modelId === REMOTE_COMPUTER_MODEL_ID) {
+        selectRemoteComputer();
         return;
       }
       const nextIndex = MODEL_REGISTRY.findIndex((m) => m.id === modelId);
@@ -4461,7 +4461,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       selectModel(nextIndex);
     },
-    [selectModel, selectRemoteMac, t],
+    [selectModel, selectRemoteComputer, t],
   );
 
   const startDownload = useCallback(async (modelId: string) => {
@@ -5457,10 +5457,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   t("chat.modelLoadFailed", { name: currentModel.name }),
                   "chat.modelLoadFailed",
                 );
-              } else if (currentModel.id === REMOTE_MAC_MODEL_ID) {
-                // The Mac brain has no bundle to download. Report the cause the
+              } else if (currentModel.id === REMOTE_COMPUTER_MODEL_ID) {
+                // The remote brain has no bundle to download. Report the cause the
                 // remote init actually failed with (missing address, missing
-                // token, unreachable Mac) instead of guessing "unreachable".
+                // token, unreachable computer) instead of guessing "unreachable".
                 fail(
                   humanRemoteBrainError(remoteInitErrorRef.current ?? undefined, t),
                   "chat.serviceUnreachable",
@@ -6193,7 +6193,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         };
       case "ready":
         // The bar is where the user reads where the data runs: never say
-        // "local" for a turn served by the Mac.
+        // "local" for a turn served by the remote computer.
         return {
           label: isRemoteEngineBackend()
             ? t("download.readyRemote")
@@ -6333,7 +6333,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               {/* Allow wrap at large font scales so the status segment
                   (Ready / Download …) is never clipped. Do not shrink type. */}
               <Text style={[typography.bodyXs, { color: modelBarStatus.color }]}>
-                {currentModel.name} · {currentModel.quant} · {modelBarStatus.label}
+                {currentModel.nameKey ? t(currentModel.nameKey) : currentModel.name} ·{" "}
+                {currentModel.quant} · {modelBarStatus.label}
               </Text>
             </Pressable>
             {/* C7 — advisory battery ETA, separate bodyXs line below the model bar.

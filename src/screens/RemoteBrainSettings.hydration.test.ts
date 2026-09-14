@@ -224,7 +224,7 @@ function testButton(renderer: ReactTestRenderer): ReactTestInstance {
   return pressableWithLabel(renderer, "settings.remoteBrainTest");
 }
 
-function selectMacButton(renderer: ReactTestRenderer): ReactTestInstance {
+function selectComputerButton(renderer: ReactTestRenderer): ReactTestInstance {
   return pressableWithLabel(renderer, "settings.remoteSelect");
 }
 
@@ -433,7 +433,7 @@ describe("RemoteBrainSettings hydration", () => {
     await unmount(renderer);
   });
 
-  test("selecting the Mac with an empty address writes nothing", async () => {
+  test("selecting the remote computer with an empty address writes nothing", async () => {
     const renderer = await render();
     await finishHydration(
       { ...STORED_SNAPSHOT, url: "", urlNeverSet: true },
@@ -441,7 +441,7 @@ describe("RemoteBrainSettings hydration", () => {
     );
 
     await act(async () => {
-      selectMacButton(renderer).props.onPress();
+      selectComputerButton(renderer).props.onPress();
     });
 
     expect(settingsMock.setRemoteBrainUrl).not.toHaveBeenCalled();

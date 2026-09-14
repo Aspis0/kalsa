@@ -1,4 +1,4 @@
-import { REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
+import { REMOTE_COMPUTER_MODEL_ID } from "./remote/remoteComputerModel";
 import {
   captureEnsureIntent,
   ensureIntentStale,
@@ -6,7 +6,7 @@ import {
 
 describe("ensureIntent", () => {
   test("stale remote ensure cannot commit after a local selection", () => {
-    const captured = captureEnsureIntent(0, REMOTE_MAC_MODEL_ID);
+    const captured = captureEnsureIntent(0, REMOTE_COMPUTER_MODEL_ID);
     expect(captured.remote).toBe(true);
     const afterLocalSelect = {
       generation: 1,
@@ -28,11 +28,11 @@ describe("ensureIntent", () => {
   });
 
   test("backend flip without matching request is stale", () => {
-    const captured = captureEnsureIntent(1, REMOTE_MAC_MODEL_ID);
+    const captured = captureEnsureIntent(1, REMOTE_COMPUTER_MODEL_ID);
     expect(
       ensureIntentStale(captured, {
         generation: 1,
-        modelId: REMOTE_MAC_MODEL_ID,
+        modelId: REMOTE_COMPUTER_MODEL_ID,
         remote: false,
       }),
     ).toBe(true);

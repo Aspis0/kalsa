@@ -59,7 +59,7 @@ export function switchDisposeUi(disposeOk: boolean): {
   };
 }
 
-/** selectRemoteMac dispose: failures take the K3 error path; in-flight always released. */
+/** selectRemoteComputer dispose: failures take the K3 error path; in-flight always released. */
 export function afterRemoteSwitchDispose(ok: boolean): {
   surfaceError: boolean;
   remoteActive: boolean;

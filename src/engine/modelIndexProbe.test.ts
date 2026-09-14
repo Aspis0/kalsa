@@ -59,7 +59,7 @@ describe("decideModelIndexProbe", () => {
 });
 
 describe("shouldNoopLocalSelect", () => {
-  test("select A local -> Mac -> A again is not a no-op", () => {
+  test("select A local -> remote -> A again is not a no-op", () => {
     expect(
       shouldNoopLocalSelect({ nextIndex: 0, currentIndex: 0, remoteActive: false }),
     ).toBe(true);

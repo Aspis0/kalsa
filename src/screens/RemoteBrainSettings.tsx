@@ -3,7 +3,7 @@ import { ActivityIndicator, Pressable, Text, TextInput, View } from "react-nativ
 
 import { useLocale } from "../i18n";
 import { testRemoteConnection } from "../engine/engineBackend";
-import { REMOTE_MAC_MODEL_ID } from "../engine/remote/remoteMacModel";
+import { REMOTE_COMPUTER_MODEL_ID } from "../engine/remote/remoteComputerModel";
 import {
   DEFAULT_REMOTE_MAX_TOKENS,
   hydrateRemoteBrainSettings,
@@ -56,7 +56,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
   const draftRef = useRef({ url, serverModel, maxTokens, token });
   /** Per field: hydration produced the stored value (false = the read failed). */
   const hydratedRef = useRef<RemoteHydrationResult>({});
-  const active = currentModelId === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend();
+  const active = currentModelId === REMOTE_COMPUTER_MODEL_ID || isRemoteEngineBackend();
   const fieldsLocked = !hydratedReady;
 
   const markDirty = useCallback((field: RemoteSettingsField) => {
@@ -259,10 +259,10 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         }}
       >
         <Text style={[typography.bodySm, { color: colors.ink, fontFamily: fontFamilies.bodySemi }]}>
-          {t("settings.remoteMac")}
+          {t("settings.remoteComputer")}
         </Text>
         <Text style={[typography.bodyXs, { color: colors.muted }]}>
-          {t("settings.remoteMacHint")}
+          {t("settings.remoteComputerHint")}
         </Text>
         <Pressable
           onPress={() => {
@@ -281,7 +281,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
                 showWriteFailure(err);
                 return;
               }
-              onSelectModel(REMOTE_MAC_MODEL_ID);
+              onSelectModel(REMOTE_COMPUTER_MODEL_ID);
             })();
           }}
           disabled={busy || active || !hydratedReady}

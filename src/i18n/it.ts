@@ -112,51 +112,52 @@ export const it: typeof en = {
       "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano. I modelli vivono nello storage privato dell'app: disinstallandola vengono eliminati.",
     remoteBrain: "Cervello remoto",
     remoteBrainHint:
-      "Usa il Mac come modello. Imposta l'URL del server sul tuo Mac (sviluppo: http://127.0.0.1:8000 via adb reverse). In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings e voce.",
-    remoteBrainUrl: "URL del server",
-    remoteBrainUrlHint: "https://il-tuo-mac… oppure http://127.0.0.1:8000 con adb reverse",
+      "Usa il tuo computer come modello. Imposta qui sotto il suo indirizzo. In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings e voce.",
+    remoteBrainUrl: "Indirizzo del tuo computer",
+    remoteBrainUrlHint: "https://il-tuo-computer.example",
     remoteBrainUrlMissing:
-      "Inserisci l'indirizzo del tuo Mac prima di usare il cervello remoto.",
+      "Inserisci l'indirizzo del tuo computer prima di usare il cervello remoto.",
     remoteBrainMigratedToLocal:
-      "Il cervello del Mac ha bisogno di un indirizzo. Resta la modalità locale finché non lo imposti in Impostazioni.",
-    remoteBrainModel: "Id modello sul server",
-    remoteBrainModelHint: "Deve coincidere con un id di GET /v1/models. Non viene indovinato.",
+      "Il cervello remoto ha bisogno di un indirizzo. Resta la modalità locale finché non lo imposti in Impostazioni.",
+    remoteBrainModel: "Id del modello sul tuo computer",
+    remoteBrainModelHint: "L'id del modello che offre il tuo computer. Non viene indovinato.",
     remoteBrainMaxTokens: "Max token",
     remoteBrainToken: "Token API (opzionale)",
     remoteBrainTokenHint:
-      "Lascia vuoto per il server locale del Mac (niente auth). Salvato nello storage sicuro di questo dispositivo.",
+      "Lascia vuoto se il tuo computer non chiede un token. Salvato nello storage sicuro di questo dispositivo.",
     remoteBrainTest: "Prova connessione",
     remoteBrainTesting: "Verifica…",
     remoteBrainOk: "Connesso · {model}",
     remoteBrainFailGeneric:
-      "Il Mac non risponde. Controlla l'indirizzo e riprova.",
+      "Il tuo computer non risponde. Controlla l'indirizzo e riprova.",
     remoteBrainFailNetwork:
-      "Il Mac non risponde. Controlla che sia acceso e sulla stessa rete, poi riprova.",
+      "Il tuo computer non risponde. Controlla che sia acceso e raggiungibile, poi riprova.",
     remoteBrainFailTimeout:
-      "Il Mac ha smesso di rispondere. Riprova, oppure passa al modello di questo telefono in Impostazioni.",
+      "Il tuo computer ha smesso di rispondere. Riprova, oppure passa al modello di questo telefono in Impostazioni.",
     remoteBrainFailServer:
-      "Il server del Mac ha risposto con un errore ({status}). Forse si sta ancora avviando: riprova tra un momento.",
+      "Il tuo computer ha risposto con un errore ({status}). Forse si sta ancora avviando: riprova tra un momento.",
     remoteBrainFailBusy:
-      "Il Mac sta ancora rispondendo alla richiesta precedente. Aspetta un momento e riprova.",
+      "Il tuo computer sta ancora rispondendo alla richiesta precedente. Aspetta un momento e riprova.",
     remoteBrainFailStaleInit:
       "Quel tentativo di connessione è stato sostituito da uno più recente. Riprova.",
     remoteBrainFailModelRequired:
-      "Imposta l'id del modello sul server prima di collegarti al Mac.",
+      "Imposta l'id del modello che offre il tuo computer prima di collegarti.",
     remoteBrainFailModelMissing:
-      "Il Mac ha risposto ma non offre quel modello. Controlla l'id con GET /v1/models.",
+      "Il tuo computer ha risposto ma non offre quel modello. Controlla l'id.",
     remoteBrainSaveFailed:
       "Queste impostazioni non sono state salvate su questo telefono. Riprova.",
     remoteBrainUrlInvalid:
       "Quell'indirizzo non è un URL http o https valido.",
     remoteBrainHttpWarning:
-      "Questo URL è HTTP in chiaro e non è loopback. Il token non verrà inviato. Usa HTTPS.",
+      "Questo indirizzo è HTTP in chiaro e non è su questo telefono. Il token non verrà inviato. Usa HTTPS.",
     remoteBrainHttpsRequired:
-      "HTTP è consentito solo su questo telefono (127.0.0.1). Per gli altri host usa https://.",
-    remoteBrainTokenRequired: "Serve un token per i server che non sono loopback.",
-    remoteMac: "Il mio Mac",
-    remoteMacHint: "Ornith su questo Mac (mtplx). Nessun download sul telefono.",
-    remoteGated: "Non disponibile sul cervello del Mac",
-    remoteSelect: "Usa il Mac",
+      "HTTP in chiaro funziona solo per questo telefono. Per il tuo computer usa https://.",
+    remoteBrainTokenRequired:
+      "Serve un token quando l'indirizzo non è su questo telefono.",
+    remoteComputer: "Il mio computer",
+    remoteComputerHint: "Gira sul tuo computer. Nessun download sul telefono.",
+    remoteGated: "Non disponibile con il cervello remoto",
+    remoteSelect: "Usa il mio computer",
     modelActive: "Attivo",
     modelSelect: "Seleziona",
     modelDownload: "Scarica",
@@ -277,9 +278,9 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   },
 
   models: {
-    remoteMac: {
+    remoteComputer: {
       description:
-        "Ornith 1.5 35B su questo Mac via mtplx. Solo chat in streaming — nessun peso sul telefono.",
+        "Il modello in esecuzione sul tuo computer. Solo chat in streaming — nessun peso sul telefono.",
     },
     qwen4b: {
       description:

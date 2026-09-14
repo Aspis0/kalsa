@@ -1,7 +1,7 @@
 /**
  * Engine selector. Default backend is local llama.rn (zero regression).
- * Remote is the Mac mtplx OpenAI server. UI imports this module instead of
- * LlamaService at AppShell / AiChatPage only.
+ * Remote is an OpenAI-compatible server on the user's own computer. UI imports
+ * this module instead of LlamaService at AppShell / AiChatPage only.
  */
 import type { EngineLivenessVerdict } from "./engineLiveness";
 import {
@@ -50,7 +50,7 @@ import {
   remoteTranslateText,
   streamRemoteAssistantTurn,
 } from "./remote/RemoteEngine";
-import { REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
+import { REMOTE_COMPUTER_MODEL_ID } from "./remote/remoteComputerModel";
 import {
   getEngineBackendMode,
   getRemoteContextSize,
@@ -80,7 +80,7 @@ export {
   setEngineBackendMode,
   setRemoteServerModelId,
 } from "./remote/remoteSettings";
-export { REMOTE_MAC_MODEL, REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
+export { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "./remote/remoteComputerModel";
 export {
   disposeRemoteEngine,
   isSupersededRemoteOp,
@@ -93,7 +93,7 @@ export function isEngineReady(): boolean {
 
 export function getActiveModelId(): string | null {
   if (!isRemoteEngineBackend()) return localGetActiveModelId();
-  return isRemoteEngineReady() ? REMOTE_MAC_MODEL_ID : null;
+  return isRemoteEngineReady() ? REMOTE_COMPUTER_MODEL_ID : null;
 }
 
 export function getActiveEngineNCtx(): number {

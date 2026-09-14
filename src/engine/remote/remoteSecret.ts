@@ -1,6 +1,7 @@
 /**
  * Optional remote-brain Bearer token. Same prefix as search secrets
- * (`kalsa.secret.remote-brain`). Empty default — loopback mtplx has no auth.
+ * (`kalsa.secret.remote-brain`). Empty default — a loopback server usually
+ * needs no auth.
  */
 import * as SecureStore from "expo-secure-store";
 

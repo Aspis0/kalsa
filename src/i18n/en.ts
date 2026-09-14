@@ -113,51 +113,52 @@ export const en = {
       "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
     remoteBrain: "Remote brain",
     remoteBrainHint:
-      "Use the Mac as the model. Set the server URL to your Mac (developers: http://127.0.0.1:8000 via adb reverse). Tools, memory extraction, translation, embeddings and voice stay off in this mode.",
-    remoteBrainUrl: "Server URL",
-    remoteBrainUrlHint: "https://your-mac… or http://127.0.0.1:8000 with adb reverse",
+      "Use your computer as the model. Set its address below. Tools, memory extraction, translation, embeddings and voice stay off in this mode.",
+    remoteBrainUrl: "Your computer's address",
+    remoteBrainUrlHint: "https://your-computer.example",
     remoteBrainUrlMissing:
-      "Enter your Mac's address before using the remote brain.",
+      "Enter your computer's address before using the remote brain.",
     remoteBrainMigratedToLocal:
-      "The Mac brain needs an address. Local mode is on until you set it in Settings.",
-    remoteBrainModel: "Server model id",
-    remoteBrainModelHint: "Must match an id from GET /v1/models. Not guessed.",
+      "The remote brain needs an address. Local mode is on until you set it in Settings.",
+    remoteBrainModel: "Model id on your computer",
+    remoteBrainModelHint: "The model id your computer offers. Not guessed.",
     remoteBrainMaxTokens: "Max tokens",
     remoteBrainToken: "API token (optional)",
     remoteBrainTokenHint:
-      "Leave empty for the local Mac server (no auth). Stored in this device's secure storage.",
+      "Leave empty if your computer does not ask for a token. Stored in this device's secure storage.",
     remoteBrainTest: "Test connection",
     remoteBrainTesting: "Testing…",
     remoteBrainOk: "Connected · {model}",
     remoteBrainFailGeneric:
-      "Could not reach the Mac. Check the address and try again.",
+      "Could not reach your computer. Check the address and try again.",
     remoteBrainFailNetwork:
-      "The Mac isn't answering. Check that it is awake and on the same network, then try again.",
+      "Your computer isn't answering. Check that it is awake and reachable, then try again.",
     remoteBrainFailTimeout:
-      "The Mac stopped replying. Try again, or switch to the model on this phone in Settings.",
+      "Your computer stopped replying. Try again, or switch to the model on this phone in Settings.",
     remoteBrainFailServer:
-      "The Mac's server answered with an error ({status}). It may still be starting up — try again in a moment.",
+      "Your computer answered with an error ({status}). It may still be starting up — try again in a moment.",
     remoteBrainFailBusy:
-      "The Mac is still answering the previous request. Wait a moment and try again.",
+      "Your computer is still answering the previous request. Wait a moment and try again.",
     remoteBrainFailStaleInit:
       "That connection attempt was replaced by a newer one. Try again.",
     remoteBrainFailModelRequired:
-      "Set the server model id before connecting to the Mac.",
+      "Set the model id your computer offers before connecting.",
     remoteBrainFailModelMissing:
-      "The Mac answered but does not offer that model. Check the id against GET /v1/models.",
+      "Your computer answered but does not offer that model. Check the id.",
     remoteBrainSaveFailed:
       "These settings were not saved on this phone. Try again.",
     remoteBrainUrlInvalid:
       "That address is not a valid http or https URL.",
     remoteBrainHttpWarning:
-      "This URL is plain HTTP and not loopback. The token will not be sent. Use HTTPS.",
+      "This address is plain HTTP and it is not on this phone. The token will not be sent. Use HTTPS.",
     remoteBrainHttpsRequired:
-      "HTTP is only allowed on this phone (127.0.0.1). Use https:// for any other host.",
-    remoteBrainTokenRequired: "A token is required for non-loopback servers.",
-    remoteMac: "My Mac",
-    remoteMacHint: "Ornith on this Mac (mtplx). No on-device download.",
-    remoteGated: "Not available on the Mac brain",
-    remoteSelect: "Use Mac",
+      "Plain HTTP only works for this phone itself. Use https:// for your computer.",
+    remoteBrainTokenRequired:
+      "A token is required when the address is not on this phone.",
+    remoteComputer: "My computer",
+    remoteComputerHint: "Runs on your computer. No download on this phone.",
+    remoteGated: "Not available with the remote brain",
+    remoteSelect: "Use my computer",
     modelActive: "Active",
     modelSelect: "Select",
     modelDownload: "Download",
@@ -282,9 +283,9 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
    * Settings → Models. Recommendation ownership lives on ModelInfo.
    */
   models: {
-    remoteMac: {
+    remoteComputer: {
       description:
-        "Ornith 1.5 35B on this Mac via mtplx. Streaming chat only — no on-device weights.",
+        "The model running on your computer. Streaming chat only — no on-device weights.",
     },
     qwen4b: {
       description:

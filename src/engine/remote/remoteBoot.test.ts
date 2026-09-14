@@ -1,4 +1,4 @@
-import { REMOTE_MAC_MODEL_ID } from "./remoteMacModel";
+import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
 import { CHAT_MODEL_STORAGE_KEY, decideRemoteBoot } from "./remoteBoot";
 import { ENGINE_BACKEND_KEY, REMOTE_BRAIN_URL_KEY } from "./remoteSettings";
 
@@ -12,11 +12,11 @@ function applyBoot(store: Record<string, string | undefined>) {
     url: urlRaw ?? "",
     savedModelId: store[CHAT_MODEL_STORAGE_KEY] ?? null,
     defaultLocalModelId: LOCAL_ID,
-    remoteModelId: REMOTE_MAC_MODEL_ID,
+    remoteModelId: REMOTE_COMPUTER_MODEL_ID,
   });
   if (decision.kind === "remote") {
     store[ENGINE_BACKEND_KEY] = "remote";
-    store[CHAT_MODEL_STORAGE_KEY] = REMOTE_MAC_MODEL_ID;
+    store[CHAT_MODEL_STORAGE_KEY] = REMOTE_COMPUTER_MODEL_ID;
     return;
   }
   store[ENGINE_BACKEND_KEY] = "local";
@@ -24,23 +24,29 @@ function applyBoot(store: Record<string, string | undefined>) {
 }
 
 describe("decideRemoteBoot", () => {
+  test("the persisted remote model id value is frozen", () => {
+    // Renaming the symbol is free; changing this string orphans every install
+    // that already selected the remote computer (MODEL_STORAGE_KEY holds it).
+    expect(REMOTE_COMPUTER_MODEL_ID).toBe("kalsa-remote-mac");
+  });
+
   test("two boots stay local when remote backend has no URL and remote model key", () => {
     const store: Record<string, string | undefined> = {
       [ENGINE_BACKEND_KEY]: "remote",
-      [CHAT_MODEL_STORAGE_KEY]: REMOTE_MAC_MODEL_ID,
+      [CHAT_MODEL_STORAGE_KEY]: REMOTE_COMPUTER_MODEL_ID,
     };
     applyBoot(store);
     applyBoot(store);
     expect(store[ENGINE_BACKEND_KEY]).toBe("local");
     expect(store[CHAT_MODEL_STORAGE_KEY]).toBe(LOCAL_ID);
-    expect(store[CHAT_MODEL_STORAGE_KEY]).not.toBe(REMOTE_MAC_MODEL_ID);
+    expect(store[CHAT_MODEL_STORAGE_KEY]).not.toBe(REMOTE_COMPUTER_MODEL_ID);
   });
 
   test("two boots stay local when URL is empty string and model key is remote", () => {
     const store: Record<string, string | undefined> = {
       [ENGINE_BACKEND_KEY]: "remote",
       [REMOTE_BRAIN_URL_KEY]: "",
-      [CHAT_MODEL_STORAGE_KEY]: REMOTE_MAC_MODEL_ID,
+      [CHAT_MODEL_STORAGE_KEY]: REMOTE_COMPUTER_MODEL_ID,
     };
     applyBoot(store);
     applyBoot(store);
@@ -52,7 +58,7 @@ describe("decideRemoteBoot", () => {
     const store: Record<string, string | undefined> = {
       [ENGINE_BACKEND_KEY]: "remote",
       [REMOTE_BRAIN_URL_KEY]: "https://mac.example.ts.net",
-      [CHAT_MODEL_STORAGE_KEY]: REMOTE_MAC_MODEL_ID,
+      [CHAT_MODEL_STORAGE_KEY]: REMOTE_COMPUTER_MODEL_ID,
     };
     applyBoot(store);
     expect(store[ENGINE_BACKEND_KEY]).toBe("remote");
@@ -63,9 +69,9 @@ describe("decideRemoteBoot", () => {
       hydrationOk: false,
       backend: "remote",
       url: "https://mac.example.ts.net",
-      savedModelId: REMOTE_MAC_MODEL_ID,
+      savedModelId: REMOTE_COMPUTER_MODEL_ID,
       defaultLocalModelId: LOCAL_ID,
-      remoteModelId: REMOTE_MAC_MODEL_ID,
+      remoteModelId: REMOTE_COMPUTER_MODEL_ID,
     });
     expect(decision).toEqual({
       kind: "local",

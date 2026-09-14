@@ -18,7 +18,7 @@ import type { RamTier } from "./contextProfile";
 import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
 import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
-import { REMOTE_MAC_MODEL, REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
+import { REMOTE_COMPUTER_MODEL, REMOTE_COMPUTER_MODEL_ID } from "./remote/remoteComputerModel";
 
 export type ModelFileSpec = {
   file: string;
@@ -101,6 +101,11 @@ export type ModelInfo = {
   preserveThinking?: boolean;
   /** i18n key for the user-facing description shown in Settings (en master + it). */
   descriptionKey: TranslationKey;
+  /**
+   * i18n key for a localized display name. Set when `name` would be wrong in
+   * one of the two locales (the remote row), so renderers prefer it.
+   */
+  nameKey?: TranslationKey;
   /**
    * i18n key for a compact RAM badge (e.g. "8 GB+ RAM") shown in Settings.
    * Set for models that participate in the RAM-tier recommendation UI.
@@ -337,7 +342,7 @@ export function getDefaultModel(): ModelInfo {
 }
 
 export function getModelById(id: string): ModelInfo {
-  if (id === REMOTE_MAC_MODEL_ID) return REMOTE_MAC_MODEL;
+  if (id === REMOTE_COMPUTER_MODEL_ID) return REMOTE_COMPUTER_MODEL;
   return MODEL_REGISTRY.find((model) => model.id === id) ?? getDefaultModel();
 }
 
