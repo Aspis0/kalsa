@@ -270,6 +270,28 @@ Windows.
   from a phone that polls.
 - `OLLAMA_KEEP_ALIVE` (default 5m) is the equivalent if we ever drive ollama.
 
+**Transport: a tunnel, always. Not the LAN.**
+
+A LAN-only design only works while the phone is on the same wifi. Walk out of
+the house and the PC disappears. That is not the product, so plain-HTTP LAN
+access is not worth building: the tunnel is mandatory, and a tunnel gives us
+TLS for free — which removes the cleartext question entirely.
+
+Who provides the tunnel is tiered:
+
+| tier | tunnel | why |
+| --- | --- | --- |
+| advanced users, and us in dev | Tailscale | zero servers, zero cost, end-to-end WireGuard. Costs the user an account and a second install. |
+| paying users | Cloudflare Tunnel | outbound only, no ports to open, works anywhere. We run the domain. |
+| later | our own relay | full control and real end-to-end privacy, once it is worth paying to operate |
+
+⚠️ **Cloudflare is not privacy-equivalent to Tailscale** and we must not present
+it as merely a different transport. Tailscale is end-to-end WireGuard: nobody in
+the middle can read the conversation. A Cloudflare Tunnel terminates TLS on
+their edge, so conversations are in the clear inside their infrastructure. The
+PC still belongs to the user; the traffic no longer only touches their devices.
+That difference belongs in the copy for the paid tier, not in a footnote.
+
 **Discovery: mDNS/DNS-SD** (`_llm._tcp.local`), with an embedded user-space
 responder rather than asking anyone to install Bonjour — it is not guaranteed
 on Windows. QR code as the fallback for guest networks and blocked multicast,
