@@ -31,6 +31,10 @@ pub(crate) enum StartupFailure {
     NothingFits,
     NothingBetter,
     NothingFastEnough,
+    // — starting the server (kalsa-launch) —
+    /// The chosen model cannot be given even one token of context within
+    /// this machine's budget: it is never started smaller, the start fails.
+    ChosenModelUnfundable,
     // — placing the model on disk —
     /// The chosen model carries no digest to hold a download to, so no
     /// bytes move: a download that cannot be proven is not downloaded.
@@ -92,6 +96,11 @@ pub(crate) fn words(failure: &StartupFailure) -> String {
         StartupFailure::NothingFastEnough => {
             "Everything that fits this computer would run too slowly to use. \
              An app update may add faster options."
+                .into()
+        }
+        StartupFailure::ChosenModelUnfundable => {
+            "The model chosen for this computer needs more memory than the computer can \
+             give it, even to start. An app update may bring a smaller option."
                 .into()
         }
         StartupFailure::WeightsUnverified => {

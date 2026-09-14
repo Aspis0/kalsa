@@ -35,11 +35,16 @@ impl Error for PayloadTooLong {}
 pub enum CompleteError {
     /// `complete` was called on a ceremony that no phone has claimed.
     NotClaimed,
-    /// The window closed between the claim and the completion. The ceremony is
-    /// `Expired`; the QR must be shown again.
-    WindowClosed,
-    /// The long-lived credential could not be minted. The ceremony stays
-    /// `Claimed` and may be completed again.
+    /// The ceremony is finished: the window closed, or the completion proof
+    /// did not verify — deliberately **one** answer for both. Distinguishing
+    /// them would hand a prober an oracle for "is there a live, claimed
+    /// ceremony sitting here", worth mining before deciding to keep guessing;
+    /// and since a failed verification burns the ceremony, the two cases end
+    /// in the same state with nothing left to tell apart.
+    Refused,
+    /// The long-lived credential could not be minted. This one is not
+    /// attacker-facing — nothing the phone presented caused it — so the
+    /// ceremony stays `Claimed` and may be completed again.
     Entropy,
 }
 
@@ -47,7 +52,7 @@ impl fmt::Display for CompleteError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
             Self::NotClaimed => "the ceremony was completed without a claim",
-            Self::WindowClosed => "the pairing window closed before the handshake finished",
+            Self::Refused => "the pairing ceremony refused completion",
             Self::Entropy => "the operating system would not provide entropy",
         })
     }

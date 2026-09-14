@@ -12,6 +12,7 @@ tauri-build = { version = "2", features = [] }
 # Digest checks over the chosen model's downloaded bytes.
 sha2 = "0.10"
 kalsa-catalog = { path = "../crates/kalsa-catalog" }
+kalsa-launch = { path = "../crates/kalsa-launch" }
 kalsa-download = { path = "../crates/kalsa-download" }
 kalsa-pairing = { path = "../crates/kalsa-pairing" }
 kalsa-probe = { path = "../crates/kalsa-probe" }

@@ -15,9 +15,6 @@ mod instance;
 mod supervisor;
 
 pub use child::{pid_alive, terminate_pid};
-pub use config::{
-    conservative_threads, ServerConfig, DEFAULT_BATCH, DEFAULT_CTX, DEFAULT_IDLE_SECONDS,
-    DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
-};
+pub use config::{ServerConfig, DEFAULT_STOP_GRACE};
 pub use instance::{Existing, InstanceFile};
 pub use supervisor::{Failure, ServerState, Supervisor};

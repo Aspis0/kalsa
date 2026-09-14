@@ -22,15 +22,17 @@
 //! carries no `serde`, so this file writes its fields down and every read
 //! rebuilds a `PhoneModel` from them. Every rule about what the phone's
 //! numbers mean keeps living in the catalog; nothing is interpreted here.
+//! The shell itself is shared with the wire (`messages::PhoneFields`) —
+//! same fields on disk and in the completion message, one conversion.
 
 use std::fs;
 use std::path::Path;
 
-use kalsa_catalog::{Parameters, PhoneModel};
 use serde::{Deserialize, Serialize};
 
 use crate::error::StoreError;
 use crate::handshake::{Credential, Handshake};
+use crate::messages::PhoneFields;
 
 const STORE_VERSION: u8 = 1;
 
@@ -39,25 +41,7 @@ const STORE_VERSION: u8 = 1;
 struct StoredHandshake {
     v: u8,
     credential_hex: String,
-    phone: StoredPhone,
-}
-
-#[derive(Serialize, Deserialize)]
-struct StoredPhone {
-    weights_bytes: u64,
-    parameters: Option<StoredParameters>,
-    measured_tokens_per_second: Option<f64>,
-    battery_powered: Option<bool>,
-}
-
-/// `total == active` is a dense model; anything else must satisfy
-/// `1 <= active <= total` — the constraint `Parameters::mixture` asserts on,
-/// which is why it is checked here and a file that fails it is corrupt
-/// rather than a crash.
-#[derive(Serialize, Deserialize)]
-struct StoredParameters {
-    total: u64,
-    active: u64,
+    phone: PhoneFields,
 }
 
 /// Write the handshake result as a new file. The parent directory must exist;
@@ -71,7 +55,7 @@ pub fn persist(handshake: &Handshake, path: &Path) -> Result<(), StoreError> {
     let stored = StoredHandshake {
         v: STORE_VERSION,
         credential_hex: handshake.credential_hex(),
-        phone: StoredPhone::of(handshake.phone),
+        phone: PhoneFields::of(handshake.phone),
     };
     let mut file = create_exclusive(path).map_err(|e| {
         if e.kind() == std::io::ErrorKind::AlreadyExists {
@@ -109,7 +93,10 @@ pub fn load(path: &Path) -> Result<Handshake, StoreError> {
     }
     let credential = Credential::from_hex(&stored.credential_hex)
         .ok_or(StoreError::Corrupt("credential is not 64 hex characters"))?;
-    let phone = stored.phone.into_phone()?;
+    let phone = stored
+        .phone
+        .into_phone()
+        .ok_or(StoreError::Corrupt("stored parameters cannot exist"))?;
     Ok(Handshake::new(phone, credential))
 }
 
@@ -129,37 +116,6 @@ fn create_exclusive(path: &Path) -> std::io::Result<std::fs::File> {
         .write(true)
         .create_new(true)
         .open(path)
-}
-
-impl StoredPhone {
-    fn of(phone: PhoneModel) -> Self {
-        Self {
-            weights_bytes: phone.weights_bytes,
-            parameters: phone.parameters.map(|p| StoredParameters {
-                total: p.total().count(),
-                active: p.active().count(),
-            }),
-            measured_tokens_per_second: phone.measured_tokens_per_second,
-            battery_powered: phone.battery_powered,
-        }
-    }
-
-    fn into_phone(self) -> Result<PhoneModel, StoreError> {
-        let parameters = match self.parameters {
-            None => None,
-            Some(p) if p.total == p.active => Some(Parameters::dense(p.total)),
-            Some(p) if p.active >= 1 && p.active < p.total => {
-                Some(Parameters::mixture(p.total, p.active))
-            }
-            Some(_) => return Err(StoreError::Corrupt("stored parameters cannot exist")),
-        };
-        Ok(PhoneModel {
-            weights_bytes: self.weights_bytes,
-            parameters,
-            measured_tokens_per_second: self.measured_tokens_per_second,
-            battery_powered: self.battery_powered,
-        })
-    }
 }
 
 #[cfg(test)]

@@ -8,16 +8,20 @@
 //! This crate owns the *ceremony*, not the transport: no HTTP, no Tauri, no
 //! pixel-pushing — the shell draws the SVG that `qr` emits. What is here:
 //!
-//! * the one-time code and the binding secret, both from OS entropy, compared
+//! * the one-time code and the per-offer nonce, both from OS entropy, compared
 //!   in constant time, printed by no `Debug` (`secret`);
 //! * what the QR encodes — a versioned JSON payload: how to reach this
-//!   computer, the code, and the binding that tells the phone this computer
-//!   from a look-alike that answers faster (`payload`, `secret`);
+//!   computer, the code the whole completion protocol is keyed on, and the
+//!   nonce both MACs cover (`payload`, `secret`, `messages`);
 //! * the square itself, that payload as the symbol a phone camera reads —
 //!   the one place the secrets are rendered on purpose (`qr`);
+//! * the completion handshake — the phone's declaration, bound by a MAC
+//!   keyed on the code; the computer's seal in answer; one attempt per
+//!   ceremony (`messages`);
 //! * the state machine — Offered → Claimed → Paired, plus Expired — with the
-//!   window, the single use, and the indistinguishable rejections enforced by
-//!   the transitions, never asserted next to them (`ceremony`);
+//!   window, the single use, the proof gate, and the indistinguishable
+//!   rejections enforced by the transitions, never asserted next to them
+//!   (`ceremony`);
 //! * the result: the long-lived credential plus the `PhoneModel` the phone
 //!   declared, persisted owner-only (`handshake`, `store`).
 //!
@@ -28,6 +32,7 @@
 mod ceremony;
 mod error;
 mod handshake;
+mod messages;
 mod payload;
 mod qr;
 mod secret;
@@ -37,4 +42,5 @@ pub mod store;
 pub use ceremony::{ClaimResult, Pairing};
 pub use error::{CompleteError, EntropyError, PayloadTooLong, StoreError};
 pub use handshake::Handshake;
+pub use messages::{PairingSeal, PhoneDeclaration};
 pub use qr::qr_svg;

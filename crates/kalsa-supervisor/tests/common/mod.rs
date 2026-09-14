@@ -116,14 +116,16 @@ pub fn clear_files(port: u16) {
 pub fn config(exe: &str, port: u16) -> ServerConfig {
     ServerConfig {
         exe: fixture(exe),
-        model: PathBuf::from("/nonexistent/model.gguf"),
+        argv: vec![
+            "--host".into(),
+            "127.0.0.1".into(),
+            "--port".into(),
+            port.to_string(),
+            "--model".into(),
+            "/nonexistent/model.gguf".into(),
+        ],
         state_file: state_file(port),
         port,
-        threads: 2,
-        batch: 256,
-        ubatch: 64,
-        ctx: 4096,
-        idle_seconds: 60,
         ready_timeout: Duration::from_secs(3),
         stop_grace: Duration::from_millis(200),
     }

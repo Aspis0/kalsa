@@ -16,13 +16,14 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use kalsa_catalog::{ChoiceInput, Decision, DownloadPlan, PhoneModel, Selection};
-use kalsa_download::{default_roots, download, find_local};
-use kalsa_probe::Measurement;
-use kalsa_supervisor::{
-    conservative_threads, ServerConfig, DEFAULT_BATCH, DEFAULT_CTX, DEFAULT_IDLE_SECONDS,
-    DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
+use kalsa_catalog::{
+    memory_budget, ChoiceInput, Decision, DownloadPlan, ModelEntry, PhoneModel, Selection, CATALOG,
 };
+use kalsa_download::{default_roots, download, find_local};
+use kalsa_launch::{LaunchInput, Offload, ServerArgs};
+use kalsa_probe::Measurement;
+use kalsa_runtime::ServerBackend;
+use kalsa_supervisor::{ServerConfig, DEFAULT_STOP_GRACE};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 
@@ -35,6 +36,17 @@ const READY_TIMEOUT: Duration = Duration::from_secs(600);
 /// Long enough for a clean unload, short enough that closing the window is not
 /// a hang: the supervisor escalates to SIGKILL after the second one.
 const STOP_GRACE: Duration = Duration::from_secs(2);
+/// The context the catalog sizes its candidates against. The context that
+/// actually runs is `kalsa_launch::plan`'s, derived for the chosen row from
+/// the same budget and re-checked against it — whatever is chosen therefore
+/// always runs within the machine, whatever this figure says. It exists
+/// because the chooser needs a context to price the cache with, before it
+/// knows which row it will choose.
+const PROVISIONAL_CONTEXT_TOKENS: u64 = 8192;
+/// The context a development run starts with. The developer pinned the model
+/// and owns its bytes, so this is a convenience, not a budgeted decision —
+/// the product path never uses it.
+const DEV_CONTEXT_TOKENS: u64 = 4096;
 
 /// What the walk needs to know about this machine, gathered once before it
 /// starts. The measurement itself, not numbers pulled out of it: whether the
@@ -76,17 +88,19 @@ pub(crate) fn run(
     root: &Path,
     progress: &mut dyn FnMut(Progress),
 ) -> Result<ServerConfig, StartupFailure> {
-    let exe = match server_override {
-        Some(exe) => exe,
+    // The build that won carries the backend it was chosen for; a dev-pinned
+    // binary has no verdict, so the platform's default path stands in.
+    let (backend, exe) = match server_override {
+        Some(exe) => (dev_backend(), exe),
         None => {
             progress(Progress::Deciding);
-            kalsa_runtime::decide(machine.measurement.will_run_on, &mut |p| {
+            let decision = kalsa_runtime::decide(machine.measurement.will_run_on, &mut |p| {
                 progress(Progress::RuntimeBytes {
                     done: p.bytes_done,
                     total: p.bytes_total,
                 })
-            })?
-            .exe
+            })?;
+            (decision.backend, decision.exe)
         }
     };
     let model = match model_override {
@@ -96,20 +110,31 @@ pub(crate) fn run(
         Some(path) => path,
         None => {
             progress(Progress::Choosing);
-            let selection = choose_model(&machine, phone)?;
-            place_model(selection.download.as_ref(), root, progress)?
+            let (selection, row) = choose_model(&machine, phone)?;
+            let path = place_model(selection.download.as_ref(), root, progress)?;
+            return planned_config(backend, exe, path, row, &machine, state_file);
         }
     };
-    Ok(server_config(exe, model, state_file))
+    Ok(dev_config(exe, model, state_file, &machine))
 }
 
 /// The catalog's answer for this machine. Pure: nothing here touches the
-/// network or the disk.
-fn choose_model(machine: &Machine, phone: Option<PhoneModel>) -> Result<Selection, StartupFailure> {
-    match kalsa_catalog::choose(&choice_input(machine, phone)) {
-        Decision::Pick(selection) => Ok(selection),
-        Decision::Refuse(refusal) => Err(refusal.into()),
-    }
+/// network or the disk. The chosen row travels with the selection: the
+/// launch decision derives the context from the row's per-token cache
+/// figure, which the selection alone does not carry.
+fn choose_model(
+    machine: &Machine,
+    phone: Option<PhoneModel>,
+) -> Result<(Selection, &'static ModelEntry), StartupFailure> {
+    let selection = match kalsa_catalog::choose(&choice_input(machine, phone)) {
+        Decision::Pick(selection) => selection,
+        Decision::Refuse(refusal) => return Err(refusal.into()),
+    };
+    let row = CATALOG
+        .iter()
+        .find(|entry| entry.repo == selection.repo)
+        .expect("the catalog picked a row it does not carry");
+    Ok((selection, row))
 }
 
 /// The catalog's input, gathered from the measurement as it stands — every
@@ -125,7 +150,7 @@ fn choice_input(machine: &Machine, phone: Option<PhoneModel>) -> ChoiceInput {
         // refuse one. Hardcoding this false re-creates the bug that refused
         // a runnable model with a precise and wrong number.
         bandwidth_is_lower_bound: machine.measurement.bandwidth_is_lower_bound(),
-        context_tokens: u64::from(DEFAULT_CTX),
+        context_tokens: PROVISIONAL_CONTEXT_TOKENS,
         phone,
     }
 }
@@ -181,26 +206,87 @@ fn acquire_model(
     Ok(path)
 }
 
-/// The server's configuration: loopback only, conservative thread and batch
-/// counts, the chosen model, the state file the supervisor identifies itself
-/// by.
-fn server_config(exe: PathBuf, model: PathBuf, state_file: PathBuf) -> ServerConfig {
-    ServerConfig {
+/// The server's configuration, from the launch decision: the context is
+/// derived from the chosen row's cache geometry against this machine's real
+/// budget, the thread count is the measured plateau, the offload follows the
+/// build that won. `None` from [`kalsa_launch::plan`] means the machine
+/// cannot fund this model even with a single token of context, and the walk
+/// stops honestly — it never starts the server smaller.
+fn planned_config(
+    backend: ServerBackend,
+    exe: PathBuf,
+    model: PathBuf,
+    row: &ModelEntry,
+    machine: &Machine,
+    state_file: PathBuf,
+) -> Result<ServerConfig, StartupFailure> {
+    let input = LaunchInput {
+        backend,
+        model: row,
+        budget: memory_budget(machine.measurement.will_run_on, machine.ram_bytes),
+        thread_ramp: &machine.measurement.ramp,
+        model_path: model,
+        port: PORT,
+    };
+    let plan = kalsa_launch::plan(&input).ok_or(StartupFailure::ChosenModelUnfundable)?;
+    Ok(ServerConfig {
         exe,
-        model,
+        argv: plan.args.argv(),
         state_file,
         port: PORT,
-        threads: conservative_threads(
-            std::thread::available_parallelism()
-                .map(|n| n.get())
-                .unwrap_or(4),
-        ),
-        batch: DEFAULT_BATCH,
-        ubatch: DEFAULT_UBATCH,
-        ctx: DEFAULT_CTX,
-        idle_seconds: DEFAULT_IDLE_SECONDS,
         ready_timeout: READY_TIMEOUT,
         stop_grace: STOP_GRACE.max(DEFAULT_STOP_GRACE / 2),
+    })
+}
+
+/// The configuration for a development run: the developer pinned the binary
+/// and the model and owns both, so nothing here is budgeted. The context is
+/// a dev convenience ([`DEV_CONTEXT_TOKENS`]), the thread count follows the
+/// measurement only when there is one, and the offload follows the build the
+/// dev walk assumed — there is no verdict for a binary that was never
+/// decided.
+fn dev_config(
+    exe: PathBuf,
+    model: PathBuf,
+    state_file: PathBuf,
+    machine: &Machine,
+) -> ServerConfig {
+    let args = ServerArgs {
+        model_path: model,
+        port: PORT,
+        context_tokens: DEV_CONTEXT_TOKENS,
+        threads: kalsa_probe::plateau(&machine.measurement.ramp).map(|(threads, _)| threads),
+        offload: offload_of_build(&dev_backend()),
+    };
+    ServerConfig {
+        exe,
+        argv: args.argv(),
+        state_file,
+        port: PORT,
+        ready_timeout: READY_TIMEOUT,
+        stop_grace: STOP_GRACE.max(DEFAULT_STOP_GRACE / 2),
+    }
+}
+
+/// The build a dev-pinned binary is assumed to be: the platform's own
+/// default, the one the product's decision would have reached anyway. A
+/// development run has no verdict to name the build.
+fn dev_backend() -> ServerBackend {
+    match kalsa_runtime::Platform::current() {
+        Some(kalsa_runtime::Platform::MacArm64 | kalsa_runtime::Platform::MacX64) => {
+            ServerBackend::Metal
+        }
+        _ => ServerBackend::Cpu,
+    }
+}
+
+/// What a build's backend implies for the GPU, when there is no budget to
+/// check: the Metal build decodes on the GPU out of unified memory, and every
+/// other build a dev run can assume is treated as having no GPU to ask for.
+fn offload_of_build(backend: &ServerBackend) -> Offload {
+    match backend {
+        ServerBackend::Metal => Offload::All,
+        _ => Offload::NoGpuBuild,
     }
 }
 
@@ -462,13 +548,96 @@ mod tests {
             &mut |_| {},
         )
         .expect("the override is the answer");
-        assert_eq!(config.model, PathBuf::from("/dev/model.gguf"));
         assert_eq!(config.exe, PathBuf::from("/server/llama-server"));
         assert_eq!(config.port, PORT);
-        let joined = config.arguments().join(" ");
-        assert!(joined.contains("--host 127.0.0.1"));
-        assert!(joined.contains("--model /dev/model.gguf"));
+        let joined = config.argv.join(" ");
+        assert!(joined.contains("--host 127.0.0.1"), "{joined}");
+        assert!(joined.contains("--model /dev/model.gguf"), "{joined}");
+        // The machine was never measured, so the thread count is omitted
+        // rather than guessed.
+        assert!(!joined.contains("--threads"), "{joined}");
         let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn the_server_starts_with_the_launch_plan_not_the_supervisor_constants() {
+        // The product path: the context comes from the chosen row's cache
+        // geometry against the real budget (Granite 4 Tiny on 8 GiB funds
+        // 6112 tokens, not a constant), and the flags are the launch
+        // decision's — q8_0 cache under flash attention, no GPU flags on a
+        // CPU build.
+        let row = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let config = planned_config(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+        )
+        .expect("the model is fundable");
+        let joined = config.argv.join(" ");
+        assert!(joined.contains("--ctx-size 6112"), "{joined}");
+        assert!(!joined.contains("8192"), "the old constant, back: {joined}");
+        assert!(joined.contains("--threads 2"), "{joined}");
+        assert!(joined.contains("--cache-type-k q8_0"), "{joined}");
+        assert!(joined.contains("--flash-attn on"), "{joined}");
+        assert!(!joined.contains("n-gpu-layers"), "{joined}");
+    }
+
+    #[test]
+    fn a_model_the_machine_cannot_fund_stops_the_walk_honestly() {
+        let row = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "Google Gemma 4 E4B")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Cpu),
+            ram_bytes: 8 * 1024 * 1024 * 1024,
+        };
+        let err = planned_config(
+            ServerBackend::Cpu,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+        )
+        .expect_err("the weights and buffers alone exceed this budget");
+        assert!(
+            matches!(err, StartupFailure::ChosenModelUnfundable),
+            "{err:?}"
+        );
+    }
+
+    #[test]
+    fn a_metal_machine_gets_the_full_offload_the_budget_accounted_for() {
+        let row = CATALOG
+            .iter()
+            .find(|entry| entry.display_name == "IBM Granite 4 Tiny")
+            .expect("the test row left the catalog");
+        let machine = Machine {
+            measurement: measured(80.0e9, Backend::Metal),
+            ram_bytes: 16 * 1024 * 1024 * 1024,
+        };
+        let config = planned_config(
+            ServerBackend::Metal,
+            PathBuf::from("/server/llama-server"),
+            PathBuf::from("/models/chosen.gguf"),
+            row,
+            &machine,
+            PathBuf::from("/state/server.state"),
+        )
+        .expect("the model is fundable");
+        let joined = config.argv.join(" ");
+        assert!(joined.contains("--n-gpu-layers all"), "{joined}");
     }
 
     #[test]

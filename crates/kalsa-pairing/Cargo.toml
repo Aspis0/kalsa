@@ -21,6 +21,7 @@ hex = "0.4"
 kalsa-catalog = { path = "../kalsa-catalog" }
 # The QR encoder: MIT, forbid(unsafe), no dependencies, one readable file.
 qrcodegen = "1.8.0"
+hmac = "0.12"
 
 [dev-dependencies]
 # The decoder the round-trip test needs, and nothing else: default features

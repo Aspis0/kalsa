@@ -1,0 +1,204 @@
+//! The completion messages, as data: what the phone sends to finish the
+//! handshake, and what the computer answers. The transport carries them; this
+//! crate defines them and verifies the first.
+//!
+//! Both directions are MACs keyed on the one-time secret the QR carried,
+//! over domain prefixes that keep the two roles apart — a MAC computed for
+//! one direction can never verify in the other:
+//!
+//! * phone → computer: `HMAC(S, "…/phone-mac/v2" ‖ nonce ‖ canonical phone)`
+//!   — the metadata stops being asserted and becomes bound: altered after
+//!   the MAC was computed, it refuses;
+//! * computer → phone: `HMAC(S, "…/computer-mac/v2" ‖ nonce ‖ credential)`
+//!   — the phone learns it is talking to the computer that showed the
+//!   square, and that the credential it just received is the one bound to
+//!   this ceremony.
+//!
+//! The nonce is fresh per offer and travels in the QR, so a proof recorded
+//! in one ceremony is worthless in another. "Canonical phone" is the
+//! `serde_json` encoding of [`PhoneFields`]: struct serialization is
+//! field-ordered and deterministic, so the phone and this crate compute
+//! identical bytes for identical values, whatever whitespace the wire carried.
+
+use hmac::{Hmac, Mac};
+use serde::{Deserialize, Serialize};
+use sha2::Sha256;
+use std::fmt;
+use subtle::ConstantTimeEq;
+
+use kalsa_catalog::{Parameters, PhoneModel};
+
+use crate::secret::{CODE_BYTES, OneTimeCode};
+
+const PHONE_DOMAIN: &[u8] = b"kalsa-pairing/phone-mac/v2";
+const COMPUTER_DOMAIN: &[u8] = b"kalsa-pairing/computer-mac/v2";
+
+type HmacSha256 = Hmac<Sha256>;
+
+pub(crate) const MAC_BYTES: usize = 32;
+pub(crate) const NONCE_BYTES: usize = 32;
+
+/// The phone's shape on the wire and in the store: a serialization shell for
+/// `kalsa_catalog::PhoneModel`, not a second description of it. `total ==
+/// active` is a dense model; anything else must satisfy `1 <= active <=
+/// total` — the constraint `Parameters::mixture` asserts on, which is why it
+/// is checked on the way back in, and a file or declaration that fails it is
+/// corrupt rather than a crash.
+#[derive(Serialize, Deserialize)]
+pub struct PhoneFields {
+    weights_bytes: u64,
+    parameters: Option<StoredParameters>,
+    measured_tokens_per_second: Option<f64>,
+    battery_powered: Option<bool>,
+}
+
+// No Debug on purpose: nothing here needs one, and a derived Debug on a
+// struct that sits next to a MAC invites logging the pair.
+#[derive(Serialize, Deserialize)]
+struct StoredParameters {
+    total: u64,
+    active: u64,
+}
+
+impl PhoneFields {
+    pub(crate) fn of(phone: PhoneModel) -> Self {
+        Self {
+            weights_bytes: phone.weights_bytes,
+            parameters: phone.parameters.map(|p| StoredParameters {
+                total: p.total().count(),
+                active: p.active().count(),
+            }),
+            measured_tokens_per_second: phone.measured_tokens_per_second,
+            battery_powered: phone.battery_powered,
+        }
+    }
+
+    /// Rebuild the catalog's type, or `None` when the values cannot exist.
+    pub(crate) fn into_phone(self) -> Option<PhoneModel> {
+        let parameters = match self.parameters {
+            None => None,
+            Some(p) if p.total == p.active => Some(Parameters::dense(p.total)),
+            Some(p) if p.active >= 1 && p.active < p.total => {
+                Some(Parameters::mixture(p.total, p.active))
+            }
+            Some(_) => return None,
+        };
+        Some(PhoneModel {
+            weights_bytes: self.weights_bytes,
+            parameters,
+            measured_tokens_per_second: self.measured_tokens_per_second,
+            battery_powered: self.battery_powered,
+        })
+    }
+}
+
+/// The phone's completion message: its own description, bound to the
+/// ceremony by a MAC keyed on the QR's one-time secret. The transport
+/// deserializes it and hands it to the ceremony; the ceremony verifies it
+/// or burns.
+#[derive(Serialize, Deserialize)]
+pub struct PhoneDeclaration {
+    /// The metadata the phone declares about itself. Covered by the MAC.
+    pub phone: PhoneFields,
+    /// The phone's MAC over (phone domain ‖ nonce ‖ canonical phone), hex.
+    pub mac: String,
+}
+
+// A MAC next to the data it authenticates: no derived Debug to log them
+// together.
+impl fmt::Debug for PhoneDeclaration {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("PhoneDeclaration(_)")
+    }
+}
+
+/// The computer's answer: a MAC keyed on the same one-time secret, over the
+/// computer's domain, covering the nonce and the credential being delivered.
+/// The phone that holds the QR verifies it and knows both that this is the
+/// computer the square was about and that the credential is the one bound to
+/// this ceremony.
+#[derive(Serialize)]
+pub struct PairingSeal {
+    mac: String,
+}
+
+impl PairingSeal {
+    pub(crate) fn new(mac: [u8; MAC_BYTES]) -> Self {
+        Self {
+            mac: hex::encode(mac),
+        }
+    }
+}
+
+impl fmt::Debug for PairingSeal {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("PairingSeal(_)")
+    }
+}
+
+fn tag(domain: &[u8], key: &[u8], nonce: &[u8], payload: &[u8]) -> [u8; MAC_BYTES] {
+    let Ok(mut mac) = <HmacSha256 as Mac>::new_from_slice(key) else {
+        // HMAC-SHA256 accepts keys of any length, so with the fixed-size
+        // keys this crate passes this arm is not reachable; a domain hash
+        // keeps the function total without a panic in a desktop app — such
+        // a tag verifies against nothing.
+        let mut fallback = Sha256::new();
+        use sha2::Digest;
+        fallback.update(domain);
+        return fallback.finalize().into();
+    };
+    mac.update(domain);
+    mac.update(nonce);
+    mac.update(payload);
+    mac.finalize().into_bytes().into()
+}
+
+/// The phone's MAC, exactly as the recipe above defines it — exposed so
+/// the tests can stand where the phone stands and compose a valid message.
+pub(crate) fn phone_mac(
+    key: &[u8; CODE_BYTES],
+    nonce: &[u8; NONCE_BYTES],
+    phone: &PhoneFields,
+) -> [u8; MAC_BYTES] {
+    let canonical = match serde_json::to_vec(phone) {
+        Ok(bytes) => bytes,
+        // A plain struct cannot fail to serialize; an empty buffer simply
+        // verifies against nothing.
+        Err(_) => Vec::new(),
+    };
+    tag(PHONE_DOMAIN, key, nonce, &canonical)
+}
+
+/// Constant-time verification of the phone's completion MAC. A malformed,
+/// wrong-length, or wrong-value presentation is the same "no": nothing here
+/// says how wrong it was.
+pub(crate) fn verify_phone_mac(
+    code: &OneTimeCode,
+    nonce: &[u8; NONCE_BYTES],
+    phone: &PhoneFields,
+    presented: &str,
+) -> bool {
+    let expected = phone_mac(code.bytes(), nonce, phone);
+    let mut tag_bytes = [0u8; MAC_BYTES];
+    if hex::decode_to_slice(presented, &mut tag_bytes).is_err() {
+        return false;
+    }
+    bool::from(tag_bytes.ct_eq(&expected))
+}
+
+/// The computer's answer, over the computer's domain.
+pub(crate) fn seal_computer(
+    code: &OneTimeCode,
+    nonce: &[u8; NONCE_BYTES],
+    credential_hex: &str,
+) -> PairingSeal {
+    PairingSeal::new(tag(
+        COMPUTER_DOMAIN,
+        code.bytes(),
+        nonce,
+        credential_hex.as_bytes(),
+    ))
+}
+
+#[cfg(test)]
+mod tests;

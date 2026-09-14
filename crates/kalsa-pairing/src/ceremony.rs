@@ -10,24 +10,26 @@
 //!
 //! * the window covers the whole ceremony: a code claimed at the last second
 //!   does not buy an open-ended handshake;
-//! * the code is single-use. The first successful claim consumes it — the
-//!   one-time code and the binding secret are dropped from memory at that
-//!   moment — and any later claim, right code included, gets the same
-//!   `Rejected`, because to a code-guesser "already used" is information
-//!   worth mining;
+//! * the code is single-use. The first successful claim consumes it — and
+//!   any later claim, right code included, gets the same `Rejected`, because
+//!   to a code-guesser "already used" is information worth mining;
 //! * a *failed* claim does not consume the code: the real phone may still be
 //!   on its way;
-//! * a rejection never says how wrong the presentation was.
+//! * a rejection never says how wrong the presentation was;
+//! * completion is a second gate and a one-shot: the phone proves knowledge
+//!   of the code with a MAC over the per-offer nonce and its metadata, and a
+//!   proof that fails burns the ceremony — one attempt, per completion, ever.
 
 use std::fmt;
 use std::time::{Duration, SystemTime};
 
-use kalsa_catalog::PhoneModel;
+use getrandom::fill;
 
 use crate::error::{CompleteError, EntropyError};
 use crate::handshake::{Credential, Handshake};
+use crate::messages::{seal_computer, verify_phone_mac, PairingSeal, PhoneDeclaration, NONCE_BYTES};
 use crate::payload;
-use crate::secret::{BINDING_BYTES, BindingSecret, OneTimeCode};
+use crate::secret::OneTimeCode;
 
 /// An offer on the table: the QR is (or was) on screen, and the code is
 /// waiting for exactly one phone.
@@ -43,15 +45,19 @@ use crate::secret::{BINDING_BYTES, BindingSecret, OneTimeCode};
 /// ceremony already treats whoever presents the code as the phone.
 pub struct Offer {
     code: OneTimeCode,
-    binding: BindingSecret,
+    /// Fresh per offer, carried in the QR: both completion MACs cover it, so
+    /// a proof recorded in one ceremony verifies in no other.
+    nonce: [u8; NONCE_BYTES],
     expires_at: SystemTime,
 }
 
-/// The code has been claimed. The one-time code and the binding secret are
-/// already gone from memory; only the proof computed from them survives, along
-/// with the rest of the window — on the same wall-clock terms as `Offer`.
+/// The code has been claimed. The code itself survives here — the completion
+/// proof is keyed on it, so it lives exactly as long as the ceremony can
+/// still complete — together with the nonce and the rest of the window, on
+/// the same wall-clock terms as `Offer`.
 pub struct Claimed {
-    proof: [u8; BINDING_BYTES],
+    code: OneTimeCode,
+    nonce: [u8; NONCE_BYTES],
     expires_at: SystemTime,
 }
 
@@ -59,8 +65,8 @@ pub struct Claimed {
 /// them is a normal thing a phone can cause.
 #[derive(Debug)]
 pub enum ClaimResult {
-    /// The code matched and the ceremony advanced; `binding_proof` now holds
-    /// the answer to send the phone.
+    /// The code matched and the ceremony advanced; the phone may now finish
+    /// with its signed-in-stone declaration.
     Claimed,
     /// Not accepted — wrong, malformed, already used, or the ceremony has
     /// already moved on. One answer for all of these, on purpose. The session
@@ -95,29 +101,33 @@ impl fmt::Debug for Pairing {
 }
 
 impl Pairing {
-    /// A fresh offer: a one-time code and a binding secret, both from OS
-    /// entropy, alive for `ttl`.
+    /// A fresh offer: a one-time code and a per-offer nonce, both from OS
+    /// entropy, alive for `ttl`. The code keys both completion MACs; the
+    /// nonce is what makes a proof from one ceremony worthless in another.
     pub fn offer(now: SystemTime, ttl: Duration) -> Result<Self, EntropyError> {
+        let mut nonce = [0u8; NONCE_BYTES];
+        fill(&mut nonce).map_err(|_| EntropyError)?;
         Ok(Self::Offered(Offer {
             code: OneTimeCode::generate()?,
-            binding: BindingSecret::generate()?,
+            nonce,
             expires_at: now + ttl,
         }))
     }
 
     /// The QR's content: the versioned payload — how to reach this computer,
-    /// the code, the binding. `None` once the ceremony has moved past the
+    /// the code, the nonce. `None` once the ceremony has moved past the
     /// offer; there is no QR to show then.
     pub fn qr_payload(&self, reachable: &str) -> Option<String> {
         match self {
-            Self::Offered(offer) => payload::encode(&offer.code, &offer.binding, reachable),
+            Self::Offered(offer) => payload::encode(&offer.code, &offer.nonce, reachable),
             _ => None,
         }
     }
 
-    /// A phone — or anything posing as one — presents a code. `challenge` is
-    /// the fresh nonce the phone sent along, for the binding proof.
-    pub fn claim(&mut self, presented: &str, challenge: [u8; BINDING_BYTES], now: SystemTime) -> ClaimResult {
+    /// A phone — or anything posing as one — presents a code. The claim is
+    /// the first gate; the completion proof (also keyed on this code) is
+    /// the second.
+    pub fn claim(&mut self, presented: &str, now: SystemTime) -> ClaimResult {
         let Self::Offered(offer) = self else {
             // Claimed, Paired, or Expired: the same rejection a wrong code
             // would get. In particular a correct code presented a second
@@ -133,43 +143,66 @@ impl Pairing {
         if !accepted {
             return ClaimResult::Rejected;
         }
-        let proof = offer.binding.answer(&challenge, &offer.code);
+        // The offer's parts move into the claimed state: take ownership with
+        // a placeholder — the else arm is unreachable, the state was just
+        // `Offered`, and a placeholder beats a panic in a desktop app.
+        let Self::Offered(offer) = std::mem::replace(self, Self::Expired) else {
+            return ClaimResult::Rejected;
+        };
         *self = Self::Claimed(Claimed {
-            proof,
+            code: offer.code,
+            nonce: offer.nonce,
             expires_at: deadline,
         });
         ClaimResult::Claimed
     }
 
-    /// The answer to send the phone after a claim: proof that this session is
-    /// the computer the QR was about. `Some` only while `Claimed`.
-    pub fn binding_proof(&self) -> Option<[u8; BINDING_BYTES]> {
-        match self {
-            Self::Claimed(claimed) => Some(claimed.proof),
-            _ => None,
-        }
-    }
-
-    /// The phone finished the handshake: take its declaration, mint the
-    /// long-lived credential, and return the result to persist and to
-    /// deliver. Only a `Claimed` ceremony can complete.
+    /// The phone finished the handshake: its declaration arrives bound to
+    /// the ceremony by a MAC keyed on the one-time secret the QR carried
+    /// (`messages`). Verified in constant time, or the ceremony burns.
+    ///
+    /// One attempt. A completion that fails — wrong proof, malformed proof,
+    /// metadata that cannot exist — burns the ceremony to `Expired` and it
+    /// stays burned even for a later, valid proof: an endpoint that mints
+    /// credentials does not offer an unbounded retry loop, and guessing a
+    /// 128-bit key was never the threat being managed here. The refusal is
+    /// [`CompleteError::Refused`] for every cause, deliberately: telling a
+    /// wrong proof from a closed window would tell a prober whether a live,
+    /// claimed ceremony is on the table, and after the burn there is no
+    /// difference left to report. Only entropy failure spares the ceremony —
+    /// nothing the phone presented caused it.
+    ///
+    /// The two results go to two audiences: the handshake is this computer's
+    /// to persist and serve from; the seal is the message the phone is
+    /// waiting for — proof that the credential came from the computer that
+    /// showed the square.
     pub fn complete(
         &mut self,
-        phone: PhoneModel,
+        declaration: PhoneDeclaration,
         now: SystemTime,
-    ) -> Result<Handshake, CompleteError> {
+    ) -> Result<(Handshake, PairingSeal), CompleteError> {
         let Self::Claimed(claimed) = self else {
             return Err(CompleteError::NotClaimed);
         };
         let deadline = claimed.expires_at;
         if now >= deadline {
             *self = Self::Expired;
-            return Err(CompleteError::WindowClosed);
+            return Err(CompleteError::Refused);
         }
+        if !verify_phone_mac(&claimed.code, &claimed.nonce, &declaration.phone, &declaration.mac)
+        {
+            *self = Self::Expired;
+            return Err(CompleteError::Refused);
+        }
+        let Some(phone) = declaration.phone.into_phone() else {
+            *self = Self::Expired;
+            return Err(CompleteError::Refused);
+        };
         let credential = Credential::generate().map_err(|_| CompleteError::Entropy)?;
+        let seal = seal_computer(&claimed.code, &claimed.nonce, &credential.hex());
         let handshake = Handshake::new(phone, credential);
         *self = Self::Paired;
-        Ok(handshake)
+        Ok((handshake, seal))
     }
 
     /// Retire the offer when its window closes on its own — the QR screen has

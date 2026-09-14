@@ -241,10 +241,10 @@ fn start_blocking(config: &ServerConfig) -> Result<Started, Failure> {
         InstanceFile::claim(&config.state_file).map_err(|e| Failure::InstanceUnwritable {
             detail: format!("could not write our state file: {e}"),
         })?;
-    let mut child = ChildHandle::spawn(&config.exe, &config.arguments(), Some(instance.handle()))
+    let mut child = ChildHandle::spawn(&config.exe, &config.argv, Some(instance.handle()))
         .map_err(|e| Failure::ServerNotStarted {
-        detail: format!("could not start the server: {e}"),
-    })?;
+            detail: format!("could not start the server: {e}"),
+        })?;
     instance
         .describe(child.pid(), config.port)
         .map_err(|e| Failure::InstanceUnwritable {

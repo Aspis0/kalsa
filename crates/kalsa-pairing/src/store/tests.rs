@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use kalsa_catalog::{Parameters, PhoneModel};
 
-use super::{StoreError, forget, load, persist};
+use super::{forget, load, persist, StoreError};
 use crate::handshake::{Credential, Handshake};
 
 fn scratch(name: &str) -> PathBuf {
@@ -57,7 +57,11 @@ fn a_phone_that_declined_its_parameters_stays_declined() {
         measured_tokens_per_second: None,
         battery_powered: None,
     };
-    persist(&Handshake::new(phone, Credential::generate().unwrap()), &path).unwrap();
+    persist(
+        &Handshake::new(phone, Credential::generate().unwrap()),
+        &path,
+    )
+    .unwrap();
 
     let loaded = load(&path).unwrap();
 
@@ -96,7 +100,10 @@ fn the_store_never_overwrites_a_credential() {
         Err(StoreError::AlreadyPaired)
     ));
     // The first credential is still the one on disk.
-    assert_eq!(load(&path).unwrap().credential_hex(), first.credential_hex());
+    assert_eq!(
+        load(&path).unwrap().credential_hex(),
+        first.credential_hex()
+    );
     fs::remove_dir_all(&dir).unwrap();
 }
 

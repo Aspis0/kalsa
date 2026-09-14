@@ -41,8 +41,8 @@ const QUIET_ZONE: i32 = 4;
 /// byte-mode segment, error-correction level M — see the size arithmetic
 /// above for why.
 pub fn qr_svg(payload: &str) -> Result<String, PayloadTooLong> {
-    let code = QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium)
-        .map_err(|_| PayloadTooLong)?;
+    let code =
+        QrCode::encode_binary(payload.as_bytes(), QrCodeEcc::Medium).map_err(|_| PayloadTooLong)?;
     let size = code.size();
     let dimension = size + QUIET_ZONE * 2;
     let mut dark = String::new();

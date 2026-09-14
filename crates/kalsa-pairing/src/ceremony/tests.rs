@@ -1,9 +1,10 @@
 use std::time::{Duration, SystemTime};
 
-use kalsa_catalog::PhoneModel;
-
 use super::{ClaimResult, Pairing};
 use crate::error::{CompleteError, EntropyError, StoreError};
+use crate::messages::{phone_mac, PhoneDeclaration, PhoneFields, NONCE_BYTES};
+use crate::secret::OneTimeCode;
+use kalsa_catalog::{Parameters, PhoneModel};
 
 const TTL: Duration = Duration::from_secs(300);
 const REACHABLE: &str = "http://192.168.1.10:4952";
@@ -13,23 +14,58 @@ fn offered() -> (Pairing, SystemTime) {
     (Pairing::offer(start, TTL).unwrap(), start)
 }
 
-/// The code and the binding, exactly as the QR carried them.
+/// The code and the nonce, exactly as the QR carried them.
 fn qr_secrets(session: &Pairing) -> (String, String) {
     let json = session.qr_payload(REACHABLE).unwrap();
     let value: serde_json::Value = serde_json::from_str(&json).unwrap();
     (
         value["code"].as_str().unwrap().to_string(),
-        value["binding"].as_str().unwrap().to_string(),
+        value["nonce"].as_str().unwrap().to_string(),
     )
 }
 
-fn declined_phone() -> PhoneModel {
-    PhoneModel {
+fn phone_with_weights(weights_bytes: u64) -> PhoneFields {
+    PhoneFields::of(PhoneModel {
+        weights_bytes,
+        parameters: Some(Parameters::mixture(7_600_000_000, 2_400_000_000)),
+        measured_tokens_per_second: Some(9.5),
+        battery_powered: Some(true),
+    })
+}
+
+fn sample_phone() -> PhoneFields {
+    phone_with_weights(2_200_000_000)
+}
+
+fn declined_phone() -> PhoneFields {
+    PhoneFields::of(PhoneModel {
         weights_bytes: 2_200_000_000,
         parameters: None,
         measured_tokens_per_second: None,
         battery_powered: None,
-    }
+    })
+}
+
+/// The phone's side of the recipe in `messages`: decode what the QR gave,
+/// MAC the canonical metadata over the phone domain.
+fn declaration(code_hex: &str, nonce_hex: &str, phone: PhoneFields) -> PhoneDeclaration {
+    let mut key = [0u8; 16];
+    hex::decode_to_slice(code_hex, &mut key).unwrap();
+    let mut nonce = [0u8; NONCE_BYTES];
+    hex::decode_to_slice(nonce_hex, &mut nonce).unwrap();
+    let mac = hex::encode(phone_mac(&key, &nonce, &phone));
+    PhoneDeclaration { phone, mac }
+}
+
+/// A claimed ceremony, with everything the phone would need to finish.
+fn claimed() -> (Pairing, SystemTime, String, String) {
+    let (mut session, start) = offered();
+    let (code, nonce) = qr_secrets(&session);
+    assert!(matches!(
+        session.claim(&code, start + Duration::from_secs(1)),
+        ClaimResult::Claimed
+    ));
+    (session, start, code, nonce)
 }
 
 #[test]
@@ -39,13 +75,13 @@ fn a_code_is_single_use() {
     let middle = start + TTL / 2;
 
     assert!(matches!(
-        session.claim(&code, [1; 32], middle),
+        session.claim(&code, middle),
         ClaimResult::Claimed
     ));
     // The same code, still inside the window: refused, exactly as a wrong
     // one would be.
     assert!(matches!(
-        session.claim(&code, [2; 32], middle),
+        session.claim(&code, middle),
         ClaimResult::Rejected
     ));
     assert!(matches!(session, Pairing::Claimed(_)));
@@ -57,13 +93,13 @@ fn an_expired_code_fails_without_ever_being_used() {
     let (code, _) = qr_secrets(&session);
 
     assert!(matches!(
-        session.claim(&code, [1; 32], start + TTL + Duration::from_secs(1)),
+        session.claim(&code, start + TTL + Duration::from_secs(1)),
         ClaimResult::Expired
     ));
     assert!(matches!(session, Pairing::Expired));
     // And a dead code cannot be resurrected.
     assert!(matches!(
-        session.claim(&code, [1; 32], start + TTL + Duration::from_secs(2)),
+        session.claim(&code, start + TTL + Duration::from_secs(2)),
         ClaimResult::Rejected
     ));
 }
@@ -80,7 +116,7 @@ fn sleep_counts_against_the_window() {
 
     let hours_later = start + TTL + Duration::from_secs(6 * 3600);
     assert!(matches!(
-        session.claim(&code, [1; 32], hours_later),
+        session.claim(&code, hours_later),
         ClaimResult::Expired
     ));
     assert!(matches!(session, Pairing::Expired));
@@ -102,24 +138,82 @@ fn every_rejection_is_the_same_rejection() {
     assert_eq!(format!("{:?}", ClaimResult::Rejected), "Rejected");
     for attempt in ["not hex at all", "abcd", wrong.as_str()] {
         assert!(matches!(
-            session.claim(attempt, [3; 32], start + Duration::from_secs(1)),
+            session.claim(attempt, start + Duration::from_secs(1)),
             ClaimResult::Rejected
         ));
     }
     // Failed attempts did not consume the code.
     assert!(matches!(
-        session.claim(&code, [4; 32], start + Duration::from_secs(2)),
+        session.claim(&code, start + Duration::from_secs(2)),
         ClaimResult::Claimed
     ));
 }
 
 #[test]
-fn a_declining_phone_is_taken_at_its_word() {
-    let (mut session, start) = offered();
-    let (code, _) = qr_secrets(&session);
-    session.claim(&code, [1; 32], start + Duration::from_secs(1));
+fn a_valid_proof_completes_the_pairing() {
+    let (mut session, start, code, nonce) = claimed();
+    let declaration = declaration(&code, &nonce, sample_phone());
 
-    let handshake = session.complete(declined_phone(), start + Duration::from_secs(2)).unwrap();
+    let (handshake, seal) = session
+        .complete(declaration, start + Duration::from_secs(2))
+        .unwrap();
+    assert_eq!(handshake.phone.weights_bytes, 2_200_000_000);
+    let parameters = handshake.phone.parameters.unwrap();
+    assert!(parameters.is_mixture());
+    assert_eq!(parameters.total().count(), 7_600_000_000);
+    assert!(matches!(session, Pairing::Paired));
+    // The computer answered with its own MAC, deliverable to the phone.
+    assert!(serde_json::to_string(&seal).is_ok());
+}
+
+#[test]
+fn a_single_flipped_bit_burns_the_ceremony() {
+    let (mut session, start, code, nonce) = claimed();
+    let mut tampered = declaration(&code, &nonce, sample_phone());
+    let mut raw = hex::decode(&tampered.mac).unwrap();
+    raw[0] ^= 0x01;
+    tampered.mac = hex::encode(raw);
+
+    assert!(matches!(
+        session.complete(tampered, start + Duration::from_secs(2)),
+        Err(CompleteError::Refused)
+    ));
+    assert!(matches!(session, Pairing::Expired));
+    // The burned secret is worth nothing: the *valid* proof, presented
+    // after the burn, pairs nothing. The API reports NotClaimed there — the
+    // state machine's way of saying there is no claimed ceremony left — and
+    // the state stays Expired regardless.
+    let replay = declaration(&code, &nonce, sample_phone());
+    assert!(
+        session.complete(replay, start + Duration::from_secs(3)).is_err(),
+        "a burned ceremony pairs nothing"
+    );
+    assert!(matches!(session, Pairing::Expired));
+}
+
+#[test]
+fn metadata_altered_after_the_mac_is_refused() {
+    let (mut session, start, code, nonce) = claimed();
+    // MAC the honest metadata, then swap the field afterwards — exactly the
+    // alteration a lying endpoint would attempt.
+    let mut declaration = declaration(&code, &nonce, sample_phone());
+    declaration.phone = phone_with_weights(2_200_000_001);
+
+    assert!(matches!(
+        session.complete(declaration, start + Duration::from_secs(2)),
+        Err(CompleteError::Refused)
+    ));
+    assert!(matches!(session, Pairing::Expired));
+}
+
+#[test]
+fn a_declining_phone_is_taken_at_its_word() {
+    let (mut session, start, code, nonce) = claimed();
+    let declaration = declaration(&code, &nonce, declined_phone());
+
+    let (handshake, _seal) = session
+        .complete(declaration, start + Duration::from_secs(2))
+        .unwrap();
     assert!(handshake.phone.parameters.is_none());
     assert!(handshake.phone.measured_tokens_per_second.is_none());
     assert!(handshake.phone.battery_powered.is_none());
@@ -128,23 +222,67 @@ fn a_declining_phone_is_taken_at_its_word() {
 }
 
 #[test]
-fn the_window_covers_the_whole_ceremony() {
-    let (mut session, start) = offered();
-    let (code, _) = qr_secrets(&session);
-    assert!(matches!(
-        session.claim(&code, [1; 32], start + TTL - Duration::from_secs(1)),
-        ClaimResult::Claimed
-    ));
+fn completion_is_one_shot() {
+    let (mut session, start, code, nonce) = claimed();
+    let first = declaration(&code, &nonce, sample_phone());
+    session
+        .complete(first, start + Duration::from_secs(2))
+        .unwrap()
+        .0;
 
-    let outcome = session.complete(declined_phone(), start + TTL + Duration::from_secs(1));
-    assert!(matches!(outcome, Err(CompleteError::WindowClosed)));
+    // A second completion — even with a fresh, valid proof — has no
+    // ceremony left to complete.
+    let second = declaration(&code, &nonce, sample_phone());
+    assert!(matches!(
+        session.complete(second, start + Duration::from_secs(3)),
+        Err(CompleteError::NotClaimed)
+    ));
+    assert!(matches!(session, Pairing::Paired));
+}
+
+#[test]
+fn the_window_covers_the_whole_ceremony() {
+    let (mut session, start, code, nonce) = claimed();
+    let declaration = declaration(&code, &nonce, sample_phone());
+
+    let outcome = session.complete(declaration, start + TTL + Duration::from_secs(1));
+    assert!(matches!(outcome, Err(CompleteError::Refused)));
     assert!(matches!(session, Pairing::Expired));
+}
+
+#[test]
+fn a_refusal_does_not_say_why() {
+    // Two ceremonies, two causes: one proof wrong, one window closed. The
+    // caller sees the same error for both, and both burn the same way —
+    // nothing here tells a prober which situation it is in.
+    let (mut wrong_proof, w_start, w_code, w_nonce) = claimed();
+    let mut wrong_declaration = declaration(&w_code, &w_nonce, sample_phone());
+    wrong_declaration.mac = "0".repeat(64);
+    let wrong = wrong_proof.complete(wrong_declaration, w_start + Duration::from_secs(2));
+
+    let (mut closed, c_start, c_code, c_nonce) = claimed();
+    let closed_declaration = declaration(&c_code, &c_nonce, sample_phone());
+    let expired = closed.complete(closed_declaration, c_start + TTL + Duration::from_secs(1));
+
+    assert_eq!(
+        format!("{wrong:?}"),
+        format!("{expired:?}"),
+        "Err(Refused) both times: no oracle"
+    );
+    assert!(matches!(wrong, Err(CompleteError::Refused)));
+    assert!(matches!(expired, Err(CompleteError::Refused)));
+    assert!(matches!(wrong_proof, Pairing::Expired));
+    assert!(matches!(closed, Pairing::Expired));
 }
 
 #[test]
 fn completion_without_a_claim_is_refused() {
     let (mut session, start) = offered();
-    let outcome = session.complete(declined_phone(), start + Duration::from_secs(1));
+    let (code, nonce) = qr_secrets(&session);
+    let outcome = session.complete(
+        declaration(&code, &nonce, declined_phone()),
+        start + Duration::from_secs(1),
+    );
     assert!(matches!(outcome, Err(CompleteError::NotClaimed)));
     assert!(matches!(session, Pairing::Offered(_)));
 }
@@ -167,21 +305,27 @@ fn no_rendering_carries_a_secret() {
     // The secret-holding types themselves: if any of their Debug impls ever
     // starts printing bytes — a stray derive, say — this catches it even
     // though no state rendering reaches inside them.
-    let code = crate::secret::OneTimeCode::generate().unwrap();
-    let binding = crate::secret::BindingSecret::generate().unwrap();
+    let code = OneTimeCode::generate().unwrap();
     let credential = crate::handshake::Credential::generate().unwrap();
 
     let (mut session, start) = offered();
-    let (code_hex, binding_hex) = qr_secrets(&session);
+    let (code_hex, nonce_hex) = qr_secrets(&session);
     let code_bytes = hex::decode(&code_hex).unwrap();
-    let binding_bytes = hex::decode(&binding_hex).unwrap();
+    let nonce_bytes = hex::decode(&nonce_hex).unwrap();
 
     let mut rendered = format!("{:?}", session);
-    session.claim(&code_hex, [1; 32], start + Duration::from_secs(1));
+    assert!(matches!(
+        session.claim(&code_hex, start + Duration::from_secs(1)),
+        ClaimResult::Claimed
+    ));
     rendered.push_str(&format!("{:?}", session));
-    let handshake = session
-        .complete(declined_phone(), start + Duration::from_secs(2))
+    let (handshake, seal) = session
+        .complete(
+            declaration(&code_hex, &nonce_hex, sample_phone()),
+            start + Duration::from_secs(2),
+        )
         .unwrap();
+    rendered.push_str(&format!("{:?}", seal));
     let credential_hex = handshake.credential_hex();
     let credential_bytes = hex::decode(&credential_hex).unwrap();
     rendered.push_str(&format!("{:?}", session));
@@ -195,7 +339,7 @@ fn no_rendering_carries_a_secret() {
     rendered.push_str(&format!("{EntropyError:?} {EntropyError}"));
     for outcome in [
         CompleteError::NotClaimed,
-        CompleteError::WindowClosed,
+        CompleteError::Refused,
         CompleteError::Entropy,
     ] {
         rendered.push_str(&format!("{outcome:?} {outcome}"));
@@ -206,21 +350,23 @@ fn no_rendering_carries_a_secret() {
     // The types' own Debug renderings.
     let direct = [
         (code.hex(), code.bytes().to_vec(), "code"),
-        (binding.hex(), binding.bytes().to_vec(), "binding"),
         (credential.hex(), credential.bytes().to_vec(), "credential"),
     ];
-    rendered.push_str(&format!("{code:?} {binding:?} {credential:?}"));
+    rendered.push_str(&format!("{code:?} {credential:?}"));
 
     let hunted = [
         (&code_hex, &code_bytes, "code"),
-        (&binding_hex, &binding_bytes, "binding"),
+        (&nonce_hex, &nonce_bytes, "nonce"),
         (&credential_hex, &credential_bytes, "credential"),
     ];
     let all = hunted
         .into_iter()
         .chain(direct.iter().map(|(h, b, n)| (h, b, *n)));
     for (hex_form, raw_bytes, name) in all {
-        assert!(!rendered.contains(hex_form.as_str()), "leaked {name} as hex: {rendered}");
+        assert!(
+            !rendered.contains(hex_form.as_str()),
+            "leaked {name} as hex: {rendered}"
+        );
         assert!(
             !rendered.contains(&format!("{raw_bytes:?}")),
             "leaked {name} as bytes: {rendered}"

@@ -123,18 +123,18 @@ fn the_qr_leaks_nothing_outside_the_symbol_itself() {
     let (payload, svg) = offered_svg();
     let value: serde_json::Value = serde_json::from_str(&payload).unwrap();
     let code_hex = value["code"].as_str().unwrap();
-    let binding_hex = value["binding"].as_str().unwrap();
+    let nonce_hex = value["nonce"].as_str().unwrap();
 
     // The secrets ride in the geometry, not the text: the SVG never spells
     // them out, though the symbol decodes to them. That contrast *is* the
     // exception this module exists for.
     assert!(svg.starts_with("<svg"));
     assert!(!svg.contains(code_hex));
-    assert!(!svg.contains(binding_hex));
+    assert!(!svg.contains(nonce_hex));
 
     // Nothing else the module hands out renders them either.
     let error = qr_svg(&"x".repeat(2500)).unwrap_err();
     let rendered = format!("{error:?} {error}");
     assert!(!rendered.contains(code_hex));
-    assert!(!rendered.contains(binding_hex));
+    assert!(!rendered.contains(nonce_hex));
 }
