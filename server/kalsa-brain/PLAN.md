@@ -149,6 +149,42 @@ MLX on Apple Silicon is a later optional backend, not the first one: it drags
 in a Python runtime, and "one install" is worth more than the last few percent
 of throughput on one platform.
 
+## 4bis. A runtime already on the machine: reuse the weights, not the process
+
+Some users already have ollama, LM Studio or MLX installed. The tempting move
+is to drive whatever is there. We do not.
+
+**Never adopt someone else's running process as our engine.** Two reasons, both
+load-bearing:
+
+- The tuning surface is how the safety net acts. A runtime that hides thread
+  count, batch size and KV quantization leaves us able to *detect* throughput
+  decay and unable to *do* anything about it. "I will not damage your PC" is
+  not a promise we can keep through a process we do not control.
+- Our baseline is measured under our settings. The moment their runtime updates
+  or their config changes, every number we stored silently becomes wrong — and
+  nothing tells us.
+
+There is also the plain courtesy argument: if we adopt their service and then
+reconfigure it, we broke something that was working.
+
+**Model files are a different matter.** GGUF blobs already on disk are just
+files, and our own `llama-server` can read them. Reusing them saves the user a
+multi-gigabyte download and costs us nothing in control. Rules: read-only,
+never move or rewrite them, and treat the on-disk layout as an internal format
+that may change — an optimization allowed to fail, never a dependency.
+
+MLX weights are a different format that llama.cpp does not read, so there is
+nothing to reuse there.
+
+**The advanced escape hatch** — "use the server I already run" — is legitimate
+and explicitly opt-in. When it is chosen, we say plainly that automatic tuning
+and the thermal safety net are off, because that process is not ours. Silent
+degradation of a safety promise is the same defect as a silent truncation.
+
+Independently of all this, we must **detect what is already listening** before
+we bind a port. Not to use it: to avoid fighting it.
+
 ## 4c. Zero-touch: what happens after the user clicks install
 
 1. **Read the machine.** RAM, CPU features, core count, whether a usable GPU
