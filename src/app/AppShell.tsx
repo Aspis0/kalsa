@@ -59,6 +59,11 @@ import {
 } from "../engine/ModelDownloader";
 import { detectOrphansAtBoot } from "../engine/ModelDownloader.orphanMigration";
 import {
+  captureEnsureIntent,
+  ensureIntentStale,
+  type EnsureIntent,
+} from "../engine/ensureIntent";
+import {
   embedDocumentChunk,
   embedQuery as embedQueryVec,
   embedChunkKey,
@@ -2817,15 +2822,30 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     let mounted = true;
     void (async () => {
       try {
+        const generation = engineGenerationRef.current;
+        const bootStillCurrent = () =>
+          mounted && generation === engineGenerationRef.current;
         const hydrated = await hydrateRemoteBrainSettings();
+        if (!bootStillCurrent()) return;
         const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
-        if (!mounted) return;
+        if (!bootStillCurrent()) return;
         if (hydrated.backend === "remote" || saved === REMOTE_MAC_MODEL_ID) {
+          if (!bootStillCurrent()) return;
+          engineIntentRef.current = {
+            modelId: REMOTE_MAC_MODEL_ID,
+            remote: true,
+          };
           setRemoteActive(true);
           await setEngineBackendMode("remote");
         } else if (saved) {
           const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
-          if (savedIndex >= 0) setModelIndex(savedIndex);
+          if (savedIndex >= 0 && bootStillCurrent()) {
+            engineIntentRef.current = {
+              modelId: MODEL_REGISTRY[savedIndex].id,
+              remote: false,
+            };
+            setModelIndex(savedIndex);
+          }
         }
       } catch {
         // keep default local model
@@ -2851,6 +2871,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const confirmDownloadLockRef = useRef(false);
   const downloadAbortRef = useRef<AbortController | null>(null);
   const engineGenerationRef = useRef(0);
+  const engineIntentRef = useRef<{ modelId: string; remote: boolean }>({
+    modelId: MODEL_REGISTRY[modelIndex]?.id ?? "",
+    remote: false,
+  });
   /** Latest ensureEngineForModel — boot kick reads this so its effect stays [modelIndex]. */
   const ensureEngineForModelRef = useRef<(model: ModelInfo) => Promise<boolean>>(
     async () => false,
@@ -3648,6 +3672,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       try {
         if (isRemoteEngineBackend()) {
           if (mounted) {
+            engineIntentRef.current = {
+              modelId: REMOTE_MAC_MODEL_ID,
+              remote: true,
+            };
             setRemoteActive(true);
             void ensureEngineForModelRef.current(REMOTE_MAC_MODEL);
           }
@@ -3686,6 +3714,17 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   }, [remoteActive]);
 
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
+    // Capture generation + requested model/backend BEFORE the thermal await
+    // so a local select during that probe cannot be overwritten by a stale
+    // remote ensure (setEngineBackendMode("remote") must be unreachable).
+    const captured = captureEnsureIntent(engineGenerationRef.current, model.id);
+    const liveIntent = (): EnsureIntent => ({
+      generation: engineGenerationRef.current,
+      modelId: engineIntentRef.current.modelId,
+      remote: engineIntentRef.current.remote,
+    });
+    const stillCurrent = () => !ensureIntentStale(captured, liveIntent());
+
     // C3 — refuse every model load while the OS is at platform CRITICAL.
     // The ref closes the event-to-render race; the query covers a transition
     // that arrived before the listener was attached.
@@ -3699,9 +3738,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // The platform reader is fail-open; an unavailable API never blocks.
     }
     if (thermalHardGateRef.current) return false;
-    if (model.id === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend()) {
-      const generation = engineGenerationRef.current;
-      const stillCurrent = () => generation === engineGenerationRef.current;
+    if (!stillCurrent()) return false;
+    if (captured.remote) {
       setModelState("loading");
       try {
         if (!stillCurrent()) return false;
@@ -3727,12 +3765,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return false;
       }
     }
-    // Capture generation + expected model BEFORE any await (race with selectModel).
-    const generation = engineGenerationRef.current;
-    const expectedModelId = model.id;
-    const stillCurrent = () =>
-      generation === engineGenerationRef.current &&
-      MODEL_REGISTRY[modelIndexRef.current]?.id === expectedModelId;
 
     if (isEngineReady() && getActiveModelId() === model.id) {
       queueStaticPrefixPrewarm(locale, agentOptionsRef.current.tools);
@@ -3777,12 +3809,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           chatModelIs2B: isChatModel2BClass(model.id),
         });
         // Gate on the load mode initEngine will really use, not on a fixed one.
+        const noRepack = await getBenchNoRepack();
+        if (!stillCurrent()) return false;
         const gate = gateForModel(
           model,
           profile,
           free,
           true,
-          await getBenchNoRepack(),
+          noRepack,
           deviceBandwidth,
         );
         // Refuse load for blocked_ram / blocked_tier (disk is a download-time gate).
@@ -3907,6 +3941,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         !allowsCoResidency();
       if (mustReleaseEmbed) {
         const midRelease = await releaseEmbedderBounded();
+        if (!stillCurrent()) {
+          markChatReleased(chatGen);
+          if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+          return false;
+        }
         if (midRelease === "timeout") {
           markChatReleased(chatGen);
           if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
@@ -3927,7 +3966,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Resolve once here (V4.2 §Fase 0.5): catalog n_ctx (no silent downgrade)
       // + optional high-RAM upgrade for hybrids + catalog-authoritative KV.
       // initEngine does not re-resolve — pass nCtx and cache types explicitly.
+      const abortIfStale = (): boolean => {
+        if (stillCurrent()) return false;
+        markChatReleased(chatGen);
+        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
+        return true;
+      };
       const benchNCtx = await getBenchNCtx();
+      if (abortIfStale()) return false;
       const profile = resolveContextProfile({
         hybrid: model.hybrid,
         kvCache: model.kvCache,
@@ -3935,25 +3981,25 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         explicitNCtx: benchNCtx ?? undefined,
       });
       const speculativeOverride = await getSpeculativeOverride();
+      if (abortIfStale()) return false;
       const engineOverride = await getEngineOverride();
+      if (abortIfStale()) return false;
       // Boot-captured HISTORY_KEY hash: conversation start, not mid-send (lazy
       // engine init would otherwise hash after the user turn is already persisted).
       const sessionHistoryHash = await getBootHistoryHash();
+      if (abortIfStale()) return false;
       // Tool names + blockFormat must match streamAssistantTurn (F6).
       // Facts on the user tail must not enter this hash or a new fact
       // cold-starts the entire KV prefix (MEMORY_FACTS_ON_USER_TAIL).
       const blockFormat = await getBlockFormat();
+      if (abortIfStale()) return false;
       const sessionPromptEnvHash = await computeSessionPromptEnvHash({
         locale,
         tools: agentOptions.tools,
         executeTool: agentOptions.executeTool,
         blockFormat,
       });
-      if (!stillCurrent()) {
-        markChatReleased(chatGen);
-        if (chatGateGenRef.current === chatGen) chatGateGenRef.current = null;
-        return false;
-      }
+      if (abortIfStale()) return false;
       // Round 9: atomic check-and-submit (runNativeOpBounded). Emptiness check
       // and enqueue run in one synchronous block under the JS event loop — never
       // observe free then separately submit (race that could append behind a
@@ -4078,6 +4124,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // Sync transition: bump generation + show checking before dispose awaits.
       modelSwitchInFlightRef.current = true;
       engineGenerationRef.current += 1;
+      engineIntentRef.current = {
+        modelId: MODEL_REGISTRY[nextIndex].id,
+        remote: false,
+      };
       // FIX 1: capture THIS load's gen SYNCHRONOUSLY at switch/invalidation time.
       // The dispose callback must never read chatGateGenRef.current — a newer
       // ensureEngineForModel may have acquired a higher gen by then.
@@ -4181,6 +4231,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
     modelSwitchInFlightRef.current = true;
     engineGenerationRef.current += 1;
+    engineIntentRef.current = {
+      modelId: REMOTE_MAC_MODEL_ID,
+      remote: true,
+    };
     void (async () => {
       try {
         if (isRemoteEngineBackend()) {
