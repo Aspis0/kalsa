@@ -1,0 +1,16 @@
+[package]
+name = "kalsa-launch"
+description = "The exact arguments llama-server is started with, and what they cost in memory"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# The memory arithmetic and the chosen model row: context is sized against
+# the budget this crate is handed, never against a number that sounds generous.
+kalsa-catalog = { path = "../kalsa-catalog" }
+# The measured thread plateau: the thread count is a measurement, not a fraction.
+kalsa-probe = { path = "../kalsa-probe" }
+# The server build that won: the arguments follow from the build, not the
+# other way round.
+kalsa-runtime = { path = "../kalsa-runtime" }
