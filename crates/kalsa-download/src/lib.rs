@@ -68,7 +68,10 @@ impl std::fmt::Display for DownloadError {
             Self::Io(e) => write!(f, "download failed: {e}"),
             Self::DiskFull => write!(f, "the disk filled up during the download"),
             Self::NotEnoughSpace { free, needed } => {
-                write!(f, "not enough disk space: {free} bytes free, {needed} needed")
+                write!(
+                    f,
+                    "not enough disk space: {free} bytes free, {needed} needed"
+                )
             }
             Self::SizeMismatch { expected, actual } => {
                 write!(f, "wrong size: expected {expected} bytes, got {actual}")

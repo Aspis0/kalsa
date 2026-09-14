@@ -164,7 +164,10 @@ mod tests {
         let mut part = PartFile::claim(dir.join("model.gguf.part")).expect("claim");
         fetch(&server.url, &mut part, data.len() as u64, &mut |_| {}).expect("restart");
         // We did ask to resume…
-        assert_eq!(*server.requests.lock().expect("requests"), vec![Some(SPLIT)]);
+        assert_eq!(
+            *server.requests.lock().expect("requests"),
+            vec![Some(SPLIT)]
+        );
         // …and appending anyway would have produced the right length with the
         // wrong bytes, so exact equality is the assertion.
         assert_eq!(fs::read(dir.join("model.gguf.part")).expect("read"), data);

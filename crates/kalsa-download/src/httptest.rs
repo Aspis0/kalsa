@@ -73,9 +73,8 @@ fn answer(
     let range = read_range(&mut stream, seen)?;
     match range.filter(|_| matches!(mode, RangeMode::Honor | RangeMode::Lie)) {
         None => {
-            let head = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n"
-            );
+            let head =
+                format!("HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n");
             stream.write_all(head.as_bytes())?;
             stream.write_all(content)
         }

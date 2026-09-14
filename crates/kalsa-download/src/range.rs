@@ -20,7 +20,10 @@ pub fn connect(url: &str, resume_from: u64) -> Result<(ureq::Response, u64), Dow
         match response.status() {
             // Range ignored: the body is the whole file.
             200 => return Ok((response, 0)),
-            206 => match response.header("Content-Range").and_then(content_range_start) {
+            206 => match response
+                .header("Content-Range")
+                .and_then(content_range_start)
+            {
                 Some(at) if at == resume_from => return Ok((response, resume_from)),
                 // Missing or lying: whatever this body is, it does not
                 // continue our file.

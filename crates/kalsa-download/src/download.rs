@@ -83,7 +83,8 @@ mod tests {
     use std::fs;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("mkdir");
         dir
@@ -209,7 +210,10 @@ mod tests {
             &mut |_| {},
         )
         .expect_err("right length is not right content");
-        assert!(matches!(err, DownloadError::DigestMismatch { .. }), "{err:?}");
+        assert!(
+            matches!(err, DownloadError::DigestMismatch { .. }),
+            "{err:?}"
+        );
         assert_eq!(
             server.requests.lock().expect("requests").len(),
             0,

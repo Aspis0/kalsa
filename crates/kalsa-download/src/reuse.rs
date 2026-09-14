@@ -27,10 +27,14 @@ pub fn default_roots() -> Vec<PathBuf> {
     let Some(home) = home() else {
         return Vec::new();
     };
-    [".cache/huggingface/hub", ".ollama/models/blobs", ".lmstudio/models"]
-        .iter()
-        .map(|rest| home.join(rest))
-        .collect()
+    [
+        ".cache/huggingface/hub",
+        ".ollama/models/blobs",
+        ".lmstudio/models",
+    ]
+    .iter()
+    .map(|rest| home.join(rest))
+    .collect()
 }
 
 /// Finds a regular file of `size` bytes whose sha256 is `sha256` under one of
@@ -40,9 +44,7 @@ pub fn default_roots() -> Vec<PathBuf> {
 /// Read-only, always: a missing or unreadable root is just "not found here",
 /// not an error.
 pub fn find_local(roots: &[PathBuf], size: u64, sha256: &str) -> Option<PathBuf> {
-    roots
-        .iter()
-        .find_map(|root| scan(root, size, sha256, 0))
+    roots.iter().find_map(|root| scan(root, size, sha256, 0))
 }
 
 fn scan(dir: &Path, size: u64, sha256: &str, depth: usize) -> Option<PathBuf> {
@@ -109,7 +111,8 @@ mod tests {
     use std::fs;
 
     fn scratch(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
+        let dir =
+            std::env::temp_dir().join(format!("kalsa-download-{name}-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).expect("mkdir");
         dir
@@ -156,8 +159,14 @@ mod tests {
         let root = scratch("scan-size");
         let model = root.join("model.gguf");
         write(&model, b"0123456789");
-        assert_eq!(find_local(&[root.clone()], 9, &digest_of(b"0123456789")), None);
-        assert_eq!(find_local(&[root.clone()], 10, &digest_of(b"0123456789")), Some(model));
+        assert_eq!(
+            find_local(&[root.clone()], 9, &digest_of(b"0123456789")),
+            None
+        );
+        assert_eq!(
+            find_local(&[root.clone()], 10, &digest_of(b"0123456789")),
+            Some(model)
+        );
         let _ = fs::remove_dir_all(&root);
     }
 
@@ -177,7 +186,10 @@ mod tests {
         write(&outside.join("real.gguf"), bytes);
         std::os::unix::fs::symlink(outside.join("real.gguf"), root.join("model.gguf"))
             .expect("link");
-        assert_eq!(find_local(&[root.clone()], bytes.len() as u64, &digest_of(bytes)), None);
+        assert_eq!(
+            find_local(&[root.clone()], bytes.len() as u64, &digest_of(bytes)),
+            None
+        );
         let _ = fs::remove_dir_all(&root);
         let _ = fs::remove_dir_all(&outside);
     }
@@ -205,7 +217,11 @@ mod tests {
         let link_root = scratch("scan-root-link");
         std::os::unix::fs::symlink(&real, link_root.join("hub")).expect("link");
         assert_eq!(
-            find_local(&[link_root.join("hub")], bytes.len() as u64, &digest_of(bytes)),
+            find_local(
+                &[link_root.join("hub")],
+                bytes.len() as u64,
+                &digest_of(bytes)
+            ),
             None
         );
         let _ = fs::remove_dir_all(&real);

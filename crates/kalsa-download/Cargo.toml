@@ -19,3 +19,7 @@ windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Storage",
 ] }
+
+# The real-world test downloads into the directory the product actually uses.
+[dev-dependencies]
+kalsa-runtime = { path = "../kalsa-runtime" }
