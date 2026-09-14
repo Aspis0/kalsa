@@ -110,6 +110,21 @@ export const it: typeof en = {
     models: "Modelli",
     modelsHint:
       "Scegli il modello sul dispositivo. Il download parte solo se lo chiedi; i download interrotti riprendono da dove erano. I modelli vivono nello storage privato dell'app: disinstallandola vengono eliminati.",
+    remoteBrain: "Cervello remoto",
+    remoteBrainHint:
+      "Usa il Mac come modello. Su questo telefono 127.0.0.1:8000 è il Mac via adb reverse — non Tailscale. In questa modalità restano spenti: tool, estrazione memoria, traduzione, embeddings e voce.",
+    remoteBrainUrl: "URL del server",
+    remoteBrainToken: "Token API (opzionale)",
+    remoteBrainTokenHint:
+      "Lascia vuoto per il server locale del Mac (niente auth). Salvato nello storage sicuro di questo dispositivo.",
+    remoteBrainTest: "Prova connessione",
+    remoteBrainTesting: "Verifica…",
+    remoteBrainOk: "Connesso · {model}",
+    remoteBrainFail: "Il Mac non risponde: {error}",
+    remoteMac: "Il mio Mac",
+    remoteMacHint: "Ornith su questo Mac (mtplx). Nessun download sul telefono.",
+    remoteGated: "Non disponibile sul cervello del Mac",
+    remoteSelect: "Usa il Mac",
     modelActive: "Attivo",
     modelSelect: "Seleziona",
     modelDownload: "Scarica",
@@ -230,6 +245,10 @@ La segnalazione manuale "Segnala un problema" è sotto il tuo controllo: non inc
   },
 
   models: {
+    remoteMac: {
+      description:
+        "Ornith 1.5 35B su questo Mac via mtplx. Solo chat in streaming — nessun peso sul telefono.",
+    },
     qwen4b: {
       description:
         "Predefinito. Qualità migliore, capisce le immagini. Richiede 8 GB di RAM o più (3,5 GB di download).",

@@ -137,12 +137,17 @@ import {
   restoreEngineSession,
   saveEngineSession,
   streamAssistantTurn,
+  hydrateRemoteBrainSettings,
+  isRemoteEngineBackend,
+  setEngineBackendMode,
+  REMOTE_MAC_MODEL,
+  REMOTE_MAC_MODEL_ID,
   type EngineMessage,
   type MemoryExtractResult,
   type MemoryExtractStopReason,
   type EngineToolResult,
   type EngineTurnOptions,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { runDeepResearch } from "../research/deepResearch";
 import { decideEngineBarKind } from "../engine/engineLiveness";
 import { startMemoryMonitor, getAvailableMemoryBytesUncached } from "../engine/monitor";
@@ -2641,6 +2646,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   const [modelIndex, setModelIndex] = useState(() =>
     Math.max(0, MODEL_REGISTRY.findIndex((m) => m.id === getDefaultModel().id)),
   );
+  const [remoteActive, setRemoteActive] = useState(false);
   const [modelState, setModelState] = useState<ModelState>("checking");
   // Keep modelStateRef in lockstep for the embed-job residency gate (reads
   // without waiting for a re-render). Assigned on every render below.
@@ -2648,7 +2654,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   // C7 — slope ETA from expo-battery level samples. Advisory only: never
   // blocks send/load. Enabled only while a model is loaded and the engine is
-  const currentModel = MODEL_REGISTRY[modelIndex];
+  const currentModel = remoteActive ? REMOTE_MAC_MODEL : MODEL_REGISTRY[modelIndex];
 
   // ready (the drain slope is meaningless otherwise). Fail-open — unknown /
   // measuring / charging states simply render no hard stop.
@@ -2807,13 +2813,24 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
   // (come la selezione persistita), NON sempre il default.
   useEffect(() => {
     let mounted = true;
-    AsyncStorage.getItem(MODEL_STORAGE_KEY)
-      .then((saved) => {
-        if (!mounted || !saved) return;
-        const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
-        if (savedIndex >= 0) setModelIndex(savedIndex);
-      })
-      .catch(() => undefined);
+    void (async () => {
+      try {
+        const hydrated = await hydrateRemoteBrainSettings();
+        const saved = await AsyncStorage.getItem(MODEL_STORAGE_KEY);
+        if (!mounted) return;
+        if (hydrated.backend === "remote" || saved === REMOTE_MAC_MODEL_ID) {
+          setRemoteActive(true);
+          await setEngineBackendMode("remote");
+          return;
+        }
+        if (saved) {
+          const savedIndex = MODEL_REGISTRY.findIndex((model) => model.id === saved);
+          if (savedIndex >= 0) setModelIndex(savedIndex);
+        }
+      } catch {
+        // keep default local model
+      }
+    })();
     // M1: detect orphaned model folders left by a catalog prune (no UI delete
     // path). Detect-ONLY: never deletes at boot. A one-time "Delete / Keep"
     // notice surfaces in Settings. Fire-and-forget — never blocks UI.
@@ -3626,6 +3643,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     const checkedIndex = modelIndexRef.current;
     void (async () => {
       try {
+        if (isRemoteEngineBackend()) {
+          if (mounted) {
+            setRemoteActive(true);
+            void ensureEngineForModelRef.current(REMOTE_MAC_MODEL);
+          }
+          return;
+        }
         const model = MODEL_REGISTRY[checkedIndex];
         const ok = await isModelBundleDownloaded(model);
         // Il modello selezionato potrebbe essere cambiato nel frattempo (load preferenza).
@@ -3653,6 +3677,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [modelIndex]);
 
+  useEffect(() => {
+    if (!remoteActive) return;
+    void ensureEngineForModelRef.current(REMOTE_MAC_MODEL);
+  }, [remoteActive]);
+
   const ensureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
     // C3 — refuse every model load while the OS is at platform CRITICAL.
     // The ref closes the event-to-render race; the query covers a transition
@@ -3667,6 +3696,28 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       // The platform reader is fail-open; an unavailable API never blocks.
     }
     if (thermalHardGateRef.current) return false;
+    if (model.id === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend()) {
+      setModelState("loading");
+      try {
+        await setEngineBackendMode("remote");
+        setRemoteActive(true);
+        await initEngine("", REMOTE_MAC_MODEL_ID, { locale });
+        if (isEngineReady()) {
+          setModelState("ready");
+          setModelError(null);
+          setModelErrorKind(null);
+          return true;
+        }
+        setModelState("error");
+        setModelErrorKind("engine");
+        return false;
+      } catch (error) {
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(error instanceof Error ? error.message : String(error));
+        return false;
+      }
+    }
     // Capture generation + expected model BEFORE any await (race with selectModel).
     const generation = engineGenerationRef.current;
     const expectedModelId = model.id;
@@ -4001,6 +4052,8 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
   const selectModel = useCallback(
     (nextIndex: number) => {
+      void setEngineBackendMode("local");
+      setRemoteActive(false);
       if (thermalHardGateRef.current) return;
       if (
         downloadInFlight.current ||
@@ -4099,9 +4152,47 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     [modelIndex, modelState, t],
   );
 
+  const selectRemoteMac = useCallback(() => {
+    if (
+      downloadInFlight.current ||
+      modelSwitchInFlightRef.current ||
+      modelState === "downloading" ||
+      modelState === "loading"
+    ) {
+      return;
+    }
+    if (regenInFlightRef.current || streamInFlightRef.current) {
+      Alert.alert(t("settings.switchWhileStreamingTitle"), t("settings.switchWhileStreamingBody"));
+      return;
+    }
+    void (async () => {
+      modelSwitchInFlightRef.current = true;
+      engineGenerationRef.current += 1;
+      try {
+        if (!isRemoteEngineBackend() && isEngineReady()) {
+          await runNativeOp(() => disposeEngine());
+        }
+        await setEngineBackendMode("remote");
+        setRemoteActive(true);
+        AsyncStorage.setItem(MODEL_STORAGE_KEY, REMOTE_MAC_MODEL_ID).catch(() => undefined);
+        await ensureEngineForModel(REMOTE_MAC_MODEL);
+      } catch (error) {
+        setModelState("error");
+        setModelErrorKind("engine");
+        setModelError(error instanceof Error ? error.message : String(error));
+      } finally {
+        modelSwitchInFlightRef.current = false;
+      }
+    })();
+  }, [ensureEngineForModel, modelState, t]);
+
   /** Settings: select by model id (same storage key + engine dispose path). */
   const selectModelById = useCallback(
     (modelId: string) => {
+      if (modelId === REMOTE_MAC_MODEL_ID) {
+        selectRemoteMac();
+        return;
+      }
       // While a send holds the pre-await claim (fit-gate), queue the switch
       // (last-wins) and apply it only after the claim releases. Avoids dispose
       // racing ensureEngineForModel mid-send.
@@ -4161,7 +4252,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
       }
       selectModel(nextIndex);
     },
-    [selectModel, t],
+    [selectModel, selectRemoteMac, t],
   );
 
   const startDownload = useCallback(async (modelId: string) => {
@@ -5747,6 +5838,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               signal,
               {
                 ...agentOptions,
+                ...(isRemoteEngineBackend()
+                  ? { tools: undefined, executeTool: undefined }
+                  : null),
                 locale,
                 memoryFacts: promptFacts,
                 operativeContext,
@@ -6194,6 +6288,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             downloadedById,
             deviceBandwidth,
             onSelectModel: selectModelById,
+            onSelectRemote: selectRemoteMac,
             onDownloadModel: confirmDownload,
             onRetryLoad: () => {
               void ensureEngineForModel(currentModel);

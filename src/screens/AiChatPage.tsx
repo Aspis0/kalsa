@@ -79,7 +79,7 @@ import {
   probeAndReconcileEngine,
   saveEngineSession,
   translateText,
-} from "../engine/LlamaService";
+} from "../engine/engineBackend";
 import { shouldRecoverLost } from "../engine/engineLiveness";
 import {
   backgroundDiscardLifecycleRef,

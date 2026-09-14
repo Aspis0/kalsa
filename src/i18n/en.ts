@@ -111,6 +111,21 @@ export const en = {
     models: "Models",
     modelsHint:
       "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
+    remoteBrain: "Remote brain",
+    remoteBrainHint:
+      "Use the Mac as the model. On this phone, 127.0.0.1:8000 is the Mac via adb reverse — not Tailscale. Tools, memory extraction, translation, embeddings and voice stay off in this mode.",
+    remoteBrainUrl: "Server URL",
+    remoteBrainToken: "API token (optional)",
+    remoteBrainTokenHint:
+      "Leave empty for the local Mac server (no auth). Stored in this device's secure storage.",
+    remoteBrainTest: "Test connection",
+    remoteBrainTesting: "Testing…",
+    remoteBrainOk: "Connected · {model}",
+    remoteBrainFail: "Could not reach the Mac: {error}",
+    remoteMac: "My Mac",
+    remoteMacHint: "Ornith on this Mac (mtplx). No on-device download.",
+    remoteGated: "Not available on the Mac brain",
+    remoteSelect: "Use Mac",
     modelActive: "Active",
     modelSelect: "Select",
     modelDownload: "Download",
@@ -235,6 +250,10 @@ Manual "Report a problem" is under your control: do not paste sensitive content 
    * Settings → Models. Recommendation ownership lives on ModelInfo.
    */
   models: {
+    remoteMac: {
+      description:
+        "Ornith 1.5 35B on this Mac via mtplx. Streaming chat only — no on-device weights.",
+    },
     qwen4b: {
       description:
         "Default. Best quality, understands images. Needs 8 GB RAM or more (3.5 GB download).",

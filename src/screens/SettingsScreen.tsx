@@ -93,6 +93,7 @@ import {
 import { getThinkingMode, setThinkingMode, type ThinkingMode } from "../bench/benchConfig";
 import { GlassPanel2, Header } from "../theme/components";
 import { OrphanModelMigrationBanner } from "../components/OrphanModelMigrationBanner";
+import { RemoteBrainSettings } from "./RemoteBrainSettings";
 import { radius, spacing } from "../theme/tokens";
 import { useTypography, type FontScaleId, fontFamilies } from "../theme/typography";
 import { useLabTheme } from "../ui/labTheme";
@@ -117,6 +118,7 @@ export type SettingsModelProps = {
   onDownloadModel: (modelId: string) => void;
   /** Retry engine init when the bundle is already on disk. */
   onRetryLoad: () => void;
+  onSelectRemote: () => void;
 };
 
 export type SettingsVoiceProps = {
@@ -2081,6 +2083,12 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
             ) : null}
           </View>
         </GlassPanel2>
+
+        <RemoteBrainSettings
+          currentModelId={model.currentModelId}
+          busy={modelBusy}
+          onSelectRemote={model.onSelectRemote}
+        />
 
         {/* ── Models ───────────────────────────────────────────────────── */}
         <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>

@@ -18,6 +18,7 @@ import type { RamTier } from "./contextProfile";
 import type { LoadPolicy } from "./loadPolicy";
 import type { TranslationKey } from "../i18n";
 import { DEV_MODEL_REGISTRY } from "./devModelCatalog";
+import { REMOTE_MAC_MODEL, REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
 
 export type ModelFileSpec = {
   file: string;
@@ -336,6 +337,7 @@ export function getDefaultModel(): ModelInfo {
 }
 
 export function getModelById(id: string): ModelInfo {
+  if (id === REMOTE_MAC_MODEL_ID) return REMOTE_MAC_MODEL;
   return MODEL_REGISTRY.find((model) => model.id === id) ?? getDefaultModel();
 }
 
