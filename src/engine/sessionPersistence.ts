@@ -706,18 +706,16 @@ export function chatKvHoldAfterNativeClear(): {
 
 /**
  * dropChatKvHold(true) only when native chat KV is actually empty.
- * Invalidation / failed restore without clearCache, and utility clearCache
- * catch before overwrite completion returns, must be false (t10).
+ * A returned completion (interrupted, decode fail, extract, utility) is
+ * not proof the chat KV is gone. True only after clearCacheSucceeded or
+ * contextReleased (dispose).
  */
 export function nativeEmptyForHoldDrop(input: {
   clearCacheSucceeded?: boolean;
-  overwriteCompletionReturned?: boolean;
   contextReleased?: boolean;
 }): boolean {
   return (
-    input.clearCacheSucceeded === true ||
-    input.overwriteCompletionReturned === true ||
-    input.contextReleased === true
+    input.clearCacheSucceeded === true || input.contextReleased === true
   );
 }
 

@@ -2295,7 +2295,7 @@ async function tryClearNativeChatKv(
   }
 }
 
-/** Invalidation / failed restore: drop(true) only after a successful clear. */
+/** Invalidation / failed restore / failed load: drop(true) only after a successful clear. */
 async function dropHoldAfterOptionalNativeClear(
   engine: LlamaContext | null,
 ): Promise<boolean> {
@@ -2826,7 +2826,7 @@ async function tryLoadEngineSession(
     if (!sessionLoadHasTokens(result)) {
       bakedUserTails = [];
       bakeUnprefixedHealed = false;
-      markChatKvCleared();
+      await dropHoldAfterOptionalNativeClear(context);
       await deleteSessionArtifacts(loadStem);
       log(false, { reason: "tokens_loaded:0" });
       return false;
@@ -2854,7 +2854,7 @@ async function tryLoadEngineSession(
     console.warn("[tryLoadEngineSession]", error);
     bakedUserTails = [];
     bakeUnprefixedHealed = false;
-    markChatKvCleared();
+    await dropHoldAfterOptionalNativeClear(context);
     const reason = sessionErrorReason(error);
     if (shouldDeleteSessionArtifactsOnLoadFailure(reason) && loadStem) {
       await deleteSessionArtifacts(loadStem);
@@ -2863,17 +2863,10 @@ async function tryLoadEngineSession(
     return false;
   } finally {
     if (!loadOk) {
-      if (heldChatKvAtEntry && context && !disposing) {
-        try {
-          await context.clearCache();
-        } catch {
-          // still drop the hold so AppShell cannot align B to chat A's boundary
-        }
-      }
-      lastAssembleBoundary = undefined;
-      lastAssembleConvId = undefined;
       bakeUnprefixedHealed = false;
-      markChatKvCleared();
+      if (heldChatKvAtEntry) {
+        await dropHoldAfterOptionalNativeClear(context);
+      }
     }
     emitKvDiag();
   }
@@ -4577,12 +4570,6 @@ export async function extractMemory(
 
             emitTurnTelemetry(`util-extractMemory-${++turnSeq}`, 0, result);
 
-            if (!EXTRACT_MEMORY_PRESERVE_CHAT_KV) {
-              dropChatKvHold(
-                nativeEmptyForHoldDrop({ overwriteCompletionReturned: true }),
-              );
-            }
-
             if (abortedBySend) {
               stopReason = "aborted_by_send";
             } else if (timedOut) {
@@ -4800,10 +4787,6 @@ export async function translateText(
 
       emitTurnTelemetry(`util-translateText-${++turnSeq}`, 0, result);
 
-      dropChatKvHold(
-        nativeEmptyForHoldDrop({ overwriteCompletionReturned: true }),
-      );
-
       if (timedOut || aborted || signal?.aborted) return { text: "", truncated };
 
       const raw =
@@ -4930,9 +4913,6 @@ export async function completeOnce(
 
       emitTurnTelemetry(`util-completeOnce-${++turnSeq}`, 0, result);
 
-      dropChatKvHold(
-        nativeEmptyForHoldDrop({ overwriteCompletionReturned: true }),
-      );
       chatPrefixGone = true;
 
       const raw =

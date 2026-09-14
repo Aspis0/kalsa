@@ -441,19 +441,23 @@ describe("dropChatKvHold nativeEmpty contract", () => {
   test("drop(true) only after nativeEmpty", () => {
     expect(nativeEmptyForHoldDrop({})).toBe(false);
     expect(nativeEmptyForHoldDrop({ clearCacheSucceeded: false })).toBe(false);
-    expect(nativeEmptyForHoldDrop({ overwriteCompletionReturned: false })).toBe(
-      false,
-    );
     expect(nativeEmptyForHoldDrop({ contextReleased: false })).toBe(false);
     expect(nativeEmptyForHoldDrop({ clearCacheSucceeded: true })).toBe(true);
-    expect(nativeEmptyForHoldDrop({ overwriteCompletionReturned: true })).toBe(
-      true,
-    );
     expect(nativeEmptyForHoldDrop({ contextReleased: true })).toBe(true);
     expect(lastSaveAfterHoldDrop(saved, true)).toBeNull();
     expect(
       lastSaveTokensForHint(lastSaveAfterHoldDrop(saved, true), identity),
     ).toBeUndefined();
+  });
+
+  test("overwrite completion return does not imply nativeEmpty", () => {
+    expect(nativeEmptyForHoldDrop({})).toBe(false);
+    expect(
+      lastSaveAfterHoldDrop(saved, nativeEmptyForHoldDrop({})),
+    ).toEqual(saved);
+    expect(
+      lastSaveTokensForHint(lastSaveAfterHoldDrop(saved, false), identity),
+    ).toBe(7189);
   });
 
   test("t10 flag-only drop keeps last-save fingerprint", () => {
@@ -475,11 +479,18 @@ describe("dropChatKvHold nativeEmpty contract", () => {
     expect(lastSaveAfterHoldDrop(saved, nativeEmpty)).toEqual(saved);
   });
 
-  test("utility drop(true) waits for clearCache or overwrite completion", () => {
+  test("failed load without clear keeps lastSaveTokens", () => {
+    const nativeEmpty = nativeEmptyForHoldDrop({ clearCacheSucceeded: false });
+    expect(nativeEmpty).toBe(false);
+    const kept = lastSaveAfterHoldDrop(saved, nativeEmpty);
+    expect(kept).toEqual(saved);
+    expect(lastSaveTokensForHint(kept, identity)).toBe(7189);
+  });
+
+  test("utility drop(true) only after clearCache success", () => {
     expect(
       nativeEmptyForHoldDrop({
         clearCacheSucceeded: false,
-        overwriteCompletionReturned: false,
       }),
     ).toBe(false);
     expect(
@@ -491,7 +502,7 @@ describe("dropChatKvHold nativeEmpty contract", () => {
     expect(
       lastSaveAfterHoldDrop(
         saved,
-        nativeEmptyForHoldDrop({ overwriteCompletionReturned: true }),
+        nativeEmptyForHoldDrop({ clearCacheSucceeded: true }),
       ),
     ).toBeNull();
   });
