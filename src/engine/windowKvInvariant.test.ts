@@ -2,6 +2,7 @@ import {
   assembleBoundaryForAlign,
   assembleStartForLiveKv,
   decideAssembleWindowAction,
+  kvHeldForAssembleWindow,
   shouldSlideAssembleBoundary,
   windowSlideDiscardModelId,
 } from "./windowKvInvariant";
@@ -61,12 +62,23 @@ describe("decideAssembleWindowAction", () => {
     ).toEqual({ slide: true, discard: true });
   });
 
-  test("ciswire never discards chat KV", () => {
+  test("ciswire live KV does not slide or discard", () => {
     expect(
       decideAssembleWindowAction({
         budgetRebuild: true,
         forceRebuild: false,
         kvHoldsChatSession: true,
+        anchored: false,
+      }),
+    ).toEqual({ slide: false, discard: false });
+  });
+
+  test("ciswire cold budget slide does not discard", () => {
+    expect(
+      decideAssembleWindowAction({
+        budgetRebuild: true,
+        forceRebuild: false,
+        kvHoldsChatSession: false,
         anchored: false,
       }),
     ).toEqual({ slide: true, discard: false });
@@ -127,7 +139,6 @@ describe("assembleStartForLiveKv", () => {
     expect(
       assembleStartForLiveKv({
         mode: "off",
-        kvHeld: true,
         loadedB: 0,
         computedStart: 23,
       }),
@@ -138,7 +149,6 @@ describe("assembleStartForLiveKv", () => {
     expect(
       assembleStartForLiveKv({
         mode: "off",
-        kvHeld: false,
         loadedB: null,
         computedStart: 23,
       }),
@@ -149,22 +159,113 @@ describe("assembleStartForLiveKv", () => {
     expect(
       assembleStartForLiveKv({
         mode: "anchored",
-        kvHeld: true,
         loadedB: 0,
         computedStart: 12,
       }),
     ).toBe(12);
   });
 
-  test("off + conv mismatch (loadedB null) does not stamp a foreign window", () => {
+  test("same-chat unknown start (align → 0) keeps the full prompt", () => {
+    const loadedB = assembleBoundaryForAlign({
+      kvHeld: true,
+      storedConv: "a",
+      activeConv: "a",
+      boundary: undefined,
+    });
+    expect(loadedB).toBe(0);
     expect(
       assembleStartForLiveKv({
         mode: "off",
-        kvHeld: true,
+        loadedB,
+        computedStart: 23,
+      }),
+    ).toBe(0);
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB,
+        computedStart: 23,
+      }),
+    ).toBe(0);
+  });
+
+  test("ciswire + live KV uses loadedB even when the digest-share window slid", () => {
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB: 0,
+        computedStart: 23,
+      }),
+    ).toBe(0);
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB: 5,
+        computedStart: 23,
+      }),
+    ).toBe(5);
+  });
+
+  test("ciswire + cold keeps the computed start", () => {
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
         loadedB: null,
         computedStart: 23,
       }),
     ).toBe(23);
+  });
+
+  test("hold false + nPast>0 + loadedB null does not clamp to 0", () => {
+    const kvHeld = kvHeldForAssembleWindow({
+      kvHoldsChatSession: false,
+      nPast: 7840,
+    });
+    expect(kvHeld).toBe(true);
+    const loadedB = assembleBoundaryForAlign({
+      kvHeld,
+      storedConv: "native-a",
+      activeConv: "js-b",
+      boundary: 12,
+    });
+    expect(loadedB).toBeNull();
+    expect(
+      assembleStartForLiveKv({
+        mode: "ciswire",
+        loadedB,
+        computedStart: 23,
+      }),
+    ).toBe(23);
+    expect(
+      assembleStartForLiveKv({
+        mode: "off",
+        loadedB,
+        computedStart: 23,
+      }),
+    ).toBe(23);
+  });
+});
+
+describe("kvHeldForAssembleWindow", () => {
+  test("nPast>0 counts as live even when the hold flag lagged", () => {
+    expect(
+      kvHeldForAssembleWindow({
+        kvHoldsChatSession: false,
+        nPast: 7840,
+      }),
+    ).toBe(true);
+    expect(
+      kvHeldForAssembleWindow({
+        kvHoldsChatSession: true,
+        nPast: undefined,
+      }),
+    ).toBe(true);
+    expect(
+      kvHeldForAssembleWindow({
+        kvHoldsChatSession: false,
+        nPast: 0,
+      }),
+    ).toBe(false);
   });
 });
 

@@ -1169,9 +1169,16 @@ export function chatKvIsHeld(): boolean {
   return kvHoldsChatSession;
 }
 
+/** Last known chat n_past; undefined when chat KV is not held. */
+export function chatKvNPast(): number | undefined {
+  return lastChatNPast;
+}
+
 export function getLoadedAssembleBoundary(activeChatId: string): number | null {
   return assembleBoundaryForAlign({
-    kvHeld: kvHoldsChatSession,
+    kvHeld:
+      kvHoldsChatSession ||
+      (typeof lastChatNPast === "number" && lastChatNPast > 0),
     storedConv: lastAssembleConvId ?? "",
     activeConv: activeChatId,
     boundary: lastAssembleBoundary,

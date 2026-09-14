@@ -119,6 +119,7 @@ import {
 } from "../engine/deviceThroughputStore";
 import {
   chatKvIsHeld,
+  chatKvNPast,
   completeOnce,
   discardChatKvForWindowSlide,
   disposeEngine,
@@ -267,6 +268,7 @@ import { RetrieverIndex } from "../context/retriever";
 import {
   assembleStartForLiveKv,
   decideAssembleWindowAction,
+  kvHeldForAssembleWindow,
 } from "../engine/windowKvInvariant";
 import {
   advanceAnchoredBoundary,
@@ -5294,6 +5296,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             // disagreed a message would land in both or — worse — in neither.
             // Passing one index makes them agree by construction.
             const benchWindow = await getBenchLegacyWindow();
+            const kvHeld = kvHeldForAssembleWindow({
+              kvHoldsChatSession: chatKvIsHeld(),
+              nPast: chatKvNPast(),
+            });
+            const loadedB = getLoadedAssembleBoundary(chatId);
             const windowProfile =
               typeof benchWindow === "number"
                 ? {
@@ -5304,7 +5311,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 : resolveWindowProfile({
                     nCtx: getActiveEngineNCtx(),
                     hasImages,
-                    hasDigest: retrievalOn,
+                    // Digest share shrinks the verbatim window. While live KV
+                    // still holds the full chat, that drop is n_common=0
+                    // (S23 T20C t10: embd=7840 text_tokens=4219 n_common=0).
+                    hasDigest: retrievalOn && !kvHeld,
                   });
             // The turn being sent is appended to the prompt AFTER this walk, so
             // it must be charged here or a long message would ride entirely
@@ -5334,18 +5344,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 )
               : 0;
             if (!anchoredOn) {
-              const kvHeld = chatKvIsHeld();
-              const loadedB = kvHeld
-                ? getLoadedAssembleBoundary(chatId)
-                : null;
               const computedStart = legacyWindowStart;
               legacyWindowStart = assembleStartForLiveKv({
                 mode: contextMode,
-                kvHeld,
                 loadedB,
                 computedStart,
               });
-              if (loadedB !== null && computedStart !== legacyWindowStart) {
+              if (computedStart !== legacyWindowStart) {
                 try {
                   console.log(
                     `KALSA_SESSION ${JSON.stringify({
@@ -5437,7 +5442,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               const compactorConfig =
                 winBudget == null ? null : { windowCharBudget: winBudget };
 
-              const kvHeld = chatKvIsHeld();
               if (kvHeld) {
                 const loadedB = getLoadedAssembleBoundary(chatId);
                 if (loadedB !== null) {
@@ -5606,6 +5610,11 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
             // (anchored — append-only growth between rebuilds, preserves KV prefix).
+            // Ciswire's retrieval block may have moved boundaryForAssemble for
+            // digest state; the engine window is the clamped start.
+            if (!anchoredOn) {
+              boundaryForAssemble = legacyWindowStart;
+            }
             const assembled = assembleEngineHistory(validatedHistory, {
               compactionEnabled: contextMode === "anchored",
               hasImages,

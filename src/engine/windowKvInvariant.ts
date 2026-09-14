@@ -3,9 +3,11 @@
  *
  * Sliding the anchored boundary changes the first prompt message while
  * llama.rn still holds the full transcript → n_common ≈ system (~1833).
- * Char-budget pressure must not slide while that KV is live. A real slide
- * (context_full) deletes the .kvs first, then clearCache, then flags.
- * Ciswire assembly uses legacyWindowStart — never discard chat KV for it.
+ * Ciswire uses a tighter digest-share window, so it hits the same family
+ * earlier: live KV ~7840 vs JS prompt ~4205, n_common=0, heads disjoint
+ * (S23 96d3d06 T20C t10 / T20B t13). Char-budget pressure must not drop
+ * the prefix the KV still has. A real slide (context_full) deletes the
+ * .kvs first, then clearCache, then flags. Ciswire never discards chat KV.
  */
 
 export function shouldSlideAssembleBoundary(args: {
@@ -24,9 +26,11 @@ export function windowSlideDiscardModelId(modelId: string): string | null {
 }
 
 /**
- * Production policy AppShell calls. Ciswire may rebuild its digest boundary
- * but never discards chat KV. Anchored discards only when sliding a live
- * chat KV (not a cold budget slide that would wipe a kept .kvs).
+ * Production policy AppShell calls. Ciswire never discards chat KV, and
+ * must not advance its digest/assemble start while that KV is live (same
+ * prefix-drop as a char-budget window slide). Anchored discards only when
+ * sliding a live chat KV (not a cold budget slide that would wipe a kept
+ * .kvs).
  */
 export function decideAssembleWindowAction(args: {
   budgetRebuild: boolean;
@@ -35,8 +39,9 @@ export function decideAssembleWindowAction(args: {
   anchored: boolean;
 }): { slide: boolean; discard: boolean } {
   if (!args.anchored) {
+    const wantSlide = args.budgetRebuild || args.forceRebuild;
     return {
-      slide: args.budgetRebuild || args.forceRebuild,
+      slide: wantSlide && !args.kvHoldsChatSession,
       discard: false,
     };
   }
@@ -46,6 +51,16 @@ export function decideAssembleWindowAction(args: {
     kvHoldsChatSession: args.kvHoldsChatSession,
   });
   return { slide, discard: slide && args.kvHoldsChatSession };
+}
+
+/** Hold flag can lag native tokens (extract restore, invalidate). */
+export function kvHeldForAssembleWindow(args: {
+  kvHoldsChatSession: boolean;
+  nPast?: number | null;
+}): boolean {
+  if (args.kvHoldsChatSession) return true;
+  const n = args.nPast;
+  return typeof n === "number" && Number.isFinite(n) && n > 0;
 }
 
 /** Align only the live conversation's KV; mismatch / no hold → null. */
@@ -61,18 +76,19 @@ export function assembleBoundaryForAlign(args: {
 }
 
 /**
- * Clamp the assemble start while chat KV is live.
- * Off/ciswire: use loadedB (0 on old files = full prompt vs full KV).
- * Conv mismatch (loadedB null) or cold: keep computedStart (do not stamp B with A's window).
+ * Clamp assemble start to this chat's live KV.
+ * loadedB is getLoadedAssembleBoundary: non-null only on hold+match
+ * (unknown start → 0). Null is mismatch, not held, or hold-flag-false
+ * with only stale nPast — keep computedStart. Do not treat null as 0.
+ * kvHeldForAssembleWindow stays flag||nPast; it is not the clamp signal.
  * Anchored: caller already aligned boundaryIndex — leave computedStart.
  */
 export function assembleStartForLiveKv(args: {
   mode: "off" | "anchored" | "ciswire";
-  kvHeld: boolean;
   loadedB: number | null;
   computedStart: number;
 }): number {
   if (args.mode === "anchored") return args.computedStart;
-  if (args.kvHeld && args.loadedB !== null) return args.loadedB;
+  if (args.loadedB !== null) return args.loadedB;
   return args.computedStart;
 }
