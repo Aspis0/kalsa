@@ -121,9 +121,10 @@ pub struct ModelEntry {
     /// under-count this row — Apertus 70B is deeper than the forty-eight
     /// layers the constant models, so a context sized from the assumption is
     /// roughly half the allocation the server will make. Such a row is not
-    /// offered on the assumption: read the pinned file's GGUF header (layer
-    /// count, KV heads, head lengths) or the published config, and put the
-    /// measured per-token figure in `kv_bytes_per_token` — the door reopens.
+    /// offered on the assumption: the measured figure goes into
+    /// `kv_bytes_per_token` and the door reopens. The flag stays true as the
+    /// record of why the measurement was needed — and so that removing the
+    /// measurement closes the door again.
     pub kv_assumption_undercounts: bool,
     /// Superseded by newer rows in the same tier.
     pub stale: Option<&'static str>,
@@ -315,7 +316,16 @@ pub const CATALOG: &[ModelEntry] = &[
         quant: "Q4_K_M",
         weights_bytes: gigabytes(40, 72),
         mmproj_bytes: None,
-        kv_bytes_per_token: None,
+        // Its per-token cache is measured, not assumed: the pinned file's
+        // GGUF header reads block_count 80, head_count_kv 8, key/value
+        // lengths 128 — 80 × 8 × 256 = 163,840 elements per token. At the
+        // q8_0 cache the launcher pins (one byte per element) that is
+        // 160 KiB. Stored at that precision rather than f16's 320 KiB
+        // because the whole catalog's arithmetic already assumes a quantised
+        // cache — the same launcher pin the 96 KiB constant rides — and
+        // budgeting this one row for f16 would halve its context to insure
+        // against a dependency every other row already carries.
+        kv_bytes_per_token: Some(163_840),
         dense_equivalent: None,
         kv_assumption_undercounts: true,
         stale: None,
@@ -519,33 +529,34 @@ mod tests {
     }
 
     #[test]
-    fn the_under_counting_row_is_dark_until_its_cache_is_measured() {
-        // Research established that the 96 KiB assumption under-counts the
-        // largest row — deeper than the 48 layers the constant models. The
-        // row is not offered on the assumption, and a measured figure reopens
-        // the door; the number itself is read from the header, never guessed.
+    fn the_largest_row_carries_its_measured_cache() {
+        // Measured from the pinned file's GGUF header: block_count 80,
+        // head_count_kv 8, key/value lengths 128 — 163,840 elements per
+        // token, one byte each at the q8_0 cache the launcher pins. The door
+        // is open because the figure is measured; removing the measurement
+        // closes it again, because the shared constant under-counts this row.
         let apertus = CATALOG
             .iter()
             .find(|entry| entry.repo.starts_with("swiss-ai/"))
             .expect("apertus is in the catalog");
-        assert!(apertus.kv_assumption_undercounts);
-        assert!(apertus.kv_bytes_per_token.is_none());
+        assert_eq!(apertus.kv_bytes_per_token, Some(163_840));
+        assert!(apertus.is_usable());
         assert!(
-            !apertus.is_usable(),
-            "the assumption is known wrong for this row: it must not be offered"
+            apertus.kv_assumption_undercounts,
+            "the record stays: the shared constant under-counts this row"
         );
-        let mut measured = *apertus;
-        measured.kv_bytes_per_token = Some(160 * 1024);
+        let mut unmeasured = *apertus;
+        unmeasured.kv_bytes_per_token = None;
         assert!(
-            measured.is_usable(),
-            "any measured per-token figure reopens the door"
+            !unmeasured.is_usable(),
+            "without the measurement, the assumption is known wrong for this row"
         );
     }
 
     #[test]
     fn refused_rows_keep_their_reason() {
         let refused: Vec<_> = excluded().collect();
-        assert_eq!(refused.len(), 4, "three refusals, plus the unmeasured cache");
+        assert_eq!(refused.len(), 3, "three rows were evaluated and refused");
         assert!(refused.iter().any(|(entry, reason)| {
             entry.repo.starts_with("amd/") && reason.contains("research only")
         }));

@@ -35,7 +35,9 @@ pub const COMPUTE_BUFFER_BYTES: u64 = 512 * MIB;
 
 /// Until a row carries its measured `kv_bytes_per_token`, assume the
 /// pessimistic end of a quantised grouped-query cache: two tensors, eight KV
-/// heads of 128 dimensions, one byte each, forty-eight layers — 96 KiB per
+/// heads of 128 dimensions, one byte each — the q8_0 cache the launcher
+/// pins, which a measured row's figure also assumes — forty-eight layers —
+/// 96 KiB per
 /// token, which is above every dense model in this catalog and only below the
 /// largest. That one row is not offered on the assumption (see
 /// `ModelEntry::kv_assumption_undercounts`): the constant errs safe for every
@@ -199,6 +201,21 @@ mod tests {
             .expect("catalog is not empty");
         assert!(!fits(biggest, 8192, &memory_budget(Backend::Cpu, 16 * GIB)));
         assert!(fits(biggest, 8192, &memory_budget(Backend::Cpu, 64 * GIB)));
+    }
+
+    #[test]
+    fn the_measured_figure_reaches_the_footprint() {
+        // The largest row's cache is measured from its pinned file's header
+        // (80 layers × 8 KV heads × 256 elements, one byte at q8_0), so its
+        // footprint at a realistic context is sized from the measurement, not
+        // from the constant that under-counts it by 1.7×.
+        let apertus = CATALOG
+            .iter()
+            .find(|entry| entry.repo.starts_with("swiss-ai/"))
+            .expect("apertus is in the catalog");
+        assert_eq!(apertus.kv_bytes_per_token, Some(163_840));
+        let footprint = footprint_bytes(apertus, 8192);
+        assert_eq!(footprint.kv_bytes, 163_840 * 8192);
     }
 
     #[test]

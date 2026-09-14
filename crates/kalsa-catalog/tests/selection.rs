@@ -311,12 +311,17 @@ fn a_floor_measurement_offers_what_a_range_would_refuse() {
     };
     match choose(&mac) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
-            assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
+            // Apertus is the biggest row, and on this machine its speed is a
+            // floor — kept, offered, and to be measured, never refused.
+            assert_eq!(selection.repo, "swiss-ai/Apertus-v1.5-70B");
+            assert_eq!(
+                selection.justification,
+                Justification::Capability(CapabilityBasis::Parameters)
+            );
             assert!(matches!(selection.decode, Prediction::Floor(_)));
             assert!(
-                selection.decode.floor() > 3.0,
-                "the pessimistic end clears reading speed: got {}",
+                selection.decode.floor() < 3.0,
+                "the CPU-path floor is below reading speed, which is the point: got {}",
                 selection.decode.floor()
             );
             assert!(
@@ -594,23 +599,30 @@ fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
 }
 
 #[test]
-fn sixty_four_gigabytes_leaves_the_dense_70b_dark_until_its_cache_is_measured() {
-    // The biggest row in the catalog would decode at about half a token per
-    // second — but that is no longer why it is dark: its per-token cache is
-    // known to exceed the shared assumption, so the context would be sized
-    // against roughly half the allocation the server will make. It is
-    // excluded until measured, and the tier takes the large MoE instead.
+fn sixty_four_gigabytes_leaves_the_dense_70b_on_the_table_for_being_too_slow() {
+    // The biggest row in the catalog fits, and on the CPU path that this
+    // machine measures directly it would decode at about 1.3-1.7 tokens per
+    // second — its cache is now measured at 160 KiB per token, and the
+    // traffic it adds drags the floor down with the weights. A recommendation
+    // nobody can read at is not a recommendation, so the tier takes the large
+    // MoE instead, and says why.
     let input = input(64, true);
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
-    assert!(
-        kalsa_catalog::excluded().any(|(entry, reason)| {
-            entry.repo == "swiss-ai/Apertus-v1.5-70B" && reason.contains("under-count")
-        }),
-        "the exclusion is on the record where the shell can show it"
-    );
-    assert!(
-        !kalsa_catalog::usable().any(|entry| entry.entry().repo == "swiss-ai/Apertus-v1.5-70B")
-    );
+    match choose(&input) {
+        Decision::Pick(selection) => {
+            assert!(
+                selection.details.contains("A bigger model fits"),
+                "{}",
+                selection.details
+            );
+            assert!(
+                selection.details.contains("slower than reading"),
+                "{}",
+                selection.details
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
 }
 
 #[test]
