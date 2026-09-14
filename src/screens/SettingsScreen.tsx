@@ -118,7 +118,6 @@ export type SettingsModelProps = {
   onDownloadModel: (modelId: string) => void;
   /** Retry engine init when the bundle is already on disk. */
   onRetryLoad: () => void;
-  onSelectRemote: () => void;
 };
 
 export type SettingsVoiceProps = {
@@ -2087,7 +2086,7 @@ export function SettingsScreen({ onBack, onOpenHelp, model, voice, embedding }: 
         <RemoteBrainSettings
           currentModelId={model.currentModelId}
           busy={modelBusy}
-          onSelectRemote={model.onSelectRemote}
+          onSelectModel={model.onSelectModel}
         />
 
         {/* ── Models ───────────────────────────────────────────────────── */}

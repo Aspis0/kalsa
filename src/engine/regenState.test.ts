@@ -20,6 +20,22 @@ describe("deferModelSwitchIfSendClaimed", () => {
     expect(pendingModelSwitchQueue).toEqual([]);
   });
 
+  test("Mac button uses selectModelById so send-claim defers like a local switch", () => {
+    sendClaimRef.current = true;
+    let executed: string | null = null;
+    const selectModelById = (id: string) => {
+      if (deferModelSwitchIfSendClaimed(id)) return;
+      executed = id;
+    };
+    selectModelById(REMOTE_MAC_MODEL_ID);
+    expect(executed).toBeNull();
+    expect(pendingModelSwitchQueue).toEqual([REMOTE_MAC_MODEL_ID]);
+    pendingModelSwitchQueue.length = 0;
+    selectModelById("qwen-local");
+    expect(executed).toBeNull();
+    expect(pendingModelSwitchQueue).toEqual(["qwen-local"]);
+  });
+
   test("without a send claim Mac proceeds immediately", () => {
     sendClaimRef.current = false;
     expect(deferModelSwitchIfSendClaimed(REMOTE_MAC_MODEL_ID)).toBe(false);

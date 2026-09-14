@@ -26,10 +26,10 @@ import { useLabTheme } from "../ui/labTheme";
 type Props = {
   currentModelId: string;
   busy: boolean;
-  onSelectRemote: () => void;
+  onSelectModel: (modelId: string) => void;
 };
 
-export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Props) {
+export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Props) {
   const { t } = useLocale();
   const { colors } = useLabTheme();
   const typography = useTypography();
@@ -133,7 +133,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectRemote }: Pr
           {t("settings.remoteMacHint")}
         </Text>
         <Pressable
-          onPress={onSelectRemote}
+          onPress={() => onSelectModel(REMOTE_MAC_MODEL_ID)}
           disabled={busy || active}
           style={{
             alignSelf: "flex-start",

@@ -6478,7 +6478,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             downloadedById,
             deviceBandwidth,
             onSelectModel: selectModelById,
-            onSelectRemote: selectRemoteMac,
             onDownloadModel: confirmDownload,
             onRetryLoad: () => {
               void ensureEngineForModel(currentModel);
