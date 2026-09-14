@@ -199,6 +199,11 @@ So we **embed the runtime binary in our package** and run it as a child process
 on loopback. We do not install a system service, do not touch PATH, and do not
 adopt or fight a runtime the user may already have.
 
+⚠️ "One install" is a promise about what the *user* does, not about what fits in
+one file. A CUDA build of the runtime is ~541–645 MB against ~18 MB for CPU, so
+the GPU backends are fetched after detection by the app itself — see section 4c.
+The user still meets one installer and answers no questions.
+
 **The embedded runtime is llama.cpp's `llama-server`** (MIT, single binary).
 The reasons are operational, not ideological:
 
@@ -222,7 +227,71 @@ MLX on Apple Silicon is a later optional backend, not the first one: it drags
 in a Python runtime, and "one install" is worth more than the last few percent
 of throughput on one platform.
 
-## 4bis. A runtime already on the machine: reuse the weights, not the process
+## 4c. Which backend we ship, and how we learn it actually works
+
+Researched 2026-09-14 against llama.cpp release `b10950` (same day). Every figure
+below is a compressed download size measured from the release assets.
+
+| what | backend | download |
+| --- | --- | --- |
+| macOS arm64 / x64 | Metal + CPU (one archive, Metal is the default build) | ~11 MB |
+| Windows x64 | CPU | ~18 MB |
+| Windows x64 | Vulkan | ~32 MB |
+| Windows x64 | **CUDA 12** (engine 254 MB + CUDA DLLs 391 MB) | **~645 MB** |
+| Windows x64 | **CUDA 13** (engine 150 MB + CUDA DLLs 391 MB) | **~541 MB** |
+| Windows/Linux x64 | ROCm 10.0 | ~230–256 MB |
+
+**So "one installer with every backend inside" is not a thing we can ship.** CUDA
+alone is thirty times the CPU build. The install stays small — CPU always, plus
+Vulkan on Windows — and the heavy backend is fetched **after** detection, only on
+a machine that has the card to justify it, through the same resumable, verified
+downloader that fetches the weights. The user still does nothing; they just are
+not made to pay half a gigabyte for a GPU they do not own.
+
+### Support is a capability, never an age
+
+- **Vulkan's real floor in llama.cpp is Vulkan 1.2 plus `storageBuffer16BitAccess`**,
+  checked at device initialisation; below it the backend refuses with
+  "Unsupported device". An upstream report has Haswell HD 4400 failing exactly
+  there. So the Haswell-era iGPU exclusion in section 4a is now a *tested
+  capability*, not a guess about old hardware — and the same test admits a
+  Skylake part that passes.
+- **CUDA excludes by compute capability**: the CUDA 12 build starts at `sm_50`,
+  the CUDA 13 build at `sm_75` — which rules out the entire GTX 10 series on a
+  CUDA 13 artifact. It also needs a driver floor (≥551.61 on Windows for the
+  bundled 12.4 runtime, ≥580 for 13.x). A machine below either is a CPU machine,
+  and telling it so quickly is better than a crash.
+- **A failing GPU backend does not always fail cleanly.** llama.cpp's CUDA error
+  path calls `GGML_ABORT`, and a missing DLL kills the process before the server
+  starts. This is the same reason inference is out-of-process here in the first
+  place: the only honest support test is **launching the candidate backend in a
+  disposable child with a tiny model and a timeout**, and falling back to CPU on
+  a non-zero exit, a hang, or wrong output. Detection narrows the candidates; the
+  child process decides.
+
+### Partial offload can be slower than no offload at all
+
+The strongest recent upstream measurement: 18.49 tok/s fully on Vulkan, 12.19
+tok/s on CPU, and **5.68 tok/s split across both** — the split being 2.15x slower
+than plain CPU. No public controlled `-ngl` sweep exists to turn that into a
+formula. This settles the rule in section 4a: when a model does not fit the GPU's
+memory, we do not offer it partially offloaded, we offer the model that fits.
+
+### Reading the memory budget
+
+- **Windows**: DXGI (`IDXGIFactory1::EnumAdapters1`, `DXGI_ADAPTER_DESC1`) is the
+  smallest reliable discovery path — vendor, device, `DedicatedVideoMemory`. What
+  it gets wrong: that field is a capacity classification, not free memory, and
+  integrated GPUs report almost none of it because they live in system RAM. The
+  process-visible budget needs `IDXGIAdapter3::QueryVideoMemoryInfo`, and even
+  that moves under us. WMI `Win32_VideoController.AdapterRAM` is a 32-bit field
+  Microsoft itself warns is inaccurate on WDDM — usable only for names.
+- **macOS**: `MTLDevice.recommendedMaxWorkingSetSize` and `hasUnifiedMemory`. On
+  Apple Silicon that is a recommended working set over unified memory, not VRAM.
+- Intel Macs with AMD GPUs enumerate under Metal but have reproducible
+  command-buffer failures upstream; they are a probe cohort, not an assumption.
+
+## 4d. A runtime already on the machine: reuse the weights, not the process
 
 Some users already have ollama, LM Studio or MLX installed. The tempting move
 is to drive whatever is there. We do not.
@@ -258,7 +327,7 @@ degradation of a safety promise is the same defect as a silent truncation.
 Independently of all this, we must **detect what is already listening** before
 we bind a port. Not to use it: to avoid fighting it.
 
-## 4c. Zero-touch: what happens after the user clicks install
+## 4e. Zero-touch: what happens after the user clicks install
 
 1. **Read the machine.** RAM, CPU features, core count, whether a usable GPU
    exists. No privileges required for any of it.
