@@ -21,10 +21,13 @@ import {
   beginBackendSwitch,
   endBackendSwitch,
   getEngineBackendMode,
+  getRemoteBrainUrl,
+  getRemoteServerModelId,
   hydrateRemoteBrainSettings,
   isOrphanRemoteWithoutUrl,
   isRemoteEngineBackend,
   recoverLocalBackend,
+  REMOTE_BRAIN_MODEL_KEY,
   REMOTE_BRAIN_URL_KEY,
   setEngineBackendMode,
   validateServedModel,
@@ -66,6 +69,32 @@ describe("backend cache writes", () => {
     const snap = await hydrateRemoteBrainSettings();
     expect(snap.backend).toBe("remote");
     expect(getEngineBackendMode()).toBe("local");
+  });
+
+  test("an older hydration cannot overwrite the caches with stale values", async () => {
+    store[REMOTE_BRAIN_URL_KEY] = "http://old:8000";
+    store[REMOTE_BRAIN_MODEL_KEY] = "old-model";
+    let release!: () => void;
+    let started!: () => void;
+    const startedP = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    hydrateHoldStarted = started;
+    hydrateHold = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const older = hydrateRemoteBrainSettings();
+    await startedP;
+    // Storage moved on, and a newer hydration completes while the older hangs.
+    store[REMOTE_BRAIN_URL_KEY] = "http://new:8000";
+    store[REMOTE_BRAIN_MODEL_KEY] = "new-model";
+    hydrateHold = null;
+    const newer = await hydrateRemoteBrainSettings();
+    expect(newer.url).toBe("http://new:8000");
+    release();
+    await older;
+    expect(getRemoteBrainUrl()).toBe("http://new:8000");
+    expect(getRemoteServerModelId()).toBe("new-model");
   });
 
   test("mounted-settings hydration after local selection: local wins", async () => {

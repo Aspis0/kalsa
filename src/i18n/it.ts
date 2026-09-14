@@ -144,6 +144,8 @@ export const it: typeof en = {
       "Imposta l'id del modello sul server prima di collegarti al Mac.",
     remoteBrainFailModelMissing:
       "Il Mac ha risposto ma non offre quel modello. Controlla l'id con GET /v1/models.",
+    remoteBrainSaveFailed:
+      "Queste impostazioni non sono state salvate su questo telefono. Riprova.",
     remoteBrainUrlInvalid:
       "Quell'indirizzo non è un URL http o https valido.",
     remoteBrainHttpWarning:

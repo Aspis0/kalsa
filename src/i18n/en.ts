@@ -145,6 +145,8 @@ export const en = {
       "Set the server model id before connecting to the Mac.",
     remoteBrainFailModelMissing:
       "The Mac answered but does not offer that model. Check the id against GET /v1/models.",
+    remoteBrainSaveFailed:
+      "These settings were not saved on this phone. Try again.",
     remoteBrainUrlInvalid:
       "That address is not a valid http or https URL.",
     remoteBrainHttpWarning:

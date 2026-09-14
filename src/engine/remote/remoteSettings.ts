@@ -28,6 +28,8 @@ let temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
 let ctxCache = DEFAULT_REMOTE_CTX;
 /** When set, setEngineBackendMode refuses a conflicting mode (switch in flight). */
 let backendWriteIntent: EngineBackendMode | null = null;
+/** Sequence of hydrateRemoteBrainSettings calls: only the newest writes caches. */
+let hydrationSeq = 0;
 
 export function getEngineBackendMode(): EngineBackendMode {
   return backendCache;
@@ -176,8 +178,12 @@ export function isOrphanRemoteWithoutUrl(snap: {
 /**
  * Read-only snapshot. Does not write backendCache — only setEngineBackendMode
  * may change the live backend (boot applies the snapshot through that setter).
+ * The value caches are written by the NEWEST call only: an older hydration that
+ * finishes later must not resurrect the values it read before a newer one.
  */
 export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot> {
+  const seq = ++hydrationSeq;
+  const newest = () => seq === hydrationSeq;
   try {
     const [backendRaw, urlRaw, modelRaw, maxRaw, tempRaw, ctxRaw] =
       await Promise.all([
@@ -190,48 +196,56 @@ export async function hydrateRemoteBrainSettings(): Promise<RemoteBrainSnapshot>
       ]);
     const urlNeverSet = urlRaw === null;
     let urlParseError: string | null = null;
+    let url = DEFAULT_REMOTE_BRAIN_URL;
     if (urlRaw) {
       const parsed = normalizeRemoteUrl(urlRaw);
       if (parsed.ok) {
-        urlCache = parsed.url;
+        url = parsed.url;
       } else {
-        urlCache = urlRaw.trim();
+        url = urlRaw.trim();
         urlParseError = parsed.error;
       }
-    } else {
-      urlCache = DEFAULT_REMOTE_BRAIN_URL;
     }
-    serverModelCache = (modelRaw ?? "").trim();
-    maxTokensCache = parsePositiveInt(maxRaw, DEFAULT_REMOTE_MAX_TOKENS);
-    temperatureCache = parseTemperature(tempRaw, DEFAULT_REMOTE_TEMPERATURE);
-    ctxCache = parsePositiveInt(ctxRaw, DEFAULT_REMOTE_CTX);
+    const serverModelId = (modelRaw ?? "").trim();
+    const maxTokens = parsePositiveInt(maxRaw, DEFAULT_REMOTE_MAX_TOKENS);
+    const temperature = parseTemperature(tempRaw, DEFAULT_REMOTE_TEMPERATURE);
+    const ctx = parsePositiveInt(ctxRaw, DEFAULT_REMOTE_CTX);
+    if (newest()) {
+      urlCache = url;
+      serverModelCache = serverModelId;
+      maxTokensCache = maxTokens;
+      temperatureCache = temperature;
+      ctxCache = ctx;
+    }
     return {
       backend: backendRaw === "remote" ? "remote" : "local",
-      url: urlCache,
+      url,
       urlNeverSet,
       hydrationOk: true,
       urlParseError,
-      serverModelId: serverModelCache,
-      maxTokens: maxTokensCache,
-      temperature: temperatureCache,
-      ctx: ctxCache,
+      serverModelId,
+      maxTokens,
+      temperature,
+      ctx,
     };
   } catch {
-    urlCache = DEFAULT_REMOTE_BRAIN_URL;
-    serverModelCache = "";
-    maxTokensCache = DEFAULT_REMOTE_MAX_TOKENS;
-    temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
-    ctxCache = DEFAULT_REMOTE_CTX;
+    if (newest()) {
+      urlCache = DEFAULT_REMOTE_BRAIN_URL;
+      serverModelCache = "";
+      maxTokensCache = DEFAULT_REMOTE_MAX_TOKENS;
+      temperatureCache = DEFAULT_REMOTE_TEMPERATURE;
+      ctxCache = DEFAULT_REMOTE_CTX;
+    }
     return {
       backend: "local",
-      url: urlCache,
+      url: DEFAULT_REMOTE_BRAIN_URL,
       urlNeverSet: true,
       hydrationOk: false,
       urlParseError: null,
-      serverModelId: serverModelCache,
-      maxTokens: maxTokensCache,
-      temperature: temperatureCache,
-      ctx: ctxCache,
+      serverModelId: "",
+      maxTokens: DEFAULT_REMOTE_MAX_TOKENS,
+      temperature: DEFAULT_REMOTE_TEMPERATURE,
+      ctx: DEFAULT_REMOTE_CTX,
     };
   }
 }

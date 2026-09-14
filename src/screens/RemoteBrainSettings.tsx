@@ -16,7 +16,10 @@ import {
   getRemoteBrainToken,
   setRemoteBrainToken,
 } from "../engine/remote/remoteSecret";
-import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
+import {
+  humanRemoteBrainError,
+  isInternalErrorCode,
+} from "../engine/remote/remoteBrainErrors";
 import {
   canCommitField,
   canCommitRemoteSettings,
@@ -142,35 +145,72 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
     };
   }, []);
 
+  /** A write that throws (storage, keystore) must be seen, not swallowed. */
+  const showWriteFailure = useCallback(
+    (error: unknown) => {
+      setStatusOk(false);
+      const code = error instanceof Error ? error.message : "";
+      setStatus(
+        isInternalErrorCode(code)
+          ? humanRemoteBrainError(code, t)
+          : t("settings.remoteBrainSaveFailed"),
+      );
+    },
+    [t],
+  );
+
   const persistUrl = useCallback(async (next: string) => {
     if (!canCommitRemoteSettings(hydratedReady) || !canWrite("url")) return;
     setUrl(next);
     try {
       await setRemoteBrainUrl(next);
     } catch (err) {
-      setStatusOk(false);
-      setStatus(
-        humanRemoteBrainError(
-          err instanceof Error ? err.message : "invalid_url",
-          t,
-        ),
-      );
+      showWriteFailure(err);
     }
-  }, [canWrite, hydratedReady, t]);
+  }, [canWrite, hydratedReady, showWriteFailure]);
+
+  const persistServerModel = useCallback(async (next: string) => {
+    if (!canCommitRemoteSettings(hydratedReady) || !canWrite("serverModel")) {
+      return;
+    }
+    setServerModel(next);
+    try {
+      await setRemoteServerModelId(next);
+    } catch (err) {
+      showWriteFailure(err);
+    }
+  }, [canWrite, hydratedReady, showWriteFailure]);
+
+  const persistMaxTokens = useCallback(async (next: string) => {
+    if (!canCommitRemoteSettings(hydratedReady) || !canWrite("maxTokens")) return;
+    try {
+      await setRemoteMaxTokens(
+        Number.parseInt(next, 10) || DEFAULT_REMOTE_MAX_TOKENS,
+      );
+    } catch (err) {
+      showWriteFailure(err);
+    }
+  }, [canWrite, hydratedReady, showWriteFailure]);
 
   const persistToken = useCallback(async (next: string) => {
     if (!canCommitRemoteSettings(hydratedReady) || !canWrite("token")) return;
     setToken(next);
-    await setRemoteBrainToken(next);
-  }, [canWrite, hydratedReady]);
+    try {
+      await setRemoteBrainToken(next);
+    } catch (err) {
+      showWriteFailure(err);
+    }
+  }, [canWrite, hydratedReady, showWriteFailure]);
 
   const onTest = useCallback(async () => {
     if (!canCommitRemoteSettings(hydratedReady)) return;
     setTesting(true);
     setStatus(null);
     try {
-      // Read each field when it is written: the user can still be typing while
-      // the earlier writes are in flight, and their newest text must win.
+      // Credential first, cheapest field last: a partial failure must never
+      // lose the token. Each field is read when it is written, so text typed
+      // while the earlier writes are in flight still wins.
+      if (canWrite("token")) await setRemoteBrainToken(draftRef.current.token);
       if (canWrite("url")) await setRemoteBrainUrl(draftRef.current.url);
       if (canWrite("serverModel")) {
         await setRemoteServerModelId(draftRef.current.serverModel);
@@ -181,7 +221,6 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
             DEFAULT_REMOTE_MAX_TOKENS,
         );
       }
-      if (canWrite("token")) await setRemoteBrainToken(draftRef.current.token);
       const result = await testRemoteConnection();
       if (result.ok) {
         setStatusOk(true);
@@ -191,17 +230,13 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         setStatus(humanRemoteBrainError(result.error, t));
       }
     } catch (err) {
-      setStatusOk(false);
-      setStatus(
-        humanRemoteBrainError(
-          err instanceof Error ? err.message : undefined,
-          t,
-        ),
-      );
+      // A write threw: the remaining fields were not saved and the probe did
+      // not run, so say that instead of reporting a connection result.
+      showWriteFailure(err);
     } finally {
       setTesting(false);
     }
-  }, [canWrite, hydratedReady, t]);
+  }, [canWrite, hydratedReady, showWriteFailure, t]);
 
   return (
     <GlassPanel2 opaque rounded="lg" style={{ padding: spacing.lg, gap: spacing.sm }}>
@@ -233,21 +268,17 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           onPress={() => {
             void (async () => {
               if (!hydratedReady) return;
-              try {
-                await setRemoteBrainUrl(url);
-              } catch (err) {
-                setStatusOk(false);
-                setStatus(
-                  humanRemoteBrainError(
-                    err instanceof Error ? err.message : "invalid_url",
-                    t,
-                  ),
-                );
-                return;
-              }
+              // Validate before touching storage: an empty field must not be
+              // written (and then reported as an error) first.
               if (!url.trim()) {
                 setStatusOk(false);
                 setStatus(t("settings.remoteBrainUrlMissing"));
+                return;
+              }
+              try {
+                await setRemoteBrainUrl(url);
+              } catch (err) {
+                showWriteFailure(err);
                 return;
               }
               onSelectModel(REMOTE_MAC_MODEL_ID);
@@ -307,7 +338,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           markDirty("serverModel");
           setServerModel(next);
         }}
-        onEndEditing={() => void setRemoteServerModelId(serverModel)}
+        onEndEditing={() => void persistServerModel(serverModel)}
         editable={!fieldsLocked}
         autoCapitalize="none"
         autoCorrect={false}
@@ -334,9 +365,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           markDirty("maxTokens");
           setMaxTokens(next);
         }}
-        onEndEditing={() =>
-          void setRemoteMaxTokens(Number.parseInt(maxTokens, 10) || DEFAULT_REMOTE_MAX_TOKENS)
-        }
+        onEndEditing={() => void persistMaxTokens(maxTokens)}
         editable={!fieldsLocked}
         keyboardType="number-pad"
         style={[

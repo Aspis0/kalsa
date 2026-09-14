@@ -91,6 +91,10 @@ import {
 
 import { RemoteBrainSettings } from "./RemoteBrainSettings";
 
+// Save what we replace: a test that mutates the environment must put it back.
+const previousActEnvironment = (
+  globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+).IS_REACT_ACT_ENVIRONMENT;
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
 
@@ -110,6 +114,9 @@ beforeAll(() => {
 });
 
 afterAll(() => {
+  (
+    globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
+  ).IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
   jest.restoreAllMocks();
 });
 
@@ -214,13 +221,47 @@ function node(
 }
 
 function testButton(renderer: ReactTestRenderer): ReactTestInstance {
+  return pressableWithLabel(renderer, "settings.remoteBrainTest");
+}
+
+function selectMacButton(renderer: ReactTestRenderer): ReactTestInstance {
+  return pressableWithLabel(renderer, "settings.remoteSelect");
+}
+
+function pressableWithLabel(
+  renderer: ReactTestRenderer,
+  label: string,
+): ReactTestInstance {
   const found = nodesOfType(renderer, "Pressable").find((instance) =>
     instance
       .findAll((child) => hasType(child, "Text"))
-      .some((label) => label.props.children === "settings.remoteBrainTest"),
+      .some((child) => child.props.children === label),
   );
-  if (!found) throw new Error("Test button not found");
+  if (!found) throw new Error(`pressable ${label} not found`);
   return found;
+}
+
+/** Any text node on screen, e.g. a status message. */
+function showsText(renderer: ReactTestRenderer, text: string): boolean {
+  return nodesOfType(renderer, "Text").some(
+    (instance) => instance.props.children === text,
+  );
+}
+
+function fieldInput(
+  renderer: ReactTestRenderer,
+  field: "url" | "serverModel" | "maxTokens" | "token",
+): ReactTestInstance {
+  switch (field) {
+    case "url":
+      return urlInput(renderer);
+    case "token":
+      return tokenInput(renderer);
+    case "maxTokens":
+      return maxTokensInput(renderer);
+    case "serverModel":
+      return modelInput(renderer);
+  }
 }
 
 async function render(): Promise<ReactTestRenderer> {
@@ -300,21 +341,25 @@ describe("RemoteBrainSettings hydration", () => {
     await unmount(renderer);
   });
 
-  test("an edited field keeps its text while the untouched ones are hydrated", async () => {
-    const renderer = await render();
+  test.each(["url", "serverModel", "maxTokens", "token"] as const)(
+    "an edit in %s before hydration survives while the other fields are filled",
+    async (field) => {
+      const renderer = await render();
 
-    // Simulates the type event on the server-model field before storage answers.
-    await act(async () => {
-      modelInput(renderer).props.onChangeText("my-own-model");
-    });
+      // Simulates the type event on one field before storage answers.
+      await act(async () => {
+        fieldInput(renderer, field).props.onChangeText("my-own-value");
+      });
+      await finishHydration();
 
-    await finishHydration();
-
-    expect(modelInput(renderer).props.value).toBe("my-own-model");
-    expect(urlInput(renderer).props.value).toBe(STORED_URL);
-    expect(tokenInput(renderer).props.value).toBe(STORED_TOKEN);
-    await unmount(renderer);
-  });
+      expect(fieldInput(renderer, field).props.value).toBe("my-own-value");
+      for (const other of ["url", "serverModel", "maxTokens", "token"] as const) {
+        if (other === field) continue;
+        expect(fieldInput(renderer, other).props.value).not.toBe("");
+      }
+      await unmount(renderer);
+    },
+  );
 
   test("an edit before hydration cannot make Test delete the stored token", async () => {
     const renderer = await render();
@@ -365,28 +410,98 @@ describe("RemoteBrainSettings hydration", () => {
     await unmount(renderer);
   });
 
-  test("Test writes the token typed while its earlier writes are in flight", async () => {
-    const urlWrite = deferred<void>();
-    settingsMock.setRemoteBrainUrl.mockReturnValue(urlWrite.promise);
+  test("Test writes what is typed while its earlier writes are in flight", async () => {
+    const tokenWrite = deferred<void>();
+    secretMock.setRemoteBrainToken.mockReturnValue(tokenWrite.promise);
     const renderer = await render();
     await finishHydration(STORED_SNAPSHOT, "");
 
     await act(async () => {
       testButton(renderer).props.onPress();
     });
-    // The url write is still in flight: the user types the token now.
+    // The token write is still in flight: the user types the url now.
     await act(async () => {
-      tokenInput(renderer).props.onChangeText("typed-while-busy");
+      urlInput(renderer).props.onChangeText("http://typed-while-busy:9000");
     });
     await act(async () => {
-      urlWrite.resolve();
+      tokenWrite.resolve();
     });
 
-    expect(secretMock.setRemoteBrainToken).toHaveBeenCalledWith(
-      "typed-while-busy",
+    expect(settingsMock.setRemoteBrainUrl).toHaveBeenCalledWith(
+      "http://typed-while-busy:9000",
     );
     await unmount(renderer);
   });
+
+  test("selecting the Mac with an empty address writes nothing", async () => {
+    const renderer = await render();
+    await finishHydration(
+      { ...STORED_SNAPSHOT, url: "", urlNeverSet: true },
+      null,
+    );
+
+    await act(async () => {
+      selectMacButton(renderer).props.onPress();
+    });
+
+    expect(settingsMock.setRemoteBrainUrl).not.toHaveBeenCalled();
+    expect(showsText(renderer, "settings.remoteBrainUrlMissing")).toBe(true);
+    await unmount(renderer);
+  });
+
+  test("Test writes the credential before the cheapest field", async () => {
+    const renderer = await render();
+    await finishHydration();
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    const tokenOrder = secretMock.setRemoteBrainToken.mock.invocationCallOrder[0];
+    const maxOrder = settingsMock.setRemoteMaxTokens.mock.invocationCallOrder[0];
+    expect(tokenOrder).toBeLessThan(maxOrder);
+    await unmount(renderer);
+  });
+
+  test("a failed save is reported instead of a connection result", async () => {
+    settingsMock.setRemoteMaxTokens.mockRejectedValue(new Error("disk full"));
+    const renderer = await render();
+    await finishHydration();
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    expect(backendMock.testRemoteConnection).not.toHaveBeenCalled();
+    expect(showsText(renderer, "settings.remoteBrainSaveFailed")).toBe(true);
+    await unmount(renderer);
+  });
+
+  test.each(["serverModel", "maxTokens", "token"] as const)(
+    "a rejected blur save on %s is shown, not swallowed",
+    async (field) => {
+      const reject = () => Promise.reject(new Error("storage full"));
+      if (field === "serverModel") {
+        settingsMock.setRemoteServerModelId.mockImplementation(reject);
+      } else if (field === "maxTokens") {
+        settingsMock.setRemoteMaxTokens.mockImplementation(reject);
+      } else {
+        secretMock.setRemoteBrainToken.mockImplementation(reject);
+      }
+      const renderer = await render();
+      await finishHydration();
+
+      await act(async () => {
+        fieldInput(renderer, field).props.onChangeText("typed");
+      });
+      await act(async () => {
+        fieldInput(renderer, field).props.onEndEditing();
+      });
+
+      expect(showsText(renderer, "settings.remoteBrainSaveFailed")).toBe(true);
+      await unmount(renderer);
+    },
+  );
 
   test("a fresh install leaves Test working instead of a silent no-op", async () => {
     const renderer = await render();
