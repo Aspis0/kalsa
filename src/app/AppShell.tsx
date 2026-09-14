@@ -3700,11 +3700,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     }
     if (thermalHardGateRef.current) return false;
     if (model.id === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend()) {
+      const generation = engineGenerationRef.current;
+      const stillCurrent = () => generation === engineGenerationRef.current;
       setModelState("loading");
       try {
+        if (!stillCurrent()) return false;
         await setEngineBackendMode("remote");
+        if (!stillCurrent()) return false;
         setRemoteActive(true);
         await initEngine("", REMOTE_MAC_MODEL_ID, { locale });
+        if (!stillCurrent()) return false;
         if (isEngineReady()) {
           setModelState("ready");
           setModelError(null);
@@ -3715,6 +3720,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelErrorKind("engine");
         return false;
       } catch (error) {
+        if (!stillCurrent()) return false;
         setModelState("error");
         setModelErrorKind("engine");
         setModelError(error instanceof Error ? error.message : String(error));
