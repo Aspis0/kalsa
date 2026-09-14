@@ -249,11 +249,30 @@ away regardless of which repository it touches.
 
 ## 7. Starting point and the flags that matter
 
-**Base: Jan** (Apache-2.0, Tauri already, llama.cpp already, model and server
-lifecycle already). We take the shell and the lifecycle, not the whole UI —
-ours is three pages. Second choice was Lemonade (also Apache-2.0, embeddable,
-actively released) but its focus is AMD hardware, which is the wrong bias for
-old Intel laptops.
+**Base: a new Tauri shell. We do not fork Jan** — we take one piece of it.
+
+Reading the repository changed the answer. Jan is 308k lines, ~95% of which we
+would delete, and its licence is not uniform: the root is Apache-2.0 and the
+Rust is MIT, but the TypeScript packages declare **AGPL-3.0** — including the
+preset builder and the download manager, which are precisely the parts we would
+have wanted. Those get rewritten, not copied.
+
+What is worth taking is the **process supervision**, which is MIT and about
+1,500 lines: a Windows Job Object with `KILL_ON_JOB_CLOSE` so the OS reaps the
+child even on a force-quit, shutdown by closing the child's stdin rather than
+by signal, a startup handshake with a timeout, and cleanup wired to the app's
+exit event. That is hard-won code and there is no reason to rediscover it.
+
+One thing they learned that changes our reasoning: they moved inference out of
+the main process because **`GGML_ASSERT` calls `abort()`**, which `catch_unwind`
+does not contain. So a crash in inference takes down whatever process hosts it.
+Our child-process design was chosen for clean installation; crash isolation is
+the stronger reason, and it means the supervisor must expect the child to die
+abruptly and recover without losing the app.
+
+Second choice for a base was Lemonade (Apache-2.0 throughout, embeddable,
+actively released) but its focus is AMD hardware, the wrong bias for old Intel
+laptops.
 
 **Shell: Tauri.** It uses the system WebView, so the download stays small on
 machines with slow disks and slow links. The cost is real and must be planned
