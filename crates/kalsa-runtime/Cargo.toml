@@ -1,0 +1,19 @@
+[package]
+name = "kalsa-runtime"
+description = "Which llama-server build this machine should run, and proof that it works"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Digests over fetched archives: the promise a download is held to.
+sha2 = "0.10"
+# The release archives are zips and the probe must run what is inside them.
+# Read-and-extract only; the default `deflate` feature is what actually builds.
+zip = { version = "2.2", default-features = false, features = ["deflate"] }
+kalsa-download = { path = "../kalsa-download" }
+kalsa-probe = { path = "../kalsa-probe" }
+kalsa-supervisor = { path = "../kalsa-supervisor" }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
