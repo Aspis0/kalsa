@@ -27,6 +27,31 @@ Consequences:
   fits, **active weights** decide how fast it runs. On a MoE these differ by
   up to 10x, and conflating them is how you promise speed you cannot deliver.
 
+### "Beat the phone" has a second axis: the phone's battery
+
+Owner, 2026-09-14, on the 8 GB tier: *"a 8gb di ram potremmo quasi consigliare
+di usare lfm sullo smartphone perche non conviene. (ma la batteria dello
+smartphone ringrazia)"*.
+
+That is the honest reading of section 4's table and it fixes what the tier is
+for. An 8 GB machine running a 1B-active MoE is roughly a lateral move in
+quality — but every token it generates is a token the phone did not generate,
+so the phone stays cool and the battery lasts. **The PC can win on capability or
+on not burning the phone, and those are different products.**
+
+So:
+
+- The 8 GB tier is offered as **relief, not as an upgrade**, and the app says
+  exactly that. Selling a lateral move as a smarter model is the same failure as
+  a truncated message with no marker: the user finds out later, on their own.
+- Which means the refusal in "there is no courtesy tier" is narrower than it
+  read: we refuse a machine that beats the phone on *neither* axis. A machine
+  too weak to run a usable model at all is still a refusal.
+- It also means the pairing handshake should carry more than the phone's model
+  id: whether the phone is on battery is what decides if relief is worth
+  anything. A phone on a charger gets no benefit from an 8 GB PC, and the app
+  should not pretend otherwise.
+
 ## 2. The second rule: do not damage the machine
 
 The target is old hardware — the floor is Haswell (2013), below which there is
