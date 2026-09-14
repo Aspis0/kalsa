@@ -73,6 +73,8 @@ export type {
 export {
   beginBackendSwitch,
   endBackendSwitch,
+  getRemoteBrainUrl,
+  getRemoteServerModelId,
   hydrateRemoteBrainSettings,
   isHydrationCurrent,
   isOrphanRemoteWithoutUrl,

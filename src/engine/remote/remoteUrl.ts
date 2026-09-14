@@ -8,12 +8,18 @@ export function isLoopbackHost(host: string): boolean {
   );
 }
 
+/**
+ * A URL with everything that can carry a credential removed: userinfo, query and
+ * fragment. Kept in step with `normalizeRemoteUrl` below on purpose — the two
+ * disagreed once, and a secret in the fragment survived the one that forgot.
+ */
 export function redactUrl(url: string): string {
   try {
     const parsed = new URL(url);
     parsed.username = "";
     parsed.password = "";
     parsed.search = "";
+    parsed.hash = "";
     return parsed.toString();
   } catch {
     return "[invalid-url]";

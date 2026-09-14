@@ -72,6 +72,10 @@ export type RemoteStreamHandle = {
   isClosed: () => boolean;
 };
 
+/** Anything logged from a server message is bounded: diagnosis does not need
+ *  more, and an unbounded body in logcat is a liability. */
+const MAX_LOGGED_EXCERPT = 160;
+
 const HEADERS_RECEIVED = 2;
 const LOADING = 3;
 const DONE = 4;
@@ -161,13 +165,19 @@ export function streamOpenAiChat(
         // must not change lastFinishReason or be delivered.
         if (frozenAfterTerminal) continue;
         if (event.kind === "error") {
-          // The message is whatever the server sent: keep it in logcat, never
-          // turn it into app error text, and redact it — a hostile or
-          // misconfigured server can quote back a URL with a token in its query,
-          // and logcat is still a place secrets should not land.
+          const message = event.message ?? "";
+          // What is logged is chosen here, not dictated by the server: the code
+          // the app will show, how much came back, and a bounded excerpt.
+          // Server text is arbitrary, and the shapes a secret can take are not
+          // enumerable — `redactForLog` is defence in depth over an excerpt that
+          // is already restricted, never the boundary.
           console.warn(
             "remote.brain.sse_error",
-            JSON.stringify({ message: redactForLog(event.message ?? "") }),
+            JSON.stringify({
+              code: "remote_brain_sse_error",
+              bytes: message.length,
+              excerpt: redactForLog(message.slice(0, MAX_LOGGED_EXCERPT)),
+            }),
           );
           emitFinish({
             kind: "error",

@@ -12,17 +12,43 @@ import {
   REMOTE_COMPUTER_MODEL_ID,
 } from "./remote/remoteComputerModel";
 
+/**
+ * The remote configuration an attempt actually reads.
+ *
+ * It is part of the attempt's identity: the URL and the server model are read
+ * inside the attempt (RemoteEngine's probe), and editing them in Settings does
+ * not bump the AppShell generation — only selecting a model does. Without this
+ * in the key, an attempt started against server A is handed to a caller that has
+ * since changed the address or the model: it either fails carrying A's failure or
+ * reports ready an engine configured for B.
+ */
+export type RemoteConfiguration = {
+  url: string;
+  serverModelId: string;
+};
+
 export type EnsureIntent = {
   generation: number;
   modelId: string;
   remote: boolean;
+  /** Null for a local intent: it reads no remote configuration. */
+  remoteConfig: RemoteConfiguration | null;
 };
 
 export function captureEnsureIntent(
   generation: number,
   modelId: string,
+  remoteConfig: RemoteConfiguration,
 ): EnsureIntent {
-  return { generation, modelId, remote: isRemoteComputerModelId(modelId) };
+  const remote = isRemoteComputerModelId(modelId);
+  return {
+    generation,
+    modelId,
+    remote,
+    // A local intent is not affected by the remote settings, so it does not
+    // carry them: a URL edit must not stale a local load.
+    remoteConfig: remote ? remoteConfig : null,
+  };
 }
 
 export function ensureIntentStale(
@@ -32,7 +58,18 @@ export function ensureIntentStale(
   return (
     captured.generation !== live.generation ||
     captured.modelId !== live.modelId ||
-    captured.remote !== live.remote
+    captured.remote !== live.remote ||
+    !sameRemoteConfiguration(captured.remoteConfig, live.remoteConfig)
+  );
+}
+
+function sameRemoteConfiguration(
+  captured: RemoteConfiguration | null,
+  live: RemoteConfiguration | null,
+): boolean {
+  if (captured === null || live === null) return captured === live;
+  return (
+    captured.url === live.url && captured.serverModelId === live.serverModelId
   );
 }
 
@@ -60,9 +97,15 @@ export function ensureOutcome(input: {
   return ensureIntentStale(input.captured, input.live) ? "superseded" : "failed";
 }
 
-/** Identity of an ensure attempt: same generation, model and backend. */
+/**
+ * Identity of an ensure attempt: the generation, the model, the backend — and,
+ * for a remote attempt, the address and server model it will read.
+ */
 export function ensureIntentKey(intent: EnsureIntent): string {
-  return `${intent.generation}:${intent.remote ? "remote" : "local"}:${intent.modelId}`;
+  const configuration = intent.remoteConfig
+    ? `${intent.remoteConfig.url}|${intent.remoteConfig.serverModelId}`
+    : "";
+  return `${intent.generation}:${intent.remote ? "remote" : "local"}:${intent.modelId}:${configuration}`;
 }
 
 /**
@@ -77,17 +120,48 @@ export function ensureIntentKey(intent: EnsureIntent): string {
 export class InFlightEnsures<T> {
   private readonly running = new Map<string, Promise<T>>();
 
-  run(key: string, start: () => Promise<T>): Promise<T> {
+  /**
+   * Runs `start`, or joins the attempt already running for `key`.
+   *
+   * The attempt is bounded by `withinMillis`: a caller gets `abandon` if it has
+   * not settled by then, and the map entry is released **whether or not it ever
+   * settles**. Storage reads (SecureStore, AsyncStorage) have no deadline of
+   * their own — the abort signal covers the network call only — so without this
+   * an attempt that never settles would be handed to every later caller, and the
+   * app would neither work nor fail.
+   *
+   * A rejection is passed through rather than turned into `abandon`: the caller
+   * distinguishes a superseded attempt from a failed one by the error it carries.
+   */
+  run(
+    key: string,
+    start: () => Promise<T>,
+    withinMillis: number,
+    abandon: T,
+  ): Promise<T> {
     const existing = this.running.get(key);
     if (existing) return existing;
     const attempt = start();
-    this.running.set(key, attempt);
-    const settle = () => {
-      if (this.running.get(key) === attempt) this.running.delete(key);
-    };
-    // Also on rejection: a failed attempt kept in the map would make every later
-    // caller wait for a result that already happened.
-    attempt.then(settle, settle);
-    return attempt;
+    const bounded = new Promise<T>((resolve, reject) => {
+      let settled = false;
+      const finish = (action: () => void) => {
+        if (settled) return;
+        settled = true;
+        if (this.running.get(key) === bounded) this.running.delete(key);
+        action();
+      };
+      attempt.then(
+        (value) => finish(() => resolve(value)),
+        (error) => finish(() => reject(error)),
+      );
+      const timer = setTimeout(() => finish(() => resolve(abandon)), withinMillis);
+      // `finally` would re-raise the attempt's rejection on a promise nobody
+      // holds, which is an unhandled rejection. `then` with both callbacks
+      // clears the timer without inventing another rejected promise.
+      const stopTimer = () => clearTimeout(timer);
+      attempt.then(stopTimer, stopTimer);
+    });
+    this.running.set(key, bounded);
+    return bounded;
   }
 }

@@ -66,6 +66,7 @@ import {
   InFlightEnsures,
   type EnsureIntent,
   type EnsureOutcome,
+  type RemoteConfiguration,
 } from "../engine/ensureIntent";
 import {
   humanRemoteBrainError,
@@ -164,6 +165,8 @@ import {
   streamAssistantTurn,
   beginBackendSwitch,
   endBackendSwitch,
+  getRemoteBrainUrl,
+  getRemoteServerModelId,
   hydrateRemoteBrainSettings,
   isHydrationCurrent,
   isRemoteEngineBackend,
@@ -439,6 +442,16 @@ const SEARCH_DEBOUNCE_MS = 180;
  * hang dispose forever and pin the UI on "checking". Refuse after this deadline.
  */
 const MODEL_SWITCH_DISPOSE_TIMEOUT_MS = 5_000;
+/**
+ * How long one engine ensure may take before it is called a failure.
+ *
+ * Generous on purpose: loading a local model on an old phone takes tens of
+ * seconds. Finite for the same reason: the probe's abort signal covers the
+ * network call only, so a storage read that never answers (SecureStore,
+ * AsyncStorage) would otherwise hold this attempt forever and every later send
+ * would wait on it — an app that neither works nor fails.
+ */
+const ENSURE_DEADLINE_MS = 120_000;
 
 /**
  * Untranslated on-device diagnostic string from a thrown value.
@@ -3795,15 +3808,26 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     void ensureEngineForModelRef.current(REMOTE_COMPUTER_MODEL);
   }, [remoteActive]);
 
-  const runEnsureEngineForModel = useCallback(async (model: ModelInfo): Promise<boolean> => {
-    // Capture generation + requested model/backend BEFORE the thermal await
-    // so a local select during that probe cannot be overwritten by a stale
-    // remote ensure (setEngineBackendMode("remote") must be unreachable).
-    const captured = captureEnsureIntent(engineGenerationRef.current, model.id);
+  /**
+   * The attempt itself. `captured` comes from the boundary rather than being
+   * taken again here: one attempt must have one identity, or the key it is filed
+   * under and the intent it checks itself against could disagree.
+   */
+  const runEnsureEngineForModel = useCallback(async (
+    captured: EnsureIntent,
+    model: ModelInfo,
+  ): Promise<boolean> => {
     const liveIntent = (): EnsureIntent => ({
       generation: engineGenerationRef.current,
       modelId: engineIntentRef.current.modelId,
       remote: engineIntentRef.current.remote,
+      // The configuration the attempt reads is part of what makes it stale.
+      remoteConfig: engineIntentRef.current.remote
+        ? {
+            url: getRemoteBrainUrl(),
+            serverModelId: getRemoteServerModelId(),
+          }
+        : null,
     });
     const stillCurrent = () => !ensureIntentStale(captured, liveIntent());
 
@@ -3842,8 +3866,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         return false;
       } catch (error) {
         // A superseded attempt (a newer init or a dispose won the race) must not
-        // write this attempt's failure into the UI: the winner owns the screen.
-        if (isSupersededRemoteOp(error)) return false;
+        // write this attempt's failure into the UI — and it must not be swallowed
+        // here either. The boolean this function returns cannot say "I lost my
+        // turn": returning false would reach the caller's verdict as a failure.
+        // The marker travels instead, and the boundary decides.
+        //
+        // This is reachable: the idle/background unload disposes the engine
+        // (`disposeEngine` -> `disposeRemoteEngine`, which bumps the engine's own
+        // generation) without touching `engineGenerationRef`, so the AppShell
+        // intent still looks current while the init has been superseded.
+        if (isSupersededRemoteOp(error)) throw error;
         if (!stillCurrent()) return false;
         setModelState("error");
         setModelErrorKind("engine");
@@ -4215,16 +4247,32 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
    */
   const ensureEngineForModel = useCallback(
     (model: ModelInfo): Promise<EnsureOutcome> => {
-      const captured = captureEnsureIntent(engineGenerationRef.current, model.id);
+      const configuration = (): RemoteConfiguration => ({
+        url: getRemoteBrainUrl(),
+        serverModelId: getRemoteServerModelId(),
+      });
+      const captured = captureEnsureIntent(
+        engineGenerationRef.current,
+        model.id,
+        configuration(),
+      );
       const live = (): EnsureIntent => ({
         generation: engineGenerationRef.current,
         modelId: engineIntentRef.current.modelId,
         remote: engineIntentRef.current.remote,
+        remoteConfig: engineIntentRef.current.remote ? configuration() : null,
       });
-      return inFlightEnsuresRef.current.run(ensureIntentKey(captured), () =>
-        runEnsureEngineForModel(model).then((ready) =>
-          ensureOutcome({ ready, captured, live: live() }),
-        ),
+      return inFlightEnsuresRef.current.run(
+        ensureIntentKey(captured),
+        () =>
+          runEnsureEngineForModel(captured, model).then(
+            (ready) => ensureOutcome({ ready, captured, live: live() }),
+            // The attempt lost its turn: it says so with the marker, not with a
+            // boolean that reads as a failure.
+            (error) => (isSupersededRemoteOp(error) ? "superseded" : "failed"),
+          ),
+        ENSURE_DEADLINE_MS,
+        "failed",
       );
     },
     [runEnsureEngineForModel],

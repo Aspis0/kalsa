@@ -439,20 +439,54 @@ describe("streamOpenAiChat", () => {
     expect(finishes[0]?.error?.message).not.toContain("nope");
   });
 
-  test("the logged server message is redacted, the diagnosis is kept", async () => {
+  test("what is logged is chosen here, not dictated by the server", async () => {
     const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
     const xhr = fakeXhr();
     const { finishes } = start(xhr);
-    xhr.responseText =
-      'event: error\ndata: {"error":{"message":"bad key, see https://host/v1?token=SECRET"}}\n\n';
+    const sent = 'bad key, see https://host/v1?token=SECRET';
+    xhr.responseText = `event: error\ndata: ${JSON.stringify({
+      error: { message: sent },
+    })}\n\n`;
     xhr.readyState = 3;
     xhr.status = 200;
     xhr.onprogress?.call(xhr);
     expect(finishes[0]?.kind).toBe("error");
-    const logged = warned.mock.calls.flat().join(" ");
-    expect(logged).toContain("bad key");
-    expect(logged).not.toContain("SECRET");
-    expect(logged).toContain("https://host/v1");
+
+    const [, payload] = warned.mock.calls[0] ?? [];
+    const logged = JSON.parse(String(payload)) as {
+      code: string;
+      bytes: number;
+      excerpt: string;
+    };
+    expect(logged.code).toBe("remote_brain_sse_error");
+    expect(logged.bytes).toBe(sent.length);
+    expect(logged.excerpt).toContain("bad key");
+    expect(logged.excerpt).not.toContain("SECRET");
+    // No verbatim copy of the server's text travels with the log line.
+    expect(String(payload)).not.toContain("https://host/v1?token=SECRET");
+    warned.mockRestore();
+  });
+
+  test("a secret beyond the excerpt is not logged at all", async () => {
+    const warned = jest.spyOn(console, "warn").mockImplementation(() => undefined);
+    const xhr = fakeXhr();
+    const { finishes } = start(xhr);
+    const sent = `${"pad ".repeat(80)}token=SECRET`;
+    xhr.responseText = `event: error\ndata: ${JSON.stringify({
+      error: { message: sent },
+    })}\n\n`;
+    xhr.readyState = 3;
+    xhr.status = 200;
+    xhr.onprogress?.call(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+
+    const [, payload] = warned.mock.calls[0] ?? [];
+    const logged = JSON.parse(String(payload)) as { bytes: number; excerpt: string };
+    expect(logged.bytes).toBe(sent.length);
+    // The bound is upstream of the redactor: whatever is past it is never read,
+    // let alone logged.
+    expect(logged.excerpt.length).toBeLessThanOrEqual(160);
+    expect(String(payload)).not.toContain("SECRET");
     warned.mockRestore();
   });
 
