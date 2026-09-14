@@ -6,6 +6,7 @@ import {
   runNativeOp,
   runNativeOpBounded,
 } from "./llamaContextGate";
+import { afterRemoteSwitchDispose } from "./modelIndexProbe";
 
 describe("chat model size-class helpers", () => {
   it("uses ModelInfo.sizeClass for the two listed chat models", () => {
@@ -35,6 +36,16 @@ describe("runNativeOpBounded", () => {
     const result = await runNativeOpBounded(async () => 42, 1_000);
     expect(result).toEqual({ ok: true, value: 42 });
     expect(isNativeOpChainEmpty()).toBe(true);
+  });
+
+  it("hanging native dispose on remote switch surfaces error and releases in-flight", async () => {
+    void runNativeOp(() => new Promise<void>(() => undefined));
+    const bounded = await runNativeOpBounded(async () => "dispose", 80, 10);
+    expect(bounded.ok).toBe(false);
+    const ui = afterRemoteSwitchDispose(false);
+    expect(ui.surfaceError).toBe(true);
+    expect(ui.remoteActive).toBe(false);
+    expect(ui.inFlightReleased).toBe(true);
   });
 
   it("refuses with timeout when the chain is hung and does not enqueue", async () => {

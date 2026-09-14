@@ -58,3 +58,26 @@ export function switchDisposeUi(disposeOk: boolean): {
     surfaceError: disposeOk !== true,
   };
 }
+
+/** selectRemoteMac dispose: failures take the K3 error path; in-flight always released. */
+export function afterRemoteSwitchDispose(ok: boolean): {
+  surfaceError: boolean;
+  remoteActive: boolean;
+  reprobe: false;
+  inFlightReleased: true;
+} {
+  if (ok) {
+    return {
+      surfaceError: false,
+      remoteActive: true,
+      reprobe: false,
+      inFlightReleased: true,
+    };
+  }
+  return {
+    surfaceError: true,
+    remoteActive: false,
+    reprobe: false,
+    inFlightReleased: true,
+  };
+}

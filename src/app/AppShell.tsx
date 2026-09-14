@@ -69,6 +69,7 @@ import {
   shouldNoopLocalSelect,
   shouldReprobeAfterSwitch,
   switchDisposeUi,
+  afterRemoteSwitchDispose,
 } from "../engine/modelIndexProbe";
 import {
   embedDocumentChunk,
@@ -4303,20 +4304,44 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
     };
     beginBackendSwitch("remote");
     void (async () => {
+      let disposeOk = false;
       try {
         if (isRemoteEngineBackend()) {
           await disposeRemoteEngine();
+          disposeOk = true;
         } else if (isEngineReady()) {
-          await runNativeOp(() => disposeEngine());
+          const bounded = await runNativeOpBounded(
+            () => disposeEngine(),
+            MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
+          );
+          disposeOk = bounded.ok;
+        } else {
+          disposeOk = true;
+        }
+      } catch {
+        disposeOk = false;
+      }
+      const ui = afterRemoteSwitchDispose(disposeOk);
+      try {
+        if (ui.surfaceError) {
+          setRemoteActive(ui.remoteActive);
+          setModelState("error");
+          setModelErrorKind("engine");
+          setModelError(t("errors.engineDisposeTimeout"));
+          setModelErrorDetail(null);
+          return;
         }
         await setEngineBackendMode("remote");
         setRemoteActive(true);
         AsyncStorage.setItem(MODEL_STORAGE_KEY, REMOTE_MAC_MODEL_ID).catch(() => undefined);
         await ensureEngineForModel(REMOTE_MAC_MODEL);
       } catch (error) {
+        const fail = afterRemoteSwitchDispose(false);
+        setRemoteActive(fail.remoteActive);
         setModelState("error");
         setModelErrorKind("engine");
         setModelError(error instanceof Error ? error.message : String(error));
+        setModelErrorDetail(null);
       } finally {
         modelSwitchInFlightRef.current = false;
         endBackendSwitch();

@@ -4,6 +4,7 @@ import {
   shouldNoopLocalSelect,
   shouldReprobeAfterSwitch,
   switchDisposeUi,
+  afterRemoteSwitchDispose,
 } from "./modelIndexProbe";
 
 describe("decideModelIndexProbe", () => {
@@ -81,5 +82,15 @@ describe("switchDisposeUi", () => {
     expect(ui.surfaceError).toBe(true);
     expect(ui.reprobe).toBe(false);
     expect(ui.remoteActive).toBe(false);
+  });
+});
+
+describe("afterRemoteSwitchDispose", () => {
+  test("hanging native dispose on remote switch -> error, in-flight released", () => {
+    const ui = afterRemoteSwitchDispose(false);
+    expect(ui.surfaceError).toBe(true);
+    expect(ui.remoteActive).toBe(false);
+    expect(ui.reprobe).toBe(false);
+    expect(ui.inFlightReleased).toBe(true);
   });
 });
