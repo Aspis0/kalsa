@@ -205,6 +205,48 @@ Two caveats that belong next to the table, not in a footnote:
   justifies the tier, so it gets measured on the machine, not assumed from a
   parameter count.
 
+### There is no formula for "is this MoE stronger than that dense model"
+
+Researched 2026-09-14; full report in `RESEARCH-moe-vs-dense-2026-09-14.md`.
+
+The rule of thumb that circulates — effective size ≈ `sqrt(total × active)` — is
+**uncited folklore**, most likely a misreading of Clark et al.'s *effective
+parameter count*, which is a **fitted, task-dependent** quantity from a loss law
+at a specified token budget and not a conversion between two numbers. Every
+published MoE scaling law (Krajewski 2024, Ludziejewski 2025, Abnar 2025, Tian
+2025) is conditional on training tokens, compute, granularity and routing, and
+none of them produces "given total and active, use dense size f(total, active)".
+
+⛔ **So the catalog implements no such formula, and nobody should add one.**
+
+Worse for our smallest tier specifically: Jelassi et al. (*Mixture of Parrots*,
+ICLR 2025) find that **below roughly 10B total parameters, at fixed active
+parameters, extra experts help memorisation more than reasoning, and a MoE can be
+*worse* than a dense model of the same total size** on commonsense and maths.
+The 8 GB tier is exactly that regime, which is an argument for humility there
+rather than for the bigger-looking file.
+
+What is citable is **the publisher's own same-family comparison**, per row — a
+lab comparing its MoE to a dense model it trained on the same recipe. That is
+data about that model, not a rule, so it lives in the manifest beside the row:
+
+- Granite 4.0 H-Tiny (7B/1B) sits near IBM's own **H-Micro dense 3B** — above it
+  on GSM8K, DeepMind-Math and MBPP, below on BBH and IFEval.
+- Phi-mini-MoE (7.6B/2.4B) sits near **Phi-3 mini dense 3.8B** on its own card's
+  harness table, and clearly below Phi-3 small 7.4B on knowledge and reasoning.
+- LFM2.5-8B-A1B and Trinity Nano publish no same-recipe dense comparison, so they
+  carry none.
+
+Both rows we can source land in **the phone's own class** — so the 8 GB tier
+being relief rather than an upgrade is now an evidence-backed conclusion instead
+of a cautious guess.
+
+Where the numbers point clearly one way and nothing citable settles it — a large
+MoE against a small dense phone model — the honest answer is neither claim:
+**expected to be stronger, not yet measured**, said in those words, and resolved
+by the bake-off in `scripts/quality/` on the user's own machine. That harness,
+on the actual pair, is what replaces every proxy in this section.
+
 ## 4a. The GPU is not an optimisation: it decides the budget AND the speed
 
 Measured here on 2026-09-14, on the M1 Max, 256 MiB streaming read, best of five
