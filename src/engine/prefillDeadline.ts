@@ -1,5 +1,9 @@
 /** Minimum time allowed for the first-token prefill watchdog. */
-export const MIN_PREFILL_DEADLINE_MS = 90_000;
+export const MIN_PREFILL_DEADLINE_MS = 180_000;
+/** Cold-start (no EMA) assume at least this many prefill tok/s. */
+export const NO_EMA_PREFILL_TOK_PER_SEC = 10;
+/** Cap a missing-EMA deadline so a hang is not a 15 min wait. */
+export const MAX_NO_EMA_PREFILL_DEADLINE_MS = 300_000;
 
 /**
  * Give prefill five times the measured full-prompt duration, rounded up to
@@ -21,7 +25,12 @@ export function prefillDeadlineMs(input: {
     !Number.isFinite(input.prefillTokPerSec) ||
     input.prefillTokPerSec <= 0
   ) {
-    return Math.max(0, input.minMs);
+    const promptTokens = Math.max(0, input.promptTokensEstimate);
+    const scaled = Math.ceil(promptTokens / NO_EMA_PREFILL_TOK_PER_SEC) * 1000;
+    return Math.min(
+      MAX_NO_EMA_PREFILL_DEADLINE_MS,
+      Math.max(input.minMs, scaled),
+    );
   }
   const promptTokens = Math.max(0, input.promptTokensEstimate);
   const minMs = Math.max(0, input.minMs);

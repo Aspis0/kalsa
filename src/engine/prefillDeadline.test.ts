@@ -1,14 +1,17 @@
-import { MIN_PREFILL_DEADLINE_MS, prefillDeadlineMs } from "./prefillDeadline";
+import {
+  MIN_PREFILL_DEADLINE_MS,
+  prefillDeadlineMs,
+} from "./prefillDeadline";
 
 describe("prefillDeadlineMs", () => {
-  test("arms the min deadline without a prefill EMA", () => {
+  test("scales a missing-EMA deadline with prompt size", () => {
     expect(
       prefillDeadlineMs({
         promptTokensEstimate: 2112,
         prefillTokPerSec: null,
         minMs: MIN_PREFILL_DEADLINE_MS,
       }),
-    ).toBe(MIN_PREFILL_DEADLINE_MS);
+    ).toBe(212_000);
   });
 
   test("allows five measured prefill durations", () => {
@@ -28,6 +31,6 @@ describe("prefillDeadlineMs", () => {
         prefillTokPerSec: 100,
         minMs: MIN_PREFILL_DEADLINE_MS,
       }),
-    ).toBe(90_000);
+    ).toBe(MIN_PREFILL_DEADLINE_MS);
   });
 });
