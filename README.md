@@ -1,8 +1,12 @@
 # Kalsa Brain
 
 Desktop app that lets a phone use the computer it already owns as its model.
-This repository is the skeleton: **one screen** (status + a switch) and the part
-that actually matters, the **process supervisor**.
+The user installs one thing and answers no questions: the app measures the
+machine, decides what it can usefully run, fetches it, and serves it to the
+phone.
+
+Three screens — Status, Model, Pairing — over a set of small crates that each
+decide one thing and can be tested without hardware.
 
 The plan behind it is the product spec; this README is only how to build and
 test what exists today.
@@ -10,13 +14,25 @@ test what exists today.
 ## Layout
 
 ```
-crates/kalsa-supervisor/   the supervisor: no UI, no Tauri, testable alone
-  src/child.rs             spawn, stdin-as-shutdown, SIGTERM -> SIGKILL, job object
-  src/health.rs            the readiness handshake (HTTP /health with a deadline)
-  src/supervisor.rs        the actor: commands in, state out, watches for death
-  tests/fixtures/*.sh      fake children, so tests need no server and no model
+crates/kalsa-supervisor/   the inference server's lifetime: spawn, readiness,
+                           shutdown, and recognising our own orphan instead of
+                           killing a stranger that inherited its pid
+crates/kalsa-probe/        what this machine can do, measured once: memory
+                           bandwidth to a plateau, compute, and which backend
+                           will really run. Every number carries the execution
+                           path it describes, because one that does not is how
+                           a CPU-only figure under-predicted every Mac by 3-4x
+crates/kalsa-catalog/      which model this machine should run, and why - pure,
+                           no hardware, no I/O, no download
+crates/kalsa-download/     getting a model file here once, safely: resumable,
+                           digest-verified before it is published under its
+                           final name, and refusing rather than filling a disk
+crates/kalsa-runtime/      which server build this machine needs, and proving it
+                           runs before any weights are fetched
 src-tauri/                 the app shell: commands + config, no logic
-src/                       the one screen (static HTML/CSS/JS)
+src/                       the three screens (static HTML/CSS/JS, no build step)
+  data/placeholders.js     every invented value, in one place, rendered as an
+                           unknown state - never as a number
 NOTICE                     what came from Jan (MIT) and what did not
 ```
 
