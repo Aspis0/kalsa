@@ -1,0 +1,21 @@
+[package]
+name = "kalsa-download"
+description = "Resumable, verified download of one model file onto this machine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# Blocking on purpose: this runs on a background thread of an old laptop, and
+# an async runtime would be a dependency on the one thing it cannot spare.
+[dependencies]
+sha2 = "0.10"
+ureq = "2"
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage",
+] }
