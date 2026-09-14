@@ -141,6 +141,13 @@ function findVisible(el, match) {
   return null;
 }
 
+function collectVisible(el, match, out = []) {
+  if (el.hidden) return out;
+  if (match(el)) out.push(el);
+  for (const child of el.children) collectVisible(child, match, out);
+  return out;
+}
+
 const results = [];
 for (const card of root.children) {
   const heading = card.children[0].textContent;
@@ -148,14 +155,20 @@ for (const card of root.children) {
   const button = findVisible(panel, (el) => el.tag === "button");
   const progressEl = findVisible(panel, (el) => el.attrs["data-el"] === "progress");
   const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
+  const qrEl = findVisible(panel, (el) => el.attrs["data-el"] === "qr");
+  const freshEl = findVisible(panel, (el) => el.attrs["data-el"] === "fresh");
   results.push({
     heading,
     sentence: sentenceEl ? sentenceEl.textContent : visibleText(panel),
+    all: visibleText(panel),
     button: button ? { text: button.textContent, disabled: button.disabled } : null,
+    buttons: collectVisible(panel, (el) => el.tag === "button").map((b) => b.textContent),
     progress: progressEl ? progressEl.textContent : null,
     // Working means a visible progress line: the bar is hidden when no total
     // was announced, and that state is still working.
     working: progressEl !== null,
+    qr: qrEl !== null,
+    fresh: freshEl ? freshEl.textContent : null,
   });
 }
 
@@ -177,7 +190,7 @@ for (const { heading, sentence, button, progress, working } of results) {
 const problems = [];
 const ALL_TEXT = results.map((r) => `${r.sentence} ${r.button?.text ?? ""}`).join("\n");
 
-for (const word of ["port", "token", "url", "file", "error", "state", "gguf", "quant"]) {
+for (const word of ["port", "token", "url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret"]) {
   const re = new RegExp(`\\b${word}\\w*`, "i");
   const hit = ALL_TEXT.match(re);
   if (hit) problems.push(`jargon: "${hit[0]}"`);
@@ -209,15 +222,22 @@ const NOTHING = [
   "Looking at what this computer",
   "Deciding which model",
   "can take a minute",
+  // Pairing's in-progress and goal states: the square, the connection, and
+  // the done state are their own exits.
+  "A phone is connecting right now",
+  "This computer now works with",
+  "will appear here in a moment",
 ];
-for (const { heading, sentence, button, progress, working } of results) {
+for (const { heading, sentence, button, working, qr } of results) {
   const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
   // A control with no name is not a way out; it is a dead end with a
   // rectangle on it.
   const pressable = button && !button.disabled && button.text.trim() !== "";
   const progressButton =
     button && button.disabled && (button.text === "Measuring…" || button.text === "Starting");
-  if (!pressable && !progressButton && !endsInNothing && !working) {
+  // A download in motion or a visible square is the exit: the next action
+  // happens on this screen or on the phone, but it exists.
+  if (!pressable && !progressButton && !endsInNothing && !working && !qr) {
     problems.push(`dead end: ${heading}`);
   }
 }
@@ -281,6 +301,40 @@ for (const { heading, sentence } of results) {
   const isMidDownload = MID_DOWNLOAD_OPENERS.some((phrase) => sentence.includes(phrase));
   if (isMidDownload && !RESUME_PHRASES.some((phrase) => sentence.includes(phrase))) {
     problems.push(`a mid-download failure must promise resume in an approved phrasing: ${heading}`);
+  }
+}
+
+// ---- pairing rules: the square is a credential on screen ----
+// The approved phrasings are owned HERE, on the review side — not imported
+// from the page, or the check and the page would share one source and
+// equality would hold by construction. The page renders its own copies;
+// changing those words means changing this list on purpose, or failing.
+const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
+const AWARENESS =
+  "Anyone who can see this square can connect a phone — show it only to yours.";
+const REPLACE_PRIMARY = "Use the new phone";
+const FRESH_PHRASINGS = [
+  "The previous square expired — this one is fresh.",
+  "A square that did not match was replaced — this one is fresh.",
+];
+
+for (const { heading, sentence, all, qr, fresh, buttons } of results) {
+  if (qr) {
+    if (sentence.trim() !== CAMERA_INSTRUCTION) {
+      problems.push(`a waiting square must give the camera instruction in the approved phrasing: ${heading}`);
+    }
+    if (!all.includes(AWARENESS)) {
+      problems.push(`a waiting square must say who can see it: ${heading}`);
+    }
+  }
+  if (fresh !== null && !FRESH_PHRASINGS.includes(fresh)) {
+    problems.push(`a fresh-square note must be an approved phrasing: ${heading}`);
+  }
+  if (sentence.includes("already works with")) {
+    const named = buttons.filter((text) => text.trim() !== "");
+    if (named.length < 2 || !named.includes(REPLACE_PRIMARY)) {
+      problems.push(`a replace must offer both choices: ${heading}`);
+    }
   }
 }
 

@@ -1,45 +1,215 @@
-// The Pairing page: how the phone connects to this computer, in as few steps
-// as possible. No pairing flow exists yet, so the page says so — showing
-// invented steps would have the user trying things that cannot work.
+// The Pairing page: the phone scans, nobody types (PLAN.md 4f). The square
+// on screen is the ceremony's payload as SVG from kalsa-pairing's
+// qr_svg(payload) — generated on this machine, so the page may inject it as
+// markup; it is a credential on screen and is never logged anywhere. The
+// words are this page's: no ceremony vocabulary (code, binding, token,
+// handshake) reaches the screen — the phone and the computer become a pair,
+// and that is the whole vocabulary.
 //
-// Built by mountPairing: the app mounts one instance on #page-pairing, and
-// dev/states.html mounts more with stubbed steps.
+// No Tauri command exists yet, so dev/states.html drives this page from
+// stubs. The contract below is what the shell should hand over — one read,
+// polled; two decisions and a retry:
+//
+//   {
+//     kind: "pairing",
+//     state: "idle" | "waiting" | "claiming" | "paired" | "replace" | "failed",
+//     qr_svg: string | null,   // the square, when one is on screen
+//     refreshed: "expired" | "wrong-code" | null,  // why this square is fresh
+//     phone: string | null,    // the phone this computer works with
+//     new_phone: string | null,// the phone asking to take over (replace)
+//     failure: "could-not-save" | null,
+//   }
 
-import { pairingSteps as defaultSteps } from "../data/placeholders.js";
+import { available, invoke } from "../lib/tauri.js";
 
-export function mountPairing(root, { steps = defaultSteps } = {}) {
+// The commands are proposals for the shell wiring; until they exist, the
+// states page replaces this backend with stubs.
+const tauriBackend = {
+  async read() {
+    if (!available()) return null;
+    return invoke("brain_pairing");
+  },
+  retry() {
+    return invoke("brain_pairing_retry");
+  },
+  decide(replace) {
+    return invoke(replace ? "brain_pairing_replace" : "brain_pairing_keep");
+  },
+};
+
+// The approved ways to say the square is the way in, that it was replaced,
+// and who may use it. dev/smoke.mjs keeps its own copy of these on the
+// review side and enforces them — rewording here means updating there on
+// purpose, or failing the check.
+const CAMERA_INSTRUCTION = "Point your phone's camera at the square.";
+const AWARENESS =
+  "Anyone who can see this square can connect a phone — show it only to yours.";
+const REPLACE_PRIMARY = "Use the new phone";
+const FRESH_LINES = {
+  expired: "The previous square expired — this one is fresh.",
+  "wrong-code": "A square that did not match was replaced — this one is fresh.",
+};
+
+const POLL_MS = 2000;
+
+export function mountPairing(root, { goTo = () => {}, backend = tauriBackend } = {}) {
   root.innerHTML = `
     <h2>Pairing</h2>
-    <p class="sentence" data-el="body"></p>
-    <ol class="steps" data-el="list" hidden></ol>
+    <p class="headline" data-el="headline" hidden></p>
+    <p class="sentence" data-el="sentence"></p>
+    <div class="qr" data-el="qr" hidden></div>
+    <p class="quiet" data-el="fresh" hidden></p>
+    <p class="quiet" data-el="note" hidden></p>
+    <button type="button" class="primary" data-el="action" hidden></button>
+    <button type="button" class="secondary" data-el="alt" hidden></button>
   `;
-  const body = root.querySelector('[data-el="body"]');
-  const list = root.querySelector('[data-el="list"]');
+  const el = (name) => root.querySelector(`[data-el="${name}"]`);
+  const headline = el("headline");
+  const sentenceEl = el("sentence");
+  const qr = el("qr");
+  const freshEl = el("fresh");
+  const noteEl = el("note");
+  const action = el("action");
+  const altEl = el("alt");
 
-  function render(steps) {
-    if (!steps) {
-      body.textContent =
-        "Pairing your phone is not ready yet, so there is nothing for you to do here. When it is ready, the steps will appear on this page.";
+  let onAction = () => {};
+  let onAlt = () => {};
+
+  // Everything on the panel is set here, so a state cannot leave a stale
+  // square or a half-cleared button behind.
+  function apply({ head = null, text, button = null, alt = null, qrSvg = null, fresh = null, note = null }) {
+    headline.hidden = head === null;
+    if (head !== null) headline.textContent = head;
+    sentenceEl.textContent = text;
+    if (qrSvg !== null) {
+      qr.hidden = false;
+      qr.innerHTML = qrSvg;
+    } else {
+      qr.hidden = true;
+      qr.innerHTML = "";
+    }
+    if (fresh !== null && FRESH_LINES[fresh]) {
+      freshEl.hidden = false;
+      freshEl.textContent = FRESH_LINES[fresh];
+    } else {
+      freshEl.hidden = true;
+    }
+    noteEl.hidden = note === null;
+    if (note !== null) noteEl.textContent = note;
+    action.hidden = button === null;
+    if (button !== null) action.textContent = button;
+    altEl.hidden = alt === null;
+    if (alt !== null) altEl.textContent = alt;
+  }
+
+  function render(dto) {
+    // The read failed: say so and offer the way back in.
+    if (!dto) {
+      onAction = () => refresh();
+      apply({
+        text: "This page could not check whether a phone is connected. Trying again usually works.",
+        button: "Try again",
+      });
       return;
     }
-    body.textContent = "To pair your phone with this computer:";
-    list.hidden = false;
-    for (const step of steps) {
-      const item = document.createElement("li");
-      const title = document.createElement("strong");
-      title.textContent = step.title;
-      item.append(title);
-      if (step.detail) {
-        item.append(" — " + step.detail);
-      }
-      list.append(item);
+
+    switch (dto.state) {
+      case "idle":
+        onAction = () => goTo("status");
+        apply({
+          text: "This computer is not running yet, so there is nothing for your phone to connect to.",
+          button: "Go to Status",
+        });
+        break;
+      case "waiting":
+        // No square yet is its own honest moment, not a camera instruction.
+        if (!dto.qr_svg) {
+          onAction = () => {};
+          apply({ text: "The square is not ready yet — it will appear here in a moment." });
+          break;
+        }
+        onAction = () => {};
+        apply({
+          text: CAMERA_INSTRUCTION,
+          qrSvg: dto.qr_svg,
+          fresh: dto.refreshed,
+          note: AWARENESS,
+        });
+        break;
+      case "claiming":
+        onAction = () => {};
+        apply({ text: "A phone is connecting right now." });
+        break;
+      case "paired":
+        onAction = () => {};
+        apply({
+          head: "Paired",
+          text: `This computer now works with ${dto.phone ?? "your phone"}.`,
+        });
+        break;
+      case "replace":
+        // persist refuses to overwrite: replacing is the owner's explicit
+        // choice, never a side effect.
+        onAction = () => {
+          backend.decide(true).catch(() => {});
+        };
+        onAlt = () => {
+          backend.decide(false).catch(() => {});
+        };
+        apply({
+          head: "Already paired",
+          text: `This computer already works with ${dto.phone ?? "your phone"}. If ${
+            dto.new_phone ?? "the new phone"
+          } is yours, you can switch — the old connection ends when the new one is saved.`,
+          button: REPLACE_PRIMARY,
+          alt: "Keep this phone",
+        });
+        break;
+      case "failed":
+        onAction = () => {
+          backend.retry().catch(() => {});
+        };
+        apply({
+          head: "Could not finish",
+          text: "Your phone connected, but this computer could not save the connection. Trying again usually works.",
+          button: "Try again",
+        });
+        break;
+      default:
+        onAction = () => refresh();
+        apply({
+          text: "This page could not check whether a phone is connected. Trying again usually works.",
+          button: "Try again",
+        });
     }
   }
 
-  render(steps);
-  return { update: render };
+  async function refresh() {
+    if (!backend) {
+      onAction = () => {};
+      apply({
+        text: "This page works inside the Kalsa Brain app. Open the app on this computer.",
+      });
+      return;
+    }
+    let dto = null;
+    try {
+      dto = await backend.read();
+    } catch {
+      dto = null; // unknown, not idle
+    }
+    render(dto);
+  }
+
+  action.addEventListener("click", () => onAction());
+  altEl.addEventListener("click", () => onAlt());
+
+  return { refresh };
 }
 
-export function initPairing() {
-  mountPairing(document.getElementById("page-pairing"));
+export function initPairing(goTo) {
+  const page = mountPairing(document.getElementById("page-pairing"), { goTo });
+  const tick = () => page.refresh();
+  tick();
+  setInterval(tick, POLL_MS);
 }

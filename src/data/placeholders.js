@@ -1,4 +1,5 @@
-// PLACEHOLDERS — every invented value in the app lives here, and nowhere else.
+// PLACEHOLDERS — every invented value in the app lives here, and nowhere
+// else.
 //
 // None of it is measured, and none of it reaches the screen as a number: the
 // pages render these as unknown or not-ready states, because a plausible
@@ -9,11 +10,11 @@
 // The Model page's future input, kalsa-catalog's Decision, is no longer
 // faked here: the page walks a real interim ladder (measure, then wait for
 // the phone) and its renderDecision is the documented substitution target
-// for `brain_choice`.
+// for `brain_choice`. The Pairing page is stub-driven the same way: its
+// contract lives in pages/pairing.js.
 //
 //   phone         -> the pairing handshake (no crate yet)       via `brain_phone`
 //   throttled     -> kalsa-supervisor (reports no slowdown yet)  a field on `brain_state`
-//   pairingSteps  -> the pairing flow (not designed yet)
 
 /// Whether the user's phone is connected: true, false, or null for "not
 /// known". Null is the only honest value until the pairing handshake exists,
@@ -26,8 +27,3 @@ export const phone = null;
 /// brain_state. Null hides the notice entirely — the page must never warn
 /// about a slowdown that is not happening.
 export const throttled = null;
-
-/// Numbered steps for the Pairing page, [{ title, detail }], from the pairing
-/// flow once it is designed. Null keeps the page saying, honestly, that there
-/// is nothing to do yet — it must not show steps the software cannot back up.
-export const pairingSteps = null;

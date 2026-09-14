@@ -44,5 +44,5 @@ for (const tab of tabs) {
 
 initStatus(goTo);
 initModel(goTo);
-initPairing();
+initPairing(goTo);
 select("status");

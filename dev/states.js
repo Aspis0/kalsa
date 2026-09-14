@@ -305,14 +305,74 @@ card("Model", "no decision at all", (panel) =>
 );
 
 // ---- Pairing ----
+// The DTO is pages/pairing.js's contract; the square is a stub symbol — a
+// real one comes from kalsa-pairing's qr_svg(payload) and is never logged.
 
-card("Pairing", "not ready yet", (panel) => mountPairing(panel, { steps: null }));
+function pairingBackend(dto) {
+  return { async read() { return dto; }, async retry() {}, async decide() {} };
+}
 
-card("Pairing", "steps exist (stub)", (panel) =>
+function pairingDto(state, extra = {}) {
+  return {
+    kind: "pairing",
+    state,
+    qr_svg: null,
+    refreshed: null,
+    phone: null,
+    new_phone: null,
+    failure: null,
+    ...extra,
+  };
+}
+
+const STUB_SQUARE =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" shape-rendering="crispEdges">' +
+  '<rect width="21" height="21" fill="#ffffff"/>' +
+  '<path fill="#000000" d="M4 4h2v2H4zM8 4h1v1H8zM4 8h1v1H4zM10 10h3v3h-3zM6 12h1v1H6zM12 6h2v1h-2z"/>' +
+  "</svg> (stub square)";
+
+card("Pairing", "nothing to pair to yet", (panel) =>
+  mountPairing(panel, { backend: pairingBackend(pairingDto("idle")) }).refresh(),
+);
+
+card("Pairing", "a square is waiting", (panel) =>
   mountPairing(panel, {
-    steps: [
-      { title: "Step one (stub)", detail: "(stub details)" },
-      { title: "Step two (stub)" },
-    ],
-  }),
+    backend: pairingBackend(pairingDto("waiting", { qr_svg: STUB_SQUARE })),
+  }).refresh(),
+);
+
+card("Pairing", "a fresh square after the old one expired", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "expired" })),
+  }).refresh(),
+);
+
+card("Pairing", "a fresh square after one did not match", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(pairingDto("waiting", { qr_svg: STUB_SQUARE, refreshed: "wrong-code" })),
+  }).refresh(),
+);
+
+card("Pairing", "a phone is connecting", (panel) =>
+  mountPairing(panel, { backend: pairingBackend(pairingDto("claiming")) }).refresh(),
+);
+
+card("Pairing", "paired", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(pairingDto("paired", { phone: "Pixel 9a (stub)" })),
+  }).refresh(),
+);
+
+card("Pairing", "already paired; a new phone asks", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(
+      pairingDto("replace", { phone: "Pixel 9a (stub)", new_phone: "New phone (stub)" }),
+    ),
+  }).refresh(),
+);
+
+card("Pairing", "the connection could not be saved", (panel) =>
+  mountPairing(panel, {
+    backend: pairingBackend(pairingDto("failed", { failure: "could-not-save" })),
+  }).refresh(),
 );

@@ -133,6 +133,41 @@ button.primary:disabled {
   cursor: default;
 }
 
+button.secondary {
+  margin-left: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--tab);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+/* The pairing square: SVG from the pairing crate, sized here so the symbol
+   is never resampled. The white ground comes from the SVG itself — a camera
+   needs it. */
+.qr {
+  width: 200px;
+  margin: 0 0 12px;
+}
+
+.qr svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Calm company for the square: facts that keep the user oriented without
+   warning-coloured urgency. */
+.quiet {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .steps {
   margin: 0;
   padding-left: 22px;
