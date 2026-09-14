@@ -19,7 +19,8 @@ import {
 import { humanRemoteBrainError } from "../engine/remote/remoteBrainErrors";
 import {
   canCommitRemoteSettings,
-  shouldApplyRemoteHydration,
+  shouldHydrateField,
+  type RemoteSettingsField,
 } from "../engine/remote/remoteSettingsDraft";
 import { isHttpUrl, isNonLoopback } from "../engine/remote/remoteUrl";
 import { GlassPanel2 } from "../theme/components";
@@ -45,12 +46,12 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
   const [status, setStatus] = useState<string | null>(null);
   const [statusOk, setStatusOk] = useState(false);
   const [hydratedReady, setHydratedReady] = useState(false);
-  const dirtyRef = useRef(false);
+  const dirtyRef = useRef<Set<RemoteSettingsField>>(new Set());
   const active = currentModelId === REMOTE_MAC_MODEL_ID || isRemoteEngineBackend();
   const fieldsLocked = !hydratedReady;
 
-  const markDirty = useCallback(() => {
-    dirtyRef.current = true;
+  const markDirty = useCallback((field: RemoteSettingsField) => {
+    dirtyRef.current.add(field);
   }, []);
 
   useEffect(() => {
@@ -65,17 +66,41 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           stored = null;
         }
         if (
-          !shouldApplyRemoteHydration({
+          shouldHydrateField({
             cancelled,
             dirty: dirtyRef.current,
+            field: "url",
           })
         ) {
-          return;
+          setUrl(hydrated.url);
         }
-        setUrl(hydrated.url);
-        setServerModel(hydrated.serverModelId);
-        setMaxTokens(String(hydrated.maxTokens));
-        setToken(stored ?? "");
+        if (
+          shouldHydrateField({
+            cancelled,
+            dirty: dirtyRef.current,
+            field: "serverModel",
+          })
+        ) {
+          setServerModel(hydrated.serverModelId);
+        }
+        if (
+          shouldHydrateField({
+            cancelled,
+            dirty: dirtyRef.current,
+            field: "maxTokens",
+          })
+        ) {
+          setMaxTokens(String(hydrated.maxTokens));
+        }
+        if (
+          shouldHydrateField({
+            cancelled,
+            dirty: dirtyRef.current,
+            field: "token",
+          })
+        ) {
+          setToken(stored ?? "");
+        }
       } finally {
         if (!cancelled) setHydratedReady(true);
       }
@@ -210,7 +235,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       <TextInput
         value={url}
         onChangeText={(next) => {
-          markDirty();
+          markDirty("url");
           setUrl(next);
         }}
         onEndEditing={() => void persistUrl(url)}
@@ -238,7 +263,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       <TextInput
         value={serverModel}
         onChangeText={(next) => {
-          markDirty();
+          markDirty("serverModel");
           setServerModel(next);
         }}
         onEndEditing={() => void setRemoteServerModelId(serverModel)}
@@ -265,7 +290,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       <TextInput
         value={maxTokens}
         onChangeText={(next) => {
-          markDirty();
+          markDirty("maxTokens");
           setMaxTokens(next);
         }}
         onEndEditing={() =>
@@ -296,7 +321,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       <TextInput
         value={token}
         onChangeText={(next) => {
-          markDirty();
+          markDirty("token");
           setToken(next);
         }}
         onEndEditing={() => void persistToken(token)}

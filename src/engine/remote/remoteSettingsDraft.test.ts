@@ -1,7 +1,10 @@
 import {
   canCommitRemoteSettings,
-  shouldApplyRemoteHydration,
+  shouldHydrateField,
+  type RemoteSettingsField,
 } from "./remoteSettingsDraft";
+
+const dirty = (...fields: RemoteSettingsField[]) => new Set(fields);
 
 describe("remote settings draft guards", () => {
   test("unhydrated form cannot commit (would wipe stored URL and token)", () => {
@@ -9,18 +12,35 @@ describe("remote settings draft guards", () => {
     expect(canCommitRemoteSettings(true)).toBe(true);
   });
 
-  test("late hydration does not overwrite a dirty draft", () => {
+  test("hydration skips only the fields the user already edited", () => {
+    const edited = dirty("serverModel");
     expect(
-      shouldApplyRemoteHydration({ cancelled: false, dirty: true }),
+      shouldHydrateField({ cancelled: false, dirty: edited, field: "serverModel" }),
     ).toBe(false);
-  });
-
-  test("hydration applies only when still mounted and clean", () => {
     expect(
-      shouldApplyRemoteHydration({ cancelled: false, dirty: false }),
+      shouldHydrateField({ cancelled: false, dirty: edited, field: "url" }),
     ).toBe(true);
     expect(
-      shouldApplyRemoteHydration({ cancelled: true, dirty: false }),
+      shouldHydrateField({ cancelled: false, dirty: edited, field: "token" }),
+    ).toBe(true);
+    expect(
+      shouldHydrateField({ cancelled: false, dirty: edited, field: "maxTokens" }),
+    ).toBe(true);
+  });
+
+  test("a clean field is hydrated even when another one is dirty", () => {
+    expect(
+      shouldHydrateField({
+        cancelled: false,
+        dirty: dirty("url", "maxTokens"),
+        field: "token",
+      }),
+    ).toBe(true);
+  });
+
+  test("an unmounted form hydrates nothing, even with a clean draft", () => {
+    expect(
+      shouldHydrateField({ cancelled: true, dirty: dirty(), field: "url" }),
     ).toBe(false);
   });
 });

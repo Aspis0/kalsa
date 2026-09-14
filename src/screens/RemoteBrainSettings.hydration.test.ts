@@ -296,7 +296,7 @@ describe("RemoteBrainSettings hydration", () => {
     await unmount(renderer);
   });
 
-  test("a field edited while hydration is in flight is not overwritten", async () => {
+  test("an edited field keeps its text while the untouched ones are hydrated", async () => {
     const renderer = await render();
 
     // Simulates the type event on the server-model field before storage answers.
@@ -307,7 +307,30 @@ describe("RemoteBrainSettings hydration", () => {
     await finishHydration();
 
     expect(modelInput(renderer).props.value).toBe("my-own-model");
-    expect(urlInput(renderer).props.value).toBe("");
+    expect(urlInput(renderer).props.value).toBe(STORED_URL);
+    expect(tokenInput(renderer).props.value).toBe(STORED_TOKEN);
+    await unmount(renderer);
+  });
+
+  test("an edit before hydration cannot make Test delete the stored token", async () => {
+    const renderer = await render();
+
+    // The data-loss path: one field dirty, everything else dropped, then commit.
+    await act(async () => {
+      modelInput(renderer).props.onChangeText("my-own-model");
+    });
+    await finishHydration();
+
+    await act(async () => {
+      testButton(renderer).props.onPress();
+    });
+
+    expect(secretMock.setRemoteBrainToken).toHaveBeenCalledWith(STORED_TOKEN);
+    expect(secretMock.setRemoteBrainToken).not.toHaveBeenCalledWith("");
+    expect(settingsMock.setRemoteBrainUrl).toHaveBeenCalledWith(STORED_URL);
+    expect(settingsMock.setRemoteServerModelId).toHaveBeenCalledWith(
+      "my-own-model",
+    );
     await unmount(renderer);
   });
 });
