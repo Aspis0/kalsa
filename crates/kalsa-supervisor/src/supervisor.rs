@@ -6,36 +6,21 @@
 //! process hosts it. Death of the server is therefore a normal case this module
 //! must report, not an exception it may assume away.
 
-use std::net::SocketAddr;
-use std::path::PathBuf;
+use std::net::TcpListener;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
 use std::sync::{Arc, Mutex};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
-use crate::child::ChildHandle;
+use crate::child::{self, ChildHandle};
+use crate::config::ServerConfig;
 use crate::health;
+use crate::instance::{Existing, InstanceFile};
 
 /// How often the worker thread looks for a command or a dead child.
 const TICK: Duration = Duration::from_millis(200);
 /// Per-probe budget during the ready handshake.
 const PROBE_TIMEOUT: Duration = Duration::from_millis(500);
-/// How long the server gets to exit after stdin EOF, and again after SIGTERM.
-pub const DEFAULT_STOP_GRACE: Duration = Duration::from_secs(5);
-
-/// Conservative defaults for old hardware: the objective is the highest
-/// throughput the machine can sustain, not its maximum.
-pub const DEFAULT_BATCH: u32 = 512;
-pub const DEFAULT_UBATCH: u32 = 128;
-pub const DEFAULT_IDLE_SECONDS: u32 = 300;
-pub const DEFAULT_CTX: u32 = 8192;
-
-/// Half the logical cores, at least two and at most eight: a machine already
-/// busy with a browser and an antivirus should not have every core saturated by
-/// an inference server it is not using right now.
-pub fn conservative_threads(logical_cores: usize) -> u16 {
-    (logical_cores / 2).clamp(2, 8) as u16
-}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ServerState {
@@ -51,60 +36,28 @@ pub enum ServerState {
     },
 }
 
-#[derive(Clone, Debug)]
-pub struct ServerConfig {
-    pub exe: PathBuf,
-    pub model: PathBuf,
-    pub port: u16,
-    pub threads: u16,
-    pub batch: u32,
-    pub ubatch: u32,
-    pub ctx: u32,
-    pub idle_seconds: u32,
-    pub ready_timeout: Duration,
-    pub stop_grace: Duration,
-}
-
-impl ServerConfig {
-    /// Loopback only, conservative thread/batch counts, idle unload on. The
-    /// server is never exposed on the LAN: the phone reaches it through a
-    /// tunnel, so there is no cleartext surface to reason about.
-    pub fn arguments(&self) -> Vec<String> {
-        vec![
-            "--host".into(),
-            "127.0.0.1".into(),
-            "--port".into(),
-            self.port.to_string(),
-            "--model".into(),
-            self.model.display().to_string(),
-            "--threads".into(),
-            self.threads.to_string(),
-            "--threads-batch".into(),
-            self.threads.to_string(),
-            "--batch-size".into(),
-            self.batch.to_string(),
-            "--ubatch-size".into(),
-            self.ubatch.to_string(),
-            "--ctx-size".into(),
-            self.ctx.to_string(),
-            // Unloads the model and the KV cache after inactivity; /health,
-            // /props and /models do not count as work, so a polling phone does
-            // not keep the machine warm.
-            "--sleep-idle-seconds".into(),
-            self.idle_seconds.to_string(),
-            "--no-webui".into(),
-        ]
-    }
-
-    fn address(&self) -> SocketAddr {
-        SocketAddr::from(([127, 0, 0, 1], self.port))
-    }
-}
-
 enum Command {
     Start(Box<ServerConfig>),
     Stop,
     Shutdown,
+}
+
+enum Started {
+    /// A server from an earlier run of this app is alive and answering. Use it:
+    /// loading a model again costs the user tens of seconds.
+    Adopted { pid: u32 },
+    Spawned {
+        child: ChildHandle,
+        instance: InstanceFile,
+    },
+}
+
+/// The server we believe is running, and how we came to own it.
+struct Owned {
+    child: Option<ChildHandle>,
+    adopted_pid: Option<u32>,
+    instance: Option<InstanceFile>,
+    config: ServerConfig,
 }
 
 pub struct Supervisor {
@@ -135,8 +88,8 @@ impl Supervisor {
             .unwrap_or(ServerState::Stopped)
     }
 
-    /// Starts the server and returns at once: the handshake happens on the
-    /// worker thread, and the UI watches `state()`.
+    /// Starts the server and returns at once: adoption, the handshake and the
+    /// spawn all happen on the worker thread, and the UI watches `state()`.
     pub fn start(&self, config: ServerConfig) {
         let _ = self.commands.send(Command::Start(Box::new(config)));
     }
@@ -166,16 +119,31 @@ impl Default for Supervisor {
 }
 
 fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
-    let mut running: Option<(ChildHandle, ServerConfig)> = None;
+    let mut owned: Option<Owned> = None;
     loop {
         match inbox.recv_timeout(TICK) {
             Ok(Command::Start(config)) => {
-                if running.is_some() {
+                if owned.is_some() {
                     continue; // already on: the switch is not a restart button
                 }
                 set(&state, ServerState::Starting);
                 match start_blocking(&config) {
-                    Ok(child) => {
+                    Ok(Started::Adopted { pid }) => {
+                        set(
+                            &state,
+                            ServerState::Running {
+                                pid,
+                                port: config.port,
+                            },
+                        );
+                        owned = Some(Owned {
+                            child: None,
+                            adopted_pid: Some(pid),
+                            instance: None,
+                            config: *config,
+                        });
+                    }
+                    Ok(Started::Spawned { child, instance }) => {
                         set(
                             &state,
                             ServerState::Running {
@@ -183,33 +151,32 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
                                 port: config.port,
                             },
                         );
-                        running = Some((child, *config));
+                        owned = Some(Owned {
+                            child: Some(child),
+                            adopted_pid: None,
+                            instance: Some(instance),
+                            config: *config,
+                        });
                     }
                     Err(reason) => set(&state, ServerState::Failed { reason }),
                 }
             }
-            Ok(Command::Stop) => {
-                if let Some((mut child, config)) = running.take() {
-                    let _ = child.terminate(config.stop_grace);
-                }
-                set(&state, ServerState::Stopped);
-            }
+            Ok(Command::Stop) => stop(&mut owned, &state),
             Ok(Command::Shutdown) => {
-                if let Some((mut child, config)) = running.take() {
-                    let _ = child.terminate(config.stop_grace);
-                }
-                set(&state, ServerState::Stopped);
+                stop(&mut owned, &state);
                 return;
             }
             Err(RecvTimeoutError::Timeout) => {
                 // The server can die on its own at any moment (an assertion, an
                 // OS kill, a model it could not load). Reporting it is the whole
                 // point of hosting it in another process.
-                if let Some((child, _)) = running.as_mut() {
-                    if let Ok(Some(status)) = child.try_wait() {
-                        let reason = exit_reason(child, status);
-                        running = None;
-                        set(&state, ServerState::Failed { reason });
+                if let Some(run) = owned.as_mut() {
+                    if let Some(child) = run.child.as_mut() {
+                        if let Ok(Some(status)) = child.try_wait() {
+                            let reason = exit_reason(child, status);
+                            owned = None;
+                            set(&state, ServerState::Failed { reason });
+                        }
                     }
                 }
             }
@@ -218,18 +185,47 @@ fn work(inbox: Receiver<Command>, state: Arc<Mutex<ServerState>>) {
     }
 }
 
-/// Spawns and waits for readiness. The probe is the handshake: there is no
-/// startup line to read, so poll the endpoint the server serves when it is up.
-fn start_blocking(config: &ServerConfig) -> Result<ChildHandle, String> {
-    let mut child = ChildHandle::spawn(&config.exe, &config.arguments())
+fn stop(owned: &mut Option<Owned>, state: &Arc<Mutex<ServerState>>) {
+    if let Some(mut run) = owned.take() {
+        match (run.child.take(), run.adopted_pid, run.instance.take()) {
+            (Some(mut child), _, instance) => {
+                let _ = child.terminate(run.config.stop_grace);
+                if let Some(file) = instance {
+                    file.release();
+                }
+            }
+            (None, Some(pid), _) => {
+                // Adopted from an earlier run: no handle, but the state file's
+                // lock proved it is the process we started.
+                let _ = child::terminate_pid(pid, run.config.stop_grace);
+            }
+            (None, None, _) => {}
+        }
+    }
+    set(state, ServerState::Stopped);
+}
+
+/// Reuses or clears a previous instance, then spawns and waits for readiness.
+fn start_blocking(config: &ServerConfig) -> Result<Started, String> {
+    if let Some(started) = take_over(config)? {
+        return Ok(started);
+    }
+    refuse_foreign_port(config)?;
+    let mut instance = InstanceFile::claim(&config.state_file)
+        .map_err(|e| format!("could not write our state file: {e}"))?;
+    let mut child = ChildHandle::spawn(&config.exe, &config.arguments(), Some(instance.handle()))
         .map_err(|e| format!("could not start the server: {e}"))?;
+    instance
+        .describe(child.pid(), config.port)
+        .map_err(|e| format!("could not write our state file: {e}"))?;
+
     let deadline = Instant::now() + config.ready_timeout;
     loop {
         if let Ok(Some(status)) = child.try_wait() {
             return Err(exit_reason(&child, status));
         }
         if health::health_ok(config.address(), "/health", PROBE_TIMEOUT) {
-            return Ok(child);
+            return Ok(Started::Spawned { child, instance });
         }
         if Instant::now() >= deadline {
             let _ = child.terminate(config.stop_grace);
@@ -239,6 +235,57 @@ fn start_blocking(config: &ServerConfig) -> Result<ChildHandle, String> {
             ));
         }
         std::thread::sleep(TICK);
+    }
+}
+
+/// What the state file says about a previous run.
+///
+/// The lock decides what may be trusted: while it is held, the process it names
+/// is the server we started, so we may reuse it or close it. Without the lock
+/// the pid means nothing (it may have been recycled) and is never signalled.
+fn take_over(config: &ServerConfig) -> Result<Option<Started>, String> {
+    match InstanceFile::inspect(&config.state_file) {
+        Ok(Existing::None) => Ok(None),
+        Ok(Existing::Stale) => {
+            let _ = std::fs::remove_file(&config.state_file);
+            Ok(None)
+        }
+        Ok(Existing::Live { pid, port }) => {
+            if port == config.port
+                && child::pid_alive(pid)
+                && health::health_ok(config.address(), "/health", PROBE_TIMEOUT)
+            {
+                return Ok(Some(Started::Adopted { pid }));
+            }
+            // Ours, but not usable as configured: wedged, or left on a port the
+            // app no longer uses. Close it and start fresh.
+            if child::pid_alive(pid) {
+                let _ = child::terminate_pid(pid, config.stop_grace);
+            }
+            let _ = std::fs::remove_file(&config.state_file);
+            Ok(None)
+        }
+        Err(e) => Err(format!(
+            "another Kalsa Brain server is running and its state file cannot be read ({e})"
+        )),
+    }
+}
+
+/// A listener that is not ours is somebody else's program: never signalled,
+/// only reported.
+fn refuse_foreign_port(config: &ServerConfig) -> Result<(), String> {
+    match TcpListener::bind(config.address()) {
+        Ok(listener) => {
+            drop(listener); // the child binds it for real
+            Ok(())
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::AddrInUse => Err(format!(
+            "another program is already using port {}",
+            config.port
+        )),
+        // Any other bind failure is not about a foreign listener: let the
+        // server report it in its own words.
+        Err(_) => Ok(()),
     }
 }
 
@@ -254,44 +301,5 @@ fn exit_reason(child: &ChildHandle, status: std::process::ExitStatus) -> String 
 fn set(state: &Arc<Mutex<ServerState>>, next: ServerState) {
     if let Ok(mut current) = state.lock() {
         *current = next;
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn config() -> ServerConfig {
-        ServerConfig {
-            exe: PathBuf::from("/nonexistent/llama-server"),
-            model: PathBuf::from("/models/a.gguf"),
-            port: 8123,
-            threads: 4,
-            batch: DEFAULT_BATCH,
-            ubatch: DEFAULT_UBATCH,
-            ctx: DEFAULT_CTX,
-            idle_seconds: DEFAULT_IDLE_SECONDS,
-            ready_timeout: Duration::from_secs(1),
-            stop_grace: Duration::from_millis(50),
-        }
-    }
-
-    #[test]
-    fn arguments_stay_on_loopback_and_unload_when_idle() {
-        let args = config().arguments();
-        let joined = args.join(" ");
-        assert!(joined.contains("--host 127.0.0.1"));
-        assert!(joined.contains("--sleep-idle-seconds 300"));
-        assert!(joined.contains("--no-webui"));
-        assert!(joined.contains("--model /models/a.gguf"));
-        assert!(!joined.contains("0.0.0.0"));
-    }
-
-    #[test]
-    fn threads_are_conservative() {
-        assert_eq!(conservative_threads(1), 2);
-        assert_eq!(conservative_threads(4), 2);
-        assert_eq!(conservative_threads(8), 4);
-        assert_eq!(conservative_threads(64), 8);
     }
 }

@@ -43,13 +43,14 @@ impl Brain {
         }
     }
 
-    fn config(&self) -> Result<ServerConfig, String> {
+    fn config(&self, state_file: PathBuf) -> Result<ServerConfig, String> {
         let model = std::env::var(MODEL_ENV)
             .map(PathBuf::from)
             .map_err(|_| format!("no model selected yet ({MODEL_ENV} is not set)"))?;
         Ok(ServerConfig {
             exe: server_binary(),
             model,
+            state_file,
             port: PORT,
             threads: conservative_threads(
                 std::thread::available_parallelism()
@@ -111,9 +112,20 @@ fn brain_state(brain: State<Brain>) -> StateDto {
 /// Returns at once: the handshake runs on the supervisor thread and the screen
 /// follows the state, so a slow model load never freezes the window.
 #[tauri::command]
-fn brain_start(brain: State<Brain>) -> Result<(), String> {
-    brain.supervisor.start(brain.config()?);
+fn brain_start(app: tauri::AppHandle, brain: State<Brain>) -> Result<(), String> {
+    brain.supervisor.start(brain.config(state_file(&app)?)?);
     Ok(())
+}
+
+/// Where this instance announces itself. It is locked while our server runs and
+/// the lock is inherited by the server, so the next start can tell our own
+/// orphan from somebody else's program instead of guessing from a pid.
+fn state_file(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| format!("no app data directory: {e}"))?;
+    Ok(dir.join("server.state"))
 }
 
 #[tauri::command]

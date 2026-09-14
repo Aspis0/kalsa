@@ -9,10 +9,15 @@
 //! rules must stay testable with `cargo test -p kalsa-supervisor`.
 
 mod child;
+mod config;
 mod health;
+mod instance;
 mod supervisor;
 
-pub use supervisor::{
-    conservative_threads, ServerConfig, ServerState, Supervisor, DEFAULT_BATCH, DEFAULT_CTX,
-    DEFAULT_IDLE_SECONDS, DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
+pub use child::{pid_alive, terminate_pid};
+pub use config::{
+    conservative_threads, ServerConfig, DEFAULT_BATCH, DEFAULT_CTX, DEFAULT_IDLE_SECONDS,
+    DEFAULT_STOP_GRACE, DEFAULT_UBATCH,
 };
+pub use instance::{Existing, InstanceFile};
+pub use supervisor::{ServerState, Supervisor};

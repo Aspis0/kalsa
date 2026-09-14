@@ -15,6 +15,7 @@
 //! 2 also takes any helper it spawned.
 
 use std::collections::VecDeque;
+use std::fs::File;
 use std::io::{self, BufRead, BufReader};
 use std::path::Path;
 use std::process::{Child, ChildStdin, Command, ExitStatus, Stdio};
@@ -44,7 +45,7 @@ impl ChildHandle {
     /// search path and loads the first `ggml-*` name it scores — a module
     /// planted in an inherited directory would run. Absolute paths only: a
     /// relative program path is resolved against `current_dir`.
-    pub fn spawn(exe: &Path, args: &[String]) -> io::Result<Self> {
+    pub fn spawn(exe: &Path, args: &[String], inherit: Option<&File>) -> io::Result<Self> {
         let mut cmd = Command::new(exe);
         cmd.args(args)
             .stdin(Stdio::piped())
@@ -57,9 +58,21 @@ impl ChildHandle {
         }
         #[cfg(unix)]
         {
+            use std::os::unix::io::AsRawFd;
             use std::os::unix::process::CommandExt;
             // Own group: one signal reaches the server and anything it spawned.
             cmd.process_group(0);
+            if let Some(file) = inherit {
+                // The state file's lock has to outlive US, not just the spawn:
+                // clearing close-on-exec lets the child keep the locked open
+                // file description, so "the lock is held" keeps meaning "our
+                // server is alive" even when this process was killed outright.
+                // std opens every file close-on-exec, so this is the only way.
+                let fd = file.as_raw_fd();
+                if unsafe { libc::fcntl(fd, libc::F_SETFD, 0) } == -1 {
+                    return Err(io::Error::last_os_error());
+                }
+            }
         }
         #[cfg(target_os = "linux")]
         unsafe {
@@ -74,7 +87,12 @@ impl ChildHandle {
         }
         let mut child = cmd.spawn()?;
         #[cfg(windows)]
-        let job = child.raw_handle().and_then(job::confine);
+        let job = {
+            // No inherited lock on Windows: the job object already kills the
+            // child with us, so there is no orphan for it to identify.
+            let _ = inherit;
+            child.raw_handle().and_then(job::confine)
+        };
         let stdin = child.stdin.take();
         let tail = drain_stderr(child.stderr.take());
         Ok(Self {
@@ -152,6 +170,92 @@ impl Drop for ChildHandle {
             let _ = self.child.kill();
             let _ = self.child.wait();
         }
+    }
+}
+
+/// True when a process with this pid exists. `kill(pid, 0)` asks the OS
+/// without sending anything.
+pub fn pid_alive(pid: u32) -> bool {
+    #[cfg(unix)]
+    {
+        unsafe { libc::kill(pid as i32, 0) == 0 }
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
+        };
+        let handle = unsafe { OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid) };
+        if handle.is_null() {
+            return false;
+        }
+        unsafe { CloseHandle(handle) };
+        true
+    }
+}
+
+/// Stops a process we identified as ours through the state file, by pid: there
+/// is no handle to it, it belongs to a previous run of this app. Callers must
+/// have proven ownership first — this function cannot tell whose process it is.
+pub fn terminate_pid(pid: u32, grace: Duration) -> io::Result<()> {
+    if !pid_alive(pid) {
+        return Ok(());
+    }
+    signal(pid, Signal::Term);
+    if wait_pid_gone(pid, grace) {
+        return Ok(());
+    }
+    signal(pid, Signal::Kill);
+    let _ = wait_pid_gone(pid, grace);
+    Ok(())
+}
+
+enum Signal {
+    Term,
+    Kill,
+}
+
+fn signal(pid: u32, which: Signal) {
+    #[cfg(unix)]
+    {
+        let number = match which {
+            Signal::Term => libc::SIGTERM,
+            Signal::Kill => libc::SIGKILL,
+        };
+        // The pid, not the group: this one came out of a file.
+        unsafe {
+            libc::kill(pid as i32, number);
+        }
+    }
+    #[cfg(windows)]
+    {
+        use windows_sys::Win32::Foundation::CloseHandle;
+        use windows_sys::Win32::System::Threading::{
+            OpenProcess, TerminateProcess, PROCESS_TERMINATE,
+        };
+        let _ = which;
+        let handle = unsafe { OpenProcess(PROCESS_TERMINATE, 0, pid) };
+        if handle.is_null() {
+            return;
+        }
+        unsafe {
+            TerminateProcess(handle, 1);
+            CloseHandle(handle);
+        }
+    }
+}
+
+fn wait_pid_gone(pid: u32, grace: Duration) -> bool {
+    let deadline = Instant::now() + grace;
+    loop {
+        if !pid_alive(pid) {
+            return true;
+        }
+        if Instant::now() >= deadline {
+            return false;
+        }
+        std::thread::sleep(WAIT_POLL);
     }
 }
 

@@ -67,9 +67,18 @@ Without `KALSA_BRAIN_MODEL` the switch reports that no model is selected yet.
 | macOS | **nothing.** No job object, no `PR_SET_PDEATHSIG` |
 
 On macOS a force-quit can leave an idle `llama-server` behind. It is not
-burning CPU — `--sleep-idle-seconds` unloads the model and the KV cache — but
-the process is there, and the next app start must notice the port is taken and
-either reuse or stop it. That work is not in this skeleton.
+burning CPU — `--sleep-idle-seconds` unloads the model and the KV cache — so it
+is handled at the next start, not at the crash:
+
+* the state file is locked for as long as our server runs, and the lock is
+  **inherited by the server**, so a held lock means "our server is alive" even
+  when the app was killed outright;
+* locked and answering → the app reuses it: no second model load;
+* locked and silent → it is ours and wedged, so it is closed and replaced;
+* unlocked (a crashed run) → the pid inside is *not* trusted and never
+  signalled — pids are recycled, and killing a stranger is unacceptable. The
+  file is discarded and the port checked instead;
+* a port held by anything that is not ours is reported in words and left alone.
 
 Closing the window normally is covered everywhere: the app's exit handler calls
 `Supervisor::shutdown`, which stops the child before the process goes.
