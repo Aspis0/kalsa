@@ -49,7 +49,10 @@ pub fn qr_svg(payload: &str) -> Result<String, PayloadTooLong> {
     for y in 0..size {
         for x in 0..size {
             if code.get_module(x, y) {
-                dark.push_str(&format!("M{x} {y}h1v1h-1"));
+                // Every module is placed inside the quiet zone: the margin
+                // the viewBox promises must exist on all four sides — a
+                // decoder finds the symbol's edges by it.
+                dark.push_str(&format!("M{} {}h1v1h-1", x + QUIET_ZONE, y + QUIET_ZONE));
             }
         }
     }

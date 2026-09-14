@@ -30,12 +30,10 @@ impl Credential {
     }
 
     pub(crate) fn from_hex(presented: &str) -> Option<Self> {
-        let decoded = hex::decode(presented).ok()?;
-        if decoded.len() != CREDENTIAL_BYTES {
-            return None;
-        }
+        // Length first, decode into the fixed array: a corrupt store file
+        // buys no allocation proportional to its size.
         let mut bytes = [0u8; CREDENTIAL_BYTES];
-        bytes.copy_from_slice(&decoded);
+        hex::decode_to_slice(presented, &mut bytes).ok()?;
         Some(Self { bytes })
     }
 

@@ -1,4 +1,4 @@
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 
 use kalsa_catalog::PhoneModel;
 
@@ -8,8 +8,8 @@ use crate::error::{CompleteError, EntropyError, StoreError};
 const TTL: Duration = Duration::from_secs(300);
 const REACHABLE: &str = "http://192.168.1.10:4952";
 
-fn offered() -> (Pairing, Instant) {
-    let start = Instant::now();
+fn offered() -> (Pairing, SystemTime) {
+    let start = SystemTime::now();
     (Pairing::offer(start, TTL).unwrap(), start)
 }
 
@@ -66,6 +66,24 @@ fn an_expired_code_fails_without_ever_being_used() {
         session.claim(&code, [1; 32], start + TTL + Duration::from_secs(2)),
         ClaimResult::Rejected
     ));
+}
+
+#[test]
+fn sleep_counts_against_the_window() {
+    // A suspend is a wall-clock gap nobody saw: the machine dozes with the
+    // QR on screen and wakes hours later, and the photographer's clock kept
+    // running through all of it. The deadline rides real time precisely so
+    // this claim is refused — the wall clock says the window closed, even
+    // though the process never got to tick past it.
+    let (mut session, start) = offered();
+    let (code, _) = qr_secrets(&session);
+
+    let hours_later = start + TTL + Duration::from_secs(6 * 3600);
+    assert!(matches!(
+        session.claim(&code, [1; 32], hours_later),
+        ClaimResult::Expired
+    ));
+    assert!(matches!(session, Pairing::Expired));
 }
 
 #[test]

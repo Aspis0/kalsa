@@ -20,7 +20,7 @@
 //! * a rejection never says how wrong the presentation was.
 
 use std::fmt;
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 
 use kalsa_catalog::PhoneModel;
 
@@ -31,18 +31,28 @@ use crate::secret::{BINDING_BYTES, BindingSecret, OneTimeCode};
 
 /// An offer on the table: the QR is (or was) on screen, and the code is
 /// waiting for exactly one phone.
+///
+/// The deadline is **wall-clock time, and that is a decision.** The window
+/// exists so a code photographed and abandoned stops working within minutes
+/// of *real* time — and the likeliest way minutes become hours is the
+/// machine sleeping with the QR on screen. A suspend is a gap in `Instant`,
+/// but the photographer's clock kept running, so the deadline must ride
+/// `SystemTime` and sleep counts against it. The trade is `Instant`'s
+/// rollback immunity, declined deliberately: the only actor a rolled-back
+/// clock helps is the owner standing in front of the screen, and this
+/// ceremony already treats whoever presents the code as the phone.
 pub struct Offer {
     code: OneTimeCode,
     binding: BindingSecret,
-    expires_at: Instant,
+    expires_at: SystemTime,
 }
 
 /// The code has been claimed. The one-time code and the binding secret are
 /// already gone from memory; only the proof computed from them survives, along
-/// with the rest of the window.
+/// with the rest of the window — on the same wall-clock terms as `Offer`.
 pub struct Claimed {
     proof: [u8; BINDING_BYTES],
-    expires_at: Instant,
+    expires_at: SystemTime,
 }
 
 /// What a claim attempt came to. These are outcomes, not errors: every one of
@@ -87,7 +97,7 @@ impl fmt::Debug for Pairing {
 impl Pairing {
     /// A fresh offer: a one-time code and a binding secret, both from OS
     /// entropy, alive for `ttl`.
-    pub fn offer(now: Instant, ttl: Duration) -> Result<Self, EntropyError> {
+    pub fn offer(now: SystemTime, ttl: Duration) -> Result<Self, EntropyError> {
         Ok(Self::Offered(Offer {
             code: OneTimeCode::generate()?,
             binding: BindingSecret::generate()?,
@@ -107,7 +117,7 @@ impl Pairing {
 
     /// A phone — or anything posing as one — presents a code. `challenge` is
     /// the fresh nonce the phone sent along, for the binding proof.
-    pub fn claim(&mut self, presented: &str, challenge: [u8; BINDING_BYTES], now: Instant) -> ClaimResult {
+    pub fn claim(&mut self, presented: &str, challenge: [u8; BINDING_BYTES], now: SystemTime) -> ClaimResult {
         let Self::Offered(offer) = self else {
             // Claimed, Paired, or Expired: the same rejection a wrong code
             // would get. In particular a correct code presented a second
@@ -146,7 +156,7 @@ impl Pairing {
     pub fn complete(
         &mut self,
         phone: PhoneModel,
-        now: Instant,
+        now: SystemTime,
     ) -> Result<Handshake, CompleteError> {
         let Self::Claimed(claimed) = self else {
             return Err(CompleteError::NotClaimed);
@@ -164,7 +174,7 @@ impl Pairing {
 
     /// Retire the offer when its window closes on its own — the QR screen has
     /// to show "expired" whether or not anything ever claimed.
-    pub fn expire_if_due(&mut self, now: Instant) {
+    pub fn expire_if_due(&mut self, now: SystemTime) {
         let due = match self {
             Self::Offered(offer) => now >= offer.expires_at,
             Self::Claimed(claimed) => now >= claimed.expires_at,

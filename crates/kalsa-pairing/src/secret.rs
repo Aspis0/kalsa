@@ -23,8 +23,29 @@
 //!   definition of pairing — the ceremony is the scan;
 //! * the proof says nothing about the transport: no confidentiality, no
 //!   channel integrity. That is the connection's job;
-//! * the code authenticates the phone to the computer only in the sense that
-//!   whoever presents it is served. There is no phone identity before pairing.
+//! * the ceremony does **not** authenticate the phone to the computer at
+//!   all. `complete` never sees the binding proof — the proof runs the other
+//!   way, letting the *phone* verify *this* computer — so whoever can reach
+//!   the endpoint, speak the protocol, and present the one-time code
+//!   receives the credential. The code is the only gate, and it is the QR
+//!   that carried it. Whoever builds the transport inherits exactly that:
+//!   endpoint confinement (a LAN interface, not 0.0.0.0) and rate-limited
+//!   claims are owed, because this crate cannot provide either.
+//!
+//! Why there is no `zeroize` here — decided, not forgotten. Wiping arrays
+//! defends against heap disclosure: crash dumps, swap, reuse of freed
+//! memory. This crate cannot buy that by halves. The credential the ceremony
+//! produces sits for its whole life in a 0600 file on the same disk, and the
+//! QR path is *supposed* to hold the payload in the clear; an attacker who
+//! can read this process's memory can read that file, so wiping the heap
+//! would move the secret from two places to one, not from reachable to safe
+//! — while the SVG string, the hex renderings, and the serializer buffers
+//! stay outside any array's reach anyway. What the crate does instead is
+//! bound the exposure: the one-time code and the binding secret are dropped
+//! the moment the code is claimed (`Claimed` holds only the proof), so the
+//! short-lived secrets really are short-lived. If the store ever moves
+//! behind OS keychain encryption, this calculus changes and `zeroize` earns
+//! its place; until then, adding it would be ritual, not defense.
 
 use std::fmt;
 
@@ -64,16 +85,18 @@ impl OneTimeCode {
     /// wrong-length presentation is simply "no match": the length of the code
     /// is public anyway (it is on the QR), and nothing here says how close a
     /// guess was.
+    ///
+    /// The length is refused *before* anything is decoded, and `decode_to_slice`
+    /// writes only into this fixed array, so a peer presenting megabytes of
+    /// hex buys no allocation here. That is not the request limit: this crate
+    /// has no transport, and whoever builds it still owes a bound on request
+    /// size. This check only keeps the code comparison from being the lens.
     pub(crate) fn matches_hex(&self, presented: &str) -> bool {
-        let Ok(candidate) = hex::decode(presented) else {
-            return false;
-        };
-        if candidate.len() != CODE_BYTES {
-            return false;
+        let mut candidate = [0u8; CODE_BYTES];
+        match hex::decode_to_slice(presented, &mut candidate) {
+            Ok(()) => bool::from(candidate.ct_eq(&self.bytes)),
+            Err(_) => false,
         }
-        let mut candidate_bytes = [0u8; CODE_BYTES];
-        candidate_bytes.copy_from_slice(&candidate);
-        bool::from(candidate_bytes.ct_eq(&self.bytes))
     }
 
     pub(crate) fn bytes(&self) -> &[u8; CODE_BYTES] {
@@ -186,6 +209,19 @@ mod tests {
         assert!(!code.matches_hex(&other.hex()));
         assert!(!code.matches_hex("not hex at all"));
         assert!(!code.matches_hex(&code.hex()[..30]));
+    }
+
+    #[test]
+    fn an_oversized_presentation_is_just_a_rejection() {
+        let code = OneTimeCode::generate().unwrap();
+        // A megabyte of presentation that carries the real code as a prefix:
+        // still one plain "no". The length gate must refuse what cannot be
+        // the code *before* anything decodes it — a peer paying in bytes
+        // must not buy partial credit.
+        let prefix = code.hex() + &"0".repeat(2_000_000);
+        assert!(!code.matches_hex(&prefix));
+        // And the same for junk that is merely big.
+        assert!(!code.matches_hex(&"z".repeat(2_000_000)));
     }
 
     #[test]

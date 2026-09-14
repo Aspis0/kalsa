@@ -1,9 +1,9 @@
 use std::collections::HashSet;
-use std::time::{Duration, Instant};
+use std::time::{Duration, SystemTime};
 
 use qrcodegen::{QrCode, QrCodeEcc};
 
-use super::qr_svg;
+use super::{qr_svg, QUIET_ZONE};
 use crate::ceremony::Pairing;
 use crate::error::PayloadTooLong;
 
@@ -11,7 +11,7 @@ const REACHABLE: &str = "http://192.168.1.10:4952";
 
 /// A real offer, composed the way the shell will: ceremony, then square.
 fn offered_svg() -> (String, String) {
-    let session = Pairing::offer(Instant::now(), Duration::from_secs(300)).unwrap();
+    let session = Pairing::offer(SystemTime::now(), Duration::from_secs(300)).unwrap();
     let payload = session.qr_payload(REACHABLE).unwrap();
     let svg = qr_svg(&payload).unwrap();
     (payload, svg)
@@ -47,14 +47,15 @@ fn the_symbol_decodes_to_its_payload() {
     let (payload, svg) = offered_svg();
     let (dimension, modules) = svg_modules(&svg);
 
-    // Render the SVG the way a camera would see it: each module a solid
-    // block, quiet zone white, black-on-white at full contrast.
+    // Rasterize exactly what the shell was given: the full viewBox, modules
+    // exactly where the path places them, and nothing the test invents on
+    // top — no margin added here, no offsets assumed. If the symbol sits
+    // where the SVG says it sits, the decoder must read the payload out of
+    // that raster.
     let scale = 8i32;
     let side = (dimension * scale) as usize;
     let mut prepared = rqrr::PreparedImage::prepare_from_bitmap(side, side, |x, y| {
-        let module_x = (x as i32) / scale - 4;
-        let module_y = (y as i32) / scale - 4;
-        modules.contains(&(module_x, module_y))
+        modules.contains(&((x as i32) / scale, (y as i32) / scale))
     });
     let grids = prepared.detect_grids();
     assert_eq!(grids.len(), 1, "exactly one symbol in the square");
@@ -62,6 +63,26 @@ fn the_symbol_decodes_to_its_payload() {
     // The whole chain, decoder-verified: payload → matrix → SVG → raster →
     // exactly the payload that went in.
     assert_eq!(decoded, payload);
+}
+
+#[test]
+fn the_qr_holds_the_quiet_zone_on_all_four_sides() {
+    let (_payload, svg) = offered_svg();
+    let (dimension, modules) = svg_modules(&svg);
+
+    // The quiet zone is not a viewBox wish; the geometry must carry it. The
+    // finder patterns guarantee the extreme dark modules sit at the symbol's
+    // own corners, so the bounding box below is the symbol's true extent,
+    // and the spec's margin must show on all four sides of it — not pile up
+    // on two.
+    let min_x = modules.iter().map(|m| m.0).min().unwrap();
+    let min_y = modules.iter().map(|m| m.1).min().unwrap();
+    let max_x = modules.iter().map(|m| m.0).max().unwrap();
+    let max_y = modules.iter().map(|m| m.1).max().unwrap();
+    assert_eq!(min_x, QUIET_ZONE, "no margin on the left edge");
+    assert_eq!(min_y, QUIET_ZONE, "no margin on the top edge");
+    assert_eq!(max_x, dimension - QUIET_ZONE - 1, "right margin short");
+    assert_eq!(max_y, dimension - QUIET_ZONE - 1, "bottom margin short");
 }
 
 #[test]
@@ -74,7 +95,9 @@ fn the_svg_draws_exactly_the_encoders_matrix() {
     for y in 0..code.size() {
         for x in 0..code.size() {
             if code.get_module(x, y) {
-                from_encoder.insert((x, y));
+                // The SVG places the symbol inside its quiet zone, so every
+                // module sits at the encoder's coordinate plus the margin.
+                from_encoder.insert((x + QUIET_ZONE, y + QUIET_ZONE));
             }
         }
     }
