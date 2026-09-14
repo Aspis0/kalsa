@@ -116,6 +116,60 @@ paid fine-tune of that base will ever be possible. A recent MoE that fits a
 16 GB machine exists, but its licence is research-only — which is exactly why
 the column is not optional.
 
+## 4b. The install is one install
+
+The user installs one thing. They never meet a second installer, never approve
+an administrator prompt for a component they did not ask for, and never learn
+that a server exists.
+
+So we **embed the runtime binary in our package** and run it as a child process
+on loopback. We do not install a system service, do not touch PATH, and do not
+adopt or fight a runtime the user may already have.
+
+**The embedded runtime is llama.cpp's `llama-server`** (MIT, single binary).
+The reasons are operational, not ideological:
+
+- It is not a daemon. Nothing to conflict with, nothing left running when our
+  app is closed, nothing to uninstall separately.
+- It exposes the knobs the safety net needs — thread count, batch and ubatch,
+  KV cache quantization, idle unload. A runtime that hides those knobs would
+  be substituting its defaults for our measurements, on hardware it has not
+  measured.
+- It reads GGUF directly, so the catalog is ours and not a vendor's registry.
+
+Runtimes that were considered and rejected: a proprietary desktop app cannot
+be redistributed inside our package at all; a permissively licensed daemon
+could be, but it is a background service with its own model registry and
+naming, and it deliberately hides the tuning surface above.
+
+CPU feature variants (AVX2 / AVX-512 / ARM) ship as separate binaries selected
+at runtime, which is the same mechanism as the backend blocklist.
+
+MLX on Apple Silicon is a later optional backend, not the first one: it drags
+in a Python runtime, and "one install" is worth more than the last few percent
+of throughput on one platform.
+
+## 4c. Zero-touch: what happens after the user clicks install
+
+1. **Read the machine.** RAM, CPU features, core count, whether a usable GPU
+   exists. No privileges required for any of it.
+2. **Ask the phone what it runs.** The pairing handshake carries the phone's
+   model, because the whole question is "can this PC beat that".
+3. **Shortlist** from the catalog: what fits the measured RAM, is licence-clean,
+   is fresh, and is stronger than the phone's model.
+4. **Measure, do not guess.** Download the leading candidate and run a short
+   benchmark on this machine — prefill and decode, at the settings we would
+   actually ship. Published figures for old CPUs do not exist; the machine in
+   front of us is the only source of truth.
+5. **Establish the baseline** from that run. It is what throughput decay is
+   later compared against, so it must come from the same machine, not a table.
+6. **Pick, and say why** in one sentence a human can check: what it chose, and
+   how it compares to the phone.
+
+If step 3 comes back empty, the app says the machine is not worth using and
+stops. That is a feature. A courtesy recommendation that loses to the phone
+costs the user a download, a fan, and their trust.
+
 ## 5. Backend-agnostic from the first line
 
 The runtime is one of N: llama.cpp server, ollama, MLX on Apple Silicon.
