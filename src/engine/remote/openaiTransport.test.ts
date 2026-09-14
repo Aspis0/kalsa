@@ -351,4 +351,47 @@ describe("streamOpenAiChat", () => {
       jest.useRealTimers();
     }
   });
+
+  test("setup/send throw emits terminal error and cleans idle timer", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      xhr.send = () => {
+        throw new Error("send_boom");
+      };
+      const { finishes } = start(xhr, { inactivityMs: 120_000 });
+      expect(finishes).toHaveLength(1);
+      expect(finishes[0]?.kind).toBe("error");
+      expect(finishes[0]?.error?.message).toBe("send_boom");
+      jest.advanceTimersByTime(120_000);
+      expect(finishes).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("progress resets idle timer and complete cleans it", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      const { finishes } = start(xhr, { inactivityMs: 120_000 });
+      jest.advanceTimersByTime(60_000);
+      xhr.status = 200;
+      xhr.readyState = 3;
+      xhr.responseText = 'data: {"choices":[{"delta":{"content":"hi"}}]}\n\n';
+      xhr.onprogress?.call(xhr);
+      jest.advanceTimersByTime(60_000);
+      expect(finishes).toHaveLength(0);
+      xhr.responseText += "data: [DONE]\n\n";
+      xhr.readyState = 4;
+      xhr.onreadystatechange?.call(xhr);
+      jest.runOnlyPendingTimers();
+      expect(finishes).toHaveLength(1);
+      expect(finishes[0]?.kind).toBe("complete");
+      jest.advanceTimersByTime(120_000);
+      expect(finishes).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

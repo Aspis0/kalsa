@@ -249,15 +249,23 @@ export function streamOpenAiChat(
   req.signal?.addEventListener("abort", abortListener);
   bumpIdle();
 
-  xhr.send(
-    JSON.stringify({
-      model: req.model,
-      messages: req.messages,
-      stream: true,
-      max_tokens: req.maxTokens,
-      temperature: req.temperature,
-    }),
-  );
+  try {
+    xhr.send(
+      JSON.stringify({
+        model: req.model,
+        messages: req.messages,
+        stream: true,
+        max_tokens: req.maxTokens,
+        temperature: req.temperature,
+      }),
+    );
+  } catch (err) {
+    emitFinish({
+      kind: "error",
+      finishReason: lastFinishReason,
+      error: err instanceof Error ? err : new Error("remote_brain_send"),
+    });
+  }
 
   return {
     requestId,
