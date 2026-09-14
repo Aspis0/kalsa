@@ -81,7 +81,11 @@ export {
   setRemoteServerModelId,
 } from "./remote/remoteSettings";
 export { REMOTE_MAC_MODEL, REMOTE_MAC_MODEL_ID } from "./remote/remoteMacModel";
-export { disposeRemoteEngine, testRemoteConnection } from "./remote/RemoteEngine";
+export {
+  disposeRemoteEngine,
+  isSupersededRemoteOp,
+  testRemoteConnection,
+} from "./remote/RemoteEngine";
 
 export function isEngineReady(): boolean {
   return isRemoteEngineBackend() ? isRemoteEngineReady() : localIsEngineReady();

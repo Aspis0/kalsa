@@ -36,6 +36,27 @@ let activeStream: { abort: () => void } | null = null;
 let initGeneration = 0;
 let streamGeneration = 0;
 
+/**
+ * Verdict for an init/stream that lost a race with a newer one (or a dispose).
+ * Its result must never be written into UI state as success OR failure: the
+ * operation that superseded it owns the screen. Callers ask before reporting.
+ */
+export function isSupersededRemoteOp(value: unknown): boolean {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    (value as { superseded?: unknown }).superseded === true
+  );
+}
+
+function supersededInitError(): Error {
+  const err = new Error("remote_brain_stale_init") as Error & {
+    superseded?: true;
+  };
+  err.superseded = true;
+  return err;
+}
+
 function authHeaders(url: string, token: string | null): Record<string, string> {
   if (!token || !canSendAuthorization(url)) return {};
   return { Authorization: `Bearer ${token}` };
@@ -136,7 +157,7 @@ export async function initRemoteEngine(
   const gen = ++initGeneration;
   const probe = await testRemoteConnection();
   if (gen !== initGeneration) {
-    throw new Error("remote_brain_stale_init");
+    throw supersededInitError();
   }
   if (!probe.ok) {
     ready = false;
@@ -262,6 +283,13 @@ export async function streamRemoteAssistantTurn(
       timer = null;
     }
     const mine = stillMine();
+    if (!mine && err) {
+      // A newer turn or a dispose owns the UI now. The failure is still
+      // delivered (it may carry "your partial reply was interrupted", which
+      // only the caller can mark) but flagged, so the caller does not report it
+      // as the failure of the conversation that replaced this one.
+      (err as Error & { superseded?: true }).superseded = true;
+    }
     if (mine) {
       inFlight = false;
       activeStream = null;
@@ -283,9 +311,14 @@ export async function streamRemoteAssistantTurn(
         // ignore
       }
     }
+    // A dead turn writes no success: the operation that replaced it owns the UI,
+    // and the awaiting caller still unwinds the turn on its own.
     try {
-      if (err) callbacks.onError(err);
-      else callbacks.onDone();
+      if (err) {
+        callbacks.onError(err);
+      } else if (mine) {
+        callbacks.onDone();
+      }
     } catch {
       // terminal attempted
     }

@@ -165,6 +165,7 @@ import {
   recoverLocalBackend,
   setEngineBackendMode,
   disposeRemoteEngine,
+  isSupersededRemoteOp,
   REMOTE_MAC_MODEL,
   REMOTE_MAC_MODEL_ID,
   type EngineMessage,
@@ -3828,6 +3829,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         setModelErrorKind("engine");
         return false;
       } catch (error) {
+        // A superseded attempt (a newer init or a dispose won the race) must not
+        // write this attempt's failure into the UI: the winner owns the screen.
+        if (isSupersededRemoteOp(error)) return false;
         if (!stillCurrent()) return false;
         setModelState("error");
         setModelErrorKind("engine");
@@ -6059,6 +6063,13 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     error &&
                     typeof error === "object" &&
                     (error as { preservePartial?: boolean }).preservePartial === true;
+                  if (isSupersededRemoteOp(error) && !preserve) {
+                    // A turn that lost the race (dispose, newer stream) must not
+                    // report a failure into the conversation that replaced it.
+                    // Partial-text interrupts keep their marker.
+                    finish();
+                    return;
+                  }
                   if (!preserve) {
                     const shown = speakable(error.message);
                     callbacks.onDelta?.(`⚠️ ${shown}`, `⚠️ ${shown}`);

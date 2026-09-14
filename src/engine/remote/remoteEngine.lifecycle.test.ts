@@ -1,6 +1,8 @@
 import {
   disposeRemoteEngine,
   initRemoteEngine,
+  isRemoteEngineReady,
+  isSupersededRemoteOp,
   remoteNativeWorkInFlight,
   streamRemoteAssistantTurn,
   testRemoteConnection,
@@ -254,6 +256,126 @@ describe("RemoteEngine lifecycle", () => {
     expect(bOpened).toBe(1);
     await disposeRemoteEngine();
     await pB;
+  });
+
+  test("a superseded init does not clobber the init that won", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    // A's probe hangs; B starts and succeeds; A then resolves and fails.
+    let releaseA!: () => void;
+    const hungA = new Promise<void>((resolve) => {
+      releaseA = resolve;
+    });
+    fetchMock.mockImplementationOnce(async () => {
+      await hungA;
+      return { ok: true, status: 200, json: async () => ({ data: [{ id: "ornith" }] }) };
+    });
+    const a = initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    await Promise.resolve();
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    releaseA();
+    const err = await a.then(
+      () => null,
+      (e: unknown) => e,
+    );
+    // The verdict must be readable by the UI, and the winner's state must stand.
+    expect(isSupersededRemoteOp(err)).toBe(true);
+    expect(isRemoteEngineReady()).toBe(true);
+  });
+
+  test("a superseded stream marks its failure and reports no success", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let failA: ((err: Error) => void) | undefined;
+    streamOpenAiChat.mockImplementationOnce((
+      _req: unknown,
+      handlers: {
+        onFinish: (f: { kind: string; finishReason: null; error: Error }) => void;
+      },
+    ) => {
+      failA = (err) => handlers.onFinish({ kind: "error", finishReason: null, error: err });
+      return { requestId: "a", abort: jest.fn(), xhr: {}, isClosed: () => false };
+    });
+    const done: string[] = [];
+    const errors: unknown[] = [];
+    const pA = streamRemoteAssistantTurn(
+      [{ role: "user", content: "a" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => done.push("done"),
+        onError: (e) => errors.push(e),
+      },
+      undefined,
+      { locale: "en" },
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    await disposeRemoteEngine();
+    failA?.(new Error("remote_brain_network"));
+    await pA;
+    expect(done).toEqual([]);
+    expect(errors).toHaveLength(1);
+    expect(isSupersededRemoteOp(errors[0])).toBe(true);
+  });
+
+  test("a superseded stream reports no success", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let completeA: (() => void) | undefined;
+    streamOpenAiChat.mockImplementationOnce((
+      _req: unknown,
+      handlers: {
+        onFinish: (f: { kind: string; finishReason: string }) => void;
+      },
+    ) => {
+      completeA = () => handlers.onFinish({ kind: "complete", finishReason: "stop" });
+      return { requestId: "a", abort: jest.fn(), xhr: {}, isClosed: () => false };
+    });
+    const done: string[] = [];
+    const pA = streamRemoteAssistantTurn(
+      [{ role: "user", content: "a" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => done.push("done"),
+        onError: () => undefined,
+      },
+      undefined,
+      { locale: "en" },
+    );
+    await Promise.resolve();
+    await Promise.resolve();
+    await disposeRemoteEngine();
+    completeA?.();
+    await pA;
+    expect(done).toEqual([]);
+  });
+
+  test("a stream that is still current delivers an unmarked failure", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    errorStreamMock("current", "remote_brain_network");
+    const errors: unknown[] = [];
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "a" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: (e) => errors.push(e),
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(errors).toHaveLength(1);
+    expect(isSupersededRemoteOp(errors[0])).toBe(false);
   });
 
   test("dispose during pending token then start B does not clobber B", async () => {
