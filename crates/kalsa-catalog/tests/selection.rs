@@ -4,8 +4,8 @@
 //! remembers to prove.
 
 use kalsa_catalog::{
-    capability_claim, choose, footprint_bytes, usable_bytes, Backend, ChoiceInput, Decision,
-    Justification, Parameters, PhoneModel, RefusalReason, GIB,
+    capability_basis, choose, footprint_bytes, usable_bytes, Backend, CapabilityBasis,
+    ChoiceInput, Decision, Justification, Parameters, PhoneModel, RefusalReason, GIB,
 };
 
 /// The default phone model, as the pairing handshake reports it: a dense 4B
@@ -52,10 +52,15 @@ fn input_with_phone_model(ram_gib: u64, model: PhoneModel) -> ChoiceInput {
 /// A PC: the RAM is the same, but a model that will decode on the card is
 /// budgeted by the card, not by the machine.
 fn pc(ram_gib: u64, vram_gib: Option<u64>) -> ChoiceInput {
+    pc_with_phone(ram_gib, vram_gib, phone(Some(true)))
+}
+
+fn pc_with_phone(ram_gib: u64, vram_gib: Option<u64>, model: PhoneModel) -> ChoiceInput {
     ChoiceInput {
         backend: Backend::DiscreteGpu {
             vram_bytes: vram_gib.map(|gib| gib * GIB),
         },
+        phone: Some(model),
         ..input(ram_gib, true)
     }
 }
@@ -86,7 +91,7 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
         let entry = entry.entry();
         if footprint_bytes(entry, 8192).total_bytes() <= usable {
             assert!(
-                !capability_claim(entry.parameters, Some(PHONE_PARAMS)),
+                capability_basis(entry.parameters, entry.dense_equivalent, Some(PHONE_PARAMS)).is_none(),
                 "{} must not admit a capability claim on this tier",
                 entry.repo
             );
@@ -94,18 +99,25 @@ fn eight_gigabytes_is_offered_for_relief_and_not_capability() {
     }
 
     // But every token the PC generates is one the phone did not, so the
-    // recommendation comes through the relief axis, and says so.
+    // recommendation comes through the relief axis, and says so. Nothing
+    // published settles the pick's class either, and the result records that
+    // honestly: None means nothing published, not that the model is weak.
     match choose(&input(8, true)) {
         Decision::Pick(selection) => {
             assert_eq!(selection.justification, Justification::Relief);
             assert_eq!(selection.repo, "arcee-ai/Trinity-Nano-Preview");
+            assert_eq!(selection.display_name, "Arcee Trinity Nano");
             assert!(selection.rationale.contains("relief"), "{}", selection.rationale);
             assert!(
                 !selection.rationale.contains("on capability"),
                 "a lateral move must not be sold as an upgrade: {}",
                 selection.rationale
             );
+            // The rationale is the user's sentence: no repo path, no quant.
+            assert!(!selection.rationale.contains("arcee-ai/"), "{}", selection.rationale);
+            assert!(!selection.rationale.contains("Q4"), "{}", selection.rationale);
             assert_eq!(selection.budget.usable_bytes, usable);
+            assert!(selection.dense_equivalent.is_none());
         }
         other => panic!("expected a relief pick, got {other:?}"),
     }
@@ -129,7 +141,10 @@ fn capability_does_not_need_the_battery() {
     // class is offered to a phone on a charger all the same.
     match choose(&input_with_phone(16, Some(false))) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.justification, Justification::Capability);
+            assert_eq!(
+                selection.justification,
+                Justification::Capability(CapabilityBasis::Parameters)
+            );
             assert_eq!(selection.repo, "google/gemma-4-12B-it");
         }
         other => panic!("expected a capability pick, got {other:?}"),
@@ -237,12 +252,13 @@ fn a_phone_running_something_bigger_than_the_pc_gets_no_relief() {
 }
 
 #[test]
-fn a_moe_that_clears_every_numeric_bar_is_still_relief_against_a_dense_phone() {
+fn an_unsourced_large_moe_is_expected_but_unmeasured_and_never_relief_or_capability() {
     // A dense 2B phone: Qwen3.6-35B clears the parameter bar on BOTH axes
-    // (total 17.5×, active 1.5×) — and the claim is still refused, because
-    // MoE against dense is a claim across shapes, and no sourced rule turns
-    // one into the other. What fits and clears the numbers is offered, but as
-    // relief, and it says so.
+    // (total 17.5×, active 1.5×) — and the claim is still not capability,
+    // because nothing published settles a MoE against a dense model of the
+    // same total. But it is not relief either: calling a 35B MoE
+    // "comparable" to a 2B phone is as false as the opposite error. The
+    // honest third state says we expect stronger and will measure it here.
     let model = PhoneModel {
         weights_bytes: 2_000_000_000,
         parameters: Some(Parameters::dense(2_000_000_000)),
@@ -261,7 +277,77 @@ fn a_moe_that_clears_every_numeric_bar_is_still_relief_against_a_dense_phone() {
                 "the premise is that every numeric bar is cleared"
             );
             assert_eq!(selection.repo, "Qwen/Qwen3.6-35B-A3B");
+            assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
+            assert!(
+                selection.rationale.contains("expected to be more model"),
+                "{}",
+                selection.rationale
+            );
+        }
+        other => panic!("expected a pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_sourced_equivalent_claims_capability_through_that_route_and_says_so() {
+    // A 6 GiB card budget holds the mid-size rows and nothing denser or
+    // bigger. IBM's own published figure places granite near dense 3B, which
+    // clears the bar against a dense 2B phone — and granite also decodes
+    // fastest in the leader's class, so it is the pick. The claim carries its
+    // source as data, and the user sees a name, not a repo path.
+    let machine = pc_with_phone(
+        32,
+        Some(9),
+        PhoneModel {
+            weights_bytes: 2_000_000_000,
+            parameters: Some(Parameters::dense(2_000_000_000)),
+            ..phone(Some(true))
+        },
+    );
+    match choose(&machine) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
+            assert_eq!(selection.display_name, "IBM Granite 4 Tiny");
+            assert_eq!(
+                selection.justification,
+                Justification::Capability(
+                    kalsa_catalog::CapabilityBasis::PublishedDenseEquivalent {
+                        parameters: 3_000_000_000,
+                        note: "close to it: above on GSM8K, DeepMind-Math and MBPP, below \
+                               on BBH and IFEval",
+                        source: "IBM's Granite 4.0 model documentation, accessed \
+                                 2026-09-14",
+                    }
+                )
+            );
+            assert!(
+                selection.rationale.contains("publisher's own comparison"),
+                "{}",
+                selection.rationale
+            );
+        }
+        other => panic!("expected a capability pick, got {other:?}"),
+    }
+}
+
+#[test]
+fn a_sourced_row_offered_as_relief_records_its_equivalence() {
+    // Against the default 4B phone, IBM's own figure says phone-class — the
+    // evidence refuses capability, and what is left is relief, on battery,
+    // with the published comparison recorded in the result.
+    match choose(&pc_with_phone(32, Some(9), phone(Some(true)))) {
+        Decision::Pick(selection) => {
+            assert_eq!(selection.repo, "ibm-granite/granite-4.0-h-tiny");
             assert_eq!(selection.justification, Justification::Relief);
+            let equivalent = selection
+                .dense_equivalent
+                .expect("the published comparison travels with the row");
+            assert_eq!(equivalent.parameters, 3_000_000_000);
+            assert!(
+                selection.rationale.contains("places it near a dense model of 3.0B"),
+                "{}",
+                selection.rationale
+            );
         }
         other => panic!("expected a relief pick, got {other:?}"),
     }
@@ -293,14 +379,14 @@ fn sixteen_gigabytes_takes_the_largest_dense_model_that_fits() {
 fn thirty_two_gigabytes_prefers_the_mixture_that_decodes_faster() {
     // Both 32 GiB rows fit and are the same class, so the numbers decide:
     // Qwen3.6-35B-A3B reads 3.0B per token, llm-jp-4-32b-a3b-thinking 3.83B.
-    // Against the dense default phone the pick cannot claim capability —
-    // MoE against dense is a claim across shapes — so it is offered as
-    // relief, and says so.
+    // Against the dense default phone nothing published settles the MoE
+    // comparison, so the pick is offered as expected-but-unmeasured, to be
+    // measured on this machine before it is called an upgrade.
     let input = input(32, true);
     assert_eq!(chosen(&input), "Qwen/Qwen3.6-35B-A3B");
     match choose(&input) {
         Decision::Pick(selection) => {
-            assert_eq!(selection.justification, Justification::Relief);
+            assert_eq!(selection.justification, Justification::ExpectedButUnmeasured);
             assert!(selection.decode.0 > 0.0 && selection.decode.1 > selection.decode.0);
             assert!(
                 selection.decode.0 > 20.0,
@@ -379,7 +465,7 @@ fn the_decision_says_why_with_a_range_and_the_phones_own_number() {
     match choose(&input(32, true)) {
         Decision::Pick(selection) => {
             let why = &selection.rationale;
-            assert!(why.contains("Qwen/Qwen3.6-35B-A3B"), "{why}");
+            assert!(why.contains("Alibaba Qwen 3.6"), "{why}");
             assert!(why.contains("tokens per second"), "{why}");
             // A range, never a point estimate dressed up as data.
             assert!(why.contains('–'), "expected a range in: {why}");

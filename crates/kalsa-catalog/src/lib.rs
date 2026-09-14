@@ -18,13 +18,17 @@
 //! * **the PC must beat the phone** — a candidate that is not clearly more
 //!   model than the one in the user's hand is not proposed as an upgrade, and
 //!   "this computer is not worth it" is a valid answer (`choice`);
-//! * **capability or relief, and it says which** — a recommendation is
-//!   justified either by a meaningfully stronger model, claimed on
-//!   *parameters* within the same shape (dense against dense, MoE against MoE
-//!   on both axes — never across shapes, and never on bytes), or by a
-//!   comparable model moving the work off a phone that is on battery; the
-//!   reason travels as data the UI branches on, never as a string it parses
-//!   (`choice`);
+//! * **capability, expectation, or relief — and it says which** — capability
+//!   is claimed on *parameters* within the same shape, or on a publisher's
+//!   own same-recipe dense comparison carried per row; a large unsourced MoE
+//!   is expected-but-unmeasured, never dressed up as either; relief moves the
+//!   work off a phone that is on battery. The reason travels as data the UI
+//!   branches on, never as a string it parses (`choice`);
+//! * **measuring replaces all of it** — the bake-off in `scripts/quality/`,
+//!   run on the user's own machine on the actual pair. Below ~10B total a MoE
+//!   can be worse than a same-total dense model (Jelassi et al., ICLR 2025),
+//!   so no cross-shape inference is drawn there; no citable rule converts a
+//!   MoE to a dense size, and none is invented here.
 //! * **say why, with the numbers** — every decision carries a sentence a human
 //!   can check, with the speed as a range, never as a made-up point estimate.
 //!
@@ -41,13 +45,14 @@ pub mod manifest;
 pub mod parameters;
 
 pub use choice::{
-    capability_claim, choose, ChoiceInput, Decision, Justification, PhoneModel, Refusal,
-    RefusalReason, Selection, IMPROVEMENT_RATIO, SAME_CLASS_BAND,
+    capability_basis, choose, CapabilityBasis, ChoiceInput, Decision, Justification, PhoneModel,
+    Refusal, RefusalReason, Selection, IMPROVEMENT_RATIO, LARGE_MOE_TOTAL_PARAMETERS,
+    SAME_CLASS_BAND,
 };
 pub use footprint::{fits, footprint_bytes, memory_budget, usable_bytes, Footprint, GIB, MemoryBudget};
 // `ChoiceInput` cannot be built without a `Backend`, so the type is re-exported
 // rather than making callers depend on the probe's path module by name.
 pub use kalsa_probe::Backend;
 pub use licence::{Licence, Standing};
-pub use manifest::{excluded, usable, ModelEntry, UsableEntry, CATALOG};
+pub use manifest::{excluded, usable, DenseEquivalent, ModelEntry, UsableEntry, CATALOG};
 pub use parameters::{ActiveParameters, Parameters, TotalParameters};

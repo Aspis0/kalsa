@@ -12,7 +12,7 @@
 //! nothing is claimed as capability.
 
 use kalsa_catalog::{
-    capability_claim, choose, footprint_bytes, memory_budget, Backend, ChoiceInput, Decision,
+    capability_basis, choose, footprint_bytes, memory_budget, Backend, ChoiceInput, Decision,
     Parameters, PhoneModel, GIB,
 };
 
@@ -75,7 +75,8 @@ fn main() {
         let capable = input
             .phone
             .as_ref()
-            .is_some_and(|phone| capability_claim(entry.parameters, phone.parameters));
+            .and_then(|phone| capability_basis(entry.parameters, entry.dense_equivalent, phone.parameters))
+            .is_some();
         // Speed comes from the ACTIVE weights; the footprint from the total.
         let active_bytes = entry.weights_bytes as f64 * entry.parameters.active().count() as f64
             / entry.parameters.total().count().max(1) as f64;
@@ -93,7 +94,7 @@ fn main() {
     println!();
     match choose(&input) {
         Decision::Pick(selection) => {
-            println!("chosen: {}", selection.repo);
+            println!("chosen: {} ({})", selection.display_name, selection.repo);
             println!(
                 "        {} of weights, {} in memory at {} context",
                 gibs(selection.weights_bytes),

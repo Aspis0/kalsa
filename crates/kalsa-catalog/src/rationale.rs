@@ -5,7 +5,7 @@
 //! user cannot check is not an honest one.
 
 use crate::candidate::{too_slow_to_use, Candidate};
-use crate::choice::{ChoiceInput, Justification, PhoneModel};
+use crate::choice::{CapabilityBasis, ChoiceInput, Justification, PhoneModel};
 use crate::footprint::{MemoryBudget, GIB};
 
 pub(crate) fn rationale(
@@ -15,10 +15,11 @@ pub(crate) fn rationale(
     budget: MemoryBudget,
     justification: Justification,
 ) -> String {
+    // The head names the model as the user knows it, never by repo or quant:
+    // those are ours, and this sentence is the user's.
     let mut parts = vec![format!(
-        "{} ({}, {} of weights): about {} tokens per second, and {} for prompt processing.",
-        chosen.entry.repo,
-        chosen.entry.quant,
+        "{} ({} of weights): about {} tokens per second, and {} for prompt processing.",
+        chosen.entry.display_name,
         gib_text(chosen.entry.weights_bytes),
         band_text(chosen.decode),
         band_text(chosen.prefill)
@@ -36,11 +37,32 @@ pub(crate) fn rationale(
 
     // Why it is being offered at all: the same words the Justification data
     // carries, for the human reading the sentence rather than the UI branching
-    // on the enum.
+    // on the enum. The three states are worded so they cannot be mistaken for
+    // one another.
     parts.push(match justification {
-        Justification::Capability => {
+        Justification::Capability(CapabilityBasis::Parameters) => {
             "It is offered on capability: it is meaningfully more model than your phone \
              runs, not merely comparable to it."
+                .to_string()
+        }
+        Justification::Capability(CapabilityBasis::PublishedDenseEquivalent {
+            parameters,
+            note,
+            source,
+        }) => {
+            format!(
+                "It is offered on capability, by the publisher's own comparison: {} places \
+                 it near a dense model of {} parameters ({}), which is meaningfully more \
+                 model than your phone runs.",
+                source,
+                billions(parameters),
+                note
+            )
+        }
+        Justification::ExpectedButUnmeasured => {
+            "It is expected to be more model than your phone runs, but nothing published \
+             settles a mixture-of-experts model against a dense one of the same total, so \
+             it will be measured on this machine before it is called an upgrade."
                 .to_string()
         }
         Justification::Relief => {
@@ -50,6 +72,23 @@ pub(crate) fn rationale(
                 .to_string()
         }
     });
+
+    // A sourced equivalence travels with its row even when the offer rests on
+    // something weaker than it; only the capability route already speaks for
+    // itself.
+    if let Some(equivalent) = chosen.entry.dense_equivalent {
+        if !matches!(
+            justification,
+            Justification::Capability(CapabilityBasis::PublishedDenseEquivalent { .. })
+        ) {
+            parts.push(format!(
+                "Its publisher places it near a dense model of {} parameters: {} ({}).",
+                billions(equivalent.parameters),
+                equivalent.note,
+                equivalent.source
+            ));
+        }
+    }
 
     // A conditional licence must arrive in the result as more than the id, or
     // the row presents itself as unconditional.

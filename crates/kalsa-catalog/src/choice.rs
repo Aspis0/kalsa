@@ -16,7 +16,7 @@ use kalsa_probe::Backend;
 use crate::candidate::{candidate, Candidate};
 use crate::footprint::{memory_budget, Footprint, MemoryBudget};
 use crate::licence::Licence;
-use crate::manifest;
+use crate::manifest::{self, DenseEquivalent};
 use crate::parameters::Parameters;
 use crate::rationale::{band_text, gib_text, rationale};
 
@@ -90,41 +90,122 @@ pub const SAME_CLASS_BAND: f64 = 0.85;
 /// Parameters are quantisation-independent, which removes the first confound
 /// outright.
 ///
-/// The second confound is not solved but refused. Dense and mixture-of-experts
-/// are different shapes, the rules of thumb for a MoE's "effective" parameter
-/// count are unsourced, and inventing a constant to make a comparison come out
-/// right is how the byte bar got into trouble. So a capability claim across
-/// shapes is never made here; such a candidate falls to relief until a
-/// measured comparison — the bake-off in `scripts/quality/`, on the user's
-/// machine, which the plan names as the arbiter — says otherwise.
+/// The second confound — MoE against dense — is settled per row or not at
+/// all. `sqrt(total × active)` and its cousins are uncited folklore, every
+/// published MoE scaling law is conditional on training tokens and compute
+/// and none yields "given total and active, use dense size f(total, active)",
+/// and below roughly ten billion total parameters a MoE can be *worse* than a
+/// same-total dense model (Jelassi et al., Mixture of Parrots, ICLR 2025) —
+/// our 8 GB tier sits exactly in that regime. So the claim is made two ways
+/// and no third: the same shape as the phone, on the parameter bar; or the
+/// row's own publisher comparing it, in their benchmark table, to a dense
+/// model from the same lab — carried on the row as [`DenseEquivalent`] and
+/// compared against the phone's dense size. Anything else is not capability.
 ///
-/// Within the same shape, the claim needs the bar cleared on both axes: a MoE
-/// is claimed against a MoE on total and active alike, because the total is
-/// what the model knows and the active is what a token costs.
-pub fn capability_claim(candidate: Parameters, phone: Option<Parameters>) -> bool {
+/// What replaces even this: the bake-off in `scripts/quality/`, run on the
+/// user's own machine on the actual pair. Measuring is required, and no
+/// citable rule settles it.
+pub fn capability_basis(
+    candidate: Parameters,
+    dense_equivalent: Option<DenseEquivalent>,
+    phone: Option<Parameters>,
+) -> Option<CapabilityBasis> {
     let Some(phone) = phone else {
-        return false; // the phone did not say; we do not invent it
+        return None; // the phone did not say; we do not invent it
     };
-    if candidate.is_mixture() != phone.is_mixture() {
-        return false; // no cross-shape claim without a measurement
+    if candidate.is_mixture() == phone.is_mixture() {
+        let clears = candidate.total().count() as f64
+            >= phone.total().count() as f64 * IMPROVEMENT_RATIO
+            && candidate.active().count() as f64
+                >= phone.active().count() as f64 * IMPROVEMENT_RATIO;
+        if clears {
+            return Some(CapabilityBasis::Parameters);
+        }
     }
-    candidate.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO
-        && candidate.active().count() as f64 >= phone.active().count() as f64 * IMPROVEMENT_RATIO
+    // The publisher's own comparison, against a dense phone only: a MoE
+    // phone's dense size is not known either, and none is invented for it.
+    if !phone.is_mixture() {
+        if let Some(equivalent) = dense_equivalent {
+            if equivalent.parameters as f64
+                >= phone.total().count() as f64 * IMPROVEMENT_RATIO
+            {
+                return Some(CapabilityBasis::PublishedDenseEquivalent {
+                    parameters: equivalent.parameters,
+                    note: equivalent.note,
+                    source: equivalent.source,
+                });
+            }
+        }
+    }
+    None
+}
+
+/// Below this many total parameters, an unsourced MoE is not credited with
+/// "expected stronger than a dense phone": Jelassi et al. (Mixture of
+/// Parrots, ICLR 2025) find that in this regime, at fixed active parameters,
+/// extra experts help memorisation more than reasoning, and a MoE can be
+/// worse than a same-total dense model on commonsense and maths — our 8 GB
+/// tier sits inside it. Above the line, an unsourced MoE that clears the
+/// parameter bar against a dense phone is [`Justification::ExpectedButUnmeasured`]:
+/// expected, never claimed, and settled only by measuring on the user's
+/// machine.
+pub const LARGE_MOE_TOTAL_PARAMETERS: u64 = 10_000_000_000;
+
+/// The third state's admission rule: a MoE with no published equivalence,
+/// against a dense phone that reported parameters, big enough that the
+/// small-MoE caveat above no longer blocks the inference, and clearing the
+/// parameter bar on the total. "Expected to be stronger, not yet measured" —
+/// as distinct from relief, which would falsely call it comparable, and from
+/// capability, which would claim more than anything citable supports.
+fn expected_but_unmeasured(candidate: &Candidate, phone: &PhoneModel) -> bool {
+    let Some(phone) = phone.parameters else {
+        return false;
+    };
+    let params = candidate.entry.parameters;
+    if !params.is_mixture() || phone.is_mixture() || candidate.entry.dense_equivalent.is_some() {
+        return false;
+    }
+    params.total().count() >= LARGE_MOE_TOTAL_PARAMETERS
+        && params.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO
+}
+
+/// The evidence behind a capability claim. Both routes are data — the phone's
+/// own reported parameters, or the row's publisher's own comparison — never a
+/// formula that converts one shape to another.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CapabilityBasis {
+    /// Same shape as the phone's model, parameter bar cleared on both axes.
+    Parameters,
+    /// The row's publisher places it near a dense model of this many
+    /// parameters, which clears the bar against the phone's dense size.
+    PublishedDenseEquivalent {
+        parameters: u64,
+        note: &'static str,
+        source: &'static str,
+    },
 }
 
 /// Why this machine is being offered a model at all. Data the UI branches on,
 /// not a string it parses: selling a lateral move as an upgrade is the failure
-/// mode, and the two reasons deserve different pages.
+/// mode, and the two reasons deserve different pages. Three states, and three
+/// is the ceiling: a fourth "unknown" would be a refusal wearing a bow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Justification {
-    /// The model clears `IMPROVEMENT_RATIO` against the phone's: a different
-    /// class of model, worth it whatever the phone's battery is doing.
-    Capability,
+    /// A strong claim, carrying the evidence that supports it.
+    Capability(CapabilityBasis),
     /// The model is comparable to the phone's, and it is offered only because
     /// the phone is on battery: every token generated on the PC is one the
     /// phone did not generate. `MINIMUM_TOKENS_PER_SECOND` still applies — a
     /// comparable model that crawls is a worse experience, not relief.
     Relief,
+    /// The numbers point clearly toward stronger — the total parameter bar is
+    /// cleared, above the size regime where the literature warns the
+    /// comparison reverses — but nothing citable settles a MoE against a
+    /// dense model of the same total, so this is expected, never claimed.
+    /// The bake-off in `scripts/quality/`, run on the user's machine on the
+    /// actual pair, is what confirms it; measuring is required and no citable
+    /// rule settles it.
+    ExpectedButUnmeasured,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -154,6 +235,8 @@ pub struct Refusal {
 #[derive(Clone, Debug)]
 pub struct Selection {
     pub repo: &'static str,
+    /// The name the shell renders: the only model identity the user sees.
+    pub display_name: &'static str,
     pub quant: &'static str,
     pub weights_bytes: u64,
     pub footprint: Footprint,
@@ -169,7 +252,12 @@ pub struct Selection {
     /// The licence of the chosen row, as data: a conditional licence must be
     /// visible in the result, never silently presented as unconditional.
     pub licence: Licence,
-    /// Why this is being offered: capability or relief.
+    /// The publisher's own dense comparison for the chosen row, when one
+    /// exists: recorded even when the offer is relief, because the evidence
+    /// travels with the row wherever the row goes.
+    pub dense_equivalent: Option<DenseEquivalent>,
+    /// Why this is being offered: capability, expected-but-unmeasured, or
+    /// relief.
     pub justification: Justification,
     pub rationale: String,
 }
@@ -259,10 +347,10 @@ pub fn choose(input: &ChoiceInput) -> Decision {
     // The existing preference, walked until a candidate admits an honest
     // justification: the biggest that fits, then — among models of the same
     // class — the one the numbers say decodes fastest. The biggest may admit
-    // nothing (a MoE cannot be claimed over a dense phone on any parameter
-    // count we are willing to invent, and a charger phone admits no relief),
-    // and when it cannot, the walk falls through to what remains rather than
-    // mislabelling the offer or hiding it.
+    // nothing (a small unsourced MoE can claim neither capability nor
+    // expected strength, and a charger phone admits no relief), and when it
+    // cannot, the walk falls through to what remains rather than mislabelling
+    // the offer or hiding it.
     let on_battery = phone.on_battery == Some(true);
     while !remaining.is_empty() {
         let leader = *remaining
@@ -279,8 +367,12 @@ pub fn choose(input: &ChoiceInput) -> Decision {
                     .unwrap_or(std::cmp::Ordering::Equal)
             })
             .expect("the leader is in its own class");
-        let justification = if capability_claim(chosen.entry.parameters, phone.parameters) {
-            Justification::Capability
+        let justification = if let Some(basis) =
+            capability_basis(chosen.entry.parameters, chosen.entry.dense_equivalent, phone.parameters)
+        {
+            Justification::Capability(basis)
+        } else if expected_but_unmeasured(chosen, &phone) {
+            Justification::ExpectedButUnmeasured
         } else if on_battery
             && chosen.entry.weights_bytes as f64 >= phone.weights_bytes as f64 * SAME_CLASS_BAND
         {
@@ -381,6 +473,7 @@ fn selection(
 ) -> Selection {
     Selection {
         repo: chosen.entry.repo,
+        display_name: chosen.entry.display_name,
         quant: chosen.entry.quant,
         weights_bytes: chosen.entry.weights_bytes,
         footprint: chosen.footprint,
@@ -389,6 +482,7 @@ fn selection(
         decode: chosen.decode,
         prefill: chosen.prefill,
         licence: chosen.entry.licence,
+        dense_equivalent: chosen.entry.dense_equivalent,
         justification,
         rationale: rationale(chosen, input, phone, budget, justification),
     }
@@ -407,31 +501,63 @@ mod tests {
             3_300_000_000u64 as f64 >= 2_200_000_000u64 as f64 * IMPROVEMENT_RATIO,
             "the byte bar is cleared, which is exactly what made bytes the wrong quantity"
         );
-        assert!(!capability_claim(
+        assert!(capability_basis(
             Parameters::dense(3_200_000_000),
+            None,
             Some(Parameters::dense(4_000_000_000))
-        ));
+        )
+        .is_none());
     }
 
     #[test]
-    fn a_moe_never_claims_capability_over_a_dense_phone() {
+    fn an_unsourced_moe_never_claims_capability_over_a_dense_phone() {
         // Trinity-Nano is 6B total: 1.5× the phone's 4B, clearing the bar on
         // parameters — and the claim is still refused, because MoE against
-        // dense is a claim across shapes, and no sourced rule turns one into
-        // the other. Its 1.34× bytes were the symptom that exposed the wrong
-        // quantity; the shape rule is the fix that survives the next pair.
+        // dense is a claim across shapes, no sourced rule converts the shapes,
+        // and Trinity publishes nothing that would settle it.
         let trinity = Parameters::mixture(6_000_000_000, 1_000_000_000);
         let phone = Parameters::dense(4_000_000_000);
         assert!(
             trinity.total().count() as f64 >= phone.total().count() as f64 * IMPROVEMENT_RATIO,
-            "the parameter bar is cleared; only the shape rule refuses"
+            "the parameter bar is cleared; only the missing evidence refuses"
         );
-        assert!(!capability_claim(trinity, Some(phone)));
+        assert!(capability_basis(trinity, None, Some(phone)).is_none());
+    }
+
+    #[test]
+    fn a_sourced_equivalent_claims_capability_only_when_it_clears_the_bar() {
+        // Microsoft's own table places Phi-mini near dense 3.8B: against a
+        // dense 2B phone that is capability, and the evidence travels with
+        // the claim.
+        let phi = Parameters::mixture(7_600_000_000, 2_400_000_000);
+        let equivalent = DenseEquivalent {
+            parameters: 3_800_000_000,
+            note: "near Phi-3 mini",
+            source: "model card",
+        };
+        assert_eq!(
+            capability_basis(phi, Some(equivalent), Some(Parameters::dense(2_000_000_000))),
+            Some(CapabilityBasis::PublishedDenseEquivalent {
+                parameters: 3_800_000_000,
+                note: "near Phi-3 mini",
+                source: "model card",
+            })
+        );
+        // Against a dense 4B phone the same published figure says phone-class:
+        // the evidence is allowed to refuse, too.
+        assert!(capability_basis(phi, Some(equivalent), Some(Parameters::dense(4_000_000_000)))
+            .is_none());
     }
 
     #[test]
     fn a_phone_that_never_reported_parameters_never_yields_capability() {
-        assert!(!capability_claim(Parameters::dense(12_000_000_000), None));
+        assert!(capability_basis(Parameters::dense(12_000_000_000), None, None).is_none());
+        assert!(capability_basis(
+            Parameters::mixture(35_000_000_000, 3_000_000_000),
+            None,
+            None
+        )
+        .is_none());
     }
 
     #[test]
@@ -439,15 +565,21 @@ mod tests {
         // MoE against MoE is the honest comparison, on total AND active: the
         // total is what the model knows, the active is what a token costs.
         let phone = Parameters::mixture(8_000_000_000, 2_000_000_000);
-        assert!(capability_claim(
-            Parameters::mixture(35_000_000_000, 3_000_000_000),
-            Some(phone)
-        ));
+        assert_eq!(
+            capability_basis(
+                Parameters::mixture(35_000_000_000, 3_000_000_000),
+                None,
+                Some(phone)
+            ),
+            Some(CapabilityBasis::Parameters)
+        );
         // The total clears 4×; the active count does not clear the bar, and
         // the claim goes with it.
-        assert!(!capability_claim(
+        assert!(capability_basis(
             Parameters::mixture(35_000_000_000, 2_500_000_000),
+            None,
             Some(phone)
-        ));
+        )
+        .is_none());
     }
 }

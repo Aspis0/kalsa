@@ -19,6 +19,25 @@ use crate::parameters::Parameters;
 
 pub const GIB: u64 = 1024 * 1024 * 1024;
 
+/// A publisher's own comparison of this MoE against a dense model trained by
+/// the same lab on the same recipe. Carried per row, because it is data about
+/// that row and not a rule about MoEs — no citable formula converts total and
+/// active parameters into a dense size, and inventing one is how the byte bar
+/// got into trouble. `None` means nothing has been published for this exact
+/// model, not that the model is weak; a figure published for another version
+/// does not transfer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct DenseEquivalent {
+    /// The dense parameter count the publisher's own benchmark table places
+    /// this row near.
+    pub parameters: u64,
+    /// The direction the published table gives: where the row is above and
+    /// below its dense neighbour.
+    pub note: &'static str,
+    /// Where the comparison was published.
+    pub source: &'static str,
+}
+
 /// The research-table helper: keep that shape so nobody later mistakes it for
 /// a file size measured to the byte. The verified rows below write their bytes
 /// literally instead.
@@ -30,6 +49,12 @@ const fn gigabytes(whole: u64, centi: u64) -> u64 {
 pub struct ModelEntry {
     /// Hugging Face repo of the base model.
     pub repo: &'static str,
+    /// The only model identity the user ever sees: vendor plus family, with
+    /// the vendor's own size word where it has one. Everything else on this
+    /// row — the repo path, the quantisation, the parameter suffixes, the
+    /// variant codes — is ours, and none of it reaches the interface as a
+    /// name. Required: a row with no name is a row the interface cannot show.
+    pub display_name: &'static str,
     /// Repo the GGUF comes from, as the Hugging Face API reports it today.
     ///
     /// None until the API is asked: writing a plausible repo name from memory is
@@ -46,6 +71,9 @@ pub struct ModelEntry {
     /// Measured per the plan. None until it is measured: the chooser then says
     /// out loud that it assumed a figure.
     pub kv_bytes_per_token: Option<u64>,
+    /// The publisher's own same-recipe dense comparison, where one exists.
+    /// None on every row to which it does not apply.
+    pub dense_equivalent: Option<DenseEquivalent>,
     /// Superseded by newer rows in the same tier.
     pub stale: Option<&'static str>,
 }
@@ -99,6 +127,7 @@ impl<'a> UsableEntry<'a> {
 pub const CATALOG: &[ModelEntry] = &[
     ModelEntry {
         repo: "google/gemma-4-E2B-it",
+        display_name: "Google Gemma 4 E2B",
         gguf_repo: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
@@ -107,10 +136,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(3, 22),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "google/gemma-4-E4B-it",
+        display_name: "Google Gemma 4 E4B",
         gguf_repo: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
@@ -119,10 +150,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(5, 3),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "Qwen/Qwen3.5-4B",
+        display_name: "Alibaba Qwen 3.5",
         gguf_repo: None,
         last_modified: "2026-03-02",
         licence: Licence::Open("apache-2.0"),
@@ -131,10 +164,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(2, 81),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "mistralai/Ministral-3-8B-Instruct-2512",
+        display_name: "Mistral Ministral 3",
         gguf_repo: None,
         last_modified: "2026-07-15",
         licence: Licence::Open("apache-2.0"),
@@ -143,10 +178,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(4, 84),
         mmproj_bytes: Some(gigabytes(0, 86)),
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "google/gemma-4-12B-it",
+        display_name: "Google Gemma 4 12B",
         gguf_repo: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
@@ -155,10 +192,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(7, 14),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "google/gemma-4-26B-A4B-it",
+        display_name: "Google Gemma 4 26B",
         gguf_repo: None,
         last_modified: "2026-07-20",
         licence: Licence::Open("apache-2.0"),
@@ -167,10 +206,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(13, 61),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "Qwen/Qwen3.6-35B-A3B",
+        display_name: "Alibaba Qwen 3.6",
         gguf_repo: None,
         last_modified: "2026-04-24",
         licence: Licence::Open("apache-2.0"),
@@ -179,10 +220,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(19, 2),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "llm-jp/llm-jp-4-32b-a3b-thinking",
+        display_name: "LLM-jp 4",
         gguf_repo: None,
         last_modified: "2026-04-24",
         licence: Licence::Open("apache-2.0"),
@@ -191,10 +234,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(19, 93),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "swiss-ai/Apertus-v1.5-70B",
+        display_name: "Swiss AI Apertus 1.5",
         gguf_repo: None,
         last_modified: "2026-07-24",
         licence: Licence::Open("apache-2.0+AUP"),
@@ -203,6 +248,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(40, 72),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     // ── verified against the Hugging Face API on 2026-09-14 ─────────────────
@@ -212,6 +258,7 @@ pub const CATALOG: &[ModelEntry] = &[
     // mmproj, and none carries a KV figure: that is measured, never guessed.
     ModelEntry {
         repo: "LiquidAI/LFM2.5-8B-A1B",
+        display_name: "Liquid LFM 2.5",
         gguf_repo: Some("liodon-ai/LFM2.5-8B-A1B-imatrix-GGUF"),
         last_modified: "2026-08-24T21:05:21.000Z",
         // LFM 1.0 permits commercial use only for entities under $10M annual
@@ -226,10 +273,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: 4_588_301_888,
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "microsoft/Phi-mini-MoE-instruct",
+        display_name: "Microsoft Phi Mini",
         gguf_repo: Some("smarttasks/Phi-mini-MoE-instruct-GGUF"),
         last_modified: "2025-12-10T18:20:28.000Z",
         licence: Licence::Open("mit"),
@@ -238,10 +287,20 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: 4_616_170_016,
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        // Microsoft's model card runs the same lm-evaluation-harness table for
+        // this row and the dense Phi-3 models of the same lab: the published
+        // place to put it is near Phi-3 mini, clearly below Phi-3 small.
+        dense_equivalent: Some(DenseEquivalent {
+            parameters: 3_800_000_000,
+            note: "near Phi-3 mini on the model card's evaluation table, clearly below \
+                   Phi-3 small (7.4B)",
+            source: "Microsoft's Phi-mini-MoE-instruct model card, accessed 2026-09-14",
+        }),
         stale: None,
     },
     ModelEntry {
         repo: "ibm-granite/granite-4.0-h-tiny",
+        display_name: "IBM Granite 4 Tiny",
         gguf_repo: Some("ibm-granite/granite-4.0-h-tiny-GGUF"),
         last_modified: "2025-11-03T19:42:57.000Z",
         licence: Licence::Open("apache-2.0"),
@@ -250,10 +309,20 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: 4_230_976_352,
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        // IBM's own documentation compares this row to their dense Granite
+        // 4.0 H-Micro, trained on the same recipe — the strongest evidence
+        // that exists for a MoE's class, and it exists only for this row.
+        dense_equivalent: Some(DenseEquivalent {
+            parameters: 3_000_000_000,
+            note: "close to it: above on GSM8K, DeepMind-Math and MBPP, below on BBH and \
+                   IFEval",
+            source: "IBM's Granite 4.0 model documentation, accessed 2026-09-14",
+        }),
         stale: None,
     },
     ModelEntry {
         repo: "arcee-ai/Trinity-Nano-Preview",
+        display_name: "Arcee Trinity Nano",
         gguf_repo: Some("arcee-ai/Trinity-Nano-Preview-GGUF"),
         last_modified: "2026-05-28T22:45:39.000Z",
         // OpenMDW permits commercial use and modification; preserving licence
@@ -266,11 +335,13 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: 3_786_957_088,
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     // ── refused, kept for the record ────────────────────────────────────────
     ModelEntry {
         repo: "amd/Instella-MoE-16B-A3B-Think",
+        display_name: "AMD Instella",
         gguf_repo: None,
         last_modified: "2026-08-01",
         licence: Licence::Blocked {
@@ -282,10 +353,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(9, 75),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: None,
     },
     ModelEntry {
         repo: "openai/gpt-oss-20b",
+        display_name: "OpenAI GPT-OSS",
         gguf_repo: None,
         last_modified: "2025-08-05",
         licence: Licence::Open("apache-2.0"),
@@ -294,10 +367,12 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(11, 60),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
     ModelEntry {
         repo: "Qwen/Qwen3-30B-A3B",
+        display_name: "Alibaba Qwen 3",
         gguf_repo: None,
         last_modified: "2025-04-28",
         licence: Licence::Open("apache-2.0"),
@@ -306,6 +381,7 @@ pub const CATALOG: &[ModelEntry] = &[
         weights_bytes: gigabytes(17, 30),
         mmproj_bytes: None,
         kv_bytes_per_token: None,
+        dense_equivalent: None,
         stale: Some("2025 model, superseded in its tier by the 2026 MoE rows"),
     },
 ];
@@ -350,6 +426,40 @@ mod tests {
         assert!(refused
             .iter()
             .any(|(entry, reason)| entry.repo.contains("gpt-oss") && reason.contains("2025")));
+    }
+
+    #[test]
+    fn every_row_has_a_name_a_person_can_say() {
+        // Vendor plus family: the only model identity the user ever sees. The
+        // repo path, the quantisation, the parameter suffixes and the variant
+        // codes are ours, and none of them may appear in a display name.
+        for entry in CATALOG {
+            let name = entry.display_name;
+            assert!(!name.is_empty(), "{} has no name", entry.repo);
+            assert!(!name.contains('/'), "{name} leaks a repo path");
+            assert!(!name.contains('_'), "{name} leaks a code");
+            assert!(!name.contains("Q4"), "{name} leaks a quantisation");
+            assert!(!name.contains("instruct"), "{name} leaks a variant code");
+            assert!(
+                !name.contains("A3B") && !name.contains("A4B"),
+                "{name} leaks an active-parameter suffix"
+            );
+        }
+        // The rows the 8 GB tier was built around, as the interface shows them.
+        let named: Vec<(&str, &str)> = CATALOG
+            .iter()
+            .filter(|entry| entry.gguf_repo.is_some())
+            .map(|entry| (entry.repo, entry.display_name))
+            .collect();
+        assert_eq!(
+            named,
+            vec![
+                ("LiquidAI/LFM2.5-8B-A1B", "Liquid LFM 2.5"),
+                ("microsoft/Phi-mini-MoE-instruct", "Microsoft Phi Mini"),
+                ("ibm-granite/granite-4.0-h-tiny", "IBM Granite 4 Tiny"),
+                ("arcee-ai/Trinity-Nano-Preview", "Arcee Trinity Nano"),
+            ]
+        );
     }
 
     #[test]
@@ -408,6 +518,35 @@ mod tests {
                 ("arcee-ai/Trinity-Nano-Preview", 3_786_957_088),
             ]
         );
+    }
+
+    #[test]
+    fn dense_equivalents_carry_only_published_comparisons() {
+        // The two rows whose publisher compared them to a same-recipe dense
+        // model, with the source that makes the figure citable.
+        for repo in ["ibm-granite/granite-4.0-h-tiny", "microsoft/Phi-mini-MoE-instruct"] {
+            let entry = CATALOG
+                .iter()
+                .find(|entry| entry.repo == repo)
+                .expect("row is in the catalog");
+            let equivalent = entry
+                .dense_equivalent
+                .unwrap_or_else(|| panic!("{repo} has a published dense equivalent"));
+            assert!(equivalent.parameters > 0);
+            assert!(!equivalent.note.is_empty());
+            let source = equivalent.source;
+            assert!(source.contains("accessed 2026-09-14"), "{source}");
+        }
+        // LFM publishes vendor-to-vendor tables, not a same-recipe dense LFM
+        // comparison, and Trinity publishes nothing: None is the honest value,
+        // and it means nothing was published — not that the model is weak.
+        for repo in ["LiquidAI/LFM2.5-8B-A1B", "arcee-ai/Trinity-Nano-Preview"] {
+            let entry = CATALOG
+                .iter()
+                .find(|entry| entry.repo == repo)
+                .expect("row is in the catalog");
+            assert!(entry.dense_equivalent.is_none(), "{repo}");
+        }
     }
 
     #[test]

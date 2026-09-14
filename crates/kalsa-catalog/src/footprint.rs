@@ -132,6 +132,7 @@ mod tests {
     fn dense_row(weights_bytes: u64) -> ModelEntry {
         ModelEntry {
             repo: "test/dense",
+            display_name: "Test Dense",
             gguf_repo: None,
             last_modified: "2026-01-01",
             licence: crate::licence::Licence::Open("apache-2.0"),
@@ -140,6 +141,7 @@ mod tests {
             weights_bytes,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            dense_equivalent: None,
             stale: None,
         }
     }

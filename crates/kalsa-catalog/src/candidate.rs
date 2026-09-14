@@ -96,6 +96,7 @@ mod tests {
     fn entry(weights_gib: f64, total: u64, active: u64) -> ModelEntry {
         ModelEntry {
             repo: "test/row",
+            display_name: "Test Row",
             gguf_repo: None,
             last_modified: "2026-01-01",
             licence: crate::licence::Licence::Open("apache-2.0"),
@@ -108,6 +109,7 @@ mod tests {
             weights_bytes: (weights_gib * GIB as f64) as u64,
             mmproj_bytes: None,
             kv_bytes_per_token: None,
+            dense_equivalent: None,
             stale: None,
         }
     }
