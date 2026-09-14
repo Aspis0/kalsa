@@ -143,7 +143,7 @@ function positiveSaveTokens(n: number | null | undefined): number | undefined {
 /**
  * Last-save usedTokens for assemble hold. Bound to engine + conversation so a
  * leftover save from chat A cannot clamp chat B. Null fingerprint (native
- * clear / failed restore) → undefined.
+ * chat KV known empty) → undefined. Do not null on flag-only drop (t10).
  */
 export function lastSaveTokensForHint(
   fingerprint: SessionSaveFingerprint | null | undefined,
@@ -685,9 +685,10 @@ export function sessionRecoverTrimIsHonest(
 }
 
 /**
- * Native chat KV is gone (dispose, successful utility clearCache, failed
- * extract restore, session invalidation, markChatKvCleared). Do not use this
- * on a flag-only hold drop — that regresses t10 last-save hint.
+ * Native chat KV is gone (dispose / context released, successful
+ * clearCache, overwrite utility completion returned). Do not use this on a
+ * flag-only hold drop, invalidation without clearCache, or failed extract
+ * restore that did not clear native — that regresses t10 last-save hint.
  */
 export function chatKvHoldAfterNativeClear(): {
   kvHoldsChatSession: false;
@@ -701,6 +702,34 @@ export function chatKvHoldAfterNativeClear(): {
     chatKvDiskCurrent: false,
     lastSuccessfulSessionSave: null,
   };
+}
+
+/**
+ * dropChatKvHold(true) only when native chat KV is actually empty.
+ * Invalidation / failed restore without clearCache, and utility clearCache
+ * catch before overwrite completion returns, must be false (t10).
+ */
+export function nativeEmptyForHoldDrop(input: {
+  clearCacheSucceeded?: boolean;
+  overwriteCompletionReturned?: boolean;
+  contextReleased?: boolean;
+}): boolean {
+  return (
+    input.clearCacheSucceeded === true ||
+    input.overwriteCompletionReturned === true ||
+    input.contextReleased === true
+  );
+}
+
+/**
+ * lastSuccessfulSessionSave after dropChatKvHold(nativeEmpty).
+ * Flag-only drop (nativeEmpty=false) keeps the fingerprint (t10).
+ */
+export function lastSaveAfterHoldDrop(
+  lastSave: SessionSaveFingerprint | null,
+  nativeEmpty: boolean,
+): SessionSaveFingerprint | null {
+  return nativeEmpty ? null : lastSave;
 }
 
 /** Native throw "kv_inconsistent" — keep the previous .kvs, do not delete. */

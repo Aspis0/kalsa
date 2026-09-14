@@ -32,7 +32,9 @@ import {
   sessionRecoverTrimIsHonest,
   sessionNativeSaveCoversNPast,
   chatKvHoldAfterNativeClear,
+  lastSaveAfterHoldDrop,
   lastSaveTokensForHint,
+  nativeEmptyForHoldDrop,
   rememberSuccessfulSessionSave,
   sessionMetaKey,
   sessionNativeErrorReason,
@@ -398,7 +400,7 @@ describe("lastSaveTokensForHint", () => {
     expect(lastSaveTokensForHint(saved, identity)).toBe(7189);
   });
 
-  test("after native clear / failed restore, lastSaveTokens is undefined", () => {
+  test("after proven native clear, lastSaveTokens is undefined", () => {
     const cleared = chatKvHoldAfterNativeClear();
     expect(cleared.lastSuccessfulSessionSave).toBeNull();
     expect(
@@ -419,5 +421,78 @@ describe("lastSaveTokensForHint", () => {
         conversationId: identity.conversationId,
       }),
     ).toBeUndefined();
+  });
+});
+
+describe("dropChatKvHold nativeEmpty contract", () => {
+  const identity = { engineBuild: "eng-1", conversationId: "chat-a" };
+  const saved = rememberSuccessfulSessionSave(
+    null,
+    {
+      stem: "m__chat-a__env",
+      historyHash: "h",
+      usedTokens: 7189,
+      engineBuild: identity.engineBuild,
+      conversationId: identity.conversationId,
+    },
+    true,
+  );
+
+  test("drop(true) only after nativeEmpty", () => {
+    expect(nativeEmptyForHoldDrop({})).toBe(false);
+    expect(nativeEmptyForHoldDrop({ clearCacheSucceeded: false })).toBe(false);
+    expect(nativeEmptyForHoldDrop({ overwriteCompletionReturned: false })).toBe(
+      false,
+    );
+    expect(nativeEmptyForHoldDrop({ contextReleased: false })).toBe(false);
+    expect(nativeEmptyForHoldDrop({ clearCacheSucceeded: true })).toBe(true);
+    expect(nativeEmptyForHoldDrop({ overwriteCompletionReturned: true })).toBe(
+      true,
+    );
+    expect(nativeEmptyForHoldDrop({ contextReleased: true })).toBe(true);
+    expect(lastSaveAfterHoldDrop(saved, true)).toBeNull();
+    expect(
+      lastSaveTokensForHint(lastSaveAfterHoldDrop(saved, true), identity),
+    ).toBeUndefined();
+  });
+
+  test("t10 flag-only drop keeps last-save fingerprint", () => {
+    const kept = lastSaveAfterHoldDrop(saved, false);
+    expect(kept).toEqual(saved);
+    expect(lastSaveTokensForHint(kept, identity)).toBe(7189);
+  });
+
+  test("invalidation without clear does not null lastSuccessfulSessionSave", () => {
+    const nativeEmpty = nativeEmptyForHoldDrop({ clearCacheSucceeded: false });
+    expect(nativeEmpty).toBe(false);
+    const kept = lastSaveAfterHoldDrop(saved, nativeEmpty);
+    expect(kept).toEqual(saved);
+    expect(lastSaveTokensForHint(kept, identity)).toBe(7189);
+  });
+
+  test("failed extract restore without clear keeps last-save fingerprint", () => {
+    const nativeEmpty = nativeEmptyForHoldDrop({ clearCacheSucceeded: false });
+    expect(lastSaveAfterHoldDrop(saved, nativeEmpty)).toEqual(saved);
+  });
+
+  test("utility drop(true) waits for clearCache or overwrite completion", () => {
+    expect(
+      nativeEmptyForHoldDrop({
+        clearCacheSucceeded: false,
+        overwriteCompletionReturned: false,
+      }),
+    ).toBe(false);
+    expect(
+      lastSaveAfterHoldDrop(
+        saved,
+        nativeEmptyForHoldDrop({ clearCacheSucceeded: false }),
+      ),
+    ).toEqual(saved);
+    expect(
+      lastSaveAfterHoldDrop(
+        saved,
+        nativeEmptyForHoldDrop({ overwriteCompletionReturned: true }),
+      ),
+    ).toBeNull();
   });
 });
