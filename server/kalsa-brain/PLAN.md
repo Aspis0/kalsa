@@ -769,5 +769,94 @@ credential, and the server must actually check it.
 
 No chat UI on the desktop — the phone is the client.
 No account, no cloud, no telemetry by default.
-No GPU-first design: the baseline is CPU, and a GPU is a bonus we detect.
+No CPU-only design either: section 4a settled this the other way round.
+Where a GPU exists it decides both the budget and the speed, and the
+installed build follows the hardware. What we are not building is a
+*requirement* for a GPU: a machine without one is still offered a model,
+or honestly refused.
 No "expert mode" that is really an excuse for not making a decision.
+
+
+## 8. What is built, and what the building taught us
+
+Written 2026-09-14. Everything below was verified by running it, not by
+reading a report. Seven crates, `cargo check --workspace --all-targets` clean
+with zero warnings.
+
+| Crate | What it decides |
+|---|---|
+| `kalsa-probe` | What this machine can do, and **on which execution path** |
+| `kalsa-catalog` | Which model, and whether it is worth offering at all |
+| `kalsa-download` | Getting a file here, once, provably intact |
+| `kalsa-runtime` | Which `llama-server` build this machine runs, proven by running it |
+| `kalsa-supervisor` | Keeping that server alive, and naming each way it dies |
+| `kalsa-sentinel` | Backing off before the machine cooks |
+| `kalsa-pairing` | The QR ceremony: a one-time code, a binding, the phone's own description |
+
+### Corrections the build forced on this plan
+
+**Asset names cannot be researched, they must be read.** The b10950 table was
+first written from a research summary and two rows did not exist: llama.cpp
+publishes the macOS builds as **`.tar.gz`**, not `.zip`, and the CUDA 13 build
+is **13.3**, not 13.0. The sizes in the research held (645 MB for CUDA 12.4
+with its runtime archive, 541 MB for 13.3, 18.4 MB Windows CPU, 31.7 MB
+Vulkan, 11.1 MB macOS arm64). The lesson is narrow and worth keeping: a
+plausible file name is not a file name.
+
+**A build we cannot open is a build we cannot run.** Filling in the real
+digests exposed an extractor that only understood zip — on the one platform
+this is developed on. An archive's format is now a fact on the row, not
+something sniffed from a file extension at the far end.
+
+**The verdict is fingerprinted by the archive's digests, not the release
+string.** A release tag only invalidates a proven backend if rows are never
+corrected in place — and correcting two rows in place is exactly what
+happened. The digests are the honest identity of a build.
+
+**The capability probe needs a model, and we do not host one.**
+`/health` answers only once a model is loaded, so proving a backend works
+needs weights. `stories260K.gguf` from `ggml-org/tiny-llamas`, URL pinned to a
+commit, 1_185_376 bytes, sha256 `047bf464…12c04b`, **GGUF v3** — the version
+matters, because b10950 will not load v1/v2 and a rejected probe model would
+make every backend look broken. Downloaded and hashed before being written
+down. Not yet proven against a real server: stated as a limit, in the code,
+where the row is.
+
+**Pairing had a dead end nobody would escape.** `persist` refused to overwrite
+a credential — correct, since a silently replaced credential is how a
+photographed QR evicts the real phone — but nothing else could write one
+either. The second pairing a machine was ever asked to perform failed forever:
+a new phone, a reinstall, one bad attempt. Replacing a credential is now a
+deliberate act (`forget`), it does not require the file to be readable (so a
+corrupt credential clears too), and "already paired" has its own type so the
+shell can say the true sentence instead of showing a disk error.
+
+**Dark mode is gone, on purpose.** One palette we check beats two where one is
+decoration. The trap it left behind was not a colour but `color-scheme: light
+dark`, which would have drawn dark scrollbars on a permanently light page.
+
+### The method that found the defects
+
+Neither of the two worst bugs of the day came out of a green test suite. Both
+came from mutating the code and watching whether anything complained:
+
+- A "no dead ends" check on the desktop shell counted a **button with no
+  label** as a way out. Removing the "Turn on" button from the Off screen left
+  a user reading *"this computer is not helping your phone"* under a blank
+  rectangle — and the check passed.
+- A test that had pinned "the asset table is empty" kept passing as
+  documentation of a temporary state long after that state was the thing being
+  changed.
+
+The rule this earns: **a test is only worth what its mutation says it is
+worth.** And verify the mutation actually landed — one of the day's mutations
+hit a line number that a refactor had moved, so the green meant nothing.
+
+### Not built yet
+
+Wiring. Seven crates and nothing joins them: pressing "Turn on" today does
+nothing. That sequence — decide the backend, fetch the build, fetch the model,
+start the server, keep it up — is the product, and each step is minutes long
+and fails differently. Also open: rendering the QR the ceremony produces,
+reusing weights another tool already downloaded (4d), the launch flags (7), and
+the capability split (5bis).
