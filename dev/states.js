@@ -45,10 +45,10 @@ const REASON_CONNECTION_LOST =
 const REASON_LONG =
   "The assistant stopped while it was getting ready. This can happen when the computer runs out of room while it is working. Turning it on again usually works, and closing other programs helps if it keeps happening. (stub)";
 
-function statusBackend(state, modelChosen) {
+function statusBackend(state) {
   return {
     async read() {
-      return state ? [state, modelChosen] : null;
+      return state ?? null;
     },
     async start() {},
     async stop() {},
@@ -59,12 +59,11 @@ function statusBackend(state, modelChosen) {
 // src-tauri/src/startup.rs, with byte figures measured tonight; they exist
 // to review the sentence around them, not to promise a download size.
 
-function modelBackend(measured, measure) {
+function modelBackend(state) {
   return {
-    async measured() {
-      return measured;
+    async read() {
+      return state ?? null;
     },
-    measure,
   };
 }
 
@@ -90,7 +89,7 @@ function progressCard(title, note, step) {
   card("Status", `${title} (real bytes)`, (panel) => {
     const bus = fakeBus();
     const view = mountStatus(panel, {
-      backend: statusBackend({ kind: "stopped" }, true),
+      backend: statusBackend({ kind: "stopped" }),
       events: bus,
     });
     view.refresh();
@@ -127,7 +126,7 @@ progressCard(
 
 card("Status", "first run: measuring the machine", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "stopped" }, true),
+    backend: statusBackend({ kind: "stopped" }),
     events: (() => {
       const bus = fakeBus();
       bus.emit("brain_progress", { kind: "measuring" });
@@ -138,7 +137,7 @@ card("Status", "first run: measuring the machine", (panel) =>
 
 card("Status", "first run: deciding the engine", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "stopped" }, true),
+    backend: statusBackend({ kind: "stopped" }),
     events: (() => {
       const bus = fakeBus();
       bus.emit("brain_progress", { kind: "deciding" });
@@ -149,7 +148,7 @@ card("Status", "first run: deciding the engine", (panel) =>
 
 card("Status", "first run: choosing a model", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "stopped" }, true),
+    backend: statusBackend({ kind: "stopped" }),
     events: (() => {
       const bus = fakeBus();
       bus.emit("brain_progress", { kind: "choosing" });
@@ -160,38 +159,38 @@ card("Status", "first run: choosing a model", (panel) =>
 
 card("Status", "first run: no model, engine off", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "stopped" }, false),
+    backend: statusBackend({ kind: "stopped" }),
   }).refresh(),
 );
 
 card("Status", "off, with a model set up", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "stopped" }, true),
+    backend: statusBackend({ kind: "stopped" }),
   }).refresh(),
 );
 
 card("Status", "starting", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "starting" }, true),
+    backend: statusBackend({ kind: "starting" }),
   }).refresh(),
 );
 
 card("Status", "running, phone unknown", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }, true),
+    backend: statusBackend({ kind: "running" }),
   }).refresh(),
 );
 
 card("Status", "running, phone connected", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }, true),
+    backend: statusBackend({ kind: "running" }),
     phone: true,
   }).refresh(),
 );
 
 card("Status", "running, phone known absent", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }, true),
+    backend: statusBackend({ kind: "running" }),
     phone: false,
   }).refresh(),
 );
@@ -199,122 +198,74 @@ card("Status", "running, phone known absent", (panel) =>
 card("Status", "failed (real words)", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(
-      { kind: "failed", reason: REASON_PORT },
-      true,
-    ),
+      { kind: "failed", reason: REASON_PORT }
+   ),
   }).refresh(),
 );
 
 card("Status", "failed: the connection dropped (real words)", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(
-      { kind: "failed", reason: REASON_CONNECTION_LOST },
-      true,
-    ),
+      { kind: "failed", reason: REASON_CONNECTION_LOST }
+   ),
   }).refresh(),
 );
 
 card("Status", "failed: the chosen model cannot be funded (real words)", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(
-      { kind: "failed", reason: REASON_UNFUNDABLE },
-      true,
-    ),
+      { kind: "failed", reason: REASON_UNFUNDABLE }
+   ),
   }).refresh(),
 );
 
 card("Status", "failed, deliberately long reason (wrap test)", (panel) =>
   mountStatus(panel, {
     backend: statusBackend(
-      { kind: "failed", reason: REASON_LONG },
-      true,
-    ),
+      { kind: "failed", reason: REASON_LONG }
+   ),
   }).refresh(),
 );
 
 card("Status", "state unreadable", (panel) =>
-  mountStatus(panel, { backend: statusBackend(null, null) }).refresh(),
+  mountStatus(panel, { backend: statusBackend(null) }).refresh(),
 );
 
 card("Status", "running, with a slowdown announced", (panel) =>
   mountStatus(panel, {
-    backend: statusBackend({ kind: "running" }, true),
+    backend: statusBackend({ kind: "running" }),
     throttled: true,
   }).refresh(),
 );
 
 // ---- Model ----
+// The walk chooses on its own (startup.rs Progress::Choosing) and speaks
+// its failures through the Status page; this page explains the choice. The
+// Selection's own words arrive when the shell grows a command for it — no
+// invented model names here.
 
-card("Model", "not measured yet", (panel) =>
-  mountModel(panel, { backend: modelBackend(false) }).refresh(),
+card("Model", "running: the choice is automatic", (panel) =>
+  mountModel(panel, { backend: modelBackend({ kind: "running" }) }).refresh(),
 );
 
-card("Model", "measuring (click Measure to watch it)", async (panel) => {
+card("Model", "starting on the chosen model", (panel) =>
+  mountModel(panel, { backend: modelBackend({ kind: "starting" }) }).refresh(),
+);
+
+card("Model", "off: nothing is chosen while off", (panel) =>
+  mountModel(panel, { backend: modelBackend({ kind: "stopped" }) }).refresh(),
+);
+
+card("Model", "not running: the Status page says why", (panel) =>
   mountModel(panel, {
-    backend: modelBackend(false, () => new Promise(() => {})),
-  }).refresh();
-  await settle();
-  press(panel);
-  await settle();
-});
-
-card("Model", "measurement rejected: too busy (click Measure)", async (panel) => {
-  mountModel(panel, { backend: modelBackend(false, async () => false) }).refresh();
-  await settle();
-  press(panel);
-  await settle();
-});
-
-card("Model", "measuring failed (click Measure)", async (panel) => {
-  mountModel(panel, {
-    backend: modelBackend(false, async () => {
-      throw new Error("stub failure");
-    }),
-  }).refresh();
-  await settle();
-  press(panel);
-  await settle();
-});
-
-card("Model", "measured, waiting for the phone", (panel) =>
-  mountModel(panel, { backend: modelBackend(true) }).refresh(),
+    backend: modelBackend({ kind: "failed", reason: REASON_PORT }),
+  }).refresh(),
 );
 
 card("Model", "outside the app (browser preview)", (panel) =>
   mountModel(panel, { backend: null }).refresh(),
 );
 
-card("Model", "a refusal (real words)", (panel) =>
-  mountModel(panel, { backend: null }).showDecision({
-    refuse: {
-      reason: "nothingBetter",
-      explanation: "(stub explanation)",
-    },
-  }),
-);
-
-const STUB_RATIONALE =
-  "This model has about [N] billion parameters and should write at about [X] to [Y] words a second on this computer; the cache size is still an assumption. (stub)";
-
-function pickCard(title, justification) {
-  card("Model", title, (panel) =>
-    mountModel(panel, { backend: null }).showDecision({
-      pick: {
-        label: "Example Model (stub)",
-        justification,
-        rationale: STUB_RATIONALE,
-      },
-    }),
-  );
-}
-
-pickCard("a capability pick", "capability");
-pickCard("a relief pick", "relief");
-pickCard("an expected-but-unmeasured pick", "expectedButUnmeasured");
-
-card("Model", "no decision at all", (panel) =>
-  mountModel(panel, { backend: null }).showDecision(null),
-);
 
 // ---- Pairing ----
 // The DTO is pages/pairing.js's contract; the square is a stub symbol — a

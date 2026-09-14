@@ -246,30 +246,22 @@ if (/!/.test(ALL_TEXT)) problems.push("exclamation mark");
 // one extends this list on purpose, not to silence the check by accident.
 const NOTHING = [
   "nothing for you to do here",
-  "There is nothing to choose",
   "Open the app on this computer",
-  "not worth it",
-  "not worth using",
-  "Pair the phone first",
-  "Nothing on this page is a guess",
-  "too slow to use",
-  "This page will say which model",
   "To pair your phone with this computer",
-  // A chosen model is the goal state: nothing is needed. The three phrases
-  // are the justification sentences in pages/model.js.
-  "That is why it runs here",
-  "battery lasts longer",
-  "We have not tested it on this computer yet",
-  // Setup steps with no bytes to show yet: the sentence is the progress.
-  "Looking at what this computer",
-  "Deciding which model",
-  "Finding the version of the engine",
-  "can take a minute",
   // Pairing's in-progress and goal states: the square, the connection, and
   // the done state are their own exits.
   "A phone is connecting right now",
   "This computer now works with",
   "will appear here in a moment",
+  // Setup steps with no bytes to show yet: the sentence is the progress.
+  "Looking at what this computer",
+  "Finding the version of the engine",
+  "can take a minute",
+  // The Model page's goal states: the walk chose, nothing is the user's job.
+  "You never have to pick one",
+  "You never have to pick anything",
+  "The Status page says why",
+  "It is starting now",
 ];
 for (const { heading, sentence, button, working, qr } of results) {
   const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
@@ -343,6 +335,24 @@ if (!results.some((r) => r.sentence === RESUME_SENTENCE)) {
   problems.push("the connection-lost failure must keep the resume promise in its own words");
 }
 
+// ---- Model rules: the walk chooses; the page explains, never asks ----
+// "Measure this computer" handed the walk's own step back to the user, and
+// the page kept a story (measure, then pair, then choose) the walk no longer
+// follows. These rules hold the page to what is true now.
+const MODEL_AUTO =
+  "A model is chosen automatically — from this computer's memory and what your phone runs — every time you turn on.";
+const MODEL_NO_PICK = "You never have to pick one.";
+
+const modelCards = results.filter((r) => r.heading.startsWith("Model —"));
+if (!modelCards.some((r) => r.sentence.includes(MODEL_AUTO) && r.sentence.includes(MODEL_NO_PICK))) {
+  problems.push("the Model page must explain the automatic choice and that picking is never asked");
+}
+for (const { heading, buttons } of modelCards) {
+  if (buttons.some((text) => text.startsWith("Measure"))) {
+    problems.push(`the Model page must not ask the user to measure: ${heading}`);
+  }
+}
+
 // ---- the progress event must reach the screen ----
 // main.rs emits `brain_progress` (startup.rs Progress); the Status page
 // subscribes by name and shows the walk instead of "Off". A card that
@@ -406,7 +416,7 @@ for (const { name, dto } of HOSTILE) {
   try {
     const panel = document.createElement("div");
     const view = mountStatus(panel, {
-      backend: { async read() { return [dto, false]; } },
+      backend: { async read() { return dto; } },
     });
     await view.refresh();
     const text = visibleText(panel);
@@ -441,7 +451,7 @@ try {
   const view = mountStatus(panel, {
     backend: {
       async read() {
-        return [{ kind: "stopped" }, true];
+        return { kind: "stopped" };
       },
       async start() {
         throw new Error(UNFUNDABLE_SENTENCE);
@@ -481,7 +491,7 @@ for (const { name, step } of HOSTILE_STEPS) {
     const view = mountStatus(panel, {
       backend: {
         async read() {
-          return [{ kind: "stopped" }, true];
+          return { kind: "stopped" };
         },
       },
       events: bus,

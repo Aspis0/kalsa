@@ -4,9 +4,10 @@
 // #page-status, and dev/states.html mounts more with stubbed backends, so
 // what the states page reviews is the real page code, not a drawing of it.
 // Everything real comes from the supervisor (brain_state, brain_start,
-// brain_stop) plus the one fact brain_model can honestly report. The phone
-// and throttle facts are placeholders (data/placeholders.js); until they are
-// wired, the page says it cannot tell, and never guesses.
+// brain_stop) and the walk's own progress event (brain_progress, rendered
+// by pages/setup.js). The phone and throttle facts are placeholders
+// (data/placeholders.js); until they are wired, the page says it cannot
+// tell, and never guesses.
 
 import { available, invoke, listen } from "../lib/tauri.js";
 import { mountSetup } from "./setup.js";
@@ -30,11 +31,7 @@ const tauriBackend = {
   async read() {
     if (!available()) return null;
     try {
-      const [state, model] = await Promise.all([
-        invoke("brain_state"),
-        invoke("brain_model"),
-      ]);
-      return [state, model ? model.chosen : null];
+      return await invoke("brain_state");
     } catch {
       return null;
     }
@@ -92,7 +89,7 @@ export function mountStatus(
   });
 
   // The last render's facts, so the button acts on what the screen shows.
-  let current = { state: null, modelChosen: null };
+  let current = { state: null };
   // A failed walk has no state to live in — the supervisor is still Stopped —
   // so its sentence is held here until something actually runs. Without the
   // hold, the next poll wipes the only honest words on the screen.
@@ -112,8 +109,8 @@ export function mountStatus(
     action.disabled = !enabled;
   }
 
-  function render(state, modelChosen) {
-    current = { state, modelChosen };
+  function render(state) {
+    current = { state };
     // The hold lives only while nothing runs: any other state has words of
     // its own. Same for the walk's progress — once something runs, or a
     // failure is being spoken, the progress view has nothing to say.
@@ -136,7 +133,7 @@ export function mountStatus(
       ? "This computer is running slower on purpose, to protect itself. Answers take longer than usual."
       : "";
 
-    if (!state || modelChosen === null) {
+    if (!state) {
       set(
         "Not known",
         "This page could not tell whether the assistant is running. Trying again usually works.",
@@ -148,14 +145,7 @@ export function mountStatus(
 
     switch (state.kind) {
       case "stopped":
-        if (modelChosen === false) {
-          set(
-            "Not set up",
-            "This computer needs a model before it can help your phone.",
-            "Choose a model",
-            true,
-          );
-        } else if (heldFailure) {
+        if (heldFailure) {
           set("Stopped", heldFailure, "Try again", true);
         } else {
           set(
@@ -209,25 +199,17 @@ export function mountStatus(
   }
 
   async function refresh() {
-    const read = await backend.read();
-    if (!read) {
-      render(null, null);
-      return;
-    }
-    render(read[0], read[1]);
+    const state = await backend.read();
+    render(state);
   }
 
   action.addEventListener("click", async () => {
-    const { state, modelChosen } = current;
+    const { state } = current;
     if (!state) {
       refresh(); // the unknown state's action is trying again
       return;
     }
     if (state.kind === "stopped" || state.kind === "failed") {
-      if (modelChosen === false) {
-        goTo("model");
-        return;
-      }
       action.disabled = true;
       try {
         await backend.start();
