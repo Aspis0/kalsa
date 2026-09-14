@@ -1,7 +1,7 @@
 /**
  * Remote-brain prefs. Backend defaults to local (zero regression).
- * URL defaults to loopback (adb reverse). Server model-id is required and
- * is never inferred from /v1/models[0].
+ * URL has no built-in default — the user must set their Mac address.
+ * Server model-id is required and is never inferred from /v1/models[0].
  */
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { normalizeRemoteUrl } from "./remoteUrl";
@@ -15,7 +15,7 @@ export const REMOTE_BRAIN_MAX_TOKENS_KEY = "kalsa.remote-brain.max-tokens";
 export const REMOTE_BRAIN_TEMPERATURE_KEY = "kalsa.remote-brain.temperature";
 export const REMOTE_BRAIN_CTX_KEY = "kalsa.remote-brain.ctx";
 
-export const DEFAULT_REMOTE_BRAIN_URL = "http://127.0.0.1:8000";
+export const DEFAULT_REMOTE_BRAIN_URL = "";
 export const DEFAULT_REMOTE_MAX_TOKENS = 4096;
 export const DEFAULT_REMOTE_TEMPERATURE = 0.7;
 export const DEFAULT_REMOTE_CTX = 32768;
@@ -117,7 +117,13 @@ export async function setEngineBackendMode(
 }
 
 export async function setRemoteBrainUrl(url: string): Promise<void> {
-  urlCache = normalizeUrl(url);
+  const trimmed = url.trim();
+  if (!trimmed) {
+    urlCache = "";
+    await AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, "");
+    return;
+  }
+  urlCache = normalizeUrl(trimmed);
   await AsyncStorage.setItem(REMOTE_BRAIN_URL_KEY, urlCache);
 }
 

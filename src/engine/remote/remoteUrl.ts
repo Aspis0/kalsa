@@ -91,10 +91,18 @@ export function remoteUrlAllowedInThisBuild(url: string): boolean {
     const parsed = new URL(url);
     if (parsed.protocol === "https:") return true;
     if (parsed.protocol !== "http:") return false;
-    // Release RN sets __DEV__ false (cleartext blocked). Jest/node leave it unset.
-    const release = typeof __DEV__ !== "undefined" && __DEV__ === false;
-    return isLoopbackHost(parsed.hostname) && !release;
+    // Loopback http is allowed in release too: traffic never leaves this
+    // device, and the Android debug manifest already permits cleartext.
+    // Gating on __DEV__ made the shipped default unusable on a real phone.
+    return isLoopbackHost(parsed.hostname);
   } catch {
     return false;
   }
+}
+
+/** Null if the URL may be used; otherwise a stable error code. */
+export function remoteUrlGateError(url: string): string | null {
+  if (!url.trim()) return "remote_brain_url_missing";
+  if (!remoteUrlAllowedInThisBuild(url)) return "remote_brain_https_required";
+  return null;
 }

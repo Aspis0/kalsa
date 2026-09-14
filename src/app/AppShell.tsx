@@ -3796,7 +3796,16 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
         if (!stillCurrent()) return false;
         setModelState("error");
         setModelErrorKind("engine");
-        setModelError(error instanceof Error ? error.message : String(error));
+        const raw = error instanceof Error ? error.message : String(error);
+        setModelError(
+          raw === "remote_brain_url_missing"
+            ? t("settings.remoteBrainUrlMissing")
+            : raw === "remote_brain_https_required"
+              ? t("settings.remoteBrainHttpsRequired")
+              : raw === "remote_brain_token_required"
+                ? t("settings.remoteBrainTokenRequired")
+                : raw,
+        );
         return false;
       }
     }

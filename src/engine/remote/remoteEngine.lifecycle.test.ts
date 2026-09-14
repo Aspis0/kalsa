@@ -3,7 +3,9 @@ import {
   initRemoteEngine,
   remoteNativeWorkInFlight,
   streamRemoteAssistantTurn,
+  testRemoteConnection,
 } from "./RemoteEngine";
+import { setRemoteBrainUrl } from "./remoteSettings";
 import { getRemoteBrainToken } from "./remoteSecret";
 
 jest.mock("@react-native-async-storage/async-storage", () => {
@@ -78,7 +80,7 @@ function errorStreamMock(requestId: string, message: string) {
 }
 
 describe("RemoteEngine lifecycle", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     fetchMock.mockReset();
     fetchMock.mockResolvedValue({
       ok: true,
@@ -93,10 +95,39 @@ describe("RemoteEngine lifecycle", () => {
       cleanDelta: (text: string) => text,
       finalize: (text: string) => text,
     }));
+    await setRemoteBrainUrl("http://127.0.0.1:8000");
   });
 
   afterEach(async () => {
     await disposeRemoteEngine();
+  });
+
+  test("empty URL is url_missing not https_required", async () => {
+    await setRemoteBrainUrl("");
+    const probe = await testRemoteConnection();
+    expect(probe.ok).toBe(false);
+    expect(probe.error).toBe("remote_brain_url_missing");
+  });
+
+  test("stream with empty URL errors url_missing", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    await setRemoteBrainUrl("");
+    const errors: string[] = [];
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: (e) => {
+          errors.push(e.message);
+        },
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(errors).toContain("remote_brain_url_missing");
   });
 
   test("overlapping streams are rejected", async () => {

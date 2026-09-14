@@ -16,7 +16,7 @@ import {
   canSendAuthorization,
   isNonLoopback,
   joinRemoteApiUrl,
-  remoteUrlAllowedInThisBuild,
+  remoteUrlGateError,
 } from "./remoteUrl";
 import {
   getRemoteBrainUrl,
@@ -75,11 +75,12 @@ export async function testRemoteConnection(): Promise<{
   try {
     const token = await getRemoteBrainToken();
     const base = getRemoteBrainUrl();
-    if (!remoteUrlAllowedInThisBuild(base)) {
+    const urlGate = remoteUrlGateError(base);
+    if (urlGate) {
       return {
         ok: false,
         modelId: configured || null,
-        error: "remote_brain_https_required",
+        error: urlGate,
       };
     }
     if (isNonLoopback(base) && !token) {
@@ -297,8 +298,9 @@ export async function streamRemoteAssistantTurn(
   const token = await getRemoteBrainToken();
   if (!stillMine()) return;
   const base = getRemoteBrainUrl();
-  if (!remoteUrlAllowedInThisBuild(base)) {
-    finishOnce(new Error("remote_brain_https_required"));
+  const urlGate = remoteUrlGateError(base);
+  if (urlGate) {
+    finishOnce(new Error(urlGate));
     return;
   }
   if (isNonLoopback(base) && !token) {

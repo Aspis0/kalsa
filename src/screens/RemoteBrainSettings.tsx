@@ -5,7 +5,6 @@ import { useLocale } from "../i18n";
 import { testRemoteConnection } from "../engine/engineBackend";
 import { REMOTE_MAC_MODEL_ID } from "../engine/remote/remoteMacModel";
 import {
-  DEFAULT_REMOTE_BRAIN_URL,
   DEFAULT_REMOTE_MAX_TOKENS,
   hydrateRemoteBrainSettings,
   isRemoteEngineBackend,
@@ -33,7 +32,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
   const { t } = useLocale();
   const { colors } = useLabTheme();
   const typography = useTypography();
-  const [url, setUrl] = useState(DEFAULT_REMOTE_BRAIN_URL);
+  const [url, setUrl] = useState("");
   const [serverModel, setServerModel] = useState("");
   const [maxTokens, setMaxTokens] = useState(String(DEFAULT_REMOTE_MAX_TOKENS));
   const [token, setToken] = useState("");
@@ -90,6 +89,9 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
       if (result.ok) {
         setStatusOk(true);
         setStatus(t("settings.remoteBrainOk", { model: result.modelId ?? "" }));
+      } else if (result.error === "remote_brain_url_missing") {
+        setStatusOk(false);
+        setStatus(t("settings.remoteBrainUrlMissing"));
       } else {
         setStatusOk(false);
         setStatus(t("settings.remoteBrainFail", { error: result.error ?? "error" }));
@@ -133,7 +135,14 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
           {t("settings.remoteMacHint")}
         </Text>
         <Pressable
-          onPress={() => onSelectModel(REMOTE_MAC_MODEL_ID)}
+          onPress={() => {
+            if (!url.trim()) {
+              setStatusOk(false);
+              setStatus(t("settings.remoteBrainUrlMissing"));
+              return;
+            }
+            onSelectModel(REMOTE_MAC_MODEL_ID);
+          }}
           disabled={busy || active}
           style={{
             alignSelf: "flex-start",
@@ -161,7 +170,7 @@ export function RemoteBrainSettings({ currentModelId, busy, onSelectModel }: Pro
         autoCapitalize="none"
         autoCorrect={false}
         keyboardType="url"
-        placeholder={DEFAULT_REMOTE_BRAIN_URL}
+        placeholder={t("settings.remoteBrainUrlHint")}
         placeholderTextColor={colors.muted}
         style={[
           typography.bodySm,

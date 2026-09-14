@@ -113,8 +113,11 @@ export const en = {
       "Choose the on-device model. Download runs only when you ask for it; incomplete downloads resume. Models live in the app's private storage: uninstalling the app deletes them.",
     remoteBrain: "Remote brain",
     remoteBrainHint:
-      "Use the Mac as the model. On this phone, 127.0.0.1:8000 is the Mac via adb reverse — not Tailscale. Tools, memory extraction, translation, embeddings and voice stay off in this mode.",
+      "Use the Mac as the model. Set the server URL to your Mac (developers: http://127.0.0.1:8000 via adb reverse). Tools, memory extraction, translation, embeddings and voice stay off in this mode.",
     remoteBrainUrl: "Server URL",
+    remoteBrainUrlHint: "https://your-mac… or http://127.0.0.1:8000 with adb reverse",
+    remoteBrainUrlMissing:
+      "Enter your Mac's address before using the remote brain.",
     remoteBrainModel: "Server model id",
     remoteBrainModelHint: "Must match an id from GET /v1/models. Not guessed.",
     remoteBrainMaxTokens: "Max tokens",
@@ -127,7 +130,8 @@ export const en = {
     remoteBrainFail: "Could not reach the Mac: {error}",
     remoteBrainHttpWarning:
       "This URL is plain HTTP and not loopback. The token will not be sent. Use HTTPS.",
-    remoteBrainHttpsRequired: "Release builds require an https:// server URL.",
+    remoteBrainHttpsRequired:
+      "HTTP is only allowed on this phone (127.0.0.1). Use https:// for any other host.",
     remoteBrainTokenRequired: "A token is required for non-loopback servers.",
     remoteMac: "My Mac",
     remoteMacHint: "Ornith on this Mac (mtplx). No on-device download.",
