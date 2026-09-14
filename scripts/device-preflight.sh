@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Prove the adb, run-as, WAL-safe SQLite, and UI chain on one real phone.
+# Serial: honor $ANDROID_SERIAL (set it to pin one device when several are
+# attached); otherwise a single attached device is used. Never hardcode a
+# serial and never `adb disconnect`/`adb kill-server` — in a multi-device lab
+# that would tear down another session's work.
 set -uo pipefail
 
 OUT="${OUT:-device-preflight-out}"
@@ -7,8 +11,11 @@ mkdir -p "$OUT"
 PKG="${PKG:-com.kalsa.app}"
 BENCH_TARGET=device
 
-# shellcheck source=ci-lib.sh
-source "$(dirname "$0")/ci-lib.sh"
+# shellcheck source=device-env.sh
+# device-env.sh sources ci-lib.sh once internally, so sourcing it here (instead
+# of ci-lib.sh directly) gives us device_pick_serial + sql/sql_write without
+# double-sourcing ci-lib.sh (whose bottom-of-file telemetry runs at source time).
+source "$(dirname "$0")/device-env.sh"
 
 fail() {
   printf 'FAIL: %s\n' "$*" >&2
@@ -23,10 +30,10 @@ if ! devices=$(adb devices 2>/dev/null); then
   fail "device discovery (adb devices failed)"
 fi
 attached=$(printf '%s\n' "$devices" | awk '$2 == "device" {print $1}')
-attached_count=$(printf '%s\n' "$attached" | awk 'NF {n++} END {print n + 0}')
-[ "$attached_count" -eq 1 ] \
-  || fail "device discovery (expected exactly one attached device, found $attached_count)"
-serial="$attached"
+picked=$(device_pick_serial "${ANDROID_SERIAL:-}" "$attached") \
+  || fail "device discovery (need ANDROID_SERIAL; attached: $(printf '%s' "$attached" | tr '\n' ' '))"
+export ANDROID_SERIAL="$picked"
+serial="$picked"
 case "$serial" in
   emulator-*) fail "device discovery (attached serial $serial is an emulator)" ;;
 esac
