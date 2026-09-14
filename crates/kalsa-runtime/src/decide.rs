@@ -161,6 +161,7 @@ fn state_file(root: &Path) -> PathBuf {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::child::Running;
 
     fn scratch(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
@@ -198,5 +199,58 @@ mod tests {
             map_store_error(StoreError::NoExecutable),
             DecideError::CannotAcquire(_)
         ));
+    }
+
+    #[test]
+    fn a_verdict_that_still_describes_this_machine_skips_the_probe() {
+        // The most expensive failure this crate can have is re-probing on
+        // every launch: a machine that already knows its answer would
+        // re-download up to 645 MB to learn it again, and experience that as
+        // an app that eats its connection. So the short-circuit is pinned
+        // with the seams decide_in already takes: a build on disk in the
+        // scratch root (as the store tests place one), a verdict whose
+        // fingerprint matches those same inputs, and a launcher that fails
+        // the test the moment the probe tries to run at all.
+        let root = scratch("short-circuit");
+        let platform = Platform::MacArm64;
+        let backend = ServerBackend::Metal;
+        let detected = Backend::Metal;
+
+        let exe = root
+            .join("builds")
+            .join(backend.name())
+            .join("llama-server");
+        std::fs::create_dir_all(exe.parent().expect("parent")).expect("mkdirs");
+        std::fs::write(&exe, b"a build that was proven long ago").expect("exe");
+        verdict::save(
+            &root,
+            &Verdict {
+                backend,
+                fingerprint: verdict::fingerprint(platform, backend, detected),
+            },
+        )
+        .expect("save verdict");
+
+        let decision = decide_in(&root, Some(platform), detected, &NeverProbe, &mut |_| {})
+            .expect("a standing verdict answers without probing");
+        assert_eq!(decision.backend, backend);
+        assert_eq!(decision.exe, exe, "the on-disk build is the answer");
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    /// A launcher whose whole job is to fail the test if the walk ever
+    /// reaches the probe: a machine with a standing verdict must never
+    /// launch anything.
+    struct NeverProbe;
+
+    impl Launch for NeverProbe {
+        fn spawn(
+            &self,
+            _exe: &Path,
+            _args: &[String],
+            _inherit: Option<&std::fs::File>,
+        ) -> std::io::Result<Box<dyn Running>> {
+            panic!("the probe ran although a verdict was standing");
+        }
     }
 }
