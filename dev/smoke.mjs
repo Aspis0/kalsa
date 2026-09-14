@@ -175,11 +175,21 @@ const NOTHING = [
 ];
 for (const { heading, sentence, button } of results) {
   const endsInNothing = NOTHING.some((phrase) => sentence.includes(phrase));
-  const pressable = button && !button.disabled && !button.hidden;
+  // A control with no name is not a way out; it is a dead end with a
+  // rectangle on it.
+  const pressable = button && !button.disabled && button.text.trim() !== "";
   const progress =
     button && button.disabled && (button.text === "Measuring…" || button.text === "Starting");
   if (!pressable && !progress && !endsInNothing) {
     problems.push(`dead end: ${heading}`);
+  }
+}
+
+// A visible button with no label is a problem in itself, whatever else the
+// state offers.
+for (const { heading, button } of results) {
+  if (button && button.text.trim() === "") {
+    problems.push(`labelless button: ${heading}`);
   }
 }
 

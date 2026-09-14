@@ -73,9 +73,16 @@ export function mountStatus(
   // The last render's facts, so the button acts on what the screen shows.
   let current = { state: null, modelChosen: null };
 
+  // Either an action with a name, or no action: an empty name is no action,
+  // so a visible labelless button is not a state this page can produce.
   function set(head, body, button, enabled) {
     headline.textContent = head;
     sentence.textContent = body;
+    if (!button) {
+      action.hidden = true;
+      return;
+    }
+    action.hidden = false;
     action.textContent = button;
     action.disabled = !enabled;
   }

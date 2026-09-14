@@ -41,17 +41,19 @@ export function mountModel(root, { goTo = () => {}, backend = tauriBackend } = {
   // slow probe reads as progress, not as a dead window.
   let mode = "unknown";
 
+  // Either an action with a name, or no action: an empty name is no action,
+  // so a visible labelless button is not a state this page can produce.
   function set(head, text, button, enabled) {
     headline.textContent = head;
     body.textContent = text;
     rationale.hidden = true;
-    if (button === null) {
+    if (!button) {
       action.hidden = true;
-    } else {
-      action.hidden = false;
-      action.textContent = button;
-      action.disabled = !enabled;
+      return;
     }
+    action.hidden = false;
+    action.textContent = button;
+    action.disabled = !enabled;
   }
 
   // Every state below ends in something the user can press, or in a plain
