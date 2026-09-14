@@ -24,9 +24,11 @@ import {
   getRemoteMaxTokens,
   getRemoteServerModelId,
   getRemoteTemperature,
+  setRemoteContextSize,
   validateServedModel,
 } from "./remoteSettings";
 import { REMOTE_COMPUTER_MODEL_ID } from "./remoteComputerModel";
+import { parseServerContext } from "./serverContext";
 
 let ready = false;
 let activeId: string | null = null;
@@ -42,11 +44,11 @@ let streamGeneration = 0;
  * operation that superseded it owns the screen. Callers ask before reporting.
  */
 export function isSupersededRemoteOp(value: unknown): boolean {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    (value as { superseded?: unknown }).superseded === true
-  );
+  if (typeof value !== "object" || value === null) return false;
+  // Own property only: an error whose prototype happens to carry `superseded`
+  // would otherwise make a current failure invisible.
+  if (!Object.prototype.hasOwnProperty.call(value, "superseded")) return false;
+  return (value as { superseded?: unknown }).superseded === true;
 }
 
 function supersededInitError(): Error {
@@ -111,6 +113,16 @@ export async function testRemoteConnection(): Promise<{
         error: "remote_brain_token_required",
       };
     }
+    // The window the server will actually answer within: we send no context
+    // length, so its setting decides, and sizing prompts beyond it fails with
+    // something the user cannot act on. Best effort and backend-agnostic: a
+    // server that does not expose /props keeps our conservative default.
+    const props = await jsonGet("/props", token, probe.signal);
+    const serverContext = props.ok ? parseServerContext(props.body) : null;
+    if (serverContext !== null && serverContext !== getRemoteContextSize()) {
+      await setRemoteContextSize(serverContext);
+    }
+
     const models = await jsonGet("/v1/models", token, probe.signal);
     let ids: string[] = [];
     if (models.ok) {

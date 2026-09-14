@@ -23,8 +23,10 @@ export const REMOTE_COMPUTER_MODEL: ModelInfo = {
   revision: "none",
   file: "",
   sizeBytes: 0,
-  // The app cannot know the server's window. What it does know is the context
-  // it requests (DEFAULT_REMOTE_CTX), so that is what it promises the user.
+  // Our own default, used until the server tells us better: the probe reads
+  // /props and the live budget follows the server's own n_ctx (see
+  // RemoteEngine.testRemoteConnection). The client sends no context length, so
+  // this is a promise about our request, not about the server.
   contextLength: DEFAULT_REMOTE_CTX,
   engineCtx: DEFAULT_REMOTE_CTX,
   kvCache: { k: "q8_0", v: "q4_0" },

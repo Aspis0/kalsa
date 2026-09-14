@@ -111,6 +111,46 @@ describe("RemoteEngine lifecycle", () => {
     expect(probe.error).toBe("remote_brain_url_missing");
   });
 
+  test("the server's own context window replaces our default", async () => {
+    const { getRemoteContextSize, setRemoteServerModelId, setRemoteContextSize } =
+      await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await setRemoteContextSize(32768);
+    // /props is where llama-server says what it will actually answer within.
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith("/props")) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ default_generation_settings: { n_ctx: 8192 } }),
+        };
+      }
+      return { ok: true, status: 200, json: async () => ({ data: [{ id: "ornith" }] }) };
+    });
+
+    const probe = await testRemoteConnection();
+    expect(probe.ok).toBe(true);
+    // Sizing prompts to 32768 against a server that answers 8192 fails with
+    // something the user cannot act on; the client now uses what the server says.
+    expect(getRemoteContextSize()).toBe(8192);
+  });
+
+  test("a backend that does not expose /props keeps the default", async () => {
+    const { getRemoteContextSize, setRemoteServerModelId, setRemoteContextSize } =
+      await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await setRemoteContextSize(32768);
+    fetchMock.mockImplementation(async (url: string) => {
+      if (String(url).endsWith("/props")) {
+        return { ok: false, status: 404, json: async () => null };
+      }
+      return { ok: true, status: 200, json: async () => ({ data: [{ id: "ornith" }] }) };
+    });
+
+    expect((await testRemoteConnection()).ok).toBe(true);
+    expect(getRemoteContextSize()).toBe(32768);
+  });
+
   test("empty URL does not read SecureStore", async () => {
     await setRemoteBrainUrl("");
     (getRemoteBrainToken as jest.Mock).mockClear();
@@ -256,6 +296,19 @@ describe("RemoteEngine lifecycle", () => {
     expect(bOpened).toBe(1);
     await disposeRemoteEngine();
     await pB;
+  });
+
+  test("an inherited superseded marker is not a verdict", () => {
+    // A current error whose prototype carries the marker must not vanish.
+    const inherited = Object.create({ superseded: true }) as Error;
+    expect(isSupersededRemoteOp(inherited)).toBe(false);
+
+    const own = new Error("remote_brain_network") as Error & {
+      superseded?: true;
+    };
+    own.superseded = true;
+    expect(isSupersededRemoteOp(own)).toBe(true);
+    expect(isSupersededRemoteOp(new Error("remote_brain_network"))).toBe(false);
   });
 
   test("a superseded init does not clobber the init that won", async () => {

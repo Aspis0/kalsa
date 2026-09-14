@@ -42,7 +42,7 @@ export function humanRemoteBrainError(
 ): string {
   if (!code) return t("settings.remoteBrainFailGeneric");
   // Own properties only: a code off the wire ("constructor", "__proto__") must
-  // not resolve to an inherited member and leak into `t()`. 
+  // not resolve to an inherited member and leak into `t()`.
   const key = Object.prototype.hasOwnProperty.call(CODE_KEYS, code)
     ? CODE_KEYS[code]
     : undefined;
