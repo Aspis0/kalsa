@@ -800,8 +800,8 @@ export function AiChatPage({
   const screenH = Dimensions.get("screen").height;
   const [kbDebugOn, setKbDebugOn] = useState(
     () =>
-      __DEV__ === true ||
-      (globalThis as any).KALSA_KB_DEBUG === true,
+      (globalThis as { __DEV__?: boolean }).__DEV__ === true ||
+      (globalThis as { KALSA_KB_DEBUG?: boolean }).KALSA_KB_DEBUG === true,
   );
   const [kbDebugLabel, setKbDebugLabel] = useState("kb=…");
   // Mirror for the worklet so runOnJS is never scheduled when the pill is off.

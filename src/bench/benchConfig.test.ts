@@ -31,13 +31,14 @@ import {
 const MAX_TOOL_ROUNDS = 3;
 type DevGlobal = typeof globalThis & { __DEV__?: boolean };
 const devGlobal = globalThis as DevGlobal;
+const hadDev = Object.prototype.hasOwnProperty.call(devGlobal, "__DEV__");
 const originalDev = devGlobal.__DEV__;
 
 afterEach(() => {
-  if (originalDev === undefined) {
-    delete devGlobal.__DEV__;
-  } else {
+  if (hadDev) {
     devGlobal.__DEV__ = originalDev;
+  } else {
+    delete devGlobal.__DEV__;
   }
 });
 
