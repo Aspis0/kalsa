@@ -103,7 +103,10 @@ import {
   normalizeModelEmittedTextForSave,
   readModelEmittedText,
 } from "../engine/modelEmittedText";
-import { toPersistableHistoryMessages } from "../engine/historyPersistable";
+import {
+  restoreTerminalFlags,
+  toPersistableHistoryMessages,
+} from "../engine/historyPersistable";
 import { computeHistoryHashFromMessages } from "../engine/sessionPersistence";
 import {
   messagesKey,
@@ -626,12 +629,12 @@ function sanitizeHistoryMessages(raw: unknown, locale: Locale): Message[] {
       text: record.text.slice(0, MAX_TEXT),
       createdAt: typeof record.createdAt === "number" ? record.createdAt : Date.now(),
     };
-    // interrupted is terminal (partial kept after kill) — restore so the UI marker shows.
+    // interrupted / truncated are terminal — restore so the UI marker shows.
     // Only with non-empty text so a corrupt payload cannot render a floating marker.
     // Transient `streaming` is never restored (no eternal spinners).
-    if (record.interrupted === true && message.text.trim().length > 0) {
-      message.interrupted = true;
-    }
+    const terminal = restoreTerminalFlags(record, message.text);
+    if (terminal.interrupted) message.interrupted = true;
+    if (terminal.truncated) message.truncated = true;
     if (record.edited === true) {
       message.edited = true;
     }

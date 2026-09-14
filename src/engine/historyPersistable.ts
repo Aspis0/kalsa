@@ -26,6 +26,21 @@ function mapPersistableAttachments(raw: unknown): unknown {
 }
 
 /**
+ * Restore terminal UI markers after reload. Empty text must not grow a
+ * floating interrupted/truncated badge from a corrupt payload.
+ */
+export function restoreTerminalFlags(
+  rec: Record<string, unknown>,
+  text: string,
+): { interrupted?: true; truncated?: true } {
+  if (typeof text !== "string" || text.trim().length === 0) return {};
+  const out: { interrupted?: true; truncated?: true } = {};
+  if (rec.interrupted === true) out.interrupted = true;
+  if (rec.truncated === true) out.truncated = true;
+  return out;
+}
+
+/**
  * Strip live-only fields so boot JSON and in-memory messages hash alike.
  * `streaming` / `statusLabel` / `statusHistory` never persist.
  */
@@ -52,6 +67,10 @@ export function toPersistableHistoryMessages(
     if (rec.streaming && allowStreamingPartial) {
       next.interrupted = true;
     }
+    const text = typeof rec.text === "string" ? rec.text : "";
+    const flags = restoreTerminalFlags(rec, text);
+    if (flags.truncated) next.truncated = true;
+    else delete next.truncated;
     const attachments = mapPersistableAttachments(rec.attachments);
     if (attachments !== undefined) next.attachments = attachments;
     const emitted = normalizeModelEmittedTextForSave(
