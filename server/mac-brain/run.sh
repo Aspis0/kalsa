@@ -164,6 +164,7 @@ raise SystemExit(0 if data else 1)
 
 acquire_lock() {
   mkdir -p "$KALSA_DIR"
+  local RECLAIMDIR="${LOCKDIR}.reclaim"
   take_lock() {
     if mkdir "$LOCKDIR" 2>/dev/null; then
       echo "$$" > "$LOCKDIR/pid"
@@ -172,23 +173,46 @@ acquire_lock() {
     fi
     return 1
   }
+  # Invariant: only the holder of RECLAIMDIR may mv LOCKDIR. Ordinary waiters
+  # that lose this mutex return and wait on take_lock. Never steal a missing
+  # pid on either dir (holder may be between mkdir and write).
+  take_reclaim() {
+    if mkdir "$RECLAIMDIR" 2>/dev/null; then
+      echo "$$" > "$RECLAIMDIR/pid"
+      return 0
+    fi
+    return 1
+  }
+  release_reclaim() {
+    rm -f "$RECLAIMDIR/pid"
+    rmdir "$RECLAIMDIR" 2>/dev/null || true
+  }
+  acquire_reclaim() {
+    local j
+    for j in $(seq 1 50); do
+      if take_reclaim; then
+        return 0
+      fi
+      sleep 0.1
+    done
+    return 1
+  }
   steal_if_stale() {
-    [[ -d "$LOCKDIR" ]] || return 1
-    local owner
+    acquire_reclaim || return 1
+    local owner tomb
     owner="$(cat "$LOCKDIR/pid" 2>/dev/null || true)"
-    # Missing pid: holder is between mkdir and write. NEVER steal.
-    if [[ -z "$owner" ]]; then
+    if [[ -z "$owner" ]] || kill -0 "$owner" 2>/dev/null; then
+      release_reclaim
       return 1
     fi
-    if kill -0 "$owner" 2>/dev/null; then
-      return 1
-    fi
-    local tomb="${LOCKDIR}.dead.$$.$RANDOM"
+    tomb="${LOCKDIR}.dead.$$.$RANDOM"
     if mv "$LOCKDIR" "$tomb" 2>/dev/null; then
       echo "stale lock (pid ${owner} dead) — reclaimed ${LOCKDIR}"
       rm -rf "$tomb"
+      release_reclaim
       return 0
     fi
+    release_reclaim
     return 1
   }
   if take_lock; then
@@ -216,7 +240,7 @@ acquire_lock() {
   if [[ ! -f "$LOCKDIR/pid" ]]; then
     echo "lock has no pid file — another start may be paused between mkdir and pid write" >&2
   fi
-  echo "if no run.sh is running, recover with: rm -rf ${LOCKDIR}" >&2
+  echo "if no run.sh is running, recover with: rm -rf ${LOCKDIR} ${LOCKDIR}.reclaim" >&2
   exit 1
 }
 

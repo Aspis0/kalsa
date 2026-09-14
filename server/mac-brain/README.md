@@ -82,10 +82,11 @@ tailnet: https://<this-mac>.<tailnet>.ts.net  (Serve must be enabled…)
 `run.sh` **nohup-backgrounds** a spawn (it is not a foreground supervisor).
 A mkdir lock under `~/.kalsa/macbrain.lock` serializes attach/spawn so two
 concurrent starts cannot both load weights. The lock directory stores the
-holder pid; a dead pid is reclaimed by atomically renaming the lock dir.
-A lock with no pid file
+holder pid; a dead pid is reclaimed under a short mkdir mutex
+(`.reclaim`) so two waiters that both saw the same dead pid cannot both
+mv the replacement lock. A lock with no pid file
 is never stolen (the holder may still be writing it). If a start times out
-on that lock, recover with `rm -rf ~/.kalsa/macbrain.lock` (only when no
+on that lock, recover with `rm -rf ~/.kalsa/macbrain.lock ~/.kalsa/macbrain.lock.reclaim` (only when no
 `run.sh` is running). mtplx `--no-auth` is loopback-only:
 `KALSA_BRAIN_HOST` must be `127.0.0.1` / `localhost` / `::1`. If something
 is already listening and `/v1/models` returns a model list, it attaches.
