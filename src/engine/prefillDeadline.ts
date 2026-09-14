@@ -2,8 +2,10 @@
 export const MIN_PREFILL_DEADLINE_MS = 180_000;
 /** Cold-start (no EMA) assume at least this many prefill tok/s. */
 export const NO_EMA_PREFILL_TOK_PER_SEC = 10;
-/** Cap a missing-EMA deadline so a hang is not a 15 min wait. */
-export const MAX_NO_EMA_PREFILL_DEADLINE_MS = 300_000;
+/** Cap a missing-EMA deadline. 8k-token APK-upgrade heal (S23 a21746e
+ * t1 text_tokens=7602 vs leftover KV 4780) needs ~760s at 10 tok/s.
+ * Same ceiling as FOREGROUND_STUCK_INFLIGHT_MS. */
+export const MAX_NO_EMA_PREFILL_DEADLINE_MS = 900_000;
 
 /**
  * Give prefill five times the measured full-prompt duration, rounded up to
