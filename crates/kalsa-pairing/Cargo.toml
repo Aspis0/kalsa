@@ -19,3 +19,10 @@ serde_json = "1"
 hex = "0.4"
 # PhoneModel: the phone's shape, filled here and read everywhere else.
 kalsa-catalog = { path = "../kalsa-catalog" }
+# The QR encoder: MIT, forbid(unsafe), no dependencies, one readable file.
+qrcodegen = "1.8.0"
+
+[dev-dependencies]
+# The decoder the round-trip test needs, and nothing else: default features
+# pull an image stack this test does not use.
+rqrr = { version = "0.11.0", default-features = false }

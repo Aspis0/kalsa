@@ -6,14 +6,15 @@
 //! phone's own description.
 //!
 //! This crate owns the *ceremony*, not the transport: no HTTP, no Tauri, no
-//! QR image rendering, no transport security — those are other layers' jobs.
-//! What is here:
+//! pixel-pushing — the shell draws the SVG that `qr` emits. What is here:
 //!
 //! * the one-time code and the binding secret, both from OS entropy, compared
 //!   in constant time, printed by no `Debug` (`secret`);
 //! * what the QR encodes — a versioned JSON payload: how to reach this
 //!   computer, the code, and the binding that tells the phone this computer
 //!   from a look-alike that answers faster (`payload`, `secret`);
+//! * the square itself, that payload as the symbol a phone camera reads —
+//!   the one place the secrets are rendered on purpose (`qr`);
 //! * the state machine — Offered → Claimed → Paired, plus Expired — with the
 //!   window, the single use, and the indistinguishable rejections enforced by
 //!   the transitions, never asserted next to them (`ceremony`);
@@ -28,10 +29,12 @@ mod ceremony;
 mod error;
 mod handshake;
 mod payload;
+mod qr;
 mod secret;
 
 pub mod store;
 
 pub use ceremony::{ClaimResult, Pairing};
-pub use error::{CompleteError, EntropyError, StoreError};
+pub use error::{CompleteError, EntropyError, PayloadTooLong, StoreError};
 pub use handshake::Handshake;
+pub use qr::qr_svg;

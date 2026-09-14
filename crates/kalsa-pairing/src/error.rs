@@ -18,6 +18,19 @@ impl fmt::Display for EntropyError {
 
 impl Error for EntropyError {}
 
+/// The pairing payload does not fit in a QR code, so nothing was rendered:
+/// a truncated symbol would scan into a payload that is not the ceremony's.
+#[derive(Debug)]
+pub struct PayloadTooLong;
+
+impl fmt::Display for PayloadTooLong {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("the pairing payload is too long for a QR code")
+    }
+}
+
+impl Error for PayloadTooLong {}
+
 #[derive(Debug)]
 pub enum CompleteError {
     /// `complete` was called on a ceremony that no phone has claimed.
