@@ -37,7 +37,7 @@ function start(
   const finishes: RemoteFinish[] = [];
   const handle = streamOpenAiChat(
     {
-      baseUrl: "http://127.0.0.1:8000",
+      completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
       model: "ornith",
       messages: [{ role: "user", content: "hi" }],
       maxTokens: 4096,
