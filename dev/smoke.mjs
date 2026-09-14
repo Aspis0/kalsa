@@ -225,26 +225,44 @@ for (const { heading, button } of results) {
   }
 }
 
+// The exact phrasings the product may use for its download promises. A rule
+// that matches a substring is a rule about spelling, not about truth —
+// "happens once in a while" contains "once" and means the opposite — so
+// these are registries, not patterns. Adding a phrasing is a deliberate act;
+// rewriting the copy without updating the registry makes the rule go quiet,
+// which is the known cost of checking words at all.
+const ONCE_PHRASES = ["This happens once.", "happens only once."];
+const MID_DOWNLOAD_OPENERS = ["The connection dropped partway through"];
+const RESUME_PHRASES = ["What is already here stays", "picks up where it stopped"];
+
 // A download that cannot say why it happens and that it happens once is a
 // broken app: four silent minutes is how trust in it dies.
 for (const { heading, sentence, progress, working } of results) {
   if (!working) continue;
-  if (!/once/.test(sentence)) {
-    problems.push(`a download must say it happens once: ${heading}`);
+  if (!ONCE_PHRASES.some((phrase) => sentence.includes(phrase))) {
+    problems.push(`a download must make the once-only promise in an approved phrasing: ${heading}`);
   }
-  if (!/\d+(\.\d+)? of \d+(\.\d+)? (MB|GB)/.test(progress ?? "")) {
-    problems.push(`a download must show both byte counts: ${heading}`);
-  }
-  if (!/\d+%/.test(progress ?? "")) {
-    problems.push(`a download must show a percentage: ${heading}`);
+  // The line must end "<done> of <total> MB · <n>%" in one unit (a resume
+  // note may precede it), and the percentage must be the truth about the
+  // displayed bytes — a number that disagrees with its own line is a lie
+  // either way.
+  const counts = progress?.match(/(\d+(?:\.\d+)?) of (\d+(?:\.\d+)?) (MB|GB) · (\d+)%$/);
+  if (!counts) {
+    problems.push(`a download must show both byte counts and a percentage: ${heading}`);
+  } else if (Math.floor((parseFloat(counts[1]) / parseFloat(counts[2])) * 100) !== Number(counts[4])) {
+    problems.push(`the percentage must be the bytes' percentage: ${heading}`);
   }
 }
 
 // A failure partway through is a different sentence from a failure at the
-// start: kalsa-download resumes, and the copy has to keep that promise.
+// start: kalsa-download resumes, and the copy has to keep that promise. The
+// rule binds the failure copy it recognises — when that sentence is
+// rewritten, its opener joins MID_DOWNLOAD_OPENERS or the promise goes
+// unchecked.
 for (const { heading, sentence } of results) {
-  if (/connection dropped/.test(sentence) && !/picks up where it stopped/.test(sentence)) {
-    problems.push(`a mid-download failure must promise resume: ${heading}`);
+  const isMidDownload = MID_DOWNLOAD_OPENERS.some((phrase) => sentence.includes(phrase));
+  if (isMidDownload && !RESUME_PHRASES.some((phrase) => sentence.includes(phrase))) {
+    problems.push(`a mid-download failure must promise resume in an approved phrasing: ${heading}`);
   }
 }
 

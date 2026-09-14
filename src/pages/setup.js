@@ -102,11 +102,11 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
     action.disabled = false;
   }
 
-  function showProgress(text, done, total) {
+  function showProgress(text, pct) {
     progress.hidden = false;
     progress.textContent = text;
     bar.hidden = false;
-    bar.style.setProperty("--pct", `${Math.floor((done * 100) / total)}%`);
+    bar.style.setProperty("--pct", `${pct}%`);
   }
 
   function hideProgress() {
@@ -154,9 +154,12 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
     }
     if (setup.phase === "fetching" && setup.fetching) {
       const { what, total_bytes, done_bytes, resumed } = setup.fetching;
-      const line = `${fmtPair(done_bytes, total_bytes)} · ${Math.floor(
-        (done_bytes * 100) / total_bytes,
-      )}%`;
+      const pair = fmtPair(done_bytes, total_bytes);
+      // The percentage is computed from the numbers as shown, so the line
+      // cannot disagree with itself.
+      const [, doneShown, totalShown] = pair.match(/^([\d.]+) of ([\d.]+)/);
+      const pct = Math.floor((parseFloat(doneShown) / parseFloat(totalShown)) * 100);
+      const line = `${pair} · ${pct}%`;
       if (what === "engine") {
         set(
           "Downloading",
@@ -170,11 +173,7 @@ export function mountSetup(root, { onRetry = () => {} } = {}) {
           null,
         );
       }
-      showProgress(
-        resumed ? `Picking up where it stopped — ${line}` : line,
-        done_bytes,
-        total_bytes,
-      );
+      showProgress(resumed ? `Picking up where it stopped — ${line}` : line, pct);
       return;
     }
     hideProgress();
