@@ -204,9 +204,13 @@ import {
 } from "./kvReproducibility";
 import { resolveThinkingParams, thinkingSpeedOpts } from "./thinkingBudgets";
 import {
+  assembleBoundaryAfterTurn,
   assembleBoundaryForAlign,
   kvHeldForAssembleWindow,
+  markAssembleOutcome,
+  toolRoundsAdoptedPrompt,
   windowSlideDiscardModelId,
+  type AssembleBoundaryOutcome,
 } from "./windowKvInvariant";
 import { getModelById } from "./ModelRegistry";
 import type { ModelInfo } from "./ModelRegistry";
@@ -3157,10 +3161,12 @@ export async function streamAssistantTurn(
   signal: AbortSignal | undefined,
   options: StreamTurnOptions,
 ): Promise<void> {
-  lastAssembleBoundary = sessionAssembleBoundary({
+  // The boundary is a promise until a completion adopts it. Do not write it at
+  // the top (that was the a21746e root: a claim made before the native ran).
+  const pendingAssembleBoundary = sessionAssembleBoundary({
     assembleBoundary: options.assembleBoundary,
   });
-  lastAssembleConvId =
+  const pendingAssembleConvId =
     typeof options.assembleChatId === "string" && options.assembleChatId.length > 0
       ? options.assembleChatId
       : (getSessionConversationId() ?? "");
@@ -3170,6 +3176,13 @@ export async function streamAssistantTurn(
   return withEngineJob(async () => {
     // Capture context INSIDE the serialized job (not before waiting).
     const engine = context;
+    // Default: the native boundary is unknown. It is committed only on a
+    // clean completion (see the finally); every early return below leaves it
+    // dropped, so getLoadedAssembleBoundary yields null/0 and the next held
+    // send re-prefills from the full history instead of matching a stale B.
+    let assembleOutcome: AssembleBoundaryOutcome = "early_return";
+    lastAssembleBoundary = undefined;
+    lastAssembleConvId = undefined;
     const locale: Locale = options.locale;
     const strings = getStrings(locale);
     if (!engine) {
@@ -3220,6 +3233,7 @@ export async function streamAssistantTurn(
     };
 
     const abort = (error?: Error) => {
+      assembleOutcome = markAssembleOutcome(assembleOutcome, "aborted");
       aborted = true;
       stopStallWatchdog();
       finishOnce(() => {
@@ -3510,20 +3524,10 @@ export async function streamAssistantTurn(
           alreadyHealed: bakeUnprefixedHealed,
         })
       ) {
-        const discarded = await discardChatKvForWindowSlideLocked(
-          activeModelId ?? "",
-        );
+        // The clear is intentional here; the boundary is committed in the
+        // finally only if this turn then completes cleanly.
+        await discardChatKvForWindowSlideLocked(activeModelId ?? "");
         bakeUnprefixedHealed = true;
-        if (discarded) {
-          lastAssembleBoundary = sessionAssembleBoundary({
-            assembleBoundary: options.assembleBoundary,
-          });
-          lastAssembleConvId =
-            typeof options.assembleChatId === "string" &&
-            options.assembleChatId.length > 0
-              ? options.assembleChatId
-              : (getSessionConversationId() ?? "");
-        }
       }
     }
 
@@ -3633,6 +3637,9 @@ export async function streamAssistantTurn(
       // (tool turn final emit stays false). Miniapp strip is marked later by
       // AiChatPage via markKvNonReproducible, after this returns.
       kvReproState = nextKvReproState(kvReproState, "clean_completion");
+      // The native evaluated this prompt and finished the turn: the assemble
+      // boundary is now a fact, not a promise.
+      assembleOutcome = markAssembleOutcome(assembleOutcome, "completed");
       finishOnce(() => callbacks.onDone());
     };
 
@@ -3665,6 +3672,7 @@ export async function streamAssistantTurn(
         // look like a clean finish even though assistantFull may hold
         // truncated text.
         aborted = true;
+        assembleOutcome = markAssembleOutcome(assembleOutcome, "invalidated");
         emitEngineError(
           callbacks,
           finishOnce,
@@ -3834,6 +3842,7 @@ export async function streamAssistantTurn(
           const nCtx = getActiveEngineNCtx();
           if (toolRoundCrossesCeiling({ round, nCtx, promptChars })) {
             toolRoundCeilingReached = true;
+            assembleOutcome = markAssembleOutcome(assembleOutcome, "tool_ceiling");
             try {
               console.log(
                 `KALSA_TOOL_CEILING ${JSON.stringify({
@@ -3955,6 +3964,7 @@ export async function streamAssistantTurn(
           };
           // Machine-readable marker for AppShell force-rebuild (compaction ON).
           err.code = "context_full";
+          assembleOutcome = markAssembleOutcome(assembleOutcome, "context_full");
           emitEngineError(callbacks, finishOnce, err);
           return;
         }
@@ -4219,16 +4229,18 @@ export async function streamAssistantTurn(
       //     turns pre-gate-fix, much less after). Bounded, not a new steady state.
       //  2. If that also produces no text, emit a localized honest message so
       //     the bubble is never empty.
+      const toolFallbackNeeded = shouldFireToolRoundFallback(streamedText);
+      let toolFallbackOk = false;
       if (toolRoundCeilingReached) {
         // The next round's prompt would cross n_ctx. Do not run another
         // completion — including the text-only fallback, which would send the
         // same over-ceiling prompt. If nothing visible streamed, close with an
         // honest message rather than an empty bubble.
-        if (shouldFireToolRoundFallback(streamedText)) {
+        if (toolFallbackNeeded) {
           const ceilingMessage = strings.errors.toolContextCeiling;
           callbacks.onDelta(ceilingMessage, ceilingMessage);
         }
-      } else if (shouldFireToolRoundFallback(streamedText)) {
+      } else if (toolFallbackNeeded) {
         const exhaustedTel: ToolRoundExhaustedTelemetry = {
           roundsUsed: MAX_TOOL_ROUNDS,
           streamedLen: streamedText.length,
@@ -4295,6 +4307,20 @@ export async function streamAssistantTurn(
               options.onDecodeSample,
               options.ciswireFlags,
             );
+            // Same ceiling rule as the main loop: a fallback that hit
+            // context_full did not leave a boundary the native adopted.
+            if (fallbackResult.context_full) {
+              const err = new Error(strings.errors.contextFull) as Error & {
+                code?: string;
+              };
+              err.code = "context_full";
+              assembleOutcome = markAssembleOutcome(
+                assembleOutcome,
+                "context_full",
+              );
+              emitEngineError(callbacks, finishOnce, err);
+              return;
+            }
             // Strip tool_call/think markup from the fallback result. If text
             // remains, emit it; otherwise fall through to the canned message.
             const fallbackEmitted = extractRawResultText(fallbackResult);
@@ -4303,6 +4329,7 @@ export async function streamAssistantTurn(
             ).trim();
             if (fallbackText) {
               exhaustedTel.fallbackOk = true;
+              toolFallbackOk = true;
               if (!fallbackStreamedTextAtStart) fallbackText = fallbackText.trimStart();
               // Attach raw only when cleaned text survived (canned path keeps none).
               const attachEmitted = modelEmittedTextForVisibleReply(
@@ -4338,6 +4365,18 @@ export async function streamAssistantTurn(
           callbacks.onDelta(fallbackMessage, fallbackMessage);
         }
       }
+      // Post-tool closure: commit only when the native adopted the prompt.
+      // A failed/empty fallback or the ceiling break leaves the outcome as it
+      // was (neutral or a terminal set by an abort/context_full).
+      if (
+        toolRoundsAdoptedPrompt({
+          ceilingReached: toolRoundCeilingReached,
+          fallbackNeeded: toolFallbackNeeded,
+          fallbackOk: toolFallbackOk,
+        })
+      ) {
+        assembleOutcome = markAssembleOutcome(assembleOutcome, "completed");
+      }
       await emitGovernorTelemetry(engine, governorThermoSource);
       if (benchSampling === "greedy") {
         console.log(`KALSA_BENCH_TOKENS ${JSON.stringify({ turnId, n: benchTokenCount, ids: benchTokenIds })}`);
@@ -4357,6 +4396,17 @@ export async function streamAssistantTurn(
       // Chat completions leave conversation tokens in the native KV — eligible
       // for saveSession on background (utility jobs clear this flag).
       if (engine === context && !disposing) {
+        // Commit the assemble boundary only when a clean completion adopted
+        // it; otherwise drop it so the next held send falls back to start 0.
+        // (Separate from kvHoldsChatSession: the KV can hold a partial
+        // prefill while its boundary is unknown.)
+        const committedBoundary = assembleBoundaryAfterTurn({
+          outcome: assembleOutcome,
+          pending: pendingAssembleBoundary,
+        });
+        lastAssembleBoundary = committedBoundary;
+        lastAssembleConvId =
+          committedBoundary === undefined ? undefined : pendingAssembleConvId;
         kvHoldsChatSession = true;
         chatKvDiskCurrent = false;
         // Mark this prefix hot so a later ensure() does not wipe chat KV

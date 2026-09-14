@@ -10,8 +10,9 @@
  * still has. Hold flag / nPast can be false while native still has tokens —
  * last save usedTokens counts as live, bound to engine + conversation, and
  * cleared on known-empty native paths (not on a flag-only drop). A real
- * slide (context_full) deletes the .kvs first, then clearCache, then flags.
- * Ciswire never discards chat KV.
+ * slide (context_full or the n_ctx ceiling) deletes the .kvs first, then
+ * clearCache, then flags. Ciswire discards chat KV only for the ceiling
+ * slide; its char-budget slide must not.
  */
 
 export function shouldSlideAssembleBoundary(args: {
@@ -41,11 +42,12 @@ export function windowSlideDiscardModelId(modelId: string): string | null {
 }
 
 /**
- * Production policy AppShell calls. Ciswire never discards chat KV, and
- * must not advance its digest/assemble start while that KV is live (same
- * prefix-drop as a char-budget window slide). Anchored discards only when
- * sliding a live chat KV (not a cold budget slide that would wipe a kept
- * .kvs).
+ * Production policy AppShell calls. One slide gate for both regimes:
+ * char-budget pressure never slides a live KV, `forceRebuild` and the
+ * deliberate ceiling do. Ciswire may discard chat KV only for the ceiling
+ * slide (its char-budget slide must not wipe a kept .kvs); anchored discards
+ * only when sliding a live chat KV. Reuses shouldSlideAssembleBoundary so the
+ * two regimes cannot drift apart.
  */
 export function decideAssembleWindowAction(args: {
   budgetRebuild: boolean;
@@ -54,19 +56,19 @@ export function decideAssembleWindowAction(args: {
   anchored: boolean;
   ceilingCrossed?: boolean;
 }): { slide: boolean; discard: boolean } {
-  if (!args.anchored) {
-    const wantSlide = args.budgetRebuild || args.forceRebuild;
-    return {
-      slide: wantSlide && !args.kvHoldsChatSession,
-      discard: false,
-    };
-  }
   const slide = shouldSlideAssembleBoundary({
     budgetRebuild: args.budgetRebuild,
     forceRebuild: args.forceRebuild,
     kvHoldsChatSession: args.kvHoldsChatSession,
     ceilingCrossed: args.ceilingCrossed,
   });
+  if (!args.anchored) {
+    return {
+      slide,
+      discard:
+        slide && args.ceilingCrossed === true && args.kvHoldsChatSession,
+    };
+  }
   return { slide, discard: slide && args.kvHoldsChatSession };
 }
 
@@ -146,10 +148,26 @@ export function assembleBoundaryForAlign(args: {
 
 /**
  * Clamp assemble start to this chat's live KV.
- * While KV is held, always start=0 (full JS history vs full native KV).
- * A leftover loadedB from a cold/digest send (S23 91d7b73 t1 B=20 then
- * t2–5 clamp to 20, t5 n_common=0 vs 7779) is poison.
- * Mismatch / not held: keep computedStart. Anchored: leave computedStart.
+ *
+ * While KV is held the start is the boundary saved with that KV. It travels
+ * inside the .kvs metadata (meta.assembleBoundary, written at save and read
+ * back at restore) and is validated by getLoadedAssembleBoundary (hold + same
+ * conversation).
+ *
+ * Why trusting it while held is safe now, and what made it poison before:
+ * `lastAssembleBoundary` used to be written at the top of streamAssistantTurn
+ * (a promise, before the native ran); a21746e was a stale B=20 from a send
+ * that never re-anchored the native KV while it still held the full chat, and
+ * the held branch returned 20 against a start-0 native prefix (S23 91d7b73
+ * t5 n_common=0 embd=7779 text_tokens=4524). streamAssistantTurn now clears
+ * the boundary when the turn starts and commits it only through
+ * assembleBoundaryAfterTurn("completed"); every abort/error/tool-ceiling/
+ * context_full/early-return path leaves it undefined, so loadedB is non-null
+ * only when the native really evaluated a prompt that starts there.
+ *
+ * A full-history held KV saves boundary 0, so a chat that never slid still
+ * starts at 0. Off keeps the c7801f9 full-history clamp (never trusts
+ * loadedB). Anchored leaves computedStart.
  */
 export function assembleStartForLiveKv(args: {
   mode: "off" | "anchored" | "ciswire";
@@ -158,9 +176,87 @@ export function assembleStartForLiveKv(args: {
   kvHeld: boolean;
 }): number {
   if (args.mode === "anchored") return args.computedStart;
-  if (args.kvHeld) return 0;
+  if (args.kvHeld) {
+    if (args.mode === "ciswire") return args.loadedB ?? 0;
+    return 0;
+  }
   if (args.loadedB !== null) return args.loadedB;
   return args.computedStart;
+}
+
+/**
+ * How a streamed turn ended, for the assemble-boundary identity.
+ *
+ * `lastAssembleBoundary` must describe the prompt the native actually
+ * evaluated. It is a fact only after a completion adopted the prompt and the
+ * turn did not abort. Every other outcome leaves the native KV unknown, so
+ * the boundary is dropped (`undefined`) and the next held send falls back to
+ * start 0 — a safe full re-prefill, never a stale prefix match.
+ */
+export type AssembleBoundaryOutcome =
+  | "completed"
+  | "aborted"
+  | "tool_ceiling"
+  | "context_full"
+  | "early_return"
+  | "invalidated";
+
+/**
+ * Terminal outcomes: the turn did not leave a boundary the native provably
+ * adopted. Once one is set it must never be overwritten by a later
+ * `"completed"` — an abort during post-round telemetry (`emitGovernorTelemetry`
+ * after the loop) would otherwise be laundered into a commit.
+ */
+function isTerminalAssembleOutcome(outcome: AssembleBoundaryOutcome): boolean {
+  return (
+    outcome === "aborted" ||
+    outcome === "context_full" ||
+    outcome === "tool_ceiling"
+  );
+}
+
+/**
+ * Monotonic outcome update. `"completed"` only promotes a non-terminal state;
+ * a terminal outcome always wins over a later `"completed"`. Non-terminal
+ * outcomes still overwrite each other (the last neutral default is fine).
+ */
+export function markAssembleOutcome(
+  current: AssembleBoundaryOutcome,
+  next: AssembleBoundaryOutcome,
+): AssembleBoundaryOutcome {
+  return isTerminalAssembleOutcome(current) ? current : next;
+}
+
+/**
+ * Whether the post-tool-round closure left a prompt the native adopted.
+ *
+ * Tool rounds streamed visible text → yes. They exhausted with no text → the
+ * text-only fallback decides: yes only if it actually produced text; a failed
+ * or empty fallback (or the canned message) is not an adopted prompt. The
+ * ceiling break means the next round never ran and the native is not known to
+ * start at `pending`.
+ */
+export function toolRoundsAdoptedPrompt(args: {
+  ceilingReached: boolean;
+  fallbackNeeded: boolean;
+  fallbackOk: boolean;
+}): boolean {
+  if (args.ceilingReached) return false;
+  if (!args.fallbackNeeded) return true;
+  return args.fallbackOk;
+}
+
+/**
+ * The assemble boundary to persist after a turn: the pending value only on a
+ * clean completion. `aborted` / `tool_ceiling` / `context_full` /
+ * `early_return` / `invalidated` all mean the native KV no longer provably
+ * starts at `pending`, so the boundary must be dropped.
+ */
+export function assembleBoundaryAfterTurn(args: {
+  outcome: AssembleBoundaryOutcome;
+  pending: number | undefined;
+}): number | undefined {
+  return args.outcome === "completed" ? args.pending : undefined;
 }
 
 /**

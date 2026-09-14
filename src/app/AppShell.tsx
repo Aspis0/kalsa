@@ -318,6 +318,7 @@ import {
   windowCeilingTokens,
   windowStartIndex,
   WINDOW_CHARS_PER_TOKEN,
+  WINDOW_SHARE_WITH_DIGEST,
 } from "../context/windowProfile";
 
 /** Shared model pipeline states (download / load / ready) — used by Settings. */
@@ -5372,6 +5373,14 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 computedStart,
                 kvHeld,
               });
+              // loadedB travels in the .kvs metadata and can outlive a shrunk
+              // history (clear / edit). Clamp it with the same rule a state
+              // boundary gets, so `.slice(start)` can never run past the end
+              // and silently drop the whole verbatim window.
+              legacyWindowStart = resolveBoundaryIndex(
+                { boundaryIndex: legacyWindowStart },
+                validatedHistory.length,
+              );
               if (computedStart !== legacyWindowStart) {
                 try {
                   console.log(
@@ -5385,27 +5394,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   // telemetry must never throw
                 }
               }
-              boundaryForAssemble = legacyWindowStart;
-            }
-            try {
-              const windowChars =
-                historyLengths
-                  .slice(legacyWindowStart)
-                  .reduce((sum, n) => sum + Math.min(n, perMessageCap), 0) +
-                currentTurnChars;
-              console.log(
-                `KALSA_WINDOW ${JSON.stringify({
-                  kvHeld,
-                  nPast: nPast ?? null,
-                  lastSaveTokens: lastSaveTokens ?? null,
-                  loadedB,
-                  hasDigest,
-                  legacyWindowStart,
-                  textEst: Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN),
-                })}`,
-              );
-            } catch {
-              // telemetry must never throw
             }
             if (retrievalOn || anchoredOn) {
               const userTurnCount = countUserTurns(validatedHistory, true);
@@ -5520,30 +5508,29 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 state,
                 validatedHistory.length,
               );
-              // Ceiling guard (anchored only): while the live KV holds the
-              // chat the boundary cannot move, so the window grows every turn.
-              // Crossing n_ctx - WINDOW_RESERVE_TOKENS on a hybrid
+              // Ceiling guard (anchored and ciswire): while the live KV holds
+              // the chat the boundary cannot move, so the window grows every
+              // turn. Crossing n_ctx - WINDOW_RESERVE_TOKENS on a hybrid
               // (attn+recurrent) model is unrecoverable — the recurrent half
               // cannot evict a prefix, so ctx_shift corrupts instead of
               // recycling. Slide deliberately, before the n_ctx edge.
               const activeNCtx = getActiveEngineNCtx();
-              const pinnedWindowChars = anchoredOn
-                ? anchoredWindowChars(
-                    historyLengths,
-                    pinnedStart,
-                    perMessageCap,
-                    currentTurnChars,
-                  )
-                : 0;
+              const windowStartForCeiling = anchoredOn
+                ? pinnedStart
+                : legacyWindowStart;
+              const pinnedWindowChars = anchoredWindowChars(
+                historyLengths,
+                windowStartForCeiling,
+                perMessageCap,
+                currentTurnChars,
+              );
               const promptTokensBefore =
                 projectedWindowTokens(pinnedWindowChars);
-              const ceilingCrossed =
-                anchoredOn &&
-                shouldSlideWindowAtCeiling({
-                  nCtx: activeNCtx,
-                  windowChars: pinnedWindowChars,
-                  kvHeld,
-                });
+              const ceilingCrossed = shouldSlideWindowAtCeiling({
+                nCtx: activeNCtx,
+                windowChars: pinnedWindowChars,
+                kvHeld,
+              });
 
               const windowAction = decideAssembleWindowAction({
                 budgetRebuild: anchoredOn
@@ -5572,14 +5559,21 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
               // destroy the live KV and leave the prompt at exactly the size it
               // already was, above the ceiling. Compute the advance first.
               let slideBlocked = false;
+              // The gate compares the two real assemble starts: anchored's
+              // persisted boundary, ciswire's clamped/trusted window start.
+              const previousStart = anchoredOn ? pinnedStart : legacyWindowStart;
               if (windowAction.slide) {
                 // At the ceiling the profile's charBudget is exactly what
                 // cannot help (it is Infinity for attachment turns), so derive
-                // the rebuild target from the token ceiling instead.
+                // the rebuild target from the token ceiling instead. Ciswire
+                // carries the digest share because the digest re-enters the
+                // prompt the moment this slide clears the live KV.
                 const ceilingBudgetChars = ceilingCrossed
                   ? Math.max(
                       0,
-                      windowCeilingTokens(activeNCtx) * WINDOW_CHARS_PER_TOKEN,
+                      windowCeilingTokens(activeNCtx) *
+                        WINDOW_CHARS_PER_TOKEN *
+                        (anchoredOn ? 1 : WINDOW_SHARE_WITH_DIGEST),
                     )
                   : undefined;
                 const nextState = anchoredOn
@@ -5597,6 +5591,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                       userTurnCount,
                       historyLength: validatedHistory.length,
                       hasImages,
+                      ceilingBudgetChars,
+                      historyLengths,
+                      maxCharsPerMessage: perMessageCap,
+                      currentTurnLength: currentTurnChars,
                     });
                 const nextStart = resolveBoundaryIndex(
                   nextState,
@@ -5605,7 +5603,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 if (
                   shouldDiscardKvForSlide({
                     discard: windowAction.discard,
-                    previousBoundaryIndex: pinnedStart,
+                    previousBoundaryIndex: previousStart,
                     nextBoundaryIndex: nextStart,
                   })
                 ) {
@@ -5627,13 +5625,23 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                   })
                 ) {
                   state = nextState;
+                  if (windowAction.discard && !anchoredOn) {
+                    // The live KV was cleared and will be re-prefilled from
+                    // this start; ciswire's engine window must use it (its
+                    // boundaryIndex stays the digest bookkeeping value). Next
+                    // turn loadedB is read back from the .kvs this save
+                    // writes, so the advance persists without a second flag.
+                    legacyWindowStart = nextStart;
+                  }
                 }
               }
 
-              boundaryForAssemble = resolveBoundaryIndex(
-                state,
-                validatedHistory.length,
-              );
+              if (anchoredOn) {
+                boundaryForAssemble = resolveBoundaryIndex(
+                  state,
+                  validatedHistory.length,
+                );
+              }
 
               // One line per deliberate ceiling slide: the counts that decided
               // it, and whether the explicit clear actually succeeded. No
@@ -5646,10 +5654,12 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                     `KALSA_WINDOW_SLIDE ${JSON.stringify({
                       nCtx: activeNCtx,
                       ceiling: windowCeilingTokens(activeNCtx),
-                      prevStart: pinnedStart,
-                      newStart: boundaryForAssemble,
+                      prevStart: previousStart,
+                      newStart: anchoredOn ? boundaryForAssemble : legacyWindowStart,
                       promptTokensBefore,
-                      advanced: boundaryForAssemble > pinnedStart,
+                      advanced:
+                        (anchoredOn ? boundaryForAssemble : legacyWindowStart) >
+                        previousStart,
                       kvCleared: slideOk,
                       skipReason: slideBlocked
                         ? "boundary_cannot_advance"
@@ -5741,7 +5751,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 );
                 if (injectBlock) {
                   operativeContext = operativeContextForLiveKv({
-                    kvHeld,
+                    // A successful clear means the native KV is gone for this
+                    // send, so the digest may ride it (7aabfe8 only skips it
+                    // while the KV is still alive).
+                    kvHeld: slideOk ? false : kvHeld,
                     digest: state.frozenDigest || undefined,
                     summary: state.rollingSummary || undefined,
                   });
@@ -5751,10 +5764,31 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
 
             // History assembly: legacy sliding window (off/ciswire) or boundary→end
             // (anchored — append-only growth between rebuilds, preserves KV prefix).
-            // Ciswire's retrieval block may have moved boundaryForAssemble for
-            // digest state; the engine window is the clamped start.
-            if (!anchoredOn) {
-              boundaryForAssemble = legacyWindowStart;
+            // boundaryForAssemble is anchored-only: off/ciswire assemble from
+            // legacyWindowStart, and the engine's assembleBoundary uses it too,
+            // so no non-anchored store of boundaryForAssemble is read.
+            // One KALSA_WINDOW per send, emitted after the slide block so the
+            // logged start is the one the engine actually gets (on a ceiling
+            // slide the pre-slide clamp is no longer the answer).
+            try {
+              const windowChars =
+                historyLengths
+                  .slice(legacyWindowStart)
+                  .reduce((sum, n) => sum + Math.min(n, perMessageCap), 0) +
+                currentTurnChars;
+              console.log(
+                `KALSA_WINDOW ${JSON.stringify({
+                  kvHeld,
+                  nPast: nPast ?? null,
+                  lastSaveTokens: lastSaveTokens ?? null,
+                  loadedB,
+                  hasDigest,
+                  legacyWindowStart,
+                  textEst: Math.ceil(windowChars / WINDOW_CHARS_PER_TOKEN),
+                })}`,
+              );
+            } catch {
+              // telemetry must never throw
             }
             const assembled = assembleEngineHistory(validatedHistory, {
               compactionEnabled: contextMode === "anchored",

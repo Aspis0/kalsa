@@ -5,8 +5,10 @@
 
 import {
   advanceAnchoredBoundary,
+  advanceCompactionBoundary,
   assembleEngineHistory,
   computeAnchoredBoundary,
+  emptyCompactorState,
   parseBenchDigestCadence,
   shouldRebuildAnchored,
   shouldInjectOperativeBlock,
@@ -15,6 +17,7 @@ import {
   legacyWindowStartIndex,
   parseContextMode,
   parseCiswireToolHelp,
+  resolveBoundaryIndex,
   splitAtBoundary,
   type HistoryRoleMessage,
 } from "./compactor";
@@ -191,6 +194,62 @@ describe("compactor shouldInjectOperativeBlock", () => {
   test("nonsense index falls back to injecting, never silently skips", () => {
     expect(shouldInjectOperativeBlock(-1, 3)).toBe(true);
     expect(shouldInjectOperativeBlock(Number.NaN, 3)).toBe(true);
+  });
+});
+
+describe("ciswire advanceCompactionBoundary ceiling slide", () => {
+  test("ceilingBudgetChars picks the window start by char budget", () => {
+    const lengths = Array.from({ length: 100 }, () => 20);
+    const state = advanceCompactionBoundary(
+      { ...emptyCompactorState("chat"), boundaryIndex: 0 },
+      {
+        chatId: "chat",
+        userTurnCount: 5,
+        historyLength: lengths.length,
+        hasImages: false,
+        ceilingBudgetChars: 1000,
+        historyLengths: lengths,
+        maxCharsPerMessage: 4000,
+      },
+    );
+    // 1000 chars / 20 per message = 50 verbatim messages.
+    expect(state.boundaryIndex).toBe(50);
+  });
+
+  test("the current turn is charged against the same budget", () => {
+    const lengths = Array.from({ length: 100 }, () => 20);
+    const state = advanceCompactionBoundary(
+      { ...emptyCompactorState("chat"), boundaryIndex: 0 },
+      {
+        chatId: "chat",
+        userTurnCount: 5,
+        historyLength: lengths.length,
+        hasImages: false,
+        ceilingBudgetChars: 1000,
+        historyLengths: lengths,
+        maxCharsPerMessage: 4000,
+        currentTurnLength: 100,
+      },
+    );
+    // 900 chars of history + the 100-char turn = the 1000-char budget.
+    expect(state.boundaryIndex).toBe(55);
+  });
+
+  test("without a ceiling budget the last-R rebuild is unchanged", () => {
+    const state = advanceCompactionBoundary(null, {
+      chatId: "chat",
+      userTurnCount: 5,
+      historyLength: 100,
+      hasImages: false,
+    });
+    // Default recentWindow is 6 → 100 - 6.
+    expect(state.boundaryIndex).toBe(94);
+  });
+
+  test("a saved boundary longer than the history clamps, never slices past it", () => {
+    expect(resolveBoundaryIndex({ boundaryIndex: 999 }, 10)).toBe(10);
+    expect(resolveBoundaryIndex({ boundaryIndex: 4 }, 10)).toBe(4);
+    expect(resolveBoundaryIndex({ boundaryIndex: -1 }, 10)).toBe(0);
   });
 });
 

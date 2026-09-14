@@ -55,6 +55,7 @@ import {
   anchoredWindowChars,
   anchoredWindowExceedsBudget,
   type WindowProfile,
+  windowStartIndex,
 } from "./windowProfile";
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -702,9 +703,13 @@ export function recentWindowSize(
  * Resolve a usable boundary index from state.
  * -1 / missing → 0 (whole history is verbatim until first rebuild).
  * Clamped to [0, historyLength].
+ *
+ * Takes only `boundaryIndex`, so callers that have a raw index (a boundary
+ * restored from the .kvs metadata, before a CompactorState exists) can clamp
+ * it with the same rule instead of slicing past the end of the history.
  */
 export function resolveBoundaryIndex(
-  state: CompactorState | null | undefined,
+  state: { boundaryIndex?: number } | null | undefined,
   historyLength: number,
 ): number {
   const len = Number.isFinite(historyLength) ? Math.max(0, Math.floor(historyLength)) : 0;
@@ -817,10 +822,6 @@ export function assembleEngineHistory(
     {
       boundaryIndex:
         typeof options.boundaryIndex === "number" ? options.boundaryIndex : 0,
-      frozenDigest: "",
-      rollingSummary: "",
-      builtAtUserTurn: 0,
-      chatId: "",
     },
     (messages ?? []).length,
   );
@@ -914,6 +915,16 @@ export function advanceAnchoredBoundary(
  * Advance the ciswire boundary while preserving its persisted summary.
  * Cadence: every K user turns (or early size trigger). Does NOT recompute the
  * BM25 digest — call `refreshQueryDigest` every turn for that.
+ *
+ * A deliberate ceiling slide passes `ceilingBudgetChars` (and the history
+ * lengths) so the post-slide window is chosen by the token ceiling rather
+ * than the last-R rebuild: on an attachment turn the profile budget is
+ * Infinity and last-R would ignore the ceiling entirely. Same scheme as
+ * advanceAnchoredBoundary, but the ciswire budget already carries the digest
+ * share (see AppShell), so no extra hysteresis share is applied here.
+ * `currentTurnLength` is subtracted from the budget before the walk because
+ * the send appends the current turn after this window is picked; without it
+ * the charged window plus the turn can still cross the ceiling.
  */
 export function advanceCompactionBoundary(
   prev: CompactorState | null | undefined,
@@ -924,14 +935,37 @@ export function advanceCompactionBoundary(
     historyLength: number;
     hasImages: boolean;
     config?: Partial<CompactorConfig> | null;
+    /** Token-ceiling-derived budget for a forced slide (see AppShell). */
+    ceilingBudgetChars?: number;
+    /** Charged history lengths; required to honour `ceilingBudgetChars`. */
+    historyLengths?: readonly number[];
+    maxCharsPerMessage?: number;
+    /** Already-capped chars of the turn being sent (see AppShell). */
+    currentTurnLength?: number;
   },
 ): CompactorState {
   const chatId = args.chatId || DEFAULT_CHAT_ID;
-  const boundaryIndex = computeRebuildBoundary(
-    args.historyLength,
-    args.hasImages,
-    args.config,
-  );
+  const boundaryIndex =
+    typeof args.ceilingBudgetChars === "number" &&
+    Number.isFinite(args.ceilingBudgetChars)
+      ? windowStartIndex(
+          args.historyLengths ?? [],
+          {
+            maxMessages: Number.POSITIVE_INFINITY,
+            charBudget: Math.max(
+              0,
+              Math.max(0, args.ceilingBudgetChars) -
+                Math.max(0, args.currentTurnLength ?? 0),
+            ),
+            source: "ceiling",
+          },
+          args.maxCharsPerMessage ?? LEGACY_MAX_CHARS,
+        )
+      : computeRebuildBoundary(
+          args.historyLength,
+          args.hasImages,
+          args.config,
+        );
   return {
     frozenDigest: prev?.frozenDigest ?? "",
     rollingSummary: truncateBudget(
