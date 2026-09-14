@@ -41,3 +41,7 @@ export function shouldNoopLocalSelect(input: {
   if (input.remoteActive) return false;
   return input.nextIndex === input.currentIndex;
 }
+
+export function shouldReprobeAfterSwitch(disposeOk: boolean): boolean {
+  return disposeOk === true;
+}

@@ -67,6 +67,7 @@ import {
   canEagerInitLocal,
   decideModelIndexProbe,
   shouldNoopLocalSelect,
+  shouldReprobeAfterSwitch,
 } from "../engine/modelIndexProbe";
 import {
   embedDocumentChunk,
@@ -4196,6 +4197,7 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           }
           memoryExtractRef.current = null;
         }
+        let disposeOk = false;
         try {
           if (isEngineReady() && !sendingInFlightRef.current) {
             const modelId = getActiveModelId();
@@ -4227,8 +4229,6 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
                 () => disposeEngine(),
                 MODEL_SWITCH_DISPOSE_TIMEOUT_MS,
               );
-          await setEngineBackendMode("local");
-          setRemoteActive(false);
           if (!disposeResult.ok) {
             console.warn(
               `[kalsa] model switch dispose timed out after ${MODEL_SWITCH_DISPOSE_TIMEOUT_MS}ms (nativeOpBusy=${nativeOpBusy()}); previous model still resident — the switch can be retried`,
@@ -4237,6 +4237,10 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
             setModelErrorKind("engine");
             setModelError(t("errors.engineDisposeTimeout"));
             setModelErrorDetail(null);
+          } else {
+            await setEngineBackendMode("local");
+            setRemoteActive(false);
+            disposeOk = true;
           }
         } catch {
           // ignore
@@ -4245,7 +4249,9 @@ export function AppShell({ onPersistenceFailure }: AppShellProps = {}) {
           if (releasedGen !== null) markChatReleased(releasedGen);
           modelSwitchInFlightRef.current = false;
           endBackendSwitch();
-          setPresenceProbeEpoch((n) => n + 1);
+          if (shouldReprobeAfterSwitch(disposeOk)) {
+            setPresenceProbeEpoch((n) => n + 1);
+          }
         }
       })();
     },

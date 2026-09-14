@@ -2,6 +2,7 @@ import {
   canEagerInitLocal,
   decideModelIndexProbe,
   shouldNoopLocalSelect,
+  shouldReprobeAfterSwitch,
 } from "./modelIndexProbe";
 
 describe("decideModelIndexProbe", () => {
@@ -63,5 +64,12 @@ describe("shouldNoopLocalSelect", () => {
     expect(
       shouldNoopLocalSelect({ nextIndex: 0, currentIndex: 0, remoteActive: true }),
     ).toBe(false);
+  });
+});
+
+describe("shouldReprobeAfterSwitch", () => {
+  test("disposal timeout does not reprobe", () => {
+    expect(shouldReprobeAfterSwitch(false)).toBe(false);
+    expect(shouldReprobeAfterSwitch(true)).toBe(true);
   });
 });
