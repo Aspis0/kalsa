@@ -122,7 +122,7 @@ beating the phone.
 
 | RAM | what it is for |
 | --- | --- |
-| 8 GB | the entry point — meaningfully bigger than the phone, tight but real |
+| 8 GB | the entry point — a small MoE, see below; the constraint is the budget, not the speed |
 | 16 GB | comfortable dense models, room for context |
 | 32 GB | the first real jump: MoE with few active parameters |
 | 64 GB | large MoE |
@@ -135,6 +135,50 @@ Licence sits next to every entry from day one, because it decides whether a
 paid fine-tune of that base will ever be possible. A recent MoE that fits a
 16 GB machine exists, but its licence is research-only — which is exactly why
 the column is not optional.
+
+### The 8 GB tier exists, and it is a small MoE
+
+The earlier reading — that an 8 GB machine has nothing worth offering, because a
+4B dense Q4 is a sideways move from the phone's 2.83 GB model — was wrong. It
+compared the wrong axis. A mixture-of-experts separates **total** parameters,
+which decide whether it fits, from **active** parameters, which decide how fast
+it decodes, and at this size they differ by five to eight times.
+
+Verified 2026-09-14 against the HuggingFace API (`lastModified`, `cardData`) and
+the exact byte size of the exact quant file; spot-checked again here by hand:
+
+| model | total / active | verified quant | size | base licence |
+| --- | --- | --- | ---: | --- |
+| LiquidAI/LFM2.5-8B-A1B | 8.3B / **1.5B** | IQ4_XS | 4.273 GiB | LFM 1.0 — commercial use only below $10M revenue |
+| microsoft/Phi-mini-MoE-instruct | 7.6B / 2.4B | Q4_K_S | 4.299 GiB | **MIT** |
+| ibm-granite/granite-4.0-h-tiny | 7B / 1B | Q4_K_M | 3.940 GiB | **Apache-2.0** |
+| arcee-ai/Trinity-Nano-Preview | 6B / 1B | Q4_K_M | 3.527 GiB | OpenMDW-1.1 (patent-termination clause) |
+
+With 1.5B active parameters a token reads roughly 0.9 GB, so even a tired laptop
+sustaining 20 GB/s decodes above 20 tok/s. Speed is not what makes this tier
+hard.
+
+**What makes it hard is the budget.** An 8 GB machine has about 5 GiB usable once
+the OS is served, and the weights are only one of the four terms in the footprint
+formula — KV cache, compute buffers and headroom come out of the same 5 GiB. So
+4.27 GiB of weights is not "fits", it is "fits with nothing left for context".
+The honest 8 GB pick is nearer 3.5 GiB of weights, which is exactly where Trinity
+Nano and Granite H-Tiny sit, and it is why the tier's entry is decided by the
+footprint formula and not by comparing a file size to 8.
+
+Two caveats that belong next to the table, not in a footnote:
+
+- **Licence decides more than distribution here.** LFM 1.0 permits commercial use
+  only below a revenue threshold, which is a condition on *us*, not on the user,
+  and it is the strongest candidate on quality. Phi-mini (MIT) and Granite
+  (Apache-2.0) carry no such condition. That is the whole reason the licence
+  column exists.
+- **"Bigger than the phone" is still unproven for every row.** None of these has a
+  published A/B against the model the phone ships. LFM2.5 and Phi-mini have the
+  benchmark evidence to make it likely; Granite has an independent report calling
+  its quality weak for its size. Section 4's rule stands: the comparison is what
+  justifies the tier, so it gets measured on the machine, not assumed from a
+  parameter count.
 
 ## 4a. The GPU is not an optimisation: it decides the budget AND the speed
 
