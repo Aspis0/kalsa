@@ -63,6 +63,13 @@ export type XhrLike = {
 
 export type XhrFactory = () => XhrLike;
 
+export type RemoteStreamHandle = {
+  requestId: string;
+  abort: () => void;
+  xhr: XhrLike;
+  isClosed: () => boolean;
+};
+
 const HEADERS_RECEIVED = 2;
 const LOADING = 3;
 const DONE = 4;
@@ -75,7 +82,7 @@ export function streamOpenAiChat(
   req: RemoteChatRequest,
   handlers: RemoteChatHandlers,
   createXhr?: XhrFactory,
-): { requestId: string; abort: () => void; xhr: XhrLike } {
+): RemoteStreamHandle {
   const requestId = req.requestId ?? newRequestId();
   const xhr = createXhr
     ? createXhr()
@@ -135,6 +142,7 @@ export function streamOpenAiChat(
   };
 
   const consume = () => {
+    if (closed) return;
     bumpIdle();
     const text = xhr.responseText ?? "";
     if (text.length <= cursor) return;
@@ -198,24 +206,45 @@ export function streamOpenAiChat(
   };
 
   if (req.signal?.aborted) {
+    closed = true;
     handlers.onFinish({ kind: "interrupted", finishReason: null });
     return {
       requestId,
       xhr,
       abort: () => undefined,
+      isClosed: () => true,
     };
   }
 
   const url =
     req.completionsUrl ||
     `${(req.baseUrl ?? "").replace(/\/+$/, "")}/v1/chat/completions`;
-  xhr.timeout = 0;
-  xhr.open("POST", url);
-  xhr.setRequestHeader("Content-Type", "application/json");
-  xhr.setRequestHeader("Accept", "text/event-stream");
-  xhr.setRequestHeader("X-Request-Id", requestId);
-  if (req.token) {
-    xhr.setRequestHeader("Authorization", `Bearer ${req.token}`);
+
+  const failSetup = (err: unknown) => {
+    emitFinish({
+      kind: "error",
+      finishReason: lastFinishReason,
+      error: err instanceof Error ? err : new Error("remote_brain_send"),
+    });
+  };
+
+  try {
+    xhr.timeout = 0;
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "text/event-stream");
+    xhr.setRequestHeader("X-Request-Id", requestId);
+    if (req.token) {
+      xhr.setRequestHeader("Authorization", `Bearer ${req.token}`);
+    }
+  } catch (err) {
+    failSetup(err);
+    return {
+      requestId,
+      xhr,
+      abort: () => undefined,
+      isClosed: () => true,
+    };
   }
 
   xhr.onprogress = () => {
@@ -269,6 +298,7 @@ export function streamOpenAiChat(
   };
 
   abortListener = () => {
+    if (closed) return;
     consume();
     emitFinish({ kind: "interrupted", finishReason: lastFinishReason });
   };
@@ -286,17 +316,15 @@ export function streamOpenAiChat(
       }),
     );
   } catch (err) {
-    emitFinish({
-      kind: "error",
-      finishReason: lastFinishReason,
-      error: err instanceof Error ? err : new Error("remote_brain_send"),
-    });
+    failSetup(err);
   }
 
   return {
     requestId,
     xhr,
+    isClosed: () => closed,
     abort: () => {
+      if (closed) return;
       consume();
       emitFinish({ kind: "interrupted", finishReason: lastFinishReason });
     },

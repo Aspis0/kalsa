@@ -482,6 +482,78 @@ describe("streamOpenAiChat", () => {
     }
   });
 
+  test("post-terminal abort does not re-arm idle timer", async () => {
+    jest.useFakeTimers();
+    try {
+      const xhr = fakeXhr();
+      const { handle, finishes } = start(xhr, { inactivityMs: 120_000 });
+      xhr.responseText = "data: [DONE]\n\n";
+      xhr.readyState = 4;
+      xhr.status = 200;
+      xhr.onreadystatechange?.call(xhr);
+      jest.runOnlyPendingTimers();
+      expect(finishes).toHaveLength(1);
+      expect(finishes[0]?.kind).toBe("complete");
+      expect(handle.isClosed()).toBe(true);
+      handle.abort();
+      jest.advanceTimersByTime(120_000);
+      expect(finishes).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  test("open throw emits terminal error and isClosed", () => {
+    const xhr = fakeXhr();
+    xhr.open = () => {
+      throw new Error("open_boom");
+    };
+    const { handle, finishes } = start(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("open_boom");
+    expect(handle.isClosed()).toBe(true);
+  });
+
+  test("header throw emits terminal error and isClosed", () => {
+    const xhr = fakeXhr();
+    xhr.setRequestHeader = () => {
+      throw new Error("hdr_boom");
+    };
+    const { handle, finishes } = start(xhr);
+    expect(finishes[0]?.kind).toBe("error");
+    expect(finishes[0]?.error?.message).toBe("hdr_boom");
+    expect(handle.isClosed()).toBe(true);
+  });
+
+  test("stringify throw emits terminal error and isClosed", () => {
+    const xhr = fakeXhr();
+    const circular: { role: string; content: string; self?: unknown } = {
+      role: "user",
+      content: "hi",
+    };
+    circular.self = circular;
+    const finishes: RemoteFinish[] = [];
+    const handle = streamOpenAiChat(
+      {
+        completionsUrl: "http://127.0.0.1:8000/v1/chat/completions",
+        model: "ornith",
+        messages: [circular as { role: string; content: string }],
+        maxTokens: 8,
+        temperature: 0,
+        inactivityMs: 0,
+      },
+      {
+        onDelta: () => undefined,
+        onFinish: (f) => {
+          finishes.push(f);
+        },
+      },
+      () => xhr,
+    );
+    expect(finishes[0]?.kind).toBe("error");
+    expect(handle.isClosed()).toBe(true);
+  });
+
   test("setup/send throw emits terminal error and cleans idle timer", async () => {
     jest.useFakeTimers();
     try {

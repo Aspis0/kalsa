@@ -375,6 +375,9 @@ export async function streamRemoteAssistantTurn(
         },
       },
     );
+    if (handle.isClosed()) {
+      return;
+    }
     if (!stillMine()) {
       handle.abort();
       resolve();

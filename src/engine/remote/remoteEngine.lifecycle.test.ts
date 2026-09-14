@@ -55,6 +55,7 @@ describe("RemoteEngine lifecycle", () => {
       requestId: "r1",
       abort: () => handlers.onFinish({ kind: "interrupted", finishReason: null }),
       xhr: {},
+      isClosed: () => false,
     }));
     const first = streamRemoteAssistantTurn(
       [{ role: "user", content: "hi" }],
@@ -125,6 +126,7 @@ describe("RemoteEngine lifecycle", () => {
         requestId: `b${bOpened}`,
         abort: () => handlers.onFinish({ kind: "interrupted", finishReason: null }),
         xhr: {},
+        isClosed: () => false,
       };
     });
     const pB = streamRemoteAssistantTurn(
@@ -172,7 +174,7 @@ describe("RemoteEngine lifecycle", () => {
         });
         handlers.onFinish({ kind: "complete", finishReason: "stop" });
       });
-      return { requestId: "throw-delta", abort: jest.fn(), xhr: {} };
+      return { requestId: "throw-delta", abort: jest.fn(), xhr: {}, isClosed: () => false };
     });
     let done = false;
     await streamRemoteAssistantTurn(
@@ -191,5 +193,50 @@ describe("RemoteEngine lifecycle", () => {
     );
     expect(done).toBe(true);
     expect(remoteNativeWorkInFlight()).toBe(false);
+  });
+
+  test("sync setup failure does not publish a closed handle as activeStream", async () => {
+    const { setRemoteServerModelId } = await import("./remoteSettings");
+    await setRemoteServerModelId("ornith");
+    await initRemoteEngine("", "kalsa-remote-mac", { locale: "en" });
+    const { streamOpenAiChat } = jest.requireMock("./openaiTransport") as {
+      streamOpenAiChat: jest.Mock;
+    };
+    let abortCount = 0;
+    streamOpenAiChat.mockImplementation((
+      _req: unknown,
+      handlers: { onFinish: (f: { kind: string; finishReason: null; error: Error }) => void },
+    ) => {
+      handlers.onFinish({
+        kind: "error",
+        finishReason: null,
+        error: new Error("open_boom"),
+      });
+      return {
+        requestId: "closed",
+        abort: () => {
+          abortCount += 1;
+        },
+        xhr: {},
+        isClosed: () => true,
+      };
+    });
+    const errors: string[] = [];
+    await streamRemoteAssistantTurn(
+      [{ role: "user", content: "x" }],
+      {
+        onDelta: () => undefined,
+        onDone: () => undefined,
+        onError: (e) => {
+          errors.push(e.message);
+        },
+      },
+      undefined,
+      { locale: "en" },
+    );
+    expect(errors).toContain("open_boom");
+    expect(remoteNativeWorkInFlight()).toBe(false);
+    await disposeRemoteEngine();
+    expect(abortCount).toBe(0);
   });
 });
