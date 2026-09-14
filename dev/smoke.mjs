@@ -148,6 +148,19 @@ function collectVisible(el, match, out = []) {
   return out;
 }
 
+// Every readable line on the visible subtree, in the order the user reads
+// it — headlines, sentences, notes, progress, control labels. If it is on
+// screen it is in here; nothing the user can read goes unreviewed.
+function visibleLines(el, out = []) {
+  if (el.hidden) return out;
+  if (el._text !== null) {
+    if (el._text.trim() !== "") out.push({ tag: el.tag, text: el._text.trim() });
+    return out;
+  }
+  for (const child of el.children) visibleLines(child, out);
+  return out;
+}
+
 const results = [];
 for (const card of root.children) {
   const heading = card.children[0].textContent;
@@ -157,8 +170,10 @@ for (const card of root.children) {
   const sentenceEl = findVisible(panel, (el) => el.attrs["data-el"] === "sentence");
   const qrEl = findVisible(panel, (el) => el.attrs["data-el"] === "qr");
   const freshEl = findVisible(panel, (el) => el.attrs["data-el"] === "fresh");
+  const lines = visibleLines(panel);
   results.push({
     heading,
+    lines,
     sentence: sentenceEl ? sentenceEl.textContent : visibleText(panel),
     all: visibleText(panel),
     button: button ? { text: button.textContent, disabled: button.disabled } : null,
@@ -172,9 +187,13 @@ for (const card of root.children) {
   });
 }
 
-for (const { heading, sentence, button, progress, working } of results) {
+// The dump shows every visible line, in reading order — a sentence the dump
+// omits is a sentence nobody reviews.
+for (const { heading, lines, button, progress, working } of results) {
   console.log(`## ${heading}`);
-  console.log(`   ${sentence}`);
+  for (const line of lines) {
+    if (line.tag !== "button") console.log(`   · ${line.text}`);
+  }
   if (working) {
     console.log(`   [working] ${progress}`);
   } else if (button) {
@@ -188,7 +207,12 @@ for (const { heading, sentence, button, progress, working } of results) {
 // ---- lint ----
 
 const problems = [];
-const ALL_TEXT = results.map((r) => `${r.sentence} ${r.button?.text ?? ""}`).join("\n");
+// The blanket bans run over everything the user can read — every visible
+// line, control labels included — so no sentence can carry a banned word
+// that the one element named "sentence" does not.
+const ALL_TEXT = results
+  .flatMap((r) => r.lines.map((line) => line.text))
+  .join("\n");
 
 for (const word of ["port", "token", "url", "file", "error", "state", "gguf", "quant", "credential", "handshake", "secret"]) {
   const re = new RegExp(`\\b${word}\\w*`, "i");
