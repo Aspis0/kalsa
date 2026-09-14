@@ -7,11 +7,23 @@ use std::io::{BufRead, BufReader, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
-/// What the origin does with a `Range` header. `Ignore` models the CDN that
-/// answers 200 to a resume: the whole file is coming whether we asked or not.
+/// How far the skipped start of a lying 206 is past the prefix we asked for.
+const LIE_SKIP: u64 = 64 * 1024;
+/// How many bytes past the promised end the overrun body keeps going.
+const OVERRUN: usize = 64 * 1024;
+
+/// The ways the fixture can behave. The misbehaving modes exist because the
+/// failures that matter only show up when the server lies.
 pub enum RangeMode {
+    /// 206 and the requested suffix: a well-behaved origin.
     Honor,
+    /// 200 and the whole file: the CDN that ignores Range.
     Ignore,
+    /// 206, but the Content-Range names an offset past the one we asked for:
+    /// the body is not a continuation of our prefix.
+    Lie,
+    /// No length at all, and more bytes than the caller was promised.
+    Overrun,
 }
 
 pub struct Server {
@@ -27,10 +39,9 @@ pub fn serve(content: Vec<u8>, mode: RangeMode) -> Server {
     let requests = Arc::new(Mutex::new(Vec::new()));
     let content = Arc::new(content);
     let seen = Arc::clone(&requests);
-    let honor = matches!(mode, RangeMode::Honor);
     std::thread::spawn(move || {
         for stream in listener.incoming().flatten() {
-            let _ = answer(stream, &content, honor, &seen);
+            let _ = answer(stream, &content, &mode, &seen);
         }
     });
     Server {
@@ -43,12 +54,39 @@ pub fn serve(content: Vec<u8>, mode: RangeMode) -> Server {
 fn answer(
     mut stream: TcpStream,
     content: &[u8],
-    honor: bool,
+    mode: &RangeMode,
     seen: &Mutex<Vec<Option<u64>>>,
 ) -> std::io::Result<()> {
+    if matches!(mode, RangeMode::Overrun) {
+        // No Content-Length: the body ends when the connection does — late.
+        let head = "HTTP/1.1 200 OK\r\nConnection: close\r\n\r\n";
+        stream.write_all(head.as_bytes())?;
+        stream.write_all(content)?;
+        return stream.write_all(&content[..OVERRUN]);
+    }
     let range = read_range(&mut stream, seen)?;
     let len = content.len() as u64;
-    match range.filter(|_| honor) {
+    match range.filter(|_| matches!(mode, RangeMode::Honor | RangeMode::Lie)) {
+        None => {
+            let head = format!(
+                "HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n"
+            );
+            stream.write_all(head.as_bytes())?;
+            stream.write_all(content)
+        }
+        Some(start) if matches!(mode, RangeMode::Lie) => {
+            // A 206 whose Content-Range does not start where we asked.
+            let skipped = (start + LIE_SKIP).min(len);
+            let head = format!(
+                "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
+                 Content-Range: bytes {skipped}-{}/{}\r\nConnection: close\r\n\r\n",
+                len - skipped,
+                len - 1,
+                len,
+            );
+            stream.write_all(head.as_bytes())?;
+            stream.write_all(&content[skipped as usize..])
+        }
         Some(start) => {
             let head = format!(
                 "HTTP/1.1 206 Partial Content\r\nContent-Length: {}\r\n\
@@ -59,13 +97,6 @@ fn answer(
             );
             stream.write_all(head.as_bytes())?;
             stream.write_all(&content[start as usize..])
-        }
-        None => {
-            let head = format!(
-                "HTTP/1.1 200 OK\r\nContent-Length: {len}\r\nConnection: close\r\n\r\n"
-            );
-            stream.write_all(head.as_bytes())?;
-            stream.write_all(content)
         }
     }
 }

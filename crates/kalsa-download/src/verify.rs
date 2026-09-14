@@ -1,30 +1,24 @@
 //! The gate between "bytes arrived" and "this is the model".
 //!
-//! Nothing reaches its final name before its size and, when given, its sha256
-//! match — and a mismatch deletes the part file rather than keeping a failure
-//! around to fail again. This is what lets the rest of the app trust "the
-//! model is on disk" without re-checking.
+//! Nothing reaches its final name before its size and its sha256 match — and
+//! a mismatch deletes the part file rather than keeping a failure around to
+//! fail again. This is what lets the rest of the app trust "the model is on
+//! disk" without re-checking: the file was fed to a server that aborts on a
+//! malformed GGUF, so by then it is far too late to be wrong.
 
-use std::io::Read;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;
 
 use sha2::{Digest, Sha256};
 
+use crate::part::PartFile;
 use crate::DownloadError;
 
-/// Length of `path`, or None when it does not exist.
-pub fn file_len(path: &Path) -> std::io::Result<Option<u64>> {
-    match std::fs::metadata(path) {
-        Ok(meta) => Ok(Some(meta.len())),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(e),
-    }
-}
-
-/// Lowercase hex sha256 of a file's contents, streamed: the file can be many
-/// gigabytes and must never be held in memory.
-pub fn sha256_hex(path: &Path) -> std::io::Result<String> {
-    let mut file = std::fs::File::open(path)?;
+/// Lowercase hex sha256 of a handle's contents from the start, streamed: the
+/// file can be many gigabytes and must never be held in memory.
+pub fn sha256_hex(file: &mut File) -> std::io::Result<String> {
+    file.seek(SeekFrom::Start(0))?;
     let mut hasher = Sha256::new();
     let mut buf = [0u8; 64 * 1024];
     loop {
@@ -49,35 +43,37 @@ pub fn to_hex(bytes: &[u8]) -> String {
 
 /// Checks the part file against what was promised, deletes it on any mismatch,
 /// and only then renames it onto `dest`: a corrupt file never becomes "the
-/// model", and a good one appears under its final name in one step.
+/// model", and a good one appears under its final name in one step. Length
+/// and digest are read from the handle we have held since before the first
+/// byte arrived, so no writer can slip between the check and the rename.
 pub fn publish(
-    part: &Path,
+    mut part: PartFile,
     dest: &Path,
     expected_size: u64,
-    expected_sha256: Option<&str>,
+    expected_sha256: &str,
 ) -> Result<(), DownloadError> {
-    let actual = file_len(part)?.unwrap_or(0);
+    let actual = part.len()?;
     if actual != expected_size {
-        let _ = std::fs::remove_file(part);
+        part.discard();
         return Err(DownloadError::SizeMismatch {
             expected: expected_size,
             actual,
         });
     }
-    if let Some(expected) = expected_sha256 {
-        let actual = sha256_hex(part)?;
-        if !actual.eq_ignore_ascii_case(expected) {
-            let _ = std::fs::remove_file(part);
-            return Err(DownloadError::DigestMismatch {
-                expected: expected.to_string(),
-                actual,
-            });
-        }
+    let actual = sha256_hex(part.handle())?;
+    if !actual.eq_ignore_ascii_case(expected_sha256) {
+        part.discard();
+        return Err(DownloadError::DigestMismatch {
+            expected: expected_sha256.to_string(),
+            actual,
+        });
     }
     // The bytes proved right; make sure they reached the platter before the
     // rename lets anything start reading them under the final name.
-    std::fs::File::open(part)?.sync_all()?;
-    std::fs::rename(part, dest)?;
+    part.handle().sync_all()?;
+    let renamed = std::fs::rename(part.path(), dest);
+    drop(part); // the lock dies here, after the file has changed its name
+    renamed?;
     Ok(())
 }
 
@@ -107,18 +103,11 @@ mod tests {
         let dir = scratch("verify-sha");
         let path = dir.join("any.gguf");
         fs::write(&path, b"kalsa").expect("write");
+        let mut file = File::open(&path).expect("open");
         assert_eq!(
-            sha256_hex(&path).expect("hash"),
+            sha256_hex(&mut file).expect("hash"),
             to_hex(&Sha256::digest(b"kalsa"))
         );
         let _ = fs::remove_dir_all(&dir);
-    }
-
-    #[test]
-    fn a_missing_file_has_no_length() {
-        assert_eq!(
-            file_len(Path::new("/kalsa-download-no-such-file.gguf")).expect("stat"),
-            None
-        );
     }
 }

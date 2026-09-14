@@ -4,21 +4,24 @@
 //! with some gigabytes free but not gigabytes to spare. The rules follow from
 //! that:
 //!
-//! * bytes land in a `.part` file next to the destination and every restart
-//!   asks the server to skip what survived, so an hour of downloading is
-//!   never paid for twice;
-//! * the `.part` file is renamed onto its final name only after its size and,
-//!   when given, its sha256 check out — a half-finished file can never be
-//!   mistaken for the model, and a corrupt one leaves nothing behind;
-//! * free space is checked before the first byte moves: a full disk is a way
-//!   to break a machine, not just a failed download.
+//! * bytes land in a `.part` file next to the destination — created so that
+//!   nothing planted at that path can redirect the write, and locked so two
+//!   downloads cannot interleave — and every restart asks the server to skip
+//!   what survived, so an hour of downloading is never paid for twice;
+//! * the `.part` file is renamed onto its final name only after its size and
+//!   its sha256 check out — always, not when convenient — so a half-finished
+//!   or spliced file can never be mistaken for the model;
+//! * free space is checked before the first byte moves and the transfer
+//!   itself is bounded at the promised size: a full disk is a way to break a
+//!   machine, not just a failed download.
 //!
 //! Nothing here decides WHICH model to fetch. Call [`find_local`] first — a
-//! verified copy in another program's cache beats any resume.
+//! digest-verified copy in another program's cache beats any resume.
 
 mod disk;
 mod download;
 mod fetch;
+mod part;
 mod reuse;
 mod verify;
 
@@ -40,11 +43,12 @@ pub struct Progress {
 
 /// Why the download did not become the model. After `SizeMismatch` or
 /// `DigestMismatch` the `.part` file is gone: keeping it would only fail
-/// verification again. After `Io` it is still there — a dropped connection is
-/// resumable, which is the whole point.
+/// verification again. After `Io` or `DiskFull` it is still there — a dropped
+/// connection or a full disk is resumable, which is the whole point.
 #[derive(Debug)]
 pub enum DownloadError {
     Io(io::Error),
+    DiskFull,
     NotEnoughSpace { free: u64, needed: u64 },
     SizeMismatch { expected: u64, actual: u64 },
     DigestMismatch { expected: String, actual: String },
@@ -60,6 +64,7 @@ impl std::fmt::Display for DownloadError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Io(e) => write!(f, "download failed: {e}"),
+            Self::DiskFull => write!(f, "the disk filled up during the download"),
             Self::NotEnoughSpace { free, needed } => {
                 write!(f, "not enough disk space: {free} bytes free, {needed} needed")
             }
